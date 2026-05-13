@@ -19,8 +19,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _email = TextEditingController();
-  final _password = TextEditingController();
+  final _email = TextEditingController(text: 'user@sejourfr.fr');
+  final _password = TextEditingController(text: 'User123!');
   bool _obscure = true;
   bool _submitting = false;
   String? _error;
