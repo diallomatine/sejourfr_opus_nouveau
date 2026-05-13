@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { questionsApi } from "../../api/questionsApi";
 import { themesApi } from "../../api/themesApi";
@@ -68,6 +68,7 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     defaultValues: {
@@ -82,6 +83,13 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "choices" });
+  const watchedChoices = useWatch({ control, name: "choices" }) ?? [];
+
+  const markCorrect = (idx: number) => {
+    fields.forEach((_, i) => {
+      setValue(`choices.${i}.correct`, i === idx, { shouldDirty: true });
+    });
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -156,8 +164,8 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
   const onSubmit = (values: FormValues) => {
     setGlobalError(null);
     const correctCount = values.choices.filter((c) => c.correct).length;
-    if (correctCount < 1) {
-      setGlobalError("Au moins un choix doit etre marque comme correct.");
+    if (correctCount !== 1) {
+      setGlobalError("Vous devez désigner exactement un choix correct.");
       return;
     }
     mutation.mutate(values);
@@ -243,24 +251,22 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
           />
         </FormRow>
 
-        <FormRow label="Choix de réponse" error={undefined}>
+        <FormRow
+          label="Choix de réponse (un seul correct)"
+          error={errors.choices?.find?.((c) => c?.label)?.label?.message}
+        >
           <div className={styles.choices}>
             {fields.map((field, idx) => (
               <div key={field.id} className={styles.choiceRow}>
-                <Controller
-                  control={control}
-                  name={`choices.${idx}.correct`}
-                  render={({ field: f }) => (
-                    <label className={styles.choiceCheck}>
-                      <input
-                        type="checkbox"
-                        checked={f.value}
-                        onChange={(e) => f.onChange(e.target.checked)}
-                      />
-                      <span className={styles.checkLabel}>Correct</span>
-                    </label>
-                  )}
-                />
+                <label className={styles.choiceCheck}>
+                  <input
+                    type="radio"
+                    name="correctChoice"
+                    checked={Boolean(watchedChoices[idx]?.correct)}
+                    onChange={() => markCorrect(idx)}
+                  />
+                  <span className={styles.checkLabel}>Correct</span>
+                </label>
                 <Input
                   placeholder={`Choix ${idx + 1}`}
                   {...register(`choices.${idx}.label` as const, {
@@ -293,8 +299,16 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
           </div>
         </FormRow>
 
-        <FormRow label="Explication (visible après réponse)" htmlFor="explanation">
-          <Textarea id="explanation" rows={2} {...register("explanation")} />
+        <FormRow
+          label="Explication (visible après réponse)"
+          htmlFor="explanation"
+          error={errors.explanation?.message}
+        >
+          <Textarea
+            id="explanation"
+            rows={2}
+            {...register("explanation", { required: "L'explication est requise" })}
+          />
         </FormRow>
 
         {globalError && <div className={styles.globalError}>{globalError}</div>}

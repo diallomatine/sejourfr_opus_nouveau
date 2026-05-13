@@ -3,14 +3,15 @@ import type { Difficulty, Module, QuestionType } from "../../types/api";
 export const CIVIQUE_LEVELS: Difficulty[] = ["CSP", "CR", "NAT"];
 export const TCF_LEVELS: Difficulty[] = ["A2", "B1", "B2"];
 
+const CIVIQUE_TYPES: QuestionType[] = ["CONNAISSANCE", "MISE_SITUATION"];
+const TCF_TYPES: QuestionType[] = ["CO", "CE", "STRUCTURE"];
+
 export function levelsForModule(module: Module): Difficulty[] {
   return module === "CIVIQUE" ? CIVIQUE_LEVELS : TCF_LEVELS;
 }
 
 export function typesForModule(module: Module): QuestionType[] {
-  return module === "CIVIQUE"
-    ? ["CONNAISSANCE", "MISE_SITUATION"]
-    : ["CO", "CE", "STRUCTURE"];
+  return module === "CIVIQUE" ? CIVIQUE_TYPES : TCF_TYPES;
 }
 
 export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
