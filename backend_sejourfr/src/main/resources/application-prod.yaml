@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 15
+      minimum-idle: 3
+  jpa:
+    properties:
+      hibernate:
+        show_sql: false
+  flyway:
+    # En prod : uniquement le schema commun, jamais le seed dev
+    locations: classpath:db/migration
+
+logging:
+  level:
+    root: INFO
+    com.sejourfr: INFO
+
+server:
+  forward-headers-strategy: framework
+
+sejourfr:
+  cors:
+    allowed-origins: ${CORS_ORIGINS}
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      access-token-ttl-minutes: ${JWT_ACCESS_TTL_MIN:60}
+      refresh-token-ttl-days: ${JWT_REFRESH_TTL_DAYS:30}
+  storage:
+    local:
+      root: ${STORAGE_LOCAL_ROOT:/var/sejourfr/uploads}
+      public-base-url: ${STORAGE_PUBLIC_BASE_URL}

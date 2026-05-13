@@ -1,0 +1,55 @@
+spring:
+  application:
+    name: sejourfr-backend
+  profiles:
+    active: dev
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate   # Flyway gere le schema, JPA valide juste
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 25MB
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+  #error:
+  #  include-message: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+sejourfr:
+  cors:
+    allowed-origins: http://localhost:4200
+  security:
+    jwt:
+      issuer: sejourfr-backend
+      access-token-ttl-minutes: 60
+      refresh-token-ttl-days: 30
+  storage:
+    # Implementation par defaut : disque local
+    provider: local
+    local:
+      root: ./var/uploads
+      public-base-url: http://localhost:8080/files
+    max-file-size-bytes: 26214400
+    allowed-image-types: image/png,image/jpeg,image/webp
+    allowed-audio-types: audio/mpeg,audio/mp3,audio/ogg,audio/wav

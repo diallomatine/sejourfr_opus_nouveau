@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/sejourfr_nouveau
+    username: diallomatine
+    password:
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    properties:
+      hibernate:
+        show_sql: true
+  flyway:
+    # En dev : on charge le schema commun puis le seed dev
+    locations: classpath:db/migration,classpath:db/migration-dev
+
+logging:
+  level:
+    com.sejourfr: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.springframework.security: DEBUG
+
+sejourfr:
+  cors:
+    allowed-origins: http://localhost:4200,http://localhost:3000
+  security:
+    jwt:
+      # Cle de signature (HS256) en BASE64. >= 32 octets.
+      # En dev seulement. Pour la prod on lit ${JWT_SECRET}.
+      secret: ZGV2LXNlY3JldC1ub24tcHJvZHVjdGlvbi1jbGUtc2lnbmF0dXJlLWp3dC1zZWpvdXJmci1tcXNkbWZkc2Y=
+  storage:
+    local:
+      root: /Users/diallomatine/Desktop/Nouveu_Projets/sejour_storage
+      public-base-url: http://localhost:8080/files
