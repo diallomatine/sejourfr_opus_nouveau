@@ -7,7 +7,7 @@ spring:
   jpa:
     properties:
       hibernate:
-        show_sql: true
+        show_sql: false
   flyway:
     # En dev : on charge le schema commun puis le seed dev
     locations: classpath:db/migration,classpath:db/migration-dev
@@ -15,7 +15,7 @@ spring:
 logging:
   level:
     com.sejourfr: DEBUG
-    org.hibernate.SQL: DEBUG
+    org.hibernate.SQL: OFF
     org.springframework.security: DEBUG
 
 sejourfr:

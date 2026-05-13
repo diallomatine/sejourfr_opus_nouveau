@@ -1,0 +1,62 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(30, 58, 143, 0.35);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 60px 20px;
+  z-index: 100;
+  overflow-y: auto;
+}
+
+.modal {
+  background: var(--paper);
+  border: 1px solid var(--blue);
+  border-top: 4px solid var(--red);
+  border-radius: 8px;
+  width: 100%;
+  max-width: 640px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.modal.lg {
+  max-width: 880px;
+}
+
+.header {
+  padding: 22px 28px 16px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.eyebrow {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--red);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.title {
+  font-family: "Fraunces", serif;
+  font-size: 24px;
+  font-weight: 500;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.body {
+  padding: 22px 28px;
+}
+
+.footer {
+  padding: 16px 28px 22px;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: var(--paper-2);
+  border-radius: 0 0 8px 8px;
+}

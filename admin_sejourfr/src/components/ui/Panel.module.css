@@ -1,0 +1,54 @@
+.panel {
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 22px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+}
+
+.title {
+  font-family: "Fraunces", serif;
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.sub {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.body {
+  padding: 0;
+}
+
+.empty {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.emptyTitle {
+  font-family: "Fraunces", serif;
+  font-size: 16px;
+  color: var(--muted);
+  font-style: italic;
+  margin-bottom: 4px;
+}
+
+.emptyDesc {
+  font-size: 13px;
+  color: var(--muted-2);
+}

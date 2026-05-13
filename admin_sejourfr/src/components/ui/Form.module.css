@@ -1,0 +1,50 @@
+.row {
+  margin-bottom: 16px;
+}
+
+.row.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.label {
+  display: block;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.input,
+.textarea {
+  width: 100%;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 70px;
+}
+
+.input:focus,
+.textarea:focus {
+  border-color: var(--blue);
+}
+
+.error {
+  color: var(--red);
+  font-size: 11px;
+  margin-top: 4px;
+  font-family: "JetBrains Mono", monospace;
+}

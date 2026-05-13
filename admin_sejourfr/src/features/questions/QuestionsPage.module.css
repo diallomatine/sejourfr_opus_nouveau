@@ -1,0 +1,102 @@
+.filters {
+  display: flex;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filterLabel {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.filter select {
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  padding: 7px 10px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.filter select:focus {
+  border-color: var(--blue);
+}
+
+.searchBox {
+  margin-left: auto;
+  position: relative;
+}
+
+.searchBox input {
+  padding: 7px 10px 7px 28px;
+  width: 240px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 4px;
+  outline: none;
+  font-size: 13px;
+}
+
+.searchBox input:focus {
+  border-color: var(--blue);
+}
+
+.searchBox::before {
+  content: "⌕";
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.center {
+  padding: 40px 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.error {
+  padding: 24px;
+  color: var(--red);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--rule);
+  background: var(--paper);
+}
+
+.pageInfo {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.05em;
+}
+
+.pageActions {
+  display: flex;
+  gap: 8px;
+}

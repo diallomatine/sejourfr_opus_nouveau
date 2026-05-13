@@ -1,0 +1,77 @@
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--paper);
+}
+
+.table th {
+  text-align: left;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-2);
+  font-weight: 500;
+}
+
+.table td {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--rule-2);
+  vertical-align: top;
+}
+
+.table tbody tr:hover td {
+  background: rgba(30, 58, 143, 0.025);
+  cursor: default;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.statement {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink);
+  max-width: 480px;
+}
+
+.statementMeta {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 4px;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.rowActions {
+  display: flex;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.iconBtn {
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: "Inter", sans-serif;
+  transition: all 0.15s;
+}
+
+.iconBtn:hover {
+  background: var(--paper-2);
+  color: var(--ink);
+  border-color: var(--rule);
+}
+
+.iconBtn.danger:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
