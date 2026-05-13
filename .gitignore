@@ -1,0 +1,79 @@
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# IDEs
+# =========================
+
+# IntelliJ / JetBrains
+.idea/
+*.iml
+out/
+
+# VS Code
+.vscode/
+
+# =========================
+# Node.js / React / Next.js
+# =========================
+node_modules/
+dist/
+build/
+.next/
+coverage/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# =========================
+# Flutter / Dart
+# =========================
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub/
+build/
+
+# Flutter generated
+ios/Flutter/Flutter.podspec
+ios/Pods/
+android/.gradle/
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# =========================
+# Java / Spring Boot / Maven / Gradle
+# =========================
+
+# Maven
+target/
+
+# Gradle
+.gradle/
+build/
+
+# Java compiled
+*.class
+
+# Logs
+*.log
+
+# =========================
+# Misc
+# =========================
+tmp/
+temp/
+.cache/
