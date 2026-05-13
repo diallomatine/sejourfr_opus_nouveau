@@ -3,11 +3,7 @@ package com.sejourfr.app.service;
 import com.sejourfr.app.dto.ChoiceWriteRequest;
 import com.sejourfr.app.dto.QuestionDto;
 import com.sejourfr.app.dto.QuestionWriteRequest;
-import com.sejourfr.app.entity.Choice;
-import com.sejourfr.app.entity.Media;
-import com.sejourfr.app.entity.Passage;
-import com.sejourfr.app.entity.Question;
-import com.sejourfr.app.entity.Theme;
+import com.sejourfr.app.entity.*;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
@@ -24,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.UUID;
 
 @Service

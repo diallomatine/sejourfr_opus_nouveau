@@ -2,6 +2,8 @@ package com.sejourfr.app.entity;
 
 import com.sejourfr.app.enums.AttemptMode;
 import com.sejourfr.app.enums.AttemptStatus;
+import com.sejourfr.app.enums.AttemptType;
+import com.sejourfr.app.enums.Module;
 import org.hibernate.annotations.UuidGenerator;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -28,12 +30,29 @@ public class Attempt {
     private ExamTemplate examTemplate;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "type", length = 16)
+    private AttemptType type;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "module", length = 16)
+    private Module module;
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private AttemptMode mode;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private AttemptStatus status;
+
+    @Column(name = "total_questions")
+    private Integer totalQuestions;
+
+    @Column(name = "time_limit_seconds")
+    private Integer timeLimitSeconds;
+
+    @Column(name = "pass_threshold")
+    private Integer passThreshold;
 
     @Column
     private Integer score;
@@ -50,6 +69,18 @@ public class Attempt {
     @PrePersist
     void prePersist() {
         if (startedAt == null) startedAt = Instant.now();
+        // mode / status sont NOT NULL en base : on dérive du type si rien n'a été posé.
+        if (mode == null) mode = deriveModeFromType(type);
+        if (status == null) status = AttemptStatus.EN_COURS;
+    }
+
+    private static AttemptMode deriveModeFromType(AttemptType t) {
+        if (t == null) return AttemptMode.ENTRAINEMENT;
+        return switch (t) {
+            case TRAINING -> AttemptMode.ENTRAINEMENT;
+            case MOCK_EXAM -> AttemptMode.EXAMEN;
+            case REVIEW -> AttemptMode.REVISION;
+        };
     }
 
     public UUID getId() { return id; }
@@ -61,11 +92,26 @@ public class Attempt {
     public ExamTemplate getExamTemplate() { return examTemplate; }
     public void setExamTemplate(ExamTemplate examTemplate) { this.examTemplate = examTemplate; }
 
+    public AttemptType getType() { return type; }
+    public void setType(AttemptType type) { this.type = type; }
+
+    public Module getModule() { return module; }
+    public void setModule(Module module) { this.module = module; }
+
     public AttemptMode getMode() { return mode; }
     public void setMode(AttemptMode mode) { this.mode = mode; }
 
     public AttemptStatus getStatus() { return status; }
     public void setStatus(AttemptStatus status) { this.status = status; }
+
+    public Integer getTotalQuestions() { return totalQuestions; }
+    public void setTotalQuestions(Integer totalQuestions) { this.totalQuestions = totalQuestions; }
+
+    public Integer getTimeLimitSeconds() { return timeLimitSeconds; }
+    public void setTimeLimitSeconds(Integer timeLimitSeconds) { this.timeLimitSeconds = timeLimitSeconds; }
+
+    public Integer getPassThreshold() { return passThreshold; }
+    public void setPassThreshold(Integer passThreshold) { this.passThreshold = passThreshold; }
 
     public Integer getScore() { return score; }
     public void setScore(Integer score) { this.score = score; }

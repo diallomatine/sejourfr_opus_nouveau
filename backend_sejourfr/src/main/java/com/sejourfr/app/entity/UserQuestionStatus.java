@@ -36,6 +36,9 @@ public class UserQuestionStatus {
     @Column(name = "last_seen_at")
     private Instant lastSeenAt;
 
+    @Column(name = "updated_at")
+    private Instant updatedAt;
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
@@ -56,4 +59,7 @@ public class UserQuestionStatus {
 
     public Instant getLastSeenAt() { return lastSeenAt; }
     public void setLastSeenAt(Instant lastSeenAt) { this.lastSeenAt = lastSeenAt; }
+
+    public Instant getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
 }

@@ -11,6 +11,18 @@ spring:
     properties:
       hibernate:
         show_sql: false
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
   flyway:
     # En prod : uniquement le schema commun, jamais le seed dev
     locations: classpath:db/migration
@@ -35,3 +47,8 @@ sejourfr:
     local:
       root: ${STORAGE_LOCAL_ROOT:/var/sejourfr/uploads}
       public-base-url: ${STORAGE_PUBLIC_BASE_URL}
+  mail:
+    from: ${MAIL_FROM:no-reply@sejourfr.fr}
+  app:
+    base-url: ${APP_BASE_URL:https://app.sejourfr.fr}
+

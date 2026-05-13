@@ -8,6 +8,21 @@ spring:
     properties:
       hibernate:
         show_sql: false
+  mail:
+    # MailHog : serveur SMTP local sans auth, parfait pour le dev.
+    # Installer avec brew (mac) : brew install mailhog && mailhog
+    # Ou via docker  : docker run -p 1025:1025 -p 8025:8025 mailhog/mailhog
+    # Puis ouvrir http://localhost:8025 pour voir les emails envoyés.
+    host: localhost
+    port: 1025
+    username:
+    password:
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
   flyway:
     # En dev : on charge le schema commun puis le seed dev
     locations: classpath:db/migration,classpath:db/migration-dev
@@ -30,3 +45,10 @@ sejourfr:
     local:
       root: /Users/diallomatine/Desktop/Nouveu_Projets/sejour_storage
       public-base-url: http://localhost:8080/files
+  mail:
+    from: "no-reply@sejourfr.fr"
+  app:
+    # Utilisée pour générer le lien de reset password
+    # En dev, on peut pointer sur l'admin web local
+    base-url: "http://localhost:3000"
+

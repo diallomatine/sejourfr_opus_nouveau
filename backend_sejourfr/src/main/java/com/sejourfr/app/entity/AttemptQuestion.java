@@ -32,6 +32,9 @@ public class AttemptQuestion {
     @Column(name = "time_spent_sec")
     private Integer timeSpentSec;
 
+    @OneToOne(mappedBy = "attemptQuestion", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private Answer answer;
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
@@ -49,4 +52,7 @@ public class AttemptQuestion {
 
     public Integer getTimeSpentSec() { return timeSpentSec; }
     public void setTimeSpentSec(Integer timeSpentSec) { this.timeSpentSec = timeSpentSec; }
+
+    public Answer getAnswer() { return answer; }
+    public void setAnswer(Answer answer) { this.answer = answer; }
 }

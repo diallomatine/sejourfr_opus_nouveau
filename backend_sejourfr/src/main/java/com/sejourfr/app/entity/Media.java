@@ -42,6 +42,9 @@ public class Media {
     @Column(name = "alt_text", length = 500)
     private String altText;
 
+    @Column(name = "transcript", columnDefinition = "text")
+    private String transcript;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -74,8 +77,15 @@ public class Media {
     public Integer getDurationSec() { return durationSec; }
     public void setDurationSec(Integer durationSec) { this.durationSec = durationSec; }
 
+    /** Alias pour compatibilité avec le runner/DTO MediaResponse. */
+    public Integer getDurationSeconds() { return durationSec; }
+    public void setDurationSeconds(Integer durationSeconds) { this.durationSec = durationSeconds; }
+
     public String getAltText() { return altText; }
     public void setAltText(String altText) { this.altText = altText; }
+
+    public String getTranscript() { return transcript; }
+    public void setTranscript(String transcript) { this.transcript = transcript; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

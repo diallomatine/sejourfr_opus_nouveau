@@ -10,6 +10,7 @@ import com.sejourfr.app.repository.QuestionRepository;
 import com.sejourfr.app.repository.ThemeRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -23,6 +24,11 @@ public class ThemeService {
     public ThemeService(ThemeRepository themeRepository, QuestionRepository questionRepository) {
         this.themeRepository = themeRepository;
         this.questionRepository = questionRepository;
+    }
+
+    public static ThemeDto toDto(Theme t, long count) {
+        return new ThemeDto(t.getId(), t.getModule(), t.getCode(), t.getName(),
+                t.getDescription(), t.getDisplayOrder(), count);
     }
 
     @Transactional(readOnly = true)
@@ -82,10 +88,5 @@ public class ThemeService {
                     "Impossible de supprimer : " + count + " question(s) sont rattachees a cette thematique");
         }
         themeRepository.delete(t);
-    }
-
-    public static ThemeDto toDto(Theme t, long count) {
-        return new ThemeDto(t.getId(), t.getModule(), t.getCode(), t.getName(),
-                t.getDescription(), t.getDisplayOrder(), count);
     }
 }
