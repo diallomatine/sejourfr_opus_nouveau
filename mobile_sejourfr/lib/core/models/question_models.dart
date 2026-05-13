@@ -1,0 +1,173 @@
+import 'enums.dart';
+
+class ThemeDto {
+  ThemeDto({
+    required this.id,
+    required this.module,
+    required this.code,
+    required this.name,
+    required this.description,
+    required this.displayOrder,
+    required this.questionCount,
+  });
+
+  final String id;
+  final AppModule module;
+  final String code;
+  final String name;
+  final String? description;
+  final int displayOrder;
+  final int questionCount;
+
+  factory ThemeDto.fromJson(Map<String, dynamic> json) => ThemeDto(
+        id: json['id'] as String,
+        module: AppModule.fromWire(json['module'] as String),
+        code: json['code'] as String,
+        name: json['name'] as String,
+        description: json['description'] as String?,
+        displayOrder: (json['displayOrder'] as num).toInt(),
+        questionCount: (json['questionCount'] as num? ?? 0).toInt(),
+      );
+}
+
+class MediaDto {
+  MediaDto({
+    required this.id,
+    required this.type,
+    required this.url,
+    this.durationSeconds,
+    this.transcript,
+  });
+
+  final String id;
+  final MediaType type;
+  final String url;
+  final int? durationSeconds;
+  final String? transcript;
+
+  factory MediaDto.fromJson(Map<String, dynamic> json) => MediaDto(
+        id: json['id'] as String,
+        type: MediaType.fromWire(json['type'] as String),
+        url: json['url'] as String,
+        durationSeconds: (json['durationSeconds'] as num?)?.toInt(),
+        transcript: json['transcript'] as String?,
+      );
+}
+
+class ChoiceDto {
+  ChoiceDto({
+    required this.id,
+    required this.label,
+    required this.correct,
+    required this.displayOrder,
+  });
+
+  final String id;
+  final String label;
+  final bool correct;
+  final int displayOrder;
+
+  factory ChoiceDto.fromJson(Map<String, dynamic> json) => ChoiceDto(
+        id: json['id'] as String,
+        label: json['label'] as String,
+        correct: json['correct'] as bool? ?? json['isCorrect'] as bool? ?? false,
+        displayOrder: (json['displayOrder'] as num).toInt(),
+      );
+}
+
+class QuestionDto {
+  QuestionDto({
+    required this.id,
+    required this.module,
+    required this.themeId,
+    required this.themeName,
+    required this.difficulty,
+    required this.questionType,
+    required this.statement,
+    required this.explanation,
+    required this.choices,
+    this.passageText,
+    this.media,
+  });
+
+  final String id;
+  final AppModule module;
+  final String themeId;
+  final String themeName;
+  final Difficulty difficulty;
+  final QuestionType questionType;
+  final String statement;
+  final String? explanation;
+  final List<ChoiceDto> choices;
+  final String? passageText;
+  final MediaDto? media;
+
+  bool get hasMedia => media != null;
+  bool get hasAudio => media?.type == MediaType.audio;
+  bool get hasImage => media?.type == MediaType.image;
+  bool get hasVideo => media?.type == MediaType.video;
+
+  factory QuestionDto.fromJson(Map<String, dynamic> json) => QuestionDto(
+        id: json['id'] as String,
+        module: AppModule.fromWire(json['module'] as String),
+        themeId: json['themeId'] as String,
+        themeName: json['themeName'] as String? ?? '',
+        difficulty: Difficulty.fromWire(json['difficulty'] as String),
+        questionType: QuestionType.fromWire(json['questionType'] as String),
+        statement: json['statement'] as String,
+        explanation: json['explanation'] as String?,
+        passageText: json['passageText'] as String?,
+        media: json['media'] == null
+            ? (json['mediaUrl'] == null
+                ? null
+                : MediaDto(
+                    id: json['mediaId'] as String? ?? '',
+                    type: MediaType.fromWire(
+                      json['mediaType'] as String? ?? 'IMAGE',
+                    ),
+                    url: json['mediaUrl'] as String,
+                  ))
+            : MediaDto.fromJson(json['media'] as Map<String, dynamic>),
+        choices: (json['choices'] as List<dynamic>?)
+                ?.map((c) => ChoiceDto.fromJson(c as Map<String, dynamic>))
+                .toList() ??
+            [],
+      );
+}
+
+/// Page<T> du backend Spring Data.
+class PageResponse<T> {
+  PageResponse({
+    required this.content,
+    required this.page,
+    required this.size,
+    required this.totalElements,
+    required this.totalPages,
+    required this.first,
+    required this.last,
+  });
+
+  final List<T> content;
+  final int page;
+  final int size;
+  final int totalElements;
+  final int totalPages;
+  final bool first;
+  final bool last;
+
+  factory PageResponse.fromJson(
+    Map<String, dynamic> json,
+    T Function(Map<String, dynamic>) parse,
+  ) =>
+      PageResponse<T>(
+        content: (json['content'] as List<dynamic>)
+            .map((e) => parse(e as Map<String, dynamic>))
+            .toList(),
+        page: (json['page'] as num).toInt(),
+        size: (json['size'] as num).toInt(),
+        totalElements: (json['totalElements'] as num).toInt(),
+        totalPages: (json['totalPages'] as num).toInt(),
+        first: json['first'] as bool,
+        last: json['last'] as bool,
+      );
+}
