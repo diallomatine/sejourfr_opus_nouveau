@@ -1,6 +1,6 @@
 package com.sejourfr.app.security;
 
-import com.sejourfr.app.user.User;
+import com.sejourfr.app.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -16,12 +16,11 @@ import java.util.Date;
 @Service
 public class JwtService {
 
+    public static final String TYPE_ACCESS = "access";
+    public static final String TYPE_REFRESH = "refresh";
     private static final String CLAIM_TYPE = "type";
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_EMAIL = "email";
-    public static final String TYPE_ACCESS = "access";
-    public static final String TYPE_REFRESH = "refresh";
-
     private final JwtProperties properties;
     private final SecretKey key;
 
