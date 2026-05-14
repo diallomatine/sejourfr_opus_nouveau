@@ -63,4 +63,6 @@ public interface QuestionRepository
     long countByThemeId(UUID themeId);
 
     long countByThemeIdAndActiveTrue(UUID themeId);
+
+    long countByPassageId(UUID passageId);
 }

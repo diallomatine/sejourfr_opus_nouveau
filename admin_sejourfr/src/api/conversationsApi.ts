@@ -21,7 +21,7 @@ export const conversationsApi = {
   search(params: ConversationsSearchParams = {}) {
     return apiRequest<PageResponse<ConversationSummaryDto>>(
       "/api/admin/conversations",
-      { query: params },
+      { query: { ...params } },
     );
   },
 

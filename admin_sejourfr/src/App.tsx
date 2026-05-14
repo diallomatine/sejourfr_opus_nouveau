@@ -5,6 +5,7 @@ import { AppLayout } from "./components/layout/AppLayout";
 import { ToastProvider } from "./components/ui/Toast";
 import { ConversationsPage } from "./features/conversations/ConversationsPage";
 import { DashboardPage } from "./features/dashboard/DashboardPage";
+import { QuestionDetailPage } from "./features/questions/QuestionDetailPage";
 import { QuestionsPage } from "./features/questions/QuestionsPage";
 import { ThemesPage } from "./features/themes/ThemesPage";
 import { queryClient } from "./lib/queryClient";
@@ -34,6 +35,10 @@ export function App() {
                   element={<Navigate to="/questions/civique" replace />}
                 />
                 <Route path="/questions/:module" element={<QuestionsPage />} />
+                <Route
+                  path="/questions/:module/:id"
+                  element={<QuestionDetailPage />}
+                />
                 <Route path="/themes" element={<ThemesPage />} />
                 <Route path="/conversations" element={<ConversationsPage />} />
               </Route>

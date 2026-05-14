@@ -23,7 +23,7 @@ export interface QuestionsSearchParams {
 export const questionsApi = {
   search(params: QuestionsSearchParams = {}) {
     return apiRequest<PageResponse<QuestionDto>>("/api/admin/questions", {
-      query: params,
+      query: { ...params },
     });
   },
 

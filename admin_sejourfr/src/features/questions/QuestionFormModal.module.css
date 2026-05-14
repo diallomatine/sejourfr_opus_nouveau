@@ -92,6 +92,27 @@
   border-color: var(--blue);
 }
 
+.attachBtn {
+  background: transparent;
+  border: 1px dashed var(--rule);
+  border-radius: 6px;
+  padding: 12px;
+  width: 100%;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.attachBtn:hover {
+  color: var(--blue);
+  border-color: var(--blue);
+  background: rgba(30, 58, 143, 0.04);
+}
+
 .globalError {
   margin-top: 12px;
   padding: 10px 12px;

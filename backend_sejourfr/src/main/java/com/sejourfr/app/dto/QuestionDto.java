@@ -1,7 +1,9 @@
 package com.sejourfr.app.dto;
 
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.MediaType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.PassageType;
 import com.sejourfr.app.enums.QuestionType;
 import java.time.Instant;
 import java.util.List;
@@ -13,8 +15,11 @@ public record QuestionDto(
         UUID themeId,
         String themeName,
         UUID passageId,
+        PassageType passageType,
+        String passagePreview,
         UUID mediaId,
         String mediaUrl,
+        MediaType mediaType,
         Difficulty difficulty,
         QuestionType questionType,
         String statement,

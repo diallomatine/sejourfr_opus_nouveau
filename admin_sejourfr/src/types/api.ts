@@ -27,6 +27,8 @@ export type MessageSender = "USER" | "ADMIN";
 
 export type MediaType = "AUDIO" | "IMAGE" | "VIDEO";
 
+export type PassageType = "TEXTE" | "AUDIO" | "DIALOGUE";
+
 // ---------------------------------------------------------------------------
 // Auth
 // ---------------------------------------------------------------------------
@@ -126,8 +128,11 @@ export interface QuestionDto {
   themeId: string;
   themeName: string;
   passageId: string | null;
+  passageType: PassageType | null;
+  passagePreview: string | null;
   mediaId: string | null;
   mediaUrl: string | null;
+  mediaType: MediaType | null;
   difficulty: Difficulty;
   questionType: QuestionType;
   statement: string;
@@ -136,6 +141,50 @@ export interface QuestionDto {
   createdAt: string;
   updatedAt: string | null;
   choices: ChoiceDto[];
+}
+
+// ---------------------------------------------------------------------------
+// Passages
+// ---------------------------------------------------------------------------
+export interface PassageDto {
+  id: string;
+  type: PassageType;
+  content: string | null;
+  themeId: string | null;
+  themeName: string | null;
+  mediaId: string | null;
+  mediaUrl: string | null;
+  mediaType: MediaType | null;
+  questionCount: number;
+}
+
+export interface PassageWriteRequest {
+  type: PassageType;
+  content?: string | null;
+  themeId: string;
+  mediaId?: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Médias
+// ---------------------------------------------------------------------------
+export interface MediaDto {
+  id: string;
+  type: MediaType;
+  url: string;
+  originalFilename: string | null;
+  contentType: string | null;
+  sizeBytes: number | null;
+  durationSec: number | null;
+  altText: string | null;
+  createdAt: string;
+}
+
+export interface MediaCreateFromUrlRequest {
+  type: MediaType;
+  url: string;
+  durationSec?: number;
+  altText?: string;
 }
 
 export interface QuestionWriteRequest {

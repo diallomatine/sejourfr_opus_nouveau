@@ -9,7 +9,7 @@ import { EmptyState, Panel } from "../../components/ui/Panel";
 import { Spinner } from "../../components/ui/Spinner";
 import { Tag } from "../../components/ui/Tag";
 import { useToast } from "../../components/ui/Toast";
-import type { Module, ThemeDto, ThemeWriteRequest } from "../../types/api";
+import type { ThemeDto, ThemeWriteRequest } from "../../types/api";
 import { useForm } from "react-hook-form";
 import tableStyles from "../../components/ui/DataTable.module.css";
 

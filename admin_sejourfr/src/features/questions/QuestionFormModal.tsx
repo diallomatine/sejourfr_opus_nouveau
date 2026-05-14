@@ -6,11 +6,14 @@ import { themesApi } from "../../api/themesApi";
 import { HttpError } from "../../api/http";
 import { Button } from "../../components/ui/Button";
 import { FormRow, Input, Select, Textarea } from "../../components/ui/Form";
+import { MediaPicker } from "../../components/ui/MediaPicker";
 import { Modal } from "../../components/ui/Modal";
+import { PassagePicker } from "../../components/ui/PassagePicker";
 import { useToast } from "../../components/ui/Toast";
 import type {
   ChoiceWriteRequest,
   Difficulty,
+  MediaType,
   Module,
   QuestionDto,
   QuestionType,
@@ -37,6 +40,8 @@ interface FormValues {
   statement: string;
   explanation: string;
   active: boolean;
+  mediaId: string | null;
+  passageId: string | null;
   choices: ChoiceWriteRequest[];
 }
 
@@ -53,6 +58,16 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const [initialMediaSnapshot, setInitialMediaSnapshot] = useState<{
+    id: string;
+    url: string;
+    type: MediaType;
+  } | null>(null);
+  const [mediaPanelOpen, setMediaPanelOpen] = useState(false);
+  const [passagePanelOpen, setPassagePanelOpen] = useState(false);
+
+  const supportsMedia = module === "TCF";
+  const supportsPassage = module === "TCF";
 
   const themesQuery = useQuery({
     queryKey: ["themes", module],
@@ -78,12 +93,17 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
       statement: "",
       explanation: "",
       active: true,
+      mediaId: null,
+      passageId: null,
       choices: emptyChoices(),
     },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "choices" });
   const watchedChoices = useWatch({ control, name: "choices" }) ?? [];
+  const watchedMediaId = useWatch({ control, name: "mediaId" });
+  const watchedPassageId = useWatch({ control, name: "passageId" });
+  const watchedThemeId = useWatch({ control, name: "themeId" });
 
   const markCorrect = (idx: number) => {
     fields.forEach((_, i) => {
@@ -102,12 +122,26 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
         statement: question.statement,
         explanation: question.explanation ?? "",
         active: question.active,
+        mediaId: question.mediaId,
+        passageId: question.passageId,
         choices: question.choices.map((c) => ({
           label: c.label,
           correct: c.correct,
           displayOrder: c.displayOrder,
         })),
       });
+      if (question.mediaId && question.mediaUrl && question.mediaType) {
+        setInitialMediaSnapshot({
+          id: question.mediaId,
+          url: question.mediaUrl,
+          type: question.mediaType,
+        });
+        setMediaPanelOpen(true);
+      } else {
+        setInitialMediaSnapshot(null);
+        setMediaPanelOpen(false);
+      }
+      setPassagePanelOpen(Boolean(question.passageId));
     } else {
       reset({
         themeId: themesQuery.data?.[0]?.id ?? "",
@@ -116,8 +150,13 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
         statement: "",
         explanation: "",
         active: true,
+        mediaId: null,
+        passageId: null,
         choices: emptyChoices(),
       });
+      setInitialMediaSnapshot(null);
+      setMediaPanelOpen(true);
+      setPassagePanelOpen(false);
     }
   }, [open, question, reset, themesQuery.data, levels, types]);
 
@@ -126,6 +165,8 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
       const payload: QuestionWriteRequest = {
         module,
         themeId: values.themeId,
+        mediaId: values.mediaId ?? undefined,
+        passageId: values.passageId ?? undefined,
         difficulty: values.difficulty,
         questionType: values.questionType,
         statement: values.statement,
@@ -145,7 +186,7 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
       queryClient.invalidateQueries({ queryKey: ["questions"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       toast.show(
-        question ? "Question mise a jour" : "Question creee",
+        question ? "Question mise à jour" : "Question créée",
         "success",
       );
       onClose();
@@ -170,6 +211,9 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
     }
     mutation.mutate(values);
   };
+
+  const snapshotMatches =
+    initialMediaSnapshot && initialMediaSnapshot.id === watchedMediaId;
 
   return (
     <Modal
@@ -238,7 +282,7 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
           <FormRow label="Statut">
             <label className={styles.checkboxLabel}>
               <input type="checkbox" {...register("active")} />
-              <span>Question active (visible cote utilisateur)</span>
+              <span>Question active (visible côté utilisateur)</span>
             </label>
           </FormRow>
         </FormRow>
@@ -250,6 +294,55 @@ export function QuestionFormModal({ open, onClose, module, question }: Props) {
             {...register("statement", { required: "L'énoncé est requis" })}
           />
         </FormRow>
+
+        {supportsPassage && passagePanelOpen && (
+          <FormRow label="Passage rattaché (CE / CO partagé entre plusieurs questions)">
+            <PassagePicker
+              value={watchedPassageId ?? null}
+              themeId={watchedThemeId || null}
+              onChange={(id) =>
+                setValue("passageId", id, { shouldDirty: true })
+              }
+            />
+          </FormRow>
+        )}
+
+        {supportsPassage && !passagePanelOpen && (
+          <FormRow>
+            <button
+              type="button"
+              className={styles.attachBtn}
+              onClick={() => setPassagePanelOpen(true)}
+            >
+              + Rattacher cette question à un passage (CE / CO)
+            </button>
+          </FormRow>
+        )}
+
+        {supportsMedia && mediaPanelOpen && (
+          <FormRow label="Média associé (audio, image ou vidéo)">
+            <MediaPicker
+              value={watchedMediaId ?? null}
+              initialType={snapshotMatches ? initialMediaSnapshot?.type : null}
+              initialUrl={snapshotMatches ? initialMediaSnapshot?.url : null}
+              onChange={(id) =>
+                setValue("mediaId", id, { shouldDirty: true })
+              }
+            />
+          </FormRow>
+        )}
+
+        {supportsMedia && !mediaPanelOpen && (
+          <FormRow>
+            <button
+              type="button"
+              className={styles.attachBtn}
+              onClick={() => setMediaPanelOpen(true)}
+            >
+              + Ajouter un média (audio, image, vidéo)
+            </button>
+          </FormRow>
+        )}
 
         <FormRow
           label="Choix de réponse (un seul correct)"
