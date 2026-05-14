@@ -1,6 +1,7 @@
 package com.sejourfr.app.controller;
 
 import com.sejourfr.app.dto.QuestionPublicResponse;
+import com.sejourfr.app.dto.QuestionReviewResponse;
 import com.sejourfr.app.dto.UserStatsResponse;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.security.CurrentUser;
@@ -63,5 +64,14 @@ public class MeController {
     @GetMapping("/questions/wrong")
     public List<QuestionPublicResponse> wrong(@RequestParam Module module) {
         return service.wrongAnswered(currentUser.getId(), module);
+    }
+
+    // ------------------------------------------------------------------------
+    // Revue détaillée (explication + bonnes réponses)
+    // ------------------------------------------------------------------------
+
+    @GetMapping("/questions/{questionId}/review")
+    public QuestionReviewResponse review(@PathVariable UUID questionId) {
+        return service.review(currentUser.getId(), questionId);
     }
 }

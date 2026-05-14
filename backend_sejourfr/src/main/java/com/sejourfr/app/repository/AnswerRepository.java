@@ -59,4 +59,11 @@ public interface AnswerRepository extends JpaRepository<Answer, UUID> {
           AND a.correct = false
         """)
     List<UUID> findWrongQuestionIds(@Param("userId") UUID userId, @Param("module") Module module);
+
+    @Query("""
+        SELECT COUNT(a) > 0 FROM Answer a
+        WHERE a.attemptQuestion.attempt.user.id = :userId
+          AND a.attemptQuestion.question.id = :questionId
+        """)
+    boolean hasUserAnsweredQuestion(@Param("userId") UUID userId, @Param("questionId") UUID questionId);
 }

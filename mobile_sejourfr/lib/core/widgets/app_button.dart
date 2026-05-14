@@ -70,7 +70,7 @@ class AppButton extends StatelessWidget {
               border: Border.all(color: borderColor, width: 1),
             ),
             alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(horizontal: 18),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
             child: isLoading
                 ? SizedBox(
                     width: 20,
@@ -88,12 +88,17 @@ class AppButton extends StatelessWidget {
                         Icon(icon, size: 18, color: foreground),
                         const SizedBox(width: 8),
                       ],
-                      Text(
-                        label,
-                        style: AppFonts.jakarta(
-                          size: 15,
-                          weight: FontWeight.w700,
-                          color: foreground,
+                      Flexible(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          softWrap: false,
+                          style: AppFonts.jakarta(
+                            size: 15,
+                            weight: FontWeight.w700,
+                            color: foreground,
+                          ),
                         ),
                       ),
                     ],

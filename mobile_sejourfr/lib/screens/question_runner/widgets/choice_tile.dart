@@ -17,6 +17,7 @@ class ChoiceTile extends StatelessWidget {
     required this.selected,
     required this.showCorrection,
     required this.onTap,
+    this.isCorrect,
   });
 
   final ChoiceDto choice;
@@ -24,6 +25,12 @@ class ChoiceTile extends StatelessWidget {
   final bool selected;
   final bool showCorrection;
   final VoidCallback? onTap;
+
+  /// Vraie source de vérité quand le backend ne renvoie pas `correct` sur la
+  /// question elle-même (cas standard pendant un attempt) : fournie par le
+  /// parent à partir de `AnswerResult.correctChoiceIds`. Si non fournie, on
+  /// retombe sur `choice.correct`.
+  final bool? isCorrect;
 
   @override
   Widget build(BuildContext context) {
@@ -34,8 +41,10 @@ class ChoiceTile extends StatelessWidget {
     Color letterColor = AppColors.muted;
     Widget? trailing;
 
+    final correct = isCorrect ?? choice.correct;
+
     if (showCorrection) {
-      if (choice.correct) {
+      if (correct) {
         background = AppColors.green.withValues(alpha: 0.07);
         border = AppColors.green;
         letterBg = AppColors.green;
@@ -70,7 +79,7 @@ class ChoiceTile extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border.all(
               color: border,
-              width: (selected || (showCorrection && choice.correct)) ? 1.5 : 1,
+              width: (selected || (showCorrection && (isCorrect ?? choice.correct))) ? 1.5 : 1,
             ),
             borderRadius: BorderRadius.circular(12),
           ),

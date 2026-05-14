@@ -1,8 +1,10 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.ChoicePublicResponse;
+import com.sejourfr.app.dto.ChoiceReviewResponse;
 import com.sejourfr.app.dto.MediaResponse;
 import com.sejourfr.app.dto.QuestionPublicResponse;
+import com.sejourfr.app.dto.QuestionReviewResponse;
 import com.sejourfr.app.dto.UserStatsResponse;
 import com.sejourfr.app.entity.Choice;
 import com.sejourfr.app.entity.Question;
@@ -11,8 +13,10 @@ import com.sejourfr.app.entity.UserQuestionStatus;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.repository.*;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.Comparator;
@@ -121,6 +125,27 @@ public class UserContentService {
     }
 
     // ------------------------------------------------------------------------
+    // Revue détaillée d'une question (explication + bonnes réponses)
+    // ------------------------------------------------------------------------
+
+    @Transactional(readOnly = true)
+    public QuestionReviewResponse review(UUID userId, UUID questionId) {
+        Question q = questionRepository.findById(questionId)
+                .orElseThrow(() -> new EntityNotFoundException("Question introuvable"));
+
+        boolean answered = answerRepository.hasUserAnsweredQuestion(userId, questionId);
+        boolean favorited = statusRepository.findByUserIdAndQuestionId(userId, questionId)
+                .map(UserQuestionStatus::isFavorite)
+                .orElse(false);
+        if (!answered && !favorited) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Vous devez tenter ou marquer en favori cette question pour la consulter en révision.");
+        }
+
+        return toReview(q);
+    }
+
+    // ------------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------------
 
@@ -161,6 +186,40 @@ public class UserContentService {
                 q.getQuestionType(),
                 q.getStatement(),
                 q.getPassage() != null ? q.getPassage().getContent() : null,
+                media,
+                choices
+        );
+    }
+
+    private QuestionReviewResponse toReview(Question q) {
+        List<ChoiceReviewResponse> choices = q.getChoices().stream()
+                .sorted(Comparator.comparingInt(Choice::getDisplayOrder))
+                .map(c -> new ChoiceReviewResponse(
+                        c.getId(),
+                        c.getLabel(),
+                        c.getDisplayOrder(),
+                        c.isCorrect()
+                ))
+                .toList();
+
+        MediaResponse media = q.getMedia() == null ? null : new MediaResponse(
+                q.getMedia().getId(),
+                q.getMedia().getType(),
+                q.getMedia().getUrl(),
+                q.getMedia().getDurationSeconds(),
+                q.getMedia().getTranscript()
+        );
+
+        return new QuestionReviewResponse(
+                q.getId(),
+                q.getModule(),
+                q.getTheme().getId(),
+                q.getTheme().getName(),
+                q.getDifficulty(),
+                q.getQuestionType(),
+                q.getStatement(),
+                q.getPassage() != null ? q.getPassage().getContent() : null,
+                q.getExplanation(),
                 media,
                 choices
         );

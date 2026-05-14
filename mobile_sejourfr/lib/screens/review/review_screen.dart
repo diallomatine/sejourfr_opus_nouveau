@@ -157,47 +157,334 @@ class _QuestionList extends ConsumerWidget {
   }
 }
 
-class _QuestionItem extends StatelessWidget {
+class _QuestionItem extends ConsumerWidget {
   const _QuestionItem({required this.question});
 
   final QuestionDto question;
 
   @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              AppTag(label: question.difficulty.wire, tone: TagTone.red),
-              const SizedBox(width: 6),
-              AppTag(
-                label: question.questionType.displayLabel,
-                tone: TagTone.blue,
+  Widget build(BuildContext context, WidgetRef ref) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => _openDetail(context, ref),
+      child: AppCard(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                AppTag(label: question.difficulty.wire, tone: TagTone.red),
+                const SizedBox(width: 6),
+                AppTag(
+                  label: question.questionType.displayLabel,
+                  tone: TagTone.blue,
+                ),
+                const Spacer(),
+                const Icon(
+                  Icons.chevron_right,
+                  color: AppColors.muted2,
+                  size: 20,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              question.statement,
+              style: AppFonts.jakarta(
+                size: 14,
+                weight: FontWeight.w600,
+                height: 1.4,
               ),
-            ],
-          ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              question.themeName,
+              style: AppFonts.mono(
+                size: 10,
+                color: AppColors.muted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openDetail(BuildContext context, WidgetRef ref) {
+    final future = ref.read(userContentRepositoryProvider).reviewQuestion(question.id);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _QuestionDetailSheet(
+        fallback: question,
+        future: future,
+      ),
+    );
+  }
+}
+
+class _QuestionDetailSheet extends StatelessWidget {
+  const _QuestionDetailSheet({
+    required this.fallback,
+    required this.future,
+  });
+
+  /// Version "publique" déjà chargée dans la liste — affichée tant que la
+  /// version détaillée (avec explication + bonnes réponses) n'est pas arrivée.
+  final QuestionDto fallback;
+  final Future<QuestionDto> future;
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, controller) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
           const SizedBox(height: 10),
-          Text(
-            question.statement,
-            style: AppFonts.jakarta(
-              size: 14,
-              weight: FontWeight.w600,
-              height: 1.4,
-            ),
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            question.themeName,
-            style: AppFonts.mono(
-              size: 10,
-              color: AppColors.muted,
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.line,
+                borderRadius: BorderRadius.circular(4),
+              ),
             ),
           ),
+          Expanded(
+            child: FutureBuilder<QuestionDto>(
+              future: future,
+              builder: (context, snapshot) {
+                final loaded = snapshot.data;
+                final question = loaded ?? fallback;
+                final isLoading = snapshot.connectionState == ConnectionState.waiting;
+                final hasExplanation =
+                    loaded != null && loaded.explanation != null && loaded.explanation!.isNotEmpty;
+                return _DetailContent(
+                  controller: controller,
+                  question: question,
+                  isLoading: isLoading,
+                  hasExplanation: hasExplanation,
+                  error: snapshot.hasError ? ApiClient.toApiException(snapshot.error!).message : null,
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailContent extends StatelessWidget {
+  const _DetailContent({
+    required this.controller,
+    required this.question,
+    required this.isLoading,
+    required this.hasExplanation,
+    required this.error,
+  });
+
+  final ScrollController controller;
+  final QuestionDto question;
+  final bool isLoading;
+  final bool hasExplanation;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      controller: controller,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      children: [
+        Row(
+          children: [
+            AppTag(
+              label: question.difficulty.wire,
+              tone: TagTone.red,
+            ),
+            const SizedBox(width: 6),
+            AppTag(
+              label: question.questionType.displayLabel,
+              tone: TagTone.blue,
+            ),
+            const Spacer(),
+            Flexible(
+              child: Text(
+                question.themeName,
+                textAlign: TextAlign.end,
+                overflow: TextOverflow.ellipsis,
+                style: AppFonts.mono(
+                  size: 10,
+                  color: AppColors.muted,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          question.statement,
+          style: AppFonts.fraunces(
+            size: 19,
+            weight: FontWeight.w600,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 18),
+        ...List.generate(question.choices.length, (i) {
+          final c = question.choices[i];
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: i == question.choices.length - 1 ? 0 : 10,
+            ),
+            child: _ReviewChoiceTile(choice: c, index: i),
+          );
+        }),
+        if (isLoading) ...[
+          const SizedBox(height: 20),
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(8),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ),
+        ],
+        if (error != null) ...[
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.redLight,
+              border: Border.all(color: AppColors.red.withValues(alpha: 0.3)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              error!,
+              style: AppFonts.jakarta(color: AppColors.red, size: 13),
+            ),
+          ),
+        ],
+        if (hasExplanation) ...[
+          const SizedBox(height: 20),
+          AppCard(
+            padding: const EdgeInsets.all(16),
+            border: Border.all(
+              color: AppColors.green.withValues(alpha: 0.35),
+            ),
+            color: AppColors.green.withValues(alpha: 0.05),
+            boxShadow: const [],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.lightbulb_outline,
+                      color: AppColors.green,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Explication',
+                      style: AppFonts.jakarta(
+                        size: 14,
+                        weight: FontWeight.w800,
+                        color: AppColors.green,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  question.explanation!,
+                  style: AppFonts.jakarta(
+                    size: 13.5,
+                    color: AppColors.ink2,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ReviewChoiceTile extends StatelessWidget {
+  const _ReviewChoiceTile({required this.choice, required this.index});
+
+  final ChoiceDto choice;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final letter = String.fromCharCode('A'.codeUnitAt(0) + index);
+    final correct = choice.correct;
+
+    final background = correct ? AppColors.green.withValues(alpha: 0.07) : AppColors.white;
+    final border = correct ? AppColors.green : AppColors.line;
+    final letterBg = correct ? AppColors.green : AppColors.line2;
+    final letterColor = correct ? AppColors.white : AppColors.muted;
+    final textColor = correct ? AppColors.ink : AppColors.muted;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: background,
+        border: Border.all(color: border, width: correct ? 1.5 : 1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: letterBg, shape: BoxShape.circle),
+            child: Text(
+              letter,
+              style: AppFonts.jakarta(
+                size: 13,
+                weight: FontWeight.w800,
+                color: letterColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              choice.label,
+              style: AppFonts.jakarta(
+                size: 14,
+                weight: FontWeight.w500,
+                color: textColor,
+                height: 1.35,
+              ),
+            ),
+          ),
+          if (correct) ...[
+            const SizedBox(width: 8),
+            const Icon(Icons.check_circle, color: AppColors.green),
+          ],
         ],
       ),
     );

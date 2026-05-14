@@ -145,6 +145,8 @@ class _RunnerView extends ConsumerWidget {
                     final c = question.choices[i];
                     final isSelected = selected.contains(c.id);
                     final showCorr = state.hasResult && isTraining;
+                    final isCorrect =
+                        state.lastResult?.correctChoiceIds.contains(c.id);
                     return Padding(
                       padding: EdgeInsets.only(
                           bottom:
@@ -154,6 +156,7 @@ class _RunnerView extends ConsumerWidget {
                         index: i,
                         selected: isSelected,
                         showCorrection: showCorr,
+                        isCorrect: isCorrect,
                         onTap: () => ref
                             .read(runnerControllerProvider(attemptId).notifier)
                             .toggleChoice(c.id),
@@ -344,18 +347,18 @@ class _BottomBar extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          if (state.currentIndex > 0)
+          if (state.currentIndex > 0) ...[
             Expanded(
               child: AppButton(
                 label: 'Précédent',
                 variant: AppButtonVariant.ghost,
                 onPressed: state.submitting ? null : ctrl.goPrevious,
-                icon: Icons.arrow_back_ios_new,
               ),
             ),
-          if (state.currentIndex > 0) const SizedBox(width: 10),
+            const SizedBox(width: 12),
+          ],
           Expanded(
-            flex: 2,
+            flex: state.currentIndex > 0 ? 2 : 1,
             child: showValidate
                 ? AppButton(
                     label: 'Valider',
@@ -380,7 +383,7 @@ class _BottomBar extends ConsumerWidget {
                         isLoading: state.submitting,
                       )
                     : AppButton(
-                        label: 'Question suivante',
+                        label: 'Suivant',
                         variant: AppButtonVariant.primary,
                         onPressed: (!hasSelection && isTraining)
                             ? null
