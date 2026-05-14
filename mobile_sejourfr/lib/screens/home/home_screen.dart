@@ -6,20 +6,20 @@ import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/api/user_content_repository.dart';
 import '../../core/auth/auth_controller.dart';
+import '../../core/models/auth_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_card.dart';
-import '../../core/widgets/app_tag.dart';
-import '../../core/widgets/eyebrow.dart';
 import '../../core/widgets/sejourfr_logo.dart';
-import 'widgets/module_switch.dart';
 
-// Provider qui charge les stats du module actif
-final _statsProvider = FutureProvider.autoDispose<UserStats>((ref) {
-  final module = ref.watch(selectedModuleProvider);
-  return ref.watch(userContentRepositoryProvider).stats(module: module);
+final _civiqueStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
+  return ref.watch(userContentRepositoryProvider).stats(module: AppModule.civique);
+});
+
+final _tcfStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
+  return ref.watch(userContentRepositoryProvider).stats(module: AppModule.tcf);
 });
 
 class HomeScreen extends ConsumerWidget {
@@ -29,61 +29,58 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
     final user = auth is AuthAuthenticated ? auth.user : null;
-    final module = ref.watch(selectedModuleProvider);
-    final stats = ref.watch(_statsProvider);
+    final civiqueStats = ref.watch(_civiqueStatsProvider);
+    final tcfStats = ref.watch(_tcfStatsProvider);
+
+    void selectAndGo(AppModule module, String route) {
+      ref.read(selectedModuleProvider.notifier).state = module;
+      context.go(route);
+    }
 
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () async => ref.refresh(_statsProvider.future),
+          color: AppColors.blue,
+          onRefresh: () async {
+            ref.invalidate(_civiqueStatsProvider);
+            ref.invalidate(_tcfStatsProvider);
+            await Future.wait([
+              ref.read(_civiqueStatsProvider.future),
+              ref.read(_tcfStatsProvider.future),
+            ]);
+          },
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
             children: [
-              _Header(displayName: user?.firstName ?? user?.email ?? ''),
-              const SizedBox(height: 22),
-              const ModuleSwitch(),
+              _Greeting(user: user),
+              const SizedBox(height: 18),
+              _TargetStrip(target: user?.targetProcedure),
+              const SizedBox(height: 18),
+              _CiviqueHero(
+                stats: civiqueStats,
+                onStart: () => selectAndGo(AppModule.civique, AppRoutes.trainingSetup),
+                onExam: () => selectAndGo(AppModule.civique, AppRoutes.examSetup),
+                onRetry: () => ref.invalidate(_civiqueStatsProvider),
+              ),
+              const SizedBox(height: 12),
+              _TcfCard(
+                stats: tcfStats,
+                onTraining: () => selectAndGo(AppModule.tcf, AppRoutes.trainingSetup),
+                onExam: () => selectAndGo(AppModule.tcf, AppRoutes.examSetup),
+              ),
+              const SizedBox(height: 26),
+              Text(
+                '§ RACCOURCIS',
+                style: AppFonts.mono(
+                  size: 10,
+                  color: AppColors.muted,
+                  letterSpacing: 2.0,
+                ).copyWith(height: 1.0),
+              ),
+              const SizedBox(height: 10),
+              _ReviewTile(onTap: () => context.go(AppRoutes.review)),
               const SizedBox(height: 24),
-              const Eyebrow('§ 01 — Votre progression'),
-              const SizedBox(height: 10),
-              stats.when(
-                loading: () => const SizedBox(
-                  height: 140,
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (e, _) => _ErrorBox(
-                  message: ApiClient.toApiException(e).message,
-                  onRetry: () => ref.refresh(_statsProvider),
-                ),
-                data: (s) => _StatsCard(stats: s, module: module),
-              ),
-              const SizedBox(height: 28),
-              const Eyebrow('§ 02 — Démarrer'),
-              const SizedBox(height: 10),
-              _ActionCard(
-                title: 'Entraînement libre',
-                subtitle: 'Choisissez un thème et un niveau',
-                icon: Icons.school_outlined,
-                accent: AppColors.blue,
-                onTap: () => context.go(AppRoutes.trainingSetup),
-              ),
-              const SizedBox(height: 10),
-              _ActionCard(
-                title: 'Examen blanc',
-                subtitle: module == AppModule.civique
-                    ? '40 questions · 45 min · seuil 32/40'
-                    : 'En conditions réelles',
-                icon: Icons.timer_outlined,
-                accent: AppColors.red,
-                onTap: () => context.go(AppRoutes.examSetup),
-              ),
-              const SizedBox(height: 10),
-              _ActionCard(
-                title: 'Révision',
-                subtitle: 'Erreurs récentes et favoris',
-                icon: Icons.bookmark_outline,
-                accent: AppColors.amber,
-                onTap: () => context.go(AppRoutes.review),
-              ),
+              const _DailyTip(),
             ],
           ),
         ),
@@ -92,35 +89,43 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.displayName});
-  final String displayName;
+// ---------------------------------------------------------------------------
+// Greeting
+// ---------------------------------------------------------------------------
+
+class _Greeting extends StatelessWidget {
+  const _Greeting({required this.user});
+  final AuthUser? user;
 
   @override
   Widget build(BuildContext context) {
+    final firstName = user?.firstName?.trim() ?? '';
     return Row(
       children: [
-        const Cocarde(size: 36),
-        const SizedBox(width: 12),
+        const Cocarde(size: 40),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Bonjour${displayName.isNotEmpty ? ', $displayName' : ''}',
-                style: AppFonts.jakarta(
-                  size: 13,
+                'BONJOUR${firstName.isNotEmpty ? ' · ${firstName.toUpperCase()}' : ''}',
+                style: AppFonts.mono(
+                  size: 10,
                   color: AppColors.muted,
-                  weight: FontWeight.w500,
+                  letterSpacing: 1.8,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 6),
               Text(
-                'Continuons',
+                'Préparons votre examen',
                 style: AppFonts.fraunces(
-                  size: 26,
+                  size: 24,
                   weight: FontWeight.w600,
                   fontStyle: FontStyle.italic,
+                  height: 1.1,
                 ),
               ),
             ],
@@ -131,98 +136,459 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _StatsCard extends StatelessWidget {
-  const _StatsCard({required this.stats, required this.module});
+// ---------------------------------------------------------------------------
+// Bandeau objectif (clickable pour éditer / définir)
+// ---------------------------------------------------------------------------
 
+class _TargetStrip extends StatelessWidget {
+  const _TargetStrip({required this.target});
+  final TargetProcedure? target;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasTarget = target != null;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => context.push(
+          '${AppRoutes.targetPath}?from=${Uri.encodeComponent(AppRoutes.home)}',
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.blueSoft,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.blue.withValues(alpha: 0.12)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  hasTarget ? Icons.flag_rounded : Icons.flag_outlined,
+                  size: 16,
+                  color: AppColors.blue,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasTarget ? 'MON OBJECTIF' : 'DÉFINIR MON OBJECTIF',
+                      style: AppFonts.mono(
+                        size: 9,
+                        color: AppColors.muted,
+                        letterSpacing: 1.6,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      hasTarget
+                          ? '${target!.shortLabel} · TCF ${target!.tcfLevel}'
+                          : 'Adaptez les questions à votre démarche',
+                      style: AppFonts.jakarta(
+                        size: 13,
+                        weight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                hasTarget ? Icons.edit_outlined : Icons.arrow_forward_rounded,
+                size: 16,
+                color: AppColors.blue,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Hero Civique (dominant)
+// ---------------------------------------------------------------------------
+
+class _CiviqueHero extends StatelessWidget {
+  const _CiviqueHero({
+    required this.stats,
+    required this.onStart,
+    required this.onExam,
+    required this.onRetry,
+  });
+
+  final AsyncValue<UserStats> stats;
+  final VoidCallback onStart;
+  final VoidCallback onExam;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.blue, AppColors.blueDark],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.blue.withValues(alpha: 0.28),
+            blurRadius: 28,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -36,
+              right: -36,
+              child: Container(
+                width: 160,
+                height: 160,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AppColors.white.withValues(alpha: 0.08),
+                    width: 18,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 38,
+              right: 22,
+              child: Container(
+                width: 18,
+                height: 18,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.red,
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _HeroBadge(
+                        label: 'EXAMEN OFFICIEL',
+                        bg: AppColors.white.withValues(alpha: 0.14),
+                        fg: AppColors.white,
+                      ),
+                      const SizedBox(width: 6),
+                      const _HeroBadge(
+                        label: 'RECOMMANDÉ',
+                        bg: AppColors.red,
+                        fg: AppColors.white,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Examen civique',
+                    style: AppFonts.fraunces(
+                      size: 30,
+                      weight: FontWeight.w600,
+                      color: AppColors.white,
+                      fontStyle: FontStyle.italic,
+                      height: 1.05,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Valeurs, institutions et histoire de la République française.',
+                    style: AppFonts.jakarta(
+                      size: 13,
+                      color: AppColors.white.withValues(alpha: 0.85),
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  stats.when(
+                    loading: () => const _HeroLoader(),
+                    error: (e, _) => _HeroError(
+                      message: ApiClient.toApiException(e).message,
+                      onRetry: onRetry,
+                    ),
+                    data: (s) => _HeroStats(stats: s),
+                  ),
+                  const SizedBox(height: 18),
+                  _HeroPrimaryCta(onTap: onStart),
+                  const SizedBox(height: 10),
+                  _HeroSecondaryCta(onTap: onExam),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroBadge extends StatelessWidget {
+  const _HeroBadge({required this.label, required this.bg, required this.fg});
+  final String label;
+  final Color bg;
+  final Color fg;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: AppFonts.mono(
+          size: 9,
+          color: fg,
+          letterSpacing: 1.6,
+          weight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroStats extends StatelessWidget {
+  const _HeroStats({required this.stats});
   final UserStats stats;
-  final AppModule module;
 
   @override
   Widget build(BuildContext context) {
     final percent = (stats.successRate * 100).round();
+    return Row(
+      children: [
+        _StatTile(value: '$percent%', label: 'Réussite'),
+        const SizedBox(width: 8),
+        _StatTile(value: '${stats.attemptsTotal}', label: 'Sessions'),
+        const SizedBox(width: 8),
+        _StatTile(value: '${stats.questionsAnswered}', label: 'Questions'),
+      ],
+    );
+  }
+}
 
-    return AppCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+class _StatTile extends StatelessWidget {
+  const _StatTile({required this.value, required this.label});
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: AppColors.white.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.white.withValues(alpha: 0.14)),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: AppFonts.fraunces(
+                size: 22,
+                weight: FontWeight.w600,
+                color: AppColors.white,
+                height: 1.0,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label.toUpperCase(),
+              style: AppFonts.mono(
+                size: 9,
+                color: AppColors.white.withValues(alpha: 0.7),
+                letterSpacing: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroPrimaryCta extends StatelessWidget {
+  const _HeroPrimaryCta({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.play_circle_fill_rounded,
+                color: AppColors.blue,
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Commencer l\'entraînement',
+                  style: AppFonts.jakarta(
+                    size: 14.5,
+                    weight: FontWeight.w800,
+                    color: AppColors.blue,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                color: AppColors.blue,
+                size: 18,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroSecondaryCta extends StatelessWidget {
+  const _HeroSecondaryCta({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: AppColors.white.withValues(alpha: 0.28),
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.timer_outlined, color: AppColors.white, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Examen blanc · 40Q · 45 min',
+                  style: AppFonts.jakarta(
+                    size: 12.5,
+                    weight: FontWeight.w700,
+                    color: AppColors.white,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.white.withValues(alpha: 0.75),
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroLoader extends StatelessWidget {
+  const _HeroLoader();
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 64,
+      child: Center(
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.white.withValues(alpha: 0.7),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroError extends StatelessWidget {
+  const _HeroError({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
         children: [
-          Row(
-            children: [
-              AppTag(
-                label: module == AppModule.civique ? 'Civique' : 'TCF',
-                tone: module == AppModule.civique
-                    ? TagTone.blue
-                    : TagTone.amber,
-              ),
-              const Spacer(),
-              Text(
-                '${stats.attemptsTotal} sessions',
-                style: AppFonts.mono(size: 10, color: AppColors.muted),
-              ),
-            ],
+          Icon(
+            Icons.cloud_off_outlined,
+            color: AppColors.white.withValues(alpha: 0.75),
+            size: 16,
           ),
-          const SizedBox(height: 18),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '$percent',
-                style: AppFonts.fraunces(
-                  size: 56,
-                  weight: FontWeight.w700,
-                  height: 1.0,
-                  letterSpacing: -2,
-                ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: AppFonts.jakarta(
+                size: 11.5,
+                color: AppColors.white.withValues(alpha: 0.85),
               ),
-              Text(
-                ' %',
-                style: AppFonts.fraunces(
-                  size: 24,
-                  weight: FontWeight.w500,
-                  color: AppColors.muted,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                width: 60,
-                height: 60,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.blueLight,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.trending_up,
-                  color: AppColors.blue,
-                  size: 28,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Taux de réussite global',
-            style: AppFonts.jakarta(
-              size: 12,
-              color: AppColors.muted,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: stats.successRate.clamp(0, 1),
-              minHeight: 6,
-              backgroundColor: AppColors.line2,
-              valueColor: const AlwaysStoppedAnimation(AppColors.blue),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            '${stats.questionsCorrect} bonnes réponses sur ${stats.questionsAnswered}',
-            style: AppFonts.jakarta(
-              size: 12,
-              color: AppColors.muted,
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: onRetry,
+            child: Text(
+              'RÉESSAYER',
+              style: AppFonts.mono(
+                size: 9,
+                color: AppColors.white,
+                letterSpacing: 1.6,
+                weight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -231,96 +597,307 @@ class _StatsCard extends StatelessWidget {
   }
 }
 
-class _ActionCard extends StatelessWidget {
-  const _ActionCard({
-    required this.title,
-    required this.subtitle,
+// ---------------------------------------------------------------------------
+// Carte TCF (secondaire mais distincte)
+// ---------------------------------------------------------------------------
+
+class _TcfCard extends StatelessWidget {
+  const _TcfCard({
+    required this.stats,
+    required this.onTraining,
+    required this.onExam,
+  });
+
+  final AsyncValue<UserStats> stats;
+  final VoidCallback onTraining;
+  final VoidCallback onExam;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      onTap: onTraining,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.redLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.translate_rounded,
+                  size: 22,
+                  color: AppColors.red,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'TCF',
+                          style: AppFonts.jakarta(
+                            size: 15,
+                            weight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.redLight,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'A2 · B1 · B2',
+                            style: AppFonts.mono(
+                              size: 9,
+                              color: AppColors.red,
+                              letterSpacing: 1.2,
+                              weight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Compréhension orale, écrite, structure',
+                      style: AppFonts.jakarta(
+                        size: 12,
+                        color: AppColors.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              stats.maybeWhen(
+                data: (s) => s.attemptsTotal == 0
+                    ? const SizedBox.shrink()
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '${(s.successRate * 100).round()}%',
+                            style: AppFonts.fraunces(
+                              size: 18,
+                              weight: FontWeight.w600,
+                              color: AppColors.red,
+                              height: 1.0,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${s.attemptsTotal} sessions',
+                            style: AppFonts.mono(
+                              size: 9,
+                              color: AppColors.muted,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                orElse: () => const SizedBox.shrink(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _TcfSubAction(
+                  icon: Icons.play_arrow_rounded,
+                  label: 'Entraînement',
+                  onTap: onTraining,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _TcfSubAction(
+                  icon: Icons.timer_outlined,
+                  label: 'Examen blanc',
+                  onTap: onExam,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TcfSubAction extends StatelessWidget {
+  const _TcfSubAction({
     required this.icon,
-    required this.accent,
+    required this.label,
     required this.onTap,
   });
 
-  final String title;
-  final String subtitle;
   final IconData icon;
-  final Color accent;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 10),
+          decoration: BoxDecoration(
+            color: AppColors.redLight.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.red.withValues(alpha: 0.18)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 15, color: AppColors.red),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: AppFonts.jakarta(
+                  size: 12,
+                  weight: FontWeight.w700,
+                  color: AppColors.red,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Révision (raccourci)
+// ---------------------------------------------------------------------------
+
+class _ReviewTile extends StatelessWidget {
+  const _ReviewTile({required this.onTap});
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return AppCard(
       onTap: onTap,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       child: Row(
         children: [
           Container(
-            width: 46,
-            height: 46,
+            width: 42,
+            height: 42,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.1),
+              color: AppColors.amber.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, size: 22, color: accent),
+            child: const Icon(
+              Icons.bookmark_outline,
+              size: 20,
+              color: AppColors.amber,
+            ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
-                  style: AppFonts.jakarta(
-                    size: 15,
-                    weight: FontWeight.w700,
-                  ),
+                  'Révision',
+                  style: AppFonts.jakarta(size: 14.5, weight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  subtitle,
-                  style: AppFonts.jakarta(
-                    size: 12.5,
-                    color: AppColors.muted,
-                  ),
+                  'Vos favoris et vos erreurs récentes',
+                  style: AppFonts.jakarta(size: 12, color: AppColors.muted),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.muted2),
+          const Icon(
+            Icons.arrow_forward_ios,
+            size: 13,
+            color: AppColors.muted2,
+          ),
         ],
       ),
     );
   }
 }
 
-class _ErrorBox extends StatelessWidget {
-  const _ErrorBox({required this.message, required this.onRetry});
+// ---------------------------------------------------------------------------
+// Astuce / Le saviez-vous
+// ---------------------------------------------------------------------------
 
-  final String message;
-  final VoidCallback onRetry;
+class _DailyTip extends StatelessWidget {
+  const _DailyTip();
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.blue.withValues(alpha: 0.08)),
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.cloud_off_outlined, color: AppColors.red, size: 32),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            style: AppFonts.jakarta(size: 13, color: AppColors.muted),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          TextButton(
-            onPressed: onRetry,
-            child: Text(
-              'Réessayer',
-              style: AppFonts.jakarta(
-                size: 13,
-                weight: FontWeight.w700,
+          Row(
+            children: [
+              const Icon(
+                Icons.auto_stories_outlined,
+                size: 14,
                 color: AppColors.blue,
               ),
+              const SizedBox(width: 6),
+              Text(
+                'LE SAVIEZ-VOUS ?',
+                style: AppFonts.mono(
+                  size: 9,
+                  color: AppColors.blue,
+                  letterSpacing: 1.8,
+                  weight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '« Liberté, Égalité, Fraternité »',
+            style: AppFonts.fraunces(
+              size: 16,
+              weight: FontWeight.w500,
+              fontStyle: FontStyle.italic,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Devise inscrite à l\'article 2 de la Constitution du 4 octobre 1958.',
+            style: AppFonts.jakarta(
+              size: 12,
+              color: AppColors.muted,
+              height: 1.4,
             ),
           ),
         ],
