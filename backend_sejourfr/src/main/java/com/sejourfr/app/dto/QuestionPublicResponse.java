@@ -9,10 +9,10 @@ import java.util.UUID;
 
 /**
  * Représentation publique d'une question pour le runner.
- *
+ * <p>
  * Ne contient PAS le champ 'correct' des choix : on ne veut pas que le client
  * puisse tricher en lisant la réponse depuis la réponse JSON.
- *
+ * <p>
  * L'explication est renvoyée à la fin (review/finish) ou au moment de la
  * correction immédiate en TRAINING via {@link AnswerResultResponse}.
  */
@@ -24,7 +24,9 @@ public record QuestionPublicResponse(
         Difficulty difficulty,
         QuestionType questionType,
         String statement,
+        String explanation,
         String passageText,
         MediaResponse media,
         List<ChoicePublicResponse> choices
-) {}
+) {
+}

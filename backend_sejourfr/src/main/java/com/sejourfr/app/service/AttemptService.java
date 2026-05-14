@@ -288,7 +288,7 @@ public class AttemptService {
     private QuestionPublicResponse toQuestionPublic(Question q, boolean revealCorrect) {
         List<ChoicePublicResponse> choices = q.getChoices().stream()
                 .sorted(Comparator.comparingInt(Choice::getDisplayOrder))
-                .map(c -> new ChoicePublicResponse(c.getId(), c.getLabel(), c.getDisplayOrder()))
+                .map(c -> new ChoicePublicResponse(c.getId(), c.getLabel(), c.getDisplayOrder(), revealCorrect ? c.isCorrect() : null))
                 .toList();
 
         MediaResponse media = q.getMedia() == null ? null : new MediaResponse(
@@ -307,6 +307,7 @@ public class AttemptService {
                 q.getDifficulty(),
                 q.getQuestionType(),
                 q.getStatement(),
+                revealCorrect ? q.getExplanation() : null,
                 q.getPassage() != null ? q.getPassage().getContent() : null,
                 media,
                 choices

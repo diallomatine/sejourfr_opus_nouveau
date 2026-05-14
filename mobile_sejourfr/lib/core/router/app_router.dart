@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sejourfr_mobile/screens/exam/exam_report_screen.dart';
 import 'package:sejourfr_mobile/screens/exam/exam_result_screen.dart';
 import 'package:sejourfr_mobile/screens/history/history_screen.dart';
 
@@ -33,6 +34,7 @@ class AppRoutes {
   static const onboarding = '/onboarding';
   static const examResult = '/exam-result/:attemptId';
   static const history = '/history';
+  static const examReport = '/exam-report/:attemptId';
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -110,6 +112,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.history,
         builder: (_, __) => const HistoryScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.examReport,
+        builder: (_, state) {
+          final attemptId = state.pathParameters['attemptId']!;
+          return ExamReportScreen(attemptId: attemptId);
+        },
       ),
 
       // Shell avec bottom nav

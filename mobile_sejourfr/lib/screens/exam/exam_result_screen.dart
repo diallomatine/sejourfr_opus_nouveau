@@ -28,6 +28,27 @@ class ExamResultScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.bg,
+      // AppBar avec bouton retour. Si on arrive depuis le runner (qui a fait
+      // un context.go), context.canPop() = false → on remplace par un bouton
+      // "Accueil". Sinon (on vient de l'historique), context.pop() ramène.
+      appBar: AppBar(
+        backgroundColor: AppColors.bg,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.home);
+            }
+          },
+        ),
+        title: Text(
+          'Résultat',
+          style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
+        ),
+      ),
       body: state.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorState(
@@ -56,15 +77,15 @@ class _ResultView extends StatelessWidget {
 
     final duration = attempt.finishedAt != null ? attempt.finishedAt!.difference(attempt.startedAt) : null;
 
-    // Breakdown par thème (calculé depuis attempt.questions)
     final breakdown = _computeBreakdown(attempt);
 
     return SafeArea(
+      top: false,
       child: Column(
         children: [
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
               children: [
                 _Hero(
                   attempt: attempt,
@@ -150,15 +171,13 @@ class _ThemeBreakdown {
 
   double get ratio => total == 0 ? 0 : correct / total;
 
-  bool get isPerfect => ratio == 1.0;
-
   bool get isMedium => ratio >= 0.6 && ratio < 0.8;
 
   bool get isLow => ratio < 0.6;
 }
 
 // ---------------------------------------------------------------------------
-// Hero - bandeau du haut avec trophée + score géant
+// Hero
 // ---------------------------------------------------------------------------
 
 class _Hero extends StatelessWidget {
@@ -181,11 +200,10 @@ class _Hero extends StatelessWidget {
     final isExam = attempt.isMockExam;
 
     return AppCard(
-      padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
       color: AppColors.white,
       child: Column(
         children: [
-          // Icône trophée (passed) ou recommence (failed)
           Container(
             width: 64,
             height: 64,
@@ -270,7 +288,7 @@ class _Hero extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Stats - 3 tuiles taux / durée / erreurs
+// Stats
 // ---------------------------------------------------------------------------
 
 class _StatsRow extends StatelessWidget {
@@ -442,7 +460,7 @@ class _BreakdownItem extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Boutons du bas
+// Boutons du bas — Rapport détaillé + Retour accueil
 // ---------------------------------------------------------------------------
 
 class _BottomActions extends StatelessWidget {
@@ -466,19 +484,21 @@ class _BottomActions extends StatelessWidget {
       ),
       child: Column(
         children: [
-          if (errors > 0)
-            AppButton(
-              label: 'Revoir mes erreurs ($errors)',
-              icon: Icons.arrow_forward,
-              onPressed: () {
-                // Va sur la révision avec un focus sur les erreurs
-                context.go(AppRoutes.review);
-              },
+          // Rapport détaillé : ouvre l'écran qui montre TOUTES les questions
+          // de cet examen avec corrections, filtrables (tout / erreurs / justes).
+          AppButton(
+            label: errors > 0
+                ? 'Voir le rapport détaillé ($errors erreur${errors > 1 ? 's' : ''})'
+                : 'Voir le rapport détaillé',
+            icon: Icons.description_outlined,
+            onPressed: () => context.push(
+              AppRoutes.examReport.replaceFirst(':attemptId', attempt.id),
             ),
-          if (errors > 0) const SizedBox(height: 8),
+          ),
+          const SizedBox(height: 8),
           AppButton(
             label: 'Retour à l\'accueil',
-            variant: errors > 0 ? AppButtonVariant.secondary : AppButtonVariant.primary,
+            variant: AppButtonVariant.secondary,
             onPressed: () => context.go(AppRoutes.home),
           ),
         ],

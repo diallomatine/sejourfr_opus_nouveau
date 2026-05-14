@@ -1,11 +1,6 @@
 package com.sejourfr.app.service;
 
-import com.sejourfr.app.dto.ChoicePublicResponse;
-import com.sejourfr.app.dto.ChoiceReviewResponse;
-import com.sejourfr.app.dto.MediaResponse;
-import com.sejourfr.app.dto.QuestionPublicResponse;
-import com.sejourfr.app.dto.QuestionReviewResponse;
-import com.sejourfr.app.dto.UserStatsResponse;
+import com.sejourfr.app.dto.*;
 import com.sejourfr.app.entity.Choice;
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.User;
@@ -166,7 +161,7 @@ public class UserContentService {
     private QuestionPublicResponse toPublic(Question q) {
         List<ChoicePublicResponse> choices = q.getChoices().stream()
                 .sorted(Comparator.comparingInt(Choice::getDisplayOrder))
-                .map(c -> new ChoicePublicResponse(c.getId(), c.getLabel(), c.getDisplayOrder()))
+                .map(c -> new ChoicePublicResponse(c.getId(), c.getLabel(), c.getDisplayOrder(), null))
                 .toList();
 
         MediaResponse media = q.getMedia() == null ? null : new MediaResponse(
@@ -185,6 +180,7 @@ public class UserContentService {
                 q.getDifficulty(),
                 q.getQuestionType(),
                 q.getStatement(),
+                null,
                 q.getPassage() != null ? q.getPassage().getContent() : null,
                 media,
                 choices
