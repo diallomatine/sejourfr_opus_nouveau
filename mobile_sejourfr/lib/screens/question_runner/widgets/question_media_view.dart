@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../../core/api/api_config.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/question_models.dart';
 import '../../../core/theme/app_theme.dart';
@@ -14,13 +15,14 @@ class QuestionMediaView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final url = ApiConfig.resolveMediaUrl(media.url);
     switch (media.type) {
       case MediaType.audio:
-        return SejourAudioPlayer(url: media.url);
+        return SejourAudioPlayer(url: url);
       case MediaType.image:
-        return _ImageMedia(url: media.url);
+        return _ImageMedia(url: url);
       case MediaType.video:
-        return _VideoMedia(url: media.url);
+        return _VideoMedia(url: url);
     }
   }
 }
