@@ -1,22 +1,48 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/attempts_repository.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/attempt_models.dart';
+import '../../core/models/enums.dart';
+
+/// Taille d'un batch en entraînement infini.
+const _kTrainingBatchSize = 30;
 
 /// État du runner pour un attempt donné.
+///
+/// En mode entraînement, on agrège plusieurs `Attempt` (batches successifs de
+/// 30 questions) dans une liste cumulée. Chaque question porte l'id de
+/// l'attempt auquel elle appartient (pour `submitAnswer`). Côté UI, c'est
+/// vécu comme une session infinie.
+///
+/// En mode examen blanc, on reste sur un unique attempt de taille fixe.
 class RunnerState {
   RunnerState({
-    required this.attempt,
+    required this.activeAttempt,
+    required this.questions,
+    required this.attemptIdByQuestionId,
     required this.currentIndex,
     required this.answersByQuestion,
     this.lastResult,
     this.submitting = false,
+    this.extending = false,
+    this.noMoreQuestions = false,
     this.errorMessage,
   });
 
-  final Attempt attempt;
+  /// Le dernier attempt chargé (= batch courant en entraînement).
+  final Attempt activeAttempt;
+
+  /// Liste cumulée des questions (un seul batch en examen, plusieurs en
+  /// entraînement infini).
+  final List<AttemptQuestion> questions;
+
+  /// Mapping `attemptQuestionId → attemptId` (pour router `submitAnswer`).
+  final Map<String, String> attemptIdByQuestionId;
+
   final int currentIndex;
 
   /// Pour chaque attemptQuestion.id, les choices sélectionnés par l'utilisateur.
@@ -25,11 +51,33 @@ class RunnerState {
   /// Résultat de la dernière réponse soumise (mode entraînement uniquement).
   final AnswerResult? lastResult;
   final bool submitting;
+  final bool extending;
+
+  /// Vrai si la dernière tentative d'extension a renvoyé un batch vide
+  /// (réservoir épuisé pour le filtre courant).
+  final bool noMoreQuestions;
+
   final String? errorMessage;
 
-  AttemptQuestion get current => attempt.questions[currentIndex];
+  AttemptQuestion get current => questions[currentIndex];
 
-  bool get isLast => currentIndex >= attempt.questions.length - 1;
+  /// Mode entraînement infini : on continue à charger des batches.
+  bool get isInfiniteTraining => activeAttempt.type == AttemptType.training;
+
+  /// En examen, `isLast` signale la dernière question du batch.
+  /// En entraînement infini, n'est vrai que si on a épuisé la base.
+  bool get isLast {
+    if (isInfiniteTraining) {
+      return noMoreQuestions && currentIndex >= questions.length - 1;
+    }
+    return currentIndex >= questions.length - 1;
+  }
+
+  String get currentAttemptId => attemptIdByQuestionId[current.id]!;
+
+  /// Nombre de réponses soumises (pour un compteur motivant).
+  int get answeredCount =>
+      answersByQuestion.values.where((v) => v.isNotEmpty).length;
 
   /// On affiche la correction pour la question courante.
   bool get hasResult =>
@@ -38,54 +86,88 @@ class RunnerState {
       answersByQuestion[current.id]!.isNotEmpty;
 
   RunnerState copyWith({
-    Attempt? attempt,
+    Attempt? activeAttempt,
+    List<AttemptQuestion>? questions,
+    Map<String, String>? attemptIdByQuestionId,
     int? currentIndex,
     Map<String, List<String>>? answersByQuestion,
     AnswerResult? lastResult,
     bool clearLastResult = false,
     bool? submitting,
+    bool? extending,
+    bool? noMoreQuestions,
     String? errorMessage,
     bool clearError = false,
   }) =>
       RunnerState(
-        attempt: attempt ?? this.attempt,
+        activeAttempt: activeAttempt ?? this.activeAttempt,
+        questions: questions ?? this.questions,
+        attemptIdByQuestionId:
+            attemptIdByQuestionId ?? this.attemptIdByQuestionId,
         currentIndex: currentIndex ?? this.currentIndex,
         answersByQuestion: answersByQuestion ?? this.answersByQuestion,
         lastResult: clearLastResult ? null : (lastResult ?? this.lastResult),
         submitting: submitting ?? this.submitting,
+        extending: extending ?? this.extending,
+        noMoreQuestions: noMoreQuestions ?? this.noMoreQuestions,
         errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       );
 }
 
 /// Family : un controller par attemptId.
-final runnerControllerProvider =
-    StateNotifierProvider.family.autoDispose<RunnerController, AsyncValue<RunnerState>, String>(
-  (ref, attemptId) => RunnerController(ref.watch(attemptsRepositoryProvider), attemptId),
+final runnerControllerProvider = StateNotifierProvider.family
+    .autoDispose<RunnerController, AsyncValue<RunnerState>, String>(
+  (ref, attemptId) =>
+      RunnerController(ref.watch(attemptsRepositoryProvider), attemptId),
 );
 
 class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
-  RunnerController(this._repo, this._attemptId) : super(const AsyncValue.loading()) {
+  RunnerController(this._repo, this._attemptId)
+      : super(const AsyncValue.loading()) {
     _load();
   }
 
   final AttemptsRepository _repo;
   final String _attemptId;
 
+  /// Filtres déduits du premier batch, pour pouvoir étendre la session
+  /// d'entraînement avec les mêmes critères.
+  AppModule? _trainingModule;
+  String? _trainingThemeId;
+
   Future<void> _load() async {
     state = const AsyncValue.loading();
     try {
       final attempt = await _repo.getById(_attemptId);
-      // Réhydrate les réponses déjà soumises (si on revient sur l'attempt)
       final answers = <String, List<String>>{
         for (final q in attempt.questions)
           if (q.selectedChoiceIds.isNotEmpty) q.id: q.selectedChoiceIds,
       };
-      // Calcule l'index à reprendre : 1re question non répondue, sinon dernière
       final firstUnanswered = attempt.questions.indexWhere((q) => !q.answered);
-      final startIndex = firstUnanswered == -1 ? attempt.questions.length - 1 : firstUnanswered;
+      final startIndex = firstUnanswered == -1
+          ? attempt.questions.length - 1
+          : firstUnanswered;
+
+      if (attempt.type == AttemptType.training) {
+        _trainingModule = attempt.module;
+        // Si toutes les questions partagent le même thème → on retient le filtre.
+        // Sinon on considère qu'il n'y avait pas de filtre thème.
+        final firstThemeId = attempt.questions.isNotEmpty
+            ? attempt.questions.first.question.themeId
+            : null;
+        final allSameTheme = firstThemeId != null &&
+            attempt.questions.every(
+              (q) => q.question.themeId == firstThemeId,
+            );
+        _trainingThemeId = allSameTheme ? firstThemeId : null;
+      }
 
       state = AsyncValue.data(RunnerState(
-        attempt: attempt,
+        activeAttempt: attempt,
+        questions: attempt.questions,
+        attemptIdByQuestionId: {
+          for (final q in attempt.questions) q.id: attempt.id,
+        },
         currentIndex: startIndex.clamp(0, attempt.questions.length - 1),
         answersByQuestion: answers,
       ));
@@ -106,7 +188,6 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
     if (selected.contains(choiceId)) {
       selected.remove(choiceId);
     } else {
-      // Single-choice : on remplace (à passer en multi-select si on a un jour des QCM multiples)
       selected
         ..clear()
         ..add(choiceId);
@@ -125,17 +206,28 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
     final selected = cur.answersByQuestion[qId] ?? const [];
     if (selected.isEmpty) return;
 
+    final attemptIdForQ = cur.attemptIdByQuestionId[qId] ?? cur.activeAttempt.id;
+
     state = AsyncValue.data(cur.copyWith(submitting: true, clearError: true));
     try {
       final result = await _repo.submitAnswer(
-        attemptId: _attemptId,
+        attemptId: attemptIdForQ,
         attemptQuestionId: qId,
         choiceIds: selected,
       );
-      state = AsyncValue.data(cur.copyWith(
+      final after = state.valueOrNull!;
+      state = AsyncValue.data(after.copyWith(
         submitting: false,
         lastResult: result,
       ));
+
+      // En entraînement infini, on prefetch le batch suivant pendant que
+      // l'utilisateur lit la correction.
+      if (after.isInfiniteTraining &&
+          !after.noMoreQuestions &&
+          after.currentIndex >= after.questions.length - 1) {
+        unawaited(_extend());
+      }
     } catch (e) {
       state = AsyncValue.data(cur.copyWith(
         submitting: false,
@@ -144,9 +236,81 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
     }
   }
 
-  void goNext() {
+  /// Charge un nouveau batch d'entraînement et l'ajoute à la liste cumulée.
+  Future<void> _extend() async {
     final cur = state.valueOrNull;
-    if (cur == null || cur.isLast) return;
+    if (cur == null ||
+        !cur.isInfiniteTraining ||
+        cur.extending ||
+        cur.noMoreQuestions) {
+      return;
+    }
+    if (_trainingModule == null) return;
+
+    state = AsyncValue.data(cur.copyWith(extending: true, clearError: true));
+    try {
+      final newAttempt = await _repo.start(StartAttemptRequest(
+        type: AttemptType.training,
+        module: _trainingModule!,
+        themeId: _trainingThemeId,
+        size: _kTrainingBatchSize,
+      ));
+
+      final cur2 = state.valueOrNull!;
+      if (newAttempt.questions.isEmpty) {
+        state = AsyncValue.data(cur2.copyWith(
+          extending: false,
+          noMoreQuestions: true,
+        ));
+        return;
+      }
+
+      final mergedQuestions = [...cur2.questions, ...newAttempt.questions];
+      final mergedMapping = Map<String, String>.from(cur2.attemptIdByQuestionId);
+      for (final q in newAttempt.questions) {
+        mergedMapping[q.id] = newAttempt.id;
+      }
+
+      state = AsyncValue.data(cur2.copyWith(
+        activeAttempt: newAttempt,
+        questions: mergedQuestions,
+        attemptIdByQuestionId: mergedMapping,
+        extending: false,
+      ));
+    } catch (e) {
+      final cur2 = state.valueOrNull;
+      if (cur2 == null) return;
+      state = AsyncValue.data(cur2.copyWith(
+        extending: false,
+        errorMessage: ApiClient.toApiException(e).message,
+      ));
+    }
+  }
+
+  /// Passe à la question suivante. En entraînement infini, attend (ou
+  /// déclenche) un nouveau batch si on est au bout de la liste cumulée.
+  Future<void> goNext() async {
+    var cur = state.valueOrNull;
+    if (cur == null) return;
+
+    // Si on est sur la dernière question chargée :
+    if (cur.currentIndex >= cur.questions.length - 1) {
+      if (!cur.isInfiniteTraining) return;
+      if (cur.noMoreQuestions) return;
+      // Le prefetch peut être en cours — sinon on lance.
+      if (!cur.extending) {
+        await _extend();
+      } else {
+        // Attendre la fin du prefetch en cours
+        while (state.valueOrNull?.extending == true) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+      }
+      cur = state.valueOrNull;
+      if (cur == null) return;
+      if (cur.currentIndex >= cur.questions.length - 1) return;
+    }
+
     state = AsyncValue.data(cur.copyWith(
       currentIndex: cur.currentIndex + 1,
       clearLastResult: true,
@@ -164,15 +328,17 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
     ));
   }
 
-  /// Finalise l'attempt et renvoie l'attempt avec score.
+  /// Finalise l'attempt actif et renvoie l'attempt avec score.
+  /// En entraînement infini, ne finalise que le dernier batch (les batches
+  /// précédents restent enregistrés tels quels côté backend).
   Future<Attempt?> finish() async {
     final cur = state.valueOrNull;
     if (cur == null) return null;
     state = AsyncValue.data(cur.copyWith(submitting: true));
     try {
-      final finished = await _repo.finish(_attemptId);
+      final finished = await _repo.finish(cur.activeAttempt.id);
       state = AsyncValue.data(cur.copyWith(
-        attempt: finished,
+        activeAttempt: finished,
         submitting: false,
       ));
       return finished;

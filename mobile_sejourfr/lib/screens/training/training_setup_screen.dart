@@ -17,6 +17,10 @@ import '../../core/widgets/eyebrow.dart';
 import '../home/widgets/module_switch.dart';
 import '../shared/target_path_banner.dart';
 
+/// Taille du premier batch de questions chargé en entraînement.
+/// La session est ensuite étendue automatiquement par batches identiques.
+const _kInitialBatchSize = 30;
+
 final _themesProvider =
     FutureProvider.autoDispose<List<ThemeDto>>((ref) async {
   final module = ref.watch(selectedModuleProvider);
@@ -33,7 +37,6 @@ class TrainingSetupScreen extends ConsumerStatefulWidget {
 
 class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
   ThemeDto? _selectedTheme;
-  int _size = 10;
   bool _starting = false;
   String? _error;
 
@@ -49,7 +52,7 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
               type: AttemptType.training,
               module: module,
               themeId: _selectedTheme?.id,
-              size: _size,
+              size: _kInitialBatchSize,
             ),
           );
       if (!mounted) return;
@@ -68,7 +71,6 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
     final targetProcedure =
         auth is AuthAuthenticated ? auth.user.targetProcedure : null;
 
-    // Reset du thème quand on change de module
     ref.listen(selectedModuleProvider, (_, __) {
       setState(() {
         _selectedTheme = null;
@@ -92,8 +94,10 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
               const SizedBox(height: 16),
             ],
             const ModuleSwitch(),
+            const SizedBox(height: 16),
+            const _ContinuousModeCard(),
             const SizedBox(height: 24),
-            const Eyebrow('§ 02 — Thématique'),
+            const Eyebrow('§ 02 — Thématique (optionnel)'),
             const SizedBox(height: 10),
             themes.when(
               loading: () => const Padding(
@@ -106,6 +110,12 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
               ),
               data: (list) => Column(
                 children: [
+                  _ThemeTile(
+                    theme: null,
+                    selected: _selectedTheme == null,
+                    onTap: () => setState(() => _selectedTheme = null),
+                  ),
+                  const SizedBox(height: 8),
                   for (final t in list) ...[
                     _ThemeTile(
                       theme: t,
@@ -127,13 +137,6 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            const Eyebrow('§ 03 — Nombre de questions'),
-            const SizedBox(height: 10),
-            _SizeSelector(
-              value: _size,
-              onChanged: (v) => setState(() => _size = v),
-            ),
             if (_error != null) ...[
               const SizedBox(height: 18),
               Container(
@@ -152,12 +155,64 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
             ],
             const SizedBox(height: 28),
             AppButton(
-              label: 'Démarrer l\'entraînement',
+              label: 'Commencer l\'entraînement',
               onPressed: _starting ? null : _start,
               isLoading: _starting,
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Petit bandeau qui explique le mode session continue.
+class _ContinuousModeCard extends StatelessWidget {
+  const _ContinuousModeCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.blue.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.all_inclusive_rounded,
+              size: 18,
+              color: AppColors.blue,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Session continue',
+                  style: AppFonts.jakarta(size: 13, weight: FontWeight.w700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Enchaînez les questions sans limite. Quittez quand vous voulez.',
+                  style: AppFonts.jakarta(size: 11.5, color: AppColors.muted),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -170,12 +225,14 @@ class _ThemeTile extends StatelessWidget {
     required this.onTap,
   });
 
-  final ThemeDto theme;
+  /// Null = "Toutes les thématiques".
+  final ThemeDto? theme;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final isAll = theme == null;
     return AppCard(
       onTap: onTap,
       padding: const EdgeInsets.all(14),
@@ -207,98 +264,38 @@ class _ThemeTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  theme.name,
+                  isAll ? 'Toutes les thématiques' : theme!.name,
                   style: AppFonts.jakarta(
                     size: 14,
                     weight: FontWeight.w700,
                   ),
                 ),
-                if (theme.description != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      theme.description!,
-                      style: AppFonts.jakarta(
-                        size: 12,
-                        color: AppColors.muted,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    isAll
+                        ? 'Mélange de toutes les thématiques disponibles'
+                        : (theme!.description ?? ''),
+                    style: AppFonts.jakarta(
+                      size: 12,
+                      color: AppColors.muted,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          AppTag(
-            label: '${theme.questionCount} Q',
-            tone: TagTone.neutral,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SizeChip extends StatelessWidget {
-  const _SizeChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.blue : AppColors.white,
-          border: Border.all(
-            color: selected ? AppColors.blue : AppColors.line,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          label,
-          style: AppFonts.jakarta(
-            size: 13,
-            weight: FontWeight.w700,
-            color: selected ? AppColors.white : AppColors.muted,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SizeSelector extends StatelessWidget {
-  const _SizeSelector({required this.value, required this.onChanged});
-
-  final int value;
-  final void Function(int) onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    const options = [5, 10, 20];
-    return Row(
-      children: [
-        for (var i = 0; i < options.length; i++) ...[
-          if (i > 0) const SizedBox(width: 8),
-          Expanded(
-            child: _SizeChip(
-              label: '${options[i]} questions',
-              selected: value == options[i],
-              onTap: () => onChanged(options[i]),
+          if (!isAll) ...[
+            const SizedBox(width: 8),
+            AppTag(
+              label: '${theme!.questionCount} Q',
+              tone: TagTone.neutral,
             ),
-          ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }

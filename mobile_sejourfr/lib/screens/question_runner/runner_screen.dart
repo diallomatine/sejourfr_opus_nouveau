@@ -37,7 +37,8 @@ class RunnerScreen extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.cloud_off_outlined, color: AppColors.red, size: 40),
+                const Icon(Icons.cloud_off_outlined,
+                    color: AppColors.red, size: 40),
                 const SizedBox(height: 12),
                 Text(
                   e.toString(),
@@ -49,7 +50,9 @@ class RunnerScreen extends ConsumerWidget {
                   label: 'Réessayer',
                   variant: AppButtonVariant.secondary,
                   fullWidth: false,
-                  onPressed: () => ref.read(runnerControllerProvider(attemptId).notifier).retry(),
+                  onPressed: () => ref
+                      .read(runnerControllerProvider(attemptId).notifier)
+                      .retry(),
                 ),
               ],
             ),
@@ -70,26 +73,26 @@ class _RunnerView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final question = state.current.question;
-    final isExam = state.attempt.isMockExam;
-    final isTraining = state.attempt.type == AttemptType.training;
+    final isExam = state.activeAttempt.isMockExam;
+    final isTraining = state.activeAttempt.type == AttemptType.training;
     final selected = state.answersByQuestion[state.current.id] ?? const [];
 
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close, size: 22),
-          onPressed: () => _confirmQuit(context),
+          onPressed: () => _confirmQuit(context, ref),
         ),
         title: _ProgressHeader(state: state),
         centerTitle: false,
         actions: [
-          if (isExam && state.attempt.timeLimitSeconds != null)
+          if (isExam && state.activeAttempt.timeLimitSeconds != null)
             Padding(
               padding: const EdgeInsets.only(right: 12),
               child: Center(
                 child: ExamTimer(
-                  durationSeconds: state.attempt.timeLimitSeconds!,
-                  startedAt: state.attempt.startedAt,
+                  durationSeconds: state.activeAttempt.timeLimitSeconds!,
+                  startedAt: state.activeAttempt.startedAt,
                   onElapsed: () => _autoFinish(context, ref),
                 ),
               ),
@@ -115,7 +118,8 @@ class _RunnerView extends ConsumerWidget {
                     AppCard(
                       padding: const EdgeInsets.all(14),
                       color: AppColors.blueSoft,
-                      border: Border.all(color: AppColors.blue.withValues(alpha: 0.15)),
+                      border: Border.all(
+                          color: AppColors.blue.withValues(alpha: 0.15)),
                       boxShadow: const [],
                       child: Text(
                         question.passageText!,
@@ -141,17 +145,20 @@ class _RunnerView extends ConsumerWidget {
                     final c = question.choices[i];
                     final isSelected = selected.contains(c.id);
                     final showCorr = state.hasResult && isTraining;
-                    final isCorrect = state.lastResult?.correctChoiceIds.contains(c.id);
+                    final isCorrect =
+                        state.lastResult?.correctChoiceIds.contains(c.id);
                     return Padding(
-                      padding: EdgeInsets.only(bottom: i == question.choices.length - 1 ? 0 : 10),
+                      padding: EdgeInsets.only(
+                          bottom: i == question.choices.length - 1 ? 0 : 10),
                       child: ChoiceTile(
                         choice: c,
                         index: i,
                         selected: isSelected,
                         showCorrection: showCorr,
                         isCorrect: isCorrect,
-                        onTap: () =>
-                            ref.read(runnerControllerProvider(attemptId).notifier).toggleChoice(c.id),
+                        onTap: () => ref
+                            .read(runnerControllerProvider(attemptId).notifier)
+                            .toggleChoice(c.id),
                       ),
                     );
                   }),
@@ -159,7 +166,8 @@ class _RunnerView extends ConsumerWidget {
                     const SizedBox(height: 20),
                     ExplanationBox(
                       correct: state.lastResult!.correct,
-                      explanation: state.lastResult!.explanation ?? question.explanation,
+                      explanation:
+                          state.lastResult!.explanation ?? question.explanation,
                     ),
                   ],
                   if (state.errorMessage != null) ...[
@@ -168,7 +176,8 @@ class _RunnerView extends ConsumerWidget {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: AppColors.redLight,
-                        border: Border.all(color: AppColors.red.withValues(alpha: 0.3)),
+                        border: Border.all(
+                            color: AppColors.red.withValues(alpha: 0.3)),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -180,40 +189,42 @@ class _RunnerView extends ConsumerWidget {
                 ],
               ),
             ),
-            _BottomBar(
-              state: state,
-              attemptId: attemptId,
-            ),
+            _BottomBar(state: state, attemptId: attemptId),
           ],
         ),
       ),
     );
   }
 
-  void _confirmQuit(BuildContext context) {
-    showDialog(
+  Future<void> _confirmQuit(BuildContext context, WidgetRef ref) async {
+    final isTraining = state.activeAttempt.type == AttemptType.training;
+    final isInfinite = state.isInfiniteTraining;
+    final title = isInfinite ? 'Terminer la session ?' : 'Quitter cette session ?';
+    final message = isInfinite
+        ? 'Vos réponses ont été enregistrées. Vous pourrez consulter cette session dans votre historique.'
+        : 'Votre progression dans cette session sera conservée. Vous pourrez la reprendre plus tard.';
+    final confirmLabel = isInfinite ? 'Terminer' : 'Quitter';
+
+    final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
-          'Quitter cette session ?',
+          title,
           style: AppFonts.fraunces(size: 20, weight: FontWeight.w600),
         ),
         content: Text(
-          'Votre progression dans cette session sera conservée. Vous pourrez la reprendre plus tard.',
+          message,
           style: AppFonts.jakarta(size: 13.5, color: AppColors.muted),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
+            onPressed: () => Navigator.of(ctx).pop(false),
             child: const Text('Annuler'),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              GoRouter.of(context).pop();
-            },
+            onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
-              'Quitter',
+              confirmLabel,
               style: AppFonts.jakarta(
                 color: AppColors.red,
                 weight: FontWeight.w700,
@@ -223,10 +234,22 @@ class _RunnerView extends ConsumerWidget {
         ],
       ),
     );
+    if (result != true) return;
+    if (!context.mounted) return;
+
+    // En entraînement infini, on finalise le batch courant pour que les
+    // réponses comptent dans les stats. En examen ou training non-infini,
+    // on quitte sans finaliser (resume possible).
+    if (isTraining && isInfinite) {
+      await ref.read(runnerControllerProvider(attemptId).notifier).finish();
+    }
+    if (!context.mounted) return;
+    GoRouter.of(context).pop();
   }
 
   Future<void> _autoFinish(BuildContext context, WidgetRef ref) async {
-    final attempt = await ref.read(runnerControllerProvider(attemptId).notifier).finish();
+    final attempt =
+        await ref.read(runnerControllerProvider(attemptId).notifier).finish();
     if (attempt != null && context.mounted) {
       _navigateToResult(context, attempt);
     }
@@ -240,14 +263,17 @@ class _ProgressHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isInfinite = state.isInfiniteTraining;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Eyebrow(state.attempt.isMockExam ? 'Examen blanc' : 'Entraînement'),
+        Eyebrow(state.activeAttempt.isMockExam ? 'Examen blanc' : 'Entraînement'),
         const SizedBox(height: 2),
         Text(
-          'Question ${state.currentIndex + 1} / ${state.attempt.totalQuestions}',
+          isInfinite
+              ? 'Question ${state.currentIndex + 1}'
+              : 'Question ${state.currentIndex + 1} / ${state.activeAttempt.totalQuestions}',
           style: AppFonts.jakarta(
             size: 14,
             weight: FontWeight.w700,
@@ -265,7 +291,23 @@ class _ProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final value = (state.currentIndex + 1) / state.attempt.totalQuestions;
+    // Pas de barre déterminée en entraînement infini (pas de total).
+    if (state.isInfiniteTraining) {
+      return Container(
+        height: 3,
+        color: AppColors.line2,
+        alignment: Alignment.centerLeft,
+        child: state.extending
+            ? const LinearProgressIndicator(
+                minHeight: 3,
+                backgroundColor: AppColors.line2,
+                valueColor: AlwaysStoppedAnimation(AppColors.blue),
+              )
+            : null,
+      );
+    }
+    final value =
+        (state.currentIndex + 1) / state.activeAttempt.totalQuestions;
     return LinearProgressIndicator(
       value: value,
       minHeight: 3,
@@ -319,9 +361,11 @@ class _BottomBar extends ConsumerWidget {
     final ctrl = ref.read(runnerControllerProvider(attemptId).notifier);
     final selected = state.answersByQuestion[state.current.id] ?? const [];
     final hasSelection = selected.isNotEmpty;
-    final isTraining = state.attempt.type == AttemptType.training;
+    final isTraining = state.activeAttempt.type == AttemptType.training;
+    final isInfinite = state.isInfiniteTraining;
     final showValidate = isTraining && !state.hasResult;
     final isLast = state.isLast;
+    final waiting = state.submitting || state.extending;
 
     return Container(
       padding: EdgeInsets.fromLTRB(
@@ -336,30 +380,36 @@ class _BottomBar extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          if (state.currentIndex > 0) ...[
+          // En entraînement infini : pas de "Précédent" (session orientée
+          // avancement). En examen ou training borné, on garde l'option.
+          if (!isInfinite && state.currentIndex > 0) ...[
             Expanded(
               child: AppButton(
                 label: 'Précédent',
                 variant: AppButtonVariant.ghost,
-                onPressed: state.submitting ? null : ctrl.goPrevious,
+                onPressed: waiting ? null : ctrl.goPrevious,
               ),
             ),
             const SizedBox(width: 12),
           ],
           Expanded(
-            flex: state.currentIndex > 0 ? 2 : 1,
+            flex: (!isInfinite && state.currentIndex > 0) ? 2 : 1,
             child: showValidate
                 ? AppButton(
                     label: 'Valider',
                     variant: AppButtonVariant.primary,
-                    onPressed: (!hasSelection || state.submitting) ? null : ctrl.submitCurrent,
+                    onPressed: (!hasSelection || waiting)
+                        ? null
+                        : ctrl.submitCurrent,
                     isLoading: state.submitting,
                   )
                 : isLast
                     ? AppButton(
-                        label: 'Terminer',
+                        label: isInfinite
+                            ? 'Terminer la session'
+                            : 'Terminer',
                         variant: AppButtonVariant.danger,
-                        onPressed: state.submitting
+                        onPressed: waiting
                             ? null
                             : () async {
                                 final attempt = await ctrl.finish();
@@ -372,15 +422,15 @@ class _BottomBar extends ConsumerWidget {
                     : AppButton(
                         label: 'Suivant',
                         variant: AppButtonVariant.primary,
-                        onPressed: (!hasSelection && isTraining)
+                        onPressed: ((!hasSelection && isTraining) || waiting)
                             ? null
                             : () async {
-                                // En examen, on enregistre la réponse avant de passer
                                 if (!isTraining && hasSelection) {
                                   await ctrl.submitCurrent();
                                 }
-                                ctrl.goNext();
+                                await ctrl.goNext();
                               },
+                        isLoading: state.extending,
                       ),
           ),
         ],
@@ -391,12 +441,10 @@ class _BottomBar extends ConsumerWidget {
 
 void _navigateToResult(BuildContext context, Attempt attempt) {
   if (attempt.isMockExam) {
-    // Écran plein dédié pour les examens blancs
     context.go(
       AppRoutes.examResult.replaceFirst(':attemptId', attempt.id),
     );
   } else {
-    // Dialog simple pour les entraînements
     _showTrainingResultDialog(context, attempt);
   }
 }
