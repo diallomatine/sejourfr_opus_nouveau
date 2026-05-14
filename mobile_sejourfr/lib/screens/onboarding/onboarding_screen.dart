@@ -11,11 +11,20 @@ import '../../core/widgets/sejourfr_logo.dart';
 
 const _kOnboardingSeenKey = 'sejourfr.onboardingSeen';
 
-/// Provider pour savoir si l'onboarding a deja ete vu.
-/// Utilise par le router pour rediriger ou pas.
-final onboardingSeenProvider = FutureProvider<bool>((ref) async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getBool(_kOnboardingSeenKey) ?? false;
+/// Instance synchrone de SharedPreferences. Préchargée dans main.dart et
+/// injectée via `ProviderScope.overrides`. Lire ce provider sans override
+/// lèvera une erreur (volontaire : on veut un état toujours disponible
+/// dès le premier frame).
+final sharedPrefsProvider = Provider<SharedPreferences>((_) {
+  throw UnimplementedError(
+    'sharedPrefsProvider doit être overridé dans main.dart',
+  );
+});
+
+/// Flag synchrone "l'onboarding a déjà été vu". Initialisé depuis les
+/// prefs au tout premier read, puis mis à jour à la fin de l'onboarding.
+final onboardingSeenProvider = StateProvider<bool>((ref) {
+  return ref.read(sharedPrefsProvider).getBool(_kOnboardingSeenKey) ?? false;
 });
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -59,9 +68,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   ];
 
   Future<void> _finish() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = ref.read(sharedPrefsProvider);
     await prefs.setBool(_kOnboardingSeenKey, true);
-    ref.invalidate(onboardingSeenProvider);
+    ref.read(onboardingSeenProvider.notifier).state = true;
     if (mounted) context.go(AppRoutes.login);
   }
 

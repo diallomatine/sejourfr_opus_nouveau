@@ -56,21 +56,32 @@ class AuthController extends StateNotifier<AuthState> {
   TokenStorage get _storage => _ref.read(tokenStorageProvider);
   AuthRepository get _repo => _ref.read(authRepositoryProvider);
 
+  /// Durée minimale d'affichage du splash, pour éviter un flash quand le
+  /// bootstrap est très rapide (typiquement quand il n'y a pas de token).
+  static const _minSplashDuration = Duration(milliseconds: 900);
+
   Future<void> _bootstrap() async {
+    final startedAt = DateTime.now();
+    AuthState next;
     final access = await _storage.readAccess();
     if (access == null) {
-      state = const AuthUnauthenticated();
-      return;
+      next = const AuthUnauthenticated();
+    } else {
+      // Token présent : on tente /me. Si le token est expiré, l'intercepteur
+      // de Dio refresh automatiquement. Si tout échoue, on tombe en logout.
+      try {
+        final user = await _repo.me();
+        next = AuthAuthenticated(user);
+      } catch (_) {
+        await _storage.clear();
+        next = const AuthUnauthenticated();
+      }
     }
-    // Token présent : on tente /me. Si le token est expiré, l'intercepteur
-    // de Dio va refresh automatiquement. Si tout échoue, on tombe en logout.
-    try {
-      final user = await _repo.me();
-      state = AuthAuthenticated(user);
-    } catch (_) {
-      await _storage.clear();
-      state = const AuthUnauthenticated();
+    final elapsed = DateTime.now().difference(startedAt);
+    if (elapsed < _minSplashDuration) {
+      await Future.delayed(_minSplashDuration - elapsed);
     }
+    state = next;
   }
 
   Future<void> login({required String email, required String password}) async {

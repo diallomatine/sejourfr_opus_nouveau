@@ -41,7 +41,20 @@ class AppRoutes {
 
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = _AuthRouterNotifier(ref);
-  return GoRouter(
+  late final GoRouter router;
+
+  // Force la navigation vers /login dès qu'un 401 fait passer l'auth en
+  // Unauthenticated (forceLogout) ou qu'un logout explicite est déclenché.
+  // Le redirect du router gérerait déjà le cas pour la route active, mais
+  // appeler `go` explicitement garantit qu'on vide la back-stack des
+  // routes pushées (runner, target-path, etc.).
+  ref.listen<AuthState>(authControllerProvider, (previous, next) {
+    if (previous is AuthAuthenticated && next is AuthUnauthenticated) {
+      router.go(AppRoutes.login);
+    }
+  });
+
+  router = GoRouter(
     initialLocation: AppRoutes.splash,
     refreshListenable: notifier,
     debugLogDiagnostics: false,
@@ -77,7 +90,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       // User non connecté : on regarde si l'onboarding a déjà été vu.
-      final onboardingSeen = ref.read(onboardingSeenProvider).valueOrNull ?? false;
+      // Lecture synchrone : la valeur est préchargée depuis les prefs au boot
+      // (main.dart) donc disponible dès le premier frame.
+      final onboardingSeen = ref.read(onboardingSeenProvider);
 
       if (!onboardingSeen && !isOnOnboarding) {
         return AppRoutes.onboarding;
@@ -172,24 +187,31 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  return router;
 });
 
 /// Pont entre Riverpod et go_router : on rafraîchit le router à chaque
 /// changement d'AuthState pour appliquer les redirections.
 class _AuthRouterNotifier extends ChangeNotifier {
   _AuthRouterNotifier(this._ref) {
-    _sub = _ref.listen<AuthState>(
+    _authSub = _ref.listen<AuthState>(
       authControllerProvider,
+      (_, __) => notifyListeners(),
+    );
+    _onboardingSub = _ref.listen<bool>(
+      onboardingSeenProvider,
       (_, __) => notifyListeners(),
     );
   }
 
   final Ref _ref;
-  late final ProviderSubscription<AuthState> _sub;
+  late final ProviderSubscription<AuthState> _authSub;
+  late final ProviderSubscription<bool> _onboardingSub;
 
   @override
   void dispose() {
-    _sub.close();
+    _authSub.close();
+    _onboardingSub.close();
     super.dispose();
   }
 }
