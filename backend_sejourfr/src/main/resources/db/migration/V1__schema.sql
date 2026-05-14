@@ -50,7 +50,7 @@ CREATE TABLE user_subscriptions (
 CREATE INDEX idx_user_subs_user ON user_subscriptions(user_id);
 
 -- ---------------------------------------------------------------------------
--- Themes
+-- Thèmes
 -- ---------------------------------------------------------------------------
 CREATE TABLE themes (
     id              UUID PRIMARY KEY,
@@ -65,7 +65,7 @@ CREATE TABLE themes (
 CREATE INDEX idx_theme_module ON themes(module);
 
 -- ---------------------------------------------------------------------------
--- Medias
+-- Médias
 -- ---------------------------------------------------------------------------
 CREATE TABLE medias (
     id                  UUID PRIMARY KEY,

@@ -6,7 +6,7 @@
 --   - answers  : passage d'un row-par-choix à un row-par-question avec liste
 --                de choix sélectionnés (JSONB) + flag is_correct
 --   - user_question_statuses : updated_at
---   - medias   : transcript
+--   - médias   : transcript
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -38,7 +38,7 @@ ALTER TABLE answers
     ADD COLUMN IF NOT EXISTS is_correct          BOOLEAN;
 
 -- user_id était NOT NULL dans le schéma initial. Le nouveau code peut
--- s'appuyer sur attempt_question.attempt.user_id, donc on autorise NULL
+-- s'appuyer sur attempt_question.attempt.user_id, donc on autorisé NULL
 -- (le @PrePersist sur Answer le re-renseigne automatiquement).
 ALTER TABLE answers
     ALTER COLUMN user_id DROP NOT NULL;
@@ -54,7 +54,7 @@ ALTER TABLE user_question_statuses
     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
 
 -- ---------------------------------------------------------------------------
--- medias : transcription textuelle (utile pour les audios TCF)
+-- médias : transcription textuelle (utile pour les audios TCF)
 -- ---------------------------------------------------------------------------
 ALTER TABLE medias
     ADD COLUMN IF NOT EXISTS transcript TEXT;

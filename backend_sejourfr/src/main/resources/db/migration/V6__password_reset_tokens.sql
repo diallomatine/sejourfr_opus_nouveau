@@ -1,5 +1,5 @@
 -- ============================================================================
--- V6 : Table pour les tokens de reinitialisation de mot de passe
+-- V6 : Table pour les tokens de réinitialisation de mot de passe
 -- ============================================================================
 
 CREATE TABLE password_reset_tokens (
