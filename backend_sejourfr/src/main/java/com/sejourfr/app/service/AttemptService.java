@@ -5,6 +5,7 @@ import com.sejourfr.app.entity.*;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.repository.*;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.PageRequest;
@@ -82,10 +83,15 @@ public class AttemptService {
         UUID themeId = req.type() == AttemptType.MOCK_EXAM ? null : req.themeId();
         var qType = req.type() == AttemptType.MOCK_EXAM ? null : req.questionType();
 
+        // Si l'écran n'a pas explicité de difficulté, on déduit depuis le parcours
+        // visé par l'utilisateur. C'est ce qui permet d'avoir choisi CSP/CR/NAT une
+        // fois pour toutes à l'onboarding et de ne plus jamais reposer la question.
+        Difficulty effectiveDifficulty = resolveDifficulty(user, req.module(), req.difficulty());
+
         List<Question> questions = questionRepository.findRandom(
                 req.module(),
                 themeId,
-                req.difficulty(),
+                effectiveDifficulty,
                 qType,
                 PageRequest.of(0, size)
         );
@@ -232,6 +238,35 @@ public class AttemptService {
     // ------------------------------------------------------------------------
     // Helpers privés
     // ------------------------------------------------------------------------
+
+    /**
+     * Détermine la difficulté à appliquer pour un attempt : la valeur explicite
+     * si présente, sinon dérivée du parcours visé par l'utilisateur.
+     *
+     * Module CIVIQUE : CSP/CR/NAT directement.
+     * Module TCF     : CSP→A2, CR→B1, NAT→B2.
+     *
+     * Retourne null si l'utilisateur n'a pas encore choisi de parcours, auquel
+     * cas la sélection se fait sur tous les niveaux.
+     */
+    private Difficulty resolveDifficulty(User user, Module module, Difficulty requested) {
+        if (requested != null) return requested;
+        TargetProcedure path = user.getTargetProcedure();
+        if (path == null) return null;
+
+        if (module == Module.CIVIQUE) {
+            return switch (path) {
+                case CSP -> Difficulty.CSP;
+                case CR -> Difficulty.CR;
+                case NAT -> Difficulty.NAT;
+            };
+        }
+        return switch (path) {
+            case CSP -> Difficulty.A2;
+            case CR -> Difficulty.B1;
+            case NAT -> Difficulty.B2;
+        };
+    }
 
     private Attempt loadAndCheck(UUID userId, UUID attemptId) {
         Attempt attempt = attemptRepository.findById(attemptId)

@@ -9,21 +9,24 @@
 -- ---------------------------------------------------------------------------
 -- Utilisateurs
 -- ---------------------------------------------------------------------------
-INSERT INTO users (id, email, password_hash, first_name, last_name, role, is_active) VALUES
+INSERT INTO users (id, email, password_hash, first_name, last_name, target_procedure, target_level, role, is_active) VALUES
   ('aaaaaaaa-0000-0000-0000-000000000001',
    'admin@sejourfr.fr',
    '$2b$10$mQXIx9PyqIynrivTPMejDu3TtLjm1t0KgCzzkZj2vMB3H/nay2FG2',
    'Abdoul', 'K.',
+   NULL, NULL,
    'ADMIN', TRUE),
   ('aaaaaaaa-0000-0000-0000-000000000002',
    'user@sejourfr.fr',
    '$2b$10$wE3C1plI1itm6y.2gU571esnUgiREg6Ri8qNNsYAv84hWLqfZbwF6',
    'Mariam', 'Diallo',
+   'CR', 'B1',
    'USER', TRUE),
   ('aaaaaaaa-0000-0000-0000-000000000003',
    'karim.test@sejourfr.fr',
    '$2b$10$wE3C1plI1itm6y.2gU571esnUgiREg6Ri8qNNsYAv84hWLqfZbwF6',
    'Karim', 'Benyahia',
+   'CR', 'B1',
    'USER', TRUE);
 
 -- ---------------------------------------------------------------------------

@@ -16,6 +16,7 @@ import '../../screens/question_runner/runner_screen.dart';
 import '../../screens/review/review_screen.dart';
 import '../../screens/shell/main_shell.dart';
 import '../../screens/splash/splash_screen.dart';
+import '../../screens/target_path/target_path_screen.dart';
 import '../../screens/training/training_setup_screen.dart';
 import '../auth/auth_controller.dart';
 
@@ -32,6 +33,7 @@ class AppRoutes {
   static const review = '/review';
   static const profile = '/profile';
   static const onboarding = '/onboarding';
+  static const targetPath = '/target-path';
   static const examResult = '/exam-result/:attemptId';
   static const history = '/history';
   static const examReport = '/exam-report/:attemptId';
@@ -56,10 +58,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isOnAuthFlow =
           loc == AppRoutes.login || loc == AppRoutes.register || loc == AppRoutes.forgotPassword;
       final isOnOnboarding = loc == AppRoutes.onboarding;
+      final isOnTargetPath = loc == AppRoutes.targetPath;
       final isOnSplash = loc == AppRoutes.splash;
 
       // Si user connecté : pas d'auth flow, pas d'onboarding, pas de splash.
       if (isAuth) {
+        final user = auth.user;
+
+        // Onboarding parcours obligatoire (sauf pour les comptes ADMIN).
+        if (!user.hasCompletedOnboarding && !isOnTargetPath) {
+          return AppRoutes.targetPath;
+        }
+
         if (isOnAuthFlow || isOnOnboarding || isOnSplash) {
           return AppRoutes.home;
         }
@@ -99,6 +109,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.onboarding,
         builder: (_, __) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.targetPath,
+        builder: (_, __) => const TargetPathScreen(),
       ),
       GoRoute(
         path: AppRoutes.examResult,

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/router/app_router.dart';
@@ -11,9 +12,9 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
-import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/eyebrow.dart';
 import '../home/widgets/module_switch.dart';
+import '../shared/target_path_banner.dart';
 
 class ExamSetupScreen extends ConsumerStatefulWidget {
   const ExamSetupScreen({super.key});
@@ -23,15 +24,10 @@ class ExamSetupScreen extends ConsumerStatefulWidget {
 }
 
 class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
-  Difficulty? _difficulty;
   bool _starting = false;
   String? _error;
 
   Future<void> _start() async {
-    if (_difficulty == null) {
-      setState(() => _error = 'Choisissez d\'abord une mention.');
-      return;
-    }
     setState(() {
       _error = null;
       _starting = true;
@@ -42,7 +38,6 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
             StartAttemptRequest(
               type: AttemptType.mockExam,
               module: module,
-              difficulty: _difficulty,
             ),
           );
       if (!mounted) return;
@@ -57,14 +52,9 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
   @override
   Widget build(BuildContext context) {
     final module = ref.watch(selectedModuleProvider);
-    final levels = module == AppModule.civique
-        ? Difficulty.civique
-        : Difficulty.tcf;
-
-    // Reset du niveau quand on change de module
-    ref.listen(selectedModuleProvider, (_, __) {
-      setState(() => _difficulty = null);
-    });
+    final auth = ref.watch(authControllerProvider);
+    final targetProcedure =
+        auth is AuthAuthenticated ? auth.user.targetProcedure : null;
 
     return Scaffold(
       body: SafeArea(
@@ -78,29 +68,13 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
               style: AppFonts.fraunces(size: 28, weight: FontWeight.w600),
             ),
             const SizedBox(height: 16),
+            if (targetProcedure != null) ...[
+              TargetPathBanner(procedure: targetProcedure),
+              const SizedBox(height: 16),
+            ],
             const ModuleSwitch(),
             const SizedBox(height: 24),
             _RulesCard(module: module),
-            const SizedBox(height: 22),
-            Eyebrow(
-              module == AppModule.civique
-                  ? '§ Choisir une mention'
-                  : '§ Choisir un niveau',
-            ),
-            const SizedBox(height: 10),
-            Column(
-              children: [
-                for (final d in levels) ...[
-                  _LevelCard(
-                    level: d,
-                    isCivique: module == AppModule.civique,
-                    selected: _difficulty == d,
-                    onTap: () => setState(() => _difficulty = d),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ],
-            ),
             if (_error != null) ...[
               const SizedBox(height: 18),
               Container(
@@ -209,87 +183,5 @@ class _RulesCard extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _LevelCard extends StatelessWidget {
-  const _LevelCard({
-    required this.level,
-    required this.isCivique,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final Difficulty level;
-  final bool isCivique;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = level.wire;
-    final description = _description();
-
-    return AppCard(
-      onTap: onTap,
-      padding: const EdgeInsets.all(14),
-      border: Border.all(
-        color: selected ? AppColors.red : AppColors.line,
-        width: selected ? 1.5 : 1,
-      ),
-      color: selected ? AppColors.redLight : AppColors.white,
-      child: Row(
-        children: [
-          AppTag(
-            label: label,
-            tone: selected ? TagTone.red : TagTone.blue,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              description,
-              style: AppFonts.jakarta(size: 13.5),
-            ),
-          ),
-          if (selected)
-            const Icon(Icons.check_circle, color: AppColors.red, size: 22)
-          else
-            Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.line2, width: 2),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  String _description() {
-    if (isCivique) {
-      switch (level) {
-        case Difficulty.csp:
-          return 'Carte de séjour pluriannuelle';
-        case Difficulty.cr:
-          return 'Carte de résident';
-        case Difficulty.nat:
-          return 'Naturalisation';
-        default:
-          return level.wire;
-      }
-    } else {
-      switch (level) {
-        case Difficulty.a2:
-          return 'A2 — exigé pour la CSP';
-        case Difficulty.b1:
-          return 'B1 — exigé pour la CR';
-        case Difficulty.b2:
-          return 'B2 — exigé pour la naturalisation';
-        default:
-          return level.wire;
-      }
-    }
   }
 }

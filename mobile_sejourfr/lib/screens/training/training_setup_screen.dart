@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
-import '../../core/models/enums.dart';
 import '../../core/models/question_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
@@ -15,6 +15,7 @@ import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/eyebrow.dart';
 import '../home/widgets/module_switch.dart';
+import '../shared/target_path_banner.dart';
 
 final _themesProvider =
     FutureProvider.autoDispose<List<ThemeDto>>((ref) async {
@@ -32,7 +33,6 @@ class TrainingSetupScreen extends ConsumerStatefulWidget {
 
 class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
   ThemeDto? _selectedTheme;
-  Difficulty? _selectedDifficulty;
   int _size = 10;
   bool _starting = false;
   String? _error;
@@ -49,7 +49,6 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
               type: AttemptType.training,
               module: module,
               themeId: _selectedTheme?.id,
-              difficulty: _selectedDifficulty,
               size: _size,
             ),
           );
@@ -64,20 +63,17 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final module = ref.watch(selectedModuleProvider);
     final themes = ref.watch(_themesProvider);
+    final auth = ref.watch(authControllerProvider);
+    final targetProcedure =
+        auth is AuthAuthenticated ? auth.user.targetProcedure : null;
 
     // Reset du thème quand on change de module
     ref.listen(selectedModuleProvider, (_, __) {
       setState(() {
         _selectedTheme = null;
-        _selectedDifficulty = null;
       });
     });
-
-    final levels = module == AppModule.civique
-        ? Difficulty.civique
-        : Difficulty.tcf;
 
     return Scaffold(
       body: SafeArea(
@@ -91,6 +87,10 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
               style: AppFonts.fraunces(size: 28, weight: FontWeight.w600),
             ),
             const SizedBox(height: 16),
+            if (targetProcedure != null) ...[
+              TargetPathBanner(procedure: targetProcedure),
+              const SizedBox(height: 16),
+            ],
             const ModuleSwitch(),
             const SizedBox(height: 24),
             const Eyebrow('§ 02 — Thématique'),
@@ -128,29 +128,7 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            Eyebrow(
-              module == AppModule.civique ? '§ 03 — Mention' : '§ 03 — Niveau',
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _LevelChip(
-                  label: 'Tous',
-                  selected: _selectedDifficulty == null,
-                  onTap: () => setState(() => _selectedDifficulty = null),
-                ),
-                for (final d in levels)
-                  _LevelChip(
-                    label: d.wire,
-                    selected: _selectedDifficulty == d,
-                    onTap: () => setState(() => _selectedDifficulty = d),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            const Eyebrow('§ 04 — Nombre de questions'),
+            const Eyebrow('§ 03 — Nombre de questions'),
             const SizedBox(height: 10),
             _SizeSelector(
               value: _size,
@@ -262,8 +240,8 @@ class _ThemeTile extends StatelessWidget {
   }
 }
 
-class _LevelChip extends StatelessWidget {
-  const _LevelChip({
+class _SizeChip extends StatelessWidget {
+  const _SizeChip({
     required this.label,
     required this.selected,
     required this.onTap,
@@ -313,7 +291,7 @@ class _SizeSelector extends StatelessWidget {
         for (var i = 0; i < options.length; i++) ...[
           if (i > 0) const SizedBox(width: 8),
           Expanded(
-            child: _LevelChip(
+            child: _SizeChip(
               label: '${options[i]} questions',
               selected: value == options[i],
               onTap: () => onChanged(options[i]),

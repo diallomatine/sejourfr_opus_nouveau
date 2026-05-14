@@ -3,12 +3,16 @@ package com.sejourfr.app.controller;
 import com.sejourfr.app.dto.AttemptSummaryResponse;
 import com.sejourfr.app.dto.QuestionPublicResponse;
 import com.sejourfr.app.dto.QuestionReviewResponse;
+import com.sejourfr.app.dto.UpdateTargetProcedureRequest;
 import com.sejourfr.app.dto.UserStatsResponse;
+import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.repository.UserRepository;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.AttemptService;
 import com.sejourfr.app.service.UserContentService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,11 +29,37 @@ public class MeController {
     private final UserContentService service;
     private final CurrentUser currentUser;
     private final AttemptService attemptService;
+    private final UserRepository userRepository;
 
-    public MeController(UserContentService service, CurrentUser currentUser, AttemptService attemptService) {
+    public MeController(
+            UserContentService service,
+            CurrentUser currentUser,
+            AttemptService attemptService,
+            UserRepository userRepository
+    ) {
         this.service = service;
         this.currentUser = currentUser;
         this.attemptService = attemptService;
+        this.userRepository = userRepository;
+    }
+
+    // ------------------------------------------------------------------------
+    // Parcours administratif visé (CSP / CR / NAT)
+    // ------------------------------------------------------------------------
+
+    /**
+     * Met à jour le parcours visé par l'utilisateur. Appelé après l'onboarding
+     * ou depuis le profil. Une fois renseigné, AttemptService dérive
+     * automatiquement la difficulté des questions tirées.
+     */
+    @PutMapping("/target-path")
+    public ResponseEntity<Void> updateTargetPath(
+            @Valid @RequestBody UpdateTargetProcedureRequest req
+    ) {
+        User user = currentUser.get();
+        user.setTargetProcedure(req.targetProcedure());
+        userRepository.save(user);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/attempts")

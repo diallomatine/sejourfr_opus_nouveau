@@ -60,6 +60,16 @@ class UserContentRepository {
     );
     return UserStats.fromJson(res.data!);
   }
+
+  /// Définit / met à jour le parcours administratif visé (CSP/CR/NAT).
+  /// Le backend dérive ensuite automatiquement la difficulté des questions
+  /// tirées en entraînement et examen blanc.
+  Future<void> updateTargetPath(TargetProcedure procedure) async {
+    await _client.dio.put(
+      '/api/me/target-path',
+      data: {'targetProcedure': procedure.wire},
+    );
+  }
 }
 
 class UserStats {

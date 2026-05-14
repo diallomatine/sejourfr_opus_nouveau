@@ -7,6 +7,7 @@ class AuthUser {
     required this.firstName,
     required this.lastName,
     required this.role,
+    this.targetProcedure,
   });
 
   final String id;
@@ -14,6 +15,13 @@ class AuthUser {
   final String? firstName;
   final String? lastName;
   final UserRole role;
+  final TargetProcedure? targetProcedure;
+
+  /// L'utilisateur a-t-il choisi son parcours administratif ?
+  /// Les comptes ADMIN n'ont pas besoin de cette étape : on les considère
+  /// toujours comme onboardés.
+  bool get hasCompletedOnboarding =>
+      role == UserRole.admin || targetProcedure != null;
 
   String get displayName {
     final fn = firstName?.trim();
@@ -24,12 +32,24 @@ class AuthUser {
     return email;
   }
 
+  AuthUser copyWith({TargetProcedure? targetProcedure}) => AuthUser(
+        id: id,
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        role: role,
+        targetProcedure: targetProcedure ?? this.targetProcedure,
+      );
+
   factory AuthUser.fromJson(Map<String, dynamic> json) => AuthUser(
         id: json['id'] as String,
         email: json['email'] as String,
         firstName: json['firstName'] as String?,
         lastName: json['lastName'] as String?,
         role: UserRole.fromWire(json['role'] as String),
+        targetProcedure: json['targetProcedure'] == null
+            ? null
+            : TargetProcedure.fromWire(json['targetProcedure'] as String),
       );
 
   Map<String, dynamic> toJson() => {
@@ -38,6 +58,7 @@ class AuthUser {
         'firstName': firstName,
         'lastName': lastName,
         'role': role.wire,
+        if (targetProcedure != null) 'targetProcedure': targetProcedure!.wire,
       };
 }
 

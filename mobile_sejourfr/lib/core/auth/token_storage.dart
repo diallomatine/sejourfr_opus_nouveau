@@ -37,6 +37,11 @@ class TokenStorage {
     await _storage.write(key: _kUser, value: json.encode(user.toJson()));
   }
 
+  /// Met à jour uniquement la copie persistée du user (sans toucher aux tokens).
+  Future<void> saveUser(AuthUser user) async {
+    await _storage.write(key: _kUser, value: json.encode(user.toJson()));
+  }
+
   Future<void> clear() async {
     await _storage.delete(key: _kAccess);
     await _storage.delete(key: _kRefresh);

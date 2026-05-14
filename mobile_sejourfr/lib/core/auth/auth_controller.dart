@@ -108,6 +108,14 @@ class AuthController extends StateNotifier<AuthState> {
     state = const AuthUnauthenticated();
   }
 
+  /// Recharge les infos du user depuis le backend et met à jour le state.
+  /// Utile après un update du profil (targetProcedure, etc.).
+  Future<void> refreshUser() async {
+    final user = await _repo.me();
+    await _storage.saveUser(user);
+    state = AuthAuthenticated(user);
+  }
+
   /// Logout déclenché par l'intercepteur quand le refresh échoue.
   void forceLogout() {
     // Pas besoin d'attendre le clear : il a déjà eu lieu côté intercepteur.

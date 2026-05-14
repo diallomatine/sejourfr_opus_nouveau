@@ -74,6 +74,43 @@ enum MediaType {
       MediaType.values.firstWhere((e) => e.wire == value);
 }
 
+/// Parcours administratif visé par l'utilisateur.
+/// - CSP : Carte de séjour pluriannuelle (niveau TCF A2)
+/// - CR  : Carte de résident (niveau TCF B1)
+/// - NAT : Naturalisation française (niveau TCF B2)
+enum TargetProcedure {
+  csp('CSP'),
+  cr('CR'),
+  nat('NAT');
+
+  const TargetProcedure(this.wire);
+  final String wire;
+
+  static TargetProcedure fromWire(String value) =>
+      TargetProcedure.values.firstWhere((e) => e.wire == value);
+
+  /// Libellé court "Carte de séjour", "Carte de résident", "Naturalisation".
+  String get shortLabel => switch (this) {
+        TargetProcedure.csp => 'Carte de séjour',
+        TargetProcedure.cr => 'Carte de résident',
+        TargetProcedure.nat => 'Naturalisation',
+      };
+
+  /// Libellé complet pour affichage profil.
+  String get fullLabel => switch (this) {
+        TargetProcedure.csp => 'Carte de séjour pluriannuelle',
+        TargetProcedure.cr => 'Carte de résident',
+        TargetProcedure.nat => 'Naturalisation française',
+      };
+
+  /// Niveau TCF requis pour cette procédure.
+  String get tcfLevel => switch (this) {
+        TargetProcedure.csp => 'A2',
+        TargetProcedure.cr => 'B1',
+        TargetProcedure.nat => 'B2',
+      };
+}
+
 enum UserRole {
   user('USER'),
   admin('ADMIN');

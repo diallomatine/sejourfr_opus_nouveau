@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/auth/auth_controller.dart';
+import '../../core/models/enums.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
@@ -87,6 +88,16 @@ class ProfileScreen extends ConsumerWidget {
             const Eyebrow('§ Paramètres'),
             const SizedBox(height: 10),
             _SettingTile(
+              icon: Icons.flag_outlined,
+              title: 'Ma démarche',
+              subtitle: _pathSubtitle(user.targetProcedure),
+              accent: AppColors.blue,
+              onTap: () => context.push(
+                '${AppRoutes.targetPath}?from=${Uri.encodeComponent(AppRoutes.profile)}',
+              ),
+            ),
+            const SizedBox(height: 8),
+            _SettingTile(
               icon: Icons.history,
               title: 'Mes examens',
               subtitle: 'Historique et progression',
@@ -149,6 +160,11 @@ class ProfileScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  String _pathSubtitle(TargetProcedure? path) {
+    if (path == null) return 'Non définie';
+    return path.fullLabel;
   }
 
   String _initials(String name) {
