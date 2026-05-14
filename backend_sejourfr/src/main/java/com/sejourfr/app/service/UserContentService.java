@@ -14,9 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
-import java.util.Comparator;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -159,10 +157,18 @@ public class UserContentService {
     }
 
     private QuestionPublicResponse toPublic(Question q) {
-        List<ChoicePublicResponse> choices = q.getChoices().stream()
+        // Ordre aléatoire mais stable par question (seed = q.id), pour éviter
+        // que la bonne réponse soit toujours en première position côté révision.
+        long seed = q.getId().getMostSignificantBits() ^ q.getId().getLeastSignificantBits();
+        List<Choice> ordered = q.getChoices().stream()
                 .sorted(Comparator.comparingInt(Choice::getDisplayOrder))
-                .map(c -> new ChoicePublicResponse(c.getId(), c.getLabel(), c.getDisplayOrder(), null))
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
+        Collections.shuffle(ordered, new Random(seed));
+        List<ChoicePublicResponse> choices = new ArrayList<>(ordered.size());
+        for (int i = 0; i < ordered.size(); i++) {
+            Choice c = ordered.get(i);
+            choices.add(new ChoicePublicResponse(c.getId(), c.getLabel(), i, null));
+        }
 
         MediaResponse media = q.getMedia() == null ? null : new MediaResponse(
                 q.getMedia().getId(),

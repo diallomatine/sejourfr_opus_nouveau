@@ -310,21 +310,30 @@ public class AttemptService {
                 : List.of();
         Boolean correct = answer != null && revealCorrect ? answer.getCorrect() : null;
 
+        // Seed déterministe par AttemptQuestion : l'ordre est stable d'une lecture
+        // à l'autre (reprise, refresh) mais différent à chaque nouvelle session,
+        // ce qui empêche l'utilisateur de mémoriser des positions.
+        long seed = aq.getId().getMostSignificantBits() ^ aq.getId().getLeastSignificantBits();
         return new AttemptQuestionResponse(
                 aq.getId(),
                 aq.getPosition(),
-                toQuestionPublic(aq.getQuestion(), revealCorrect),
+                toQuestionPublic(aq.getQuestion(), revealCorrect, seed),
                 answer != null,
                 selectedIds,
                 correct
         );
     }
 
-    private QuestionPublicResponse toQuestionPublic(Question q, boolean revealCorrect) {
-        List<ChoicePublicResponse> choices = q.getChoices().stream()
+    private QuestionPublicResponse toQuestionPublic(Question q, boolean revealCorrect, long shuffleSeed) {
+        List<Choice> ordered = q.getChoices().stream()
                 .sorted(Comparator.comparingInt(Choice::getDisplayOrder))
-                .map(c -> new ChoicePublicResponse(c.getId(), c.getLabel(), c.getDisplayOrder(), revealCorrect ? c.isCorrect() : null))
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
+        Collections.shuffle(ordered, new Random(shuffleSeed));
+        List<ChoicePublicResponse> choices = new ArrayList<>(ordered.size());
+        for (int i = 0; i < ordered.size(); i++) {
+            Choice c = ordered.get(i);
+            choices.add(new ChoicePublicResponse(c.getId(), c.getLabel(), i, revealCorrect ? c.isCorrect() : null));
+        }
 
         MediaResponse media = q.getMedia() == null ? null : new MediaResponse(
                 q.getMedia().getId(),
