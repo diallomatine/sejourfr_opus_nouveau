@@ -77,6 +77,9 @@ class _RunnerView extends ConsumerWidget {
     final isTraining = state.activeAttempt.type == AttemptType.training;
     final selected = state.answersByQuestion[state.current.id] ?? const [];
 
+    final isFavorite =
+        state.favoriteQuestionIds.contains(state.current.question.id);
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -86,6 +89,17 @@ class _RunnerView extends ConsumerWidget {
         title: _ProgressHeader(state: state),
         centerTitle: false,
         actions: [
+          IconButton(
+            tooltip: isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris',
+            icon: Icon(
+              isFavorite ? Icons.bookmark_rounded : Icons.bookmark_outline,
+              size: 22,
+              color: isFavorite ? AppColors.red : AppColors.ink,
+            ),
+            onPressed: () => ref
+                .read(runnerControllerProvider(attemptId).notifier)
+                .toggleFavoriteCurrent(),
+          ),
           if (isExam && state.activeAttempt.timeLimitSeconds != null)
             Padding(
               padding: const EdgeInsets.only(right: 12),

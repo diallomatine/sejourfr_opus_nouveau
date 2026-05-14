@@ -78,7 +78,7 @@ class HomeScreen extends ConsumerWidget {
                 ).copyWith(height: 1.0),
               ),
               const SizedBox(height: 10),
-              _ReviewTile(onTap: () => context.go(AppRoutes.review)),
+              _ReviewTile(onTap: () => context.push(AppRoutes.review)),
               const SizedBox(height: 24),
               const _DailyTip(),
             ],
@@ -821,12 +821,12 @@ class _ReviewTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Révision',
+                  'Mes questions',
                   style: AppFonts.jakarta(size: 14.5, weight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Vos favoris et vos erreurs récentes',
+                  'Favoris et erreurs récentes',
                   style: AppFonts.jakarta(size: 12, color: AppColors.muted),
                 ),
               ],

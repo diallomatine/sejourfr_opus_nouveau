@@ -8,7 +8,6 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_tag.dart';
-import '../../core/widgets/eyebrow.dart';
 import '../home/widgets/module_switch.dart';
 
 final _favoritesProvider = FutureProvider.autoDispose<List<QuestionDto>>((ref) {
@@ -46,20 +45,35 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        leading: Navigator.of(context).canPop()
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, size: 22),
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
+        title: Text(
+          'Mes questions',
+          style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
+        ),
+      ),
       body: SafeArea(
+        top: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Eyebrow('§ Révision'),
-                  const SizedBox(height: 8),
                   Text(
-                    'Vos questions',
-                    style: AppFonts.fraunces(size: 28, weight: FontWeight.w600),
+                    'Favoris et erreurs récentes',
+                    style: AppFonts.jakarta(
+                      size: 13.5,
+                      color: AppColors.muted,
+                      height: 1.45,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   const ModuleSwitch(),

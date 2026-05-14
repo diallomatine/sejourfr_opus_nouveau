@@ -70,6 +70,14 @@ class ProfileScreen extends ConsumerWidget {
               accent: AppColors.blue,
               onTap: () => context.push(AppRoutes.history),
             ),
+            const SizedBox(height: 8),
+            _SettingTile(
+              icon: Icons.bookmark_outline,
+              title: 'Mes questions',
+              subtitle: 'Favoris et erreurs récentes',
+              accent: AppColors.red,
+              onTap: () => context.push(AppRoutes.review),
+            ),
             const SizedBox(height: 22),
             const _SectionLabel('Compte'),
             const SizedBox(height: 10),
@@ -184,6 +192,7 @@ class ProfileScreen extends ConsumerWidget {
 
 class _ProfileHero extends StatelessWidget {
   const _ProfileHero({required this.user});
+
   final AuthUser user;
 
   @override
@@ -317,6 +326,7 @@ class _ProfileHero extends StatelessWidget {
 
 class _TargetCard extends StatelessWidget {
   const _TargetCard({required this.user, required this.onTap});
+
   final AuthUser user;
   final VoidCallback onTap;
 
@@ -450,6 +460,7 @@ class _TargetCard extends StatelessWidget {
 
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.text);
+
   final String text;
 
   @override
@@ -542,6 +553,7 @@ class _SettingTile extends StatelessWidget {
 
 class _LogoutButton extends StatelessWidget {
   const _LogoutButton({required this.onTap});
+
   final VoidCallback onTap;
 
   @override

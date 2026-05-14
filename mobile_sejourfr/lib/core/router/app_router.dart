@@ -16,6 +16,7 @@ import '../../screens/question_runner/runner_screen.dart';
 import '../../screens/review/review_screen.dart';
 import '../../screens/shell/main_shell.dart';
 import '../../screens/splash/splash_screen.dart';
+import '../../screens/stats/stats_screen.dart';
 import '../../screens/target_path/target_path_screen.dart';
 import '../../screens/training/training_setup_screen.dart';
 import '../auth/auth_controller.dart';
@@ -30,6 +31,7 @@ class AppRoutes {
   static const trainingSetup = '/training';
   static const examSetup = '/exam';
   static const runner = '/runner/:attemptId';
+  static const progress = '/progress';
   static const review = '/review';
   static const profile = '/profile';
   static const onboarding = '/onboarding';
@@ -165,6 +167,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.examSetup,
             builder: (_, __) => const ExamSetupScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.progress,
+            builder: (_, __) => const StatsScreen(),
           ),
           GoRoute(
             path: AppRoutes.review,

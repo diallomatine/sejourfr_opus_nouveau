@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/attempts_repository.dart';
 import '../../core/api/repositories.dart';
+import '../../core/api/user_content_repository.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/models/enums.dart';
 
@@ -26,12 +27,16 @@ class RunnerState {
     required this.attemptIdByQuestionId,
     required this.currentIndex,
     required this.answersByQuestion,
+    this.favoriteQuestionIds = const <String>{},
     this.lastResult,
     this.submitting = false,
     this.extending = false,
     this.noMoreQuestions = false,
     this.errorMessage,
   });
+
+  /// IDs des Questions (et non des AttemptQuestion) marquées en favori.
+  final Set<String> favoriteQuestionIds;
 
   /// Le dernier attempt chargé (= batch courant en entraînement).
   final Attempt activeAttempt;
@@ -91,6 +96,7 @@ class RunnerState {
     Map<String, String>? attemptIdByQuestionId,
     int? currentIndex,
     Map<String, List<String>>? answersByQuestion,
+    Set<String>? favoriteQuestionIds,
     AnswerResult? lastResult,
     bool clearLastResult = false,
     bool? submitting,
@@ -106,6 +112,7 @@ class RunnerState {
             attemptIdByQuestionId ?? this.attemptIdByQuestionId,
         currentIndex: currentIndex ?? this.currentIndex,
         answersByQuestion: answersByQuestion ?? this.answersByQuestion,
+        favoriteQuestionIds: favoriteQuestionIds ?? this.favoriteQuestionIds,
         lastResult: clearLastResult ? null : (lastResult ?? this.lastResult),
         submitting: submitting ?? this.submitting,
         extending: extending ?? this.extending,
@@ -117,17 +124,21 @@ class RunnerState {
 /// Family : un controller par attemptId.
 final runnerControllerProvider = StateNotifierProvider.family
     .autoDispose<RunnerController, AsyncValue<RunnerState>, String>(
-  (ref, attemptId) =>
-      RunnerController(ref.watch(attemptsRepositoryProvider), attemptId),
+  (ref, attemptId) => RunnerController(
+    ref.watch(attemptsRepositoryProvider),
+    ref.watch(userContentRepositoryProvider),
+    attemptId,
+  ),
 );
 
 class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
-  RunnerController(this._repo, this._attemptId)
+  RunnerController(this._repo, this._userContentRepo, this._attemptId)
       : super(const AsyncValue.loading()) {
     _load();
   }
 
   final AttemptsRepository _repo;
+  final UserContentRepository _userContentRepo;
   final String _attemptId;
 
   /// Filtres déduits du premier batch, pour pouvoir étendre la session
@@ -162,6 +173,14 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
         _trainingThemeId = allSameTheme ? firstThemeId : null;
       }
 
+      // Charge les favoris pour le module actif. Si ça échoue, on continue
+      // sans : c'est juste un état d'affichage du bouton bookmark.
+      Set<String> favorites = const {};
+      try {
+        final favList = await _userContentRepo.favorites(module: attempt.module);
+        favorites = favList.map((q) => q.id).toSet();
+      } catch (_) {}
+
       state = AsyncValue.data(RunnerState(
         activeAttempt: attempt,
         questions: attempt.questions,
@@ -170,9 +189,45 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
         },
         currentIndex: startIndex.clamp(0, attempt.questions.length - 1),
         answersByQuestion: answers,
+        favoriteQuestionIds: favorites,
       ));
     } catch (e, st) {
       state = AsyncValue.error(ApiClient.toApiException(e), st);
+    }
+  }
+
+  /// Bascule l'état favori de la question courante. Mise à jour optimiste,
+  /// rollback silencieux en cas d'erreur réseau.
+  Future<void> toggleFavoriteCurrent() async {
+    final cur = state.valueOrNull;
+    if (cur == null) return;
+    final questionId = cur.current.question.id;
+    final wasFavorite = cur.favoriteQuestionIds.contains(questionId);
+
+    final next = Set<String>.from(cur.favoriteQuestionIds);
+    if (wasFavorite) {
+      next.remove(questionId);
+    } else {
+      next.add(questionId);
+    }
+    state = AsyncValue.data(cur.copyWith(favoriteQuestionIds: next));
+
+    try {
+      if (wasFavorite) {
+        await _userContentRepo.removeFavorite(questionId);
+      } else {
+        await _userContentRepo.addFavorite(questionId);
+      }
+    } catch (_) {
+      final after = state.valueOrNull;
+      if (after == null) return;
+      final reverted = Set<String>.from(after.favoriteQuestionIds);
+      if (wasFavorite) {
+        reverted.add(questionId);
+      } else {
+        reverted.remove(questionId);
+      }
+      state = AsyncValue.data(after.copyWith(favoriteQuestionIds: reverted));
     }
   }
 
