@@ -49,7 +49,7 @@ sejourfr:
     provider: local
     local:
       root: ./var/uploads
-      public-base-url: http://localhost:8080/files
+      public-base-url: http://192.168.1.1:8080/files
     max-file-size-bytes: 26214400
     allowed-image-types: image/png,image/jpeg,image/webp
     allowed-audio-types: audio/mpeg,audio/mp3,audio/ogg,audio/wav
