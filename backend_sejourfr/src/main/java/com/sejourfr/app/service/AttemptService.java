@@ -3,10 +3,12 @@ package com.sejourfr.app.service;
 import com.sejourfr.app.dto.*;
 import com.sejourfr.app.entity.*;
 import com.sejourfr.app.enums.AttemptType;
+import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.repository.*;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -114,6 +116,25 @@ public class AttemptService {
         }
 
         return toAttemptResponse(attempt, aqList, false);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AttemptSummaryResponse> listMine(
+            UUID userId,
+            AttemptType type,
+            Module module,
+            int limit
+    ) {
+        int safeLimit = Math.max(1, Math.min(100, limit));
+        Pageable pageable = PageRequest.of(0, safeLimit);
+
+        List<Attempt> attempts = attemptRepository.findByUserFiltered(
+                userId, type, module, pageable
+        );
+
+        return attempts.stream()
+                .map(this::toSummary)
+                .toList();
     }
 
     // ------------------------------------------------------------------------
@@ -289,6 +310,28 @@ public class AttemptService {
                 q.getPassage() != null ? q.getPassage().getContent() : null,
                 media,
                 choices
+        );
+    }
+
+    private AttemptSummaryResponse toSummary(Attempt a) {
+        // Pour récupérer la difficulté représentative d'un attempt : on prend
+        // la difficulté de la première question. On pourrait stocker une
+        // difficulté au niveau de l'Attempt à terme.
+        Difficulty diff = null;
+        if (!a.getQuestions().isEmpty()) {
+            diff = a.getQuestions().get(0).getQuestion().getDifficulty();
+        }
+
+        return new AttemptSummaryResponse(
+                a.getId(),
+                a.getType(),
+                a.getModule(),
+                diff,
+                a.getTotalQuestions(),
+                a.getPassThreshold(),
+                a.getStartedAt(),
+                a.getFinishedAt(),
+                a.getScore()
         );
     }
 }

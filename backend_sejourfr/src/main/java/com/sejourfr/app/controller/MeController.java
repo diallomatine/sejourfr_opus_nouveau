@@ -1,10 +1,13 @@
 package com.sejourfr.app.controller;
 
+import com.sejourfr.app.dto.AttemptSummaryResponse;
 import com.sejourfr.app.dto.QuestionPublicResponse;
 import com.sejourfr.app.dto.QuestionReviewResponse;
 import com.sejourfr.app.dto.UserStatsResponse;
+import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.security.CurrentUser;
+import com.sejourfr.app.service.AttemptService;
 import com.sejourfr.app.service.UserContentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,10 +24,21 @@ public class MeController {
 
     private final UserContentService service;
     private final CurrentUser currentUser;
+    private final AttemptService attemptService;
 
-    public MeController(UserContentService service, CurrentUser currentUser) {
+    public MeController(UserContentService service, CurrentUser currentUser, AttemptService attemptService) {
         this.service = service;
         this.currentUser = currentUser;
+        this.attemptService = attemptService;
+    }
+
+    @GetMapping("/attempts")
+    public List<AttemptSummaryResponse> attempts(
+            @RequestParam(required = false) AttemptType type,
+            @RequestParam(required = false) Module module,
+            @RequestParam(defaultValue = "20") int limit
+    ) {
+        return attemptService.listMine(currentUser.getId(), type, module, limit);
     }
 
     // ------------------------------------------------------------------------

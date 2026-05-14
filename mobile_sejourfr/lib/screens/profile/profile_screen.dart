@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/auth/auth_controller.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
@@ -62,8 +64,7 @@ class ProfileScreen extends ConsumerWidget {
                       children: [
                         Text(
                           user.displayName,
-                          style: AppFonts.jakarta(
-                              size: 15, weight: FontWeight.w700),
+                          style: AppFonts.jakarta(size: 15, weight: FontWeight.w700),
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
@@ -83,8 +84,15 @@ class ProfileScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 20),
             const Eyebrow('§ Paramètres'),
+            const SizedBox(height: 10),
+            _SettingTile(
+              icon: Icons.history,
+              title: 'Mes examens',
+              subtitle: 'Historique et progression',
+              accent: AppColors.blue,
+              onTap: () => context.push(AppRoutes.history),
+            ),
             const SizedBox(height: 10),
             _SettingTile(
               icon: Icons.workspace_premium_outlined,
@@ -238,20 +246,17 @@ class _SettingTile extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style:
-                      AppFonts.jakarta(size: 14, weight: FontWeight.w700),
+                  style: AppFonts.jakarta(size: 14, weight: FontWeight.w700),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style:
-                      AppFonts.jakarta(size: 12, color: AppColors.muted),
+                  style: AppFonts.jakarta(size: 12, color: AppColors.muted),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.arrow_forward_ios,
-              size: 12, color: AppColors.muted2),
+          const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.muted2),
         ],
       ),
     );

@@ -1,3 +1,6 @@
+import 'package:sejourfr_mobile/core/models/attempt_summary.dart';
+import 'package:sejourfr_mobile/core/models/enums.dart';
+
 import '../models/attempt_models.dart';
 import 'api_client.dart';
 
@@ -27,6 +30,30 @@ class AttemptsRepository {
       '/api/attempts/$id',
     );
     return Attempt.fromJson(res.data!);
+  }
+
+  /// Récupère l'historique des sessions de l'utilisateur courant.
+  ///
+  /// Paramètres :
+  ///  - [type]   : filtrer par TRAINING / MOCK_EXAM (null = toutes)
+  ///  - [module] : filtrer par module CIVIQUE / TCF (null = tous)
+  ///  - [limit]  : nombre max de résultats (par défaut 20)
+  ///
+  /// Backend : GET /api/me/attempts?type=...&module=...&limit=...
+  Future<List<AttemptSummary>> listMine({
+    AttemptType? type,
+    AppModule? module,
+    int limit = 20,
+  }) async {
+    final res = await _client.dio.get<List<dynamic>>(
+      '/api/me/attempts',
+      queryParameters: {
+        if (type != null) 'type': type.wire,
+        if (module != null) 'module': module.wire,
+        'limit': limit,
+      },
+    );
+    return (res.data ?? []).map((e) => AttemptSummary.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   /// Soumet une réponse. En mode entraînement, le backend renvoie immédiatement

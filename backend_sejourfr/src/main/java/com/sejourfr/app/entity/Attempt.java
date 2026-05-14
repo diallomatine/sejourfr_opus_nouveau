@@ -7,6 +7,8 @@ import com.sejourfr.app.enums.Module;
 import org.hibernate.annotations.UuidGenerator;
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -66,6 +68,10 @@ public class Attempt {
     @Column(name = "finished_at")
     private Instant finishedAt;
 
+    @OneToMany(mappedBy = "attempt", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("position ASC")
+    private List<AttemptQuestion> questions = new ArrayList<>();
+
     @PrePersist
     void prePersist() {
         if (startedAt == null) startedAt = Instant.now();
@@ -124,4 +130,7 @@ public class Attempt {
 
     public Instant getFinishedAt() { return finishedAt; }
     public void setFinishedAt(Instant finishedAt) { this.finishedAt = finishedAt; }
+
+    public List<AttemptQuestion> getQuestions() { return questions; }
+    public void setQuestions(List<AttemptQuestion> questions) { this.questions = questions; }
 }

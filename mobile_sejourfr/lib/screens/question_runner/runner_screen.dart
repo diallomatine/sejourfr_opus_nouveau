@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sejourfr_mobile/core/router/app_router.dart';
 
 import '../../core/models/attempt_models.dart';
-import '../../core/models/enums.dart';
 import '../../core/models/question_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
@@ -37,8 +37,7 @@ class RunnerScreen extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.cloud_off_outlined,
-                    color: AppColors.red, size: 40),
+                const Icon(Icons.cloud_off_outlined, color: AppColors.red, size: 40),
                 const SizedBox(height: 12),
                 Text(
                   e.toString(),
@@ -50,9 +49,7 @@ class RunnerScreen extends ConsumerWidget {
                   label: 'Réessayer',
                   variant: AppButtonVariant.secondary,
                   fullWidth: false,
-                  onPressed: () => ref
-                      .read(runnerControllerProvider(attemptId).notifier)
-                      .retry(),
+                  onPressed: () => ref.read(runnerControllerProvider(attemptId).notifier).retry(),
                 ),
               ],
             ),
@@ -118,8 +115,7 @@ class _RunnerView extends ConsumerWidget {
                     AppCard(
                       padding: const EdgeInsets.all(14),
                       color: AppColors.blueSoft,
-                      border: Border.all(
-                          color: AppColors.blue.withValues(alpha: 0.15)),
+                      border: Border.all(color: AppColors.blue.withValues(alpha: 0.15)),
                       boxShadow: const [],
                       child: Text(
                         question.passageText!,
@@ -145,21 +141,17 @@ class _RunnerView extends ConsumerWidget {
                     final c = question.choices[i];
                     final isSelected = selected.contains(c.id);
                     final showCorr = state.hasResult && isTraining;
-                    final isCorrect =
-                        state.lastResult?.correctChoiceIds.contains(c.id);
+                    final isCorrect = state.lastResult?.correctChoiceIds.contains(c.id);
                     return Padding(
-                      padding: EdgeInsets.only(
-                          bottom:
-                              i == question.choices.length - 1 ? 0 : 10),
+                      padding: EdgeInsets.only(bottom: i == question.choices.length - 1 ? 0 : 10),
                       child: ChoiceTile(
                         choice: c,
                         index: i,
                         selected: isSelected,
                         showCorrection: showCorr,
                         isCorrect: isCorrect,
-                        onTap: () => ref
-                            .read(runnerControllerProvider(attemptId).notifier)
-                            .toggleChoice(c.id),
+                        onTap: () =>
+                            ref.read(runnerControllerProvider(attemptId).notifier).toggleChoice(c.id),
                       ),
                     );
                   }),
@@ -167,8 +159,7 @@ class _RunnerView extends ConsumerWidget {
                     const SizedBox(height: 20),
                     ExplanationBox(
                       correct: state.lastResult!.correct,
-                      explanation: state.lastResult!.explanation ??
-                          question.explanation,
+                      explanation: state.lastResult!.explanation ?? question.explanation,
                     ),
                   ],
                   if (state.errorMessage != null) ...[
@@ -177,14 +168,12 @@ class _RunnerView extends ConsumerWidget {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: AppColors.redLight,
-                        border: Border.all(
-                            color: AppColors.red.withValues(alpha: 0.3)),
+                        border: Border.all(color: AppColors.red.withValues(alpha: 0.3)),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         state.errorMessage!,
-                        style: AppFonts.jakarta(
-                            color: AppColors.red, size: 13),
+                        style: AppFonts.jakarta(color: AppColors.red, size: 13),
                       ),
                     ),
                   ],
@@ -237,17 +226,16 @@ class _RunnerView extends ConsumerWidget {
   }
 
   Future<void> _autoFinish(BuildContext context, WidgetRef ref) async {
-    final attempt = await ref
-        .read(runnerControllerProvider(attemptId).notifier)
-        .finish();
+    final attempt = await ref.read(runnerControllerProvider(attemptId).notifier).finish();
     if (attempt != null && context.mounted) {
-      _showResultDialog(context, attempt);
+      _navigateToResult(context, attempt);
     }
   }
 }
 
 class _ProgressHeader extends StatelessWidget {
   const _ProgressHeader({required this.state});
+
   final RunnerState state;
 
   @override
@@ -272,12 +260,12 @@ class _ProgressHeader extends StatelessWidget {
 
 class _ProgressBar extends StatelessWidget {
   const _ProgressBar({required this.state});
+
   final RunnerState state;
 
   @override
   Widget build(BuildContext context) {
-    final value =
-        (state.currentIndex + 1) / state.attempt.totalQuestions;
+    final value = (state.currentIndex + 1) / state.attempt.totalQuestions;
     return LinearProgressIndicator(
       value: value,
       minHeight: 3,
@@ -289,6 +277,7 @@ class _ProgressBar extends StatelessWidget {
 
 class _QuestionHeader extends StatelessWidget {
   const _QuestionHeader({required this.question});
+
   final QuestionDto question;
 
   @override
@@ -363,9 +352,7 @@ class _BottomBar extends ConsumerWidget {
                 ? AppButton(
                     label: 'Valider',
                     variant: AppButtonVariant.primary,
-                    onPressed: (!hasSelection || state.submitting)
-                        ? null
-                        : ctrl.submitCurrent,
+                    onPressed: (!hasSelection || state.submitting) ? null : ctrl.submitCurrent,
                     isLoading: state.submitting,
                   )
                 : isLast
@@ -377,7 +364,7 @@ class _BottomBar extends ConsumerWidget {
                             : () async {
                                 final attempt = await ctrl.finish();
                                 if (attempt != null && context.mounted) {
-                                  _showResultDialog(context, attempt);
+                                  _navigateToResult(context, attempt);
                                 }
                               },
                         isLoading: state.submitting,
@@ -402,13 +389,22 @@ class _BottomBar extends ConsumerWidget {
   }
 }
 
-void _showResultDialog(BuildContext context, Attempt attempt) {
+void _navigateToResult(BuildContext context, Attempt attempt) {
+  if (attempt.isMockExam) {
+    // Écran plein dédié pour les examens blancs
+    context.go(
+      AppRoutes.examResult.replaceFirst(':attemptId', attempt.id),
+    );
+  } else {
+    // Dialog simple pour les entraînements
+    _showTrainingResultDialog(context, attempt);
+  }
+}
+
+void _showTrainingResultDialog(BuildContext context, Attempt attempt) {
   final total = attempt.totalQuestions;
   final score = attempt.score ?? 0;
   final percent = total == 0 ? 0 : ((score / total) * 100).round();
-  final pass = attempt.passThreshold == null
-      ? null
-      : score >= attempt.passThreshold!;
 
   showDialog(
     context: context,
@@ -427,33 +423,17 @@ void _showResultDialog(BuildContext context, Attempt attempt) {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: pass == true
-                    ? AppColors.green.withValues(alpha: 0.12)
-                    : pass == false
-                        ? AppColors.redLight
-                        : AppColors.blueLight,
+                color: AppColors.blueLight,
               ),
-              child: Icon(
-                pass == true
-                    ? Icons.emoji_events
-                    : pass == false
-                        ? Icons.refresh
-                        : Icons.check_circle,
+              child: const Icon(
+                Icons.check_circle,
                 size: 36,
-                color: pass == true
-                    ? AppColors.green
-                    : pass == false
-                        ? AppColors.red
-                        : AppColors.blue,
+                color: AppColors.blue,
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              pass == true
-                  ? 'Bravo, vous avez réussi !'
-                  : pass == false
-                      ? 'Pas encore'
-                      : 'Session terminée',
+              'Session terminée',
               style: AppFonts.fraunces(size: 22, weight: FontWeight.w600),
               textAlign: TextAlign.center,
             ),
@@ -465,19 +445,11 @@ void _showResultDialog(BuildContext context, Attempt attempt) {
                 color: AppColors.muted,
               ),
             ),
-            if (attempt.passThreshold != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Seuil requis : ${attempt.passThreshold} / $total',
-                style: AppFonts.mono(size: 10, color: AppColors.muted2),
-              ),
-            ],
             const SizedBox(height: 24),
             AppButton(
               label: 'Retour à l\'accueil',
               onPressed: () {
                 Navigator.of(ctx).pop();
-                // Sortir du runner
                 GoRouter.of(context).pop();
               },
             ),
