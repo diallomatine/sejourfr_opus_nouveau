@@ -319,7 +319,7 @@ public class AttemptService {
         // difficulté au niveau de l'Attempt à terme.
         Difficulty diff = null;
         if (!a.getQuestions().isEmpty()) {
-            diff = a.getQuestions().get(0).getQuestion().getDifficulty();
+            diff = a.getQuestions().getFirst().getQuestion().getDifficulty();
         }
 
         return new AttemptSummaryResponse(
