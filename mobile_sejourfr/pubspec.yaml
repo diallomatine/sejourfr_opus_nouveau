@@ -30,6 +30,7 @@ dependencies:
   video_player: ^2.9.2
   flutter_svg: ^2.0.10+1
   shared_preferences: ^2.5.5
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:
@@ -38,3 +39,16 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icones/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icones/logo_sejourFR.png"
+  adaptive_icon_background: "#ffffff" # Couleur de fond (Android 8+)
+  adaptive_icon_foreground: "assets/icones/logo_sejourFR.png"
+
+  # To add assets to your application, add an assets section, like this:
+  assets:
+    - assets/icones/
