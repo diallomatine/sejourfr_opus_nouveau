@@ -404,6 +404,7 @@ export function ExamFormPage() {
             <RuleTable
               fields={fields}
               themes={themes}
+              module={watchedModule}
               register={register}
               remove={remove}
             />
@@ -417,14 +418,17 @@ export function ExamFormPage() {
 function RuleTable({
   fields,
   themes,
+  module,
   register,
   remove,
 }: {
   fields: { id: string }[];
   themes: ThemeDto[];
+  module: "CIVIQUE" | "TCF";
   register: UseFormRegister<FormValues>;
   remove: UseFieldArrayRemove;
 }) {
+  const isTcf = module === "TCF";
   return (
     <table className={tableStyles.table}>
       <thead>
@@ -456,15 +460,23 @@ function RuleTable({
               </Select>
             </td>
             <td>
-              <Select {...register(`rules.${index}.difficulty`)}>
-                <option value="">— Toutes —</option>
-                <option value="CSP">CSP</option>
-                <option value="CR">CR</option>
-                <option value="NAT">NAT</option>
-                <option value="A2">A2</option>
-                <option value="B1">B1</option>
-                <option value="B2">B2</option>
-              </Select>
+              {isTcf ? (
+                <Select
+                  {...register(`rules.${index}.difficulty`)}
+                  disabled
+                  title="Le TCF est un test unique pour tous, sans filtre A2/B1/B2."
+                  value=""
+                >
+                  <option value="">— Niveau ignoré (TCF) —</option>
+                </Select>
+              ) : (
+                <Select {...register(`rules.${index}.difficulty`)}>
+                  <option value="">— Toutes —</option>
+                  <option value="CSP">CSP</option>
+                  <option value="CR">CR</option>
+                  <option value="NAT">NAT</option>
+                </Select>
+              )}
             </td>
             <td>
               <Select {...register(`rules.${index}.questionType`)}>

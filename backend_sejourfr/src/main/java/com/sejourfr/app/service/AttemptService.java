@@ -392,30 +392,22 @@ public class AttemptService {
 
     /**
      * Détermine la difficulté à appliquer pour un attempt : la valeur explicite
-     * si présente, sinon dérivée du parcours visé par l'utilisateur.
-     *
-     * Module CIVIQUE : CSP/CR/NAT directement.
-     * Module TCF     : CSP→A2, CR→B1, NAT→B2.
-     *
-     * Retourne null si l'utilisateur n'a pas encore choisi de parcours, auquel
-     * cas la sélection se fait sur tous les niveaux.
+     * si présente, sinon dérivée du parcours visé par l'utilisateur (CIVIQUE
+     * uniquement). Le TCF n'est jamais filtré par niveau : le test est unique
+     * pour tous, le niveau CECRL est calculé à la finalisation à partir des
+     * bonnes réponses par strate A2/B1/B2 dans les questions tirées.
      */
     private Difficulty resolveDifficulty(User user, Module module, Difficulty requested) {
         if (requested != null) return requested;
+        if (module == Module.TCF) return null;
+
         TargetProcedure path = user.getTargetProcedure();
         if (path == null) return null;
 
-        if (module == Module.CIVIQUE) {
-            return switch (path) {
-                case CSP -> Difficulty.CSP;
-                case CR -> Difficulty.CR;
-                case NAT -> Difficulty.NAT;
-            };
-        }
         return switch (path) {
-            case CSP -> Difficulty.A2;
-            case CR -> Difficulty.B1;
-            case NAT -> Difficulty.B2;
+            case CSP -> Difficulty.CSP;
+            case CR -> Difficulty.CR;
+            case NAT -> Difficulty.NAT;
         };
     }
 

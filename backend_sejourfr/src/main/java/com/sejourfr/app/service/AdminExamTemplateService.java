@@ -162,25 +162,20 @@ public class AdminExamTemplateService {
     }
 
     private ExamCompositionSuggestionDto suggestForTcf(int target, long poolSize, TargetLevel level) {
-        List<ExamCompositionSuggestionDto.SuggestedRule> rules = new ArrayList<>();
-        if (level != null) {
-            // Mode "niveau spécifique" : 1 règle avec total questions
-            Difficulty d = toDifficulty(level);
-            long avail = questionRepository.countActiveMatching(Module.TCF, null, d);
-            rules.add(new ExamCompositionSuggestionDto.SuggestedRule(null, null, d, target, avail));
-        } else {
-            // Mode "diagnostic" : 3 strates équilibrées
-            int base = target / 3;
-            int remainder = target - base * 3;
-            for (int i = 0; i < 3; i++) {
-                TargetLevel l = List.of(TargetLevel.A2, TargetLevel.B1, TargetLevel.B2).get(i);
-                Difficulty d = toDifficulty(l);
-                int count = base + (i < remainder ? 1 : 0);
-                long avail = questionRepository.countActiveMatching(Module.TCF, null, d);
-                rules.add(new ExamCompositionSuggestionDto.SuggestedRule(null, null, d, count, avail));
-            }
-        }
+        // Le test TCF est unique pour tous : on ne filtre jamais par strate
+        // A2/B1/B2 à la composition. Le niveau atteint est calculé à la
+        // finalisation à partir des bonnes réponses par strate dans les
+        // questions tirées. Le paramètre `level` est conservé en signature
+        // pour rétro-compat mais ignoré.
+        long avail = questionRepository.countActiveMatching(Module.TCF, null, null);
+        List<ExamCompositionSuggestionDto.SuggestedRule> rules = List.of(
+                new ExamCompositionSuggestionDto.SuggestedRule(null, null, null, target, avail)
+        );
         String warning = buildWarning(target, poolSize);
+        if (level != null) {
+            warning = (warning == null ? "" : warning + " · ")
+                    + "Le niveau cible est ignoré pour le TCF (test unique).";
+        }
         return new ExamCompositionSuggestionDto(target, (int) poolSize, warning, rules);
     }
 
