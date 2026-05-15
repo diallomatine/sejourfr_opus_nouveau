@@ -35,6 +35,7 @@ public class QuestionMapper {
                 q.getMedia() != null ? q.getMedia().getId() : null,
                 q.getMedia() != null ? q.getMedia().getUrl() : null,
                 q.getMedia() != null ? q.getMedia().getType() : null,
+                q.getMedia() != null ? q.getMedia().getInlineSvg() : null,
                 q.getDifficulty(),
                 q.getQuestionType(),
                 q.getStatement(),

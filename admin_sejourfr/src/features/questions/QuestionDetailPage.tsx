@@ -197,9 +197,13 @@ export function QuestionDetailPage() {
 
           <h2 className={styles.statement}>{q.statement}</h2>
 
-          {module === "TCF" && q.mediaUrl && q.mediaType && (
+          {module === "TCF" && q.mediaType && (q.mediaUrl || q.mediaInlineSvg) && (
             <div className={styles.mediaBlock}>
-              <MediaPreview url={q.mediaUrl} type={q.mediaType} />
+              <MediaPreview
+                url={q.mediaUrl ?? ""}
+                type={q.mediaType}
+                inlineSvg={q.mediaInlineSvg}
+              />
             </div>
           )}
 

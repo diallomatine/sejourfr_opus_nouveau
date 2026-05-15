@@ -60,6 +60,12 @@ export interface MediaResponse {
   url: string;
   durationSeconds?: number;
   transcript?: string;
+  /**
+   * Quand renseigné, le front rend ce SVG inline plutôt que de charger
+   * url (utilisé pour les captures TCF compréhension écrite). Le SVG est
+   * fourni par le backend (seed Flyway), donc considéré comme de confiance.
+   */
+  inlineSvg?: string | null;
 }
 
 // ============ QUESTION (vue user) ============

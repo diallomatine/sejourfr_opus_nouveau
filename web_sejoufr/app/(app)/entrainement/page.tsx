@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { MediaView } from "../../_components/MediaView";
 import { ApiException, attemptApi, themeApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type {
@@ -356,6 +357,12 @@ function Runner({
         </div>
 
         <h2 className="runner-q">{q.statement}</h2>
+
+        {q.media && (
+          <div className="runner-media">
+            <MediaView media={q.media} />
+          </div>
+        )}
 
         {q.passageText && (
           <div className="runner-passage">{q.passageText}</div>

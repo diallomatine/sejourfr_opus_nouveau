@@ -20,6 +20,7 @@ public record QuestionDto(
         UUID mediaId,
         String mediaUrl,
         MediaType mediaType,
+        String mediaInlineSvg,
         Difficulty difficulty,
         QuestionType questionType,
         String statement,

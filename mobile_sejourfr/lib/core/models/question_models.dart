@@ -37,20 +37,31 @@ class MediaDto {
     required this.url,
     this.durationSeconds,
     this.transcript,
+    this.inlineSvg,
   });
 
   final String id;
   final MediaType type;
+
+  /// URL distante (null quand le media est porté entièrement par inlineSvg,
+  /// ce qui est le cas des captures TCF dessinées en migration Flyway).
   final String url;
   final int? durationSeconds;
   final String? transcript;
 
+  /// SVG brut. Quand non-null, le runner doit afficher ce balisage plutôt
+  /// que de charger url.
+  final String? inlineSvg;
+
+  bool get hasInlineSvg => inlineSvg != null && inlineSvg!.isNotEmpty;
+
   factory MediaDto.fromJson(Map<String, dynamic> json) => MediaDto(
         id: json['id'] as String,
         type: MediaType.fromWire(json['type'] as String),
-        url: json['url'] as String,
+        url: (json['url'] as String?) ?? '',
         durationSeconds: (json['durationSeconds'] as num?)?.toInt(),
         transcript: json['transcript'] as String?,
+        inlineSvg: json['inlineSvg'] as String?,
       );
 }
 

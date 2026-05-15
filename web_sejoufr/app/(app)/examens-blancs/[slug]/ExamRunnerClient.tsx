@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { MediaView } from "../../../_components/MediaView";
 import { ApiException, attemptApi } from "@/lib/api";
 import type {
   AttemptQuestionResponse,
@@ -409,6 +410,12 @@ function Runner({
             {q.themeName} · Question {currentIdx + 1}
           </div>
           <h3 className="exam-q">{q.statement}</h3>
+
+          {q.media && (
+            <div className="exam-media">
+              <MediaView media={q.media} />
+            </div>
+          )}
 
           {q.passageText && (
             <div className="exam-passage">{q.passageText}</div>

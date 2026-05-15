@@ -175,7 +175,8 @@ public class UserContentService {
                 q.getMedia().getType(),
                 q.getMedia().getUrl(),
                 q.getMedia().getDurationSeconds(),
-                q.getMedia().getTranscript()
+                q.getMedia().getTranscript(),
+                q.getMedia().getInlineSvg()
         );
 
         return new QuestionPublicResponse(
@@ -209,7 +210,8 @@ public class UserContentService {
                 q.getMedia().getType(),
                 q.getMedia().getUrl(),
                 q.getMedia().getDurationSeconds(),
-                q.getMedia().getTranscript()
+                q.getMedia().getTranscript(),
+                q.getMedia().getInlineSvg()
         );
 
         return new QuestionReviewResponse(

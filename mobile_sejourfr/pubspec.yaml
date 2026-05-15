@@ -28,6 +28,7 @@ dependencies:
   # Médias TCF
   just_audio: ^0.9.42
   video_player: ^2.9.2
+  flutter_svg: ^2.0.10+1
   shared_preferences: ^2.5.5
 
 dev_dependencies:

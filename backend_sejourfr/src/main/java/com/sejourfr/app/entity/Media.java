@@ -45,6 +45,14 @@ public class Media {
     @Column(name = "transcript", columnDefinition = "text")
     private String transcript;
 
+    /**
+     * SVG inline. Quand renseigné, le front affiche ce balisage SVG plutôt
+     * que de charger {@link #url}. Utilisé pour les questions TCF (CE A2/B1)
+     * où l'image est dessinée à la volée et embarquée dans la migration.
+     */
+    @Column(name = "inline_svg", columnDefinition = "text")
+    private String inlineSvg;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -86,6 +94,9 @@ public class Media {
 
     public String getTranscript() { return transcript; }
     public void setTranscript(String transcript) { this.transcript = transcript; }
+
+    public String getInlineSvg() { return inlineSvg; }
+    public void setInlineSvg(String inlineSvg) { this.inlineSvg = inlineSvg; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

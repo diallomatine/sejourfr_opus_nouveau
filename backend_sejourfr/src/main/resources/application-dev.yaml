@@ -38,8 +38,10 @@ sejourfr:
     # Web Next.js (3000) + Admin Vite (5173)
     allowed-origins: http://localhost:3000,http://localhost:5173
   stripe:
-    # Clés test Stripe : les définir dans ~/.zshrc ou un .env hors du repo.
-    # Voir https://dashboard.stripe.com/test/apikeys
+    # Clés test Stripe : à définir DANS l'environnement (~/.zshrc ou .env
+    # ignoré par git), JAMAIS en clair dans ce fichier — sinon GitHub
+    # Push Protection bloque le commit.
+    # https://dashboard.stripe.com/test/apikeys
     secret-key: ${STRIPE_SECRET_KEY:}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
     price-monthly: ${STRIPE_PRICE_MONTHLY:}

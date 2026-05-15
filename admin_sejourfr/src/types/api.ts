@@ -133,6 +133,7 @@ export interface QuestionDto {
   mediaId: string | null;
   mediaUrl: string | null;
   mediaType: MediaType | null;
+  mediaInlineSvg: string | null;
   difficulty: Difficulty;
   questionType: QuestionType;
   statement: string;
@@ -177,6 +178,12 @@ export interface MediaDto {
   sizeBytes: number | null;
   durationSec: number | null;
   altText: string | null;
+  /**
+   * SVG inline. Quand renseigné, l'admin/runner affiche ce balisage SVG
+   * plutôt que de charger url. Utilisé pour les captures TCF compréhension
+   * écrite générées dans les seeds.
+   */
+  inlineSvg: string | null;
   createdAt: string;
 }
 

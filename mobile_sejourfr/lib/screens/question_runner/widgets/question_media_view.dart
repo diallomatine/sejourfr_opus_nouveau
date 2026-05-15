@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../core/api/api_config.dart';
@@ -7,7 +8,9 @@ import '../../../core/models/question_models.dart';
 import '../../../core/theme/app_theme.dart';
 import 'audio_player.dart';
 
-/// Affiche le média associé à une question selon son type (audio, image, vidéo).
+/// Affiche le média associé à une question. Trois sources possibles :
+///   1. media.inlineSvg → SVG dessiné en migration (TCF compréhension écrite)
+///   2. media.url + IMAGE/AUDIO/VIDEO → URL distante
 class QuestionMediaView extends StatelessWidget {
   const QuestionMediaView({super.key, required this.media});
 
@@ -15,6 +18,9 @@ class QuestionMediaView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (media.hasInlineSvg) {
+      return _InlineSvgMedia(svg: media.inlineSvg!);
+    }
     final url = ApiConfig.resolveMediaUrl(media.url);
     switch (media.type) {
       case MediaType.audio:
@@ -24,6 +30,64 @@ class QuestionMediaView extends StatelessWidget {
       case MediaType.video:
         return _VideoMedia(url: url);
     }
+  }
+}
+
+class _InlineSvgMedia extends StatelessWidget {
+  const _InlineSvgMedia({required this.svg});
+  final String svg;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _openFullscreen(context, svg),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.line),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.ink.withValues(alpha: 0.06),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: SvgPicture.string(
+            svg,
+            fit: BoxFit.contain,
+            placeholderBuilder: (_) => const SizedBox(
+              height: 200,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static void _openFullscreen(BuildContext context, String svg) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (_) => GestureDetector(
+        onTap: () => Navigator.of(context).pop(),
+        child: InteractiveViewer(
+          panEnabled: true,
+          minScale: 0.5,
+          maxScale: 4,
+          child: Container(
+            color: Colors.white,
+            child: SvgPicture.string(svg, fit: BoxFit.contain),
+          ),
+        ),
+      ),
+    );
   }
 }
 
