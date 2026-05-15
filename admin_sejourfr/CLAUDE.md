@@ -39,7 +39,9 @@ src/
 │   ├── dashboard/
 │   ├── questions/           Le plus complexe : liste + filtres + modal CRUD
 │   ├── themes/
-│   └── conversations/       Vue split list/detail style "boîte mail"
+│   ├── conversations/       Vue split list/detail style "boîte mail"
+│   └── audioQuestions/      Génération assistée TCF CO : form + preview + audit
+│                            (modes WRITTEN_QUESTION / FULL_AUDIO — cf CLAUDE.md racine)
 ├── lib/
 │   └── queryClient.ts       Config TanStack Query
 ├── pages/
@@ -63,6 +65,7 @@ Endpoints utilisés actuellement :
 - `GET|POST|PUT|DELETE /api/admin/themes[/{id}]`
 - `GET|POST|PATCH|DELETE /api/admin/conversations[/{id}[/reply|mark-read|status]]`
 - `GET /api/admin/conversations/unread-count`
+- `POST|GET|PATCH|DELETE /api/admin/audio-questions[/{id}[/preview|validate]]` + `GET /api/admin/audio-questions/generation-logs`
 
 **Authentification** : JWT Bearer dans l'en-tête `Authorization`. Le refresh est automatique côté `http.ts` quand une requête prend un 401 — pas besoin de le gérer dans les composants.
 

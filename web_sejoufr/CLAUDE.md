@@ -49,6 +49,7 @@ Backend Spring Boot Java 21 séparé, qui tourne sur `http://localhost:8080`.
 - `AttemptType` = `"TRAINING" \| "MOCK_EXAM" \| "REVIEW"`
 - `MediaType` = `"AUDIO" \| "IMAGE" \| "VIDEO"`
 - `Role` = `"USER" \| "ADMIN"`
+- `AudioMode` = `"WRITTEN_QUESTION" \| "FULL_AUDIO"` (sur `Question`, nullable ; en mode `FULL_AUDIO` les labels sont `"Réponse A/B/C/D"` et le contenu réel est lu dans l'audio — cf CLAUDE.md racine)
 
 ## Structure
 

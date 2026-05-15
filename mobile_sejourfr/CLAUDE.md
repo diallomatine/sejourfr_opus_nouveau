@@ -272,6 +272,11 @@ contiennent que du texte, mais l'architecture est prête pour le TCF complet.
   dans `core/models/enums.dart`, ajouter le widget correspondant dans `screens/question_runner/widgets/`, et
   dispatcher dans `QuestionMediaView`.
 
+- **Mode audio TCF CO** : le backend expose `question.audioMode` (`WRITTEN_QUESTION` | `FULL_AUDIO` | null).
+  Pour l'instant le runner mobile rend identique aux deux modes — à terme, en `FULL_AUDIO` il faudra
+  n'afficher que `"Réponse A/B/C/D"` (déjà ce qui vient en base) et masquer le statement de la question
+  pour forcer l'écoute. Cf `CLAUDE.md` racine pour la spec du pipeline.
+
 - Si tu ajoutes un **nouvel endpoint backend** : créer (ou compléter) le repository dans `core/api/`, exposer
   un provider dans `repositories.dart`, et l'utiliser via `ref.watch(...)` dans l'écran.
 

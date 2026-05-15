@@ -103,8 +103,21 @@ Le backend a **un schéma central** + des **lots de seed civique/TCF** :
 - `V4__seed_principes_republique.sql`, `V5__seed_civique_themes_2_a_5.sql`, `V6__password_reset_tokens.sql`, `V7__runner_extensions.sql`
 - Lots civique : `V2xx` institutions, `V3xx` droits/devoirs, `V4xx` histoire/géo, `V5xx` société (chaque centaine = reformulations + élargissements CSP/CR/NAT)
 - Sous-dossiers `migration/civique/` et `migration/tcf/` pour les lots à venir
+- **Dernier numéro de schéma central utilisé : `V19__add_audio_mode_to_questions.sql`** (prochain libre : `V20`). Pour un seed civique/TCF, garde la centaine appropriée.
 
 → Pour un nouveau seed, prendre le prochain numéro libre dans la centaine cohérente avec le thème.
+
+## Pipeline de génération audio TCF (Compréhension Orale)
+
+Le backend a un pipeline **Claude (Anthropic) → Azure Speech → Cloudflare R2 → Postgres** dans `backend_sejourfr/src/main/java/com/sejourfr/app/audioquestion/`. Côté admin React, c'est dans `admin_sejourfr/src/features/audioQuestions/`. Endpoints sous `/api/admin/audio-questions/*`.
+
+Deux modes d'audio (colonne `questions.audio_mode`, enum `AudioMode`) :
+- `WRITTEN_QUESTION` : document sonore lu, question et 4 choix écrits à l'écran (défaut).
+- `FULL_AUDIO` : document + question + 4 choix tous lus dans l'audio ; labels en base = `"Réponse A/B/C/D"`.
+
+Toute question audio commence par l'amorce standardisée **« Écoutez le document sonore, puis répondez à la question. »** (vérifiée strictement côté serveur, sinon rejet 422). Pour les questions non audio (CE/STRUCTURE), `audio_mode` reste `NULL`.
+
+Prompts dans `backend_sejourfr/src/main/resources/prompts/` : `audio-question-system-v1.md` (legacy, gardé pour traçabilité) et `audio-question-system-v2.md` (actif par défaut). Bascule via `ANTHROPIC_PROMPT_VERSION` dans l'env. Schéma de l'outil Claude : `audio-question-tool-schema.json`.
 
 ## Architecture mentale par projet
 
@@ -125,6 +138,7 @@ Le **runner de questions** (mobile `screens/question_runner/` et web `examen-bla
 - **Admin & runner** : pas d'UI kit, pas de CSS-in-JS, pas de `clsx`. CSS Modules vanilla.
 - **Mobile** : Riverpod uniquement (pas de Bloc/Provider/GetX), `context.go/push` (jamais `Navigator.push`), `withValues(alpha:)` (pas `withOpacity`).
 - **Tous** : TypeScript/Dart strict, pas de `any`/`dynamic`, imports relatifs, pas de commentaire qui paraphrase le code.
+- **Maintenir les `CLAUDE.md` à jour** : après une modif structurante (nouvelle feature, nouveau pipeline, changement de convention, nouvelle migration importante, nouveau dossier `features/*`), mettre à jour le CLAUDE.md local concerné et celui de la racine si la modif est transverse. Pas de changelog exhaustif — juste de quoi qu'un futur Claude se repère vite. Inutile d'y consigner les bugfixes ou les micro-ajustements.
 
 ## Git
 
