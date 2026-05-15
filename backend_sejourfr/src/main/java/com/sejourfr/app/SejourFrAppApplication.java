@@ -1,5 +1,6 @@
 package com.sejourfr.app;
 
+import com.sejourfr.app.config.DotenvLoader;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
@@ -14,6 +15,7 @@ import org.springframework.retry.annotation.EnableRetry;
 public class SejourFrAppApplication {
 
     public static void main(String[] args) {
+        DotenvLoader.loadIfPresent();
         SpringApplication.run(SejourFrAppApplication.class, args);
     }
 }
