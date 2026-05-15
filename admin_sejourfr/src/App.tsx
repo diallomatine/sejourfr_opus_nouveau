@@ -3,6 +3,8 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import { AppLayout } from "./components/layout/AppLayout";
 import { ToastProvider } from "./components/ui/Toast";
+import { AudioQuestionGeneratePage } from "./features/audioQuestions/AudioQuestionGeneratePage";
+import { AudioQuestionLogsPage } from "./features/audioQuestions/AudioQuestionLogsPage";
 import { ConversationsPage } from "./features/conversations/ConversationsPage";
 import { DashboardPage } from "./features/dashboard/DashboardPage";
 import { ExamFormPage } from "./features/exams/ExamFormPage";
@@ -45,6 +47,14 @@ export function App() {
                 <Route path="/exams" element={<ExamsPage />} />
                 <Route path="/exams/new" element={<ExamFormPage />} />
                 <Route path="/exams/:id" element={<ExamFormPage />} />
+                <Route
+                  path="/audio-questions/generate"
+                  element={<AudioQuestionGeneratePage />}
+                />
+                <Route
+                  path="/audio-questions/logs"
+                  element={<AudioQuestionLogsPage />}
+                />
                 <Route path="/conversations" element={<ConversationsPage />} />
               </Route>
 

@@ -1,0 +1,16 @@
+package com.sejourfr.app.audioquestion.entity;
+
+public enum GenerationStatus {
+    SUCCESS,
+    FAILED_VALIDATION,
+    FAILED_RATE_LIMIT,
+    FAILED_ANTHROPIC,
+    FAILED_ANTHROPIC_PARSE,
+    FAILED_CONTENT_VALIDATION,
+    FAILED_DUPLICATE,
+    FAILED_AZURE_SPEECH,
+    FAILED_R2_UPLOAD,
+    FAILED_DB,
+    FAILED_TIMEOUT,
+    REJECTED_BY_ADMIN
+}

@@ -19,8 +19,8 @@ public class Media {
     @Column(nullable = false, length = 16)
     private MediaType type;
 
-    /** URL publique (locale ou externe). */
-    @Column(nullable = false, length = 500)
+    /** URL publique (locale, externe ou R2). Null pour les medias SVG inline. */
+    @Column(length = 500)
     private String url;
 
     /** Cle de stockage relative pour le provider local (null si URL externe). */

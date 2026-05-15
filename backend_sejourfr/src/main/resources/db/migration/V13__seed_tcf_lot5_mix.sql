@@ -33,6 +33,9 @@ ALTER TABLE medias ADD COLUMN IF NOT EXISTS inline_svg TEXT;
 CREATE INDEX IF NOT EXISTS idx_medias_has_inline_svg
     ON medias((inline_svg IS NOT NULL));
 
+-- Les medias SVG inline (CE A2/B1) n'ont pas d'url : on relache la contrainte.
+ALTER TABLE medias ALTER COLUMN url DROP NOT NULL;
+
 
 -- ============================================================================
 -- 🖼️ 2. MEDIAS (8 SVG inline) — Plage : 33333333-0013-xxxx-...

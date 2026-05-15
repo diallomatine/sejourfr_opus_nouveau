@@ -317,3 +317,148 @@ export interface ConversationDetailDto {
   unreadForUser: boolean;
   messages: MessageDto[];
 }
+
+// ---------------------------------------------------------------------------
+// Audio questions (pipeline TCF Comprehension Orale generee)
+// Voir backend : com.sejourfr.app.audioquestion.*
+// ---------------------------------------------------------------------------
+export type AudioLevel = "A2" | "B1" | "B2";
+
+export type AudioTheme =
+  | "vie_pratique_logement"
+  | "travail"
+  | "sante"
+  | "administratif"
+  | "transports"
+  | "consommation"
+  | "medias_numerique"
+  | "environnement";
+
+export type AudioContentType =
+  | "annonce"
+  | "monologue"
+  | "dialogue"
+  | "interview"
+  | "reportage";
+
+export type CompetenceCo =
+  | "co_reperage_explicite"
+  | "co_detail_specifique"
+  | "co_idee_principale"
+  | "co_inference_intention"
+  | "co_ton_attitude"
+  | "co_reformulation";
+
+export type QuestionStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
+
+export type GenerationStatus =
+  | "SUCCESS"
+  | "FAILED_VALIDATION"
+  | "FAILED_RATE_LIMIT"
+  | "FAILED_ANTHROPIC"
+  | "FAILED_ANTHROPIC_PARSE"
+  | "FAILED_CONTENT_VALIDATION"
+  | "FAILED_DUPLICATE"
+  | "FAILED_AZURE_SPEECH"
+  | "FAILED_R2_UPLOAD"
+  | "FAILED_DB"
+  | "FAILED_TIMEOUT"
+  | "REJECTED_BY_ADMIN";
+
+export interface GenerateAudioQuestionRequest {
+  niveau: AudioLevel;
+  theme?: AudioTheme | null;
+  typeSouhaite?: AudioContentType | null;
+  competenceVisee?: CompetenceCo | null;
+  consignesSpecifiques?: string | null;
+}
+
+export interface AudioVoiceDto {
+  role: string;
+  azureVoice: string;
+  gender: "F" | "M";
+}
+
+export interface AudioPreviewDto {
+  mediaId: string;
+  url: string;
+  durationSec: number;
+  speakerCount: number;
+  voices: AudioVoiceDto[];
+  transcript: string;
+  contextDescription: string | null;
+}
+
+export interface AudioQuestionContentDto {
+  statement: string;
+  explanation: string;
+  competenceCode: CompetenceCo | null;
+  difficulty: AudioLevel;
+  theme: AudioTheme | null;
+}
+
+export interface AudioChoiceDto {
+  id: string;
+  label: string;
+  isCorrect: boolean;
+  displayOrder: number;
+}
+
+export interface AudioGenerationMetadataDto {
+  generatedAt: string;
+  generationDurationMs: number;
+  costEur: number;
+  anthropicInputTokens: number | null;
+  anthropicOutputTokens: number | null;
+  anthropicCacheReadTokens: number | null;
+  azureCharactersCount: number | null;
+}
+
+export interface QuestionPreviewDto {
+  questionId: string;
+  status: QuestionStatus;
+  audio: AudioPreviewDto;
+  question: AudioQuestionContentDto;
+  choices: AudioChoiceDto[];
+  metadata: AudioGenerationMetadataDto;
+}
+
+export interface ValidationResultDto {
+  questionId: string;
+  status: QuestionStatus;
+  activatedAt: string;
+}
+
+export interface GenerationLogDto {
+  id: string;
+  questionId: string | null;
+  adminUserId: string;
+  requestedParams: string;
+  promptVersion: string | null;
+  anthropicModel: string | null;
+  anthropicInputTokens: number | null;
+  anthropicOutputTokens: number | null;
+  anthropicCacheReadTokens: number | null;
+  anthropicCostEur: number | null;
+  azureCharactersCount: number | null;
+  azureCostEur: number | null;
+  r2ObjectKey: string | null;
+  durationMs: number | null;
+  status: GenerationStatus;
+  errorMessage: string | null;
+  createdAt: string;
+}
+
+/**
+ * Format d'erreur etendu retourne par AudioQuestionExceptionHandler.
+ * Reprend ApiError + code applicatif + details libres.
+ */
+export interface AudioApiError {
+  timestamp: string;
+  status: number;
+  error: string;
+  code: string;
+  message: string;
+  path: string;
+  details?: Record<string, unknown>;
+}

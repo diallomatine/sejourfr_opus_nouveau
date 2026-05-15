@@ -15,6 +15,10 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
+    # Numerotation hybride V1-V99 (schema + features) + V200/V300/V400/V500
+    # (lots civique). On accepte les migrations "manquantes" appliquees apres
+    # une migration de numero superieur.
+    out-of-order: true
   servlet:
     multipart:
       max-file-size: 25MB
@@ -62,3 +66,35 @@ sejourfr:
     max-file-size-bytes: 26214400
     allowed-image-types: image/png,image/jpeg,image/webp
     allowed-audio-types: audio/mpeg,audio/mp3,audio/ogg,audio/wav
+
+  # Pipeline de generation de questions audio (TCF Comprehension Orale)
+  # Cles API et secrets : exclusivement via variables d'environnement.
+  # Tant qu'elles ne sont pas renseignees, l'endpoint /generate renverra 503.
+  # En dev local : placer les vraies valeurs dans backend_sejourfr/.env
+  # (gitignore), et lancer avec `source .env && ./mvnw spring-boot:run`.
+  anthropic:
+    api-key: ${ANTHROPIC_API_KEY:}
+    model: ${ANTHROPIC_MODEL:claude-sonnet-4-6}
+    api-url: https://api.anthropic.com/v1/messages
+    anthropic-version: "2023-06-01"
+    timeout-sec: 60
+    max-retries: 2
+    max-tokens: 4000
+    prompt-version: v1
+  azure-speech:
+    key: ${AZURE_SPEECH_KEY:}
+    region: ${AZURE_SPEECH_REGION:francecentral}
+    output-format: audio-24khz-48kbitrate-mono-mp3
+    timeout-sec: 30
+    max-retries: 2
+  r2:
+    account-id: ${R2_ACCOUNT_ID:}
+    access-key-id: ${R2_ACCESS_KEY_ID:}
+    secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+    bucket-name: ${R2_BUCKET_NAME:sejourfr-audio}
+    public-url-base: ${R2_PUBLIC_URL_BASE:}
+    timeout-sec: 30
+  audio-generation:
+    global-timeout-sec: ${AUDIO_GENERATION_TIMEOUT_SEC:120}
+    rate-limit-per-minute: 10
+    duplicate-similarity-threshold: 0.85

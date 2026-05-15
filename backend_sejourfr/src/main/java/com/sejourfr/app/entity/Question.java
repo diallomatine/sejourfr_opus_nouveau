@@ -2,6 +2,7 @@ package com.sejourfr.app.entity;
 
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionStatus;
 import com.sejourfr.app.enums.QuestionType;
 import org.hibernate.annotations.UuidGenerator;
 import jakarta.persistence.*;
@@ -14,7 +15,8 @@ import java.util.UUID;
 @Table(name = "questions", indexes = {
         @Index(name = "idx_question_module_active", columnList = "module,is_active"),
         @Index(name = "idx_question_theme", columnList = "theme_id"),
-        @Index(name = "idx_question_difficulty", columnList = "difficulty")
+        @Index(name = "idx_question_difficulty", columnList = "difficulty"),
+        @Index(name = "idx_questions_status", columnList = "status")
 })
 public class Question {
 
@@ -55,6 +57,16 @@ public class Question {
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private QuestionStatus status = QuestionStatus.ACTIVE;
+
+    @Column(name = "tcf_sub_theme", length = 64)
+    private String tcfSubTheme;
+
+    @Column(name = "competence_code", length = 64)
+    private String competenceCode;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -116,6 +128,15 @@ public class Question {
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+
+    public QuestionStatus getStatus() { return status; }
+    public void setStatus(QuestionStatus status) { this.status = status; }
+
+    public String getTcfSubTheme() { return tcfSubTheme; }
+    public void setTcfSubTheme(String tcfSubTheme) { this.tcfSubTheme = tcfSubTheme; }
+
+    public String getCompetenceCode() { return competenceCode; }
+    public void setCompetenceCode(String competenceCode) { this.competenceCode = competenceCode; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

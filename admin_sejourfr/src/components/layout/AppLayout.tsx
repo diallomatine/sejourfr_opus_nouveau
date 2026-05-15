@@ -60,6 +60,10 @@ export function AppLayout() {
         <NavItem to="/themes">↳ Thématiques</NavItem>
         <NavItem to="/exams">↳ Examens blancs</NavItem>
 
+        <div className={styles.navSection}>Generation IA</div>
+        <NavItem to="/audio-questions/generate">↳ Audio CO (TCF)</NavItem>
+        <NavItem to="/audio-questions/logs">↳ Audit generations</NavItem>
+
         <div className={styles.navSection}>Echanges</div>
         <NavItem to="/conversations" badge={unreadQuery.data?.count}>
           ↳ Conversations
