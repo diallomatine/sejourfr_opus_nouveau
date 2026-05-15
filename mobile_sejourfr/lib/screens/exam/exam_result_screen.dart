@@ -197,6 +197,38 @@ class _Hero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // En TCF, on remplace la mécanique réussi/raté par une restitution du
+    // niveau CECRL atteint (calculé côté backend à partir des taux par strate).
+    if (attempt.isTcf) {
+      return _TcfHero(attempt: attempt, score: score, total: total);
+    }
+    return _CiviqueHero(
+      attempt: attempt,
+      passed: passed,
+      score: score,
+      total: total,
+      threshold: threshold,
+    );
+  }
+}
+
+class _CiviqueHero extends StatelessWidget {
+  const _CiviqueHero({
+    required this.attempt,
+    required this.passed,
+    required this.score,
+    required this.total,
+    required this.threshold,
+  });
+
+  final Attempt attempt;
+  final bool passed;
+  final int score;
+  final int total;
+  final int? threshold;
+
+  @override
+  Widget build(BuildContext context) {
     final isExam = attempt.isMockExam;
 
     return AppCard(
@@ -284,6 +316,104 @@ class _Hero extends StatelessWidget {
     final mod = a.module == AppModule.civique ? 'Civique' : 'TCF';
     final label = a.isMockExam ? 'Examen blanc' : 'Entraînement';
     return '$label · $mod';
+  }
+}
+
+class _TcfHero extends StatelessWidget {
+  const _TcfHero({
+    required this.attempt,
+    required this.score,
+    required this.total,
+  });
+
+  final Attempt attempt;
+  final int score;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final level = attempt.levelAchieved;
+    final percent = total == 0 ? 0 : ((score / total) * 100).round();
+
+    return AppCard(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
+      color: AppColors.white,
+      child: Column(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.blueLight,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.translate_rounded,
+              size: 30,
+              color: AppColors.blue,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'TCF IRN · Diagnostic',
+            textAlign: TextAlign.center,
+            style: AppFonts.mono(
+              size: 10,
+              color: AppColors.muted,
+              letterSpacing: 1.8,
+            ).copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Votre niveau estimé',
+            style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            level?.wire ?? '< A2',
+            style: AppFonts.fraunces(
+              size: 64,
+              weight: FontWeight.w700,
+              height: 1.0,
+              letterSpacing: -2,
+              color: AppColors.blue,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            level == null
+                ? 'Vous n\'atteignez pas encore le seuil A2. Continuez à vous entraîner.'
+                : _messageFor(level),
+            textAlign: TextAlign.center,
+            style: AppFonts.jakarta(
+              size: 13,
+              color: AppColors.ink2,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '$score/$total bonnes réponses · $percent %',
+            style: AppFonts.jakarta(
+              size: 12,
+              color: AppColors.muted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _messageFor(TargetLevel level) {
+    switch (level) {
+      case TargetLevel.a2:
+        return 'A2 ouvre l\'accès à la carte de séjour (CSP). Visez B1 pour la carte de résident.';
+      case TargetLevel.b1:
+        return 'B1 est requis pour la carte de résident. Visez B2 pour la naturalisation.';
+      case TargetLevel.b2:
+        return 'B2 est le niveau requis pour la naturalisation. Bravo, vous y êtes.';
+    }
   }
 }
 

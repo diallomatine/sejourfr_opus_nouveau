@@ -121,3 +121,19 @@ enum UserRole {
   static UserRole fromWire(String value) =>
       UserRole.values.firstWhere((e) => e.wire == value);
 }
+
+/// Niveau CECRL atteint en TCF, calculé côté backend à la finalisation
+/// d'un examen blanc TCF (taux de bonnes réponses ≥ 60 % sur la strate).
+enum TargetLevel {
+  a2('A2'),
+  b1('B1'),
+  b2('B2');
+
+  const TargetLevel(this.wire);
+  final String wire;
+
+  static TargetLevel? fromWireNullable(String? value) {
+    if (value == null) return null;
+    return TargetLevel.values.firstWhere((e) => e.wire == value);
+  }
+}

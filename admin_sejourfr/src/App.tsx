@@ -5,6 +5,8 @@ import { AppLayout } from "./components/layout/AppLayout";
 import { ToastProvider } from "./components/ui/Toast";
 import { ConversationsPage } from "./features/conversations/ConversationsPage";
 import { DashboardPage } from "./features/dashboard/DashboardPage";
+import { ExamFormPage } from "./features/exams/ExamFormPage";
+import { ExamsPage } from "./features/exams/ExamsPage";
 import { QuestionDetailPage } from "./features/questions/QuestionDetailPage";
 import { QuestionsPage } from "./features/questions/QuestionsPage";
 import { ThemesPage } from "./features/themes/ThemesPage";
@@ -40,6 +42,9 @@ export function App() {
                   element={<QuestionDetailPage />}
                 />
                 <Route path="/themes" element={<ThemesPage />} />
+                <Route path="/exams" element={<ExamsPage />} />
+                <Route path="/exams/new" element={<ExamFormPage />} />
+                <Route path="/exams/:id" element={<ExamFormPage />} />
                 <Route path="/conversations" element={<ConversationsPage />} />
               </Route>
 

@@ -83,10 +83,28 @@ export interface QuestionPublicResponse {
   choices: ChoicePublicResponse[];
 }
 
+// ============ EXAM TEMPLATE (vitrine publique) ============
+export interface ExamTemplateSummary {
+  id: string;
+  slug: string;
+  module: Module;
+  targetProcedure: TargetProcedure | null;
+  targetLevel: TargetLevel | null;
+  name: string;
+  subtitle: string | null;
+  description: string | null;
+  durationSeconds: number;
+  totalQuestions: number;
+  passingScore: number;
+  free: boolean;
+  position: number;
+}
+
 // ============ ATTEMPT ============
 export interface StartAttemptRequest {
   type: AttemptType;
   module: Module;
+  examTemplateId?: string;
   themeId?: string;
   difficulty?: Difficulty;
   questionType?: QuestionType;
@@ -106,12 +124,16 @@ export interface AttemptResponse {
   id: string;
   type: AttemptType;
   module: Module;
+  examTemplateId: string | null;
+  examTemplateSlug: string | null;
+  examTemplateName: string | null;
   totalQuestions: number;
   timeLimitSeconds?: number;
   passThreshold?: number;
   startedAt: string;
   finishedAt?: string;
   score?: number;
+  levelAchieved: TargetLevel | null;
   questions: AttemptQuestionResponse[];
 }
 

@@ -201,6 +201,76 @@ export interface QuestionWriteRequest {
 }
 
 // ---------------------------------------------------------------------------
+// Examens blancs (ExamTemplate + règles)
+// ---------------------------------------------------------------------------
+export interface AdminExamTemplateRuleDto {
+  id: string;
+  themeId: string | null;
+  themeName: string | null;
+  questionType: QuestionType | null;
+  difficulty: Difficulty | null;
+  questionCount: number;
+  position: number;
+}
+
+export interface AdminExamTemplateDto {
+  id: string;
+  slug: string;
+  module: Module;
+  targetLevel: TargetLevel | null;
+  targetProcedure: TargetProcedure | null;
+  name: string;
+  subtitle: string | null;
+  description: string | null;
+  durationSeconds: number;
+  totalQuestions: number;
+  passingScore: number;
+  free: boolean;
+  published: boolean;
+  position: number;
+  createdAt: string;
+  updatedAt: string | null;
+  rules: AdminExamTemplateRuleDto[];
+}
+
+export interface AdminExamTemplateRuleWriteRequest {
+  themeId?: string | null;
+  questionType?: QuestionType | null;
+  difficulty?: Difficulty | null;
+  questionCount: number;
+}
+
+export interface AdminExamTemplateWriteRequest {
+  slug: string;
+  module: Module;
+  targetLevel?: TargetLevel | null;
+  targetProcedure?: TargetProcedure | null;
+  name: string;
+  subtitle?: string | null;
+  description?: string | null;
+  durationSeconds: number;
+  totalQuestions: number;
+  passingScore: number;
+  free: boolean;
+  published: boolean;
+  position: number;
+  rules: AdminExamTemplateRuleWriteRequest[];
+}
+
+export interface ExamCompositionSuggestionDto {
+  targetTotal: number;
+  poolSize: number;
+  warning: string | null;
+  rules: {
+    themeId: string | null;
+    themeName: string | null;
+    difficulty: Difficulty | null;
+    questionCount: number;
+    available: number;
+  }[];
+}
+
+// ---------------------------------------------------------------------------
 // Conversations
 // ---------------------------------------------------------------------------
 export interface ConversationSummaryDto {

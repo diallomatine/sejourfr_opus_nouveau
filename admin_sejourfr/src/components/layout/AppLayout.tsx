@@ -58,6 +58,7 @@ export function AppLayout() {
           ↳ Questions · TCF
         </NavItem>
         <NavItem to="/themes">↳ Thématiques</NavItem>
+        <NavItem to="/exams">↳ Examens blancs</NavItem>
 
         <div className={styles.navSection}>Echanges</div>
         <NavItem to="/conversations" badge={unreadQuery.data?.count}>

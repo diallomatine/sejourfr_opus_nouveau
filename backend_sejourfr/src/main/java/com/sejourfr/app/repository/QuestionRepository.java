@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -52,6 +53,49 @@ public interface QuestionRepository
             Pageable pageable
     );
 
+    /**
+     * Variante de {@link #findRandom} qui exclut un ensemble d'ids déjà tirés.
+     * Utilisée par la génération d'examens blancs basés sur ExamTemplateRule :
+     * on applique les règles l'une après l'autre en gardant trace des questions
+     * déjà sélectionnées, pour garantir l'unicité intra-attempt.
+     * <p>
+     * Hibernate refuse un {@code NOT IN (...)} avec une collection vide : la
+     * méthode publique {@link #findRandomExcluding} dispatche vers
+     * {@link #findRandom} dans ce cas.
+     */
+    @Query("""
+            SELECT q FROM Question q
+            WHERE q.active = true
+              AND q.module = :module
+              AND (:themeId IS NULL OR q.theme.id = :themeId)
+              AND (:difficulty IS NULL OR q.difficulty = :difficulty)
+              AND (:questionType IS NULL OR q.questionType = :questionType)
+              AND q.id NOT IN :excludeIds
+            ORDER BY function('random')
+            """)
+    List<Question> findRandomExcludingInternal(
+            @Param("module") Module module,
+            @Param("themeId") UUID themeId,
+            @Param("difficulty") Difficulty difficulty,
+            @Param("questionType") QuestionType questionType,
+            @Param("excludeIds") Collection<UUID> excludeIds,
+            Pageable pageable
+    );
+
+    default List<Question> findRandomExcluding(
+            Module module,
+            UUID themeId,
+            Difficulty difficulty,
+            QuestionType questionType,
+            Collection<UUID> excludeIds,
+            Pageable pageable
+    ) {
+        if (excludeIds == null || excludeIds.isEmpty()) {
+            return findRandom(module, themeId, difficulty, questionType, pageable);
+        }
+        return findRandomExcludingInternal(module, themeId, difficulty, questionType, excludeIds, pageable);
+    }
+
     // ------------------------------------------------------------------------
     // Stats / agrégations
     // ------------------------------------------------------------------------
@@ -65,4 +109,22 @@ public interface QuestionRepository
     long countByThemeIdAndActiveTrue(UUID themeId);
 
     long countByPassageId(UUID passageId);
+
+    /**
+     * Compte les questions actives matchant les contraintes (les paramètres
+     * null sont ignorés). Utilisé par le suggesteur de composition côté admin
+     * pour exposer le stock réellement disponible avant de proposer une règle.
+     */
+    @Query("""
+            SELECT COUNT(q) FROM Question q
+            WHERE q.active = true
+              AND q.module = :module
+              AND (:themeId IS NULL OR q.theme.id = :themeId)
+              AND (:difficulty IS NULL OR q.difficulty = :difficulty)
+            """)
+    long countActiveMatching(
+            @Param("module") Module module,
+            @Param("themeId") UUID themeId,
+            @Param("difficulty") Difficulty difficulty
+    );
 }

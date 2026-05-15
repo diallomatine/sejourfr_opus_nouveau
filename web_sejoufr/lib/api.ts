@@ -6,6 +6,7 @@ import type {
   ApiError,
   AttemptResponse,
   AuthenticatedUser,
+  ExamTemplateSummary,
   LoginRequest,
   RegisterRequest,
   StartAttemptRequest,
@@ -23,8 +24,8 @@ export const API_BASE_URL =
 // Storage du token (cookie pour SSR + localStorage pour CSR rapide)
 // ============================================================================
 
-const ACCESS_TOKEN_KEY = "sejourfr.accessToken";
-const REFRESH_TOKEN_KEY = "sejourfr.refreshToken";
+export const ACCESS_TOKEN_KEY = "sejourfr.accessToken";
+export const REFRESH_TOKEN_KEY = "sejourfr.refreshToken";
 
 export const tokenStorage = {
   getAccess(): string | null {
@@ -68,10 +69,45 @@ export class ApiException extends Error {
 interface FetchOptions extends RequestInit {
   auth?: boolean; // ajouter le Bearer
   json?: unknown; // body JSON à sérialiser
+  /** Interne : court-circuite la tentative de refresh (utilisé par /auth/refresh). */
+  skipRefresh?: boolean;
 }
 
-async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
-  const { auth, json, headers, ...rest } = opts;
+// File d'attente partagée pour ne pas tenter plusieurs refresh en parallèle :
+// si une seconde requête prend un 401 pendant qu'on rafraîchit déjà, elle
+// attend la promesse en cours plutôt que de relancer un refresh concurrent.
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const rt = tokenStorage.getRefresh();
+    if (!rt) return null;
+    try {
+      const tokens = await rawFetch<TokenResponse>("/api/auth/refresh", {
+        method: "POST",
+        json: { refreshToken: rt },
+        skipRefresh: true,
+      });
+      tokenStorage.set(tokens);
+      return tokens.accessToken;
+    } catch {
+      tokenStorage.clear();
+      return null;
+    } finally {
+      // Libère le slot pour les futurs refreshs.
+      setTimeout(() => {
+        refreshPromise = null;
+      }, 0);
+    }
+  })();
+
+  return refreshPromise;
+}
+
+async function rawFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
+  const { auth, json, headers, skipRefresh: _skip, ...rest } = opts;
 
   const finalHeaders: Record<string, string> = {
     Accept: "application/json",
@@ -108,10 +144,29 @@ async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
     );
   }
 
-  // Si pas de contenu (204), retourner undefined
   if (res.status === 204) return undefined as T;
-
   return (await res.json()) as T;
+}
+
+async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
+  try {
+    return await rawFetch<T>(path, opts);
+  } catch (err) {
+    // Tentative unique de refresh sur un 401, sauf pour /auth/refresh lui-même.
+    if (
+      err instanceof ApiException &&
+      err.status === 401 &&
+      !opts.skipRefresh &&
+      typeof window !== "undefined" &&
+      tokenStorage.getRefresh()
+    ) {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        return rawFetch<T>(path, opts);
+      }
+    }
+    throw err;
+  }
 }
 
 // ============================================================================
@@ -141,6 +196,10 @@ export const authApi = {
     return apiFetch<AuthenticatedUser>("/api/auth/me", { auth: true });
   },
 
+  async refresh(): Promise<string | null> {
+    return refreshAccessToken();
+  },
+
   logout() {
     tokenStorage.clear();
   },
@@ -155,6 +214,21 @@ export const themeApi = {
     return apiFetch<ThemeUserResponse[]>(`/api/themes?module=${module}`, {
       auth: true,
     });
+  },
+};
+
+// ============================================================================
+// Endpoints Examens blancs (vitrine publique)
+// ============================================================================
+
+export const examApi = {
+  list(module?: ModuleEnum): Promise<ExamTemplateSummary[]> {
+    const qs = module ? `?module=${module}` : "";
+    return apiFetch<ExamTemplateSummary[]>(`/api/exams${qs}`, { auth: false });
+  },
+
+  getBySlug(slug: string): Promise<ExamTemplateSummary> {
+    return apiFetch<ExamTemplateSummary>(`/api/exams/${slug}`, { auth: false });
   },
 };
 

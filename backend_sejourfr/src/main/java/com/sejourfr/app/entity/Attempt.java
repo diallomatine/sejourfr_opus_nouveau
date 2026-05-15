@@ -4,6 +4,7 @@ import com.sejourfr.app.enums.AttemptMode;
 import com.sejourfr.app.enums.AttemptStatus;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.TargetLevel;
 import org.hibernate.annotations.UuidGenerator;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -61,6 +62,10 @@ public class Attempt {
 
     @Column(name = "max_score")
     private Integer maxScore;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "level_achieved", length = 8)
+    private TargetLevel levelAchieved;
 
     @Column(name = "started_at", nullable = false)
     private Instant startedAt;
@@ -124,6 +129,9 @@ public class Attempt {
 
     public Integer getMaxScore() { return maxScore; }
     public void setMaxScore(Integer maxScore) { this.maxScore = maxScore; }
+
+    public TargetLevel getLevelAchieved() { return levelAchieved; }
+    public void setLevelAchieved(TargetLevel levelAchieved) { this.levelAchieved = levelAchieved; }
 
     public Instant getStartedAt() { return startedAt; }
     public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }

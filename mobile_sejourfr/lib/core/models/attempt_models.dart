@@ -12,10 +12,14 @@ enum AttemptType {
 }
 
 /// Demande de création d'un attempt.
+///
+/// Si [examTemplateId] est fourni, le backend ignore les autres filtres et
+/// applique la composition de l'ExamTemplate (rules ordonnées).
 class StartAttemptRequest {
   StartAttemptRequest({
     required this.type,
     required this.module,
+    this.examTemplateId,
     this.themeId,
     this.difficulty,
     this.questionType,
@@ -24,6 +28,7 @@ class StartAttemptRequest {
 
   final AttemptType type;
   final AppModule module;
+  final String? examTemplateId;
   final String? themeId;
   final Difficulty? difficulty;
   final QuestionType? questionType;
@@ -32,6 +37,7 @@ class StartAttemptRequest {
   Map<String, dynamic> toJson() => {
         'type': type.wire,
         'module': module.wire,
+        if (examTemplateId != null) 'examTemplateId': examTemplateId,
         if (themeId != null) 'themeId': themeId,
         if (difficulty != null) 'difficulty': difficulty!.wire,
         if (questionType != null) 'questionType': questionType!.wire,
@@ -79,10 +85,14 @@ class Attempt {
     required this.totalQuestions,
     required this.startedAt,
     required this.questions,
+    this.examTemplateId,
+    this.examTemplateSlug,
+    this.examTemplateName,
     this.timeLimitSeconds,
     this.passThreshold,
     this.finishedAt,
     this.score,
+    this.levelAchieved,
   });
 
   final String id;
@@ -91,19 +101,27 @@ class Attempt {
   final int totalQuestions;
   final DateTime startedAt;
   final List<AttemptQuestion> questions;
+  final String? examTemplateId;
+  final String? examTemplateSlug;
+  final String? examTemplateName;
   final int? timeLimitSeconds;
   final int? passThreshold;
   final DateTime? finishedAt;
   final int? score;
+  final TargetLevel? levelAchieved;
 
   bool get isMockExam => type == AttemptType.mockExam;
   bool get isFinished => finishedAt != null;
+  bool get isTcf => module == AppModule.tcf;
 
   factory Attempt.fromJson(Map<String, dynamic> json) => Attempt(
         id: json['id'] as String,
         type: AttemptType.values
             .firstWhere((e) => e.wire == json['type'] as String),
         module: AppModule.fromWire(json['module'] as String),
+        examTemplateId: json['examTemplateId'] as String?,
+        examTemplateSlug: json['examTemplateSlug'] as String?,
+        examTemplateName: json['examTemplateName'] as String?,
         totalQuestions: (json['totalQuestions'] as num).toInt(),
         timeLimitSeconds: (json['timeLimitSeconds'] as num?)?.toInt(),
         passThreshold: (json['passThreshold'] as num?)?.toInt(),
@@ -112,6 +130,7 @@ class Attempt {
             ? null
             : DateTime.parse(json['finishedAt'] as String),
         score: (json['score'] as num?)?.toInt(),
+        levelAchieved: TargetLevel.fromWireNullable(json['levelAchieved'] as String?),
         questions: (json['questions'] as List<dynamic>?)
                 ?.map((q) =>
                     AttemptQuestion.fromJson(q as Map<String, dynamic>))
