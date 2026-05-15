@@ -16,9 +16,14 @@ import java.math.RoundingMode;
 @Component
 public class CostCalculator {
 
-    private static final BigDecimal ANTHROPIC_INPUT_USD_PER_MTOK = new BigDecimal("3");
-    private static final BigDecimal ANTHROPIC_OUTPUT_USD_PER_MTOK = new BigDecimal("15");
-    private static final BigDecimal ANTHROPIC_CACHE_READ_USD_PER_MTOK = new BigDecimal("0.30");
+    // Tarifs Anthropic Claude Opus 4.7 (le model par defaut dans application.yaml).
+    // A switcher manuellement si on change de model :
+    //   - Sonnet 4.6  : input=3,    output=15,   cacheRead=0.30
+    //   - Haiku  4.5  : input=1,    output=5,    cacheRead=0.10
+    //   - Opus   4.7  : input=15,   output=75,   cacheRead=1.50  (ci-dessous)
+    private static final BigDecimal ANTHROPIC_INPUT_USD_PER_MTOK = new BigDecimal("15");
+    private static final BigDecimal ANTHROPIC_OUTPUT_USD_PER_MTOK = new BigDecimal("75");
+    private static final BigDecimal ANTHROPIC_CACHE_READ_USD_PER_MTOK = new BigDecimal("1.50");
     private static final BigDecimal AZURE_TTS_USD_PER_MCHAR = new BigDecimal("16");
     private static final BigDecimal USD_TO_EUR = new BigDecimal("0.92");
     private static final BigDecimal MILLION = new BigDecimal("1000000");
