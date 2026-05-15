@@ -1,26 +1,272 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============================================================================
+   Design tokens SejourFR
+   ============================================================================ */
+@theme {
+  /* Couleurs France */
+  --color-blue: #1E3A8C;
+  --color-blue-dark: #15296B;
+  --color-blue-light: #E8ECF8;
+  --color-blue-soft: #F4F6FC;
+  --color-red: #E1372F;
+  --color-red-dark: #B5251E;
+  --color-red-light: #FDECEB;
+  --color-ink: #0F1839;
+  --color-ink-2: #1F2950;
+  --color-muted: #6B7299;
+  --color-muted-2: #9CA2BD;
+  --color-line: #E4E7F2;
+  --color-line-2: #EEF0F8;
+  --color-paper: #FAFAF7;
+  --color-paper-2: #F2F1EC;
+  --color-green: #168F5B;
+  --color-amber: #E8A317;
+
+  /* Fonts (variables injectées par next/font dans layout.tsx) */
+  --font-sans: var(--font-jakarta), system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ============================================================================
+   Base
+   ============================================================================ */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-paper);
+  line-height: 1.55;
+  font-size: 16px;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ============================================================================
+   Helpers utility
+   ============================================================================ */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-blue);
+  font-weight: 500;
+}
+
+.editorial {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.editorial em {
+  color: var(--color-red);
+  font-style: italic;
+  font-weight: 500;
+}
+
+/* ============================================================================
+   Cocarde (logo SVG en pur CSS)
+   ============================================================================ */
+.cocarde {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-blue);
+  position: relative;
+  flex-shrink: 0;
+}
+.cocarde::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  background: #fff;
+  border-radius: 50%;
+}
+.cocarde::after {
+  content: "";
+  position: absolute;
+  inset: 11px;
+  background: var(--color-red);
+  border-radius: 50%;
+}
+.cocarde.lg {
+  width: 56px;
+  height: 56px;
+}
+.cocarde.lg::before {
+  inset: 9px;
+}
+.cocarde.lg::after {
+  inset: 17px;
+}
+
+/* ============================================================================
+   Wordmark
+   ============================================================================ */
+.wordmark {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.015em;
+  color: var(--color-blue);
+}
+.wordmark .fr {
+  color: var(--color-red);
+}
+
+/* ============================================================================
+   Buttons
+   ============================================================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 14.5px;
+  font-weight: 600;
+  padding: 11px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--color-blue);
+  background: var(--color-blue);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+  letter-spacing: -0.005em;
+}
+.btn:hover {
+  background: var(--color-blue-dark);
+  border-color: var(--color-blue-dark);
+  transform: translateY(-1px);
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+.btn-lg {
+  padding: 14px 26px;
+  font-size: 15px;
+  border-radius: 10px;
+}
+.btn-red {
+  background: var(--color-red);
+  border-color: var(--color-red);
+}
+.btn-red:hover {
+  background: var(--color-red-dark);
+  border-color: var(--color-red-dark);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--color-ink);
+  border-color: var(--color-line);
+}
+.btn-ghost:hover {
+  background: var(--color-paper-2);
+  border-color: var(--color-ink);
+}
+.btn-link-soft {
+  background: transparent;
+  color: var(--color-ink);
+  border: none;
+  padding: 10px 6px;
+}
+.btn-link-soft:hover {
+  color: var(--color-blue);
+  transform: none;
+}
+.btn .arrow {
+  transition: transform 0.15s ease;
+}
+.btn:hover .arrow {
+  transform: translateX(3px);
+}
+
+/* ============================================================================
+   Form inputs (réutilisable inscription/connexion/paiement)
+   ============================================================================ */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.field-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+.field-input {
+  font-family: var(--font-sans);
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  padding: 13px 14px;
+  font-size: 15px;
+  color: var(--color-ink);
+  transition: all 0.15s;
+  width: 100%;
+}
+.field-input:focus {
+  outline: none;
+  border-color: var(--color-blue);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(30, 58, 140, 0.1);
+}
+.field-input::placeholder {
+  color: var(--color-muted-2);
+}
+
+/* ============================================================================
+   Section helpers
+   ============================================================================ */
+.container-x {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+@media (max-width: 560px) {
+  .container-x {
+    padding: 0 20px;
+  }
+}
+
+/* Erreur de form */
+.form-error {
+  background: var(--color-red-light);
+  border: 1px solid var(--color-red);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  color: var(--color-red-dark);
+  margin-bottom: 4px;
+}
+
+/* Status pill */
+.pill-success {
+  background: rgba(22, 143, 91, 0.12);
+  color: var(--color-green);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13.5px;
 }
