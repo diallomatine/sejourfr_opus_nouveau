@@ -24,9 +24,16 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RestAuthEntryPoints.Unauthorized unauthorizedHandler;
+    private final RestAuthEntryPoints.Forbidden forbiddenHandler;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            RestAuthEntryPoints.Unauthorized unauthorizedHandler,
+            RestAuthEntryPoints.Forbidden forbiddenHandler) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.unauthorizedHandler = unauthorizedHandler;
+        this.forbiddenHandler = forbiddenHandler;
     }
 
     @Bean
@@ -35,6 +42,12 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())                                  // <-- AJOUTÉ
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // 401 sur "pas authentifie / token KO" (declenche le refresh JWT cote client),
+                // 403 sur "authentifie mais role insuffisant".
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint(unauthorizedHandler)
+                        .accessDeniedHandler(forbiddenHandler)
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()   // <-- AJOUTÉ
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
