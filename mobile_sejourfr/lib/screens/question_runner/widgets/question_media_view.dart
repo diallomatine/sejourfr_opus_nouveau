@@ -110,9 +110,25 @@ class _ImageMedia extends StatelessWidget {
             fit: BoxFit.cover,
             loadingBuilder: (context, child, progress) {
               if (progress == null) return child;
-              return const SizedBox(
+              final value = progress.expectedTotalBytes == null
+                  ? null
+                  : progress.cumulativeBytesLoaded /
+                      progress.expectedTotalBytes!;
+              return SizedBox(
                 height: 200,
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(
+                  child: SizedBox(
+                    width: 26,
+                    height: 26,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      value: value,
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        AppColors.blue,
+                      ),
+                    ),
+                  ),
+                ),
               );
             },
             errorBuilder: (_, __, ___) => Container(
@@ -147,7 +163,37 @@ class _ImageMedia extends StatelessWidget {
           panEnabled: true,
           minScale: 0.5,
           maxScale: 4,
-          child: Image.network(url, fit: BoxFit.contain),
+          child: Image.network(
+            url,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              final value = progress.expectedTotalBytes == null
+                  ? null
+                  : progress.cumulativeBytesLoaded /
+                      progress.expectedTotalBytes!;
+              return Center(
+                child: SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    value: value,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppColors.white,
+                    ),
+                  ),
+                ),
+              );
+            },
+            errorBuilder: (_, __, ___) => const Center(
+              child: Icon(
+                Icons.broken_image_outlined,
+                color: Colors.white70,
+                size: 40,
+              ),
+            ),
+          ),
         ),
       ),
     );

@@ -88,10 +88,12 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
       }
       if (!_started) {
         _started = true;
+        if (!mounted) return;
         setState(() => _playCount++);
       }
       await _player.play();
     }
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -146,11 +148,27 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
           else
             Row(
               children: [
-                _PlayButton(
-                  playing: _player.playing,
-                  disabled: !_ready ||
-                      (remaining != null && remaining == 0 && !_player.playing),
-                  onTap: _togglePlay,
+                StreamBuilder<PlayerState>(
+                  stream: _player.playerStateStream,
+                  builder: (context, snapshot) {
+                    final state = snapshot.data;
+                    final playing = state?.playing ?? false;
+                    final processing =
+                        state?.processingState ?? ProcessingState.idle;
+                    final buffering =
+                        processing == ProcessingState.loading ||
+                            processing == ProcessingState.buffering;
+                    final showLoading = !_ready || buffering;
+                    return _PlayButton(
+                      playing: playing,
+                      loading: showLoading,
+                      disabled: !_ready ||
+                          (remaining != null &&
+                              remaining == 0 &&
+                              !playing),
+                      onTap: _togglePlay,
+                    );
+                  },
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -219,11 +237,13 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
 class _PlayButton extends StatelessWidget {
   const _PlayButton({
     required this.playing,
+    required this.loading,
     required this.onTap,
     required this.disabled,
   });
 
   final bool playing;
+  final bool loading;
   final VoidCallback onTap;
   final bool disabled;
 
@@ -236,16 +256,26 @@ class _PlayButton extends StatelessWidget {
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
-        onTap: disabled ? null : onTap,
+        onTap: (disabled || loading) ? null : onTap,
         child: Container(
           width: 48,
           height: 48,
           alignment: Alignment.center,
-          child: Icon(
-            playing ? Icons.pause : Icons.play_arrow,
-            color: AppColors.white,
-            size: 26,
-          ),
+          child: loading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(AppColors.white),
+                  ),
+                )
+              : Icon(
+                  playing ? Icons.pause : Icons.play_arrow,
+                  color: AppColors.white,
+                  size: 26,
+                ),
         ),
       ),
     );
