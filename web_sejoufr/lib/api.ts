@@ -148,22 +148,41 @@ async function rawFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   return (await res.json()) as T;
 }
 
+/**
+ * 401 définitif (refresh KO ou pas de refresh token) : purge le storage et
+ * envoie l'utilisateur vers /connexion?next=<route courante>. Ne s'exécute
+ * pas si on est déjà sur /connexion ou /inscription (évite la boucle quand
+ * on tape de mauvais credentials).
+ */
+function redirectToLogin(): void {
+  if (typeof window === "undefined") return;
+  const path = window.location.pathname;
+  if (path === "/connexion" || path === "/inscription") return;
+  tokenStorage.clear();
+  const next = encodeURIComponent(path + window.location.search);
+  window.location.assign(`/connexion?next=${next}`);
+}
+
 async function apiFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   try {
     return await rawFetch<T>(path, opts);
   } catch (err) {
-    // Tentative unique de refresh sur un 401, sauf pour /auth/refresh lui-même.
+    // 401 sur endpoint protégé : tentative de refresh une fois, sinon redirect.
+    // On n'intercepte pas /api/auth/* pour ne pas casser les formulaires login/refresh.
     if (
       err instanceof ApiException &&
       err.status === 401 &&
       !opts.skipRefresh &&
       typeof window !== "undefined" &&
-      tokenStorage.getRefresh()
+      !path.startsWith("/api/auth/")
     ) {
-      const newToken = await refreshAccessToken();
-      if (newToken) {
-        return rawFetch<T>(path, opts);
+      if (tokenStorage.getRefresh()) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          return rawFetch<T>(path, opts);
+        }
       }
+      redirectToLogin();
     }
     throw err;
   }

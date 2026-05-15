@@ -115,6 +115,18 @@ async function rawRequest<T>(
   return payload as T;
 }
 
+/**
+ * Sur 401 definitif (refresh KO ou pas de refresh token), purge le storage
+ * et redirige vers /login. Ne s'execute pas si on est deja sur /login
+ * (evite la boucle quand le user essaye de se connecter avec de mauvais creds).
+ */
+function redirectToLogin(): void {
+  if (typeof window === "undefined") return;
+  if (window.location.pathname === "/login") return;
+  tokenStorage.clear();
+  window.location.assign("/login");
+}
+
 export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {},
@@ -128,14 +140,17 @@ export async function apiRequest<T>(
       err instanceof HttpError &&
       err.status === 401 &&
       !options.skipRefresh &&
-      tokenStorage.getRefresh()
+      !path.startsWith("/api/auth/")
     ) {
-      const newToken = await refreshAccessToken();
-      if (newToken) {
-        token = newToken;
-        return rawRequest<T>(path, options, token);
+      if (tokenStorage.getRefresh()) {
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          token = newToken;
+          return rawRequest<T>(path, options, token);
+        }
       }
-      // Refresh KO : on laisse l'erreur 401 remonter, le ProtectedRoute redirigera
+      // Session expiree ou jamais authentifie : on quitte vers /login.
+      redirectToLogin();
     }
     throw err;
   }
