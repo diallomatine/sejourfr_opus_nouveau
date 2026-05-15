@@ -8,6 +8,7 @@ class AuthUser {
     required this.lastName,
     required this.role,
     this.targetProcedure,
+    this.isPremium = false,
   });
 
   final String id;
@@ -16,6 +17,7 @@ class AuthUser {
   final String? lastName;
   final UserRole role;
   final TargetProcedure? targetProcedure;
+  final bool isPremium;
 
   /// L'utilisateur a-t-il choisi son parcours administratif ?
   /// Les comptes ADMIN n'ont pas besoin de cette étape : on les considère
@@ -32,13 +34,15 @@ class AuthUser {
     return email;
   }
 
-  AuthUser copyWith({TargetProcedure? targetProcedure}) => AuthUser(
+  AuthUser copyWith({TargetProcedure? targetProcedure, bool? isPremium}) =>
+      AuthUser(
         id: id,
         email: email,
         firstName: firstName,
         lastName: lastName,
         role: role,
         targetProcedure: targetProcedure ?? this.targetProcedure,
+        isPremium: isPremium ?? this.isPremium,
       );
 
   factory AuthUser.fromJson(Map<String, dynamic> json) => AuthUser(
@@ -50,6 +54,7 @@ class AuthUser {
         targetProcedure: json['targetProcedure'] == null
             ? null
             : TargetProcedure.fromWire(json['targetProcedure'] as String),
+        isPremium: json['isPremium'] as bool? ?? false,
       );
 
   Map<String, dynamic> toJson() => {
@@ -59,6 +64,7 @@ class AuthUser {
         'lastName': lastName,
         'role': role.wire,
         if (targetProcedure != null) 'targetProcedure': targetProcedure!.wire,
+        'isPremium': isPremium,
       };
 }
 

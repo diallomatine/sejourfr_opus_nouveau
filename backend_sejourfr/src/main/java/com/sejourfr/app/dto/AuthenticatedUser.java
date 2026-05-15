@@ -11,16 +11,18 @@ public record AuthenticatedUser(
         String firstName,
         String lastName,
         Role role,
-        TargetProcedure targetProcedure
+        TargetProcedure targetProcedure,
+        boolean isPremium
 ) {
-    public static AuthenticatedUser from(User u) {
+    public static AuthenticatedUser from(User u, boolean isPremium) {
         return new AuthenticatedUser(
                 u.getId(),
                 u.getEmail(),
                 u.getFirstName(),
                 u.getLastName(),
                 u.getRole(),
-                u.getTargetProcedure()
+                u.getTargetProcedure(),
+                isPremium
         );
     }
 }

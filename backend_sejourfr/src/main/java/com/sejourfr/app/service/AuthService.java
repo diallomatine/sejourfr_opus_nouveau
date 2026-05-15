@@ -27,13 +27,16 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
     private final JwtService jwtService;
+    private final SubscriptionService subscriptionService;
 
     public AuthService(AuthenticationManager authenticationManager,
                        UserRepository userRepository,
-                       JwtService jwtService) {
+                       JwtService jwtService,
+                       SubscriptionService subscriptionService) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.jwtService = jwtService;
+        this.subscriptionService = subscriptionService;
     }
 
     public TokenResponse login(LoginRequest req) {
@@ -51,7 +54,8 @@ public class AuthService {
 
         String access = jwtService.generateAccessToken(u);
         String refresh = jwtService.generateRefreshToken(u);
-        return TokenResponse.of(access, refresh, jwtService.accessTokenTtlSeconds(), AuthenticatedUser.from(u));
+        boolean premium = subscriptionService.isPremium(u.getId());
+        return TokenResponse.of(access, refresh, jwtService.accessTokenTtlSeconds(), AuthenticatedUser.from(u, premium));
     }
 
     public TokenResponse refresh(RefreshRequest req) {
@@ -74,13 +78,15 @@ public class AuthService {
 
         String access = jwtService.generateAccessToken(u);
         String newRefresh = jwtService.generateRefreshToken(u);
-        return TokenResponse.of(access, newRefresh, jwtService.accessTokenTtlSeconds(), AuthenticatedUser.from(u));
+        boolean premium = subscriptionService.isPremium(u.getId());
+        return TokenResponse.of(access, newRefresh, jwtService.accessTokenTtlSeconds(), AuthenticatedUser.from(u, premium));
     }
 
     @Transactional(readOnly = true)
     public AuthenticatedUser me(String email) {
         User u = userRepository.findByEmail(email)
                 .orElseThrow(() -> NotFoundException.of("User", email));
-        return AuthenticatedUser.from(u);
+        boolean premium = subscriptionService.isPremium(u.getId());
+        return AuthenticatedUser.from(u, premium);
     }
 }
