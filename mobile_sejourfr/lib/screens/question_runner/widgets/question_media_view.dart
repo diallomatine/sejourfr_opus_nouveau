@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:video_player/video_player.dart';
 
@@ -8,9 +9,12 @@ import '../../../core/models/question_models.dart';
 import '../../../core/theme/app_theme.dart';
 import 'audio_player.dart';
 
-/// Affiche le média associé à une question. Trois sources possibles :
-///   1. media.inlineSvg → SVG dessiné en migration (TCF compréhension écrite)
-///   2. media.url + IMAGE/AUDIO/VIDEO → URL distante
+/// Affiche le média associé à une question TCF.
+///
+/// Sources gérées :
+///   1. `media.inlineSvg` → SVG rendu en place (questions TCF dessinées en
+///      migration Flyway).
+///   2. `media.url` + `type` ∈ {AUDIO, IMAGE, VIDEO} → contenu distant.
 class QuestionMediaView extends StatelessWidget {
   const QuestionMediaView({super.key, required this.media});
 
@@ -33,63 +37,54 @@ class QuestionMediaView extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// SVG inline (TCF compréhension écrite)
+// ---------------------------------------------------------------------------
+
 class _InlineSvgMedia extends StatelessWidget {
   const _InlineSvgMedia({required this.svg});
   final String svg;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _openFullscreen(context, svg),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.line),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.ink.withValues(alpha: 0.06),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: SvgPicture.string(
-            svg,
-            fit: BoxFit.contain,
-            placeholderBuilder: (_) => const SizedBox(
-              height: 200,
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          ),
-        ),
+    final tag = identityHashCode(svg).toString();
+    return _MediaFrame(
+      heroTag: tag,
+      onTap: () => Navigator.of(context).push(
+        _MediaViewerRoute(child: _ZoomableSvg(svg: svg), heroTag: tag),
       ),
-    );
-  }
-
-  static void _openFullscreen(BuildContext context, String svg) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black87,
-      builder: (_) => GestureDetector(
-        onTap: () => Navigator.of(context).pop(),
-        child: InteractiveViewer(
-          panEnabled: true,
-          minScale: 0.5,
-          maxScale: 4,
-          child: Container(
-            color: Colors.white,
-            child: SvgPicture.string(svg, fit: BoxFit.contain),
-          ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 360),
+        child: SvgPicture.string(
+          svg,
+          fit: BoxFit.contain,
+          placeholderBuilder: (_) => const _MediaLoading(height: 220),
         ),
       ),
     );
   }
 }
+
+class _ZoomableSvg extends StatelessWidget {
+  const _ZoomableSvg({required this.svg});
+  final String svg;
+
+  @override
+  Widget build(BuildContext context) {
+    return InteractiveViewer(
+      panEnabled: true,
+      minScale: 1,
+      maxScale: 5,
+      child: Center(
+        child: SvgPicture.string(svg, fit: BoxFit.contain),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Image distante
+// ---------------------------------------------------------------------------
 
 class _ImageMedia extends StatelessWidget {
   const _ImageMedia({required this.url});
@@ -97,101 +92,76 @@ class _ImageMedia extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _openFullscreen(context, url),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          constraints: const BoxConstraints(maxHeight: 240),
-          width: double.infinity,
-          color: AppColors.line2,
-          child: Image.network(
-            url,
-            fit: BoxFit.cover,
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              final value = progress.expectedTotalBytes == null
-                  ? null
-                  : progress.cumulativeBytesLoaded /
-                      progress.expectedTotalBytes!;
-              return SizedBox(
-                height: 200,
-                child: Center(
-                  child: SizedBox(
-                    width: 26,
-                    height: 26,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.4,
-                      value: value,
-                      valueColor: const AlwaysStoppedAnimation<Color>(
-                        AppColors.blue,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-            errorBuilder: (_, __, ___) => Container(
-              height: 200,
-              alignment: Alignment.center,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.broken_image_outlined,
-                      color: AppColors.muted),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Image indisponible',
-                    style: AppFonts.jakarta(color: AppColors.muted, size: 12),
-                  ),
-                ],
-              ),
-            ),
+    return _MediaFrame(
+      heroTag: url,
+      onTap: () => Navigator.of(context).push(
+        _MediaViewerRoute(
+          child: _ZoomableImage(url: url),
+          heroTag: url,
+        ),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 360, minHeight: 180),
+        child: Image.network(
+          url,
+          fit: BoxFit.contain,
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) return child;
+            final value = progress.expectedTotalBytes == null
+                ? null
+                : progress.cumulativeBytesLoaded /
+                    progress.expectedTotalBytes!;
+            return _MediaLoading(value: value, height: 220);
+          },
+          errorBuilder: (_, __, ___) => const _MediaError(
+            message: 'Image indisponible',
+            icon: Icons.broken_image_outlined,
           ),
         ),
       ),
     );
   }
+}
 
-  static void _openFullscreen(BuildContext context, String url) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black87,
-      builder: (_) => GestureDetector(
-        onTap: () => Navigator.of(context).pop(),
-        child: InteractiveViewer(
-          panEnabled: true,
-          minScale: 0.5,
-          maxScale: 4,
-          child: Image.network(
-            url,
-            fit: BoxFit.contain,
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              final value = progress.expectedTotalBytes == null
-                  ? null
-                  : progress.cumulativeBytesLoaded /
-                      progress.expectedTotalBytes!;
-              return Center(
-                child: SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.4,
-                    value: value,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppColors.white,
-                    ),
+class _ZoomableImage extends StatelessWidget {
+  const _ZoomableImage({required this.url});
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return InteractiveViewer(
+      panEnabled: true,
+      minScale: 1,
+      maxScale: 5,
+      child: Center(
+        child: Image.network(
+          url,
+          fit: BoxFit.contain,
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) return child;
+            final value = progress.expectedTotalBytes == null
+                ? null
+                : progress.cumulativeBytesLoaded /
+                    progress.expectedTotalBytes!;
+            return Center(
+              child: SizedBox(
+                width: 36,
+                height: 36,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                  value: value,
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    AppColors.white,
                   ),
                 ),
-              );
-            },
-            errorBuilder: (_, __, ___) => const Center(
-              child: Icon(
-                Icons.broken_image_outlined,
-                color: Colors.white70,
-                size: 40,
               ),
+            );
+          },
+          errorBuilder: (_, __, ___) => const Center(
+            child: Icon(
+              Icons.broken_image_outlined,
+              color: Colors.white70,
+              size: 48,
             ),
           ),
         ),
@@ -199,6 +169,168 @@ class _ImageMedia extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Container générique (cadre + tap "Agrandir")
+// ---------------------------------------------------------------------------
+
+class _MediaFrame extends StatelessWidget {
+  const _MediaFrame({
+    required this.child,
+    required this.onTap,
+    required this.heroTag,
+  });
+
+  final Widget child;
+  final VoidCallback onTap;
+  final String heroTag;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.line),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.ink.withValues(alpha: 0.05),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            Hero(
+              tag: heroTag,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: child,
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.ink.withValues(alpha: 0.72),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.zoom_in,
+                        size: 12, color: AppColors.white),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Agrandir',
+                      style: AppFonts.mono(
+                        size: 9,
+                        color: AppColors.white,
+                        letterSpacing: 1.4,
+                      ).copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Viewer plein écran (image / SVG)
+// ---------------------------------------------------------------------------
+
+class _MediaViewerRoute<T> extends PageRoute<T> {
+  _MediaViewerRoute({required this.child, required this.heroTag});
+
+  final Widget child;
+  final String heroTag;
+
+  @override
+  Color? get barrierColor => Colors.black;
+
+  @override
+  String? get barrierLabel => 'Fermer';
+
+  @override
+  bool get opaque => false;
+
+  @override
+  bool get barrierDismissible => true;
+
+  @override
+  Duration get transitionDuration => const Duration(milliseconds: 220);
+
+  @override
+  bool get maintainState => true;
+
+  @override
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) {
+    return FadeTransition(
+      opacity: animation,
+      child: _FullscreenMediaViewer(heroTag: heroTag, child: child),
+    );
+  }
+}
+
+class _FullscreenMediaViewer extends StatelessWidget {
+  const _FullscreenMediaViewer({required this.heroTag, required this.child});
+
+  final String heroTag;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Hero(tag: heroTag, child: child),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Material(
+                color: Colors.white24,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => Navigator.of(context).pop(),
+                  child: const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: Icon(Icons.close, color: Colors.white, size: 22),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Vidéo
+// ---------------------------------------------------------------------------
 
 class _VideoMedia extends StatefulWidget {
   const _VideoMedia({required this.url});
@@ -240,35 +372,310 @@ class _VideoMediaState extends State<_VideoMedia> {
   @override
   Widget build(BuildContext context) {
     if (_error != null) {
-      return Container(
-        height: 200,
-        decoration: BoxDecoration(
-          color: AppColors.line2,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          _error!,
-          style: AppFonts.jakarta(color: AppColors.muted),
-        ),
+      return const _MediaError(
+        message: 'Vidéo indisponible',
+        icon: Icons.videocam_off_outlined,
       );
     }
     if (!_ready) {
-      return const SizedBox(
-        height: 200,
-        child: Center(child: CircularProgressIndicator()),
-      );
+      return const _MediaLoading(height: 220);
     }
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
       child: AspectRatio(
-        aspectRatio: _ctrl.value.aspectRatio,
+        aspectRatio: _ctrl.value.aspectRatio == 0
+            ? 16 / 9
+            : _ctrl.value.aspectRatio,
+        child: _VideoSurface(
+          controller: _ctrl,
+          onFullscreen: () => _openFullscreen(context),
+        ),
+      ),
+    );
+  }
+
+  void _openFullscreen(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _FullscreenVideoPage(controller: _ctrl),
+        fullscreenDialog: true,
+      ),
+    );
+  }
+}
+
+class _VideoSurface extends StatefulWidget {
+  const _VideoSurface({
+    required this.controller,
+    required this.onFullscreen,
+    this.dark = false,
+  });
+
+  final VideoPlayerController controller;
+  final VoidCallback onFullscreen;
+  final bool dark;
+
+  @override
+  State<_VideoSurface> createState() => _VideoSurfaceState();
+}
+
+class _VideoSurfaceState extends State<_VideoSurface> {
+  bool _controlsVisible = true;
+
+  void _toggleControls() {
+    setState(() => _controlsVisible = !_controlsVisible);
+  }
+
+  void _togglePlay() {
+    final c = widget.controller;
+    if (c.value.isPlaying) {
+      c.pause();
+    } else {
+      if (c.value.position >= c.value.duration) {
+        c.seekTo(Duration.zero);
+      }
+      c.play();
+    }
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _toggleControls,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Container(
+            color: Colors.black,
+            child: Center(child: VideoPlayer(widget.controller)),
+          ),
+          AnimatedOpacity(
+            duration: const Duration(milliseconds: 180),
+            opacity: _controlsVisible ? 1 : 0,
+            child: IgnorePointer(
+              ignoring: !_controlsVisible,
+              child: _VideoControlsOverlay(
+                controller: widget.controller,
+                onPlayPause: _togglePlay,
+                onFullscreen: widget.onFullscreen,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VideoControlsOverlay extends StatelessWidget {
+  const _VideoControlsOverlay({
+    required this.controller,
+    required this.onPlayPause,
+    required this.onFullscreen,
+  });
+
+  final VideoPlayerController controller;
+  final VoidCallback onPlayPause;
+  final VoidCallback onFullscreen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withValues(alpha: 0.05),
+                Colors.transparent,
+                Colors.black.withValues(alpha: 0.55),
+              ],
+              stops: const [0, 0.55, 1],
+            ),
+          ),
+        ),
+        Center(
+          child: ValueListenableBuilder<VideoPlayerValue>(
+            valueListenable: controller,
+            builder: (context, value, _) {
+              return Material(
+                color: Colors.black.withValues(alpha: 0.55),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: onPlayPause,
+                  child: Container(
+                    width: 64,
+                    height: 64,
+                    alignment: Alignment.center,
+                    child: Icon(
+                      value.isPlaying ? Icons.pause : Icons.play_arrow,
+                      color: Colors.white,
+                      size: 34,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        Positioned(
+          left: 12,
+          right: 12,
+          bottom: 8,
+          child: ValueListenableBuilder<VideoPlayerValue>(
+            valueListenable: controller,
+            builder: (context, value, _) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 3,
+                      thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 6),
+                      overlayShape: const RoundSliderOverlayShape(
+                          overlayRadius: 12),
+                      activeTrackColor: AppColors.red,
+                      inactiveTrackColor: Colors.white24,
+                      thumbColor: AppColors.red,
+                      overlayColor: AppColors.red.withValues(alpha: 0.2),
+                    ),
+                    child: Slider(
+                      min: 0,
+                      max: value.duration.inMilliseconds.toDouble().clamp(
+                            1,
+                            double.infinity,
+                          ),
+                      value: value.position.inMilliseconds
+                          .clamp(0, value.duration.inMilliseconds)
+                          .toDouble(),
+                      onChanged: (v) {
+                        controller.seekTo(Duration(milliseconds: v.toInt()));
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Row(
+                      children: [
+                        Text(
+                          _fmt(value.position),
+                          style: AppFonts.mono(
+                            size: 10,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          _fmt(value.duration),
+                          style: AppFonts.mono(
+                            size: 10,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        InkWell(
+                          onTap: onFullscreen,
+                          customBorder: const CircleBorder(),
+                          child: const Padding(
+                            padding: EdgeInsets.all(4),
+                            child: Icon(
+                              Icons.fullscreen,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _fmt(Duration d) {
+    final m = d.inMinutes.toString().padLeft(2, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+}
+
+class _FullscreenVideoPage extends StatefulWidget {
+  const _FullscreenVideoPage({required this.controller});
+  final VideoPlayerController controller;
+
+  @override
+  State<_FullscreenVideoPage> createState() => _FullscreenVideoPageState();
+}
+
+class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
+  @override
+  void initState() {
+    super.initState();
+    SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+      DeviceOrientation.portraitUp,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  }
+
+  @override
+  void dispose() {
+    SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.portraitUp,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = widget.controller.value.aspectRatio == 0
+        ? 16 / 9
+        : widget.controller.value.aspectRatio;
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
         child: Stack(
-          alignment: Alignment.center,
           children: [
-            VideoPlayer(_ctrl),
-            _VideoControls(controller: _ctrl),
+            Center(
+              child: AspectRatio(
+                aspectRatio: ratio,
+                child: _VideoSurface(
+                  controller: widget.controller,
+                  onFullscreen: () => Navigator.of(context).pop(),
+                  dark: true,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Material(
+                color: Colors.white24,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () => Navigator.of(context).pop(),
+                  child: const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: Icon(Icons.close, color: Colors.white, size: 22),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -276,41 +683,64 @@ class _VideoMediaState extends State<_VideoMedia> {
   }
 }
 
-class _VideoControls extends StatefulWidget {
-  const _VideoControls({required this.controller});
-  final VideoPlayerController controller;
+// ---------------------------------------------------------------------------
+// Loading / Error
+// ---------------------------------------------------------------------------
 
-  @override
-  State<_VideoControls> createState() => _VideoControlsState();
-}
+class _MediaLoading extends StatelessWidget {
+  const _MediaLoading({this.value, this.height = 200});
+  final double? value;
+  final double height;
 
-class _VideoControlsState extends State<_VideoControls> {
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          widget.controller.value.isPlaying
-              ? widget.controller.pause()
-              : widget.controller.play();
-        });
-      },
-      child: Container(
-        color: Colors.black.withValues(alpha: 0.1),
-        alignment: Alignment.center,
-        child: AnimatedOpacity(
-          opacity: widget.controller.value.isPlaying ? 0.0 : 1.0,
-          duration: const Duration(milliseconds: 200),
-          child: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.55),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.play_arrow, color: Colors.white, size: 32),
-          ),
+    return Container(
+      width: double.infinity,
+      height: height,
+      decoration: BoxDecoration(
+        color: AppColors.line2,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      alignment: Alignment.center,
+      child: SizedBox(
+        width: 28,
+        height: 28,
+        child: CircularProgressIndicator(
+          strokeWidth: 2.4,
+          value: value,
+          valueColor: const AlwaysStoppedAnimation<Color>(AppColors.blue),
         ),
+      ),
+    );
+  }
+}
+
+class _MediaError extends StatelessWidget {
+  const _MediaError({required this.message, required this.icon});
+  final String message;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 200,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.line2,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.line),
+      ),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: AppColors.muted),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            style: AppFonts.jakarta(color: AppColors.muted, size: 12),
+          ),
+        ],
       ),
     );
   }

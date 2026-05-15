@@ -12,6 +12,7 @@ import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/eyebrow.dart';
+import '../../core/widgets/rich_paragraph_text.dart';
 import 'runner_controller.dart';
 import 'widgets/choice_tile.dart';
 import 'widgets/exam_timer.dart';
@@ -133,31 +134,10 @@ class _RunnerView extends ConsumerWidget {
                       child: QuestionMediaView(media: question.media!),
                     ),
                   if (question.passageText != null) ...[
-                    AppCard(
-                      padding: const EdgeInsets.all(14),
-                      color: AppColors.blueSoft,
-                      border: Border.all(
-                          color: AppColors.blue.withValues(alpha: 0.15)),
-                      boxShadow: const [],
-                      child: Text(
-                        question.passageText!,
-                        style: AppFonts.jakarta(
-                          size: 13.5,
-                          color: AppColors.ink2,
-                          height: 1.55,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
+                    _PassageBlock(text: question.passageText!),
+                    const SizedBox(height: 16),
                   ],
-                  Text(
-                    question.statement,
-                    style: AppFonts.fraunces(
-                      size: 19,
-                      weight: FontWeight.w600,
-                      height: 1.35,
-                    ),
-                  ),
+                  _StatementBlock(text: question.statement),
                   const SizedBox(height: 20),
                   ...List.generate(question.choices.length, (i) {
                     final c = question.choices[i];
@@ -363,6 +343,95 @@ class _QuestionHeader extends StatelessWidget {
             ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _PassageBlock extends StatelessWidget {
+  const _PassageBlock({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      color: AppColors.blueSoft,
+      border: Border.all(color: AppColors.blue.withValues(alpha: 0.15)),
+      boxShadow: const [],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.menu_book_outlined,
+                  size: 14, color: AppColors.blue),
+              const SizedBox(width: 6),
+              Text(
+                'Document à lire',
+                style: AppFonts.mono(
+                  size: 10,
+                  color: AppColors.blue,
+                  letterSpacing: 1.8,
+                ).copyWith(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          RichParagraphText(
+            text,
+            size: 14,
+            color: AppColors.ink2,
+            weight: FontWeight.w500,
+            height: 1.6,
+            paragraphSpacing: 12,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatementBlock extends StatelessWidget {
+  const _StatementBlock({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final paragraphs = text
+        .replaceAll('\r\n', '\n')
+        .trim()
+        .split(RegExp(r'\n\s*\n'))
+        .where((p) => p.trim().isNotEmpty)
+        .toList();
+
+    if (paragraphs.length <= 1) {
+      return Text(
+        text.trim(),
+        style: AppFonts.fraunces(
+          size: 19,
+          weight: FontWeight.w600,
+          height: 1.4,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < paragraphs.length; i++) ...[
+          Text(
+            paragraphs[i].trim(),
+            style: AppFonts.fraunces(
+              size: 19,
+              weight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          if (i != paragraphs.length - 1) const SizedBox(height: 10),
+        ],
       ],
     );
   }

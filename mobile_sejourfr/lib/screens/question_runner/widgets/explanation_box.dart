@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_tag.dart';
+import '../../../core/widgets/rich_paragraph_text.dart';
 
 /// Bloc qui apparaît après la soumission d'une réponse en entraînement.
 class ExplanationBox extends StatelessWidget {
@@ -56,13 +57,13 @@ class ExplanationBox extends StatelessWidget {
           ),
           if (explanation != null && explanation!.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text(
+            RichParagraphText(
               explanation!,
-              style: AppFonts.jakarta(
-                size: 13.5,
-                color: AppColors.ink2,
-                height: 1.5,
-              ),
+              size: 13.5,
+              color: AppColors.ink2,
+              weight: FontWeight.w500,
+              height: 1.55,
+              paragraphSpacing: 8,
             ),
           ],
         ],
