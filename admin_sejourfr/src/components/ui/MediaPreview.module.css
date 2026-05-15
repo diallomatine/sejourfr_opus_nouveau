@@ -33,9 +33,27 @@
   object-fit: contain;
   background: var(--paper);
   border-radius: 4px;
+  /* Quand .image est un <div> contenant un SVG inline, le SVG enfant ignore
+     max-height du parent. On contraint donc via overflow + un sizing
+     explicite sur le <svg> enfant juste après. */
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 360px;
 }
 
 .compact .image {
+  max-height: 180px;
+}
+
+.compact .image > svg {
   max-height: 180px;
 }
 
