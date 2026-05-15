@@ -200,6 +200,20 @@ export const authApi = {
     return refreshAccessToken();
   },
 
+  async forgotPassword(email: string): Promise<void> {
+    await apiFetch<void>("/api/auth/forgot-password", {
+      method: "POST",
+      json: { email },
+    });
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    await apiFetch<void>("/api/auth/reset-password", {
+      method: "POST",
+      json: { token, newPassword },
+    });
+  },
+
   logout() {
     tokenStorage.clear();
   },
@@ -212,6 +226,26 @@ export const authApi = {
 export const themeApi = {
   list(module: ModuleEnum): Promise<ThemeUserResponse[]> {
     return apiFetch<ThemeUserResponse[]>(`/api/themes?module=${module}`, {
+      auth: true,
+    });
+  },
+};
+
+// ============================================================================
+// Endpoints Billing (Stripe Checkout)
+// ============================================================================
+
+export type BillingPlan = "MENSUEL" | "ANNUEL";
+
+export const billingApi = {
+  /**
+   * Crée une Stripe Checkout Session côté backend et renvoie l'URL vers
+   * laquelle rediriger l'utilisateur (page Stripe hosted).
+   */
+  createCheckoutSession(plan: BillingPlan): Promise<{ url: string }> {
+    return apiFetch<{ url: string }>("/api/billing/create-checkout-session", {
+      method: "POST",
+      json: { plan },
       auth: true,
     });
   },

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { API_BASE_URL, tokenStorage } from "@/lib/api";
+import { ApiException, billingApi } from "@/lib/api";
 
 type Plan = "mensuel" | "annuel";
 
@@ -49,38 +49,24 @@ function PaiementInner() {
     setLoading(true);
 
     try {
-      // Appel d'une route Spring qui crée la session Stripe et retourne l'URL.
-      // À implémenter côté backend : POST /api/billing/create-checkout-session
-      // → { plan } → { url }
-      const token = tokenStorage.getAccess();
-      const res = await fetch(`${API_BASE_URL}/api/billing/create-checkout-session`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ plan: plan.toUpperCase() }),
-      });
-
-      if (!res.ok) {
-        // Fallback démo : on simule juste le succès si le back n'est pas encore prêt
-        if (res.status === 404) {
-          alert(
-            "Démo : la route /api/billing/create-checkout-session n'existe pas encore côté backend. La structure du form est prête, il ne reste qu'à brancher Stripe (côté Java : créer la Stripe Session et retourner { url } ; côté Next : window.location.assign(url)).",
-          );
-          return;
-        }
-        throw new Error(`HTTP ${res.status}`);
-      }
-
-      const data = (await res.json()) as { url: string };
-      window.location.assign(data.url);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Impossible d'initier le paiement.",
+      const { url } = await billingApi.createCheckoutSession(
+        plan === "mensuel" ? "MENSUEL" : "ANNUEL",
       );
+      window.location.assign(url);
+    } catch (err) {
+      if (err instanceof ApiException) {
+        if (err.status === 503) {
+          setError(
+            "Le paiement n'est pas encore activé côté serveur (clés Stripe à configurer). Réessayez plus tard.",
+          );
+        } else if (err.status === 401) {
+          setError("Connexion expirée. Reconnectez-vous puis recommencez.");
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError("Impossible d'initier le paiement. Réessayez dans un instant.");
+      }
     } finally {
       setLoading(false);
     }

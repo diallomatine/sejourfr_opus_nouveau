@@ -41,6 +41,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/exams/**").permitAll()
+                        // Webhook Stripe : appelé par Stripe (pas un user), authentifié
+                        // par signature HMAC vérifiée dans BillingService.
+                        .requestMatchers(HttpMethod.POST, "/api/billing/webhook").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

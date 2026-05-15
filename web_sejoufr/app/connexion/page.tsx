@@ -94,7 +94,7 @@ function ConnexionInner() {
                 <label htmlFor="password" className="field-label">
                   Mot de passe
                 </label>
-                <Link href="#">Oublié ?</Link>
+                <Link href="/mot-de-passe-oublie">Oublié ?</Link>
               </div>
               <input
                 id="password"

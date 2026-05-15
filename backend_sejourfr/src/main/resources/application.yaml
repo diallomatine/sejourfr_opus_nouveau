@@ -39,6 +39,15 @@ management:
 sejourfr:
   cors:
     allowed-origins: http://localhost:3000,http://localhost:5173
+  stripe:
+    # Doivent être surchargés en dev/prod. Par défaut vides → le backend
+    # démarre, mais POST /api/billing/create-checkout-session renverra 503.
+    secret-key: ""
+    webhook-secret: ""
+    price-monthly: ""
+    price-yearly: ""
+    success-url: "http://localhost:3000/paiement/succes?session_id={CHECKOUT_SESSION_ID}"
+    cancel-url: "http://localhost:3000/paiement"
   security:
     jwt:
       issuer: sejourfr-backend
