@@ -8,7 +8,7 @@ const COOKIE_NAME = "sejourfr.accessToken";
 // par le backend Spring, qui rejette en 401 si le JWT est expiré ou mal
 // formé. Côté front, ce middleware sert juste à éviter un flash de la page
 // protégée avant que le client ne redirige.
-const PROTECTED_PREFIXES = ["/dashboard", "/paiement"];
+const PROTECTED_PREFIXES = ["/dashboard", "/paiement", "/entrainement"];
 
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;

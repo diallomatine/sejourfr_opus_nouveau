@@ -37,6 +37,10 @@ public class AttemptService {
     // questions de ce niveau est >= 60 %.
     private static final double TCF_LEVEL_PASS_RATIO = 0.6;
 
+    // Plafond d'entraînement TRAINING pour les comptes gratuits : au-delà,
+    // on pousse l'utilisateur à passer Premium (et à utiliser l'app mobile).
+    private static final int FREE_TRAINING_MAX_SIZE = 20;
+
     private final AttemptRepository attemptRepository;
     private final AttemptQuestionRepository attemptQuestionRepository;
     private final AnswerRepository answerRepository;
@@ -95,7 +99,15 @@ public class AttemptService {
                 timeLimit = TCF_EXAM_TIME;
             }
         } else {
-            size = req.size() != null ? Math.clamp(req.size(), 1, 50) : 10;
+            int requested = req.size() != null ? req.size() : 10;
+            int hardMax = 50;
+            // Plafond gratuit sur le TRAINING : le web (et l'app sans abonnement)
+            // s'arrête à 20 questions par session pour pousser au Premium et au
+            // mobile. Pas de plafond pour REVIEW (l'user revoit ses erreurs).
+            if (req.type() == AttemptType.TRAINING && !subscriptionService.isPremium(userId)) {
+                hardMax = FREE_TRAINING_MAX_SIZE;
+            }
+            size = Math.clamp(requested, 1, hardMax);
         }
 
         UUID themeId = req.type() == AttemptType.MOCK_EXAM ? null : req.themeId();
