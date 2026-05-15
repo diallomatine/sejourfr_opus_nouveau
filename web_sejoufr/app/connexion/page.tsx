@@ -1,15 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Brand } from "../_components/Brand";
-import { ApiException, authApi } from "@/lib/api";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { ApiException } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 export default function ConnexionPage() {
+  return (
+    <Suspense fallback={null}>
+      <ConnexionInner />
+    </Suspense>
+  );
+}
+
+function ConnexionInner() {
   const router = useRouter();
+  const search = useSearchParams();
+  const { login, status, user } = useAuth();
+  const nextHref = search.get("next") ?? "/dashboard";
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Si on arrive ici déjà connecté, on saute le formulaire et on file
+  // directement à la destination (utile quand le SiteHeader fait clic
+  // sur "Connexion" alors que le menu user n'a pas encore eu le temps de
+  // s'afficher, ou quand on partage l'URL).
+  useEffect(() => {
+    if (status === "authenticated" && user) {
+      router.replace(nextHref);
+    }
+  }, [status, user, router, nextHref]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -23,8 +44,8 @@ export default function ConnexionPage() {
     };
 
     try {
-      await authApi.login(payload);
-      router.push("/");
+      await login(payload);
+      router.push(nextHref);
     } catch (err) {
       if (err instanceof ApiException) {
         if (err.status === 401) {
@@ -42,14 +63,6 @@ export default function ConnexionPage() {
 
   return (
     <>
-      <div className="page-top">
-        <Brand />
-        <div className="top-link">
-          Pas encore inscrit ?
-          <Link href="/inscription">Créer un compte</Link>
-        </div>
-      </div>
-
       <div className="center-wrap">
         <div className="card">
           <span className="eyebrow">Espace personnel</span>
@@ -121,17 +134,8 @@ export default function ConnexionPage() {
             radial-gradient(at 90% 90%, var(--color-red-light) 0px, transparent 50%);
         }
 
-        .page-top {
-          max-width: 1180px; margin: 0 auto;
-          padding: 24px 28px;
-          display: flex; justify-content: space-between; align-items: center;
-        }
-        .top-link { font-size: 14px; color: var(--color-muted); }
-        .top-link a { color: var(--color-blue); font-weight: 600; margin-left: 4px; }
-        .top-link a:hover { color: var(--color-red); }
-
         .center-wrap {
-          min-height: calc(100vh - 88px);
+          min-height: calc(100vh - 140px);
           display: flex; align-items: center; justify-content: center;
           padding: 40px 24px;
         }

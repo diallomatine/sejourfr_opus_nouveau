@@ -2,16 +2,25 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Brand } from "../_components/Brand";
-import { ApiException, authApi } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { ApiException } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import type { TargetProcedure } from "@/lib/types";
 
 export default function InscriptionPage() {
   const router = useRouter();
+  const { register, status, user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mention, setMention] = useState<TargetProcedure>("CSP");
+
+  // Si l'utilisateur est déjà connecté, on ne lui montre pas le form
+  // d'inscription : on file directement au dashboard.
+  useEffect(() => {
+    if (status === "authenticated" && user) {
+      router.replace("/dashboard");
+    }
+  }, [status, user, router]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -28,9 +37,8 @@ export default function InscriptionPage() {
     };
 
     try {
-      await authApi.register(payload);
-      // Inscription OK → redirection vers la page principale (ou un /dashboard plus tard)
-      router.push("/?welcome=1");
+      await register(payload);
+      router.push("/dashboard");
     } catch (err) {
       if (err instanceof ApiException) {
         const fields = err.payload?.fieldErrors;
@@ -51,14 +59,6 @@ export default function InscriptionPage() {
     <div className="auth-wrap">
       {/* LEFT : FORM */}
       <div className="auth-form-side">
-        <div className="auth-top">
-          <Brand />
-          <div className="top-link">
-            Déjà un compte ?
-            <Link href="/connexion">Se connecter</Link>
-          </div>
-        </div>
-
         <div className="auth-inner">
           <span className="eyebrow">Compte gratuit · 30 secondes</span>
           <h1 className="h1-edit">
@@ -235,13 +235,8 @@ export default function InscriptionPage() {
       <style>{`
         .auth-wrap { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; }
 
-        .auth-form-side { padding: 32px 48px; display: flex; flex-direction: column; background: var(--color-paper); }
-        .auth-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 56px; }
-        .top-link { font-size: 14px; color: var(--color-muted); }
-        .top-link a { color: var(--color-blue); font-weight: 600; margin-left: 4px; }
-        .top-link a:hover { color: var(--color-red); }
-
-        .auth-inner { max-width: 440px; margin: 0 auto; width: 100%; flex: 1; display: flex; flex-direction: column; justify-content: center; padding-bottom: 48px; }
+        .auth-form-side { padding: 40px 48px; display: flex; flex-direction: column; background: var(--color-paper); }
+        .auth-inner { max-width: 440px; margin: 0 auto; width: 100%; flex: 1; display: flex; flex-direction: column; justify-content: center; padding-bottom: 32px; }
 
         .h1-edit {
           font-family: var(--font-display); font-weight: 500; font-size: 42px;

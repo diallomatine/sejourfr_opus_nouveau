@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { Brand } from "../_components/Brand";
 import { API_BASE_URL, tokenStorage } from "@/lib/api";
 
 type Plan = "mensuel" | "annuel";
@@ -89,16 +88,6 @@ function PaiementInner() {
 
   return (
     <>
-      <nav className="top-nav">
-        <Brand />
-        <div className="secured">
-          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-            <path d="M8 1 2 4v4c0 4 3 7 6 8 3-1 6-4 6-8V4l-6-3zm0 2.2 4 2v2.8c0 3-2.2 5.4-4 6.2-1.8-.8-4-3.2-4-6.2V5.2l4-2z" />
-          </svg>
-          Paiement sécurisé
-        </div>
-      </nav>
-
       <div className="checkout-wrap">
         {/* LEFT : FORM */}
         <div>
@@ -341,18 +330,6 @@ function PaiementInner() {
       </div>
 
       <style>{`
-        .top-nav {
-          background: #fff; border-bottom: 1px solid var(--color-line);
-          padding: 16px 28px;
-          display: flex; justify-content: space-between; align-items: center;
-        }
-        .secured {
-          display: flex; gap: 8px; align-items: center;
-          font-family: var(--font-mono); font-size: 11px;
-          letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-muted);
-        }
-        .secured svg { width: 14px; height: 14px; color: var(--color-green); }
-
         .checkout-wrap {
           max-width: 1140px; margin: 0 auto;
           padding: 56px 28px 80px;

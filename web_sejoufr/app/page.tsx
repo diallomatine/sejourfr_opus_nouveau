@@ -1,4 +1,3 @@
-import { TopNav } from "./_components/TopNav";
 import { Footer } from "./_components/Footer";
 import { HeroSection } from "./_components/HeroSection";
 import {
@@ -11,17 +10,18 @@ import {
   FaqSection,
   FinalCtaSection,
 } from "./_components/LandingSections";
+import { MobileAppSection } from "./_components/MobileAppPromo";
 
 export default function HomePage() {
   return (
     <>
-      <TopNav />
       <main>
         <HeroSection />
         <TrustStrip />
         <ProblemSection />
         <ExamsSection />
         <HowItWorksSection />
+        <MobileAppSection />
         <PricingSection />
         <TestimonialsSection />
         <FaqSection />
