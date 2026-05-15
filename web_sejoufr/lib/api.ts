@@ -249,6 +249,17 @@ export const billingApi = {
       auth: true,
     });
   },
+
+  /**
+   * Ouvre une session Stripe Customer Portal (gestion carte, factures,
+   * annulation). 404 si l'user n'a pas encore d'abonnement Stripe.
+   */
+  createPortalSession(): Promise<{ url: string }> {
+    return apiFetch<{ url: string }>("/api/billing/portal-session", {
+      method: "POST",
+      auth: true,
+    });
+  },
 };
 
 // ============================================================================

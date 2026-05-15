@@ -11,16 +11,16 @@ type Plan = "mensuel" | "annuel";
 const PLAN_DATA = {
   mensuel: {
     name: "Premium Mensuel",
-    base: 14.9,
+    base: 9.99,
     discount: 0,
-    total: 14.9,
+    total: 9.99,
     period: "/mois",
   },
   annuel: {
     name: "Premium Annuel",
-    base: 179,
-    discount: 64,
-    total: 115,
+    base: 120,
+    discount: 31,
+    total: 89,
     period: "/an",
   },
 } as const;
@@ -38,6 +38,8 @@ function PaiementInner() {
   const initialPlan = (sp.get("plan") === "premium" ? "mensuel" : "annuel") as Plan;
   const [plan, setPlan] = useState<Plan>(initialPlan);
   const [loading, setLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalMessage, setPortalMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const planData = PLAN_DATA[plan];
@@ -72,6 +74,29 @@ function PaiementInner() {
     }
   }
 
+  async function openPortal() {
+    setPortalMessage(null);
+    setPortalLoading(true);
+    try {
+      const { url } = await billingApi.createPortalSession();
+      window.location.assign(url);
+    } catch (err) {
+      if (err instanceof ApiException && err.status === 404) {
+        setPortalMessage(
+          "Aucun abonnement Stripe associé à ce compte. Souscrivez d'abord ci-dessous.",
+        );
+      } else if (err instanceof ApiException && err.status === 503) {
+        setPortalMessage("Le portail Stripe n'est pas configuré côté serveur.");
+      } else {
+        setPortalMessage(
+          err instanceof Error ? err.message : "Impossible d'ouvrir le portail.",
+        );
+      }
+    } finally {
+      setPortalLoading(false);
+    }
+  }
+
   return (
     <>
       <div className="checkout-wrap">
@@ -91,6 +116,24 @@ function PaiementInner() {
           <p className="sub">
             Annulable à tout moment · Garantie satisfait remboursé 14 jours.
           </p>
+
+          <div className="portal-banner">
+            <div>
+              <strong>Déjà abonné&nbsp;?</strong> Gérez votre carte, vos
+              factures ou résiliez votre abonnement depuis le portail Stripe.
+              {portalMessage && (
+                <div className="portal-msg">{portalMessage}</div>
+              )}
+            </div>
+            <button
+              type="button"
+              className="portal-btn"
+              onClick={openPortal}
+              disabled={portalLoading}
+            >
+              {portalLoading ? "Ouverture..." : "Gérer mon abonnement →"}
+            </button>
+          </div>
 
           <form onSubmit={handleCheckout}>
             {/* Plan */}
@@ -113,14 +156,14 @@ function PaiementInner() {
                   />
                   <div className="pn">Mensuel</div>
                   <div className="pp">
-                    14,90 €<span className="small">/mois</span>
+                    9,99 €<span className="small">/mois</span>
                   </div>
                   <div className="pper">Sans engagement</div>
                 </label>
                 <label
                   className={`plan-opt ${plan === "annuel" ? "active" : ""}`}
                 >
-                  <span className="ribbon">−35 %</span>
+                  <span className="ribbon">−26 %</span>
                   <input
                     type="radio"
                     name="plan"
@@ -130,9 +173,9 @@ function PaiementInner() {
                   />
                   <div className="pn">Annuel</div>
                   <div className="pp">
-                    115 €<span className="small">/an</span>
+                    89 €<span className="small">/an</span>
                   </div>
-                  <div className="pper">Soit 9,58 €/mois</div>
+                  <div className="pper">Soit 7,42 €/mois</div>
                 </label>
               </div>
             </div>
@@ -340,7 +383,40 @@ function PaiementInner() {
           line-height: 1.05; letter-spacing: -0.025em; margin: 0 0 12px;
         }
         .h1-edit em { font-style: italic; color: var(--color-red); }
-        .sub { color: var(--color-muted); font-size: 16px; margin: 0 0 36px; }
+        .sub { color: var(--color-muted); font-size: 16px; margin: 0 0 24px; }
+
+        .portal-banner {
+          display: flex; gap: 18px; align-items: center; justify-content: space-between;
+          padding: 14px 18px;
+          background: var(--color-blue-soft);
+          border: 1px solid var(--color-blue-light);
+          border-left: 3px solid var(--color-blue);
+          border-radius: 10px;
+          margin-bottom: 32px;
+          font-size: 13.5px;
+          color: var(--color-ink-2);
+          flex-wrap: wrap;
+        }
+        .portal-banner strong { color: var(--color-ink); font-weight: 700; }
+        .portal-msg {
+          margin-top: 6px;
+          font-size: 12.5px; color: var(--color-red);
+        }
+        .portal-btn {
+          background: #fff;
+          color: var(--color-blue);
+          border: 1px solid var(--color-blue);
+          padding: 9px 16px;
+          border-radius: 8px;
+          font-family: var(--font-sans);
+          font-weight: 600;
+          font-size: 13px;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: all 0.15s;
+        }
+        .portal-btn:hover { background: var(--color-blue); color: #fff; }
+        .portal-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
         .section {
           background: #fff;

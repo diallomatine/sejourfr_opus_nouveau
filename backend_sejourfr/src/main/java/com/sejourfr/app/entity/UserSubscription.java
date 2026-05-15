@@ -33,6 +33,12 @@ public class UserSubscription {
     @Column(name = "ends_at")
     private Instant endsAt;
 
+    @Column(name = "stripe_customer_id", length = 64)
+    private String stripeCustomerId;
+
+    @Column(name = "stripe_subscription_id", length = 64)
+    private String stripeSubscriptionId;
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
@@ -50,4 +56,10 @@ public class UserSubscription {
 
     public Instant getEndsAt() { return endsAt; }
     public void setEndsAt(Instant endsAt) { this.endsAt = endsAt; }
+
+    public String getStripeCustomerId() { return stripeCustomerId; }
+    public void setStripeCustomerId(String stripeCustomerId) { this.stripeCustomerId = stripeCustomerId; }
+
+    public String getStripeSubscriptionId() { return stripeSubscriptionId; }
+    public void setStripeSubscriptionId(String stripeSubscriptionId) { this.stripeSubscriptionId = stripeSubscriptionId; }
 }

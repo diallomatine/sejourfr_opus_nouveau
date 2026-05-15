@@ -529,13 +529,13 @@ export function PricingSection() {
             </ul>
           </div>
 
-          {/* Premium */}
+          {/* Premium mensuel */}
           <div className="plan featured">
-            <div className="plan-tag">Le plus choisi</div>
-            <div className="plan-name">Premium</div>
-            <p className="plan-desc">L'essentiel pour préparer votre examen sereinement.</p>
+            <div className="plan-tag">Recommandé</div>
+            <div className="plan-name">Premium mensuel</div>
+            <p className="plan-desc">L&apos;essentiel pour préparer votre examen sereinement.</p>
             <div className="plan-price">
-              <span className="amount">14,90</span>
+              <span className="amount">9,99</span>
               <span className="currency">€</span>
             </div>
             <div className="plan-period">par mois · sans engagement</div>
@@ -545,35 +545,36 @@ export function PricingSection() {
               </Link>
             </div>
             <ul className="plan-feat">
-              <li><strong>1 240+ questions</strong> tous modules</li>
+              <li><strong>1 200+ questions</strong> tous modules</li>
               <li>Examens blancs <strong>illimités</strong></li>
-              <li>Suivi de progression détaillé</li>
+              <li>Entraînement illimité sur l&apos;app</li>
               <li>Révision ciblée des erreurs</li>
               <li>Mode hors-ligne (app mobile)</li>
               <li>Garantie satisfait remboursé 14 jours</li>
             </ul>
           </div>
 
-          {/* Annuel */}
+          {/* Premium annuel */}
           <div className="plan">
-            <div className="plan-name">Annuel</div>
-            <p className="plan-desc">Préparez plusieurs examens dans l'année et économisez 35 %.</p>
+            <div className="plan-tag plan-tag-green">−26 %</div>
+            <div className="plan-name">Premium annuel</div>
+            <p className="plan-desc">Préparez plusieurs examens dans l&apos;année.</p>
             <div className="plan-price">
-              <span className="amount">115</span>
+              <span className="amount">89</span>
               <span className="currency">€</span>
             </div>
-            <div className="plan-period">par an · soit 9,58 €/mois</div>
+            <div className="plan-period">par an · soit 7,42 €/mois</div>
             <div style={{ marginBottom: 24 }}>
               <Link href="/paiement?plan=annuel" className="btn" style={{ width: "100%" }}>
-                Choisir l'annuel
+                Choisir l&apos;annuel
               </Link>
             </div>
             <ul className="plan-feat">
-              <li>Tout le Premium inclus</li>
-              <li><strong>Économie de 64 €</strong></li>
+              <li>Tout le Premium mensuel inclus</li>
+              <li><strong>Économisez 31 €</strong> sur l&apos;année</li>
               <li>Accès prioritaire aux nouveautés</li>
               <li>Support email sous 24 h</li>
-              <li>Certificat d'entraînement</li>
+              <li>Sans rappel d&apos;échéance</li>
             </ul>
           </div>
         </div>
@@ -603,7 +604,9 @@ export function PricingSection() {
           font-family: var(--font-mono);
           font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
           padding: 5px 12px; border-radius: 100px;
+          font-weight: 600;
         }
+        .plan-tag-green { background: var(--color-green); }
         .plan-name {
           font-family: var(--font-sans);
           font-weight: 700; font-size: 18px;
@@ -881,89 +884,147 @@ export function FaqSection() {
 // ============================================================================
 export function FinalCtaSection() {
   return (
-    <section
-      style={{
-        background: "var(--color-blue)",
-        color: "#fff",
-        textAlign: "center",
-        padding: "90px 0",
-        position: "relative",
-        overflow: "hidden",
-        borderTop: "4px solid var(--color-red)",
-      }}
-    >
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "radial-gradient(circle at 20% 30%, rgba(255,255,255,0.06) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(225,55,47,0.18) 0%, transparent 50%)",
-          pointerEvents: "none",
-        }}
-      />
+    <section className="finalcta">
+      <div aria-hidden className="finalcta-halo" />
+      <div aria-hidden className="finalcta-grid" />
+
       <div className="container-x" style={{ position: "relative", zIndex: 1 }}>
+        <span className="finalcta-eyebrow">Prêt&nbsp;?</span>
         <h2 className="final-h2">
           Votre titre de séjour <em>vaut mieux</em>
           <br />
-          qu'une préparation au hasard.
+          qu&apos;une préparation au hasard.
         </h2>
-        <p
-          style={{
-            color: "rgba(255,255,255,0.78)",
-            fontSize: 18,
-            margin: "0 auto 36px",
-            maxWidth: 540,
-          }}
-        >
-          Créez votre compte en 30 secondes. Pas de carte bancaire pour
-          commencer.
+        <p className="finalcta-lede">
+          Créez un compte en 30&nbsp;secondes, téléchargez l&apos;app, et lancez
+          votre première session ce soir. Sans carte bancaire pour commencer.
         </p>
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            flexWrap: "wrap",
-            justifyContent: "center",
-          }}
-        >
-          <Link
-            href="/inscription"
-            className="btn btn-lg"
-            style={{
-              background: "#fff",
-              color: "var(--color-blue)",
-              borderColor: "#fff",
-            }}
-          >
+
+        <div className="finalcta-actions">
+          <Link href="/inscription" className="btn btn-lg finalcta-primary">
             Créer mon compte gratuit
             <span className="arrow">→</span>
           </Link>
-          <Link
-            href="/examen-blanc"
-            className="btn btn-lg"
-            style={{
-              background: "transparent",
-              color: "#fff",
-              borderColor: "rgba(255,255,255,0.3)",
-            }}
-          >
-            Tester un examen blanc
+          <Link href="/examens-blancs" className="btn btn-lg finalcta-ghost">
+            Voir les examens blancs
           </Link>
+        </div>
+
+        <div className="finalcta-stores">
+          <span className="finalcta-stores-label">L&apos;app est dispo sur</span>
+          <a href="#" className="finalcta-store">
+            <span>Télécharger sur</span>
+            <strong>App Store</strong>
+          </a>
+          <a href="#" className="finalcta-store">
+            <span>Disponible sur</span>
+            <strong>Google Play</strong>
+          </a>
         </div>
       </div>
 
       <style>{`
-        .final-h2 {
-          font-family: var(--font-display);
-          font-weight: 500;
-          font-size: clamp(34px, 4.5vw, 54px);
-          line-height: 1.05;
-          letter-spacing: -0.025em;
-          margin: 0 0 18px;
+        .finalcta {
+          background: var(--color-blue);
           color: #fff;
+          text-align: center;
+          padding: 110px 0 100px;
+          position: relative;
+          overflow: hidden;
+          border-top: 4px solid var(--color-red);
+        }
+        .finalcta-halo {
+          position: absolute; inset: 0;
+          background:
+            radial-gradient(circle at 20% 30%, rgba(255,255,255,0.08) 0%, transparent 55%),
+            radial-gradient(circle at 80% 70%, rgba(225,55,47,0.25) 0%, transparent 55%);
+          pointer-events: none;
+        }
+        .finalcta-grid {
+          position: absolute; inset: 0;
+          background-image:
+            linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+          background-size: 40px 40px;
+          mask-image: radial-gradient(ellipse at 50% 50%, #000 0%, transparent 65%);
+          -webkit-mask-image: radial-gradient(ellipse at 50% 50%, #000 0%, transparent 65%);
+          pointer-events: none;
+        }
+        .finalcta-eyebrow {
+          display: inline-block;
+          font-family: var(--font-mono);
+          font-size: 11px;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          color: rgba(255, 255, 255, 0.6);
+          margin-bottom: 18px;
+          padding: 5px 14px;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 100px;
+        }
+        .final-h2 {
+          font-family: var(--font-display); font-weight: 500;
+          font-size: clamp(34px, 4.8vw, 56px);
+          line-height: 1.05; letter-spacing: -0.025em;
+          margin: 0 0 18px; color: #fff;
         }
         .final-h2 em { font-style: italic; color: #ffb3b0; }
+        .finalcta-lede {
+          color: rgba(255,255,255,0.82); font-size: 18px;
+          margin: 0 auto 36px; max-width: 580px;
+          line-height: 1.55;
+        }
+        .finalcta-actions {
+          display: flex; gap: 12px; flex-wrap: wrap;
+          justify-content: center; margin-bottom: 56px;
+        }
+        .finalcta-primary {
+          background: #fff; color: var(--color-blue); border-color: #fff;
+          font-weight: 700;
+        }
+        .finalcta-primary:hover { background: rgba(255,255,255,0.92); }
+        .finalcta-ghost {
+          background: transparent; color: #fff;
+          border-color: rgba(255,255,255,0.3);
+        }
+        .finalcta-ghost:hover {
+          background: rgba(255,255,255,0.08);
+          border-color: rgba(255,255,255,0.5);
+        }
+
+        .finalcta-stores {
+          display: flex; gap: 12px; align-items: center;
+          justify-content: center; flex-wrap: wrap;
+          padding-top: 36px;
+          border-top: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .finalcta-stores-label {
+          font-family: var(--font-mono);
+          font-size: 10px; letter-spacing: 0.18em;
+          text-transform: uppercase;
+          color: rgba(255, 255, 255, 0.55);
+          margin-right: 4px;
+        }
+        .finalcta-store {
+          display: flex; flex-direction: column;
+          padding: 8px 18px;
+          background: #fff; color: var(--color-ink);
+          border-radius: 10px; text-decoration: none;
+          min-width: 150px;
+          transition: transform 0.15s;
+        }
+        .finalcta-store:hover { transform: translateY(-2px); }
+        .finalcta-store span {
+          font-family: var(--font-mono);
+          font-size: 9px; letter-spacing: 0.16em;
+          text-transform: uppercase;
+          color: var(--color-muted);
+        }
+        .finalcta-store strong {
+          font-family: var(--font-sans);
+          font-weight: 700; font-size: 16px;
+          letter-spacing: -0.01em;
+        }
       `}</style>
     </section>
   );

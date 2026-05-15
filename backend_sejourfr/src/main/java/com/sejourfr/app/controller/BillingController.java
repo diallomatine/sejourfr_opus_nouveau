@@ -28,6 +28,16 @@ public class BillingController {
     }
 
     /**
+     * Crée une session Stripe Customer Portal pour l'utilisateur courant
+     * (gestion de carte, factures, annulation). Renvoie 404 s'il n'a aucun
+     * abonnement Stripe lié.
+     */
+    @PostMapping("/portal-session")
+    public BillingCheckoutResponse createPortalSession() {
+        return billingService.createPortalSession(currentUser.getId());
+    }
+
+    /**
      * Endpoint signé par Stripe (vérification HMAC via Stripe-Signature).
      * Pas d'auth utilisateur : Stripe est l'appelant, identifié par signature.
      */
