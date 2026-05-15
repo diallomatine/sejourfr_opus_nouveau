@@ -1,6 +1,7 @@
 import type {
   AudioContentType,
   AudioLevel,
+  AudioMode,
   AudioTheme,
   CompetenceCo,
   GenerationStatus,
@@ -30,6 +31,24 @@ export const TYPE_OPTIONS: ReadonlyArray<{ value: AudioContentType; label: strin
   { value: "interview", label: "Interview" },
   { value: "reportage", label: "Reportage" },
 ];
+
+export const AUDIO_MODE_OPTIONS: ReadonlyArray<{ value: AudioMode; label: string; hint: string }> = [
+  {
+    value: "WRITTEN_QUESTION",
+    label: "Question et choix écrits (défaut)",
+    hint: "Seul le document sonore est lu. Question + 4 réponses affichées à l'écran.",
+  },
+  {
+    value: "FULL_AUDIO",
+    label: "Tout lu dans l'audio",
+    hint: "Document + question + 4 réponses lus. L'écran ne montre que Réponse A/B/C/D.",
+  },
+];
+
+export function audioModeLabel(mode: AudioMode | null | undefined): string {
+  if (!mode) return "—";
+  return AUDIO_MODE_OPTIONS.find((o) => o.value === mode)?.label ?? mode;
+}
 
 export const COMPETENCE_OPTIONS: ReadonlyArray<{ value: CompetenceCo; label: string }> = [
   { value: "co_reperage_explicite", label: "Repérage explicite (heure, lieu, nom)" },

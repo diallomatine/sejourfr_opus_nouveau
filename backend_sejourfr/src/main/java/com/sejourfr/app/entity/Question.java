@@ -1,5 +1,6 @@
 package com.sejourfr.app.entity;
 
+import com.sejourfr.app.audioquestion.domain.AudioMode;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionStatus;
@@ -67,6 +68,10 @@ public class Question {
 
     @Column(name = "competence_code", length = 64)
     private String competenceCode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "audio_mode", length = 32)
+    private AudioMode audioMode;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -137,6 +142,9 @@ public class Question {
 
     public String getCompetenceCode() { return competenceCode; }
     public void setCompetenceCode(String competenceCode) { this.competenceCode = competenceCode; }
+
+    public AudioMode getAudioMode() { return audioMode; }
+    public void setAudioMode(AudioMode audioMode) { this.audioMode = audioMode; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

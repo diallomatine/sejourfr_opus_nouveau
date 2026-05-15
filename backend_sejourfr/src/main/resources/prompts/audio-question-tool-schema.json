@@ -6,19 +6,24 @@
     "audio": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["transcript", "ssml", "speakerCount", "voices", "estimatedDurationSec", "contextDescription"],
+      "required": ["transcript", "ssml", "speakerCount", "voices", "estimatedDurationSec", "contextDescription", "audioMode"],
       "properties": {
+        "audioMode": {
+          "type": "string",
+          "enum": ["WRITTEN_QUESTION", "FULL_AUDIO"],
+          "description": "Mode d'audio : WRITTEN_QUESTION (document seul, question/choix ecrits) ou FULL_AUDIO (tout lu, ecran montre seulement Reponse A/B/C/D). DOIT correspondre au mode demande dans le parametre user audioMode (defaut WRITTEN_QUESTION)."
+        },
         "transcript": {
           "type": "string",
           "minLength": 30,
           "maxLength": 5000,
-          "description": "Texte brut a faire prononcer, sans balise SSML. Doit etre identique mot pour mot au texte effectif du SSML (hors balises)."
+          "description": "Texte brut a faire prononcer, sans balise SSML. Doit etre identique mot pour mot au texte effectif du SSML (hors balises). En mode FULL_AUDIO, inclut amorce + document + question + 4 choix annoncees 'Reponse A', 'Reponse B', etc."
         },
         "ssml": {
           "type": "string",
           "minLength": 60,
           "maxLength": 8000,
-          "description": "SSML valide commencant par <speak version=\"1.0\" xml:lang=\"fr-FR\"> et finissant par </speak>. Chaque locuteur dans une balise <voice name=\"fr-FR-XxxNeural\">."
+          "description": "SSML valide commencant par <speak version=\"1.0\" xml:lang=\"fr-FR\"> et finissant par </speak>. Chaque locuteur dans une balise <voice name=\"fr-FR-XxxNeural\">. DOIT contenir l'amorce 'Ecoutez le document sonore, puis repondez a la question.' suivie d'une pause de 1000ms."
         },
         "speakerCount": {
           "type": "integer",
@@ -62,7 +67,7 @@
         "estimatedDurationSec": {
           "type": "integer",
           "minimum": 5,
-          "maximum": 180
+          "maximum": 240
         },
         "contextDescription": {
           "type": "string",

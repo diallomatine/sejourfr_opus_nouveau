@@ -1,6 +1,7 @@
 package com.sejourfr.app.audioquestion.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.sejourfr.app.audioquestion.domain.AudioMode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -31,8 +32,9 @@ public record AnthropicGenerationResponse(
         @NotBlank @Size(max = 8000) String ssml,
         @Min(1) @Max(5) int speakerCount,
         @NotEmpty @Size(min = 1, max = 5) List<@Valid VoiceInfo> voices,
-        @Min(5) @Max(180) int estimatedDurationSec,
-        @NotBlank @Size(max = 500) String contextDescription
+        @Min(5) @Max(240) int estimatedDurationSec,
+        @NotBlank @Size(max = 500) String contextDescription,
+        @NotNull AudioMode audioMode
     ) {}
 
     public record VoiceInfo(

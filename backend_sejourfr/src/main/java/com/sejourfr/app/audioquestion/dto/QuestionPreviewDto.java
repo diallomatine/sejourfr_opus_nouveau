@@ -1,5 +1,8 @@
 package com.sejourfr.app.audioquestion.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.sejourfr.app.audioquestion.domain.AudioMode;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -26,7 +29,8 @@ public record QuestionPreviewDto(
         int speakerCount,
         List<VoiceDto> voices,
         String transcript,
-        String contextDescription
+        String contextDescription,
+        @JsonInclude(JsonInclude.Include.NON_NULL) AudioMode audioMode
     ) {}
 
     public record VoiceDto(

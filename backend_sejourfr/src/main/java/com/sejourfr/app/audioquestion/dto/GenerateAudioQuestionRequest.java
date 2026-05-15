@@ -1,5 +1,6 @@
 package com.sejourfr.app.audioquestion.dto;
 
+import com.sejourfr.app.audioquestion.domain.AudioMode;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -7,7 +8,7 @@ import jakarta.validation.constraints.Size;
 /**
  * Requete d'admin pour generer une question audio CO.
  * Seul `niveau` est obligatoire ; tout le reste est laisse au choix du LLM
- * si non fourni.
+ * si non fourni. `audioMode` defaut a WRITTEN_QUESTION (retrocompat).
  */
 public record GenerateAudioQuestionRequest(
 
@@ -36,5 +37,11 @@ public record GenerateAudioQuestionRequest(
     String competenceVisee,
 
     @Size(max = 500, message = "Les consignes specifiques sont limitees a 500 caracteres")
-    String consignesSpecifiques
-) {}
+    String consignesSpecifiques,
+
+    AudioMode audioMode
+) {
+    public AudioMode audioModeOrDefault() {
+        return audioMode != null ? audioMode : AudioMode.WRITTEN_QUESTION;
+    }
+}

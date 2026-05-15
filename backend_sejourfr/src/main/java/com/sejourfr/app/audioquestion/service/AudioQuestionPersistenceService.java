@@ -95,6 +95,7 @@ public class AudioQuestionPersistenceService {
         question.setStatus(QuestionStatus.DRAFT);
         question.setTcfSubTheme(q.themeSuggested());
         question.setCompetenceCode(q.competenceCode());
+        question.setAudioMode(audio.audioMode());
 
         for (AnthropicGenerationResponse.ChoiceSection c : claudeResponse.choices()) {
             Choice choice = new Choice();
@@ -129,7 +130,8 @@ public class AudioQuestionPersistenceService {
                 .map(v -> new QuestionPreviewDto.VoiceDto(v.role(), v.azureVoice(), v.gender()))
                 .toList(),
             audio.transcript(),
-            audio.contextDescription()
+            audio.contextDescription(),
+            audio.audioMode()
         );
 
         QuestionPreviewDto.QuestionContentDto questionDto = new QuestionPreviewDto.QuestionContentDto(

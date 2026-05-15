@@ -1,12 +1,14 @@
 package com.sejourfr.app.audioquestion.service;
 
 import com.sejourfr.app.audioquestion.config.AnthropicProperties;
+import com.sejourfr.app.audioquestion.domain.AudioMode;
 import com.sejourfr.app.audioquestion.dto.AnthropicGenerationResponse;
 import com.sejourfr.app.audioquestion.dto.GenerateAudioQuestionRequest;
 import com.sejourfr.app.audioquestion.dto.QuestionPreviewDto;
 import com.sejourfr.app.audioquestion.entity.AudioQuestionGenerationLog;
 import com.sejourfr.app.audioquestion.entity.GenerationStatus;
 import com.sejourfr.app.audioquestion.exception.AudioGenerationException;
+import com.sejourfr.app.audioquestion.exception.ContentValidationException;
 import com.sejourfr.app.audioquestion.repository.AudioQuestionGenerationLogRepository;
 import com.sejourfr.app.audioquestion.service.CloudflareR2Client.R2UploadResult;
 import com.sejourfr.app.audioquestion.service.SsmlValidator.ValidationResult;
@@ -86,6 +88,8 @@ public class AudioQuestionGenerationService {
             audit.setAnthropicCostEur(anthropicCost);
 
             AnthropicGenerationResponse content = claude.content();
+            validateAudioMode(content, request.audioModeOrDefault());
+
             ValidationResult ssml = ssmlValidator.validate(content.audio());
             audit.setAzureCharactersCount(ssml.azureCharactersCount());
             audit.setAzureVoiceNames(String.join(",", ssml.usedVoices()));
@@ -168,6 +172,65 @@ public class AudioQuestionGenerationService {
             logRepository.save(audit);
             log.error("Generation audio erreur inattendue : {}", ex.getMessage(), ex);
             throw ex;
+        }
+    }
+
+    /**
+     * Phrase d'amorce standardisee obligatoire au debut de TOUT audio CO.
+     * Cherchee comme substring dans le SSML (avec et sans accent sur "Ecoutez/Repondez")
+     * et dans le transcript. Toute deviation est un rejet 422.
+     */
+    private static final String INTRO_PHRASE = "Écoutez le document sonore, puis répondez à la question.";
+
+    private static final java.util.List<String> EXPECTED_FULL_AUDIO_LABELS =
+        java.util.List.of("Réponse A", "Réponse B", "Réponse C", "Réponse D");
+
+    /**
+     * Verifie que la reponse Claude respecte le mode audio demande :
+     *  1. Le `audio.audioMode` retourne correspond au mode demande.
+     *  2. L'amorce standardisee est presente dans le SSML et dans le transcript.
+     *  3. En FULL_AUDIO : les `choices.label` sont strictement "Reponse A/B/C/D".
+     *  4. En FULL_AUDIO : le SSML lit explicitement chaque "Reponse A/B/C/D".
+     */
+    private void validateAudioMode(AnthropicGenerationResponse response, AudioMode requestedMode) {
+        AudioMode returnedMode = response.audio().audioMode();
+
+        if (returnedMode != requestedMode) {
+            throw new ContentValidationException(
+                "Mode audio retourne (" + returnedMode + ") different du mode demande (" + requestedMode + ")"
+            );
+        }
+
+        String ssml = response.audio().ssml();
+        String transcript = response.audio().transcript();
+        if (!ssml.contains(INTRO_PHRASE)) {
+            throw new ContentValidationException(
+                "Le SSML doit obligatoirement contenir l'amorce standardisee : \"" + INTRO_PHRASE + "\""
+            );
+        }
+        if (!transcript.contains(INTRO_PHRASE)) {
+            throw new ContentValidationException(
+                "Le transcript doit obligatoirement contenir l'amorce standardisee : \"" + INTRO_PHRASE + "\""
+            );
+        }
+
+        if (returnedMode == AudioMode.FULL_AUDIO) {
+            var choices = response.choices();
+            for (int i = 0; i < EXPECTED_FULL_AUDIO_LABELS.size(); i++) {
+                String expected = EXPECTED_FULL_AUDIO_LABELS.get(i);
+                String actual = choices.get(i).label();
+                if (!expected.equals(actual)) {
+                    throw new ContentValidationException(
+                        "En mode FULL_AUDIO, choices[" + i + "].label doit etre \"" + expected
+                            + "\", recu : \"" + actual + "\""
+                    );
+                }
+                if (!ssml.contains(expected)) {
+                    throw new ContentValidationException(
+                        "En mode FULL_AUDIO, le SSML doit contenir l'annonce \"" + expected + "\""
+                    );
+                }
+            }
         }
     }
 

@@ -10,14 +10,17 @@ import { Tag } from "../../components/ui/Tag";
 import { Spinner } from "../../components/ui/Spinner";
 import { useToast } from "../../components/ui/Toast";
 import type {
+  AudioMode,
   GenerateAudioQuestionRequest,
   QuestionPreviewDto,
 } from "../../types/api";
 import {
+  AUDIO_MODE_OPTIONS,
   COMPETENCE_OPTIONS,
   LEVEL_OPTIONS,
   THEME_OPTIONS,
   TYPE_OPTIONS,
+  audioModeLabel,
   competenceLabel,
   formatDuration,
   formatEur,
@@ -32,6 +35,7 @@ interface FormValues {
   typeSouhaite: string;
   competenceVisee: string;
   consignesSpecifiques: string;
+  audioMode: AudioMode;
 }
 
 const defaultValues: FormValues = {
@@ -40,6 +44,7 @@ const defaultValues: FormValues = {
   typeSouhaite: "",
   competenceVisee: "",
   consignesSpecifiques: "",
+  audioMode: "WRITTEN_QUESTION",
 };
 
 export function AudioQuestionGeneratePage() {
@@ -51,8 +56,13 @@ export function AudioQuestionGeneratePage() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({ defaultValues });
+
+  const selectedAudioMode = watch("audioMode");
+  const audioModeHint =
+    AUDIO_MODE_OPTIONS.find((o) => o.value === selectedAudioMode)?.hint ?? "";
 
   const generateMutation = useMutation({
     mutationFn: (req: GenerateAudioQuestionRequest) => audioQuestionsApi.generate(req),
@@ -93,7 +103,10 @@ export function AudioQuestionGeneratePage() {
 
   const onSubmit = handleSubmit((values) => {
     if (!values.niveau) return;
-    const req: GenerateAudioQuestionRequest = { niveau: values.niveau };
+    const req: GenerateAudioQuestionRequest = {
+      niveau: values.niveau,
+      audioMode: values.audioMode,
+    };
     if (values.theme) req.theme = values.theme as GenerateAudioQuestionRequest["theme"];
     if (values.typeSouhaite)
       req.typeSouhaite = values.typeSouhaite as GenerateAudioQuestionRequest["typeSouhaite"];
@@ -187,6 +200,17 @@ export function AudioQuestionGeneratePage() {
               </Select>
             </FormRow>
           </div>
+
+          <FormRow label="Format de la question" htmlFor="audioMode">
+            <Select id="audioMode" {...register("audioMode")}>
+              {AUDIO_MODE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+            {audioModeHint && <span className={styles.hint}>{audioModeHint}</span>}
+          </FormRow>
 
           <FormRow
             label="Consignes spécifiques (optionnel, 500 caractères max)"
@@ -285,6 +309,11 @@ function PreviewView({
           {question.difficulty}
         </Tag>
         <Tag tone="co">CO</Tag>
+        {audio.audioMode && (
+          <Tag tone={audio.audioMode === "FULL_AUDIO" ? "active" : "muted"}>
+            {audioModeLabel(audio.audioMode)}
+          </Tag>
+        )}
         <span className={styles.metaSpan}>Thème : {themeLabel(question.theme)}</span>
         <span className={styles.metaSpan}>Compétence : {competenceLabel(question.competenceCode)}</span>
         <span className={styles.metaSpan}>Durée : {formatSeconds(audio.durationSec)}</span>
@@ -310,7 +339,14 @@ function PreviewView({
         </div>
       </Panel>
 
-      <Panel title="Question">
+      <Panel
+        title="Question"
+        sub={
+          audio.audioMode === "FULL_AUDIO"
+            ? "Mode FULL_AUDIO : à l'écran le candidat ne voit que Réponse A/B/C/D. Le contenu réel est lu dans l'audio (et visible ci-dessous pour la validation admin)."
+            : undefined
+        }
+      >
         <p className={styles.statement}>{question.statement}</p>
         <ul className={styles.choicesList}>
           {sortedChoices.map((c) => (

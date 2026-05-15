@@ -365,12 +365,15 @@ export type GenerationStatus =
   | "FAILED_TIMEOUT"
   | "REJECTED_BY_ADMIN";
 
+export type AudioMode = "WRITTEN_QUESTION" | "FULL_AUDIO";
+
 export interface GenerateAudioQuestionRequest {
   niveau: AudioLevel;
   theme?: AudioTheme | null;
   typeSouhaite?: AudioContentType | null;
   competenceVisee?: CompetenceCo | null;
   consignesSpecifiques?: string | null;
+  audioMode?: AudioMode | null;
 }
 
 export interface AudioVoiceDto {
@@ -387,6 +390,7 @@ export interface AudioPreviewDto {
   voices: AudioVoiceDto[];
   transcript: string;
   contextDescription: string | null;
+  audioMode?: AudioMode | null;
 }
 
 export interface AudioQuestionContentDto {

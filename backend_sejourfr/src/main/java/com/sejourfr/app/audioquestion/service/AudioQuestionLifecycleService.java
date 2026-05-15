@@ -128,7 +128,8 @@ public class AudioQuestionLifecycleService {
             0,
             Collections.emptyList(),
             media.getTranscript(),
-            media.getAltText()
+            media.getAltText(),
+            q.getAudioMode()
         );
 
         QuestionPreviewDto.QuestionContentDto questionDto = new QuestionPreviewDto.QuestionContentDto(

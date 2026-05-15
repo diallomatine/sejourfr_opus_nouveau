@@ -186,6 +186,7 @@ public class AnthropicClient {
         if (request.typeSouhaite() != null) params.put("typeSouhaite", request.typeSouhaite());
         if (request.competenceVisee() != null) params.put("competenceVisee", request.competenceVisee());
         if (request.consignesSpecifiques() != null) params.put("consignesSpecifiques", request.consignesSpecifiques());
+        params.put("audioMode", request.audioModeOrDefault().name());
         try {
             return objectMapper.writeValueAsString(params);
         } catch (Exception e) {

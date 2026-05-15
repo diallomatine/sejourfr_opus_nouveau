@@ -80,7 +80,7 @@ sejourfr:
     timeout-sec: 60
     max-retries: 2
     max-tokens: 4000
-    prompt-version: v1
+    prompt-version: ${ANTHROPIC_PROMPT_VERSION:v2}
   azure-speech:
     key: ${AZURE_SPEECH_KEY:}
     region: ${AZURE_SPEECH_REGION:francecentral}
