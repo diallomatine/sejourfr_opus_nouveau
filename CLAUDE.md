@@ -58,7 +58,7 @@ Strictement identique sur les 4 surfaces (les écarts sont des **bugs**).
 
 ## API backend partagée
 
-Base : `http://localhost:8080`. CORS dev autorise `localhost:3000` (web) et `localhost:4200` (héritage Angular, à ajuster si l'admin Vite passe sur un autre port). Auth JWT Bearer (access ~60 min + refresh 30 j) — **refresh automatique** dans le client HTTP de chaque front.
+Base : `http://localhost:8080`. CORS dev autorise `localhost:3000` (web Next.js) et `localhost:5173` (admin Vite). Auth JWT Bearer (access ~60 min + refresh 30 j) — **refresh automatique** dans le client HTTP de chaque front.
 
 Endpoints clés :
 - `POST /api/auth/{login,register,refresh,forgot-password,reset-password}` · `GET /api/auth/me`
