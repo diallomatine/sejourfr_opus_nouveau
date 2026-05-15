@@ -6,6 +6,7 @@ import '../../core/api/api_client.dart';
 import '../../core/api/attempts_repository.dart';
 import '../../core/api/repositories.dart';
 import '../../core/api/user_content_repository.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/models/enums.dart';
 
@@ -124,22 +125,33 @@ class RunnerState {
 /// Family : un controller par attemptId.
 final runnerControllerProvider = StateNotifierProvider.family
     .autoDispose<RunnerController, AsyncValue<RunnerState>, String>(
-  (ref, attemptId) => RunnerController(
-    ref.watch(attemptsRepositoryProvider),
-    ref.watch(userContentRepositoryProvider),
-    attemptId,
-  ),
+  (ref, attemptId) {
+    final auth = ref.watch(authControllerProvider);
+    final isPremium = auth is AuthAuthenticated && auth.user.isPremium;
+    return RunnerController(
+      ref.watch(attemptsRepositoryProvider),
+      ref.watch(userContentRepositoryProvider),
+      attemptId,
+      isPremium: isPremium,
+    );
+  },
 );
 
 class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
-  RunnerController(this._repo, this._userContentRepo, this._attemptId)
-      : super(const AsyncValue.loading()) {
+  RunnerController(
+    this._repo,
+    this._userContentRepo,
+    this._attemptId, {
+    required bool isPremium,
+  })  : _isPremium = isPremium,
+        super(const AsyncValue.loading()) {
     _load();
   }
 
   final AttemptsRepository _repo;
   final UserContentRepository _userContentRepo;
   final String _attemptId;
+  final bool _isPremium;
 
   /// Filtres déduits du premier batch, pour pouvoir étendre la session
   /// d'entraînement avec les mêmes critères.
@@ -181,6 +193,11 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
         favorites = favList.map((q) => q.id).toSet();
       } catch (_) {}
 
+      // En training démo (non-premium), la session est figée à ce batch :
+      // pas d'extension possible, le runner doit savoir qu'il est sur la
+      // dernière fournée.
+      final demoCap = attempt.type == AttemptType.training && !_isPremium;
+
       state = AsyncValue.data(RunnerState(
         activeAttempt: attempt,
         questions: attempt.questions,
@@ -190,6 +207,7 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
         currentIndex: startIndex.clamp(0, attempt.questions.length - 1),
         answersByQuestion: answers,
         favoriteQuestionIds: favorites,
+        noMoreQuestions: demoCap,
       ));
     } catch (e, st) {
       state = AsyncValue.error(ApiClient.toApiException(e), st);
@@ -301,6 +319,12 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
       return;
     }
     if (_trainingModule == null) return;
+    // Mode démo : pas d'extension automatique au-delà du pool fixe. Le runner
+    // s'arrête à la dernière question chargée et propose le paywall.
+    if (!_isPremium) {
+      state = AsyncValue.data(cur.copyWith(noMoreQuestions: true));
+      return;
+    }
 
     state = AsyncValue.data(cur.copyWith(extending: true, clearError: true));
     try {

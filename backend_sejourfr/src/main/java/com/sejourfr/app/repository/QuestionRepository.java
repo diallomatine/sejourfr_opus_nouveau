@@ -96,6 +96,25 @@ public interface QuestionRepository
         return findRandomExcludingInternal(module, themeId, difficulty, questionType, excludeIds, pageable);
     }
 
+    /**
+     * Sélection déterministe pour le mode démo (TRAINING, utilisateur non
+     * abonné). Toujours la même série de questions pour un module donné,
+     * indépendamment du thème ou de la difficulté : on garantit ainsi un
+     * aperçu reproductible avant l'abonnement.
+     * <p>
+     * Tri par {@code created_at, id} (ordre stable, indépendant des seeds DB).
+     */
+    @Query("""
+            SELECT q FROM Question q
+            WHERE q.active = true
+              AND q.module = :module
+            ORDER BY q.createdAt ASC, q.id ASC
+            """)
+    List<Question> findDemoPool(
+            @Param("module") Module module,
+            Pageable pageable
+    );
+
     // ------------------------------------------------------------------------
     // Stats / agrégations
     // ------------------------------------------------------------------------

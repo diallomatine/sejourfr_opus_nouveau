@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sejourfr_mobile/core/router/app_router.dart';
 
+import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/models/question_models.dart';
 import '../../core/theme/app_theme.dart';
@@ -15,6 +17,8 @@ import 'widgets/choice_tile.dart';
 import 'widgets/exam_timer.dart';
 import 'widgets/explanation_box.dart';
 import 'widgets/question_media_view.dart';
+
+const _kCheckoutUrl = 'https://sejourfr.fr/paiement';
 
 class RunnerScreen extends ConsumerWidget {
   const RunnerScreen({super.key, required this.attemptId});
@@ -265,7 +269,7 @@ class _RunnerView extends ConsumerWidget {
     final attempt =
         await ref.read(runnerControllerProvider(attemptId).notifier).finish();
     if (attempt != null && context.mounted) {
-      _navigateToResult(context, attempt);
+      _navigateToResult(context, ref, attempt);
     }
   }
 }
@@ -428,7 +432,7 @@ class _BottomBar extends ConsumerWidget {
                             : () async {
                                 final attempt = await ctrl.finish();
                                 if (attempt != null && context.mounted) {
-                                  _navigateToResult(context, attempt);
+                                  _navigateToResult(context, ref, attempt);
                                 }
                               },
                         isLoading: state.submitting,
@@ -453,17 +457,23 @@ class _BottomBar extends ConsumerWidget {
   }
 }
 
-void _navigateToResult(BuildContext context, Attempt attempt) {
+void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
   if (attempt.isMockExam) {
     context.go(
       AppRoutes.examResult.replaceFirst(':attemptId', attempt.id),
     );
   } else {
-    _showTrainingResultDialog(context, attempt);
+    final auth = ref.read(authControllerProvider);
+    final isPremium = auth is AuthAuthenticated && auth.user.isPremium;
+    _showTrainingResultDialog(context, attempt, isPremium: isPremium);
   }
 }
 
-void _showTrainingResultDialog(BuildContext context, Attempt attempt) {
+void _showTrainingResultDialog(
+  BuildContext context,
+  Attempt attempt, {
+  required bool isPremium,
+}) {
   final total = attempt.totalQuestions;
   final score = attempt.score ?? 0;
   final percent = total == 0 ? 0 : ((score / total) * 100).round();
@@ -475,7 +485,7 @@ void _showTrainingResultDialog(BuildContext context, Attempt attempt) {
       backgroundColor: AppColors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 22),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -485,17 +495,20 @@ void _showTrainingResultDialog(BuildContext context, Attempt attempt) {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.blueLight,
+                color: isPremium ? AppColors.blueLight : AppColors.amber
+                    .withValues(alpha: 0.16),
               ),
-              child: const Icon(
-                Icons.check_circle,
+              child: Icon(
+                isPremium
+                    ? Icons.check_circle
+                    : Icons.workspace_premium_rounded,
                 size: 36,
-                color: AppColors.blue,
+                color: isPremium ? AppColors.blue : AppColors.amber,
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              'Session terminée',
+              isPremium ? 'Session terminée' : 'Démo terminée',
               style: AppFonts.fraunces(size: 22, weight: FontWeight.w600),
               textAlign: TextAlign.center,
             ),
@@ -506,15 +519,72 @@ void _showTrainingResultDialog(BuildContext context, Attempt attempt) {
                 size: 14,
                 color: AppColors.muted,
               ),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
-            AppButton(
-              label: 'Retour à l\'accueil',
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                GoRouter.of(context).pop();
-              },
-            ),
+            if (!isPremium) ...[
+              const SizedBox(height: 14),
+              Text(
+                'Pour continuer en illimité et accéder à tous les thèmes, abonnez-vous sur le web.',
+                textAlign: TextAlign.center,
+                style: AppFonts.jakarta(
+                  size: 12.5,
+                  color: AppColors.muted,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 22),
+              AppButton(
+                label: 'M’abonner sur sejourfr.fr',
+                icon: Icons.open_in_new_rounded,
+                variant: AppButtonVariant.danger,
+                onPressed: () async {
+                  await Clipboard.setData(
+                    const ClipboardData(text: _kCheckoutUrl),
+                  );
+                  if (!ctx.mounted) return;
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(
+                      backgroundColor: AppColors.ink,
+                      behavior: SnackBarBehavior.floating,
+                      content: Text(
+                        'Lien copié : $_kCheckoutUrl',
+                        style: AppFonts.jakarta(
+                          color: AppColors.white,
+                          size: 13,
+                        ),
+                      ),
+                    ),
+                  );
+                  if (!ctx.mounted) return;
+                  Navigator.of(ctx).pop();
+                  if (!context.mounted) return;
+                  GoRouter.of(context).pop();
+                },
+              ),
+              const SizedBox(height: 6),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  GoRouter.of(context).pop();
+                },
+                child: Text(
+                  'Plus tard',
+                  style: AppFonts.jakarta(
+                    size: 13,
+                    color: AppColors.muted,
+                  ),
+                ),
+              ),
+            ] else ...[
+              const SizedBox(height: 24),
+              AppButton(
+                label: 'Retour à l\'accueil',
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  GoRouter.of(context).pop();
+                },
+              ),
+            ],
           ],
         ),
       ),

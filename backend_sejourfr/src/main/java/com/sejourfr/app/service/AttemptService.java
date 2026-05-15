@@ -88,6 +88,8 @@ public class AttemptService {
         int size;
         Integer timeLimit = null;
         Integer threshold = null;
+        boolean demoMode = req.type() == AttemptType.TRAINING
+                && !subscriptionService.isPremium(userId);
 
         if (req.type() == AttemptType.MOCK_EXAM) {
             if (req.module() == Module.CIVIQUE) {
@@ -100,27 +102,31 @@ public class AttemptService {
             }
         } else {
             int requested = req.size() != null ? req.size() : 10;
-            int hardMax = 50;
-            // Plafond gratuit sur le TRAINING : le web (et l'app sans abonnement)
-            // s'arrête à 20 questions par session pour pousser au Premium et au
-            // mobile. Pas de plafond pour REVIEW (l'user revoit ses erreurs).
-            if (req.type() == AttemptType.TRAINING && !subscriptionService.isPremium(userId)) {
-                hardMax = FREE_TRAINING_MAX_SIZE;
-            }
+            int hardMax = demoMode ? FREE_TRAINING_MAX_SIZE : 50;
             size = Math.clamp(requested, 1, hardMax);
         }
 
-        UUID themeId = req.type() == AttemptType.MOCK_EXAM ? null : req.themeId();
-        var qType = req.type() == AttemptType.MOCK_EXAM ? null : req.questionType();
-        Difficulty effectiveDifficulty = resolveDifficulty(user, req.module(), req.difficulty());
+        List<Question> questions;
+        if (demoMode) {
+            // Mode démo : pool fixe par module (thème / difficulté / type ignorés)
+            // pour garantir une expérience reproductible avant l'abonnement.
+            questions = questionRepository.findDemoPool(
+                    req.module(),
+                    PageRequest.of(0, size)
+            );
+        } else {
+            UUID themeId = req.type() == AttemptType.MOCK_EXAM ? null : req.themeId();
+            var qType = req.type() == AttemptType.MOCK_EXAM ? null : req.questionType();
+            Difficulty effectiveDifficulty = resolveDifficulty(user, req.module(), req.difficulty());
 
-        List<Question> questions = questionRepository.findRandom(
-                req.module(),
-                themeId,
-                effectiveDifficulty,
-                qType,
-                PageRequest.of(0, size)
-        );
+            questions = questionRepository.findRandom(
+                    req.module(),
+                    themeId,
+                    effectiveDifficulty,
+                    qType,
+                    PageRequest.of(0, size)
+            );
+        }
 
         if (questions.isEmpty()) {
             throw new IllegalStateException("Aucune question disponible pour ces critères");

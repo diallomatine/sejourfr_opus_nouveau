@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/api/user_content_repository.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/models/enums.dart';
 import '../../core/router/app_router.dart';
@@ -13,6 +15,18 @@ import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/eyebrow.dart';
 import '../home/widgets/module_switch.dart';
+
+const _kCheckoutUrl = 'https://sejourfr.fr/paiement';
+
+void _showProgressPaywall(BuildContext context) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: AppColors.ink.withValues(alpha: 0.42),
+    builder: (_) => const _ProgressPaywallSheet(),
+  );
+}
 
 final _statsProvider = FutureProvider.autoDispose<UserStats>((ref) {
   final module = ref.watch(selectedModuleProvider);
@@ -26,6 +40,8 @@ class StatsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final stats = ref.watch(_statsProvider);
     final module = ref.watch(selectedModuleProvider);
+    final auth = ref.watch(authControllerProvider);
+    final isPremium = auth is AuthAuthenticated && auth.user.isPremium;
 
     return Scaffold(
       body: SafeArea(
@@ -56,6 +72,12 @@ class StatsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 18),
               const ModuleSwitch(),
+              if (!isPremium) ...[
+                const SizedBox(height: 18),
+                _ProgressUpsellBanner(
+                  onTap: () => _showProgressPaywall(context),
+                ),
+              ],
               const SizedBox(height: 22),
               stats.when(
                 loading: () => const _LoadingState(),
@@ -63,7 +85,11 @@ class StatsScreen extends ConsumerWidget {
                   message: ApiClient.toApiException(e).message,
                   onRetry: () => ref.invalidate(_statsProvider),
                 ),
-                data: (s) => _StatsContent(stats: s, module: module),
+                data: (s) => _StatsContent(
+                  stats: s,
+                  module: module,
+                  isPremium: isPremium,
+                ),
               ),
             ],
           ),
@@ -74,10 +100,15 @@ class StatsScreen extends ConsumerWidget {
 }
 
 class _StatsContent extends StatelessWidget {
-  const _StatsContent({required this.stats, required this.module});
+  const _StatsContent({
+    required this.stats,
+    required this.module,
+    required this.isPremium,
+  });
 
   final UserStats stats;
   final AppModule module;
+  final bool isPremium;
 
   @override
   Widget build(BuildContext context) {
@@ -90,16 +121,18 @@ class _StatsContent extends StatelessWidget {
         _GlobalCard(stats: stats),
         const SizedBox(height: 22),
         _SectionLabel(
-          module == AppModule.tcf
-              ? 'Par compétence'
-              : 'Par thématique',
-          hint: '${stats.byTheme.length}',
+          module == AppModule.tcf ? 'Par compétence' : 'Par thématique',
+          hint: isPremium ? '${stats.byTheme.length}' : 'verrouillé',
         ),
         const SizedBox(height: 12),
         for (final theme in _sortedByWeakest(stats.byTheme))
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: _ThemeBar(theme: theme, module: module),
+            child: _ThemeBar(
+              theme: theme,
+              module: module,
+              locked: !isPremium,
+            ),
           ),
       ],
     );
@@ -118,6 +151,7 @@ class _StatsContent extends StatelessWidget {
 
 class _GlobalCard extends StatelessWidget {
   const _GlobalCard({required this.stats});
+
   final UserStats stats;
 
   @override
@@ -178,8 +212,7 @@ class _GlobalCard extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(8),
@@ -254,6 +287,7 @@ class _GlobalCard extends StatelessWidget {
 
 class _MiniStat extends StatelessWidget {
   const _MiniStat({required this.label, required this.value});
+
   final String label;
   final String value;
 
@@ -285,10 +319,15 @@ class _MiniStat extends StatelessWidget {
 }
 
 class _ThemeBar extends ConsumerWidget {
-  const _ThemeBar({required this.theme, required this.module});
+  const _ThemeBar({
+    required this.theme,
+    required this.module,
+    required this.locked,
+  });
 
   final ThemeStats theme;
   final AppModule module;
+  final bool locked;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -301,7 +340,7 @@ class _ThemeBar extends ConsumerWidget {
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: () => _trainThisTheme(context, ref),
+        onTap: locked ? () => _showProgressPaywall(context) : () => _trainThisTheme(context, ref),
         child: Container(
           padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
           decoration: BoxDecoration(
@@ -326,7 +365,9 @@ class _ThemeBar extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  if (hasAnswered)
+                  if (locked)
+                    const _LockedValue(width: 44, height: 18)
+                  else if (hasAnswered)
                     Text(
                       '$pct%',
                       style: AppFonts.fraunces(
@@ -354,27 +395,29 @@ class _ThemeBar extends ConsumerWidget {
                   color: AppColors.line2,
                   borderRadius: BorderRadius.circular(99),
                 ),
-                child: FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: hasAnswered
-                      ? theme.successRate.clamp(0.02, 1.0)
-                      : 0,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: accent,
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                  ),
-                ),
+                child: locked
+                    ? null
+                    : FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: hasAnswered ? theme.successRate.clamp(0.02, 1.0) : 0,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: accent,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                        ),
+                      ),
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
                     child: Text(
-                      hasAnswered
-                          ? '${theme.correct} / ${theme.answered} bonnes · ${theme.total} disponibles'
-                          : 'Pas encore abordé · ${theme.total} questions',
+                      locked
+                          ? '${theme.total} disponibles'
+                          : hasAnswered
+                              ? '${theme.correct} / ${theme.answered} bonnes · ${theme.total} disponibles'
+                              : 'Pas encore abordé · ${theme.total} disponibles',
                       style: AppFonts.jakarta(
                         size: 11.5,
                         color: AppColors.muted,
@@ -382,14 +425,35 @@ class _ThemeBar extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    hasAnswered ? 'Retravailler →' : 'Commencer →',
-                    style: AppFonts.jakarta(
-                      size: 11.5,
-                      weight: FontWeight.w700,
-                      color: AppColors.blue,
+                  if (locked)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Retravailler',
+                          style: AppFonts.jakarta(
+                            size: 11.5,
+                            weight: FontWeight.w700,
+                            color: AppColors.muted2,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.lock_rounded,
+                          size: 12,
+                          color: AppColors.muted2,
+                        ),
+                      ],
+                    )
+                  else
+                    Text(
+                      hasAnswered ? 'Retravailler →' : 'Commencer →',
+                      style: AppFonts.jakarta(
+                        size: 11.5,
+                        weight: FontWeight.w700,
+                        color: AppColors.blue,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ],
@@ -428,8 +492,28 @@ class _ThemeBar extends ConsumerWidget {
   }
 }
 
+class _LockedValue extends StatelessWidget {
+  const _LockedValue({required this.width, required this.height});
+
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: AppColors.line2,
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
+  }
+}
+
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.title, {this.hint});
+
   final String title;
   final String? hint;
 
@@ -550,6 +634,7 @@ class _LoadingState extends StatelessWidget {
 
 class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.message, required this.onRetry});
+
   final String message;
   final VoidCallback onRetry;
 
@@ -574,6 +659,198 @@ class _ErrorState extends StatelessWidget {
           const SizedBox(height: 8),
           TextButton(onPressed: onRetry, child: const Text('Réessayer')),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Bandeau d'upsell + paywall sheet (mode démo)
+// ---------------------------------------------------------------------------
+
+class _ProgressUpsellBanner extends StatelessWidget {
+  const _ProgressUpsellBanner({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            color: AppColors.amber.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.amber.withValues(alpha: 0.35),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.amber.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: const Icon(
+                  Icons.workspace_premium_rounded,
+                  color: AppColors.amber,
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Vos stats par thème en Premium',
+                      style: AppFonts.jakarta(
+                        size: 13.5,
+                        weight: FontWeight.w800,
+                        color: AppColors.ink,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Débloquez le détail et la révision ciblée par thématique.',
+                      style: AppFonts.jakarta(
+                        size: 11.5,
+                        color: AppColors.muted,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_rounded,
+                size: 16,
+                color: AppColors.amber,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProgressPaywallSheet extends StatelessWidget {
+  const _ProgressPaywallSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 10, 22, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.line,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 22),
+              Center(
+                child: Container(
+                  width: 64,
+                  height: 64,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [AppColors.blue, AppColors.blueDark],
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.blue.withValues(alpha: 0.28),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.insights_rounded,
+                    color: AppColors.white,
+                    size: 30,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Suivez votre progression',
+                textAlign: TextAlign.center,
+                style: AppFonts.fraunces(size: 24, weight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'L’abonnement Premium révèle votre score par thématique et débloque la révision ciblée.',
+                textAlign: TextAlign.center,
+                style: AppFonts.jakarta(
+                  size: 13,
+                  color: AppColors.muted,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 22),
+              AppButton(
+                label: 'M’abonner sur sejourfr.fr',
+                icon: Icons.open_in_new_rounded,
+                variant: AppButtonVariant.danger,
+                onPressed: () async {
+                  await Clipboard.setData(
+                    const ClipboardData(text: _kCheckoutUrl),
+                  );
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: AppColors.ink,
+                      behavior: SnackBarBehavior.floating,
+                      content: Text(
+                        'Lien copié : $_kCheckoutUrl',
+                        style: AppFonts.jakarta(color: AppColors.white, size: 13),
+                      ),
+                    ),
+                  );
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop();
+                },
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Plus tard',
+                  style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
