@@ -360,7 +360,9 @@ function Runner({
 
         {q.media && (
           <div className="runner-media">
-            <MediaView media={q.media} />
+            {/* key=q.id force le remount du <audio> au changement de question :
+                le navigateur detruit l'element et arrete la lecture en cours. */}
+            <MediaView key={q.id} media={q.media} />
           </div>
         )}
 

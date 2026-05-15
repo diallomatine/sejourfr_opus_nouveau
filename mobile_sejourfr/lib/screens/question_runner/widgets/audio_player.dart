@@ -34,6 +34,32 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
     _load();
   }
 
+  @override
+  void didUpdateWidget(covariant SejourAudioPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Si la question change (url differente), on coupe l'audio en cours,
+    // on reinitialise les compteurs et on recharge la nouvelle source.
+    if (oldWidget.url != widget.url) {
+      _resetForNewSource();
+    }
+  }
+
+  Future<void> _resetForNewSource() async {
+    try {
+      await _player.stop();
+    } catch (_) {
+      // l'arret peut throw si le player est deja inactif : on ignore
+    }
+    if (!mounted) return;
+    setState(() {
+      _ready = false;
+      _error = null;
+      _playCount = 0;
+      _started = false;
+    });
+    await _load();
+  }
+
   Future<void> _load() async {
     try {
       await _player.setUrl(widget.url);
