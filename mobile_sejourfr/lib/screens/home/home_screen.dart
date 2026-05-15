@@ -78,7 +78,31 @@ class HomeScreen extends ConsumerWidget {
                 ).copyWith(height: 1.0),
               ),
               const SizedBox(height: 10),
-              _ReviewTile(onTap: () => context.push(AppRoutes.review)),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ShortcutTile(
+                      icon: Icons.insights_rounded,
+                      title: 'Progression',
+                      subtitle: 'Forces et axes\nà retravailler',
+                      accent: AppColors.blue,
+                      accentBg: AppColors.blueLight,
+                      onTap: () => context.go(AppRoutes.progress),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _ShortcutTile(
+                      icon: Icons.bookmark_rounded,
+                      title: 'Mes questions',
+                      subtitle: 'Favoris et\nerreurs récentes',
+                      accent: AppColors.red,
+                      accentBg: AppColors.redLight,
+                      onTap: () => context.push(AppRoutes.review),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 24),
               const _DailyTip(),
             ],
@@ -95,6 +119,7 @@ class HomeScreen extends ConsumerWidget {
 
 class _Greeting extends StatelessWidget {
   const _Greeting({required this.user});
+
   final AuthUser? user;
 
   @override
@@ -142,6 +167,7 @@ class _Greeting extends StatelessWidget {
 
 class _TargetStrip extends StatelessWidget {
   const _TargetStrip({required this.target});
+
   final TargetProcedure? target;
 
   @override
@@ -350,6 +376,7 @@ class _CiviqueHero extends StatelessWidget {
 
 class _HeroBadge extends StatelessWidget {
   const _HeroBadge({required this.label, required this.bg, required this.fg});
+
   final String label;
   final Color bg;
   final Color fg;
@@ -377,6 +404,7 @@ class _HeroBadge extends StatelessWidget {
 
 class _HeroStats extends StatelessWidget {
   const _HeroStats({required this.stats});
+
   final UserStats stats;
 
   @override
@@ -396,6 +424,7 @@ class _HeroStats extends StatelessWidget {
 
 class _StatTile extends StatelessWidget {
   const _StatTile({required this.value, required this.label});
+
   final String value;
   final String label;
 
@@ -438,6 +467,7 @@ class _StatTile extends StatelessWidget {
 
 class _HeroPrimaryCta extends StatelessWidget {
   const _HeroPrimaryCta({required this.onTap});
+
   final VoidCallback onTap;
 
   @override
@@ -483,6 +513,7 @@ class _HeroPrimaryCta extends StatelessWidget {
 
 class _HeroSecondaryCta extends StatelessWidget {
   const _HeroSecondaryCta({required this.onTap});
+
   final VoidCallback onTap;
 
   @override
@@ -529,6 +560,7 @@ class _HeroSecondaryCta extends StatelessWidget {
 
 class _HeroLoader extends StatelessWidget {
   const _HeroLoader();
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -549,8 +581,10 @@ class _HeroLoader extends StatelessWidget {
 
 class _HeroError extends StatelessWidget {
   const _HeroError({required this.message, required this.onRetry});
+
   final String message;
   final VoidCallback onRetry;
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -787,55 +821,57 @@ class _TcfSubAction extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Révision (raccourci)
+// Raccourci (carte verticale en duo)
 // ---------------------------------------------------------------------------
 
-class _ReviewTile extends StatelessWidget {
-  const _ReviewTile({required this.onTap});
+class _ShortcutTile extends StatelessWidget {
+  const _ShortcutTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.accent,
+    required this.accentBg,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color accent;
+  final Color accentBg;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return AppCard(
       onTap: onTap,
-      padding: const EdgeInsets.all(14),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 36,
+            height: 36,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.amber.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
+              color: accentBg,
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
-              Icons.bookmark_outline,
-              size: 20,
-              color: AppColors.amber,
-            ),
+            child: Icon(icon, size: 18, color: accent),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Mes questions',
-                  style: AppFonts.jakarta(size: 14.5, weight: FontWeight.w700),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Favoris et erreurs récentes',
-                  style: AppFonts.jakarta(size: 12, color: AppColors.muted),
-                ),
-              ],
-            ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: AppFonts.jakarta(size: 14, weight: FontWeight.w800),
           ),
-          const Icon(
-            Icons.arrow_forward_ios,
-            size: 13,
-            color: AppColors.muted2,
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: AppFonts.jakarta(
+              size: 11.5,
+              color: AppColors.muted,
+              height: 1.35,
+            ),
           ),
         ],
       ),
