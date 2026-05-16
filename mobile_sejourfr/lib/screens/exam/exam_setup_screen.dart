@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -271,7 +270,7 @@ class _Header extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          '1 examen offert par module. Le reste se débloque avec l’abonnement.',
+          '1 examen offert par module pour découvrir. Les autres sont disponibles avec un accès complet.',
           style: AppFonts.jakarta(
             size: 13.5,
             color: AppColors.muted,
@@ -1019,8 +1018,6 @@ class _StatCell extends StatelessWidget {
 class _PaywallSheet extends StatelessWidget {
   const _PaywallSheet();
 
-  static const _checkoutUrl = 'https://sejourfr.fr/paiement';
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1082,7 +1079,7 @@ class _PaywallSheet extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Un examen gratuit par module pour goûter. L’abonnement débloque tout le reste — sans commission de store.',
+                'Un examen gratuit par module pour découvrir. L’accès complet, géré depuis le web, débloque l’ensemble des examens blancs.',
                 textAlign: TextAlign.center,
                 style: AppFonts.jakarta(
                   size: 13,
@@ -1107,23 +1104,12 @@ class _PaywallSheet extends StatelessWidget {
               ),
               const SizedBox(height: 22),
               AppButton(
-                label: 'M’abonner sur sejourfr.fr',
+                label: 'Gérer mon accès sur le web',
                 icon: Icons.open_in_new_rounded,
-                variant: AppButtonVariant.danger,
+                variant: AppButtonVariant.primary,
                 onPressed: () async {
-                  await Clipboard.setData(const ClipboardData(text: _checkoutUrl));
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: AppColors.ink,
-                      behavior: SnackBarBehavior.floating,
-                      content: Text(
-                        'Lien copié : $_checkoutUrl',
-                        style: AppFonts.jakarta(color: AppColors.white, size: 13),
-                      ),
-                    ),
-                  );
                   Navigator.of(context).pop();
+                  await openSubscriptionWeb(context);
                 },
               ),
               const SizedBox(height: 4),

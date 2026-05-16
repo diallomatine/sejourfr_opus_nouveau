@@ -1,15 +1,44 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../theme/app_theme.dart';
 
-/// URL de la page de paiement web. Le paiement Stripe (Payment Links) se
-/// fait uniquement sur le web (commission Apple/Google évitée).
-const String tcfPaywallUrl = 'https://sejourfr.fr/paiement';
+/// URL de la page d'activation côté web. L'activation et la facturation se
+/// font uniquement sur le web (l'app mobile ne vend pas de contenu digital
+/// au sens des règles Apple/Google).
+const String _subscriptionWebUrl = 'https://sejourfr.fr/paiement';
 
-/// Carte « TCF réservé à l'offre Intégral », à afficher en plein écran à la
-/// place du contenu TCF quand l'utilisateur n'a que l'accès civique
-/// (ou aucun plan actif).
+/// Ouvre la page d'activation dans le navigateur externe par défaut
+/// (Safari/Chrome). On évite le mode WebView interne pour rester conforme
+/// aux guidelines Apple : l'utilisateur quitte explicitement l'app pour
+/// gérer son accès sur notre site web.
+///
+/// En cas d'échec (navigateur indisponible), on bascule sur un snackbar
+/// d'information avec l'URL en clair.
+Future<void> openSubscriptionWeb(BuildContext context) async {
+  final uri = Uri.parse(_subscriptionWebUrl);
+  final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (!ok && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: AppColors.ink,
+        behavior: SnackBarBehavior.floating,
+        content: Text(
+          'Impossible d\'ouvrir le navigateur. Rendez-vous sur $_subscriptionWebUrl',
+          style: AppFonts.jakarta(color: AppColors.white, size: 13),
+        ),
+      ),
+    );
+  }
+}
+
+/// Carte affichée à la place du contenu TCF quand l'utilisateur n'a pas
+/// l'accès complet (formule Civique seule ou pas de plan actif).
+///
+/// Wording volontairement neutre : pas de prix, pas de verbe « payer » /
+/// « acheter ». L'app décrit simplement la disponibilité du contenu et
+/// renvoie vers le site web pour activer l'accès. Conformité Apple
+/// (Guidelines 3.1.1 — pas de paiement digital hors IAP dans l'app).
 class TcfPaywallCard extends StatelessWidget {
   const TcfPaywallCard({super.key});
 
@@ -40,7 +69,7 @@ class TcfPaywallCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'TCF — accès Intégral requis',
+                  'Module TCF non activé',
                   style: AppFonts.fraunces(
                     size: 18,
                     weight: FontWeight.w700,
@@ -52,8 +81,8 @@ class TcfPaywallCard extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           Text(
-            'Votre formule actuelle ne couvre pas le module TCF (compréhension écrite, '
-            'compréhension orale et structure de la langue).',
+            'Le module TCF (compréhension écrite, compréhension orale et structure '
+            'de la langue) n\'est pas inclus dans votre formule actuelle.',
             style: AppFonts.jakarta(
               size: 14,
               color: AppColors.muted,
@@ -62,7 +91,7 @@ class TcfPaywallCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Passez à la formule Intégral pour 3 mois d\'accès complet à Civique + TCF.',
+            'Vous pouvez activer l\'accès complet (Civique + TCF) depuis votre espace sur sejourfr.fr.',
             style: AppFonts.jakarta(
               size: 14,
               color: AppColors.ink2,
@@ -71,15 +100,16 @@ class TcfPaywallCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          _TcfPaywallCopyButton(),
+          _OpenSubscriptionButton(),
         ],
       ),
     );
   }
 }
 
-/// Bottom sheet qui affiche le paywall TCF. Utilisé quand l'utilisateur tente
-/// de basculer en TCF depuis l'interface (ex : ModuleSwitch).
+/// Bottom sheet qui présente l'information « module TCF non activé ».
+/// Utilisé depuis le ModuleSwitch quand l'utilisateur tente de basculer
+/// sur TCF.
 Future<void> showTcfPaywallSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
@@ -125,7 +155,7 @@ Future<void> showTcfPaywallSheet(BuildContext context) {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'TCF — accès Intégral requis',
+                  'Module TCF non activé',
                   style: AppFonts.fraunces(
                     size: 18,
                     weight: FontWeight.w700,
@@ -137,8 +167,8 @@ Future<void> showTcfPaywallSheet(BuildContext context) {
           ),
           const SizedBox(height: 16),
           Text(
-            'Votre formule actuelle ne couvre pas le module TCF. '
-            'Passez à la formule Intégral pour 3 mois d\'accès complet à Civique + TCF.',
+            'Le module TCF n\'est pas inclus dans votre formule actuelle. '
+            'Vous pouvez activer l\'accès complet depuis votre espace sur sejourfr.fr.',
             style: AppFonts.jakarta(
               size: 14,
               color: AppColors.muted,
@@ -146,7 +176,7 @@ Future<void> showTcfPaywallSheet(BuildContext context) {
             ),
           ),
           const SizedBox(height: 20),
-          _TcfPaywallCopyButton(closeOnTap: true),
+          _OpenSubscriptionButton(closeOnTap: true),
           const SizedBox(height: 8),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
@@ -165,17 +195,17 @@ Future<void> showTcfPaywallSheet(BuildContext context) {
   );
 }
 
-class _TcfPaywallCopyButton extends StatelessWidget {
-  const _TcfPaywallCopyButton({this.closeOnTap = false});
+class _OpenSubscriptionButton extends StatelessWidget {
+  const _OpenSubscriptionButton({this.closeOnTap = false});
 
-  /// Si true, ferme le sheet/dialog parent après le clic (cas modal sheet).
+  /// Si true, ferme le sheet/dialog parent au clic (cas modal sheet).
   final bool closeOnTap;
 
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.red,
+        backgroundColor: AppColors.blue,
         foregroundColor: AppColors.white,
         padding: const EdgeInsets.symmetric(vertical: 14),
         shape: RoundedRectangleBorder(
@@ -183,27 +213,23 @@ class _TcfPaywallCopyButton extends StatelessWidget {
         ),
       ),
       onPressed: () async {
-        await Clipboard.setData(const ClipboardData(text: tcfPaywallUrl));
-        if (!context.mounted) return;
         if (closeOnTap) Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.ink,
-            behavior: SnackBarBehavior.floating,
-            content: Text(
-              'Lien copié : $tcfPaywallUrl',
-              style: AppFonts.jakarta(color: AppColors.white, size: 13),
+        await openSubscriptionWeb(context);
+      },
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Gérer mon accès sur le web',
+            style: AppFonts.jakarta(
+              size: 15,
+              weight: FontWeight.w700,
+              color: AppColors.white,
             ),
           ),
-        );
-      },
-      child: Text(
-        'Passer à Intégral',
-        style: AppFonts.jakarta(
-          size: 15,
-          weight: FontWeight.w700,
-          color: AppColors.white,
-        ),
+          const SizedBox(width: 8),
+          const Icon(Icons.open_in_new_rounded, size: 16),
+        ],
       ),
     );
   }

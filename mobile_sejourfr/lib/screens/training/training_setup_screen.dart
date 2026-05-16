@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -20,7 +19,6 @@ import '../shared/target_path_banner.dart';
 
 const _kInitialBatchSize = 30;
 const _kDemoBatchSize = 20;
-const _kCheckoutUrl = 'https://sejourfr.fr/paiement';
 
 final _themesProvider =
     FutureProvider.autoDispose<List<ThemeDto>>((ref) async {
@@ -281,7 +279,7 @@ class _DemoBanner extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Abonnez-vous pour l’entraînement illimité et tous les thèmes.',
+                      'Activez l’accès complet sur le web pour l’entraînement illimité et tous les thèmes.',
                       style: AppFonts.jakarta(
                         size: 11.5,
                         color: AppColors.muted,
@@ -372,7 +370,7 @@ class _PaywallSheet extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'La démo s’arrête à $_kDemoBatchSize questions. Abonnez-vous pour accéder à tous les thèmes et à l’entraînement illimité.',
+                'La démo s’arrête à $_kDemoBatchSize questions. Activez l’accès complet sur le web pour profiter de tous les thèmes et de l’entraînement illimité.',
                 textAlign: TextAlign.center,
                 style: AppFonts.jakarta(
                   size: 13,
@@ -382,26 +380,12 @@ class _PaywallSheet extends StatelessWidget {
               ),
               const SizedBox(height: 22),
               AppButton(
-                label: 'M’abonner sur sejourfr.fr',
+                label: 'Gérer mon accès sur le web',
                 icon: Icons.open_in_new_rounded,
-                variant: AppButtonVariant.danger,
+                variant: AppButtonVariant.primary,
                 onPressed: () async {
-                  await Clipboard.setData(
-                    const ClipboardData(text: _kCheckoutUrl),
-                  );
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: AppColors.ink,
-                      behavior: SnackBarBehavior.floating,
-                      content: Text(
-                        'Lien copié : $_kCheckoutUrl',
-                        style:
-                            AppFonts.jakarta(color: AppColors.white, size: 13),
-                      ),
-                    ),
-                  );
                   Navigator.of(context).pop();
+                  await openSubscriptionWeb(context);
                 },
               ),
               const SizedBox(height: 4),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -16,8 +15,6 @@ import '../../core/widgets/app_button.dart';
 import '../../core/widgets/eyebrow.dart';
 import '../../core/widgets/tcf_paywall.dart';
 import '../home/widgets/module_switch.dart';
-
-const _kCheckoutUrl = 'https://sejourfr.fr/paiement';
 
 void _showProgressPaywall(BuildContext context) {
   showModalBottomSheet<void>(
@@ -817,7 +814,7 @@ class _ProgressPaywallSheet extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'L’abonnement Premium révèle votre score par thématique et débloque la révision ciblée.',
+                'L’accès complet révèle votre score par thématique et débloque la révision ciblée. À activer sur le web.',
                 textAlign: TextAlign.center,
                 style: AppFonts.jakarta(
                   size: 13,
@@ -827,26 +824,12 @@ class _ProgressPaywallSheet extends StatelessWidget {
               ),
               const SizedBox(height: 22),
               AppButton(
-                label: 'M’abonner sur sejourfr.fr',
+                label: 'Gérer mon accès sur le web',
                 icon: Icons.open_in_new_rounded,
-                variant: AppButtonVariant.danger,
+                variant: AppButtonVariant.primary,
                 onPressed: () async {
-                  await Clipboard.setData(
-                    const ClipboardData(text: _kCheckoutUrl),
-                  );
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: AppColors.ink,
-                      behavior: SnackBarBehavior.floating,
-                      content: Text(
-                        'Lien copié : $_kCheckoutUrl',
-                        style: AppFonts.jakarta(color: AppColors.white, size: 13),
-                      ),
-                    ),
-                  );
-                  if (!context.mounted) return;
                   Navigator.of(context).pop();
+                  await openSubscriptionWeb(context);
                 },
               ),
               const SizedBox(height: 4),

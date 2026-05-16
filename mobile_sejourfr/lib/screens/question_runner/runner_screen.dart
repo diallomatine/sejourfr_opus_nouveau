@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sejourfr_mobile/core/router/app_router.dart';
@@ -13,13 +12,12 @@ import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/eyebrow.dart';
 import '../../core/widgets/rich_paragraph_text.dart';
+import '../../core/widgets/tcf_paywall.dart';
 import 'runner_controller.dart';
 import 'widgets/choice_tile.dart';
 import 'widgets/exam_timer.dart';
 import 'widgets/explanation_box.dart';
 import 'widgets/question_media_view.dart';
-
-const _kCheckoutUrl = 'https://sejourfr.fr/paiement';
 
 class RunnerScreen extends ConsumerWidget {
   const RunnerScreen({super.key, required this.attemptId});
@@ -593,7 +591,7 @@ void _showTrainingResultDialog(
             if (!isPremium) ...[
               const SizedBox(height: 14),
               Text(
-                'Pour continuer en illimité et accéder à tous les thèmes, abonnez-vous sur le web.',
+                'Pour continuer en illimité et accéder à tous les thèmes, activez l’accès complet sur le web.',
                 textAlign: TextAlign.center,
                 style: AppFonts.jakarta(
                   size: 12.5,
@@ -603,31 +601,15 @@ void _showTrainingResultDialog(
               ),
               const SizedBox(height: 22),
               AppButton(
-                label: 'M’abonner sur sejourfr.fr',
+                label: 'Gérer mon accès sur le web',
                 icon: Icons.open_in_new_rounded,
-                variant: AppButtonVariant.danger,
+                variant: AppButtonVariant.primary,
                 onPressed: () async {
-                  await Clipboard.setData(
-                    const ClipboardData(text: _kCheckoutUrl),
-                  );
-                  if (!ctx.mounted) return;
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(
-                      backgroundColor: AppColors.ink,
-                      behavior: SnackBarBehavior.floating,
-                      content: Text(
-                        'Lien copié : $_kCheckoutUrl',
-                        style: AppFonts.jakarta(
-                          color: AppColors.white,
-                          size: 13,
-                        ),
-                      ),
-                    ),
-                  );
-                  if (!ctx.mounted) return;
                   Navigator.of(ctx).pop();
                   if (!context.mounted) return;
                   GoRouter.of(context).pop();
+                  if (!context.mounted) return;
+                  await openSubscriptionWeb(context);
                 },
               ),
               const SizedBox(height: 6),
