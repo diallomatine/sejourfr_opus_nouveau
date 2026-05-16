@@ -102,27 +102,35 @@ Flyway scanne récursivement `classpath:db/migration` (prod & dev) et `classpath
 
 ```
 db/migration/
-├── 00_schema/          V001-V099   évolutions de schéma
-├── 10_reference/       V100-V199   données de référence (thèmes, plans Stripe)
-├── 20_civique/         V200-V299   seeds civique
-│   ├── _initial/                   seed des thèmes (V200 principes, V201 thèmes 2-5)
-│   ├── institutions/    V210-V216  (reformulations lot01-04 + niveau CSP/CR/NAT)
-│   ├── droits_devoirs/  V220-V224
-│   ├── histoire_geo/    V230-V236
-│   └── societe/         V240-V244
-└── 30_tcf/             V300-V399   seeds TCF
-    ├── lots_mixtes/    V300-V304   CE + STRUCTURE dans le même fichier
-    ├── ce/             V310-V319   CE focalisée par niveau (V310 A2, V311 B1, V312 B2)
-    ├── structure/      V320-V329   STRUCTURE focalisée
-    └── echantillons/   V330+       échantillons de validation de méthode
+├── 00_schema/                       V0xx        évolutions de schéma (step 10 : place pour hotfix entre 2 features)
+├── 10_reference/                    V1xx        données de référence (thèmes, plans Stripe)
+├── 20_civique/                      V2xx        seeds civique
+│   ├── 00_initial/                  V20x        seed des thèmes (V200 principes, V201 thèmes 2-5)
+│   ├── 10_institutions/             V21x        (V210-V216 = reformulations lot01-04 + niveau CSP/CR/NAT)
+│   ├── 20_droits_devoirs/           V22x
+│   ├── 30_histoire_geo/             V23x
+│   └── 40_societe/                  V24x
+└── 30_tcf/                          V3xx        seeds TCF
+    ├── 00_lots_mixtes/              V30x        CE + STRUCTURE dans le même fichier
+    ├── 10_ce/                       V31x        CE focalisée par niveau (V310 A2, V311 B1, V312 B2)
+    ├── 20_structure/                V32x        STRUCTURE focalisée
+    └── 30_echantillons/             V33x        échantillons de validation de méthode
 
-db/migration-dev/        V900+      seeds dev uniquement (comptes seed, attempts factices)
+db/migration-dev/                    V9xx        seeds dev uniquement (V900 comptes seed, attempts factices)
 ```
 
-- Pour une nouvelle évolution de schéma : prochain libre dans **`00_schema/`** (suit la séquence V0xx).
-- Pour un seed civique : ajoute dans le sous-dossier du thème concerné, prochain numéro libre dans la plage du thème.
-- Pour un seed TCF : choisis `lots_mixtes/`, `ce/`, `structure/` ou `echantillons/` selon la nature, prochain numéro libre dans la plage.
-- `out-of-order: true` est activé, donc l'ordre d'ajout n'est pas contraint tant que les numéros restent uniques.
+**Convention** : le numéro de version du fichier reflète son emplacement dans l'arbre.
+- `00_schema/Vxxx` : 1er chiffre = 0 (catégorie schéma). Espacement step 10 (V001, V010, V020...) pour pouvoir intercaler.
+- `20_civique/10_institutions/V21x` : 1er chiffre 2 = civique, 2e chiffre 1 = institutions. Files V210..V219 (10 slots par sous-thème).
+- Idem TCF.
+
+**Pour ajouter une migration :**
+- Nouvelle évolution de schéma → `00_schema/`, prochain V0x0 libre.
+- Nouveau seed civique → sous-dossier du thème, prochain numéro libre dans le namespace (10 slots).
+- Nouveau seed TCF → `00_lots_mixtes/`, `10_ce/`, `20_structure/` ou `30_echantillons/` selon la nature.
+- Si le namespace est plein (rare), ajouter un nouveau sous-dossier (ex. `50_xxx/` → V25x).
+
+`out-of-order: true` est activé : l'ordre d'ajout n'est pas contraint tant que les numéros restent uniques.
 
 ## Pipeline de génération audio TCF (Compréhension Orale)
 
