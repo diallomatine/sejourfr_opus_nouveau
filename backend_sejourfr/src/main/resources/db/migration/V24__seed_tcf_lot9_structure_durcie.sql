@@ -120,15 +120,15 @@ INSERT INTO questions (
 ) VALUES (
     '55555555-0023-0000-0000-000000000005', 'TCF',
     '22222222-0000-0000-0000-000000000003', 'A2', 'STRUCTURE', 'struct_articles',
-    'Complétez avec l''article correct : J''aime ___ café, mais ce matin je vais boire ___ thé.',
-    'Avec « aimer » on utilise l''article défini (sens général) : « le café ». Pour boire ce matin (sens spécifique, une fois), on utilise le partitif : « du thé ». La réponse B est correcte. « du café... le thé » inverse les deux constructions. « le café... un thé » est piégeux car « un thé » est possible dans d''autres contextes, mais ici on parle de la matière à boire. « un café... le thé » accumule les deux erreurs.',
+    'Complétez avec les articles corrects : J''aime ___ café, mais ce matin je vais boire ___ thé.',
+    'Avec « aimer » on utilise l''article défini (sens général) : « le café ». Pour boire une quantité non précisée d''un liquide, on utilise le partitif : « du thé ». La réponse B est correcte. « du / le » inverse les deux constructions. « du / du » utilise le partitif aussi avec « aimer », ce qui est incorrect (« aimer du café » ne se dit pas). « un / le » utilise un article indéfini avec « aimer » (« j''aime un café » ne se dit pas non plus).',
     true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 );
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-    (gen_random_uuid(), '55555555-0023-0000-0000-000000000005', 'du café... le thé',  false, 1),
-    (gen_random_uuid(), '55555555-0023-0000-0000-000000000005', 'le café... du thé',  true,  2),
-    (gen_random_uuid(), '55555555-0023-0000-0000-000000000005', 'le café... un thé',  false, 3),
-    (gen_random_uuid(), '55555555-0023-0000-0000-000000000005', 'un café... le thé',  false, 4);
+    (gen_random_uuid(), '55555555-0023-0000-0000-000000000005', 'du / le',  false, 1),
+    (gen_random_uuid(), '55555555-0023-0000-0000-000000000005', 'le / du',  true,  2),
+    (gen_random_uuid(), '55555555-0023-0000-0000-000000000005', 'du / du',  false, 3),
+    (gen_random_uuid(), '55555555-0023-0000-0000-000000000005', 'un / le',  false, 4);
 
 
 -- ──────────────────────────────────────────────────────────────────────────
@@ -140,7 +140,7 @@ INSERT INTO questions (
 ) VALUES (
     '55555555-0023-0000-0000-000000000006', 'TCF',
     '22222222-0000-0000-0000-000000000003', 'A2', 'STRUCTURE', 'struct_accord_adjectif',
-    'Complétez avec l''adjectif au bon accord : Les fleurs ___ sentent très bon dans le jardin.',
+    'Complétez avec l''adjectif « blanc » au bon accord : Les fleurs ___ sentent très bon dans le jardin.',
     'L''adjectif « blanc » s''accorde avec « les fleurs » (féminin pluriel) → « blanches ». La réponse C est correcte. « Blanc » est le masculin singulier : il ne s''accorde pas. « Blancs » est le masculin pluriel : faux ami orthographique très proche de la bonne réponse. « Blanche » est le féminin singulier : accord en genre correct mais pas en nombre.',
     true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 );
@@ -204,15 +204,15 @@ INSERT INTO questions (
 ) VALUES (
     '55555555-0023-0000-0000-000000000009', 'TCF',
     '22222222-0000-0000-0000-000000000003', 'B1', 'STRUCTURE', 'struct_imparfait_passe_compose',
-    'Complétez avec le temps qui convient : Quand je ___ jeune, je ___ tous les étés à la mer.',
-    'Pour décrire une habitude au passé, on utilise l''imparfait : « étais » (état) + « allais » (action répétée). La réponse C est correcte. « Ai été... ai allé » mélange le passé composé (action ponctuelle) pour deux verbes : ça décrirait une seule fois. « Étais... suis allé » mixe imparfait et passé composé : le second verbe devrait aussi être à l''imparfait pour l''habitude. « Étais... ai été » contient deux erreurs : le second verbe devrait être « aller » et à l''imparfait.',
+    'Complétez avec le temps qui convient : Quand Pierre ___ jeune, il ___ tous les étés à la mer.',
+    'Pour décrire un état et une habitude au passé, on utilise l''imparfait pour les deux : « était » (état) + « allait » (action répétée). La réponse C est correcte. « A été... est allé » utilise le passé composé pour deux verbes : cela décrirait deux actions ponctuelles, pas un état + une habitude. « Était... est allé » mixe imparfait et passé composé : le second verbe devrait aussi être à l''imparfait pour exprimer l''habitude. « Était... a été » utilise l''imparfait puis le passé composé du mauvais verbe (« être » au lieu d''« aller »).',
     true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 );
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-    (gen_random_uuid(), '55555555-0023-0000-0000-000000000009', 'ai été... ai allé',       false, 1),
-    (gen_random_uuid(), '55555555-0023-0000-0000-000000000009', 'étais... suis allé',      false, 2),
-    (gen_random_uuid(), '55555555-0023-0000-0000-000000000009', 'étais... allais',         true,  3),
-    (gen_random_uuid(), '55555555-0023-0000-0000-000000000009', 'étais... ai été',         false, 4);
+    (gen_random_uuid(), '55555555-0023-0000-0000-000000000009', 'a été... est allé',       false, 1),
+    (gen_random_uuid(), '55555555-0023-0000-0000-000000000009', 'était... est allé',       false, 2),
+    (gen_random_uuid(), '55555555-0023-0000-0000-000000000009', 'était... allait',         true,  3),
+    (gen_random_uuid(), '55555555-0023-0000-0000-000000000009', 'était... a été',          false, 4);
 
 
 -- ──────────────────────────────────────────────────────────────────────────
@@ -284,7 +284,7 @@ INSERT INTO questions (
 ) VALUES (
     '55555555-0023-0000-0000-000000000013', 'TCF',
     '22222222-0000-0000-0000-000000000003', 'B1', 'STRUCTURE', 'struct_accord_participe_avoir',
-    'Complétez avec l''accord correct : Les chansons que j''ai ___ hier étaient magnifiques.',
+    'Complétez avec l''accord correct du verbe « écouter » : Les chansons que j''ai ___ hier étaient magnifiques.',
     'Avec l''auxiliaire « avoir », le participe passé s''accorde avec le COD s''il est placé AVANT le verbe. Ici, « les chansons » (féminin pluriel) est antéposé au verbe → « écoutées ». La réponse C est correcte. « Écouté » est le masculin singulier (forme par défaut quand pas d''accord). « Écoutés » est le masculin pluriel : faux genre. « Écoutée » est le féminin singulier : faux nombre. Ce point est typiquement B1.',
     true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 );
@@ -428,7 +428,7 @@ INSERT INTO questions (
 ) VALUES (
     '55555555-0023-0000-0000-000000000020', 'TCF',
     '22222222-0000-0000-0000-000000000003', 'B2', 'STRUCTURE', 'struct_accord_participe_cod_antepose',
-    'Complétez avec l''accord correct : Tes clés ? Je les ai ___ sur la table de la cuisine.',
+    'Complétez avec l''accord correct du verbe « poser » : Tes clés ? Je les ai ___ sur la table de la cuisine.',
     'Avec l''auxiliaire « avoir », le participe passé s''accorde avec le COD si celui-ci est antéposé. « Les » remplace « tes clés » (féminin pluriel), antéposé au verbe → « posées ». La réponse C est correcte. « Posé » est la forme par défaut (masculin singulier) : oubli total d''accord. « Posés » accorde au masculin pluriel : faux genre. « Posée » accorde au féminin singulier : faux nombre. Ce point est un classique du B2 : il exige d''identifier le pronom COD et son genre/nombre.',
     true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 );
