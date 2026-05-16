@@ -3,55 +3,59 @@ import { billingApi } from "@/lib/api";
 import type { PlanPublicResponse } from "@/lib/types";
 
 // ============================================================================
-// STRIP — bandeau de confiance
+// STATS STRIP — bandeau de 4 chiffres clés, juste sous le hero
 // ============================================================================
 export function TrustStrip() {
+  const stats = [
+    { num: "2 500+", label: "Questions disponibles" },
+    { num: "6", label: "Niveaux × mentions" },
+    { num: "100 %", label: "Hors-ligne sur mobile" },
+    { num: "32/40", label: "Seuil officiel civique" },
+  ];
   return (
-    <div
-      style={{
-        padding: "36px 0",
-        borderTop: "1px solid var(--color-line)",
-        borderBottom: "1px solid var(--color-line)",
-        background: "var(--color-paper-2)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          gap: 48,
-          flexWrap: "wrap",
-          fontFamily: "var(--font-mono)",
-          fontSize: 11,
-          color: "var(--color-muted)",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-        }}
-      >
-        <span style={{ color: "var(--color-ink)", fontWeight: 500 }}>
-          Préparez en confiance
-        </span>
-        {["Examen civique CSP", "Carte de résident", "Naturalisation", "TCF A2 · B1 · B2"].map(
-          (label) => (
-            <span
-              key={label}
-              style={{ display: "flex", alignItems: "center", gap: 8 }}
-            >
-              <span
-                style={{
-                  width: 18,
-                  height: 1,
-                  background: "var(--color-muted-2)",
-                  display: "inline-block",
-                }}
-              />
-              {label}
-            </span>
-          ),
-        )}
+    <section className="trust-strip">
+      <div className="container-x">
+        <div className="trust-grid">
+          {stats.map((s) => (
+            <div className="trust-item" key={s.label}>
+              <div className="trust-num">{s.num}</div>
+              <div className="trust-label">{s.label}</div>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+      <style>{`
+        .trust-strip {
+          border-top: 1px solid var(--color-line);
+          border-bottom: 1px solid var(--color-line);
+          background: var(--color-paper);
+          padding: 36px 0;
+        }
+        .trust-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 24px;
+        }
+        .trust-item { text-align: center; }
+        .trust-num {
+          font-family: var(--font-display);
+          font-size: 38px; font-weight: 600;
+          color: var(--color-blue);
+          letter-spacing: -0.02em; line-height: 1;
+        }
+        .trust-label {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          letter-spacing: 0.15em;
+          text-transform: uppercase;
+          color: var(--color-muted);
+          margin-top: 8px;
+        }
+        @media (max-width: 720px) {
+          .trust-grid { grid-template-columns: repeat(2, 1fr); gap: 28px; }
+        }
+      `}</style>
+    </section>
   );
 }
 
@@ -60,340 +64,273 @@ export function TrustStrip() {
 // ============================================================================
 function SectionHead({
   eyebrow,
-  title,
-  emphasis,
+  children,
   sub,
 }: {
   eyebrow: string;
-  title: string;
-  emphasis: string;
+  children: React.ReactNode;
   sub?: string;
 }) {
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto 60px", textAlign: "center" }}>
-      <span className="eyebrow" style={{ display: "block", marginBottom: 14 }}>
-        {eyebrow}
-      </span>
-      <h2 className="sec-h2">
-        {title} <em>{emphasis}</em>
-      </h2>
+    <div className="sec-head">
+      <span className="eyebrow">{eyebrow}</span>
+      <h2 className="sec-h2">{children}</h2>
       {sub && <p className="sec-sub">{sub}</p>}
       <style>{`
+        .sec-head {
+          max-width: 720px;
+          margin: 0 auto 60px;
+          text-align: center;
+        }
+        .sec-head .eyebrow { display: block; margin-bottom: 14px; }
         .sec-h2 {
           font-family: var(--font-display);
-          font-weight: 500;
-          font-size: clamp(32px, 4vw, 46px);
-          line-height: 1.08;
+          font-weight: 600;
+          font-size: clamp(30px, 4vw, 44px);
+          line-height: 1.1;
           letter-spacing: -0.02em;
           margin: 0 0 16px;
+          color: var(--color-ink);
         }
-        .sec-h2 em { color: var(--color-red); font-style: italic; }
-        .sec-sub { color: var(--color-muted); font-size: 17px; margin: 0; }
+        .sec-h2 em {
+          color: var(--color-blue);
+          font-style: italic;
+          font-weight: 500;
+        }
+        .sec-sub {
+          color: var(--color-muted);
+          font-size: 17px;
+          margin: 0;
+          line-height: 1.55;
+        }
       `}</style>
     </div>
   );
 }
 
 // ============================================================================
-// PROBLEM / SOLUTION
-// ============================================================================
-export function ProblemSection() {
-  return (
-    <section
-      id="methode"
-      style={{
-        background: "var(--color-paper)",
-        borderTop: "1px solid var(--color-line)",
-        padding: "100px 0",
-      }}
-    >
-      <div className="container-x">
-        <SectionHead
-          eyebrow="Pourquoi SejourFR"
-          title="L'examen a changé."
-          emphasis="Votre préparation aussi."
-          sub="Depuis janvier 2026, l'examen civique conditionne titre de séjour, carte de résident et naturalisation. La réussite n'est plus optionnelle."
-        />
-
-        <div className="problem-grid">
-          <div className="problem-col before">
-            <span className="problem-tag bad">Sans préparation structurée</span>
-            <h3 className="problem-h3">Vous y allez à l'aveugle.</h3>
-            <ul className="problem-list">
-              <li>
-                <span className="ico">✕</span>Des PDF officiels denses, sans entraînement
-              </li>
-              <li>
-                <span className="ico">✕</span>Des vidéos YouTube génériques et obsolètes
-              </li>
-              <li>
-                <span className="ico">✕</span>Aucun feedback sur ce que vous ne maîtrisez pas
-              </li>
-              <li>
-                <span className="ico">✕</span>Le stress de la première tentative à 75 € qui peut être bloquante
-              </li>
-            </ul>
-          </div>
-          <div className="problem-col after">
-            <span className="problem-tag good">Avec SejourFR</span>
-            <h3 className="problem-h3">Vous arrivez préparé.</h3>
-            <ul className="problem-list">
-              <li>
-                <span className="ico">✓</span>Questions calibrées sur le référentiel officiel 2026
-              </li>
-              <li>
-                <span className="ico">✓</span>Correction expliquée après chaque réponse
-              </li>
-              <li>
-                <span className="ico">✓</span>Suivi de progression par thématique et révision ciblée
-              </li>
-              <li>
-                <span className="ico">✓</span>Examens blancs en conditions réelles · 40 questions · 45 min
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <style>{`
-        .problem-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          border: 1px solid var(--color-line);
-          border-radius: 16px;
-          overflow: hidden;
-          background: #fff;
-        }
-        .problem-col {
-          padding: 44px 40px;
-          position: relative;
-        }
-        .problem-col.before {
-          background: var(--color-paper-2);
-          border-right: 1px solid var(--color-line);
-        }
-        .problem-h3 {
-          font-family: var(--font-display);
-          font-weight: 500;
-          font-size: 24px;
-          margin: 14px 0 24px;
-          letter-spacing: -0.015em;
-        }
-        .problem-tag {
-          font-family: var(--font-mono);
-          font-size: 10px;
-          letter-spacing: 0.16em;
-          text-transform: uppercase;
-          padding: 4px 10px;
-          border-radius: 100px;
-          display: inline-block;
-        }
-        .problem-tag.bad { background: var(--color-red-light); color: var(--color-red-dark); }
-        .problem-tag.good { background: rgba(22, 143, 91, 0.12); color: var(--color-green); }
-        .problem-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 14px; }
-        .problem-list li {
-          display: flex; gap: 12px; align-items: flex-start;
-          font-size: 14.5px; color: var(--color-ink-2); line-height: 1.5;
-        }
-        .ico {
-          width: 22px; height: 22px;
-          border-radius: 50%;
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0; margin-top: 1px;
-          font-size: 12px; font-weight: 700;
-        }
-        .problem-col.before .ico { background: var(--color-red-light); color: var(--color-red-dark); }
-        .problem-col.after .ico { background: rgba(22, 143, 91, 0.12); color: var(--color-green); }
-
-        @media (max-width: 960px) {
-          .problem-grid { grid-template-columns: 1fr; }
-          .problem-col.before { border-right: none; border-bottom: 1px solid var(--color-line); }
-        }
-      `}</style>
-    </section>
-  );
-}
-
-// ============================================================================
-// EXAMS GRID
+// EXAMS — Civique + TCF cards avec meta-grid + checklist
 // ============================================================================
 export function ExamsSection() {
   return (
-    <section
-      id="examens"
-      style={{
-        background: "var(--color-paper-2)",
-        borderTop: "1px solid var(--color-line)",
-        padding: "100px 0",
-      }}
-    >
+    <section id="examens" className="exams-sec">
       <div className="container-x">
         <SectionHead
-          eyebrow="Les modules"
-          title="Deux examens,"
-          emphasis="une seule plateforme."
-          sub="Civique pour valider les valeurs et institutions, TCF IRN pour le niveau de français. Selon votre démarche."
-        />
+          eyebrow="DEUX EXAMENS, UNE SEULE APP"
+          sub="Tous les contenus sont calés sur les référentiels officiels. Les examens blancs reproduisent les conditions du jour J : durée, nombre de questions, seuil de réussite."
+        >
+          Préparez l&apos;<em>examen civique</em> et le <em>TCF</em> sans
+          changer d&apos;outil.
+        </SectionHead>
 
-        <div className="exam-cards">
-          {/* Civique */}
-          <div className="exam-card">
-            <div className="ribbon">Examen civique</div>
-            <div className="cocarde lg" aria-hidden />
-            <h3 className="exam-h3">Civique</h3>
+        <div className="exams-grid">
+          {/* CIVIQUE */}
+          <article className="exam-card civique">
+            <span className="exam-tag civique">EXAMEN CIVIQUE</span>
+            <h3 className="exam-h3">
+              Connaissance des valeurs et principes de la République
+            </h3>
             <p className="exam-sub">
-              Valeurs républicaines, institutions, droits et devoirs, histoire,
-              vie en société.
+              Obligatoire pour la carte de séjour pluriannuelle, la carte de
+              résident et la naturalisation depuis le 1<sup>er</sup> janvier
+              2026.
             </p>
-            <div className="exam-mentions">
-              <span className="mention">CSP</span>
-              <span className="mention">Carte de résident</span>
-              <span className="mention">Naturalisation</span>
-            </div>
-            <div className="exam-stats">
-              <div className="exam-stat">
-                <div className="v">40</div>
-                <div className="l">Questions</div>
+
+            <div className="exam-meta">
+              <div className="meta-item">
+                <div className="meta-label">QUESTIONS</div>
+                <div className="meta-value">40 QCM</div>
               </div>
-              <div className="exam-stat">
-                <div className="v">45 min</div>
-                <div className="l">Durée</div>
+              <div className="meta-item">
+                <div className="meta-label">DURÉE</div>
+                <div className="meta-value">45 min</div>
               </div>
-              <div className="exam-stat">
-                <div className="v">32/40</div>
-                <div className="l">Seuil réussite</div>
+              <div className="meta-item">
+                <div className="meta-label">SEUIL</div>
+                <div className="meta-value">32 / 40</div>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <Link href="/examen-blanc?type=civique" className="btn">
-                Examen blanc
-              </Link>
-              <Link href="/inscription" className="btn btn-ghost">
-                Commencer
-              </Link>
-            </div>
-          </div>
+
+            <ul className="exam-list civique">
+              <li><span className="num">01</span> Principes et valeurs de la République</li>
+              <li><span className="num">02</span> Système institutionnel et politique</li>
+              <li><span className="num">03</span> Droits et devoirs</li>
+              <li><span className="num">04</span> Histoire, géographie et culture</li>
+              <li><span className="num">05</span> Vivre dans la société française</li>
+            </ul>
+
+            <Link href="/inscription" className="btn exam-cta">
+              S&apos;entraîner au civique
+              <span className="arrow">→</span>
+            </Link>
+          </article>
 
           {/* TCF */}
-          <div className="exam-card tcf">
-            <div className="ribbon">TCF IRN</div>
-            <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden>
-              <rect
-                x="3"
-                y="10"
-                width="50"
-                height="36"
-                rx="4"
-                fill="none"
-                stroke="#E1372F"
-                strokeWidth="2.5"
-              />
-              <line x1="3" y1="22" x2="53" y2="22" stroke="#E1372F" strokeWidth="2.5" />
-              <circle cx="11" cy="16" r="1.8" fill="#E1372F" />
-              <circle cx="17" cy="16" r="1.8" fill="#E1372F" />
-              <path
-                d="M 14 32 L 22 32 M 26 32 L 42 32 M 14 38 L 30 38 M 34 38 L 42 38"
-                stroke="#E1372F"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-            <h3 className="exam-h3">TCF IRN</h3>
+          <article className="exam-card tcf" id="tcf">
+            <span className="exam-tag tcf">TCF IRN</span>
+            <h3 className="exam-h3">
+              Test de connaissance du français pour l&apos;intégration
+            </h3>
             <p className="exam-sub">
-              Compréhension orale, compréhension écrite, structure de la langue.
-              Trois épreuves chronométrées.
+              Niveau requis selon votre démarche : A2 pour la CSP, B1 pour la
+              CR, B2 pour la naturalisation.
             </p>
-            <div className="exam-mentions">
-              <span className="mention">A2 — CSP</span>
-              <span className="mention">B1 — CR</span>
-              <span className="mention">B2 — Naturalisation</span>
-            </div>
-            <div className="exam-stats">
-              <div className="exam-stat">
-                <div className="v">3</div>
-                <div className="l">Épreuves</div>
+
+            <div className="exam-meta">
+              <div className="meta-item">
+                <div className="meta-label">CSP</div>
+                <div className="meta-value">A2</div>
               </div>
-              <div className="exam-stat">
-                <div className="v">60 min</div>
-                <div className="l">Durée</div>
+              <div className="meta-item">
+                <div className="meta-label">CR</div>
+                <div className="meta-value">B1</div>
               </div>
-              <div className="exam-stat">
-                <div className="v">A2 → B2</div>
-                <div className="l">Niveaux</div>
+              <div className="meta-item">
+                <div className="meta-label">NATURALISATION</div>
+                <div className="meta-value">B2</div>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
-              <Link href="/examen-blanc?type=tcf" className="btn btn-red">
-                Examen blanc
-              </Link>
-              <Link href="/inscription" className="btn btn-ghost">
-                Commencer
-              </Link>
-            </div>
-          </div>
+
+            <ul className="exam-list tcf">
+              <li><span className="num">01</span> Compréhension orale (25 QCM · 20 min)</li>
+              <li><span className="num">02</span> Compréhension écrite (25 QCM · 35 min)</li>
+              <li><span className="num">03</span> Structure de la langue<span className="bonus">entraînement bonus</span></li>
+              <li><span className="num">04</span> Supports authentiques : SMS, e-mails, annonces</li>
+              <li><span className="num">05</span> Audios natifs avec accents variés</li>
+            </ul>
+
+            <Link href="/inscription" className="btn exam-cta exam-cta-red">
+              S&apos;entraîner au TCF
+              <span className="arrow">→</span>
+            </Link>
+          </article>
         </div>
       </div>
 
       <style>{`
-        .exam-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .exams-sec { padding: 100px 0; background: #fff; }
+        .exams-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 24px;
+        }
         .exam-card {
-          background: #fff;
           border: 1px solid var(--color-line);
-          border-radius: 16px;
-          padding: 36px 32px;
+          border-radius: 22px;
+          padding: 36px;
+          background: #fff;
           position: relative;
           overflow: hidden;
-          transition: transform 0.2s, box-shadow 0.2s;
+          transition: transform 0.25s, border-color 0.25s;
+          display: flex;
+          flex-direction: column;
         }
-        .exam-card:hover { transform: translateY(-3px); box-shadow: 0 20px 40px -20px rgba(15, 24, 57, 0.15); }
-        .exam-card .ribbon {
-          position: absolute; top: 0; right: 0;
-          padding: 6px 14px;
-          background: var(--color-blue);
-          color: #fff;
+        .exam-card:hover {
+          border-color: var(--color-ink);
+          transform: translateY(-3px);
+        }
+        .exam-card.civique {
+          background:
+            radial-gradient(at 100% 0%, var(--color-blue-light) 0px, transparent 50%),
+            #fff;
+        }
+        .exam-card.tcf {
+          background:
+            radial-gradient(at 100% 0%, var(--color-red-light) 0px, transparent 50%),
+            #fff;
+        }
+        .exam-tag {
+          display: inline-block;
           font-family: var(--font-mono);
-          font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
-          border-bottom-left-radius: 10px;
+          font-size: 10px; letter-spacing: 0.12em;
+          color: #fff;
+          padding: 5px 10px;
+          border-radius: 6px; font-weight: 600;
+          margin-bottom: 18px;
+          align-self: flex-start;
         }
-        .exam-card.tcf .ribbon { background: var(--color-red); }
+        .exam-tag.civique { background: var(--color-blue); }
+        .exam-tag.tcf { background: var(--color-red); }
         .exam-h3 {
           font-family: var(--font-display);
-          font-weight: 500;
-          font-size: 30px;
-          margin: 24px 0 6px;
-          letter-spacing: -0.02em;
-        }
-        .exam-sub { color: var(--color-muted); font-size: 14.5px; margin: 0 0 24px; }
-        .exam-mentions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
-        .mention {
-          padding: 6px 12px;
-          background: var(--color-blue-light);
-          color: var(--color-blue);
-          border-radius: 6px;
-          font-size: 12px;
-          font-weight: 600;
-        }
-        .exam-card.tcf .mention { background: var(--color-red-light); color: var(--color-red-dark); }
-        .exam-stats {
-          display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
-          padding: 18px 0;
-          border-top: 1px solid var(--color-line-2);
-          border-bottom: 1px solid var(--color-line-2);
-          margin-bottom: 22px;
-        }
-        .exam-stat .v {
-          font-family: var(--font-display);
-          font-size: 24px; font-weight: 500;
+          font-weight: 600; font-size: 27px;
+          line-height: 1.18;
+          margin: 0 0 12px;
           letter-spacing: -0.015em;
         }
-        .exam-stat .l {
-          font-family: var(--font-mono);
-          font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
-          color: var(--color-muted); margin-top: 2px;
+        .exam-sub {
+          color: var(--color-muted);
+          font-size: 14.5px;
+          margin: 0 0 24px;
+          line-height: 1.55;
         }
-
-        @media (max-width: 960px) {
-          .exam-cards { grid-template-columns: 1fr; }
+        .exam-meta {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 12px;
+          margin-bottom: 24px;
+        }
+        .meta-item {
+          padding: 12px;
+          border: 1px solid var(--color-line);
+          border-radius: 12px;
+          background: #fff;
+        }
+        .meta-label {
+          font-family: var(--font-mono);
+          font-size: 9px;
+          color: var(--color-muted);
+          letter-spacing: 0.15em;
+          text-transform: uppercase;
+          margin-bottom: 4px;
+        }
+        .meta-value {
+          font-size: 14px;
+          font-weight: 700;
+          color: var(--color-ink);
+        }
+        .exam-list {
+          list-style: none;
+          padding: 0;
+          margin: 0 0 24px;
+          flex: 1;
+        }
+        .exam-list li {
+          padding: 10px 0;
+          font-size: 14px;
+          color: var(--color-ink-2);
+          display: flex; align-items: center; gap: 10px;
+          border-top: 1px dashed var(--color-line);
+        }
+        .exam-list li:first-child { border-top: none; padding-top: 0; }
+        .exam-list .num {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          width: 22px; font-weight: 600;
+        }
+        .exam-list.civique .num { color: var(--color-blue); }
+        .exam-list.tcf .num { color: var(--color-red); }
+        .exam-list .bonus {
+          margin-left: auto;
+          font-size: 11.5px;
+          color: var(--color-muted);
+          font-family: var(--font-mono);
+          letter-spacing: 0.05em;
+        }
+        .exam-cta {
+          align-self: flex-start;
+        }
+        .exam-cta-red {
+          background: var(--color-red);
+          border-color: var(--color-red);
+        }
+        .exam-cta-red:hover {
+          background: var(--color-red-dark);
+          border-color: var(--color-red-dark);
+        }
+        @media (max-width: 900px) {
+          .exams-grid { grid-template-columns: 1fr; }
+          .exams-sec { padding: 70px 0; }
         }
       `}</style>
     </section>
@@ -401,84 +338,276 @@ export function ExamsSection() {
 }
 
 // ============================================================================
-// HOW IT WORKS
+// FEATURES — 6 cells avec icônes
 // ============================================================================
-export function HowItWorksSection() {
+export function ProblemSection() {
+  // (Conservé sous ce nom pour ne pas casser l'import depuis page.tsx.)
+  const feats: {
+    tone: "blue" | "red" | "green" | "amber";
+    icon: React.ReactNode;
+    title: string;
+    body: string;
+  }[] = [
+    {
+      tone: "blue",
+      icon: <CheckIcon />,
+      title: "Correction expliquée",
+      body:
+        "Après chaque question, on vous explique la règle et pourquoi les autres réponses sont fausses. Une à une.",
+    },
+    {
+      tone: "red",
+      icon: <ClockIcon />,
+      title: "Examens blancs réalistes",
+      body:
+        "40 questions, 45 minutes, seuil officiel. La simulation respecte la répartition par thématique du jour J.",
+    },
+    {
+      tone: "green",
+      icon: <TrendingIcon />,
+      title: "Suivi de progression",
+      body:
+        "Vos scores par thématique, vos questions favorites, vos erreurs récurrentes. Tout est tracé pour vous concentrer sur l'essentiel.",
+    },
+    {
+      tone: "amber",
+      icon: <StarIcon />,
+      title: "Révision ciblée",
+      body:
+        "Une session « mes erreurs » qui ne re-pose que les questions ratées. Pareil pour vos favoris.",
+    },
+    {
+      tone: "blue",
+      icon: <DeviceIcon />,
+      title: "Web et mobile",
+      body:
+        "Bossez sur ordinateur à la maison, sur mobile dans le RER. Votre progression vous suit partout, hors-ligne aussi.",
+    },
+    {
+      tone: "red",
+      icon: <ShieldIcon />,
+      title: "Conformité référentielle",
+      body:
+        "Les questions civiques suivent les 5 thématiques officielles. Le TCF reproduit fidèlement la structure de l'examen IRN.",
+    },
+  ];
+
   return (
-    <section
-      style={{
-        background: "var(--color-paper)",
-        borderTop: "1px solid var(--color-line)",
-        padding: "100px 0",
-      }}
-    >
+    <section className="feats" id="fonctionnalites">
       <div className="container-x">
         <SectionHead
-          eyebrow="Comment ça marche"
-          title="Quatre étapes,"
-          emphasis="zéro friction."
-        />
+          eyebrow="LA MÉTHODE SEJOURFR"
+          sub="Vous apprenez en répondant. Chaque erreur déclenche une explication précise. Vous re-tombez dessus jusqu'à la maîtriser."
+        >
+          Pas de cours. Que de la <em>pratique active</em>.
+        </SectionHead>
 
-        <div className="steps">
-          {[
-            { n: 1, t: "Créez votre compte", d: "Email, mot de passe. Choisissez votre mention (CSP, CR ou naturalisation)." },
-            { n: 2, t: "Entraînez-vous", d: "QCM par thématique, correction expliquée à chaque réponse. Marquez vos favoris." },
-            { n: 3, t: "Passez des blancs", d: "40 questions, 45 minutes, conditions réelles. Identifiez vos points faibles." },
-            { n: 4, t: "Prêt le jour J", d: "Suivez votre progression jusqu'à atteindre régulièrement le seuil." },
-          ].map((step) => (
-            <div className="step" key={step.n}>
-              <div className="step-num">{step.n}</div>
-              <h4>{step.t}</h4>
-              <p>{step.d}</p>
+        <div className="feats-grid">
+          {feats.map((f) => (
+            <div className="feat" key={f.title}>
+              <div className={`feat-icon feat-${f.tone}`}>{f.icon}</div>
+              <h3>{f.title}</h3>
+              <p>{f.body}</p>
             </div>
           ))}
         </div>
       </div>
 
       <style>{`
-        .steps {
+        .feats {
+          background: var(--color-paper);
+          border-top: 1px solid var(--color-line);
+          border-bottom: 1px solid var(--color-line);
+          padding: 100px 0;
+        }
+        .feats-grid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 0;
-          position: relative;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 20px;
         }
-        .steps::before {
-          content: "";
-          position: absolute;
-          top: 28px;
-          left: 12%; right: 12%;
-          height: 1px;
-          background: repeating-linear-gradient(to right, var(--color-line) 0, var(--color-line) 6px, transparent 6px, transparent 12px);
-          z-index: 0;
-        }
-        .step { text-align: center; padding: 0 18px; position: relative; z-index: 1; }
-        .step-num {
-          width: 56px; height: 56px;
-          border-radius: 50%;
+        .feat {
           background: #fff;
-          border: 1.5px solid var(--color-blue);
-          color: var(--color-blue);
-          display: flex; align-items: center; justify-content: center;
-          margin: 0 auto 20px;
-          font-family: var(--font-display);
-          font-size: 22px; font-weight: 500;
-          box-shadow: 0 0 0 8px var(--color-paper);
+          border: 1px solid var(--color-line);
+          border-radius: 18px;
+          padding: 28px;
+          transition: border-color 0.2s, transform 0.2s;
         }
-        .step:nth-child(even) .step-num { border-color: var(--color-red); color: var(--color-red); }
-        .step h4 {
-          font-family: var(--font-sans);
-          font-size: 16px; font-weight: 700;
+        .feat:hover {
+          border-color: var(--color-ink);
+          transform: translateY(-2px);
+        }
+        .feat-icon {
+          width: 44px; height: 44px;
+          border-radius: 12px;
+          display: flex; align-items: center; justify-content: center;
+          margin-bottom: 18px;
+        }
+        .feat-blue { background: var(--color-blue-light); color: var(--color-blue); }
+        .feat-red { background: var(--color-red-light); color: var(--color-red); }
+        .feat-green { background: rgba(22, 143, 91, 0.1); color: var(--color-green); }
+        .feat-amber { background: rgba(232, 163, 23, 0.12); color: var(--color-amber); }
+        .feat h3 {
+          font-family: var(--font-display);
+          font-weight: 600; font-size: 20px;
           margin: 0 0 8px;
           letter-spacing: -0.01em;
         }
-        .step p { font-size: 14px; color: var(--color-muted); margin: 0; line-height: 1.5; }
+        .feat p {
+          margin: 0; color: var(--color-muted);
+          font-size: 14.5px; line-height: 1.55;
+        }
+        @media (max-width: 900px) {
+          .feats-grid { grid-template-columns: 1fr 1fr; }
+          .feats { padding: 70px 0; }
+        }
+        @media (max-width: 600px) {
+          .feats-grid { grid-template-columns: 1fr; }
+        }
+      `}</style>
+    </section>
+  );
+}
 
-        @media (max-width: 960px) {
-          .steps { grid-template-columns: 1fr 1fr; gap: 36px 12px; }
-          .steps::before { display: none; }
+function CheckIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+function ClockIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+function TrendingIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+      <polyline points="17 6 23 6 23 12" />
+    </svg>
+  );
+}
+function StarIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  );
+}
+function DeviceIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2" />
+      <line x1="8" y1="21" x2="16" y2="21" />
+      <line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+  );
+}
+function ShieldIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+
+// ============================================================================
+// HOW IT WORKS — 4 étapes
+// ============================================================================
+export function HowItWorksSection() {
+  const steps = [
+    {
+      tag: "01 — DÉMARCHE",
+      title: "Choisissez votre objectif",
+      body:
+        "CSP, carte de résident ou naturalisation. On adapte le contenu à votre niveau visé.",
+    },
+    {
+      tag: "02 — ENTRAÎNEMENT",
+      title: "Répondez par thématique",
+      body:
+        "Vous travaillez les sujets à votre rythme. La correction tombe juste après votre réponse.",
+    },
+    {
+      tag: "03 — EXAMEN BLANC",
+      title: "Testez-vous en conditions",
+      body:
+        "40 questions, 45 minutes, sans aide. On vous indique si vous auriez réussi.",
+    },
+    {
+      tag: "04 — RÉVISION",
+      title: "Concentrez-vous sur les erreurs",
+      body:
+        "L'app re-propose les questions ratées jusqu'à ce qu'elles soient acquises.",
+    },
+  ];
+
+  return (
+    <section className="steps-sec">
+      <div className="container-x">
+        <SectionHead eyebrow="EN 4 ÉTAPES">
+          Comment ça <em>marche</em>.
+        </SectionHead>
+
+        <div className="steps-grid">
+          {steps.map((s) => (
+            <div className="step" key={s.tag}>
+              <div className="step-num">{s.tag}</div>
+              <h4>{s.title}</h4>
+              <p>{s.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <style>{`
+        .steps-sec { padding: 100px 0; background: #fff; }
+        .steps-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 20px;
+        }
+        .step {
+          background: #fff;
+          border: 1px solid var(--color-line);
+          border-radius: 16px;
+          padding: 26px;
+          transition: border-color 0.2s, transform 0.2s;
+        }
+        .step:hover {
+          border-color: var(--color-blue);
+          transform: translateY(-2px);
+        }
+        .step-num {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          color: var(--color-blue);
+          font-weight: 700;
+          letter-spacing: 0.15em;
+          margin-bottom: 12px;
+        }
+        .step h4 {
+          font-family: var(--font-display);
+          font-weight: 600; font-size: 19px;
+          margin: 0 0 8px;
+          letter-spacing: -0.01em;
+        }
+        .step p {
+          margin: 0;
+          color: var(--color-muted);
+          font-size: 14px;
+          line-height: 1.55;
+        }
+        @media (max-width: 900px) {
+          .steps-grid { grid-template-columns: 1fr 1fr; }
+          .steps-sec { padding: 70px 0; }
         }
         @media (max-width: 560px) {
-          .steps { grid-template-columns: 1fr; }
+          .steps-grid { grid-template-columns: 1fr; }
         }
       `}</style>
     </section>
@@ -486,15 +615,9 @@ export function HowItWorksSection() {
 }
 
 // ============================================================================
-// PRICING
+// PRICING — plans dynamiques depuis le backend
 // ============================================================================
 
-/**
- * Métadonnées éditoriales des plans, indexées par `code` backend. La source
- * de vérité pour les prix et la durée reste GET /api/billing/plans ; ici on
- * stocke uniquement ce qui est statique côté front (titre marketing,
- * description, features, libellé CTA).
- */
 const PLAN_PRESENTATION: Record<
   string,
   {
@@ -507,82 +630,66 @@ const PLAN_PRESENTATION: Record<
   }
 > = {
   FREE: {
-    name: "Découverte",
-    desc: "Pour tester la méthode et voir où vous en êtes.",
-    cta: { label: "Créer mon compte", href: "/inscription", variant: "ghost" },
+    name: "DÉCOUVERTE",
+    desc: "Un échantillon représentatif pour évaluer la méthode.",
+    cta: { label: "Commencer gratuitement", href: "/inscription", variant: "ghost" },
     features: [
-      { label: "20 questions d'entraînement par module" },
-      { label: "1 examen blanc civique complet" },
-      { label: "1 examen blanc TCF complet" },
-      { label: "Correction expliquée après chaque réponse" },
-      { label: "Banque complète de 1 200+ questions", muted: true },
-      { label: "Examens blancs illimités", muted: true },
-      { label: "Révision des erreurs", muted: true },
+      { label: "20 questions par module" },
+      { label: "Corrections expliquées" },
+      { label: "1 examen blanc par module" },
+      { label: "Pas de suivi de progression complet", muted: true },
+      { label: "Pas d'accès hors-ligne", muted: true },
     ],
   },
   CIVIQUE_3MOIS: {
-    name: "Civique — 3 mois",
-    desc: "L'accès complet au module civique pour préparer CSP, CR ou naturalisation.",
-    cta: {
-      label: "Choisir Civique",
-      href: "/paiement?plan=CIVIQUE_3MOIS",
-      variant: "primary",
-    },
+    name: "CIVIQUE",
+    desc: "Accès complet au module civique. Sans renouvellement.",
+    cta: { label: "Choisir Civique", href: "/paiement?plan=CIVIQUE_3MOIS", variant: "primary" },
     features: [
       { label: "Banque complète civique", strong: true },
       { label: "Examens blancs civiques illimités" },
-      { label: "Entraînement illimité, par thème" },
-      { label: "Révision ciblée des erreurs" },
+      { label: "Entraînement par thème" },
+      { label: "Révision des erreurs et favoris" },
       { label: "Statistiques par thématique" },
-      { label: "3 mois d'accès, sans renouvellement automatique" },
+      { label: "3 mois d'accès" },
     ],
   },
   INTEGRAL_3MOIS: {
-    name: "Intégral — 3 mois",
-    desc: "Civique + TCF IRN, le plus complet pour viser CR ou naturalisation.",
-    cta: {
-      label: "Choisir Intégral",
-      href: "/paiement?plan=INTEGRAL_3MOIS",
-      variant: "red",
-    },
+    name: "INTÉGRAL",
+    desc: "Civique + TCF IRN. Le plus complet pour CR ou naturalisation.",
+    cta: { label: "Passer Intégral", href: "/paiement?plan=INTEGRAL_3MOIS", variant: "primary" },
     featured: true,
-    badge: { label: "Recommandé", tone: "red" },
+    badge: { label: "RECOMMANDÉ", tone: "red" },
     features: [
       { label: "Tout le Civique inclus", strong: true },
-      { label: "Module TCF complet (CO, CE, Structure)", strong: true },
+      { label: "Module TCF complet (CO + CE + Structure)", strong: true },
       { label: "Diagnostic CECRL (A2 / B1 / B2)" },
       { label: "Examens blancs TCF illimités" },
-      { label: "Révision ciblée + statistiques" },
-      { label: "3 mois d'accès, sans renouvellement automatique" },
+      { label: "Révision + statistiques" },
+      { label: "3 mois d'accès" },
     ],
   },
 };
 
-/**
- * Fallback statique si le backend est inaccessible (build à froid, panne) :
- * on garde la grille à 3 colonnes plutôt que d'afficher un état dégradé.
- * Les valeurs ici doivent rester alignées avec V100__seed_reference.sql.
- */
 const PLANS_FALLBACK: PlanPublicResponse[] = [
-  { code: "FREE", name: "Gratuit", billingCycle: "NONE", price: 0, originalPrice: null, moduleAccess: "NONE", durationDays: 0 },
+  { code: "FREE", name: "Découverte", billingCycle: "NONE", price: 0, originalPrice: null, moduleAccess: "NONE", durationDays: 0 },
   { code: "CIVIQUE_3MOIS", name: "Civique — 3 mois", billingCycle: "THREE_MONTHS", price: 5.99, originalPrice: 9.99, moduleAccess: "CIVIQUE", durationDays: 90 },
-  { code: "INTEGRAL_3MOIS", name: "Intégral (Civique + TCF) — 3 mois", billingCycle: "THREE_MONTHS", price: 14.99, originalPrice: 19.99, moduleAccess: "INTEGRAL", durationDays: 90 },
+  { code: "INTEGRAL_3MOIS", name: "Intégral — 3 mois", billingCycle: "THREE_MONTHS", price: 14.99, originalPrice: 19.99, moduleAccess: "INTEGRAL", durationDays: 90 },
 ];
 
 const PLAN_ORDER = ["FREE", "CIVIQUE_3MOIS", "INTEGRAL_3MOIS"];
 
 function formatPrice(value: number): string {
-  // 5.99 → "5,99" / 0 → "0" / 14 → "14".
+  if (value === 0) return "0";
   if (Number.isInteger(value)) return String(value);
   return value.toFixed(2).replace(".", ",").replace(/,?0+$/, (m) => (m.startsWith(",") ? "" : m));
 }
 
 function formatPeriod(plan: PlanPublicResponse): string {
-  if (plan.code === "FREE") return "Gratuit · sans abonnement";
-  if (plan.durationDays >= 365) return `pour ${Math.round(plan.durationDays / 365)} an${plan.durationDays >= 730 ? "s" : ""}`;
+  if (plan.code === "FREE") return "pour toujours";
   if (plan.durationDays >= 30) {
     const months = Math.round(plan.durationDays / 30);
-    return `pour ${months} mois · paiement unique`;
+    return `pour ${months} mois`;
   }
   return `pour ${plan.durationDays} jours`;
 }
@@ -593,36 +700,26 @@ export async function PricingSection() {
     const fetched = await billingApi.listPlans();
     plans = fetched.length > 0 ? fetched : PLANS_FALLBACK;
   } catch {
-    // Backend HS ou non joignable en SSR : on bascule sur le fallback pour
-    // éviter d'afficher une section Tarifs vide.
     plans = PLANS_FALLBACK;
   }
 
-  // Tri stable selon l'ordre éditorial souhaité (Découverte → Civique → Intégral).
   const sorted = [...plans].sort((a, b) => {
     const ai = PLAN_ORDER.indexOf(a.code);
     const bi = PLAN_ORDER.indexOf(b.code);
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
   });
-  // On limite à 3 colonnes max pour ne pas casser la grille.
   const display = sorted.slice(0, 3);
 
   return (
-    <section
-      id="tarifs"
-      style={{
-        background: "var(--color-paper-2)",
-        borderTop: "1px solid var(--color-line)",
-        padding: "100px 0",
-      }}
-    >
+    <section id="tarifs" className="pricing-sec">
       <div className="container-x">
         <SectionHead
-          eyebrow="Tarifs"
-          title="Choisissez ce qui"
-          emphasis="vous correspond."
-          sub="Démo gratuite par module, puis paiement unique 3 mois sans renouvellement automatique. Pas de prélèvement surprise."
-        />
+          eyebrow="TARIFS"
+          sub="Pas de carte bancaire pour démarrer. Vous goûtez, vous décidez."
+        >
+          Commencez <em>gratuitement</em>. Passez Premium quand vous serez
+          prêt.
+        </SectionHead>
 
         <div className="plans">
           {display.map((plan) => (
@@ -637,88 +734,113 @@ export async function PricingSection() {
       </div>
 
       <style>{`
-        .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .pricing-sec {
+          background: var(--color-paper);
+          border-top: 1px solid var(--color-line);
+          border-bottom: 1px solid var(--color-line);
+          padding: 100px 0;
+        }
+        .plans {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 22px;
+          max-width: 1100px;
+          margin: 0 auto;
+        }
         .plans-foot {
           margin: 32px auto 0;
-          max-width: 580px;
+          max-width: 600px;
           text-align: center;
           font-size: 12.5px;
           color: var(--color-muted);
           line-height: 1.6;
         }
         .plan {
-          background: #fff;
           border: 1px solid var(--color-line);
-          border-radius: 16px;
-          padding: 32px 28px;
-          display: flex; flex-direction: column;
+          border-radius: 22px;
+          padding: 36px 32px;
+          background: #fff;
           position: relative;
+          display: flex;
+          flex-direction: column;
         }
         .plan.featured {
-          border-color: var(--color-blue);
-          border-width: 2px;
-          background: linear-gradient(180deg, var(--color-blue-soft) 0%, #fff 40%);
-          box-shadow: 0 20px 50px -25px rgba(30, 58, 140, 0.25);
-          transform: translateY(-6px);
+          border: 2px solid var(--color-blue);
+          background:
+            radial-gradient(at 0% 0%, var(--color-blue-light) 0px, transparent 50%),
+            #fff;
+          box-shadow: 0 20px 50px -20px rgba(30, 58, 140, 0.25);
         }
-        .plan-tag {
-          position: absolute; top: -12px; left: 28px;
-          background: var(--color-red);
-          color: #fff;
+        .plan-badge {
+          position: absolute; top: -12px; left: 32px;
+          background: var(--color-red); color: #fff;
           font-family: var(--font-mono);
-          font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
-          padding: 5px 12px; border-radius: 100px;
+          font-size: 10px;
+          padding: 5px 10px; border-radius: 6px;
+          letter-spacing: 0.1em; font-weight: 600;
+        }
+        .plan-badge.green { background: var(--color-green); }
+        .plan-name {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          color: var(--color-muted);
+          letter-spacing: 0.18em;
+          margin-bottom: 16px;
           font-weight: 600;
         }
-        .plan-tag-green { background: var(--color-green); }
-        .plan-price-original {
+        .plan-price {
+          display: flex; align-items: baseline; gap: 6px;
+          margin-bottom: 8px;
+        }
+        .plan-price .num {
           font-family: var(--font-display);
-          font-size: 18px;
+          font-size: 52px; font-weight: 600;
+          color: var(--color-ink);
+          letter-spacing: -0.03em;
+          line-height: 1;
+        }
+        .plan-price .num-old {
+          font-family: var(--font-display);
+          font-size: 22px;
           color: var(--color-muted-2);
           text-decoration: line-through;
           margin-right: 4px;
           align-self: center;
         }
-        .plan-name {
-          font-family: var(--font-sans);
-          font-weight: 700; font-size: 18px;
-          color: var(--color-ink); margin: 0 0 4px;
+        .plan-price .per {
+          font-size: 14px;
+          color: var(--color-muted);
         }
         .plan-desc {
-          font-size: 13.5px; color: var(--color-muted);
-          margin: 0 0 22px; min-height: 40px;
+          color: var(--color-muted);
+          font-size: 14px;
+          margin: 0 0 24px;
+          min-height: 42px;
         }
-        .plan-price { display: flex; align-items: baseline; gap: 6px; margin-bottom: 4px; }
-        .plan-price .amount {
-          font-family: var(--font-display);
-          font-size: 44px; font-weight: 500;
-          letter-spacing: -0.02em; line-height: 1;
-        }
-        .plan-price .currency { font-size: 22px; font-family: var(--font-display); }
-        .plan-period { font-size: 13px; color: var(--color-muted); margin-bottom: 22px; }
         .plan-feat {
-          list-style: none; padding: 22px 0 0; margin: 0;
-          border-top: 1px solid var(--color-line-2);
-          display: flex; flex-direction: column; gap: 12px;
-          flex-grow: 1;
+          list-style: none; padding: 0;
+          margin: 0 0 28px;
+          flex: 1;
         }
         .plan-feat li {
-          font-size: 14px; color: var(--color-ink-2);
-          display: flex; gap: 10px; align-items: flex-start;
+          padding: 9px 0;
+          font-size: 14px;
+          color: var(--color-ink-2);
+          display: flex; align-items: flex-start; gap: 10px;
         }
-        .plan-feat li::before {
-          content: "";
-          width: 16px; height: 16px; margin-top: 3px; flex-shrink: 0;
-          background: var(--color-green);
-          -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='M3 8.5l3 3 7-7'/></svg>") no-repeat center / contain;
-                  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='M3 8.5l3 3 7-7'/></svg>") no-repeat center / contain;
+        .plan-feat .tick {
+          color: var(--color-green); font-weight: 700; flex-shrink: 0;
         }
-        .plan-feat li.muted { color: var(--color-muted); }
-        .plan-feat li.muted::before { background: var(--color-muted-2); }
-
-        @media (max-width: 960px) {
-          .plans { grid-template-columns: 1fr; }
-          .plan.featured { transform: none; }
+        .plan-feat .dash {
+          color: var(--color-muted-2); flex-shrink: 0;
+        }
+        .plan-feat li.muted span:last-child { color: var(--color-muted); }
+        .plan-cta {
+          width: 100%;
+        }
+        @media (max-width: 980px) {
+          .plans { grid-template-columns: 1fr; max-width: 480px; }
+          .pricing-sec { padding: 70px 0; }
         }
       `}</style>
     </section>
@@ -727,10 +849,7 @@ export async function PricingSection() {
 
 function PlanCard({ plan }: { plan: PlanPublicResponse }) {
   const preset = PLAN_PRESENTATION[plan.code];
-  // Si le backend renvoie un nouveau code qu'on n'a pas encore éditorialisé,
-  // on rend une présentation minimale (juste les données + un CTA générique)
-  // pour éviter de masquer un plan que l'équipe vient d'activer côté admin.
-  const name = preset?.name ?? plan.name;
+  const name = preset?.name ?? plan.name.toUpperCase();
   const desc = preset?.desc ?? "";
   const cta = preset?.cta ?? {
     label: plan.code === "FREE" ? "Créer mon compte" : "Choisir ce plan",
@@ -742,38 +861,38 @@ function PlanCard({ plan }: { plan: PlanPublicResponse }) {
   const features = preset?.features ?? [];
 
   const btnClass =
-    cta.variant === "ghost" ? "btn btn-ghost" :
-    cta.variant === "red" ? "btn btn-red" : "btn";
+    cta.variant === "ghost" ? "btn btn-ghost plan-cta" :
+    cta.variant === "red" ? "btn btn-red plan-cta" : "btn plan-cta";
 
   return (
     <div className={`plan ${featured ? "featured" : ""}`}>
       {badge && (
-        <div className={`plan-tag ${badge.tone === "green" ? "plan-tag-green" : ""}`}>
+        <span className={`plan-badge ${badge.tone === "green" ? "green" : ""}`}>
           {badge.label}
-        </div>
+        </span>
       )}
       <div className="plan-name">{name}</div>
-      <p className="plan-desc">{desc}</p>
       <div className="plan-price">
         {plan.originalPrice !== null && plan.originalPrice > plan.price && (
-          <span className="plan-price-original">{formatPrice(plan.originalPrice)} €</span>
+          <span className="num-old">{formatPrice(plan.originalPrice)}€</span>
         )}
-        <span className="amount">{formatPrice(plan.price)}</span>
-        <span className="currency">€</span>
+        <span className="num">{formatPrice(plan.price)}€</span>
+        <span className="per">/ {formatPeriod(plan)}</span>
       </div>
-      <div className="plan-period">{formatPeriod(plan)}</div>
-      <div style={{ marginBottom: 24 }}>
-        <Link href={cta.href} className={btnClass} style={{ width: "100%" }}>
-          {cta.label}
-        </Link>
-      </div>
+      <p className="plan-desc">{desc}</p>
       <ul className="plan-feat">
         {features.map((f, i) => (
           <li key={i} className={f.muted ? "muted" : ""}>
-            {f.strong ? <strong>{f.label}</strong> : f.label}
+            <span className={f.muted ? "dash" : "tick"}>
+              {f.muted ? "—" : "✓"}
+            </span>
+            <span>{f.strong ? <strong>{f.label}</strong> : f.label}</span>
           </li>
         ))}
       </ul>
+      <Link href={cta.href} className={btnClass}>
+        {cta.label}
+      </Link>
     </div>
   );
 }
@@ -807,28 +926,19 @@ export function TestimonialsSection() {
   ];
 
   return (
-    <section
-      id="temoignages"
-      style={{
-        background: "var(--color-paper)",
-        borderTop: "1px solid var(--color-line)",
-        padding: "100px 0",
-      }}
-    >
+    <section id="temoignages" className="testi-sec">
       <div className="container-x">
-        <SectionHead
-          eyebrow="Témoignages"
-          title="Ils ont réussi"
-          emphasis="avec SejourFR."
-        />
+        <SectionHead eyebrow="TÉMOIGNAGES">
+          Ils ont réussi <em>avec SejourFR</em>.
+        </SectionHead>
 
         <div className="testi-grid">
-          {testimonials.map((t, i) => (
-            <div className="testi-card" key={i}>
-              <span className="quote-mark">"</span>
+          {testimonials.map((t) => (
+            <div className="testi-card" key={t.name}>
+              <span className="quote-mark">&ldquo;</span>
               <p className="testi-body">{t.body}</p>
               <div className="testi-foot">
-                <div className={`avatar ${t.cls}`}>{t.initials}</div>
+                <div className={`testi-avatar ${t.cls}`}>{t.initials}</div>
                 <div>
                   <div className="testi-name">{t.name}</div>
                   <div className="testi-meta">{t.meta}</div>
@@ -840,25 +950,35 @@ export function TestimonialsSection() {
       </div>
 
       <style>{`
-        .testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .testi-sec { padding: 100px 0; background: #fff; }
+        .testi-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 20px;
+        }
         .testi-card {
           background: #fff;
           border: 1px solid var(--color-line);
-          border-radius: 14px;
-          padding: 28px 26px;
+          border-radius: 18px;
+          padding: 30px 28px;
           display: flex; flex-direction: column;
           position: relative;
+          transition: border-color 0.2s, transform 0.2s;
+        }
+        .testi-card:hover {
+          border-color: var(--color-blue);
+          transform: translateY(-2px);
         }
         .quote-mark {
-          position: absolute; top: 16px; right: 22px;
+          position: absolute; top: 12px; right: 22px;
           font-family: var(--font-display);
-          font-size: 70px; line-height: 1;
-          color: var(--color-blue-light); font-weight: 500;
+          font-size: 64px; line-height: 1;
+          color: var(--color-blue-light); font-weight: 600;
         }
         .testi-body {
           font-family: var(--font-display);
-          font-weight: 400;
-          font-size: 17.5px;
+          font-weight: 500;
+          font-size: 17px;
           line-height: 1.45;
           color: var(--color-ink);
           margin: 0 0 24px;
@@ -870,26 +990,25 @@ export function TestimonialsSection() {
           margin-top: auto; padding-top: 18px;
           border-top: 1px solid var(--color-line-2);
         }
-        .avatar {
-          width: 42px; height: 42px;
-          border-radius: 50%;
+        .testi-avatar {
+          width: 42px; height: 42px; border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
-          color: #fff;
-          font-weight: 700;
-          font-size: 14px;
+          color: #fff; font-weight: 700; font-size: 13px;
           flex-shrink: 0;
-          background: var(--color-blue);
+          background: linear-gradient(135deg, var(--color-blue), var(--color-red));
         }
-        .avatar.r { background: var(--color-red); }
-        .avatar.g { background: var(--color-green); }
-        .testi-name { font-weight: 600; font-size: 14px; color: var(--color-ink); }
+        .testi-avatar.r { background: linear-gradient(135deg, var(--color-red), var(--color-amber)); }
+        .testi-avatar.g { background: linear-gradient(135deg, var(--color-green), var(--color-blue)); }
+        .testi-name { font-weight: 700; font-size: 14px; color: var(--color-ink); }
         .testi-meta {
-          font-size: 12px; color: var(--color-muted);
+          font-size: 11.5px; color: var(--color-muted);
           font-family: var(--font-mono);
-          letter-spacing: 0.05em;
+          letter-spacing: 0.06em;
+          margin-top: 2px;
         }
         @media (max-width: 960px) {
           .testi-grid { grid-template-columns: 1fr; }
+          .testi-sec { padding: 70px 0; }
         }
       `}</style>
     </section>
@@ -905,55 +1024,42 @@ export function FaqSection() {
       q: "L'examen civique est-il vraiment obligatoire ?",
       a: (
         <>
-          Oui. Depuis le 1<sup>er</sup> janvier 2026, l'examen civique est
-          obligatoire pour toute demande de carte de séjour pluriannuelle (CSP),
-          de carte de résident (CR) et de naturalisation. Il se passe dans un
-          centre agréé et conditionne l'instruction de votre dossier.
+          Oui, depuis le 1<sup>er</sup> janvier 2026, il est requis pour la
+          délivrance de la carte de séjour pluriannuelle, de la carte de
+          résident et pour la naturalisation. Le contenu varie selon la
+          démarche : SejourFR adapte automatiquement le niveau de difficulté.
         </>
       ),
       open: true,
     },
     {
-      q: "Quelle est la différence entre les trois mentions ?",
-      a: "Le contenu de l'examen est ajusté selon votre démarche. La mention CSP couvre les bases ; la carte de résident exige davantage de précision sur les institutions ; la naturalisation inclut une connaissance plus poussée de l'histoire et de la culture. SejourFR vous permet de choisir votre mention et d'avoir des questions adaptées.",
+      q: "Quelle est la différence entre le TCF et le TCF IRN ?",
+      a: "Le TCF IRN (Intégration · Résidence · Nationalité) est la version utilisée pour les démarches administratives en France. Il comprend 4 épreuves : compréhension orale, compréhension écrite, expression orale et expression écrite. SejourFR vous prépare aux deux épreuves de QCM (CO et CE).",
     },
     {
-      q: "Quel niveau de français dois-je viser pour le TCF ?",
-      a: "A2 pour la CSP, B1 pour la carte de résident, B2 pour la naturalisation. Nos modules couvrent les trois niveaux avec compréhension orale, compréhension écrite et structure de la langue.",
+      q: "Puis-je m'entraîner sans connexion internet ?",
+      a: "Oui, sur mobile. L'app Flutter télécharge la banque de questions en local et synchronise votre progression dès qu'une connexion est disponible. Pratique dans les transports.",
     },
     {
-      q: "Puis-je tester avant de payer ?",
-      a: "Bien sûr. Le plan Découverte est gratuit et permanent : 10 QCM par catégorie, plus un examen blanc complet pour le civique et un pour le TCF. Vous voyez votre niveau avant de vous engager.",
+      q: "Combien de temps faut-il pour être prêt ?",
+      a: "Cela dépend de votre niveau de départ. La plupart des candidats atteignent le seuil de 32/40 à l'examen civique après 3 à 6 semaines d'entraînement régulier (15 à 30 minutes par jour). Le TCF demande plus de temps, surtout pour viser le B2.",
     },
     {
-      q: "Le contenu est-il à jour ?",
-      a: "Notre banque est calibrée sur le référentiel officiel 2026 du Ministère de l'Intérieur. Notre équipe pédagogique met à jour les questions à chaque évolution réglementaire — sans surcoût pour les abonnés.",
+      q: "Les questions sont-elles celles de l'examen officiel ?",
+      a: "Non. SejourFR n'utilise pas les questions officielles (qui sont confidentielles). Nos questions sont conçues d'après les référentiels publics et reproduisent fidèlement le format, la difficulté et les thématiques de l'examen.",
     },
     {
-      q: "Comment résilier mon abonnement Premium ?",
-      a: "En un clic depuis votre espace personnel. Aucun engagement de durée, aucun frais caché. Vous gardez l'accès jusqu'à la fin de la période payée.",
-    },
-    {
-      q: "Est-ce que SejourFR remplace une formation civique ?",
-      a: "Non. SejourFR est un outil d'entraînement intensif aux QCM, conçu pour vous mettre en conditions d'examen. Pour les contenus pédagogiques (cours, vidéos), nous vous orientons vers les ressources officielles et les formations agréées.",
+      q: "Puis-je résilier à tout moment ?",
+      a: "Nos abonnements sont à paiement unique 3 mois, sans renouvellement automatique. Vous ne pouvez pas être prélevé par surprise — vous rachetez seulement si vous voulez prolonger.",
     },
   ];
 
   return (
-    <section
-      id="faq"
-      style={{
-        background: "var(--color-paper-2)",
-        borderTop: "1px solid var(--color-line)",
-        padding: "100px 0",
-      }}
-    >
+    <section id="faq" className="faq-sec">
       <div className="container-x">
-        <SectionHead
-          eyebrow="Questions fréquentes"
-          title="Tout ce que vous voulez savoir,"
-          emphasis="avant de commencer."
-        />
+        <SectionHead eyebrow="QUESTIONS FRÉQUENTES">
+          On vous a peut-être <em>déjà répondu</em>.
+        </SectionHead>
 
         <div className="faq-list">
           {faqs.map((f, i) => (
@@ -966,38 +1072,39 @@ export function FaqSection() {
       </div>
 
       <style>{`
-        .faq-list { max-width: 820px; margin: 0 auto; }
+        .faq-sec { padding: 100px 0; background: #fff; }
+        .faq-list { max-width: 780px; margin: 0 auto; }
         .faq-item {
-          border-top: 1px solid var(--color-line);
+          border-bottom: 1px solid var(--color-line);
           padding: 22px 0;
         }
-        .faq-item:last-child { border-bottom: 1px solid var(--color-line); }
         .faq-item summary {
+          font-family: var(--font-display);
+          font-size: 19px; font-weight: 500;
+          color: var(--color-ink);
           cursor: pointer;
           list-style: none;
           display: flex; justify-content: space-between; align-items: center;
-          gap: 24px;
-          font-family: var(--font-display);
-          font-size: 20px;
-          font-weight: 500;
-          color: var(--color-ink);
-          letter-spacing: -0.015em;
+          gap: 16px;
+          letter-spacing: -0.01em;
         }
         .faq-item summary::-webkit-details-marker { display: none; }
         .faq-item summary::after {
-          content: "+";
-          font-size: 26px;
-          font-family: var(--font-sans);
-          font-weight: 300;
-          color: var(--color-blue);
-          transition: transform 0.2s;
+          content: '+';
+          font-family: var(--font-mono);
+          font-size: 22px; color: var(--color-blue);
+          transition: transform 0.25s;
         }
-        .faq-item[open] summary::after { transform: rotate(45deg); }
+        .faq-item[open] summary::after { content: '−'; }
         .faq-item p {
-          margin: 14px 0 0;
-          color: var(--color-ink-2);
-          font-size: 15.5px;
+          color: var(--color-muted);
+          margin: 12px 0 0;
+          font-size: 15px;
           line-height: 1.6;
+        }
+        @media (max-width: 600px) {
+          .faq-sec { padding: 70px 0; }
+          .faq-item summary { font-size: 17px; }
         }
       `}</style>
     </section>
@@ -1005,150 +1112,76 @@ export function FaqSection() {
 }
 
 // ============================================================================
-// FINAL CTA
+// FINAL CTA — bandeau bleu sombre avec halos
 // ============================================================================
 export function FinalCtaSection() {
   return (
-    <section className="finalcta">
-      <div aria-hidden className="finalcta-halo" />
-      <div aria-hidden className="finalcta-grid" />
-
-      <div className="container-x" style={{ position: "relative", zIndex: 1 }}>
-        <span className="finalcta-eyebrow">Prêt&nbsp;?</span>
-        <h2 className="final-h2">
-          Votre titre de séjour <em>vaut mieux</em>
-          <br />
-          qu&apos;une préparation au hasard.
-        </h2>
-        <p className="finalcta-lede">
-          Créez un compte en 30&nbsp;secondes, téléchargez l&apos;app, et lancez
-          votre première session ce soir. Sans carte bancaire pour commencer.
-        </p>
-
-        <div className="finalcta-actions">
-          <Link href="/inscription" className="btn btn-lg finalcta-primary">
-            Créer mon compte gratuit
-            <span className="arrow">→</span>
+    <section className="finalcta-wrap">
+      <div className="container-x">
+        <div className="cta-block">
+          <h2>
+            Votre <em>titre de séjour</em> ne devrait pas dépendre d&apos;un
+            coup de chance.
+          </h2>
+          <p>
+            Démarrez aujourd&apos;hui. Les premières questions sont gratuites,
+            sans inscription longue, sans carte bancaire.
+          </p>
+          <Link href="/inscription" className="btn btn-lg cta-block-btn">
+            Commencer maintenant <span className="arrow">→</span>
           </Link>
-          <Link href="/examens-blancs" className="btn btn-lg finalcta-ghost">
-            Voir les examens blancs
-          </Link>
-        </div>
-
-        <div className="finalcta-stores">
-          <span className="finalcta-stores-label">L&apos;app est dispo sur</span>
-          <a href="#" className="finalcta-store">
-            <span>Télécharger sur</span>
-            <strong>App Store</strong>
-          </a>
-          <a href="#" className="finalcta-store">
-            <span>Disponible sur</span>
-            <strong>Google Play</strong>
-          </a>
         </div>
       </div>
 
       <style>{`
-        .finalcta {
+        .finalcta-wrap {
+          padding: 60px 0 100px;
+          background: #fff;
+        }
+        .cta-block {
           background: var(--color-blue);
+          border-radius: 28px;
+          padding: 60px 50px;
           color: #fff;
-          text-align: center;
-          padding: 110px 0 100px;
           position: relative;
           overflow: hidden;
-          border-top: 4px solid var(--color-red);
-        }
-        .finalcta-halo {
-          position: absolute; inset: 0;
-          background:
-            radial-gradient(circle at 20% 30%, rgba(255,255,255,0.08) 0%, transparent 55%),
-            radial-gradient(circle at 80% 70%, rgba(225,55,47,0.25) 0%, transparent 55%);
-          pointer-events: none;
-        }
-        .finalcta-grid {
-          position: absolute; inset: 0;
           background-image:
-            linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
-          background-size: 40px 40px;
-          mask-image: radial-gradient(ellipse at 50% 50%, #000 0%, transparent 65%);
-          -webkit-mask-image: radial-gradient(ellipse at 50% 50%, #000 0%, transparent 65%);
-          pointer-events: none;
+            radial-gradient(at 100% 0%, var(--color-blue-dark) 0px, transparent 40%),
+            radial-gradient(at 0% 100%, rgba(225, 55, 47, 0.55) 0px, transparent 35%);
         }
-        .finalcta-eyebrow {
-          display: inline-block;
-          font-family: var(--font-mono);
-          font-size: 11px;
-          letter-spacing: 0.18em;
-          text-transform: uppercase;
-          color: rgba(255, 255, 255, 0.6);
-          margin-bottom: 18px;
-          padding: 5px 14px;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: 100px;
+        .cta-block h2 {
+          font-family: var(--font-display);
+          font-weight: 600;
+          font-size: clamp(28px, 4vw, 40px);
+          line-height: 1.15;
+          margin: 0 0 14px;
+          letter-spacing: -0.02em;
+          max-width: 580px;
         }
-        .final-h2 {
-          font-family: var(--font-display); font-weight: 500;
-          font-size: clamp(34px, 4.8vw, 56px);
-          line-height: 1.05; letter-spacing: -0.025em;
-          margin: 0 0 18px; color: #fff;
+        .cta-block h2 em {
+          color: #FFB3B0;
+          font-style: italic;
+          font-weight: 500;
         }
-        .final-h2 em { font-style: italic; color: #ffb3b0; }
-        .finalcta-lede {
-          color: rgba(255,255,255,0.82); font-size: 18px;
-          margin: 0 auto 36px; max-width: 580px;
+        .cta-block p {
+          color: rgba(255,255,255,0.82);
+          margin: 0 0 28px;
+          font-size: 16px;
+          max-width: 540px;
           line-height: 1.55;
         }
-        .finalcta-actions {
-          display: flex; gap: 12px; flex-wrap: wrap;
-          justify-content: center; margin-bottom: 56px;
+        .cta-block-btn {
+          background: #fff;
+          color: var(--color-blue);
+          border-color: #fff;
         }
-        .finalcta-primary {
-          background: #fff; color: var(--color-blue); border-color: #fff;
-          font-weight: 700;
+        .cta-block-btn:hover {
+          background: var(--color-paper);
+          border-color: var(--color-paper);
         }
-        .finalcta-primary:hover { background: rgba(255,255,255,0.92); }
-        .finalcta-ghost {
-          background: transparent; color: #fff;
-          border-color: rgba(255,255,255,0.3);
-        }
-        .finalcta-ghost:hover {
-          background: rgba(255,255,255,0.08);
-          border-color: rgba(255,255,255,0.5);
-        }
-
-        .finalcta-stores {
-          display: flex; gap: 12px; align-items: center;
-          justify-content: center; flex-wrap: wrap;
-          padding-top: 36px;
-          border-top: 1px solid rgba(255, 255, 255, 0.12);
-        }
-        .finalcta-stores-label {
-          font-family: var(--font-mono);
-          font-size: 10px; letter-spacing: 0.18em;
-          text-transform: uppercase;
-          color: rgba(255, 255, 255, 0.55);
-          margin-right: 4px;
-        }
-        .finalcta-store {
-          display: flex; flex-direction: column;
-          padding: 8px 18px;
-          background: #fff; color: var(--color-ink);
-          border-radius: 10px; text-decoration: none;
-          min-width: 150px;
-          transition: transform 0.15s;
-        }
-        .finalcta-store:hover { transform: translateY(-2px); }
-        .finalcta-store span {
-          font-family: var(--font-mono);
-          font-size: 9px; letter-spacing: 0.16em;
-          text-transform: uppercase;
-          color: var(--color-muted);
-        }
-        .finalcta-store strong {
-          font-family: var(--font-sans);
-          font-weight: 700; font-size: 16px;
-          letter-spacing: -0.01em;
+        @media (max-width: 720px) {
+          .finalcta-wrap { padding: 40px 0 70px; }
+          .cta-block { padding: 40px 28px; }
         }
       `}</style>
     </section>

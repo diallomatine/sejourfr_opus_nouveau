@@ -6,127 +6,299 @@ import { ApiException, attemptApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type { AttemptSummaryResponse } from "@/lib/types";
 
+type TypeFilter = "ALL" | "EXAM" | "TRAIN";
+type PeriodFilter = "7D" | "30D" | "ALL";
+
 export default function HistoriquePage() {
   const { user, status } = useAuth();
-  const [data, setData] = useState<{
-    loading: boolean;
-    attempts: AttemptSummaryResponse[];
-    error: string | null;
-  }>({ loading: true, attempts: [], error: null });
+
+  const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("30D");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
+    if (status !== "authenticated") return;
     let cancelled = false;
+    setLoading(true);
     attemptApi
-      .listMine({ type: "MOCK_EXAM", limit: 20 })
+      .listMine({ limit: 100 })
       .then((list) => {
         if (cancelled) return;
-        setData({ loading: false, attempts: list, error: null });
+        setAttempts(list);
+        setError(null);
+        setLoading(false);
       })
-      .catch((e) => {
+      .catch((e: unknown) => {
         if (cancelled) return;
-        setData({
-          loading: false,
-          attempts: [],
-          error:
-            e instanceof ApiException
-              ? e.message
-              : "Impossible de charger l'historique.",
-        });
+        setError(
+          e instanceof ApiException
+            ? e.message
+            : "Impossible de charger l'historique.",
+        );
+        setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [status]);
 
-  // Tri par date desc (le backend renvoie sans doute déjà trié, on sécurise).
-  const sorted = useMemo(
-    () =>
-      [...data.attempts].sort(
-        (a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt),
-      ),
-    [data.attempts],
-  );
+  // ========== FILTRES ==========
+  const filtered = useMemo(() => {
+    const now = Date.now();
+    const periodMs =
+      periodFilter === "7D"
+        ? 7 * 86_400_000
+        : periodFilter === "30D"
+          ? 30 * 86_400_000
+          : null;
+    const q = query.trim().toLowerCase();
 
-  const finished = sorted.filter((a) => a.finishedAt && a.score !== null);
-  const avgPct = useMemo(() => {
-    if (finished.length < 2) return null;
-    const ratios = finished.map((a) =>
-      a.totalQuestions > 0 ? (a.score ?? 0) / a.totalQuestions : 0,
+    return [...attempts]
+      .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
+      .filter((a) => {
+        // type
+        if (typeFilter === "EXAM" && a.type !== "MOCK_EXAM") return false;
+        if (typeFilter === "TRAIN" && a.type !== "TRAINING") return false;
+        // période
+        if (periodMs != null && now - Date.parse(a.startedAt) > periodMs)
+          return false;
+        // recherche : module + type + difficulty
+        if (q) {
+          const moduleLabel = (a.module === "TCF" ? "tcf" : "civique").toLowerCase();
+          const typeLabel =
+            a.type === "MOCK_EXAM" ? "examen blanc exam" : "entraînement training";
+          const diffLabel = a.difficulty ? String(a.difficulty).toLowerCase() : "";
+          if (
+            !moduleLabel.includes(q) &&
+            !typeLabel.includes(q) &&
+            !diffLabel.includes(q)
+          ) {
+            return false;
+          }
+        }
+        return true;
+      });
+  }, [attempts, typeFilter, periodFilter, query]);
+
+  // ========== STATS GLOBALES ==========
+  const stats = useMemo(() => {
+    const finished = attempts.filter(
+      (a) => a.finishedAt && a.score !== null && a.score !== undefined,
     );
-    return Math.round((ratios.reduce((acc, r) => acc + r, 0) / ratios.length) * 100);
-  }, [finished]);
+    const exams = finished.filter((a) => a.type === "MOCK_EXAM");
+    if (finished.length === 0) {
+      return {
+        total: 0,
+        passRate: null as number | null,
+        bestLabel: null as string | null,
+        bestDetail: null as string | null,
+      };
+    }
+    const passed = exams.filter((a) => {
+      if (a.module === "CIVIQUE" && a.passThreshold != null) {
+        return (a.score ?? 0) >= a.passThreshold;
+      }
+      return (a.score ?? 0) / a.totalQuestions >= 0.6;
+    }).length;
+    const passRate = exams.length > 0 ? Math.round((passed / exams.length) * 100) : null;
+    let bestPct = -1;
+    let best: AttemptSummaryResponse | null = null;
+    for (const a of exams) {
+      const pct = (a.score ?? 0) / a.totalQuestions;
+      if (pct > bestPct) {
+        bestPct = pct;
+        best = a;
+      }
+    }
+    const bestLabel = best ? `${best.score}/${best.totalQuestions}` : null;
+    const bestDetail = best
+      ? `${best.module === "TCF" ? "TCF" : "Civique"} · ${formatShortDate(best.startedAt)}`
+      : null;
+    return {
+      total: finished.length,
+      passRate,
+      bestLabel,
+      bestDetail,
+    };
+  }, [attempts]);
 
-  if (status === "loading") return <div className="hi-loading" />;
+  if (status === "loading") return <HistoriqueSkeleton />;
   if (!user) {
     return (
       <main className="hi-gate">
         <p>Connectez-vous pour voir votre historique.</p>
-        <Link href="/connexion?next=/historique" className="btn btn-blue">
-          Se connecter
+        <Link href="/connexion?next=/historique" className="hi-gate-cta">
+          Se connecter →
         </Link>
+        <style>{gateStyles}</style>
       </main>
     );
   }
 
   return (
     <main className="hi">
-      <section className="hi-head">
-        <div className="hi-wrap">
-          <span className="eyebrow">Historique</span>
+      {/* ============ TOPBAR ============ */}
+      <header className="topbar">
+        <div>
+          <div className="breadcrumb">
+            ACCUEIL <span className="sep">/</span> HISTORIQUE
+          </div>
           <h1>
-            Vos <em>examens blancs</em> passés.
+            Toutes vos <em>sessions</em>.
           </h1>
-          <p>
-            Retrouvez toutes vos sessions et la progression dans le temps. Cliquez
-            sur une session pour revoir le résultat détaillé.
-          </p>
+        </div>
+        <div className="topbar-actions">
+          <Link href="/revision" className="btn-outline">
+            Mes erreurs →
+          </Link>
+        </div>
+      </header>
+
+      {error && <div className="form-error hi-error">{error}</div>}
+
+      {/* ============ STATS ============ */}
+      <section className="stats-grid">
+        <StatCard
+          tone="blue"
+          icon={<ListIcon />}
+          label="SESSIONS TOTALES"
+          value={String(stats.total)}
+          trend={stats.total > 0 ? `${attempts.filter((a) => a.type === "MOCK_EXAM").length} examens · ${attempts.filter((a) => a.type === "TRAINING").length} entraînements` : "Pas encore"}
+        />
+        <StatCard
+          tone="green"
+          icon={<CheckIcon />}
+          label="TAUX DE RÉUSSITE EXAMENS"
+          value={stats.passRate != null ? `${stats.passRate}%` : "—"}
+          trend={stats.passRate != null ? "Sur vos examens blancs" : "À débloquer"}
+        />
+        <StatCard
+          tone="amber"
+          icon={<TrophyIcon />}
+          label="MEILLEUR SCORE"
+          value={stats.bestLabel ?? "—"}
+          trend={stats.bestDetail ?? "À jouer"}
+        />
+      </section>
+
+      {/* ============ FILTERS ============ */}
+      <section className="filters">
+        <div className="filter-tabs" role="tablist" aria-label="Type de session">
+          {(
+            [
+              ["ALL", "Tout"],
+              ["EXAM", "Examens"],
+              ["TRAIN", "Entraînements"],
+            ] as const
+          ).map(([k, lbl]) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={typeFilter === k}
+              className={`tab ${typeFilter === k ? "is-active" : ""}`}
+              onClick={() => setTypeFilter(k)}
+            >
+              {lbl}
+              {typeFilter === k && filtered.length > 0 && (
+                <span className="tab-count">{filtered.length}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <div className="period-chips">
+          {(
+            [
+              ["7D", "7 jours"],
+              ["30D", "30 jours"],
+              ["ALL", "Tout"],
+            ] as const
+          ).map(([k, lbl]) => (
+            <button
+              key={k}
+              type="button"
+              className={`chip ${periodFilter === k ? "is-active" : ""}`}
+              onClick={() => setPeriodFilter(k)}
+            >
+              {lbl}
+            </button>
+          ))}
+        </div>
+
+        <div className="search-wrap">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Civique, TCF, NAT…"
+            aria-label="Filtrer les sessions"
+          />
         </div>
       </section>
 
-      <section className="hi-body">
-        <div className="hi-wrap">
-          {data.loading && <ListLoading />}
-          {data.error && !data.loading && <div className="form-error">{data.error}</div>}
-
-          {!data.loading && !data.error && sorted.length === 0 && (
-            <div className="hi-empty">
-              <div className="hi-empty-icon" aria-hidden>
-                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="13" r="8" />
-                  <path d="M12 9v4l3 2M9 3h6" />
-                </svg>
-              </div>
-              <h2>Aucun examen blanc passé</h2>
-              <p>
-                Lancez votre premier examen pour mesurer votre niveau en
-                conditions réelles. Le résultat apparaîtra ici.
-              </p>
-              <Link href="/examens-blancs" className="btn btn-blue">
-                Choisir un examen blanc →
-              </Link>
+      {/* ============ TABLE ============ */}
+      <section className="hi-card">
+        {loading && attempts.length === 0 ? (
+          <TableSkeleton />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            hasAny={attempts.length > 0}
+            onReset={() => {
+              setTypeFilter("ALL");
+              setPeriodFilter("ALL");
+              setQuery("");
+            }}
+          />
+        ) : (
+          <>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>DATE</th>
+                    <th>TYPE</th>
+                    <th>MODULE</th>
+                    <th>QUESTIONS</th>
+                    <th>DURÉE</th>
+                    <th>SCORE</th>
+                    <th>STATUT</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((a) => (
+                    <AttemptRow key={a.id} a={a} />
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-
-          {!data.loading && finished.length >= 2 && (
-            <div className="hi-summary">
-              <div className="hi-summary-stat">
-                <span className="hi-summary-pct" data-tone={avgPct! >= 70 ? "good" : "warn"}>
-                  {avgPct}%
-                </span>
-                <span className="hi-summary-label">Taux moyen sur {finished.length} sessions</span>
-              </div>
-              <ProgressChart attempts={finished.slice(0, 6).reverse()} />
+            <div className="hi-footer">
+              <span>
+                {filtered.length} session{filtered.length > 1 ? "s" : ""} affichée
+                {filtered.length > 1 ? "s" : ""} sur {attempts.length}
+              </span>
             </div>
-          )}
-
-          {sorted.length > 0 && (
-            <div className="hi-list">
-              {sorted.map((a) => (
-                <AttemptRow key={a.id} attempt={a} />
-              ))}
-            </div>
-          )}
-        </div>
+          </>
+        )}
       </section>
 
       <style>{styles}</style>
@@ -135,404 +307,644 @@ export default function HistoriquePage() {
 }
 
 // ============================================================================
-// PROGRESS CHART (custom SVG, 6 derniers attempts en barres)
+// STAT CARD
 // ============================================================================
-function ProgressChart({ attempts }: { attempts: AttemptSummaryResponse[] }) {
-  const W = 320;
-  const H = 110;
-  const PAD = { top: 14, right: 8, bottom: 22, left: 30 };
-  const innerW = W - PAD.left - PAD.right;
-  const innerH = H - PAD.top - PAD.bottom;
-  const n = attempts.length;
-  if (n === 0) return null;
-
-  const barWidth = innerW / n - 6;
-
+function StatCard({
+  tone,
+  icon,
+  label,
+  value,
+  trend,
+}: {
+  tone: "blue" | "red" | "green" | "amber";
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  trend?: string;
+}) {
   return (
-    <div className="hi-chart">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Évolution des derniers résultats">
-        {/* Lignes horizontales 0/50/100% */}
-        {[0, 0.5, 1].map((r) => {
-          const y = PAD.top + innerH - r * innerH;
-          return (
-            <g key={r}>
-              <line x1={PAD.left} y1={y} x2={PAD.left + innerW} y2={y} stroke="#EEF0F8" strokeWidth={1} />
-              <text x={PAD.left - 6} y={y + 3} textAnchor="end" fontSize={8.5} fill="#9CA2BD" fontFamily="var(--font-mono)">
-                {Math.round(r * 100)}
-              </text>
-            </g>
-          );
-        })}
-
-        {attempts.map((a, i) => {
-          const ratio = a.totalQuestions > 0 ? (a.score ?? 0) / a.totalQuestions : 0;
-          const x = PAD.left + i * (innerW / n) + 3;
-          const h = Math.max(2, ratio * innerH);
-          const y = PAD.top + innerH - h;
-          const thresholdRatio =
-            a.passThreshold && a.totalQuestions > 0
-              ? a.passThreshold / a.totalQuestions
-              : null;
-          const passed = thresholdRatio !== null && ratio >= thresholdRatio;
-          const isLast = i === attempts.length - 1;
-          const color = isLast
-            ? "#1E3A8C"
-            : passed
-              ? "#168F5B"
-              : "#E8A317";
-          return (
-            <g key={a.id}>
-              <rect
-                x={x}
-                y={y}
-                width={barWidth}
-                height={h}
-                rx={3}
-                fill={color}
-                opacity={isLast ? 1 : 0.75}
-              />
-              {thresholdRatio !== null && (
-                <line
-                  x1={x - 1}
-                  y1={PAD.top + innerH - thresholdRatio * innerH}
-                  x2={x + barWidth + 1}
-                  y2={PAD.top + innerH - thresholdRatio * innerH}
-                  stroke="#E1372F"
-                  strokeWidth={1.2}
-                  strokeDasharray="2 2"
-                />
-              )}
-              <text
-                x={x + barWidth / 2}
-                y={H - 8}
-                textAnchor="middle"
-                fontSize={8.5}
-                fill="#6B7299"
-                fontFamily="var(--font-mono)"
-              >
-                {a.score ?? "—"}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-      <div className="hi-chart-legend">
-        <span className="hi-chart-legend-item">
-          <span className="hi-chart-dot" style={{ background: "#168F5B" }} /> Réussi
-        </span>
-        <span className="hi-chart-legend-item">
-          <span className="hi-chart-dot" style={{ background: "#E8A317" }} /> Échoué
-        </span>
-        <span className="hi-chart-legend-item">
-          <span className="hi-chart-dot" style={{ background: "#1E3A8C" }} /> Dernier
-        </span>
-        <span className="hi-chart-legend-item">
-          <span className="hi-chart-dash" /> Seuil
-        </span>
-      </div>
+    <div className="stat-card">
+      <div className={`stat-icon stat-icon-${tone}`}>{icon}</div>
+      <div className="stat-label">{label}</div>
+      <div className="stat-value">{value}</div>
+      {trend && <div className="stat-trend">{trend}</div>}
     </div>
   );
 }
 
 // ============================================================================
-// ATTEMPT ROW
+// ROW
 // ============================================================================
-function AttemptRow({ attempt }: { attempt: AttemptSummaryResponse }) {
-  const isTcf = attempt.module === "TCF";
-  const score = attempt.score ?? 0;
-  const total = attempt.totalQuestions;
+function AttemptRow({ a }: { a: AttemptSummaryResponse }) {
+  const isTcf = a.module === "TCF";
+  const isExam = a.type === "MOCK_EXAM";
+  const score = a.score ?? 0;
+  const total = a.totalQuestions;
   const pct = total > 0 ? Math.round((score / total) * 100) : 0;
-  const passed =
-    attempt.passThreshold !== null &&
-    attempt.passThreshold !== undefined &&
-    score >= attempt.passThreshold;
-  const isFinished = !!attempt.finishedAt;
+  const isFinished = !!a.finishedAt;
 
-  let badgeLabel: string;
-  let badgeTone: "good" | "warn" | "neutral";
-  if (!isFinished) {
-    badgeLabel = "En cours";
-    badgeTone = "neutral";
-  } else if (isTcf) {
-    badgeLabel = "Diagnostic TCF";
-    badgeTone = "neutral";
-  } else {
-    badgeLabel = passed ? "Réussi" : "Non atteint";
-    badgeTone = passed ? "good" : "warn";
-  }
-
-  const duration =
-    attempt.finishedAt
+  const minutes =
+    isFinished && a.finishedAt
       ? Math.max(
           1,
-          Math.round(
-            (Date.parse(attempt.finishedAt) - Date.parse(attempt.startedAt)) /
-              60000,
-          ),
+          Math.round((Date.parse(a.finishedAt) - Date.parse(a.startedAt)) / 60000),
         )
       : null;
 
-  const targetTag = attempt.difficulty ? String(attempt.difficulty) : null;
+  let statusLabel: string;
+  let statusTone: "good" | "warn" | "neutral";
+  if (!isFinished) {
+    statusLabel = "EN COURS";
+    statusTone = "neutral";
+  } else if (isExam) {
+    if (isTcf) {
+      statusLabel = "DIAGNOSTIC";
+      statusTone = "neutral";
+    } else if (a.passThreshold != null) {
+      const passed = score >= a.passThreshold;
+      statusLabel = passed ? "RÉUSSI" : "ÉCHEC";
+      statusTone = passed ? "good" : "warn";
+    } else {
+      statusLabel = `${pct}%`;
+      statusTone = pct >= 70 ? "good" : "warn";
+    }
+  } else {
+    statusLabel = `${pct}%`;
+    statusTone = pct >= 70 ? "good" : pct >= 50 ? "neutral" : "warn";
+  }
 
   return (
-    <Link href={`/sessions/${attempt.id}`} className="hi-row">
-      <div className="hi-row-date">
-        <span className="hi-row-day">{formatDay(attempt.startedAt)}</span>
-        <span className="hi-row-month">{formatMonth(attempt.startedAt)}</span>
-      </div>
-      <div className="hi-row-body">
-        <div className="hi-row-meta">
-          <span className={`hi-tag ${isTcf ? "tcf" : "civique"}`}>
-            {isTcf ? "TCF IRN" : "Civique"}
+    <tr onClick={() => (window.location.href = `/sessions/${a.id}`)}>
+      <td>{formatRowDate(a.startedAt)}</td>
+      <td>
+        <span className={`tag tag-${isExam ? "exam" : "train"}`}>
+          {isExam ? "EXAMEN" : "ENTRAÎN."}
+        </span>
+      </td>
+      <td>
+        <span className={`module-pill module-pill-${isTcf ? "red" : "blue"}`}>
+          {isTcf ? "TCF" : "Civique"}
+        </span>
+        {a.difficulty && (
+          <span className="row-target">{String(a.difficulty)}</span>
+        )}
+      </td>
+      <td className="num">{total}</td>
+      <td className="num">{minutes != null ? `${minutes} min` : "—"}</td>
+      <td>
+        {isFinished && a.score != null ? (
+          <span
+            className={`score-pill score-pill-${
+              statusTone === "good" ? "pass" : statusTone === "warn" ? "fail" : "neutral"
+            }`}
+          >
+            <span className="score-pill-ico">
+              {statusTone === "good" ? "✓" : statusTone === "warn" ? "✕" : "·"}
+            </span>{" "}
+            {a.score} / {total}
           </span>
-          {targetTag && <span className="hi-tag-mono">{targetTag}</span>}
-          <span className={`hi-badge ${badgeTone}`}>{badgeLabel}</span>
-        </div>
-        <div className="hi-row-stats">
-          {isFinished ? (
-            <>
-              <strong>{score}</strong>/{total} bonnes réponses · {pct}%
-              {duration !== null && <> · {duration} min</>}
-              {!isTcf && attempt.passThreshold !== null && attempt.passThreshold !== undefined && (
-                <> · seuil {attempt.passThreshold}</>
-              )}
-            </>
-          ) : (
-            <>Démarré il y a {timeAgo(attempt.startedAt)}</>
-          )}
-        </div>
-      </div>
-      <div className="hi-row-arrow">›</div>
-    </Link>
+        ) : (
+          <span className="score-pill score-pill-neutral">—</span>
+        )}
+      </td>
+      <td>
+        <span className={`status-text status-text-${statusTone}`}>{statusLabel}</span>
+      </td>
+      <td className="row-chevron">›</td>
+    </tr>
   );
 }
+
+// ============================================================================
+// EMPTY / SKELETON
+// ============================================================================
+function EmptyState({
+  hasAny,
+  onReset,
+}: {
+  hasAny: boolean;
+  onReset: () => void;
+}) {
+  if (!hasAny) {
+    return (
+      <div className="hi-empty">
+        <div className="hi-empty-icon" aria-hidden>
+          <svg
+            viewBox="0 0 24 24"
+            width="28"
+            height="28"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="12" cy="13" r="8" />
+            <path d="M12 9v4l3 2M9 3h6" />
+          </svg>
+        </div>
+        <h3>Aucune session pour le moment</h3>
+        <p>
+          Lancez votre premier entraînement ou examen blanc. Le résultat
+          apparaîtra ici.
+        </p>
+        <div className="hi-empty-cta-wrap">
+          <Link href="/entrainement" className="btn-primary">
+            S&apos;entraîner
+          </Link>
+          <Link href="/examens-blancs" className="btn-outline">
+            Examens blancs
+          </Link>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="hi-empty">
+      <h3>Aucune session ne correspond aux filtres</h3>
+      <p>Essayez d&apos;élargir la période ou de changer le type de session.</p>
+      <button type="button" className="btn-primary" onClick={onReset}>
+        Réinitialiser les filtres
+      </button>
+    </div>
+  );
+}
+
+function TableSkeleton() {
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>DATE</th>
+            <th>TYPE</th>
+            <th>MODULE</th>
+            <th>QUESTIONS</th>
+            <th>DURÉE</th>
+            <th>SCORE</th>
+            <th>STATUT</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <tr key={i} className="skel-row">
+              {Array.from({ length: 8 }).map((_, j) => (
+                <td key={j}>
+                  <span className="skel-cell" />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function HistoriqueSkeleton() {
+  return (
+    <div className="hi-loading">
+      <style>{`.hi-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
+    </div>
+  );
+}
+
+const gateStyles = `
+  .hi-gate {
+    min-height: 60vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px;
+    color: var(--color-muted);
+    padding: 36px;
+  }
+  .hi-gate-cta { color: var(--color-blue); font-weight: 700; text-decoration: none; }
+`;
 
 // ============================================================================
 // HELPERS
 // ============================================================================
-const MONTHS = [
-  "janv.", "févr.", "mars", "avr.", "mai", "juin",
-  "juil.", "août", "sept.", "oct.", "nov.", "déc.",
-];
+const SHORT_MONTHS = ["janv", "févr", "mars", "avr", "mai", "juin", "juil", "août", "sept", "oct", "nov", "déc"];
 
-function formatDay(iso: string): string {
-  return new Date(iso).getDate().toString().padStart(2, "0");
+function formatRowDate(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const day = new Date(d);
+  day.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((today.getTime() - day.getTime()) / (1000 * 60 * 60 * 24));
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  if (diffDays === 0) return `Aujourd'hui · ${hh}:${mm}`;
+  if (diffDays === 1) return `Hier · ${hh}:${mm}`;
+  return `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]} · ${hh}:${mm}`;
 }
 
-function formatMonth(iso: string): string {
-  return MONTHS[new Date(iso).getMonth()];
-}
-
-function timeAgo(iso: string): string {
-  const diffMs = Date.now() - Date.parse(iso);
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "moins d'une minute";
-  if (diffMin < 60) return `${diffMin} min`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH} h`;
-  const diffD = Math.floor(diffH / 24);
-  return `${diffD} j`;
+function formatShortDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]}`;
 }
 
 // ============================================================================
-// SUB
+// ICONS
 // ============================================================================
-function ListLoading() {
-  return (
-    <div className="hi-list">
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="hi-row hi-row-skeleton" />
-      ))}
-    </div>
-  );
-}
+const I = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  />
+);
+const ListIcon = () => (
+  <I>
+    <line x1="8" y1="6" x2="21" y2="6" />
+    <line x1="8" y1="12" x2="21" y2="12" />
+    <line x1="8" y1="18" x2="21" y2="18" />
+    <circle cx="4" cy="6" r="1" />
+    <circle cx="4" cy="12" r="1" />
+    <circle cx="4" cy="18" r="1" />
+  </I>
+);
+const CheckIcon = () => (
+  <I>
+    <polyline points="20 6 9 17 4 12" />
+  </I>
+);
+const TrophyIcon = () => (
+  <I>
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </I>
+);
 
 // ============================================================================
 // STYLES
 // ============================================================================
 const styles = `
-  .hi { background: var(--color-paper); min-height: calc(100vh - 110px); }
-  .hi-loading { min-height: 60vh; }
-  .hi-gate {
-    min-height: 60vh;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 14px; color: var(--color-muted);
-  }
-  .hi-wrap { max-width: 760px; margin: 0 auto; }
+  .hi { padding: 24px 36px 64px; max-width: 1320px; }
+  @media (max-width: 760px) { .hi { padding: 20px 16px 56px; } }
 
-  .hi-head { padding: 40px 16px 24px; text-align: center; }
-  .hi-head h1 {
-    font-family: var(--font-display); font-weight: 500;
-    font-size: clamp(28px, 4vw, 40px); line-height: 1.05; letter-spacing: -0.025em;
-    margin: 10px 0 12px;
+  /* ========== TOPBAR ========== */
+  .topbar {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 16px; flex-wrap: wrap;
+    margin-bottom: 26px;
   }
-  .hi-head h1 em { font-style: italic; color: var(--color-red); }
-  .hi-head p {
-    color: var(--color-muted); font-size: 15px; line-height: 1.55;
-    margin: 0 auto 22px; max-width: 540px;
+  .breadcrumb {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
   }
-
-  .hi-body { padding: 8px 16px 80px; }
-
-  .hi-empty {
+  .breadcrumb .sep { margin: 0 6px; opacity: 0.5; }
+  .topbar h1 {
+    font-family: var(--font-display);
+    font-size: clamp(24px, 3.2vw, 32px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0;
+    line-height: 1.15;
+  }
+  .topbar h1 em {
+    color: var(--color-blue);
+    font-style: italic;
+    font-weight: 500;
+  }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .btn-outline {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 16px; border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+    text-decoration: none;
+    border: 1px solid var(--color-line);
     background: #fff;
-    border: 1px dashed var(--color-line);
-    border-radius: 16px;
-    padding: 48px 32px;
-    text-align: center;
-    margin-top: 16px;
+    color: var(--color-ink);
+    transition: all 0.15s;
+    cursor: pointer;
+    font-family: inherit;
   }
-  .hi-empty-icon {
-    width: 56px; height: 56px;
-    margin: 0 auto 14px;
-    background: var(--color-blue-light); color: var(--color-blue);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
+  .btn-outline:hover { border-color: var(--color-blue); color: var(--color-blue); }
+  .btn-primary {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 16px; border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+    text-decoration: none;
+    border: 1px solid transparent;
+    background: var(--color-blue); color: #fff;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
   }
-  .hi-empty h2 {
-    font-family: var(--font-display); font-weight: 500; font-size: 22px;
-    color: var(--color-ink); margin: 0 0 8px;
-    letter-spacing: -0.015em;
-  }
-  .hi-empty p {
-    color: var(--color-muted); font-size: 13.5px; line-height: 1.55;
-    margin: 0 auto 18px; max-width: 380px;
-  }
+  .btn-primary:hover { background: var(--color-blue-dark); }
 
-  /* ----- SUMMARY ----- */
-  .hi-summary {
+  .hi-error { margin-bottom: 18px; }
+
+  /* ========== STATS ========== */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 26px;
+  }
+  .stat-card {
     background: #fff;
     border: 1px solid var(--color-line);
     border-radius: 16px;
-    padding: 22px 24px;
-    margin: 18px 0 28px;
-    display: grid;
-    grid-template-columns: minmax(140px, 200px) 1fr;
-    gap: 24px;
-    align-items: center;
+    padding: 18px;
   }
-  @media (max-width: 640px) {
-    .hi-summary { grid-template-columns: 1fr; }
+  .stat-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 14px;
   }
-  .hi-summary-stat { display: flex; flex-direction: column; gap: 4px; }
-  .hi-summary-pct {
-    font-family: var(--font-display); font-weight: 500;
-    font-size: 48px; line-height: 1; letter-spacing: -0.04em;
+  .stat-icon-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .stat-icon-red { background: var(--color-red-light); color: var(--color-red); }
+  .stat-icon-green { background: rgba(22, 143, 91, 0.1); color: var(--color-green); }
+  .stat-icon-amber { background: rgba(232, 163, 23, 0.12); color: var(--color-amber); }
+  .stat-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    margin-bottom: 6px;
+    font-weight: 600;
   }
-  .hi-summary-pct[data-tone="good"] { color: var(--color-green); }
-  .hi-summary-pct[data-tone="warn"] { color: var(--color-amber); }
-  .hi-summary-label {
-    font-family: var(--font-mono); font-size: 10.5px;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--color-muted); font-weight: 600;
+  .stat-value {
+    font-family: var(--font-display);
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--color-ink);
   }
-
-  .hi-chart {
-    display: flex; flex-direction: column; gap: 10px;
-  }
-  .hi-chart svg { width: 100%; height: auto; max-width: 360px; display: block; }
-  .hi-chart-legend {
-    display: flex; flex-wrap: wrap; gap: 10px;
-    font-family: var(--font-mono); font-size: 10px;
-    color: var(--color-muted); letter-spacing: 0.08em;
-  }
-  .hi-chart-legend-item {
-    display: inline-flex; align-items: center; gap: 5px;
-  }
-  .hi-chart-dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
-  .hi-chart-dash {
-    display: inline-block; width: 12px; height: 1.5px;
-    background: repeating-linear-gradient(
-      to right, var(--color-red), var(--color-red) 2px, transparent 2px, transparent 4px
-    );
+  .stat-trend { font-size: 12px; margin-top: 6px; color: var(--color-muted); }
+  @media (max-width: 760px) {
+    .stats-grid { grid-template-columns: 1fr; }
   }
 
-  /* ----- LIST ----- */
-  .hi-list { display: flex; flex-direction: column; gap: 8px; }
-  .hi-row {
-    display: grid;
-    grid-template-columns: 44px 1fr 24px;
-    align-items: center; gap: 14px;
+  /* ========== FILTERS ========== */
+  .filters {
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .filter-tabs {
+    display: inline-flex;
     background: #fff;
     border: 1px solid var(--color-line);
     border-radius: 12px;
-    padding: 14px 16px;
-    text-decoration: none;
-    color: inherit;
+    padding: 4px;
+    gap: 2px;
+  }
+  .tab {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 8px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-muted);
+    cursor: pointer;
     transition: all 0.15s;
   }
-  .hi-row:hover {
+  .tab:hover { color: var(--color-ink); }
+  .tab.is-active {
+    background: var(--color-blue);
+    color: #fff;
+  }
+  .tab-count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    background: rgba(255, 255, 255, 0.25);
+    padding: 1px 6px;
+    border-radius: 100px;
+    font-weight: 700;
+  }
+
+  .period-chips {
+    display: flex; gap: 6px;
+  }
+  .chip {
+    padding: 8px 14px;
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--color-ink-2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .chip:hover { border-color: var(--color-blue); color: var(--color-blue); }
+  .chip.is-active {
+    background: var(--color-ink);
+    color: #fff;
+    border-color: var(--color-ink);
+  }
+
+  .search-wrap {
+    position: relative;
+    margin-left: auto;
+  }
+  .search-wrap svg {
+    position: absolute;
+    left: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--color-muted);
+  }
+  .search-wrap input {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    padding: 9px 14px 9px 36px;
+    font-family: inherit;
+    font-size: 13px;
+    width: 240px;
+    color: var(--color-ink);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .search-wrap input:focus {
+    outline: none;
     border-color: var(--color-blue);
-    box-shadow: 0 8px 20px -10px rgba(30, 58, 140, 0.18);
+    box-shadow: 0 0 0 3px rgba(30, 58, 140, 0.12);
   }
-  .hi-row-skeleton {
-    height: 76px;
-    animation: hi-pulse 1.4s ease-in-out infinite;
+
+  /* ========== TABLE CARD ========== */
+  .hi-card {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 18px;
+    overflow: hidden;
   }
-  @keyframes hi-pulse {
+  .table-wrap {
+    overflow-x: auto;
+  }
+  table { width: 100%; border-collapse: collapse; min-width: 700px; }
+  th, td { text-align: left; padding: 13px 16px; }
+  th {
+    background: var(--color-paper);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    font-weight: 600;
+    border-bottom: 1px solid var(--color-line);
+    white-space: nowrap;
+  }
+  td {
+    font-size: 13.5px;
+    color: var(--color-ink-2);
+    border-bottom: 1px solid var(--color-line-2);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr {
+    transition: background 0.15s;
+    cursor: pointer;
+  }
+  tbody tr:hover { background: var(--color-blue-soft); }
+  .num { font-family: var(--font-mono); font-size: 13px; color: var(--color-ink-2); }
+  .row-chevron { text-align: right; color: var(--color-muted-2); font-size: 18px; }
+
+  .tag {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+  }
+  .tag-exam { background: rgba(232, 163, 23, 0.18); color: var(--color-amber); }
+  .tag-train { background: var(--color-line-2); color: var(--color-ink-2); }
+
+  .module-pill {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-weight: 700;
+    margin-right: 6px;
+  }
+  .module-pill-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .module-pill-red { background: var(--color-red-light); color: var(--color-red); }
+  .row-target {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--color-muted);
+    font-weight: 600;
+  }
+
+  .score-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .score-pill-pass { color: var(--color-green); }
+  .score-pill-fail { color: var(--color-red); }
+  .score-pill-neutral { color: var(--color-muted); font-weight: 600; }
+  .score-pill-ico {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff;
+    font-size: 9px;
+    background: var(--color-green);
+  }
+  .score-pill-fail .score-pill-ico { background: var(--color-red); }
+  .score-pill-neutral .score-pill-ico { background: var(--color-muted-2); }
+
+  .status-text {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+  .status-text-good { color: var(--color-green); }
+  .status-text-warn { color: var(--color-red); }
+  .status-text-neutral { color: var(--color-muted); }
+
+  /* ===== skeleton ===== */
+  .skel-row td { padding: 16px; }
+  .skel-cell {
+    display: block;
+    height: 14px;
+    background: var(--color-paper-2);
+    border-radius: 4px;
+    animation: skel-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes skel-pulse {
     0%, 100% { opacity: 0.55; }
     50% { opacity: 1; }
   }
-  .hi-row-date {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
+
+  /* ===== footer ===== */
+  .hi-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--color-line-2);
+    font-size: 13px;
+    color: var(--color-muted);
     background: var(--color-paper);
-    border-radius: 10px;
-    padding: 6px 8px;
-    text-align: center;
-  }
-  .hi-row-day {
-    font-family: var(--font-display); font-weight: 500;
-    font-size: 18px; line-height: 1; color: var(--color-ink);
-  }
-  .hi-row-month {
-    font-family: var(--font-mono); font-size: 9px;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--color-muted); margin-top: 2px;
-  }
-  .hi-row-body { min-width: 0; }
-  .hi-row-meta {
-    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-    margin-bottom: 6px;
-  }
-  .hi-row-stats {
-    font-size: 12.5px; color: var(--color-muted); line-height: 1.4;
-  }
-  .hi-row-stats strong {
-    color: var(--color-ink); font-weight: 700; font-family: var(--font-mono);
-  }
-  .hi-row-arrow {
-    color: var(--color-muted-2); font-size: 20px;
-    flex-shrink: 0;
   }
 
-  .hi-tag {
-    font-family: var(--font-mono); font-size: 9.5px;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    padding: 3px 7px; border-radius: 4px;
-    font-weight: 700;
+  /* ===== empty ===== */
+  .hi-empty {
+    padding: 60px 24px;
+    text-align: center;
   }
-  .hi-tag.civique { background: var(--color-blue-light); color: var(--color-blue); }
-  .hi-tag.tcf { background: var(--color-red-light); color: var(--color-red); }
-  .hi-tag-mono {
-    font-family: var(--font-mono); font-size: 9.5px;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    padding: 3px 7px; border-radius: 4px;
-    font-weight: 700;
-    background: var(--color-paper-2); color: var(--color-muted);
+  .hi-empty-icon {
+    width: 52px; height: 52px;
+    margin: 0 auto 16px;
+    background: var(--color-blue-light);
+    color: var(--color-blue);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
   }
-  .hi-badge {
-    font-family: var(--font-mono); font-size: 9.5px;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    padding: 3px 8px; border-radius: 100px;
-    font-weight: 700;
+  .hi-empty h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 19px;
+    color: var(--color-ink);
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
   }
-  .hi-badge.good {
-    background: rgba(22, 143, 91, 0.12); color: var(--color-green);
+  .hi-empty p {
+    color: var(--color-muted);
+    font-size: 13.5px;
+    line-height: 1.55;
+    margin: 0 auto 18px;
+    max-width: 380px;
   }
-  .hi-badge.warn {
-    background: var(--color-red-light); color: var(--color-red);
+  .hi-empty-cta-wrap {
+    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
   }
-  .hi-badge.neutral {
-    background: var(--color-paper-2); color: var(--color-muted);
+
+  /* ========== RESPONSIVE ========== */
+  @media (max-width: 760px) {
+    .filters { flex-direction: column; align-items: stretch; }
+    .filter-tabs { width: 100%; justify-content: space-between; }
+    .tab { flex: 1; justify-content: center; }
+    .period-chips { width: 100%; }
+    .chip { flex: 1; }
+    .search-wrap { margin-left: 0; width: 100%; }
+    .search-wrap input { width: 100%; }
   }
 `;

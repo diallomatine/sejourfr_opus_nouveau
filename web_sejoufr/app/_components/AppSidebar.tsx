@@ -1,19 +1,56 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { userContentApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
 /**
- * Sidebar partagée par les pages "app" (utilisateur connecté) : /dashboard,
- * /entrainement, /examens-blancs, /paiement. Rendue par
- * `app/(app)/layout.tsx`, donc disponible automatiquement sur toutes les
- * routes du route group sans intervention par page.
+ * Sidebar de l'espace personnel. Sticky pleine hauteur (le SiteHeader global
+ * est masqué sur les routes (app)), avec icônes par item, badges dynamiques
+ * sur "Mes erreurs" et "Favoris", carte upgrade pour les non-Premium, et
+ * mini-carte utilisateur en bas. Calée sur la maquette dashboard-sejourfr.html.
  */
 export function AppSidebar() {
+  return (
+    <Suspense fallback={<aside className="app-sidebar" aria-hidden />}>
+      <AppSidebarInner />
+    </Suspense>
+  );
+}
+
+function AppSidebarInner() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, status, logout } = useAuth();
+
+  // Onglet courant de /revision pour différencier les deux entrées de sidebar
+  // ("Mes erreurs" et "Favoris") qui pointent sur la même route.
+  const revisionTab = searchParams?.get("tab") === "favoris" ? "favoris" : "erreurs";
+  const isOnRevision = pathname === "/revision" || pathname?.startsWith("/revision/");
+
+  const [wrongCount, setWrongCount] = useState<number | null>(null);
+  const [favCount, setFavCount] = useState<number | null>(null);
+
+  // Compte le total des erreurs et favoris (tous modules). Best-effort,
+  // silencieux si l'API tombe. Les badges disparaissent si compteur null.
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    let cancelled = false;
+    Promise.allSettled([
+      userContentApi.wrong(),
+      userContentApi.favorites(),
+    ]).then(([w, f]) => {
+      if (cancelled) return;
+      if (w.status === "fulfilled") setWrongCount(w.value.length);
+      if (f.status === "fulfilled") setFavCount(f.value.length);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
   const handleLogout = () => {
     logout();
@@ -25,70 +62,98 @@ export function AppSidebar() {
     user?.email?.[0]?.toUpperCase() ??
     "?";
 
+  const fullName = user
+    ? `${user.firstName ?? "Utilisateur"} ${user.lastName ?? ""}`.trim()
+    : "";
+
+  const showUpgrade = user && !user.isPremium;
+
   return (
     <aside className="app-sidebar">
-      <div className="app-sidebar__brand">
+      <Link href={user ? "/dashboard" : "/"} className="app-brand">
         <span className="app-cocarde" aria-hidden />
-        <div>
-          <div className="app-brand-name">
-            Sejour<span className="app-brand-fr">FR</span>
-          </div>
-          <div className="app-brand-tag">ESPACE PERSONNEL</div>
-        </div>
-      </div>
+        <span className="app-brand-name">
+          Sejour<span className="app-brand-fr">FR</span>
+        </span>
+      </Link>
 
-      <nav className="app-nav">
-        <span className="app-nav__section">Pilotage</span>
-        <SideLink href="/dashboard" pathname={pathname}>
-          ↳ Tableau de bord
+      <nav className="app-nav" aria-label="Espace personnel">
+        <span className="app-nav-section">Principal</span>
+        <SideLink href="/dashboard" pathname={pathname} icon={<GridIcon />}>
+          Tableau de bord
         </SideLink>
-        <SideLink href="/statistiques" pathname={pathname}>
-          ↳ Statistiques
+        <SideLink href="/entrainement" pathname={pathname} icon={<PlayIcon />}>
+          S&apos;entraîner
         </SideLink>
-        <SideLink href="/historique" pathname={pathname}>
-          ↳ Historique
+        <SideLink
+          href="/examens-blancs"
+          pathname={pathname}
+          icon={<ClockCircleIcon />}
+        >
+          Examens blancs
         </SideLink>
-
-        <span className="app-nav__section">Pratiquer</span>
-        <SideLink href="/entrainement" pathname={pathname}>
-          ↳ Entraînement
+        <SideLink href="/historique" pathname={pathname} icon={<HistoryIcon />}>
+          Historique
         </SideLink>
-        <SideLink href="/examens-blancs" pathname={pathname}>
-          ↳ Examens blancs
-        </SideLink>
-        <SideLink href="/revision" pathname={pathname}>
-          ↳ Révision
+        <SideLink href="/statistiques" pathname={pathname} icon={<BarsIcon />}>
+          Statistiques
         </SideLink>
 
-        <span className="app-nav__section">Compte</span>
-        <SideLink href="/profil" pathname={pathname}>
-          ↳ Mon profil
+        <span className="app-nav-section">Révision</span>
+        <SideLink
+          href="/revision?tab=erreurs"
+          activeWhen={() => isOnRevision && revisionTab === "erreurs"}
+          pathname={pathname}
+          icon={<XCircleIcon />}
+          badge={wrongCount}
+        >
+          Mes erreurs
         </SideLink>
-        <SideLink href="/paiement" pathname={pathname}>
-          ↳ Mon abonnement
+        <SideLink
+          href="/revision?tab=favoris"
+          activeWhen={() => isOnRevision && revisionTab === "favoris"}
+          pathname={pathname}
+          icon={<StarIcon />}
+          badge={favCount}
+        >
+          Favoris
+        </SideLink>
+
+        <span className="app-nav-section">Compte</span>
+        <SideLink href="/profil" pathname={pathname} icon={<UserIcon />}>
+          Profil
         </SideLink>
       </nav>
 
-      {user && (
-        <div className="app-sidebar__foot">
-          <div className="app-user">
-            <span className="app-avatar">{initial}</span>
-            <div className="app-user__info">
-              <div className="app-user__name">
-                {user.firstName ?? "Utilisateur"} {user.lastName ?? ""}
-              </div>
-              <div className="app-user__email">{user.email}</div>
-            </div>
+      <div className="app-sidebar-foot">
+        {showUpgrade && (
+          <div className="upgrade-card">
+            <h4>Passez Premium</h4>
+            <p>Banque complète, examens illimités, révision ciblée.</p>
+            <Link href="/paiement" className="upgrade-cta">
+              Découvrir →
+            </Link>
           </div>
+        )}
+
+        {user && (
           <button
             type="button"
-            className="app-logout"
+            className="user-mini"
             onClick={handleLogout}
+            title="Se déconnecter"
           >
-            Se déconnecter
+            <span className="user-avatar">{initial}</span>
+            <span className="user-info">
+              <span className="user-name">{fullName || "Utilisateur"}</span>
+              <span className="user-mail">{user.email}</span>
+            </span>
+            <span className="user-arrow" aria-hidden>
+              ⏻
+            </span>
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       <style>{sidebarStyles}</style>
     </aside>
@@ -98,129 +163,298 @@ export function AppSidebar() {
 function SideLink({
   href,
   pathname,
+  icon,
   children,
+  badge,
+  activeWhen,
 }: {
   href: string;
   pathname: string | null;
+  icon: React.ReactNode;
   children: React.ReactNode;
+  badge?: number | null;
+  activeWhen?: (pathname: string | null) => boolean;
 }) {
-  const isActive =
-    pathname === href || (href !== "/dashboard" && pathname?.startsWith(`${href}/`));
+  const path = href.split("?")[0];
+  const isActive = activeWhen
+    ? activeWhen(pathname)
+    : pathname === path ||
+      (path !== "/dashboard" && pathname?.startsWith(`${path}/`));
   return (
-    <Link href={href} className={`app-nav__item ${isActive ? "is-active" : ""}`}>
-      {children}
+    <Link href={href} className={`nav-item ${isActive ? "is-active" : ""}`}>
+      <span className="nav-icon" aria-hidden>
+        {icon}
+      </span>
+      <span className="nav-label">{children}</span>
+      {badge !== null && badge !== undefined && badge > 0 && (
+        <span className="nav-badge">{badge}</span>
+      )}
     </Link>
   );
 }
 
+// ============================================================================
+// Icons (lucide-style, 18×18)
+// ============================================================================
+const IconBase = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  />
+);
+const GridIcon = () => (
+  <IconBase>
+    <rect x="3" y="3" width="7" height="9" />
+    <rect x="14" y="3" width="7" height="5" />
+    <rect x="14" y="12" width="7" height="9" />
+    <rect x="3" y="16" width="7" height="5" />
+  </IconBase>
+);
+const PlayIcon = () => (
+  <IconBase>
+    <polygon points="5 3 19 12 5 21 5 3" />
+  </IconBase>
+);
+const ClockCircleIcon = () => (
+  <IconBase>
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </IconBase>
+);
+const HistoryIcon = () => (
+  <IconBase>
+    <path d="M3 12a9 9 0 1 0 9-9" />
+    <polyline points="3 5 3 12 10 12" />
+  </IconBase>
+);
+const BarsIcon = () => (
+  <IconBase>
+    <line x1="18" y1="20" x2="18" y2="10" />
+    <line x1="12" y1="20" x2="12" y2="4" />
+    <line x1="6" y1="20" x2="6" y2="14" />
+  </IconBase>
+);
+const XCircleIcon = () => (
+  <IconBase>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="15" y1="9" x2="9" y2="15" />
+    <line x1="9" y1="9" x2="15" y2="15" />
+  </IconBase>
+);
+const StarIcon = () => (
+  <IconBase>
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </IconBase>
+);
+const UserIcon = () => (
+  <IconBase>
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </IconBase>
+);
 const sidebarStyles = `
   .app-sidebar {
     background: #fff;
     border-right: 1px solid var(--color-line);
-    padding: 24px 18px 18px;
-    display: flex; flex-direction: column;
+    padding: 22px 16px 16px;
     position: sticky;
-    top: 110px;
-    height: calc(100vh - 110px);
+    top: 0;
+    height: 100vh;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
   }
-
-  .app-sidebar__brand {
-    display: flex; gap: 12px; align-items: center;
-    padding: 4px 8px 22px;
+  .app-brand {
+    display: flex; align-items: center; gap: 11px;
+    padding: 6px 8px 22px;
     border-bottom: 1px solid var(--color-line-2);
-    margin-bottom: 14px;
+    margin-bottom: 20px;
+    text-decoration: none;
   }
   .app-cocarde {
-    width: 28px; height: 28px;
+    width: 30px; height: 30px;
     border-radius: 50%;
-    background:
-      radial-gradient(circle, var(--color-red) 0 22%, transparent 22%),
-      radial-gradient(circle, #fff 0 55%, transparent 55%),
-      var(--color-blue);
     flex-shrink: 0;
+    background:
+      radial-gradient(circle, var(--color-red) 0 28%, transparent 28%),
+      radial-gradient(circle, #fff 0 60%, transparent 60%),
+      var(--color-blue);
   }
   .app-brand-name {
-    font-family: var(--font-display);
-    font-weight: 600; font-size: 17px;
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 20px;
+    letter-spacing: -0.02em;
     color: var(--color-blue);
-    letter-spacing: -0.015em; line-height: 1;
   }
   .app-brand-fr { color: var(--color-red); }
-  .app-brand-tag {
-    font-family: var(--font-mono);
-    font-size: 9px; letter-spacing: 0.14em;
-    color: var(--color-muted); margin-top: 2px;
-  }
 
-  .app-nav { flex: 1; display: flex; flex-direction: column; gap: 1px; }
-  .app-nav__section {
+  .app-nav { flex: 1; display: flex; flex-direction: column; }
+  .app-nav-section {
     font-family: var(--font-mono);
-    font-size: 9.5px; letter-spacing: 0.16em;
+    font-size: 10px;
     color: var(--color-muted-2);
+    letter-spacing: 0.15em;
     text-transform: uppercase;
-    padding: 14px 12px 6px;
-  }
-  .app-nav__item {
-    text-decoration: none;
-    display: block;
-    padding: 9px 12px;
-    border-radius: 8px;
-    font-size: 13.5px;
-    color: var(--color-ink-2);
-    transition: background 0.1s;
-  }
-  .app-nav__item:hover { background: var(--color-blue-soft); color: var(--color-blue); }
-  .app-nav__item.is-active {
-    background: var(--color-blue-light);
-    color: var(--color-blue);
+    padding: 0 10px;
+    margin: 16px 0 6px;
     font-weight: 600;
   }
+  .app-nav-section:first-child { margin-top: 0; }
 
-  .app-sidebar__foot {
-    border-top: 1px solid var(--color-line-2);
-    padding-top: 16px;
-    margin-top: 16px;
+  .nav-item {
+    display: flex; align-items: center; gap: 11px;
+    padding: 10px 11px;
+    border-radius: 10px;
+    color: var(--color-ink-2);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    margin-bottom: 2px;
+    transition: background 0.15s, color 0.15s;
   }
-  .app-user {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 6px 12px;
+  .nav-item:hover { background: var(--color-blue-soft); }
+  .nav-item.is-active {
+    background: var(--color-blue);
+    color: #fff;
   }
-  .app-avatar {
-    width: 36px; height: 36px;
-    border-radius: 50%;
-    background: var(--color-blue); color: #fff;
+  .nav-icon {
+    color: var(--color-muted);
     display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 14px;
+    flex-shrink: 0;
+    transition: color 0.15s;
+  }
+  .nav-item:hover .nav-icon { color: var(--color-blue); }
+  .nav-item.is-active .nav-icon { color: #fff; }
+  .nav-label { flex: 1; min-width: 0; }
+  .nav-badge {
+    background: var(--color-red);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 5px;
+    font-weight: 700;
+  }
+  .nav-item.is-active .nav-badge {
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  /* === footer === */
+  .app-sidebar-foot {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-line-2);
+  }
+  .upgrade-card {
+    background: linear-gradient(135deg, var(--color-blue), var(--color-blue-dark));
+    border-radius: 14px;
+    padding: 16px;
+    color: #fff;
+    margin-bottom: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .upgrade-card::after {
+    content: '';
+    position: absolute;
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background: var(--color-red);
+    opacity: 0.2;
+    top: -40px; right: -40px;
+  }
+  .upgrade-card h4 {
+    margin: 0 0 4px;
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    position: relative;
+    z-index: 1;
+  }
+  .upgrade-card p {
+    margin: 0 0 12px;
+    font-size: 12px;
+    opacity: 0.85;
+    line-height: 1.4;
+    position: relative;
+    z-index: 1;
+  }
+  .upgrade-cta {
+    display: block;
+    background: #fff;
+    color: var(--color-blue);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+    position: relative;
+    z-index: 1;
+    transition: background 0.15s;
+  }
+  .upgrade-cta:hover { background: var(--color-paper); }
+
+  .user-mini {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    width: 100%;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .user-mini:hover {
+    background: var(--color-blue-soft);
+    border-color: var(--color-line);
+  }
+  .user-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-blue), var(--color-red));
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px;
     flex-shrink: 0;
   }
-  .app-user__name {
-    font-size: 13px; font-weight: 600; color: var(--color-ink);
+  .user-info {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column;
+  }
+  .user-name {
+    font-size: 13px; font-weight: 700;
+    color: var(--color-ink);
     line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .app-user__email {
+  .user-mail {
     font-size: 11px; color: var(--color-muted);
-    word-break: break-all;
-    line-height: 1.3; margin-top: 2px;
+    line-height: 1.3;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .app-logout {
-    width: 100%;
-    padding: 10px 12px;
-    background: none;
-    border: 1px solid var(--color-line);
-    border-radius: 8px;
-    font-family: var(--font-sans);
-    font-size: 12.5px;
+  .user-arrow {
     color: var(--color-muted);
-    cursor: pointer;
-    transition: all 0.15s;
+    font-size: 14px;
+    transition: color 0.15s;
   }
-  .app-logout:hover {
-    background: var(--color-red-light);
-    color: var(--color-red);
-    border-color: rgba(225, 55, 47, 0.3);
-  }
+  .user-mini:hover .user-arrow { color: var(--color-red); }
 
+  /* ===== mobile : sidebar horizontale en haut ===== */
   @media (max-width: 900px) {
     .app-sidebar {
       position: static;
@@ -231,19 +465,37 @@ const sidebarStyles = `
       border-right: none;
       border-bottom: 1px solid var(--color-line);
       gap: 16px;
+      overflow-x: auto;
+      overflow-y: hidden;
     }
-    .app-sidebar__brand {
-      border-bottom: none; padding: 0; margin: 0; flex: 1;
+    .app-brand {
+      border-bottom: none;
+      padding: 0; margin: 0;
+      flex-shrink: 0;
     }
     .app-nav {
       display: flex; flex-direction: row;
-      gap: 4px; overflow-x: auto;
-      flex: none;
+      flex: 1; gap: 4px;
+      overflow-x: auto;
     }
-    .app-nav__section { display: none; }
-    .app-nav__item { padding: 7px 12px; font-size: 12.5px; white-space: nowrap; }
-    .app-sidebar__foot {
-      display: none;
+    .app-nav-section { display: none; }
+    .nav-item {
+      padding: 7px 12px;
+      font-size: 12.5px;
+      white-space: nowrap;
+      margin-bottom: 0;
     }
+    .nav-label { display: none; }
+    .nav-item .nav-icon { display: flex; }
+    .app-sidebar-foot {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+      flex-shrink: 0;
+    }
+    .upgrade-card { display: none; }
+    .user-mini { padding: 4px 8px; }
+    .user-info { display: none; }
+    .user-arrow { display: none; }
   }
 `;

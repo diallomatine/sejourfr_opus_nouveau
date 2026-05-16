@@ -9,28 +9,43 @@ import type { AuthenticatedUser, PlanPublicResponse } from "@/lib/types";
 type PlanCode = "CIVIQUE_3MOIS" | "INTEGRAL_3MOIS";
 
 /**
- * Métadonnées éditoriales des plans, indexées par code backend. Le prix et la
- * durée viennent de l'API (billingApi.listPlans), pas d'ici.
+ * Métadonnées éditoriales par plan. Les chiffres (prix, durée) viennent de
+ * billingApi.listPlans côté serveur.
  */
-const PRESENTATION: Record<PlanCode, { name: string; tag: string; features: string[] }> = {
+const PRESENTATION: Record<
+  PlanCode,
+  {
+    name: string;
+    tone: "blue" | "red";
+    tag: string;
+    pitch: string;
+    features: { label: string; strong?: boolean }[];
+  }
+> = {
   CIVIQUE_3MOIS: {
     name: "Civique",
-    tag: "Pour CSP · CR · NAT",
+    tone: "blue",
+    tag: "POUR CSP · CR · NAT",
+    pitch: "L'accès complet au module civique pour préparer votre démarche.",
     features: [
-      "Accès illimité à toutes les questions civique (CSP, CR, NAT)",
-      "Examens blancs civique à volonté",
-      "Suivi de progression par thème",
-      "Mode entraînement et révision des erreurs",
+      { label: "Banque complète civique", strong: true },
+      { label: "Examens blancs civiques illimités" },
+      { label: "Entraînement par thème" },
+      { label: "Révision des erreurs et favoris" },
+      { label: "Statistiques par thématique" },
     ],
   },
   INTEGRAL_3MOIS: {
     name: "Intégral",
-    tag: "Civique + TCF",
+    tone: "red",
+    tag: "CIVIQUE + TCF",
+    pitch: "Civique + TCF IRN. Le plus complet pour CR ou naturalisation.",
     features: [
-      "Tout ce que contient Civique",
-      "Accès complet au TCF (A2, B1, B2)",
-      "Examens blancs TCF",
-      "Compréhension écrite, orale et structure de la langue",
+      { label: "Tout le Civique inclus", strong: true },
+      { label: "Module TCF complet (CO + CE + Structure)", strong: true },
+      { label: "Diagnostic CECRL (A2 / B1 / B2)" },
+      { label: "Examens blancs TCF illimités" },
+      { label: "Révision + statistiques" },
     ],
   },
 };
@@ -42,10 +57,6 @@ const FALLBACK_PLANS: PlanPublicResponse[] = [
 
 type CurrentPlan = "FREE" | "CIVIQUE" | "INTEGRAL";
 
-/**
- * Calcule le plan dont l'utilisateur dispose actuellement. INTEGRAL prime sur
- * CIVIQUE (hasTcf implique hasCivique en pratique : Intégral débloque tout).
- */
 function deriveCurrentPlan(user: AuthenticatedUser | null): CurrentPlan {
   if (!user) return "FREE";
   if (user.hasTcf) return "INTEGRAL";
@@ -73,9 +84,18 @@ function formatPrice(n: number): string {
   return n.toFixed(2).replace(".", ",");
 }
 
+function durationLabel(days: number): string {
+  if (days >= 365) return `${Math.round(days / 365)} an${days >= 730 ? "s" : ""} d'accès`;
+  if (days >= 30) return `${Math.round(days / 30)} mois d'accès`;
+  return `${days} jours d'accès`;
+}
+
+// ============================================================================
+// PAGE
+// ============================================================================
 export default function PaiementPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PayingSkeleton />}>
       <PaiementInner />
     </Suspense>
   );
@@ -96,10 +116,9 @@ function PaiementInner() {
       .listPlans()
       .then((list) => {
         if (cancelled) return;
-        // On garde seulement les 2 plans payants pour cette page (FREE n'a
-        // pas de checkout). Si le backend ne renvoie qu'un sous-ensemble, on
-        // s'aligne dessus.
-        const payable = list.filter((p) => p.code === "CIVIQUE_3MOIS" || p.code === "INTEGRAL_3MOIS");
+        const payable = list.filter(
+          (p) => p.code === "CIVIQUE_3MOIS" || p.code === "INTEGRAL_3MOIS",
+        );
         setPlans(payable.length > 0 ? payable : FALLBACK_PLANS);
       })
       .catch(() => {
@@ -113,17 +132,12 @@ function PaiementInner() {
     };
   }, []);
 
-  // Quel(s) plan(s) afficher selon le statut user :
-  //  - FREE     : les deux plans à acheter
-  //  - CIVIQUE  : les deux, Civique en "renouveler", Intégral en "upgrader"
-  //  - INTEGRAL : juste Intégral en "renouveler" (pas de downgrade)
   const visiblePlans = useMemo(() => {
     const byCode = new Map(plans.map((p) => [p.code, p]));
     if (currentPlan === "INTEGRAL") {
       const integral = byCode.get("INTEGRAL_3MOIS");
       return integral ? [integral] : [];
     }
-    // FREE ou CIVIQUE : on affiche les deux dans l'ordre Civique puis Intégral.
     return ["CIVIQUE_3MOIS", "INTEGRAL_3MOIS"]
       .map((code) => byCode.get(code))
       .filter((p): p is PlanPublicResponse => p !== undefined);
@@ -147,136 +161,113 @@ function PaiementInner() {
           setError(err.message);
         }
       } else {
-        setError("Impossible d'initier le paiement. Réessayez dans un instant.");
+        setError(
+          "Impossible d'initier le paiement. Réessayez dans un instant.",
+        );
       }
       setLoadingPlan(null);
     }
   }
 
-  if (status === "loading" || !plansLoaded) {
-    return <div className="pay-loading" />;
-  }
+  if (status === "loading" || !plansLoaded) return <PayingSkeleton />;
 
   if (!user) {
     return (
-      <div className="pay-page">
-        <div className="container-x" style={{ textAlign: "center", padding: "80px 20px" }}>
-          <p>Connectez-vous pour souscrire ou gérer votre abonnement.</p>
-          <Link href="/connexion?next=/paiement" className="btn btn-blue">
-            Se connecter
-          </Link>
-        </div>
-      </div>
+      <main className="pay-gate">
+        <p>Connectez-vous pour souscrire ou gérer votre abonnement.</p>
+        <Link href="/connexion?next=/paiement" className="pay-gate-cta">
+          Se connecter →
+        </Link>
+        <style>{gateStyles}</style>
+      </main>
     );
   }
 
   return (
-    <div className="pay-page">
-      <div className="container-x">
-        <Header currentPlan={currentPlan} user={user} />
-
-        {currentPlan !== "FREE" && (
-          <CurrentSubscriptionBanner user={user} currentPlan={currentPlan} />
-        )}
-
-        <div
-          className={`pay-cards ${visiblePlans.length === 1 ? "pay-cards-single" : ""}`}
-        >
-          {visiblePlans.map((plan) => {
-            const intent = deriveIntent(currentPlan, plan.code as PlanCode);
-            return (
-              <PlanCard
-                key={plan.code}
-                plan={plan}
-                intent={intent}
-                loading={loadingPlan === plan.code}
-                anyLoading={loadingPlan !== null}
-                onSubscribe={() => handleSubscribe(plan.code as PlanCode)}
-              />
-            );
-          })}
-        </div>
-
-        {error && (
-          <div className="pay-error" role="alert">
-            {error}
+    <main className="pay">
+      {/* ============ TOPBAR ============ */}
+      <header className="topbar">
+        <div>
+          <div className="breadcrumb">
+            ACCUEIL <span className="sep">/</span>{" "}
+            <Link href="/profil" className="breadcrumb-link">
+              PROFIL
+            </Link>{" "}
+            <span className="sep">/</span> ABONNEMENT
           </div>
-        )}
-
-        <div className="pay-trust">
-          <p>
-            <strong>Paiement 100 % sécurisé Stripe</strong> · CB, Apple Pay, Google Pay
-          </p>
-          <p className="muted small">
-            Aucun renouvellement automatique. Aucun prélèvement après les 3 mois.
-            Vous gardez le contrôle total&nbsp;: à l&apos;expiration, vous pouvez
-            racheter quand vous voulez.
-          </p>
-          <p className="muted small">
-            Une question ?{" "}
-            <Link href="mailto:hello@sejourfr.fr" className="btn-link-soft">
-              hello@sejourfr.fr
-            </Link>
-          </p>
+          <h1>{titleFor(currentPlan, user.firstName ?? null)}</h1>
+          <p className="topbar-sub">{leadFor(currentPlan)}</p>
         </div>
-      </div>
+      </header>
+
+      {currentPlan !== "FREE" && (
+        <CurrentSubscriptionCard user={user} currentPlan={currentPlan} />
+      )}
+
+      {/* ============ PLAN CARDS ============ */}
+      <section className={`pay-cards ${visiblePlans.length === 1 ? "is-single" : ""}`}>
+        {visiblePlans.map((plan) => {
+          const code = plan.code as PlanCode;
+          const intent = deriveIntent(currentPlan, code);
+          return (
+            <PlanCard
+              key={plan.code}
+              plan={plan}
+              intent={intent}
+              loading={loadingPlan === plan.code}
+              anyLoading={loadingPlan !== null}
+              onSubscribe={() => handleSubscribe(code)}
+            />
+          );
+        })}
+      </section>
+
+      {error && (
+        <div className="form-error pay-error" role="alert">
+          {error}
+        </div>
+      )}
+
+      {/* ============ TRUST ============ */}
+      <section className="trust">
+        <div className="trust-row">
+          <TrustItem
+            icon={<LockIcon />}
+            title="Paiement sécurisé"
+            body="Stripe — CB, Apple Pay, Google Pay."
+          />
+          <TrustItem
+            icon={<RefreshOffIcon />}
+            title="Sans renouvellement"
+            body="Aucun prélèvement automatique. Vous rachetez si vous voulez."
+          />
+          <TrustItem
+            icon={<MailIcon />}
+            title="Support direct"
+            body={
+              <>
+                <a href="mailto:hello@sejourfr.fr">hello@sejourfr.fr</a> — on
+                répond.
+              </>
+            }
+          />
+        </div>
+        <p className="trust-foot">
+          À l&apos;expiration, votre accès s&apos;arrête simplement. Vos données
+          (favoris, erreurs, progression) restent sur votre compte au cas où
+          vous renouvellez plus tard.
+        </p>
+      </section>
 
       <style>{styles}</style>
-    </div>
+    </main>
   );
 }
 
 // ============================================================================
-// HEADER (dépend du statut)
+// CURRENT SUBSCRIPTION CARD
 // ============================================================================
-function Header({ currentPlan, user }: { currentPlan: CurrentPlan; user: AuthenticatedUser }) {
-  if (currentPlan === "INTEGRAL") {
-    return (
-      <header className="pay-header">
-        <span className="eyebrow">Votre abonnement</span>
-        <h1 className="editorial">
-          Vous avez l&apos;<em>Intégral</em>.
-        </h1>
-        <p className="lead">
-          Accès complet à la plateforme. Vous pouvez prolonger 3 mois
-          supplémentaires à tout moment&nbsp;— pas de renouvellement automatique.
-        </p>
-      </header>
-    );
-  }
-  if (currentPlan === "CIVIQUE") {
-    return (
-      <header className="pay-header">
-        <span className="eyebrow">Votre abonnement</span>
-        <h1 className="editorial">
-          Vous avez le plan <em>Civique</em>.
-        </h1>
-        <p className="lead">
-          Vous pouvez renouveler votre Civique ou passer à l&apos;Intégral pour
-          débloquer aussi le TCF IRN.
-        </p>
-      </header>
-    );
-  }
-  return (
-    <header className="pay-header">
-      <span className="eyebrow">Offre de lancement</span>
-      <h1 className="editorial">
-        Bonjour <em>{user.firstName ?? "à vous"}</em>, choisissez votre formule.
-      </h1>
-      <p className="lead">
-        Un paiement unique, accès 3 mois.<br />
-        <strong>Pas de renouvellement automatique</strong>&nbsp;— vous renouvellerez
-        vous-même si vous le souhaitez.
-      </p>
-    </header>
-  );
-}
-
-// ============================================================================
-// BANDEAU "PLAN ACTUEL"
-// ============================================================================
-function CurrentSubscriptionBanner({
+function CurrentSubscriptionCard({
   user,
   currentPlan,
 }: {
@@ -284,29 +275,42 @@ function CurrentSubscriptionBanner({
   currentPlan: CurrentPlan;
 }) {
   const remaining = daysLeft(user.premiumEndsAt);
-  const label = currentPlan === "INTEGRAL" ? "Intégral (Civique + TCF)" : "Civique 3 mois";
+  const label =
+    currentPlan === "INTEGRAL" ? "Intégral · Civique + TCF" : "Civique";
   const expiresSoon = remaining !== null && remaining <= 14;
+  const tone: "green" | "amber" = expiresSoon ? "amber" : "green";
 
   return (
-    <div className={`pay-current ${expiresSoon ? "expires-soon" : ""}`}>
-      <div className="pay-current-icon" aria-hidden>
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" />
-        </svg>
+    <div className={`current-card current-card-${tone}`}>
+      <div className={`current-icon current-icon-${tone}`}>
+        {expiresSoon ? <AlertIcon /> : <CheckIcon />}
       </div>
-      <div className="pay-current-body">
-        <div className="pay-current-title">
-          Plan actuel&nbsp;: <strong>{label}</strong>
+      <div className="current-body">
+        <div className="current-row">
+          <span className="current-label">PLAN ACTUEL</span>
+          <span className={`current-tone-pill current-tone-pill-${tone}`}>
+            {expiresSoon ? "Bientôt expiré" : "Actif"}
+          </span>
         </div>
-        <div className="pay-current-meta">
+        <div className="current-title">{label}</div>
+        <div className="current-meta">
           {user.premiumEndsAt ? (
             <>
-              Valide jusqu&apos;au <strong>{formatEndDate(user.premiumEndsAt)}</strong>
+              Valide jusqu&apos;au{" "}
+              <strong>{formatEndDate(user.premiumEndsAt)}</strong>
               {remaining !== null && (
                 <>
-                  {" "}· {remaining > 0
-                    ? <>il vous reste <strong>{remaining} jour{remaining > 1 ? "s" : ""}</strong></>
-                    : <strong>expire aujourd&apos;hui</strong>}
+                  {" "}·{" "}
+                  {remaining > 0 ? (
+                    <>
+                      il vous reste{" "}
+                      <strong>
+                        {remaining} jour{remaining > 1 ? "s" : ""}
+                      </strong>
+                    </>
+                  ) : (
+                    <strong>expire aujourd&apos;hui</strong>
+                  )}
                 </>
               )}
             </>
@@ -315,9 +319,6 @@ function CurrentSubscriptionBanner({
           )}
         </div>
       </div>
-      {expiresSoon && (
-        <span className="pay-current-warn" title="Pensez à renouveler">!</span>
-      )}
     </div>
   );
 }
@@ -349,83 +350,63 @@ function PlanCard({
 }) {
   const code = plan.code as PlanCode;
   const preset = PRESENTATION[code];
-  const isIntegral = code === "INTEGRAL_3MOIS";
+  const tone = preset.tone;
 
-  // Libellé du CTA selon le contexte.
   let ctaLabel: string;
   if (loading) {
     ctaLabel = "Redirection…";
   } else {
     switch (intent) {
       case "current":
-        ctaLabel = `Renouveler ${preset.name}`;
+        ctaLabel = `Renouveler ${preset.name} →`;
         break;
       case "upgrade":
-        ctaLabel = "Passer à l'Intégral";
+        ctaLabel = "Passer à l'Intégral →";
         break;
       default:
-        ctaLabel = `Souscrire à ${preset.name}`;
+        ctaLabel = `Choisir ${preset.name} →`;
     }
   }
 
-  // Badge en haut de carte.
   let ribbon: { label: string; tone: "current" | "upgrade" | "featured" } | null = null;
-  if (intent === "current") {
-    ribbon = { label: "Plan actuel", tone: "current" };
-  } else if (intent === "upgrade") {
-    ribbon = { label: "Recommandé", tone: "upgrade" };
-  } else if (isIntegral) {
-    ribbon = { label: "Le plus complet", tone: "featured" };
-  }
+  if (intent === "current") ribbon = { label: "PLAN ACTUEL", tone: "current" };
+  else if (intent === "upgrade") ribbon = { label: "RECOMMANDÉ", tone: "upgrade" };
+  else if (code === "INTEGRAL_3MOIS") ribbon = { label: "LE PLUS COMPLET", tone: "featured" };
 
-  // Styles selon intent
-  const cardClass = [
-    "pay-card",
-    isIntegral ? "is-featured" : "",
-    intent === "current" ? "is-current" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  // Le CTA reste actif même pour "current" (= renouveler).
   return (
-    <article className={cardClass}>
+    <article className={`plan-card plan-card-${tone}`}>
       {ribbon && (
-        <span className={`ribbon ribbon-${ribbon.tone}`}>{ribbon.label}</span>
+        <span className={`plan-ribbon plan-ribbon-${ribbon.tone}`}>
+          {ribbon.label}
+        </span>
       )}
-      <header className="pay-card-head">
-        <span className="eyebrow">{preset.tag}</span>
-        <h2>{preset.name}</h2>
-        <p className="muted">{durationLabel(plan.durationDays)}</p>
-      </header>
+      <span className={`plan-tag plan-tag-${tone}`}>{preset.tag}</span>
+      <h2 className="plan-name">{preset.name}</h2>
+      <p className="plan-pitch">{preset.pitch}</p>
 
-      <div className="pay-price">
+      <div className="plan-price">
         {plan.originalPrice !== null && plan.originalPrice > plan.price && (
-          <span className="price-strike" aria-label="Prix normal barré">
-            {formatPrice(plan.originalPrice)} €
-          </span>
+          <span className="plan-price-old">{formatPrice(plan.originalPrice)}€</span>
         )}
-        <span className="price-now">
-          {formatPrice(plan.price)}
-          <span className="cents"> €</span>
-        </span>
-        <span className="price-period">
-          {intent === "current" ? "pour 3 mois supplémentaires" : "paiement unique"}
-        </span>
+        <span className="plan-price-now">{formatPrice(plan.price)}€</span>
+        <span className="plan-price-period">paiement unique</span>
       </div>
+      <div className="plan-duration">{durationLabel(plan.durationDays)}</div>
 
-      <ul className="pay-features">
+      <ul className="plan-features">
         {preset.features.map((f) => (
-          <li key={f}>
-            <span className="check" aria-hidden>✓</span>
-            {f}
+          <li key={f.label}>
+            <span className="plan-check" aria-hidden>
+              ✓
+            </span>
+            <span>{f.strong ? <strong>{f.label}</strong> : f.label}</span>
           </li>
         ))}
       </ul>
 
       <button
         type="button"
-        className={`btn btn-lg ${intent === "current" ? "btn-ghost" : isIntegral ? "btn-red" : ""}`}
+        className={`plan-cta plan-cta-${tone} ${intent === "current" ? "is-renew" : ""}`}
         onClick={onSubscribe}
         disabled={anyLoading}
       >
@@ -435,229 +416,473 @@ function PlanCard({
   );
 }
 
-function durationLabel(days: number): string {
-  if (days >= 365) return `${Math.round(days / 365)} an${days >= 730 ? "s" : ""} d'accès`;
-  if (days >= 30) return `${Math.round(days / 30)} mois d'accès`;
-  return `${days} jours d'accès`;
+// ============================================================================
+// TRUST
+// ============================================================================
+function TrustItem({
+  icon,
+  title,
+  body,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: React.ReactNode;
+}) {
+  return (
+    <div className="trust-item">
+      <span className="trust-icon">{icon}</span>
+      <div>
+        <div className="trust-title">{title}</div>
+        <div className="trust-body">{body}</div>
+      </div>
+    </div>
+  );
 }
+
+// ============================================================================
+// HEADER COPY HELPERS
+// ============================================================================
+function titleFor(plan: CurrentPlan, firstName: string | null): React.ReactNode {
+  if (plan === "INTEGRAL") {
+    return (
+      <>
+        Vous avez l&apos;<em>Intégral</em>.
+      </>
+    );
+  }
+  if (plan === "CIVIQUE") {
+    return (
+      <>
+        Votre plan <em>Civique</em>.
+      </>
+    );
+  }
+  return (
+    <>
+      Bonjour {firstName ?? "à vous"}, choisissez votre <em>formule</em>.
+    </>
+  );
+}
+
+function leadFor(plan: CurrentPlan): string {
+  if (plan === "INTEGRAL") {
+    return "Accès complet à la plateforme. Vous pouvez prolonger 3 mois supplémentaires à tout moment — pas de renouvellement automatique.";
+  }
+  if (plan === "CIVIQUE") {
+    return "Renouvelez votre Civique ou passez à l'Intégral pour débloquer aussi le TCF IRN.";
+  }
+  return "Un paiement unique, accès 3 mois. Pas de renouvellement automatique — vous renouvelez vous-même si vous le souhaitez.";
+}
+
+// ============================================================================
+// SKELETONS / GATE
+// ============================================================================
+function PayingSkeleton() {
+  return (
+    <div className="pay-loading">
+      <style>{`.pay-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
+    </div>
+  );
+}
+
+const gateStyles = `
+  .pay-gate {
+    min-height: 60vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px;
+    color: var(--color-muted);
+    padding: 36px;
+  }
+  .pay-gate-cta { color: var(--color-blue); font-weight: 700; text-decoration: none; }
+`;
+
+// ============================================================================
+// ICONS
+// ============================================================================
+const I = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  />
+);
+const CheckIcon = () => (
+  <I>
+    <polyline points="20 6 9 17 4 12" />
+  </I>
+);
+const AlertIcon = () => (
+  <I>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
+  </I>
+);
+const LockIcon = () => (
+  <I>
+    <rect x="3" y="11" width="18" height="11" rx="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </I>
+);
+const RefreshOffIcon = () => (
+  <I>
+    <path d="M3 12a9 9 0 0 1 14.5-7.1" />
+    <polyline points="17 4 17 9 12 9" />
+    <line x1="2" y1="2" x2="22" y2="22" />
+  </I>
+);
+const MailIcon = () => (
+  <I>
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+    <polyline points="22,6 12,13 2,6" />
+  </I>
+);
 
 // ============================================================================
 // STYLES
 // ============================================================================
 const styles = `
-  .pay-page {
-    padding: 48px 0 80px;
-    background: var(--color-paper);
-    min-height: calc(100vh - 64px);
-  }
-  .pay-loading { min-height: 60vh; }
+  .pay { padding: 24px 36px 64px; max-width: 1100px; }
+  @media (max-width: 760px) { .pay { padding: 20px 16px 56px; } }
 
-  .pay-header {
-    text-align: center;
-    max-width: 720px;
-    margin: 0 auto 32px;
-    padding: 0 20px;
-  }
-  .pay-header h1 {
-    font-size: clamp(1.875rem, 4vw, 2.75rem);
-    margin: 12px 0 14px;
-    color: var(--color-ink);
-  }
-  .lead {
-    font-size: 1rem;
+  /* ========== TOPBAR ========== */
+  .topbar { margin-bottom: 26px; }
+  .breadcrumb {
+    font-family: var(--font-mono);
+    font-size: 11px;
     color: var(--color-muted);
-    line-height: 1.6;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
   }
-  .lead strong { color: var(--color-ink); }
+  .breadcrumb-link {
+    color: var(--color-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .breadcrumb-link:hover { color: var(--color-blue); }
+  .breadcrumb .sep { margin: 0 6px; opacity: 0.5; }
+  .topbar h1 {
+    font-family: var(--font-display);
+    font-size: clamp(24px, 3.5vw, 36px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0 0 10px;
+    line-height: 1.12;
+    max-width: 700px;
+  }
+  .topbar h1 em {
+    color: var(--color-blue);
+    font-style: italic;
+    font-weight: 500;
+  }
+  .topbar-sub {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 15.5px;
+    line-height: 1.55;
+    max-width: 620px;
+  }
 
-  /* BANDEAU PLAN ACTUEL */
-  .pay-current {
-    display: flex; align-items: center; gap: 14px;
-    max-width: 920px;
-    margin: 0 auto 32px;
-    padding: 14px 18px;
-    background: linear-gradient(135deg, rgba(22, 143, 91, 0.10) 0%, #fff 100%);
-    border: 1px solid rgba(22, 143, 91, 0.25);
-    border-left: 4px solid var(--color-green);
-    border-radius: 14px;
+  /* ========== CURRENT SUBSCRIPTION ========== */
+  .current-card {
+    display: flex; align-items: center; gap: 16px;
+    padding: 18px 22px;
+    border-radius: 16px;
+    margin-bottom: 26px;
+    border: 1px solid;
   }
-  .pay-current.expires-soon {
-    background: linear-gradient(135deg, rgba(232, 163, 23, 0.12) 0%, #fff 100%);
+  .current-card-green {
+    background: linear-gradient(135deg, rgba(22, 143, 91, 0.10), #fff);
+    border-color: rgba(22, 143, 91, 0.25);
+  }
+  .current-card-amber {
+    background: linear-gradient(135deg, rgba(232, 163, 23, 0.12), #fff);
     border-color: rgba(232, 163, 23, 0.35);
-    border-left-color: var(--color-amber);
   }
-  .pay-current-icon {
-    width: 40px; height: 40px;
-    background: var(--color-green); color: #fff;
-    border-radius: 11px;
+  .current-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
+    color: #fff;
     flex-shrink: 0;
   }
-  .pay-current.expires-soon .pay-current-icon { background: var(--color-amber); }
-  .pay-current-body { flex: 1; min-width: 0; }
-  .pay-current-title {
-    font-family: var(--font-sans); font-weight: 700; font-size: 14.5px;
-    color: var(--color-ink); line-height: 1.2;
+  .current-icon-green { background: var(--color-green); }
+  .current-icon-amber { background: var(--color-amber); }
+  .current-body { flex: 1; min-width: 0; }
+  .current-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 4px;
   }
-  .pay-current-meta {
-    font-size: 12.5px; color: var(--color-muted); margin-top: 3px; line-height: 1.4;
+  .current-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    color: var(--color-muted);
+    font-weight: 700;
   }
-  .pay-current-meta strong { color: var(--color-ink); font-weight: 600; }
-  .pay-current-warn {
-    background: var(--color-amber); color: #fff;
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-family: var(--font-display); font-weight: 700; font-size: 18px;
-    flex-shrink: 0;
+  .current-tone-pill {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    padding: 3px 8px;
+    border-radius: 100px;
+    font-weight: 700;
   }
+  .current-tone-pill-green {
+    background: rgba(22, 143, 91, 0.15); color: var(--color-green);
+  }
+  .current-tone-pill-amber {
+    background: rgba(232, 163, 23, 0.2); color: var(--color-amber);
+  }
+  .current-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 19px;
+    color: var(--color-ink);
+    letter-spacing: -0.015em;
+    margin-bottom: 4px;
+  }
+  .current-meta {
+    font-size: 13.5px;
+    color: var(--color-muted);
+    line-height: 1.5;
+  }
+  .current-meta strong { color: var(--color-ink); font-weight: 700; }
 
-  /* CARDS */
+  /* ========== PLAN CARDS ========== */
   .pay-cards {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 24px;
-    max-width: 920px;
-    margin: 0 auto;
-    padding: 0 20px;
+    gap: 22px;
+    margin-bottom: 26px;
   }
-  .pay-cards-single {
+  .pay-cards.is-single {
     grid-template-columns: 1fr;
-    max-width: 560px;
+    max-width: 640px;
   }
-  @media (max-width: 720px) {
+  @media (max-width: 820px) {
     .pay-cards { grid-template-columns: 1fr; }
   }
 
-  .pay-card {
+  .plan-card {
     position: relative;
+    border: 1.5px solid var(--color-line);
+    border-radius: 22px;
+    padding: 32px;
     background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 16px;
-    padding: 32px 28px;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
   }
-  .pay-card.is-featured {
-    border-color: var(--color-blue);
-    box-shadow: 0 24px 40px -28px rgba(30, 58, 140, 0.45);
-    transform: scale(1.02);
+  .plan-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 24px 40px -22px rgba(15, 24, 57, 0.20);
   }
-  .pay-card.is-current {
-    border-color: var(--color-green);
-    background: linear-gradient(180deg, rgba(22, 143, 91, 0.04) 0%, #fff 60%);
-    box-shadow: 0 24px 40px -28px rgba(22, 143, 91, 0.30);
+  .plan-card-blue {
+    background: linear-gradient(135deg, var(--color-blue-soft) 0%, #fff 100%);
+    border-color: var(--color-blue-light);
   }
-  /* Si la carte est à la fois featured et current (= Intégral chez un user Intégral),
-     on garde le vert qui prime visuellement. */
-  .pay-card.is-current.is-featured {
-    border-color: var(--color-green);
-  }
-  @media (max-width: 720px) {
-    .pay-card.is-featured { transform: none; }
+  .plan-card-red {
+    background: linear-gradient(135deg, var(--color-red-light) 0%, #fff 100%);
+    border-color: rgba(225, 55, 47, 0.2);
   }
 
-  .ribbon {
+  .plan-ribbon {
     position: absolute;
     top: -14px;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 32px;
     color: #fff;
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 6px 14px;
-    border-radius: 999px;
+    letter-spacing: 0.12em;
+    padding: 6px 12px;
+    border-radius: 100px;
     white-space: nowrap;
   }
-  .ribbon-featured { background: var(--color-red); }
-  .ribbon-upgrade { background: var(--color-blue); }
-  .ribbon-current { background: var(--color-green); }
+  .plan-ribbon-featured { background: var(--color-red); }
+  .plan-ribbon-upgrade { background: var(--color-blue); }
+  .plan-ribbon-current { background: var(--color-green); }
 
-  .pay-card-head h2 {
-    font-family: var(--font-display);
-    font-size: 1.75rem;
-    color: var(--color-ink);
-    margin: 6px 0 4px;
-  }
-  .muted {
-    color: var(--color-muted);
-    font-size: 0.9375rem;
-  }
-  .small { font-size: 0.875rem; }
-
-  .pay-price {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--color-line-2);
-  }
-  .price-strike {
+  .plan-tag {
+    align-self: flex-start;
     font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    padding: 5px 10px;
+    border-radius: 6px;
+    color: #fff;
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  .plan-tag-blue { background: var(--color-blue); }
+  .plan-tag-red { background: var(--color-red); }
+
+  .plan-name {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+    margin: 0 0 10px;
+    line-height: 1.1;
+    color: var(--color-ink);
+  }
+  .plan-pitch {
+    color: var(--color-muted);
+    font-size: 14px;
+    margin: 0 0 22px;
+    line-height: 1.5;
+    min-height: 42px;
+  }
+
+  .plan-price {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+  .plan-price-old {
+    font-family: var(--font-display);
+    font-size: 20px;
     color: var(--color-muted-2);
     text-decoration: line-through;
-    font-size: 0.95rem;
+    align-self: center;
   }
-  .price-now {
+  .plan-price-now {
     font-family: var(--font-display);
-    font-size: 3rem;
-    font-weight: 700;
+    font-size: 48px;
+    font-weight: 600;
     color: var(--color-ink);
+    letter-spacing: -0.03em;
     line-height: 1;
   }
-  .cents { font-size: 1.5rem; font-weight: 600; }
-  .price-period {
+  .plan-price-period {
     font-family: var(--font-mono);
-    font-size: 0.75rem;
-    letter-spacing: 0.06em;
+    font-size: 11px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--color-muted);
-    margin-top: 4px;
+  }
+  .plan-duration {
+    font-size: 13px;
+    color: var(--color-muted);
+    margin-bottom: 20px;
   }
 
-  .pay-features {
+  .plan-features {
     list-style: none;
     padding: 0;
-    margin: 0;
+    margin: 0 0 22px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 11px;
+    border-top: 1px solid var(--color-line-2);
+    padding-top: 20px;
     flex: 1;
   }
-  .pay-features li {
+  .plan-features li {
     display: flex;
     gap: 10px;
     align-items: flex-start;
     color: var(--color-ink-2);
-    font-size: 0.9375rem;
-    line-height: 1.5;
+    font-size: 14px;
+    line-height: 1.45;
   }
-  .check {
+  .plan-check {
     color: var(--color-green);
     font-weight: 700;
     flex-shrink: 0;
+    margin-top: 1px;
   }
 
-  .pay-error {
-    max-width: 920px;
-    margin: 24px auto 0;
-    padding: 16px 20px;
-    background: var(--color-red-light);
-    color: var(--color-red-dark);
-    border: 1px solid var(--color-red);
+  .plan-cta {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 14px 20px;
     border-radius: 12px;
-    font-size: 0.9375rem;
+    font-family: inherit;
+    font-size: 14.5px;
+    font-weight: 700;
+    color: #fff;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: filter 0.15s, transform 0.15s, background 0.15s;
+  }
+  .plan-cta-blue { background: var(--color-blue); }
+  .plan-cta-red { background: var(--color-red); }
+  .plan-cta:hover:not(:disabled) {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+  }
+  .plan-cta:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .plan-cta.is-renew {
+    background: #fff;
+    border-color: var(--color-line);
+    color: var(--color-ink);
+  }
+  .plan-cta.is-renew:hover {
+    border-color: var(--color-ink);
+    background: var(--color-paper);
+    filter: none;
   }
 
-  .pay-trust {
-    max-width: 720px;
-    margin: 48px auto 0;
-    text-align: center;
-    padding: 0 20px;
+  .pay-error { margin-bottom: 26px; }
+
+  /* ========== TRUST ========== */
+  .trust {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 18px;
+    padding: 24px 28px;
   }
-  .pay-trust p { margin: 0 0 8px; }
+  .trust-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+    margin-bottom: 18px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--color-line-2);
+  }
+  @media (max-width: 760px) {
+    .trust-row { grid-template-columns: 1fr; gap: 16px; }
+  }
+  .trust-item { display: flex; gap: 12px; align-items: flex-start; }
+  .trust-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--color-blue-light);
+    color: var(--color-blue);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .trust-title {
+    font-weight: 700; font-size: 13.5px;
+    color: var(--color-ink);
+    line-height: 1.2;
+  }
+  .trust-body {
+    font-size: 12.5px;
+    color: var(--color-muted);
+    margin-top: 3px;
+    line-height: 1.5;
+  }
+  .trust-body a { color: var(--color-blue); text-decoration: none; }
+  .trust-body a:hover { text-decoration: underline; }
+  .trust-foot {
+    font-size: 12.5px;
+    color: var(--color-muted);
+    line-height: 1.55;
+    margin: 0;
+  }
 `;

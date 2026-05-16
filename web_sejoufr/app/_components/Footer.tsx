@@ -1,142 +1,119 @@
 import Link from "next/link";
 import { Brand } from "./Brand";
 
-const footerStyles: React.CSSProperties = {
-  background: "var(--color-ink)",
-  color: "rgba(255,255,255,0.7)",
-  padding: "64px 0 28px",
-  fontSize: 14,
-};
-
-const gridStyles: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1.4fr 1fr 1fr 1fr",
-  gap: 40,
-  marginBottom: 48,
-};
-
-const bottomStyles: React.CSSProperties = {
-  borderTop: "1px solid rgba(255,255,255,0.1)",
-  paddingTop: 24,
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: 16,
-  fontSize: 12.5,
-  color: "rgba(255,255,255,0.4)",
-  fontFamily: "var(--font-mono)",
-  letterSpacing: "0.05em",
-};
-
-const colHead: React.CSSProperties = {
-  fontFamily: "var(--font-mono)",
-  fontSize: 11,
-  letterSpacing: "0.15em",
-  textTransform: "uppercase",
-  color: "rgba(255,255,255,0.45)",
-  margin: "0 0 16px",
-  fontWeight: 500,
-};
-
-const linkList: React.CSSProperties = {
-  listStyle: "none",
-  padding: 0,
-  margin: 0,
-  display: "flex",
-  flexDirection: "column",
-  gap: 10,
-};
-
 export function Footer() {
   return (
-    <footer style={footerStyles}>
+    <footer className="site-footer">
       <div className="container-x">
-        <div style={gridStyles} className="footer-grid-mobile">
-          <div>
-            <div style={{ marginBottom: 14, display: "flex" }}>
-              <Brand />
-            </div>
-            <p
-              style={{
-                color: "rgba(255,255,255,0.5)",
-                fontSize: 13.5,
-                lineHeight: 1.5,
-                maxWidth: 280,
-                margin: 0,
-              }}
-            >
-              La plateforme d'entraînement aux examens civique et TCF pour les
-              démarches de titre de séjour, carte de résident et naturalisation.
+        <div className="footer-grid">
+          <div className="footer-about">
+            <Brand />
+            <p>
+              L&apos;app de référence pour préparer l&apos;examen civique et le
+              TCF en vue de votre titre de séjour ou de votre naturalisation.
             </p>
           </div>
 
-          <div>
-            <h5 style={colHead}>Produit</h5>
-            <ul style={linkList}>
-              <li>
-                <Link href="/#examens">Examen civique</Link>
-              </li>
-              <li>
-                <Link href="/#examens">TCF IRN</Link>
-              </li>
-              <li>
-                <Link href="/#tarifs">Tarifs</Link>
-              </li>
-              <li>
-                <Link href="/examens-blancs">Examens blancs</Link>
-              </li>
+          <div className="footer-col">
+            <h5>EXAMENS</h5>
+            <ul>
+              <li><Link href="/examens-blancs">Examen civique</Link></li>
+              <li><Link href="/examens-blancs">TCF IRN — A2</Link></li>
+              <li><Link href="/examens-blancs">TCF IRN — B1</Link></li>
+              <li><Link href="/examens-blancs">TCF IRN — B2</Link></li>
             </ul>
           </div>
 
-          <div>
-            <h5 style={colHead}>Entreprise</h5>
-            <ul style={linkList}>
-              <li>
-                <Link href="#">À propos</Link>
-              </li>
-              <li>
-                <Link href="/#temoignages">Témoignages</Link>
-              </li>
-              <li>
-                <Link href="#">Blog</Link>
-              </li>
-              <li>
-                <Link href="#">Contact</Link>
-              </li>
+          <div className="footer-col">
+            <h5>RESSOURCES</h5>
+            <ul>
+              <li><Link href="/#fonctionnalites">Méthode</Link></li>
+              <li><Link href="/#temoignages">Témoignages</Link></li>
+              <li><Link href="/#tarifs">Tarifs</Link></li>
+              <li><Link href="/#faq">FAQ</Link></li>
             </ul>
           </div>
 
-          <div>
-            <h5 style={colHead}>Légal</h5>
-            <ul style={linkList}>
-              <li>
-                <Link href="#">Mentions légales</Link>
-              </li>
-              <li>
-                <Link href="#">CGU · CGV</Link>
-              </li>
-              <li>
-                <Link href="#">Confidentialité</Link>
-              </li>
-              <li>
-                <Link href="#">Cookies</Link>
-              </li>
+          <div className="footer-col">
+            <h5>LÉGAL</h5>
+            <ul>
+              <li><Link href="#">Conditions d&apos;utilisation</Link></li>
+              <li><Link href="#">Confidentialité</Link></li>
+              <li><Link href="#">Mentions légales</Link></li>
+              <li><Link href="#">Cookies</Link></li>
             </ul>
           </div>
         </div>
 
-        <div style={bottomStyles}>
-          <span>© 2026 SejourFR — Tous droits réservés</span>
-          <span>Conçu en France · Hébergé en UE</span>
+        <div className="footer-bottom">
+          <span>© 2026 SejourFR · Indépendant — non affilié à l&apos;administration française.</span>
+          <span className="footer-tag">v1.0 · MADE IN FR</span>
         </div>
       </div>
 
       <style>{`
-        @media (max-width: 960px) {
-          .footer-grid-mobile { grid-template-columns: 1fr 1fr !important; gap: 32px !important; }
+        .site-footer {
+          border-top: 1px solid var(--color-line);
+          padding: 56px 0 28px;
+          background: #fff;
+          color: var(--color-ink-2);
+        }
+        .footer-grid {
+          display: grid;
+          grid-template-columns: 1.6fr 1fr 1fr 1fr;
+          gap: 40px;
+          margin-bottom: 40px;
+        }
+        .footer-about p {
+          font-size: 13.5px;
+          color: var(--color-muted);
+          margin: 14px 0 0;
+          max-width: 300px;
+          line-height: 1.6;
+        }
+        .footer-col h5 {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          color: var(--color-muted);
+          letter-spacing: 0.15em;
+          margin: 0 0 16px;
+          font-weight: 600;
+        }
+        .footer-col ul {
+          list-style: none;
+          padding: 0; margin: 0;
+        }
+        .footer-col li {
+          padding: 6px 0;
+          font-size: 14px;
+        }
+        .footer-col a {
+          color: var(--color-ink-2);
+          text-decoration: none;
+          transition: color 0.15s;
+        }
+        .footer-col a:hover { color: var(--color-blue); }
+        .footer-bottom {
+          border-top: 1px solid var(--color-line);
+          padding-top: 24px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 16px;
+          font-size: 13px;
+          color: var(--color-muted);
+        }
+        .footer-tag {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          letter-spacing: 0.1em;
+        }
+        @media (max-width: 900px) {
+          .footer-grid { grid-template-columns: 1fr 1fr; gap: 32px; }
         }
         @media (max-width: 560px) {
-          .footer-grid-mobile { grid-template-columns: 1fr !important; }
+          .footer-grid { grid-template-columns: 1fr; }
+          .footer-bottom { flex-direction: column; align-items: flex-start; gap: 8px; }
         }
       `}</style>
     </footer>

@@ -18,12 +18,12 @@ export default function HomePage() {
       <main>
         <HeroSection />
         <TrustStrip />
-        <ProblemSection />
         <ExamsSection />
+        <ProblemSection />
         <HowItWorksSection />
-        <MobileAppSection />
         <PricingSection />
         <TestimonialsSection />
+        <MobileAppSection />
         <FaqSection />
         <FinalCtaSection />
       </main>

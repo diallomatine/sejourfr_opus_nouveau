@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ModuleSwitch } from "@/app/_components/ModuleSwitch";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { ApiException, userContentApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type {
@@ -10,58 +10,72 @@ import type {
   QuestionReviewResponse,
 } from "@/lib/types";
 
-type Tab = "errors" | "favorites";
+type Tab = "erreurs" | "favoris";
 
 export default function RevisionPage() {
+  return (
+    <Suspense fallback={<RevisionSkeleton />}>
+      <RevisionInner />
+    </Suspense>
+  );
+}
+
+function RevisionInner() {
+  const searchParams = useSearchParams();
   const { user, status } = useAuth();
-  const [module, setModule] = useState<ModuleEnum>("CIVIQUE");
-  const [tab, setTab] = useState<Tab>("errors");
-  const [data, setData] = useState<{
-    loading: boolean;
-    errors: QuestionReviewResponse[];
-    favorites: QuestionReviewResponse[];
-    error: string | null;
-    loadedFor: ModuleEnum | null;
-  }>({
-    loading: true,
-    errors: [],
-    favorites: [],
-    error: null,
-    loadedFor: null,
-  });
+
+  const urlTab: Tab = useMemo(() => {
+    const t = searchParams?.get("tab");
+    return t === "favoris" ? "favoris" : "erreurs";
+  }, [searchParams]);
+
+  const urlModule: ModuleEnum = useMemo(() => {
+    const m = searchParams?.get("module");
+    return m === "TCF" ? "TCF" : "CIVIQUE";
+  }, [searchParams]);
+
+  const [module, setModule] = useState<ModuleEnum>(urlModule);
+  const [tab, setTab] = useState<Tab>(urlTab);
+
+  // Sync sur les changements d'URL : navigation depuis la sidebar
+  // (?tab=erreurs ↔ ?tab=favoris) doit basculer l'onglet visible sans
+  // remonter le composant.
+  useEffect(() => {
+    setTab(urlTab);
+  }, [urlTab]);
+  useEffect(() => {
+    setModule(urlModule);
+  }, [urlModule]);
+
+  const [errors, setErrors] = useState<QuestionReviewResponse[]>([]);
+  const [favorites, setFavorites] = useState<QuestionReviewResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<QuestionReviewResponse | null>(null);
 
-  const refresh = useCallback(
-    async (m: ModuleEnum) => {
-      try {
-        const [wrongList, favList] = await Promise.all([
-          userContentApi.wrong(m),
-          userContentApi.favorites(m),
-        ]);
-        setData({
-          loading: false,
-          errors: wrongList,
-          favorites: favList,
-          error: null,
-          loadedFor: m,
-        });
-      } catch (e) {
-        setData({
-          loading: false,
-          errors: [],
-          favorites: [],
-          error:
-            e instanceof ApiException
-              ? e.message
-              : "Impossible de charger la révision.",
-          loadedFor: m,
-        });
-      }
-    },
-    [],
-  );
+  const refresh = useCallback(async (m: ModuleEnum) => {
+    setLoading(true);
+    try {
+      const [wrongList, favList] = await Promise.all([
+        userContentApi.wrong(m),
+        userContentApi.favorites(m),
+      ]);
+      setErrors(wrongList);
+      setFavorites(favList);
+      setLoadError(null);
+    } catch (e) {
+      setLoadError(
+        e instanceof ApiException
+          ? e.message
+          : "Impossible de charger la révision.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
+    if (status !== "authenticated") return;
     let cancelled = false;
     refresh(module).then(() => {
       if (cancelled) return;
@@ -69,25 +83,16 @@ export default function RevisionPage() {
     return () => {
       cancelled = true;
     };
-  }, [module, refresh]);
+  }, [module, refresh, status]);
 
-  const isLoadedForCurrent = data.loadedFor === module;
-  const errors = isLoadedForCurrent ? data.errors : [];
-  const favorites = isLoadedForCurrent ? data.favorites : [];
-  const list = tab === "errors" ? errors : favorites;
-  const loading = data.loading || !isLoadedForCurrent;
-
-  // Toggle favori : maj optimiste, refresh global après pour resynchroniser
-  // les compteurs des deux onglets.
   const onToggleFavorite = useCallback(
     async (q: QuestionReviewResponse, wasFavorite: boolean) => {
-      // Optimistic : on retire de la liste favoris si on l'enlève, on l'ajoute si on l'ajoute.
-      setData((d) => {
-        if (wasFavorite) {
-          return { ...d, favorites: d.favorites.filter((x) => x.id !== q.id) };
-        }
-        return { ...d, favorites: [q, ...d.favorites.filter((x) => x.id !== q.id)] };
-      });
+      // Optimiste : retire/ajoute, rollback en cas d'échec via refresh complet.
+      if (wasFavorite) {
+        setFavorites((prev) => prev.filter((x) => x.id !== q.id));
+      } else {
+        setFavorites((prev) => [q, ...prev.filter((x) => x.id !== q.id)]);
+      }
       try {
         if (wasFavorite) {
           await userContentApi.removeFavorite(q.id);
@@ -95,91 +100,128 @@ export default function RevisionPage() {
           await userContentApi.addFavorite(q.id);
         }
       } catch {
-        // Rollback en revenant à l'état réel
         await refresh(module);
       }
     },
     [module, refresh],
   );
 
-  if (status === "loading") return <div className="rv-loading" />;
+  const list = tab === "erreurs" ? errors : favorites;
+
+  if (status === "loading") return <RevisionSkeleton />;
   if (!user) {
     return (
       <main className="rv-gate">
         <p>Connectez-vous pour réviser vos questions.</p>
-        <Link href="/connexion?next=/revision" className="btn btn-blue">
-          Se connecter
+        <Link href="/connexion?next=/revision" className="rv-gate-cta">
+          Se connecter →
         </Link>
+        <style>{gateStyles}</style>
       </main>
     );
   }
 
   return (
     <main className="rv">
-      <section className="rv-head">
-        <div className="rv-wrap">
-          <span className="eyebrow">Révision</span>
+      {/* ============ TOPBAR ============ */}
+      <header className="topbar">
+        <div>
+          <div className="breadcrumb">
+            ACCUEIL <span className="sep">/</span> RÉVISION{" "}
+            <span className="sep">/</span>{" "}
+            {tab === "erreurs" ? "MES ERREURS" : "MES FAVORIS"}
+          </div>
           <h1>
-            Vos <em>erreurs</em> et vos favoris.
+            Retravaillez ce qui <em>résiste</em>.
           </h1>
-          <p>
-            Retravaillez les questions ratées et gardez sous le coude celles que
-            vous voulez revoir. Le détail montre la bonne réponse et
-            l&apos;explication.
-          </p>
-          <div className="rv-module">
-            <ModuleSwitch value={module} onChange={setModule} />
-          </div>
         </div>
-      </section>
-
-      <section className="rv-body">
-        <div className="rv-wrap">
-          <div className="rv-tabs" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "errors"}
-              className={`rv-tab ${tab === "errors" ? "is-active" : ""}`}
-              onClick={() => setTab("errors")}
-            >
-              <span className="rv-tab-label">Erreurs récentes</span>
-              <span className="rv-tab-count">{errors.length}</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "favorites"}
-              className={`rv-tab ${tab === "favorites" ? "is-active" : ""}`}
-              onClick={() => setTab("favorites")}
-            >
-              <span className="rv-tab-label">Favoris</span>
-              <span className="rv-tab-count">{favorites.length}</span>
-            </button>
-          </div>
-
-          {loading && <ListLoading />}
-          {data.error && !loading && <div className="form-error">{data.error}</div>}
-
-          {!loading && !data.error && list.length === 0 && (
-            <EmptyState tab={tab} module={module} />
-          )}
-
-          {!loading && list.length > 0 && (
-            <div className="rv-list">
-              {list.map((q) => (
-                <QuestionRow
-                  key={q.id}
-                  question={q}
-                  tab={tab}
-                  isFavorite={favorites.some((f) => f.id === q.id)}
-                  onClick={() => setSelectedQuestion(q)}
-                />
-              ))}
-            </div>
-          )}
+        <div className="topbar-actions">
+          <Link href="/entrainement" className="btn-outline">
+            Entraînement →
+          </Link>
         </div>
-      </section>
+      </header>
+
+      {/* ============ MODULE TABS ============ */}
+      <div className="filters">
+        <div className="filter-tabs" role="tablist" aria-label="Module">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={module === "CIVIQUE"}
+            className={`tab tab-blue ${module === "CIVIQUE" ? "is-active" : ""}`}
+            onClick={() => setModule("CIVIQUE")}
+          >
+            Civique
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={module === "TCF"}
+            className={`tab tab-red ${module === "TCF" ? "is-active" : ""}`}
+            onClick={() => setModule("TCF")}
+          >
+            TCF
+          </button>
+        </div>
+      </div>
+
+      {/* ============ SECTION TABS (Erreurs / Favoris) ============ */}
+      <div className="section-tabs" role="tablist" aria-label="Section">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "erreurs"}
+          className={`section-tab ${tab === "erreurs" ? "is-active" : ""}`}
+          onClick={() => setTab("erreurs")}
+        >
+          <span className="section-tab-icon section-tab-icon-red">
+            <XCircleIcon />
+          </span>
+          <span className="section-tab-text">
+            <span className="section-tab-label">Mes erreurs</span>
+            <span className="section-tab-desc">À retravailler en priorité</span>
+          </span>
+          <span className="section-tab-count">{errors.length}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "favoris"}
+          className={`section-tab ${tab === "favoris" ? "is-active" : ""}`}
+          onClick={() => setTab("favoris")}
+        >
+          <span className="section-tab-icon section-tab-icon-blue">
+            <StarIcon />
+          </span>
+          <span className="section-tab-text">
+            <span className="section-tab-label">Favoris</span>
+            <span className="section-tab-desc">Mises de côté pour plus tard</span>
+          </span>
+          <span className="section-tab-count">{favorites.length}</span>
+        </button>
+      </div>
+
+      {/* ============ LIST ============ */}
+      {loadError && <div className="form-error rv-error">{loadError}</div>}
+
+      {loading ? (
+        <ListSkeleton />
+      ) : list.length === 0 ? (
+        <EmptyState tab={tab} module={module} />
+      ) : (
+        <div className="rv-list">
+          {list.map((q) => (
+            <QuestionRow
+              key={q.id}
+              question={q}
+              tab={tab}
+              isFavorite={favorites.some((f) => f.id === q.id)}
+              onClick={() => setSelectedQuestion(q)}
+            />
+          ))}
+        </div>
+      )}
 
       {selectedQuestion && (
         <QuestionDetailModal
@@ -209,34 +251,27 @@ function QuestionRow({
   isFavorite: boolean;
   onClick: () => void;
 }) {
+  const isErr = tab === "erreurs";
   return (
-    <button type="button" className="rv-row" onClick={onClick}>
-      <div className="rv-row-marker" data-tab={tab} aria-hidden>
-        {tab === "errors" ? (
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
-        ) : (
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-          </svg>
-        )}
-      </div>
+    <button type="button" className={`rv-row rv-row-${isErr ? "red" : "blue"}`} onClick={onClick}>
+      <span className={`rv-row-marker rv-row-marker-${isErr ? "red" : "blue"}`}>
+        {isErr ? <XCircleIcon /> : <StarIcon />}
+      </span>
       <div className="rv-row-body">
         <div className="rv-row-meta">
           <span className="rv-tag rv-tag-blue">{question.themeName}</span>
           <span className="rv-tag rv-tag-mono">{question.difficulty}</span>
-          {isFavorite && tab !== "favorites" && (
+          {isFavorite && !isErr ? null : isFavorite ? (
             <span className="rv-tag rv-tag-fav" aria-label="En favoris">
-              <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-              </svg>
+              <StarIcon />
             </span>
-          )}
+          ) : null}
         </div>
-        <div className="rv-row-statement">{question.statement}</div>
+        <p className="rv-row-statement">{question.statement}</p>
       </div>
-      <div className="rv-row-arrow">›</div>
+      <span className="rv-row-arrow" aria-hidden>
+        ›
+      </span>
     </button>
   );
 }
@@ -284,7 +319,12 @@ function QuestionDetailModal({
     <div className="rvd" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="rvd-backdrop" />
       <div className="rvd-sheet" onClick={(e) => e.stopPropagation()}>
-        <button type="button" className="rvd-close" onClick={onClose} aria-label="Fermer">
+        <button
+          type="button"
+          className="rvd-close"
+          onClick={onClose}
+          aria-label="Fermer"
+        >
           ✕
         </button>
 
@@ -303,9 +343,7 @@ function QuestionDetailModal({
             disabled={toggling}
             aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
           >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill={isFavorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-            </svg>
+            <StarIcon filled={isFavorite} />
           </button>
         </div>
 
@@ -332,7 +370,14 @@ function QuestionDetailModal({
                   <span className="rvd-check" aria-label="Bonne réponse">
                     <svg viewBox="0 0 16 16" width="16" height="16">
                       <circle cx="8" cy="8" r="8" fill="currentColor" />
-                      <path d="M4.5 8.5l2.4 2.2 4.6-5" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                      <path
+                        d="M4.5 8.5l2.4 2.2 4.6-5"
+                        stroke="#fff"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
                     </svg>
                   </span>
                 )}
@@ -344,9 +389,7 @@ function QuestionDetailModal({
         {question.explanation && (
           <div className="rvd-explain">
             <div className="rvd-explain-head">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 13l1 2h6l1-2a7 7 0 0 0-4-13z" />
-              </svg>
+              <BulbIcon />
               <span>Explication</span>
             </div>
             <p>{question.explanation}</p>
@@ -359,22 +402,34 @@ function QuestionDetailModal({
 }
 
 // ============================================================================
-// SUB-COMPONENTS
+// EMPTY STATES
 // ============================================================================
 function EmptyState({ tab, module }: { tab: Tab; module: ModuleEnum }) {
   const moduleLabel = module === "TCF" ? "TCF" : "civique";
-  if (tab === "errors") {
+  if (tab === "erreurs") {
     return (
       <div className="rv-empty">
-        <div className="rv-empty-icon good" aria-hidden>
-          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div className="rv-empty-icon rv-empty-icon-green">
+          <svg
+            viewBox="0 0 24 24"
+            width="28"
+            height="28"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
             <path d="m9 11 3 3L22 4" />
           </svg>
         </div>
-        <h2>Aucune erreur récente {moduleLabel}</h2>
-        <p>Bravo&nbsp;! Continuez à vous entraîner pour faire émerger les zones à retravailler.</p>
-        <Link href="/entrainement" className="btn btn-blue">
+        <h3>Aucune erreur récente en {moduleLabel}</h3>
+        <p>
+          Bravo ! Continuez à vous entraîner pour faire émerger les zones à
+          retravailler.
+        </p>
+        <Link href="/entrainement" className="btn-primary">
           Lancer un entraînement →
         </Link>
       </div>
@@ -382,24 +437,22 @@ function EmptyState({ tab, module }: { tab: Tab; module: ModuleEnum }) {
   }
   return (
     <div className="rv-empty">
-      <div className="rv-empty-icon" aria-hidden>
-        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-        </svg>
+      <div className="rv-empty-icon rv-empty-icon-blue">
+        <StarIcon />
       </div>
-      <h2>Aucun favori {moduleLabel}</h2>
+      <h3>Aucun favori en {moduleLabel}</h3>
       <p>
-        Pendant un entraînement, tapez sur l&apos;icône signet (ou la touche{" "}
+        Pendant un entraînement, cliquez sur l&apos;icône étoile (ou la touche{" "}
         <kbd>B</kbd>) pour mettre une question de côté.
       </p>
-      <Link href="/entrainement" className="btn btn-blue">
+      <Link href="/entrainement" className="btn-primary">
         Lancer un entraînement →
       </Link>
     </div>
   );
 }
 
-function ListLoading() {
+function ListSkeleton() {
   return (
     <div className="rv-list">
       {[0, 1, 2, 3].map((i) => (
@@ -409,74 +462,229 @@ function ListLoading() {
   );
 }
 
+function RevisionSkeleton() {
+  return (
+    <div className="rv-loading">
+      <style>{`.rv-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
+    </div>
+  );
+}
+
+const gateStyles = `
+  .rv-gate {
+    min-height: 60vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px;
+    color: var(--color-muted);
+    padding: 36px;
+  }
+  .rv-gate-cta { color: var(--color-blue); font-weight: 700; text-decoration: none; }
+`;
+
+// ============================================================================
+// ICONS
+// ============================================================================
+const I = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  />
+);
+const XCircleIcon = () => (
+  <I>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="15" y1="9" x2="9" y2="15" />
+    <line x1="9" y1="9" x2="15" y2="15" />
+  </I>
+);
+const StarIcon = ({ filled = false }: { filled?: boolean }) => (
+  <I fill={filled ? "currentColor" : "none"}>
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </I>
+);
+const BulbIcon = () => (
+  <I width="14" height="14">
+    <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 13l1 2h6l1-2a7 7 0 0 0-4-13z" />
+  </I>
+);
+
 // ============================================================================
 // STYLES
 // ============================================================================
 const styles = `
-  .rv { background: var(--color-paper); min-height: calc(100vh - 110px); }
-  .rv-loading { min-height: 60vh; }
-  .rv-gate {
-    min-height: 60vh;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 14px; color: var(--color-muted);
-  }
-  .rv-wrap { max-width: 760px; margin: 0 auto; }
+  .rv { padding: 24px 36px 64px; max-width: 1320px; }
+  @media (max-width: 760px) { .rv { padding: 20px 16px 56px; } }
 
-  .rv-head { padding: 40px 16px 24px; text-align: center; }
-  .rv-head h1 {
-    font-family: var(--font-display); font-weight: 500;
-    font-size: clamp(28px, 4vw, 40px); line-height: 1.05; letter-spacing: -0.025em;
-    margin: 10px 0 12px;
+  /* ========== TOPBAR ========== */
+  .topbar {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 16px; flex-wrap: wrap;
+    margin-bottom: 20px;
   }
-  .rv-head h1 em { font-style: italic; color: var(--color-red); }
-  .rv-head p {
-    color: var(--color-muted); font-size: 15px; line-height: 1.55;
-    margin: 0 auto 22px; max-width: 540px;
-  }
-  .rv-module { max-width: 460px; margin: 0 auto; }
-
-  .rv-body { padding: 8px 16px 80px; }
-
-  .rv-tabs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    padding: 4px;
-    background: var(--color-paper-2);
-    border-radius: 12px;
-    margin: 18px 0 18px;
-  }
-  .rv-tab {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    padding: 10px 14px;
-    background: transparent;
-    border: none;
-    border-radius: 9px;
-    cursor: pointer;
-    transition: all 0.15s;
-    font-family: var(--font-sans);
+  .breadcrumb {
+    font-family: var(--font-mono);
+    font-size: 11px;
     color: var(--color-muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
   }
-  .rv-tab:hover { color: var(--color-ink); }
-  .rv-tab.is-active {
+  .breadcrumb .sep { margin: 0 6px; opacity: 0.5; }
+  .topbar h1 {
+    font-family: var(--font-display);
+    font-size: clamp(24px, 3.2vw, 32px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0;
+    line-height: 1.15;
+  }
+  .topbar h1 em {
+    color: var(--color-blue);
+    font-style: italic;
+    font-weight: 500;
+  }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .btn-outline {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 16px; border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+    text-decoration: none;
+    border: 1px solid var(--color-line);
     background: #fff;
     color: var(--color-ink);
-    box-shadow: 0 4px 12px -4px rgba(15, 24, 57, 0.15);
+    transition: all 0.15s;
+    font-family: inherit;
   }
-  .rv-tab-label { font-weight: 700; font-size: 13.5px; }
-  .rv-tab-count {
-    font-family: var(--font-mono);
-    background: var(--color-line-2);
+  .btn-outline:hover { border-color: var(--color-blue); color: var(--color-blue); }
+  .btn-primary {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 16px; border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+    text-decoration: none;
+    border: 1px solid transparent;
+    background: var(--color-blue); color: #fff;
+    transition: all 0.15s;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-primary:hover { background: var(--color-blue-dark); }
+
+  .rv-error { margin-bottom: 18px; }
+
+  /* ========== MODULE TABS ========== */
+  .filters {
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .filter-tabs {
+    display: inline-flex;
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 12px;
+    padding: 4px;
+    gap: 2px;
+  }
+  .tab {
+    padding: 8px 18px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
     color: var(--color-muted);
-    padding: 2px 7px; border-radius: 100px;
-    font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: all 0.15s;
   }
-  .rv-tab.is-active .rv-tab-count {
-    background: var(--color-blue-light); color: var(--color-blue);
+  .tab:hover { color: var(--color-ink); }
+  .tab.tab-blue.is-active { background: var(--color-blue); color: #fff; }
+  .tab.tab-red.is-active { background: var(--color-red); color: #fff; }
+
+  /* ========== SECTION TABS ========== */
+  .section-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+  .section-tab {
+    display: flex; align-items: center; gap: 14px;
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 16px;
+    padding: 18px 20px;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .section-tab:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px -14px rgba(15, 24, 57, 0.18);
+  }
+  .section-tab.is-active {
+    border-width: 2px;
+    padding: 17px 19px;
+  }
+  .section-tab.is-active::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .section-tab:first-child.is-active {
+    border-color: var(--color-red);
+  }
+  .section-tab:first-child.is-active::before { background: var(--color-red); }
+  .section-tab:last-child.is-active {
+    border-color: var(--color-blue);
+  }
+  .section-tab:last-child.is-active::before { background: var(--color-blue); }
+  .section-tab-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .section-tab-icon-red { background: var(--color-red-light); color: var(--color-red); }
+  .section-tab-icon-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .section-tab-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .section-tab-label {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 18px;
+    color: var(--color-ink);
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+  }
+  .section-tab-desc {
+    font-size: 12.5px;
+    color: var(--color-muted);
+  }
+  .section-tab-count {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-ink);
+    flex-shrink: 0;
+    letter-spacing: -0.02em;
   }
 
+  @media (max-width: 680px) {
+    .section-tabs { grid-template-columns: 1fr; }
+  }
+
+  /* ========== LIST ========== */
   .rv-list { display: flex; flex-direction: column; gap: 8px; }
-
   .rv-row {
     display: grid;
     grid-template-columns: 36px 1fr 24px;
@@ -492,9 +700,11 @@ const styles = `
     width: 100%;
   }
   .rv-row:hover {
-    border-color: var(--color-blue);
-    box-shadow: 0 8px 20px -10px rgba(30, 58, 140, 0.18);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px -12px rgba(15, 24, 57, 0.18);
   }
+  .rv-row-red:hover { border-color: var(--color-red); }
+  .rv-row-blue:hover { border-color: var(--color-blue); }
   .rv-row-skeleton {
     height: 76px;
     animation: rv-pulse 1.4s ease-in-out infinite;
@@ -503,28 +713,27 @@ const styles = `
     0%, 100% { opacity: 0.55; }
     50% { opacity: 1; }
   }
-
   .rv-row-marker {
     width: 32px; height: 32px;
     border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
-  .rv-row-marker[data-tab="errors"] {
+  .rv-row-marker-red {
     background: var(--color-red-light);
     color: var(--color-red);
   }
-  .rv-row-marker[data-tab="favorites"] {
+  .rv-row-marker-blue {
     background: var(--color-blue-light);
     color: var(--color-blue);
   }
-
   .rv-row-body { min-width: 0; }
   .rv-row-meta {
     display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
     margin-bottom: 6px;
   }
   .rv-row-statement {
+    margin: 0;
     font-weight: 600; font-size: 14.5px; line-height: 1.4;
     color: var(--color-ink);
     overflow: hidden; text-overflow: ellipsis;
@@ -536,7 +745,6 @@ const styles = `
     color: var(--color-muted-2); font-size: 20px;
     flex-shrink: 0;
   }
-
   .rv-tag {
     font-family: var(--font-mono); font-size: 9.5px;
     letter-spacing: 0.12em; text-transform: uppercase;
@@ -557,22 +765,19 @@ const styles = `
     background: #fff;
     border: 1px dashed var(--color-line);
     border-radius: 16px;
-    padding: 48px 32px;
+    padding: 60px 32px;
     text-align: center;
-    margin-top: 16px;
   }
   .rv-empty-icon {
     width: 56px; height: 56px;
     margin: 0 auto 14px;
-    background: var(--color-blue-light); color: var(--color-blue);
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
   }
-  .rv-empty-icon.good {
-    background: rgba(22, 143, 91, 0.12); color: var(--color-green);
-  }
-  .rv-empty h2 {
-    font-family: var(--font-display); font-weight: 500; font-size: 22px;
+  .rv-empty-icon-green { background: rgba(22, 143, 91, 0.12); color: var(--color-green); }
+  .rv-empty-icon-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .rv-empty h3 {
+    font-family: var(--font-display); font-weight: 600; font-size: 22px;
     color: var(--color-ink); margin: 0 0 8px;
     letter-spacing: -0.015em;
   }
@@ -596,7 +801,8 @@ const detailStyles = `
   }
   .rvd-backdrop {
     position: absolute; inset: 0;
-    background: rgba(15, 24, 57, 0.45);
+    background: rgba(15, 24, 57, 0.55);
+    backdrop-filter: blur(4px);
     animation: rvd-fade-in 0.18s ease-out;
   }
   @keyframes rvd-fade-in { from { opacity: 0; } to { opacity: 1; } }
@@ -608,7 +814,7 @@ const detailStyles = `
     position: relative;
     background: #fff;
     border-radius: 22px 22px 0 0;
-    padding: 24px 24px 22px;
+    padding: 28px 28px 24px;
     width: 100%;
     max-width: 640px;
     box-shadow: 0 -10px 50px -10px rgba(15, 24, 57, 0.25);
@@ -618,11 +824,10 @@ const detailStyles = `
   }
   @media (min-width: 640px) {
     .rvd { align-items: center; }
-    .rvd-sheet { border-radius: 18px; }
+    .rvd-sheet { border-radius: 22px; }
   }
-
   .rvd-close {
-    position: absolute; top: 14px; right: 14px;
+    position: absolute; top: 18px; right: 18px;
     width: 32px; height: 32px;
     background: var(--color-paper-2);
     border: none; border-radius: 8px;
@@ -632,34 +837,34 @@ const detailStyles = `
     z-index: 2;
   }
   .rvd-close:hover { background: var(--color-line); color: var(--color-ink); }
-
   .rvd-head {
     display: flex; align-items: flex-start; justify-content: space-between;
-    gap: 16px; margin-bottom: 14px;
-    padding-right: 40px;
+    gap: 16px; margin-bottom: 16px;
+    padding-right: 44px;
   }
-  .rvd-tags {
-    display: flex; flex-wrap: wrap; gap: 6px;
-  }
+  .rvd-tags { display: flex; flex-wrap: wrap; gap: 6px; }
   .rvd-fav {
     background: none; border: 1px solid var(--color-line);
     color: var(--color-ink);
-    width: 32px; height: 32px;
-    border-radius: 8px;
+    width: 36px; height: 36px;
+    border-radius: 10px;
     display: inline-flex; align-items: center; justify-content: center;
     cursor: pointer;
     transition: all 0.15s;
     flex-shrink: 0;
   }
   .rvd-fav:hover { border-color: var(--color-blue); color: var(--color-blue); }
-  .rvd-fav.is-on { color: var(--color-red); border-color: rgba(225, 55, 47, 0.3); background: var(--color-red-light); }
-
+  .rvd-fav.is-on {
+    color: var(--color-red);
+    border-color: rgba(225, 55, 47, 0.3);
+    background: var(--color-red-light);
+  }
   .rvd-passage {
     background: var(--color-blue-soft);
     border: 1px solid rgba(30, 58, 140, 0.15);
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin: 0 0 14px;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 0 0 16px;
   }
   .rvd-passage-label {
     font-family: var(--font-mono); font-size: 10px;
@@ -671,15 +876,14 @@ const detailStyles = `
     font-size: 13.5px; color: var(--color-ink-2); line-height: 1.55;
     white-space: pre-wrap;
   }
-
   .rvd-statement {
     font-family: var(--font-display); font-weight: 600;
-    font-size: 19px; line-height: 1.35;
+    font-size: 21px; line-height: 1.3;
     color: var(--color-ink);
-    margin: 0 0 18px;
+    margin: 0 0 20px;
+    letter-spacing: -0.015em;
   }
-
-  .rvd-choices { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .rvd-choices { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
   .rvd-choice {
     display: flex; align-items: center; gap: 12px;
     background: #fff;
@@ -690,28 +894,26 @@ const detailStyles = `
   }
   .rvd-choice.is-correct {
     border-color: var(--color-green);
-    background: rgba(22, 143, 91, 0.06);
-    box-shadow: 0 0 0 1px var(--color-green);
+    background: rgba(22, 143, 91, 0.05);
   }
   .rvd-letter {
     width: 26px; height: 26px;
-    border-radius: 50%;
-    background: var(--color-line-2);
+    border-radius: 7px;
+    background: var(--color-paper-2);
     color: var(--color-muted);
     display: flex; align-items: center; justify-content: center;
     font-family: var(--font-mono); font-size: 12px; font-weight: 700;
     flex-shrink: 0;
   }
   .rvd-choice.is-correct .rvd-letter {
-    background: rgba(22, 143, 91, 0.15); color: var(--color-green);
+    background: var(--color-green); color: #fff;
   }
   .rvd-choice-label { flex: 1; }
   .rvd-check { color: var(--color-green); display: inline-flex; align-items: center; flex-shrink: 0; }
-
   .rvd-explain {
     background: var(--color-blue-soft);
-    border: 1px solid rgba(30, 58, 140, 0.15);
-    border-radius: 12px;
+    border-left: 3px solid var(--color-blue);
+    border-radius: 10px;
     padding: 14px 16px;
   }
   .rvd-explain-head {

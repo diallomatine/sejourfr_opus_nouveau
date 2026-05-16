@@ -3,58 +3,130 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ModuleSwitch } from "@/app/_components/ModuleSwitch";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { ApiException, attemptApi, statsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
   canAccessModule,
+  type AttemptSummaryResponse,
   type Module as ModuleEnum,
   type ThemeStatsResponse,
   type UserStatsResponse,
 } from "@/lib/types";
 
+const HEATMAP_DAYS = 30;
+
 export default function StatistiquesPage() {
   const router = useRouter();
   const { user, status } = useAuth();
   const [module, setModule] = useState<ModuleEnum>("CIVIQUE");
-  const [data, setData] = useState<{
-    loading: boolean;
-    stats: UserStatsResponse | null;
-    error: string | null;
-    loadedFor: ModuleEnum | null;
-  }>({ loading: true, stats: null, error: null, loadedFor: null });
+
+  const [stats, setStats] = useState<UserStatsResponse | null>(null);
+  const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [starting, setStarting] = useState<string | null>(null);
-  const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
 
   const isPremiumForModule = user !== null && canAccessModule(user, module);
   const upsellPlan = module === "TCF" ? "INTEGRAL_3MOIS" : "CIVIQUE_3MOIS";
 
   useEffect(() => {
+    if (status !== "authenticated") return;
     let cancelled = false;
-    statsApi
-      .get(module)
-      .then((s) => {
+    setLoading(true);
+    Promise.all([
+      statsApi.get(module).catch((e: unknown) => {
+        if (e instanceof ApiException) throw e;
+        throw new Error("Statistiques indisponibles.");
+      }),
+      attemptApi
+        .listMine({ module, limit: 100 })
+        .catch((): AttemptSummaryResponse[] => []),
+    ])
+      .then(([s, atts]) => {
         if (cancelled) return;
-        setData({ loading: false, stats: s, error: null, loadedFor: module });
+        setStats(s);
+        setAttempts(atts);
+        setError(null);
+        setLoading(false);
       })
-      .catch((e) => {
+      .catch((e: Error) => {
         if (cancelled) return;
-        setData({
-          loading: false,
-          stats: null,
-          error: e instanceof ApiException ? e.message : "Statistiques indisponibles.",
-          loadedFor: module,
-        });
+        setStats(null);
+        setError(e.message);
+        setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [module]);
+  }, [module, status]);
+
+  // ========== KPIs ==========
+  const streak = useMemo(() => computeStreak(attempts), [attempts]);
+  const globalSuccessPct = stats ? Math.round(stats.successRate * 100) : 0;
+
+  const totalWrong = useMemo(() => {
+    if (!stats) return 0;
+    return stats.byTheme.reduce(
+      (sum, t) => sum + Math.max(0, t.answered - t.correct),
+      0,
+    );
+  }, [stats]);
+
+  // ========== Heatmap data ==========
+  const heatmap = useMemo(() => buildHeatmap(attempts), [attempts]);
+
+  // ========== Themes sorted weak-first ==========
+  const sortedThemes = useMemo(() => {
+    if (!stats) return [];
+    const started = stats.byTheme.filter((t) => t.answered > 0);
+    const notStarted = stats.byTheme.filter((t) => t.answered === 0);
+    started.sort((a, b) => successRate(a) - successRate(b));
+    notStarted.sort((a, b) => b.total - a.total);
+    return [...started, ...notStarted];
+  }, [stats]);
+
+  const weakest = useMemo(
+    () =>
+      sortedThemes
+        .filter((t) => t.answered > 0)
+        .slice(0, 4),
+    [sortedThemes],
+  );
+
+  const errorDistribution = useMemo(() => {
+    if (!stats || totalWrong === 0) return [];
+    const items = stats.byTheme
+      .map((t) => ({
+        themeId: t.themeId,
+        themeName: t.themeName,
+        wrong: Math.max(0, t.answered - t.correct),
+      }))
+      .filter((x) => x.wrong > 0)
+      .sort((a, b) => b.wrong - a.wrong);
+    const top = items.slice(0, 3);
+    const rest = items.slice(3);
+    const result = top.map((it) => ({
+      ...it,
+      pct: Math.round((it.wrong / totalWrong) * 100),
+    }));
+    if (rest.length > 0) {
+      const restWrong = rest.reduce((sum, r) => sum + r.wrong, 0);
+      result.push({
+        themeId: "__rest",
+        themeName: "Autres",
+        wrong: restWrong,
+        pct: Math.round((restWrong / totalWrong) * 100),
+      });
+    }
+    return result;
+  }, [stats, totalWrong]);
 
   async function startThemeTraining(themeId: string) {
     if (!isPremiumForModule) {
-      setShowPaywall(true);
+      setPaywallOpen(true);
       return;
     }
     setStarting(themeId);
@@ -71,148 +143,313 @@ export default function StatistiquesPage() {
     }
   }
 
-  const stats = data.loadedFor === module ? data.stats : null;
-  const loading = data.loading || data.loadedFor !== module;
-  const error = data.loadedFor === module ? data.error : null;
-
-  // Tri : faibles d'abord, puis non commencés (par total décroissant pour voir
-  // les plus gros pools en premier).
-  const sortedThemes = useMemo(() => {
-    if (!stats) return [];
-    const started = stats.byTheme.filter((t) => t.answered > 0);
-    const notStarted = stats.byTheme.filter((t) => t.answered === 0);
-    started.sort((a, b) => successRate(a) - successRate(b));
-    notStarted.sort((a, b) => b.total - a.total);
-    return [...started, ...notStarted];
-  }, [stats]);
-
-  if (status === "loading") return <div className="st-loading" />;
+  if (status === "loading") return <StatsSkeleton />;
   if (!user) {
     return (
       <main className="st-gate">
         <p>Connectez-vous pour voir vos statistiques.</p>
-        <Link href="/connexion?next=/statistiques" className="btn btn-blue">
-          Se connecter
+        <Link href="/connexion?next=/statistiques" className="st-gate-cta">
+          Se connecter →
         </Link>
+        <style>{gateStyles}</style>
       </main>
     );
   }
 
-  const globalSuccessPct = stats ? Math.round(stats.successRate * 100) : 0;
   const isEmpty = !loading && stats !== null && stats.questionsAnswered === 0;
 
   return (
     <main className="st">
-      <section className="st-head">
-        <div className="st-wrap">
-          <span className="eyebrow">Progression</span>
-          <h1>
-            Vos <em>forces</em> et axes de travail.
-          </h1>
-          <p>
-            Suivez votre réussite par thématique pour cibler ce qu&apos;il reste à
-            retravailler avant le jour J.
-          </p>
-          <div className="st-module">
-            <ModuleSwitch value={module} onChange={setModule} />
+      {/* ============ TOPBAR ============ */}
+      <header className="topbar">
+        <div>
+          <div className="breadcrumb">
+            ACCUEIL <span className="sep">/</span> STATISTIQUES
           </div>
+          <h1>
+            Votre <em>progression</em> en détail.
+          </h1>
         </div>
+        <div className="topbar-actions">
+          <Link href="/revision" className="btn-outline">
+            Mes erreurs →
+          </Link>
+        </div>
+      </header>
+
+      {/* ============ MODULE TABS ============ */}
+      <div className="filters">
+        <div className="filter-tabs" role="tablist" aria-label="Module">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={module === "CIVIQUE"}
+            className={`tab tab-blue ${module === "CIVIQUE" ? "is-active" : ""}`}
+            onClick={() => setModule("CIVIQUE")}
+          >
+            Civique
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={module === "TCF"}
+            className={`tab tab-red ${module === "TCF" ? "is-active" : ""}`}
+            onClick={() => setModule("TCF")}
+          >
+            TCF
+          </button>
+        </div>
+      </div>
+
+      {!isPremiumForModule && (
+        <button
+          type="button"
+          className="upsell"
+          onClick={() => setPaywallOpen(true)}
+        >
+          <div className="upsell-icon" aria-hidden>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" />
+            </svg>
+          </div>
+          <div className="upsell-content">
+            <div className="upsell-title">Statistiques en mode démo</div>
+            <div className="upsell-sub">
+              Activez l&apos;abonnement pour suivre toutes les thématiques sans
+              limite.
+            </div>
+          </div>
+          <div className="upsell-arrow">→</div>
+        </button>
+      )}
+
+      {error && <div className="form-error st-error">{error}</div>}
+
+      {/* ============ STATS GRID ============ */}
+      <section className="stats-grid">
+        <StatCard
+          tone="blue"
+          icon={<FlameIcon />}
+          label="JOURS D'AFFILÉE"
+          value={loading ? "—" : String(streak)}
+          trend={streak > 0 ? "Série en cours" : "Pas de série active"}
+        />
+        <StatCard
+          tone="red"
+          icon={<AlertIcon />}
+          label="ERREURS EN ATTENTE"
+          value={loading ? "—" : String(totalWrong)}
+          trend={totalWrong > 0 ? "À retravailler" : "Rien à corriger"}
+        />
+        <StatCard
+          tone="green"
+          icon={<TrendIcon />}
+          label="TAUX DE RÉUSSITE"
+          value={
+            loading || !stats || stats.questionsAnswered === 0
+              ? "—"
+              : `${globalSuccessPct}%`
+          }
+          trend={
+            stats
+              ? `${stats.questionsCorrect} bonnes sur ${stats.questionsAnswered}`
+              : "Tous modules"
+          }
+        />
+        <StatCard
+          tone="amber"
+          icon={<LayersIcon />}
+          label="SESSIONS"
+          value={loading ? "—" : String(stats?.attemptsTotal ?? 0)}
+          trend={
+            stats && stats.attemptsTotal > 0
+              ? `${stats.questionsAnswered} questions`
+              : "À jouer"
+          }
+        />
       </section>
 
-      <section className="st-body">
-        <div className="st-wrap">
-          {!isPremiumForModule && (
-            <button
-              type="button"
-              className="st-upsell"
-              onClick={() => setShowPaywall(true)}
-            >
-              <div className="st-upsell-icon" aria-hidden>
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" />
-                </svg>
+      {isEmpty && (
+        <EmptyState
+          title="Aucune statistique pour l'instant"
+          body={
+            module === "TCF"
+              ? "Démarrez votre premier entraînement TCF pour commencer à mesurer votre progression."
+              : "Démarrez votre premier entraînement civique pour mesurer votre progression."
+          }
+          ctaHref="/entrainement"
+          ctaLabel="Lancer un entraînement →"
+        />
+      )}
+
+      {!loading && stats && stats.questionsAnswered > 0 && (
+        <>
+          {/* ============ HEATMAP ============ */}
+          <section className="card">
+            <div className="card-head">
+              <div>
+                <h3>Calendrier de pratique</h3>
+                <p>
+                  {HEATMAP_DAYS} derniers jours · plus une case est foncée, plus
+                  vous avez pratiqué.
+                </p>
               </div>
-              <div className="st-upsell-content">
-                <div className="st-upsell-title">Statistiques détaillées en démo</div>
-                <div className="st-upsell-sub">
-                  L&apos;abonnement débloque toutes les thématiques et le suivi
-                  illimité de votre progression.
-                </div>
-              </div>
-              <div className="st-upsell-arrow">→</div>
-            </button>
-          )}
-
-          {loading && <StatsLoading />}
-          {error && !loading && <div className="form-error">{error}</div>}
-
-          {isEmpty && (
-            <EmptyState
-              title="Aucune statistique pour l'instant"
-              body={
-                module === "TCF"
-                  ? "Démarrez votre premier entraînement TCF pour commencer à mesurer votre progression."
-                  : "Démarrez votre premier entraînement civique pour mesurer votre progression."
-              }
-              ctaHref="/entrainement"
-              ctaLabel="Lancer un entraînement →"
-            />
-          )}
-
-          {!loading && stats && stats.questionsAnswered > 0 && (
-            <>
-              {/* Carte de stats globales */}
-              <div className="st-global">
-                <div className="st-global-main">
-                  <span className="st-global-pct" data-tone={toneFor(globalSuccessPct)}>
-                    {globalSuccessPct}%
-                  </span>
-                  <span className="st-global-label">Taux global de réussite</span>
-                </div>
-                <div className="st-global-grid">
-                  <div className="st-global-stat">
-                    <span className="l">Sessions</span>
-                    <span className="v">{stats.attemptsTotal}</span>
-                  </div>
-                  <div className="st-global-stat">
-                    <span className="l">Questions répondues</span>
-                    <span className="v">{stats.questionsAnswered}</span>
-                  </div>
-                  <div className="st-global-stat">
-                    <span className="l">Bonnes réponses</span>
-                    <span className="v">{stats.questionsCorrect}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Liste des thématiques */}
-              <div className="st-themes-head">
-                <span className="st-themes-title">Détail par thématique</span>
-                <span className="st-themes-hint">
-                  Les plus faibles en haut, à retravailler en priorité
-                </span>
-              </div>
-
-              <div className="st-themes-list">
-                {sortedThemes.map((t) => (
-                  <ThemeStatCard
-                    key={t.themeId}
-                    theme={t}
-                    locked={!isPremiumForModule && t.answered === 0}
-                    starting={starting === t.themeId}
-                    onStart={() => startThemeTraining(t.themeId)}
-                    onLockedClick={() => setShowPaywall(true)}
+              <div className="heatmap-legend">
+                <span>MOINS</span>
+                {HEATMAP_TONES.map((t, i) => (
+                  <span
+                    key={i}
+                    className="heatmap-legend-cell"
+                    style={{ background: t }}
                   />
                 ))}
+                <span>PLUS</span>
               </div>
-            </>
-          )}
-        </div>
-      </section>
+            </div>
+            <div className="heatmap-grid">
+              {heatmap.cells.map((c, i) => (
+                <div
+                  key={i}
+                  className="heatmap-cell"
+                  style={{
+                    background: HEATMAP_TONES[c.intensity],
+                    ...(c.isToday
+                      ? { boxShadow: "0 0 0 2px var(--color-red)" }
+                      : {}),
+                  }}
+                  title={`${c.label} · ${c.count} session${c.count > 1 ? "s" : ""}`}
+                />
+              ))}
+            </div>
+            <div className="heatmap-footer">
+              <span>IL Y A {HEATMAP_DAYS} JOURS</span>
+              <span>AUJOURD&apos;HUI</span>
+            </div>
+          </section>
+
+          {/* ============ ROW 2 COLS ============ */}
+          <section className="row-2">
+            {/* Weakest themes */}
+            <div className="card">
+              <div className="card-head">
+                <div>
+                  <h3>Compétences les plus faibles</h3>
+                  <p>Concentrez-vous sur ces points pour progresser vite.</p>
+                </div>
+              </div>
+              {weakest.length === 0 ? (
+                <p className="weakest-empty">
+                  Aucune zone faible détectée — continuez sur votre lancée.
+                </p>
+              ) : (
+                <div className="weak-list">
+                  {weakest.map((t) => {
+                    const pct = Math.round(successRate(t) * 100);
+                    const tone = toneFor(pct);
+                    return (
+                      <button
+                        key={t.themeId}
+                        type="button"
+                        className="weak-row"
+                        onClick={() => startThemeTraining(t.themeId)}
+                        disabled={starting === t.themeId}
+                      >
+                        <span className={`weak-marker weak-marker-${tone}`} aria-hidden>
+                          !
+                        </span>
+                        <div className="weak-body">
+                          <div className="weak-name">{t.themeName}</div>
+                          <div className="weak-bar">
+                            <div
+                              className={`weak-bar-fill weak-bar-${tone}`}
+                              style={{ width: `${Math.max(2, pct)}%` }}
+                            />
+                          </div>
+                        </div>
+                        <span className={`weak-pct weak-pct-${tone}`}>
+                          {pct}<span className="weak-pct-suf">%</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Error distribution donut */}
+            <div className="card">
+              <div className="card-head">
+                <div>
+                  <h3>Répartition des erreurs</h3>
+                  <p>
+                    {totalWrong > 0
+                      ? `${totalWrong} erreurs réparties par thème`
+                      : "Pas d'erreur à analyser"}
+                  </p>
+                </div>
+              </div>
+              {errorDistribution.length === 0 ? (
+                <p className="weakest-empty">
+                  Aucune erreur enregistrée — bravo !
+                </p>
+              ) : (
+                <div className="donut-row">
+                  <DonutChart segments={errorDistribution} total={totalWrong} />
+                  <div className="donut-legend">
+                    {errorDistribution.map((it, i) => (
+                      <div key={it.themeId} className="donut-legend-item">
+                        <span
+                          className="donut-legend-dot"
+                          style={{ background: DONUT_COLORS[i] }}
+                        />
+                        <span className="donut-legend-name">
+                          {it.themeName}
+                        </span>
+                        <span className="donut-legend-pct">{it.pct}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* ============ FULL THEME LIST ============ */}
+          <section>
+            <div className="themes-head">
+              <h3>Détail par thématique</h3>
+              <span className="themes-hint">
+                Les plus faibles en haut, à retravailler en priorité
+              </span>
+            </div>
+            <div className="theme-list">
+              {sortedThemes.map((t) => (
+                <ThemeStatCard
+                  key={t.themeId}
+                  theme={t}
+                  locked={!isPremiumForModule && t.answered === 0}
+                  starting={starting === t.themeId}
+                  onStart={() => startThemeTraining(t.themeId)}
+                  onLockedClick={() => setPaywallOpen(true)}
+                />
+              ))}
+            </div>
+          </section>
+        </>
+      )}
 
       <PaywallSheet
-        open={showPaywall}
-        onClose={() => setShowPaywall(false)}
+        open={paywallOpen}
+        onClose={() => setPaywallOpen(false)}
         title={
           module === "TCF"
             ? "Suivi détaillé TCF avec l'Intégral"
@@ -224,6 +461,107 @@ export default function StatistiquesPage() {
 
       <style>{styles}</style>
     </main>
+  );
+}
+
+// ============================================================================
+// STAT CARD
+// ============================================================================
+function StatCard({
+  tone,
+  icon,
+  label,
+  value,
+  trend,
+}: {
+  tone: "blue" | "red" | "green" | "amber";
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  trend?: string;
+}) {
+  return (
+    <div className="stat-card">
+      <div className={`stat-icon stat-icon-${tone}`}>{icon}</div>
+      <div className="stat-label">{label}</div>
+      <div className="stat-value">{value}</div>
+      {trend && <div className="stat-trend">{trend}</div>}
+    </div>
+  );
+}
+
+// ============================================================================
+// DONUT CHART
+// ============================================================================
+const DONUT_COLORS = [
+  "#E1372F", // red
+  "#E8A317", // amber
+  "#1E3A8C", // blue
+  "#9CA2BD", // muted-2 for "autres"
+];
+
+function DonutChart({
+  segments,
+  total,
+}: {
+  segments: { themeId: string; pct: number }[];
+  total: number;
+}) {
+  const R = 40;
+  const CIRC = 2 * Math.PI * R;
+  let offset = 0;
+  return (
+    <svg viewBox="0 0 100 100" className="donut-svg">
+      <circle
+        cx="50"
+        cy="50"
+        r={R}
+        fill="none"
+        stroke="var(--color-line-2)"
+        strokeWidth="16"
+      />
+      {segments.map((s, i) => {
+        const len = (s.pct / 100) * CIRC;
+        const seg = (
+          <circle
+            key={s.themeId}
+            cx="50"
+            cy="50"
+            r={R}
+            fill="none"
+            stroke={DONUT_COLORS[i] ?? "#9CA2BD"}
+            strokeWidth="16"
+            strokeDasharray={`${len} ${CIRC}`}
+            strokeDashoffset={-offset}
+            transform="rotate(-90 50 50)"
+          />
+        );
+        offset += len;
+        return seg;
+      })}
+      <text
+        x="50"
+        y="48"
+        textAnchor="middle"
+        fontFamily="Fraunces"
+        fontSize="18"
+        fontWeight="600"
+        fill="var(--color-ink)"
+      >
+        {total}
+      </text>
+      <text
+        x="50"
+        y="62"
+        textAnchor="middle"
+        fontFamily="JetBrains Mono"
+        fontSize="6"
+        fill="var(--color-muted)"
+        letterSpacing="1"
+      >
+        ERREURS
+      </text>
+    </svg>
   );
 }
 
@@ -251,47 +589,57 @@ function ThemeStatCard({
 
   if (locked) {
     return (
-      <button type="button" className="st-theme st-theme-locked" onClick={onLockedClick}>
-        <div className="st-theme-head">
-          <span className="st-theme-name">{theme.themeName}</span>
-          <span className="st-theme-locked-badge">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <button
+        type="button"
+        className="theme-card theme-card-locked"
+        onClick={onLockedClick}
+      >
+        <div className="theme-card-head">
+          <span className="theme-name">{theme.themeName}</span>
+          <span className="theme-locked-badge">
+            <svg
+              viewBox="0 0 24 24"
+              width="12"
+              height="12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <rect x="3" y="11" width="18" height="11" rx="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
             Abonnés
           </span>
         </div>
-        <div className="st-theme-meta">{theme.total} questions disponibles</div>
+        <div className="theme-meta">{theme.total} questions disponibles</div>
       </button>
     );
   }
 
   return (
-    <div className="st-theme">
-      <div className="st-theme-head">
-        <span className="st-theme-name">{theme.themeName}</span>
+    <div className="theme-card">
+      <div className="theme-card-head">
+        <span className="theme-name">{theme.themeName}</span>
         {theme.answered > 0 ? (
-          <span className="st-theme-pct" data-tone={tone}>
-            {pct}%
-          </span>
+          <span className={`theme-pct theme-pct-${tone}`}>{pct}%</span>
         ) : (
-          <span className="st-theme-status">Pas commencé</span>
+          <span className="theme-status">Pas commencé</span>
         )}
       </div>
 
       {theme.answered > 0 && (
-        <div className="st-theme-bar">
+        <div className="theme-bar">
           <div
-            className="st-theme-bar-fill"
-            data-tone={tone}
+            className={`theme-bar-fill theme-bar-${tone}`}
             style={{ width: `${pct}%` }}
           />
         </div>
       )}
 
-      <div className="st-theme-foot">
-        <span className="st-theme-meta">
+      <div className="theme-foot">
+        <span className="theme-meta">
           {theme.answered > 0 ? (
             <>
               <strong>{theme.correct}</strong> / {theme.answered} bonnes ·{" "}
@@ -303,7 +651,7 @@ function ThemeStatCard({
         </span>
         <button
           type="button"
-          className="st-theme-cta"
+          className="theme-cta"
           onClick={onStart}
           disabled={starting}
         >
@@ -315,7 +663,9 @@ function ThemeStatCard({
         </button>
       </div>
 
-      {theme.answered > 0 && <span className="st-theme-tag" data-tone={tone}>{status}</span>}
+      {theme.answered > 0 && status && (
+        <span className={`theme-tag theme-tag-${tone}`}>{status}</span>
+      )}
     </div>
   );
 }
@@ -327,32 +677,80 @@ function successRate(t: ThemeStatsResponse): number {
   return t.answered === 0 ? 0 : t.correct / t.answered;
 }
 
-function toneFor(pct: number): "green" | "amber" | "red" {
-  if (pct >= 75) return "green";
-  if (pct >= 50) return "amber";
+function toneFor(pct: number): "green" | "amber" | "red" | "blue" {
+  if (pct >= 80) return "green";
+  if (pct >= 65) return "blue";
+  if (pct >= 45) return "amber";
   return "red";
 }
 
 function labelFor(pct: number, answered: number): string {
   if (answered === 0) return "";
-  if (pct >= 75) return "Bon niveau";
-  if (pct >= 50) return "À consolider";
+  if (pct >= 80) return "Bon niveau";
+  if (pct >= 65) return "Stable";
+  if (pct >= 45) return "À consolider";
   return "À retravailler";
 }
 
-// ============================================================================
-// SUB-COMPONENTS
-// ============================================================================
-function StatsLoading() {
-  return (
-    <div className="st-themes-list">
-      {[0, 1, 2, 3, 4].map((i) => (
-        <div key={i} className="st-theme st-theme-skeleton" />
-      ))}
-    </div>
-  );
+function computeStreak(attempts: AttemptSummaryResponse[]): number {
+  if (attempts.length === 0) return 0;
+  const days = new Set<string>();
+  for (const a of attempts) {
+    days.add(new Date(a.startedAt).toISOString().slice(0, 10));
+  }
+  let streak = 0;
+  const cursor = new Date();
+  cursor.setHours(0, 0, 0, 0);
+  const today = cursor.toISOString().slice(0, 10);
+  if (!days.has(today)) cursor.setDate(cursor.getDate() - 1);
+  while (days.has(cursor.toISOString().slice(0, 10))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
 }
 
+const HEATMAP_TONES = [
+  "#EEF0F8", // 0 sessions
+  "#D5DCEF", // 1
+  "#A8B5E0", // 2
+  "#1E3A8C", // 3
+  "#15296B", // 4+
+];
+
+function buildHeatmap(attempts: AttemptSummaryResponse[]): {
+  cells: { count: number; intensity: number; isToday: boolean; label: string }[];
+} {
+  const map = new Map<string, number>();
+  for (const a of attempts) {
+    const k = new Date(a.startedAt).toISOString().slice(0, 10);
+    map.set(k, (map.get(k) ?? 0) + 1);
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const cells: { count: number; intensity: number; isToday: boolean; label: string }[] = [];
+  for (let i = HEATMAP_DAYS - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const k = d.toISOString().slice(0, 10);
+    const count = map.get(k) ?? 0;
+    const intensity = Math.min(4, count);
+    cells.push({
+      count,
+      intensity,
+      isToday: i === 0,
+      label: d.toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+      }),
+    });
+  }
+  return { cells };
+}
+
+// ============================================================================
+// EMPTY / SKELETON
+// ============================================================================
 function EmptyState({
   title,
   body,
@@ -367,267 +765,598 @@ function EmptyState({
   return (
     <div className="st-empty">
       <div className="st-empty-icon" aria-hidden>
-        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          viewBox="0 0 24 24"
+          width="28"
+          height="28"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M3 3v18h18" />
           <path d="M7 15l4-4 4 4 5-7" />
         </svg>
       </div>
-      <h2>{title}</h2>
+      <h3>{title}</h3>
       <p>{body}</p>
-      <Link href={ctaHref} className="btn btn-blue">{ctaLabel}</Link>
+      <Link href={ctaHref} className="btn-primary">
+        {ctaLabel}
+      </Link>
     </div>
   );
 }
+
+function StatsSkeleton() {
+  return (
+    <div className="st-loading">
+      <style>{`.st-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
+    </div>
+  );
+}
+
+const gateStyles = `
+  .st-gate {
+    min-height: 60vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px;
+    color: var(--color-muted);
+    padding: 36px;
+  }
+  .st-gate-cta { color: var(--color-blue); font-weight: 700; text-decoration: none; }
+`;
+
+// ============================================================================
+// ICONS
+// ============================================================================
+const I = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  />
+);
+const FlameIcon = () => (
+  <I>
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+  </I>
+);
+const AlertIcon = () => (
+  <I>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
+  </I>
+);
+const TrendIcon = () => (
+  <I>
+    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+    <polyline points="17 6 23 6 23 12" />
+  </I>
+);
+const LayersIcon = () => (
+  <I>
+    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+    <polyline points="2 17 12 22 22 17" />
+    <polyline points="2 12 12 17 22 12" />
+  </I>
+);
 
 // ============================================================================
 // STYLES
 // ============================================================================
 const styles = `
-  .st { background: var(--color-paper); min-height: calc(100vh - 110px); }
-  .st-loading { min-height: 60vh; }
-  .st-gate {
-    min-height: 60vh;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 14px; color: var(--color-muted);
-  }
-  .st-wrap { max-width: 760px; margin: 0 auto; }
+  .st { padding: 24px 36px 64px; max-width: 1320px; }
+  @media (max-width: 760px) { .st { padding: 20px 16px 56px; } }
 
-  .st-head { padding: 40px 16px 24px; text-align: center; }
-  .st-head h1 {
-    font-family: var(--font-display); font-weight: 500;
-    font-size: clamp(28px, 4vw, 40px); line-height: 1.05; letter-spacing: -0.025em;
-    margin: 10px 0 12px;
+  /* ========== TOPBAR ========== */
+  .topbar {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 16px; flex-wrap: wrap;
+    margin-bottom: 20px;
   }
-  .st-head h1 em { font-style: italic; color: var(--color-red); }
-  .st-head p {
-    color: var(--color-muted); font-size: 15px; line-height: 1.55;
-    margin: 0 auto 22px; max-width: 540px;
+  .breadcrumb {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
   }
-  .st-module { max-width: 460px; margin: 0 auto; }
+  .breadcrumb .sep { margin: 0 6px; opacity: 0.5; }
+  .topbar h1 {
+    font-family: var(--font-display);
+    font-size: clamp(24px, 3.2vw, 32px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0;
+    line-height: 1.15;
+  }
+  .topbar h1 em {
+    color: var(--color-blue);
+    font-style: italic;
+    font-weight: 500;
+  }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .btn-outline {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 16px; border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+    text-decoration: none;
+    border: 1px solid var(--color-line);
+    background: #fff;
+    color: var(--color-ink);
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .btn-outline:hover { border-color: var(--color-blue); color: var(--color-blue); }
+  .btn-primary {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 16px; border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+    text-decoration: none;
+    background: var(--color-blue); color: #fff;
+    transition: all 0.15s;
+    cursor: pointer;
+    font-family: inherit;
+    border: 1px solid transparent;
+  }
+  .btn-primary:hover { background: var(--color-blue-dark); }
 
-  .st-body { padding: 8px 16px 80px; }
+  .st-error { margin-bottom: 18px; }
 
-  .st-upsell {
-    display: flex; align-items: center; gap: 12px;
+  /* ========== MODULE TABS ========== */
+  .filters {
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .filter-tabs {
+    display: inline-flex;
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 12px;
+    padding: 4px;
+    gap: 2px;
+  }
+  .tab {
+    padding: 8px 18px;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tab:hover { color: var(--color-ink); }
+  .tab.tab-blue.is-active { background: var(--color-blue); color: #fff; }
+  .tab.tab-red.is-active { background: var(--color-red); color: #fff; }
+
+  /* ========== UPSELL ========== */
+  .upsell {
+    display: flex; align-items: center; gap: 14px;
     width: 100%;
-    background: rgba(232, 163, 23, 0.08);
+    background: linear-gradient(135deg, rgba(232, 163, 23, 0.10), rgba(232, 163, 23, 0.02));
     border: 1px solid rgba(232, 163, 23, 0.35);
     border-radius: 14px;
-    padding: 12px 14px;
-    margin: 18px 0 22px;
+    padding: 14px 18px;
+    margin-bottom: 22px;
     cursor: pointer;
     text-align: left;
     font-family: var(--font-sans);
-    transition: background 0.15s;
+    transition: background 0.15s, transform 0.15s;
   }
-  .st-upsell:hover { background: rgba(232, 163, 23, 0.14); }
-  .st-upsell-icon {
-    width: 38px; height: 38px;
-    background: rgba(232, 163, 23, 0.16);
-    color: var(--color-amber);
+  .upsell:hover {
+    background: linear-gradient(135deg, rgba(232, 163, 23, 0.14), rgba(232, 163, 23, 0.04));
+    transform: translateY(-1px);
+  }
+  .upsell-icon {
+    width: 40px; height: 40px;
+    background: var(--color-amber);
+    color: #fff;
     border-radius: 11px;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
-  .st-upsell-content { flex: 1; min-width: 0; }
-  .st-upsell-title {
-    font-weight: 800; font-size: 13.5px; color: var(--color-ink); line-height: 1.2;
-  }
-  .st-upsell-sub {
-    font-size: 12px; color: var(--color-muted); line-height: 1.4; margin-top: 3px;
-  }
-  .st-upsell-arrow { color: var(--color-amber); font-size: 16px; flex-shrink: 0; }
+  .upsell-content { flex: 1; min-width: 0; }
+  .upsell-title { font-weight: 700; font-size: 14px; color: var(--color-ink); line-height: 1.25; }
+  .upsell-sub { font-size: 12.5px; color: var(--color-muted); line-height: 1.4; margin-top: 4px; }
+  .upsell-arrow { color: var(--color-amber); font-size: 18px; font-weight: 700; }
 
-  .st-empty {
-    background: #fff;
-    border: 1px dashed var(--color-line);
-    border-radius: 16px;
-    padding: 48px 32px;
-    text-align: center;
-    margin-top: 22px;
+  /* ========== STATS GRID ========== */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 26px;
   }
-  .st-empty-icon {
-    width: 56px; height: 56px;
-    margin: 0 auto 14px;
-    background: var(--color-blue-light); color: var(--color-blue);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .st-empty h2 {
-    font-family: var(--font-display); font-weight: 500; font-size: 22px;
-    color: var(--color-ink); margin: 0 0 8px;
-    letter-spacing: -0.015em;
-  }
-  .st-empty p {
-    color: var(--color-muted); font-size: 13.5px; line-height: 1.55;
-    margin: 0 auto 18px; max-width: 360px;
-  }
-
-  /* ----- Carte stats globales ----- */
-  .st-global {
+  .stat-card {
     background: #fff;
     border: 1px solid var(--color-line);
     border-radius: 16px;
-    padding: 22px 26px;
-    margin: 18px 0 28px;
+    padding: 18px;
+  }
+  .stat-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 14px;
+  }
+  .stat-icon-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .stat-icon-red { background: var(--color-red-light); color: var(--color-red); }
+  .stat-icon-green { background: rgba(22, 143, 91, 0.1); color: var(--color-green); }
+  .stat-icon-amber { background: rgba(232, 163, 23, 0.12); color: var(--color-amber); }
+  .stat-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .stat-value {
+    font-family: var(--font-display);
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--color-ink);
+  }
+  .stat-trend { font-size: 12px; margin-top: 6px; color: var(--color-muted); }
+  @media (max-width: 1100px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 480px) {
+    .stats-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ========== CARD ========== */
+  .card {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 18px;
+    padding: 22px;
+    margin-bottom: 22px;
+  }
+  .card-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 18px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .card-head h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 19px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .card-head p { margin: 0; color: var(--color-muted); font-size: 13px; }
+
+  /* ========== HEATMAP ========== */
+  .heatmap-grid {
     display: grid;
-    grid-template-columns: minmax(140px, 200px) 1fr;
-    gap: 28px;
+    grid-template-columns: repeat(${HEATMAP_DAYS}, 1fr);
+    gap: 5px;
+    margin-bottom: 14px;
+  }
+  .heatmap-cell {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    transition: transform 0.1s;
+  }
+  .heatmap-cell:hover { transform: scale(1.18); }
+  .heatmap-footer {
+    display: flex; justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--color-muted);
+    letter-spacing: 0.1em;
+  }
+  .heatmap-legend {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--color-muted);
+    letter-spacing: 0.1em;
+  }
+  .heatmap-legend-cell {
+    width: 12px; height: 12px; border-radius: 3px;
+  }
+  @media (max-width: 600px) {
+    .heatmap-grid { grid-template-columns: repeat(15, 1fr); }
+  }
+
+  /* ========== ROW 2 COLS ========== */
+  .row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 22px;
+  }
+  @media (max-width: 980px) {
+    .row-2 { grid-template-columns: 1fr; }
+  }
+
+  /* WEAK LIST */
+  .weak-list { display: flex; flex-direction: column; gap: 14px; }
+  .weak-row {
+    display: grid;
+    grid-template-columns: 24px 1fr 60px;
+    gap: 12px;
     align-items: center;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    padding: 0;
+    font-family: inherit;
+    transition: opacity 0.15s;
+    width: 100%;
   }
-  .st-global-main {
-    display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
-    padding-right: 28px;
-    border-right: 1px solid var(--color-line-2);
+  .weak-row:hover { opacity: 0.85; }
+  .weak-row:disabled { opacity: 0.5; cursor: not-allowed; }
+  .weak-marker {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 13px;
   }
-  .st-global-pct {
-    font-family: var(--font-display); font-weight: 500;
-    font-size: 56px; line-height: 1; letter-spacing: -0.04em;
-  }
-  .st-global-pct[data-tone="green"] { color: var(--color-green); }
-  .st-global-pct[data-tone="amber"] { color: var(--color-amber); }
-  .st-global-pct[data-tone="red"] { color: var(--color-red); }
-  .st-global-label {
-    font-family: var(--font-mono); font-size: 10px;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--color-muted); font-weight: 600;
-  }
-  .st-global-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
-  }
-  .st-global-stat { display: flex; flex-direction: column; gap: 4px; }
-  .st-global-stat .l {
-    font-family: var(--font-mono); font-size: 9.5px;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--color-muted); font-weight: 600;
-  }
-  .st-global-stat .v {
-    font-family: var(--font-display); font-weight: 500;
-    font-size: 24px; line-height: 1;
+  .weak-marker-red { background: var(--color-red-light); color: var(--color-red); }
+  .weak-marker-amber { background: rgba(232, 163, 23, 0.16); color: var(--color-amber); }
+  .weak-marker-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .weak-marker-green { background: rgba(22, 143, 91, 0.12); color: var(--color-green); }
+  .weak-body { min-width: 0; }
+  .weak-name {
+    font-size: 13.5px;
+    font-weight: 600;
     color: var(--color-ink);
+    margin-bottom: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  @media (max-width: 560px) {
-    .st-global { grid-template-columns: 1fr; gap: 18px; padding: 18px; }
-    .st-global-main {
-      padding-right: 0; padding-bottom: 16px;
-      border-right: none; border-bottom: 1px solid var(--color-line-2);
-    }
-    .st-global-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; }
-    .st-global-stat .v { font-size: 18px; }
+  .weak-bar {
+    height: 6px;
+    background: var(--color-line-2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .weak-bar-fill {
+    height: 100%; border-radius: 3px;
+  }
+  .weak-bar-red { background: var(--color-red); }
+  .weak-bar-amber { background: var(--color-amber); }
+  .weak-bar-blue { background: var(--color-blue); }
+  .weak-bar-green { background: var(--color-green); }
+  .weak-pct {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .weak-pct-red { color: var(--color-red); }
+  .weak-pct-amber { color: var(--color-amber); }
+  .weak-pct-blue { color: var(--color-blue); }
+  .weak-pct-green { color: var(--color-green); }
+  .weak-pct-suf { color: var(--color-muted); font-weight: 500; }
+  .weakest-empty {
+    color: var(--color-muted);
+    font-size: 13.5px;
+    margin: 24px 8px;
+    text-align: center;
   }
 
-  /* ----- Themes ----- */
-  .st-themes-head {
+  /* DONUT */
+  .donut-row {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+  }
+  .donut-svg {
+    width: 140px;
+    height: 140px;
+    flex-shrink: 0;
+  }
+  .donut-legend {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+  }
+  .donut-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .donut-legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .donut-legend-name {
+    font-size: 13px;
+    color: var(--color-ink-2);
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .donut-legend-pct {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-ink);
+  }
+  @media (max-width: 480px) {
+    .donut-row { flex-direction: column; }
+  }
+
+  /* ========== FULL THEME LIST ========== */
+  .themes-head {
     display: flex; align-items: baseline; justify-content: space-between;
-    gap: 12px; padding: 22px 0 14px;
+    gap: 12px;
+    padding: 4px 0 14px;
   }
-  .st-themes-title {
-    font-family: var(--font-sans); font-weight: 800; font-size: 15px;
-    color: var(--color-ink);
+  .themes-head h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 19px;
+    margin: 0;
+    letter-spacing: -0.01em;
   }
-  .st-themes-hint {
-    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em;
-    color: var(--color-muted-2); text-transform: uppercase;
+  .themes-hint {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--color-muted);
+    text-transform: uppercase;
   }
-  .st-themes-list { display: flex; flex-direction: column; gap: 10px; }
+  .theme-list { display: flex; flex-direction: column; gap: 10px; }
 
-  .st-theme {
+  .theme-card {
     position: relative;
     background: #fff;
     border: 1px solid var(--color-line);
     border-radius: 14px;
     padding: 16px 18px;
-    text-align: left;
-    width: 100%;
   }
-  .st-theme-skeleton {
-    height: 96px;
-    animation: st-pulse 1.4s ease-in-out infinite;
-  }
-  @keyframes st-pulse {
-    0%, 100% { opacity: 0.55; }
-    50% { opacity: 1; }
-  }
-  .st-theme-locked {
+  .theme-card-locked {
     background: var(--color-paper);
     cursor: pointer;
+    text-align: left;
+    width: 100%;
+    font-family: inherit;
     transition: background 0.15s;
   }
-  .st-theme-locked:hover { background: var(--color-paper-2); }
-  .st-theme-locked .st-theme-name { color: var(--color-muted); }
-
-  .st-theme-head {
+  .theme-card-locked:hover { background: var(--color-paper-2); }
+  .theme-card-locked .theme-name { color: var(--color-muted); }
+  .theme-card-head {
     display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; margin-bottom: 8px;
+    gap: 12px;
+    margin-bottom: 8px;
   }
-  .st-theme-name {
-    font-family: var(--font-sans); font-weight: 700; font-size: 14.5px;
+  .theme-name {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 14.5px;
     color: var(--color-ink);
   }
-  .st-theme-pct {
-    font-family: var(--font-mono); font-size: 16px; font-weight: 700;
+  .theme-pct {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 700;
   }
-  .st-theme-pct[data-tone="green"] { color: var(--color-green); }
-  .st-theme-pct[data-tone="amber"] { color: var(--color-amber); }
-  .st-theme-pct[data-tone="red"] { color: var(--color-red); }
-  .st-theme-status, .st-theme-locked-badge {
-    font-family: var(--font-mono); font-size: 10px;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--color-muted); font-weight: 700;
+  .theme-pct-green { color: var(--color-green); }
+  .theme-pct-blue { color: var(--color-blue); }
+  .theme-pct-amber { color: var(--color-amber); }
+  .theme-pct-red { color: var(--color-red); }
+  .theme-status, .theme-locked-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    font-weight: 700;
   }
-  .st-theme-locked-badge {
+  .theme-locked-badge {
     display: inline-flex; align-items: center; gap: 4px;
     background: var(--color-paper-2);
     padding: 3px 8px; border-radius: 100px;
   }
-
-  .st-theme-bar {
+  .theme-bar {
     height: 6px;
     background: var(--color-line-2);
-    border-radius: 100px;
+    border-radius: 3px;
     overflow: hidden;
     margin-bottom: 10px;
   }
-  .st-theme-bar-fill {
-    height: 100%; border-radius: 100px;
-    transition: width 0.4s ease-out;
-  }
-  .st-theme-bar-fill[data-tone="green"] { background: var(--color-green); }
-  .st-theme-bar-fill[data-tone="amber"] { background: var(--color-amber); }
-  .st-theme-bar-fill[data-tone="red"] { background: var(--color-red); }
-
-  .st-theme-foot {
+  .theme-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease-out; }
+  .theme-bar-green { background: var(--color-green); }
+  .theme-bar-blue { background: var(--color-blue); }
+  .theme-bar-amber { background: var(--color-amber); }
+  .theme-bar-red { background: var(--color-red); }
+  .theme-foot {
     display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; flex-wrap: wrap;
+    gap: 12px;
+    flex-wrap: wrap;
   }
-  .st-theme-meta {
-    font-size: 12.5px; color: var(--color-muted);
-  }
-  .st-theme-meta strong { color: var(--color-ink); font-weight: 700; }
-  .st-theme-cta {
+  .theme-meta { font-size: 12.5px; color: var(--color-muted); }
+  .theme-meta strong { color: var(--color-ink); font-weight: 700; }
+  .theme-cta {
     background: none; border: none;
-    font-family: var(--font-sans); font-size: 13px; font-weight: 700;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
     color: var(--color-blue);
-    cursor: pointer; padding: 4px 0;
+    cursor: pointer;
+    padding: 4px 0;
   }
-  .st-theme-cta:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .st-theme-tag {
-    position: absolute; top: 16px; right: 56px;
-    font-family: var(--font-mono); font-size: 9px;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    padding: 2px 8px; border-radius: 100px;
+  .theme-cta:disabled { opacity: 0.5; cursor: not-allowed; }
+  .theme-tag {
+    position: absolute;
+    top: 16px; right: 64px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 100px;
     font-weight: 700;
     display: none;
   }
-  @media (min-width: 720px) { .st-theme-tag { display: inline-block; } }
-  .st-theme-tag[data-tone="green"] {
-    background: rgba(22, 143, 91, 0.12); color: var(--color-green);
+  @media (min-width: 760px) { .theme-tag { display: inline-block; } }
+  .theme-tag-green { background: rgba(22, 143, 91, 0.12); color: var(--color-green); }
+  .theme-tag-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .theme-tag-amber { background: rgba(232, 163, 23, 0.16); color: var(--color-amber); }
+  .theme-tag-red { background: var(--color-red-light); color: var(--color-red); }
+
+  /* ========== EMPTY ========== */
+  .st-empty {
+    background: #fff;
+    border: 1px dashed var(--color-line);
+    border-radius: 16px;
+    padding: 60px 32px;
+    text-align: center;
+    margin-top: 4px;
   }
-  .st-theme-tag[data-tone="amber"] {
-    background: rgba(232, 163, 23, 0.16); color: var(--color-amber);
+  .st-empty-icon {
+    width: 56px; height: 56px;
+    margin: 0 auto 14px;
+    background: var(--color-blue-light);
+    color: var(--color-blue);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
   }
-  .st-theme-tag[data-tone="red"] {
-    background: var(--color-red-light); color: var(--color-red);
+  .st-empty h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 22px;
+    color: var(--color-ink);
+    margin: 0 0 8px;
+    letter-spacing: -0.015em;
+  }
+  .st-empty p {
+    color: var(--color-muted);
+    font-size: 13.5px;
+    line-height: 1.55;
+    margin: 0 auto 18px;
+    max-width: 380px;
   }
 `;

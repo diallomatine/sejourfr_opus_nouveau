@@ -1,149 +1,163 @@
 "use client";
 
 import Link from "next/link";
-import {useRouter} from "next/navigation";
-import {useEffect, useRef, useState} from "react";
-import {Brand} from "./Brand";
-import {useAuth} from "@/lib/auth-context";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { Brand } from "./Brand";
+import { useAuth } from "@/lib/auth-context";
 
-/**
- * Header partagé entre toutes les pages. Le contenu à droite change selon
- * l'état d'authentification :
- *   - guest         : "Se connecter" + "Commencer gratuitement"
- *   - authenticated : avatar + menu (Dashboard / Examens / Déconnexion)
- *
- * Pendant l'hydratation initiale (avant que useAuth ait fini /api/auth/me),
- * on rend la version guest pour éviter d'afficher un menu utilisateur vide.
- */
+/** Routes utilisateur connecté qui ont leur propre sidebar — le SiteHeader
+ *  global n'apparaît pas pour éviter une double-navigation. */
+const APP_PREFIXES = [
+  "/dashboard",
+  "/entrainement",
+  "/examens-blancs",
+  "/historique",
+  "/paiement",
+  "/parcours",
+  "/profil",
+  "/revision",
+  "/sessions",
+  "/statistiques",
+];
+
 export function SiteHeader() {
-    const {status, user, logout} = useAuth();
-    const router = useRouter();
-    const [menuOpen, setMenuOpen] = useState(false);
-    const menuRef = useRef<HTMLDivElement>(null);
+  const { status, user, logout } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-    // Ferme le menu si on clique en dehors.
-    useEffect(() => {
-        if (!menuOpen) return;
-        const onClick = (e: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-                setMenuOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", onClick);
-        return () => document.removeEventListener("mousedown", onClick);
-    }, [menuOpen]);
-
-    const handleLogout = () => {
-        logout();
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
-        router.push("/");
+      }
     };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [menuOpen]);
 
-    const isAuth = status === "authenticated" && user !== null;
-    const isLoading = status === "loading";
-    const homeHref = isAuth ? "/dashboard" : "/";
+  const isAppRoute = pathname
+    ? APP_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+    : false;
+  if (isAppRoute) return null;
 
-    return (
-        <nav className="site-header" aria-label="Navigation principale">
-            <div className="site-header__inner">
-                {/* Brand contient déjà son propre <Link>, on lui passe la cible
-            contextuelle plutôt que de wrapper (sinon <a> dans <a>). */}
-                <Brand href={homeHref}/>
+  const handleLogout = () => {
+    logout();
+    setMenuOpen(false);
+    router.push("/");
+  };
 
-                <div className="site-header__links">
-                    <Link href="/">Accueil</Link>
-                    <Link href="/examens-blancs">Examens blancs</Link>
-                    <Link href="/#methode">Méthode</Link>
-                    <Link href="/#tarifs">Tarifs</Link>
-                    <Link href="/#faq">FAQ</Link>
-                </div>
+  const isAuth = status === "authenticated" && user !== null;
+  const isLoading = status === "loading";
+  const homeHref = isAuth ? "/dashboard" : "/";
 
-                <div className="site-header__ctas">
-                    {isLoading ? (
-                        <span className="site-header__ctaPlaceholder" aria-hidden/>
-                    ) : isAuth ? (
-                        <div className="site-header__user" ref={menuRef}>
-                            <button
-                                type="button"
-                                className="site-header__userBtn"
-                                onClick={() => setMenuOpen((v) => !v)}
-                                aria-haspopup="menu"
-                                aria-expanded={menuOpen}
-                            >
+  return (
+    <nav className="site-header" aria-label="Navigation principale">
+      <div className="site-header__inner">
+        <Brand href={homeHref} />
+
+        <div className="site-header__links">
+          <Link href="/#examens">Examen civique</Link>
+          <Link href="/#tcf">TCF IRN</Link>
+          <Link href="/#fonctionnalites">Fonctionnalités</Link>
+          <Link href="/#tarifs">Tarifs</Link>
+          <Link href="/#faq">FAQ</Link>
+        </div>
+
+        <div className="site-header__ctas">
+          {isLoading ? (
+            <span className="site-header__ctaPlaceholder" aria-hidden />
+          ) : isAuth ? (
+            <div className="site-header__user" ref={menuRef}>
+              <button
+                type="button"
+                className="site-header__userBtn"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+              >
                 <span className="site-header__avatar">
                   {user.firstName?.[0]?.toUpperCase() ??
-                      user.email[0].toUpperCase()}
+                    user.email[0].toUpperCase()}
                 </span>
-                                <span className="site-header__userName">{user.firstName ?? user.email}</span>
-                                <span className="site-header__caret" aria-hidden>▾</span>
-                            </button>
+                <span className="site-header__userName">
+                  {user.firstName ?? user.email}
+                </span>
+                <span className="site-header__caret" aria-hidden>
+                  ▾
+                </span>
+              </button>
 
-                            {menuOpen && (
-                                <div className="site-header__menu" role="menu">
-                                    <div className="site-header__menuHead">
-                                        <div className="site-header__menuName">
-                                            {user.firstName} {user.lastName}
-                                        </div>
-                                        <div className="site-header__menuEmail">{user.email}</div>
-                                    </div>
-                                    <Link
-                                        href="/dashboard"
-                                        className="site-header__menuItem"
-                                        onClick={() => setMenuOpen(false)}
-                                    >
-                                        Tableau de bord
-                                    </Link>
-                                    <Link
-                                        href="/examens-blancs"
-                                        className="site-header__menuItem"
-                                        onClick={() => setMenuOpen(false)}
-                                    >
-                                        Examens blancs
-                                    </Link>
-                                    <Link
-                                        href="/paiement"
-                                        className="site-header__menuItem"
-                                        onClick={() => setMenuOpen(false)}
-                                    >
-                                        Mon abonnement
-                                    </Link>
-                                    <button
-                                        type="button"
-                                        className="site-header__menuItem site-header__menuItem--danger"
-                                        onClick={handleLogout}
-                                    >
-                                        Se déconnecter
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <>
-                            <Link
-                                href="/connexion"
-                                className="btn btn-link-soft site-header__hideMobile"
-                            >
-                                Connexion
-                            </Link>
-                            <Link href="/inscription" className="btn">
-                                Commencer gratuitement
-                            </Link>
-                        </>
-                    )}
+              {menuOpen && (
+                <div className="site-header__menu" role="menu">
+                  <div className="site-header__menuHead">
+                    <div className="site-header__menuName">
+                      {user.firstName} {user.lastName}
+                    </div>
+                    <div className="site-header__menuEmail">{user.email}</div>
+                  </div>
+                  <Link
+                    href="/dashboard"
+                    className="site-header__menuItem"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Tableau de bord
+                  </Link>
+                  <Link
+                    href="/examens-blancs"
+                    className="site-header__menuItem"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Examens blancs
+                  </Link>
+                  <Link
+                    href="/profil"
+                    className="site-header__menuItem"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Mon profil
+                  </Link>
+                  <button
+                    type="button"
+                    className="site-header__menuItem site-header__menuItem--danger"
+                    onClick={handleLogout}
+                  >
+                    Se déconnecter
+                  </button>
                 </div>
+              )}
             </div>
+          ) : (
+            <>
+              <Link
+                href="/connexion"
+                className="site-header__ghost site-header__hideMobile"
+              >
+                Se connecter
+              </Link>
+              <Link href="/inscription" className="btn site-header__primary">
+                Commencer
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
 
-            <style>{`
+      <style>{`
         .site-header {
           position: sticky; top: 0; z-index: 50;
-          background: rgba(250, 250, 247, 0.85);
-          backdrop-filter: blur(14px);
-          -webkit-backdrop-filter: blur(14px);
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: saturate(180%) blur(14px);
+          -webkit-backdrop-filter: saturate(180%) blur(14px);
           border-bottom: 1px solid var(--color-line);
         }
         .site-header__inner {
           max-width: 1180px; margin: 0 auto;
-          padding: 14px 28px;
+          padding: 0 28px;
+          height: 68px;
           display: flex; align-items: center; justify-content: space-between;
           gap: 24px;
         }
@@ -155,13 +169,30 @@ export function SiteHeader() {
           opacity: 0.5;
         }
         .site-header__links {
-          display: flex; align-items: center; gap: 26px;
+          display: flex; align-items: center; gap: 32px;
           font-size: 14px; font-weight: 500; color: var(--color-ink-2);
         }
-        .site-header__links a { color: inherit; text-decoration: none; }
+        .site-header__links a { color: inherit; text-decoration: none; transition: color 0.15s; }
         .site-header__links a:hover { color: var(--color-blue); }
         .site-header__ctas {
           display: flex; align-items: center; gap: 10px;
+        }
+
+        .site-header__ghost {
+          font-size: 14px; font-weight: 600;
+          color: var(--color-ink-2);
+          padding: 10px 16px;
+          border-radius: 10px;
+          transition: background 0.15s, color 0.15s;
+        }
+        .site-header__ghost:hover {
+          background: var(--color-blue-soft);
+          color: var(--color-blue);
+        }
+        .site-header__primary {
+          padding: 11px 20px;
+          border-radius: 12px;
+          font-size: 14px;
         }
 
         .site-header__user { position: relative; }
@@ -178,7 +209,8 @@ export function SiteHeader() {
         .site-header__userBtn:hover { border-color: var(--color-blue); }
         .site-header__avatar {
           width: 28px; height: 28px; border-radius: 50%;
-          background: var(--color-blue); color: #fff;
+          background: linear-gradient(135deg, var(--color-blue), var(--color-red));
+          color: #fff;
           display: flex; align-items: center; justify-content: center;
           font-weight: 700; font-size: 12px;
         }
@@ -231,6 +263,6 @@ export function SiteHeader() {
           .site-header__userName { display: none; }
         }
       `}</style>
-        </nav>
-    );
+    </nav>
+  );
 }

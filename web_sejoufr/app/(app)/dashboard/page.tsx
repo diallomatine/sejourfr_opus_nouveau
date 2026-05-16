@@ -1,30 +1,41 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { attemptApi, statsApi } from "@/lib/api";
+import { useEffect, useMemo, useState } from "react";
+import { attemptApi, statsApi, userContentApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type {
   AttemptSummaryResponse,
   Module as ModuleEnum,
+  TargetProcedure,
   UserStatsResponse,
 } from "@/lib/types";
 
 type StatsByModule = Partial<Record<ModuleEnum, UserStatsResponse | null>>;
+const EXAM_DATE_KEY = "sejourfr.examDate";
 
 export default function DashboardPage() {
   const { user, status } = useAuth();
 
   const [stats, setStats] = useState<StatsByModule>({});
-  const [recentAttempts, setRecentAttempts] = useState<AttemptSummaryResponse[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
+  const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
+  const [wrongCount, setWrongCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+  const [examDate, setExamDate] = useState<string | null>(null);
+  const [showExamPicker, setShowExamPicker] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const v = window.localStorage.getItem(EXAM_DATE_KEY);
+    if (v) setExamDate(v);
+  }, []);
 
   useEffect(() => {
     if (status !== "authenticated" || !user) return;
     let cancelled = false;
     (async () => {
-      const promises: Array<Promise<unknown>> = [];
       const result: StatsByModule = {};
+      const promises: Array<Promise<unknown>> = [];
       if (user.hasCivique !== false) {
         promises.push(
           statsApi
@@ -50,180 +61,285 @@ export default function DashboardPage() {
         );
       }
       const attemptsP = attemptApi
-        .listMine({ limit: 3 })
+        .listMine({ limit: 30 })
         .catch((): AttemptSummaryResponse[] => []);
-      const [, attempts] = await Promise.all([Promise.all(promises), attemptsP]);
+      const wrongP = userContentApi
+        .wrong()
+        .then((q) => q.length)
+        .catch(() => 0);
+
+      const [, atts, w] = await Promise.all([
+        Promise.all(promises),
+        attemptsP,
+        wrongP,
+      ]);
       if (cancelled) return;
       setStats(result);
-      setRecentAttempts(attempts);
-      setLoadingData(false);
+      setAttempts(atts);
+      setWrongCount(w);
+      setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
   }, [status, user]);
 
-  if (status === "loading") return <DashboardSkeleton />;
+  const inProgressAttempt = useMemo(
+    () => attempts.find((a) => !a.finishedAt) ?? null,
+    [attempts],
+  );
+
+  // ============ KPIs ============
+  const totalQuestionsAnswered = useMemo(() => {
+    const c = stats.CIVIQUE?.questionsAnswered ?? 0;
+    const t = stats.TCF?.questionsAnswered ?? 0;
+    return c + t;
+  }, [stats]);
+
+  const totalCorrect = useMemo(() => {
+    const c = stats.CIVIQUE?.questionsCorrect ?? 0;
+    const t = stats.TCF?.questionsCorrect ?? 0;
+    return c + t;
+  }, [stats]);
+
+  const overallSuccessPct = useMemo(() => {
+    if (totalQuestionsAnswered === 0) return 0;
+    return Math.round((totalCorrect / totalQuestionsAnswered) * 100);
+  }, [totalCorrect, totalQuestionsAnswered]);
+
+  const streak = useMemo(() => computeStreak(attempts), [attempts]);
+  const cumulativeMinutes = useMemo(
+    () => computeCumulativeMinutes(attempts),
+    [attempts],
+  );
+
+  // ============ Banner copy ============
+  const civiqueMockExams = useMemo(
+    () =>
+      attempts.filter(
+        (a) =>
+          a.type === "MOCK_EXAM" &&
+          a.module === "CIVIQUE" &&
+          a.finishedAt &&
+          a.score !== null &&
+          a.score !== undefined,
+      ),
+    [attempts],
+  );
+
+  const lastFiveAvg = useMemo(() => {
+    const slice = civiqueMockExams.slice(0, 5);
+    if (slice.length === 0) return null;
+    const total = slice.reduce((sum, a) => sum + (a.score ?? 0), 0);
+    return total / slice.length;
+  }, [civiqueMockExams]);
+
+  const bannerCopy = useMemo(
+    () =>
+      buildBannerCopy({
+        user: user
+          ? {
+              firstName: user.firstName,
+              targetProcedure: user.targetProcedure ?? null,
+            }
+          : null,
+        avgScore: lastFiveAvg,
+      }),
+    [user, lastFiveAvg],
+  );
+
+  // ============ Theme mastery (CIVIQUE) ============
+  const themeRows = useMemo(() => {
+    const civiqueThemes = stats.CIVIQUE?.byTheme ?? [];
+    const sorted = [...civiqueThemes].sort(
+      (a, b) => b.themeName.localeCompare(a.themeName), // stable for display
+    );
+    return sorted.slice(0, 5).map((t, i) => {
+      const pct = t.answered > 0 ? Math.round((t.correct / t.answered) * 100) : 0;
+      const tone: "green" | "blue" | "amber" | "red" =
+        pct >= 80 ? "green" : pct >= 65 ? "blue" : pct >= 45 ? "amber" : "red";
+      return {
+        num: String(i + 1).padStart(2, "0"),
+        name: t.themeName,
+        pct,
+        tone,
+      };
+    });
+  }, [stats.CIVIQUE]);
+
+  // ============ Chart : last 10 mock exams scores ============
+  const chartData = useMemo(
+    () => buildChartData(attempts),
+    [attempts],
+  );
+
+  // ============ Loading / unauthenticated ============
+  if (status === "loading") return <DashSkeleton />;
   if (!user) {
     return (
-      <div className="dash-loading">
+      <div className="dash-empty">
         <p>
-          Session expirée. <Link href="/connexion">Se reconnecter</Link>
+          Session expirée.{" "}
+          <Link href="/connexion" className="dash-empty-link">
+            Se reconnecter
+          </Link>
         </p>
+        <style>{emptyStyle}</style>
       </div>
     );
   }
 
-  const showCivique = user.hasCivique !== false || (stats.CIVIQUE?.questionsAnswered ?? 0) > 0;
-  const showTcf = user.hasTcf !== false || (stats.TCF?.questionsAnswered ?? 0) > 0;
-  const lastAttempt = recentAttempts[0] ?? null;
-  const inProgressAttempt = recentAttempts.find((a) => !a.finishedAt) ?? null;
-
   return (
     <main className="dash">
-      <header className="dash-head">
-        <span className="eyebrow">Tableau de bord</span>
-        <h1>
-          Bonjour <em>{user.firstName ?? "à vous"}</em>.
-        </h1>
-        <p>
-          {inProgressAttempt
-            ? "Vous avez une session en cours. Reprenez où vous en étiez ou démarrez autre chose."
-            : "Voici un aperçu de votre progression. Lancez-vous quand vous voulez."}
-        </p>
+      {/* ============ TOPBAR ============ */}
+      <header className="topbar">
+        <div>
+          <div className="breadcrumb">
+            ACCUEIL <span className="sep">/</span> TABLEAU DE BORD
+          </div>
+          <h1>
+            Bonjour {user.firstName ?? "à vous"}, prêt à <em>progresser</em> ?
+          </h1>
+        </div>
+        <div className="topbar-actions">
+          <Link href="/examens-blancs" className="btn-outline">
+            <ClockIcon /> Examen blanc
+          </Link>
+          {inProgressAttempt ? (
+            <Link href={`/sessions/${inProgressAttempt.id}`} className="btn-primary">
+              Reprendre <ArrowIcon />
+            </Link>
+          ) : (
+            <Link href="/entrainement" className="btn-primary">
+              Démarrer <ArrowIcon />
+            </Link>
+          )}
+        </div>
       </header>
 
-      {inProgressAttempt && (
-        <Link href={`/sessions/${inProgressAttempt.id}`} className="dash-resume">
-          <div className="dash-resume-marker" aria-hidden>
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12h14m-6 -6 6 6 -6 6" />
-            </svg>
+      {/* ============ HERO BANNER ============ */}
+      <section className="hero-banner">
+        <div className="hero-banner-text">
+          <div className="hero-eyebrow">
+            PROCHAIN OBJECTIF · {procedureLabelShort(user.targetProcedure)}
           </div>
-          <div className="dash-resume-content">
-            <div className="dash-resume-title">
-              Reprendre votre {inProgressAttempt.type === "MOCK_EXAM" ? "examen blanc" : "entraînement"}
-            </div>
-            <div className="dash-resume-sub">
-              {inProgressAttempt.module === "TCF" ? "TCF IRN" : "Civique"} ·
-              démarré il y a {timeAgo(inProgressAttempt.startedAt)}
-            </div>
-          </div>
-          <span className="dash-resume-cta">Reprendre →</span>
-        </Link>
-      )}
-
-      {/* Onboarding intégré : pousse à choisir un parcours administratif si
-          l'utilisateur ne l'a pas encore fait. Sans parcours, l'entraînement
-          reste générique (pas de niveau de difficulté adapté). */}
-      {!user.targetProcedure && (
-        <Link href="/parcours?from=/dashboard" className="dash-onboard">
-          <div className="dash-onboard-icon" aria-hidden>
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
-          </div>
-          <div className="dash-onboard-content">
-            <div className="dash-onboard-title">Choisissez votre parcours administratif</div>
-            <div className="dash-onboard-sub">
-              CSP, CR ou naturalisation — votre entraînement civique sera adapté à votre niveau d&apos;exigence.
-            </div>
-          </div>
-          <span className="dash-onboard-cta">Démarrer →</span>
-        </Link>
-      )}
-
-      {/* SNAPSHOT STATS */}
-      <section className="dash-snapshot">
-        {showCivique && (
-          <SnapshotCard
-            module="CIVIQUE"
-            stats={stats.CIVIQUE}
-            hasAccess={user.hasCivique ?? false}
-            loading={loadingData}
-          />
-        )}
-        {showTcf && (
-          <SnapshotCard
-            module="TCF"
-            stats={stats.TCF}
-            hasAccess={user.hasTcf ?? false}
-            loading={loadingData}
-          />
-        )}
-      </section>
-
-      {/* ACTIONS RAPIDES */}
-      <section className="dash-actions">
-        <span className="dash-actions-label">Actions rapides</span>
-        <div className="dash-actions-grid">
-          <ActionCard
-            tone="blue"
-            href="/entrainement"
-            title="Entraînement"
-            desc="Sans limite si abonné, démo 20 Q sinon. Correction immédiate."
-            cta="Démarrer"
-          />
-          <ActionCard
-            tone="red"
-            href="/examens-blancs"
-            title="Examens blancs"
-            desc="En conditions réelles, chronomètre. 1 examen offert par module."
-            cta="Voir les examens"
-          />
-          <ActionCard
-            tone="green"
-            href="/revision"
-            title="Révision"
-            desc="Vos erreurs et favoris à retravailler en priorité."
-            cta="Réviser"
-          />
-        </div>
-      </section>
-
-      {/* DERNIÈRES SESSIONS */}
-      {recentAttempts.length > 0 && (
-        <section className="dash-recent">
-          <div className="dash-recent-head">
-            <span className="dash-recent-title">Dernières sessions</span>
-            <Link href="/historique" className="dash-recent-more">
-              Voir tout →
+          <h2>{bannerCopy.title}</h2>
+          <p>{bannerCopy.body}</p>
+          <div className="hero-actions">
+            <Link href="/examens-blancs" className="btn-primary">
+              Lancer un examen blanc <ArrowIcon />
+            </Link>
+            <Link href="/statistiques" className="btn-outline-light">
+              Voir mes faiblesses
             </Link>
           </div>
-          <div className="dash-recent-list">
-            {recentAttempts.slice(0, 3).map((a) => (
-              <RecentRow key={a.id} attempt={a} isLastAttempt={a.id === lastAttempt?.id} />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* COMPTE */}
-      <section className="dash-account">
-        <h3>Mon compte</h3>
-        <Row label="Email" value={user.email} />
-        <Row
-          label="Nom"
-          value={`${user.firstName ?? "—"} ${user.lastName ?? ""}`.trim()}
+        </div>
+        <Countdown
+          examDate={examDate}
+          onEdit={() => setShowExamPicker(true)}
         />
-        {user.targetProcedure && (
-          <Row
-            label="Parcours visé"
-            value={procedureLabel(user.targetProcedure)}
+        {showExamPicker && (
+          <ExamDatePicker
+            current={examDate}
+            onClose={() => setShowExamPicker(false)}
+            onSave={(d) => {
+              setExamDate(d);
+              if (d) window.localStorage.setItem(EXAM_DATE_KEY, d);
+              else window.localStorage.removeItem(EXAM_DATE_KEY);
+              setShowExamPicker(false);
+            }}
           />
         )}
-        <Row
-          label="Abonnement"
-          value={
-            user.isPremium
-              ? user.hasTcf
-                ? "Intégral (Civique + TCF)"
-                : "Civique"
-              : "Démo"
+      </section>
+
+      {/* ============ STATS GRID ============ */}
+      <section className="stats-grid">
+        <StatCard
+          tone="blue"
+          icon={<StreakIcon />}
+          label="JOURS D'AFFILÉE"
+          value={String(streak)}
+          trend={streak > 0 ? { tone: "up", text: `${streak === 1 ? "Aujourd'hui" : "Série en cours"}` } : null}
+        />
+        <StatCard
+          tone="red"
+          icon={<CheckBadgeIcon />}
+          label="QUESTIONS RÉSOLUES"
+          value={String(totalQuestionsAnswered)}
+          trend={
+            totalQuestionsAnswered > 0
+              ? { tone: "up", text: `${totalCorrect} bonnes` }
+              : null
+          }
+        />
+        <StatCard
+          tone="green"
+          icon={<TrendingIcon />}
+          label="TAUX DE RÉUSSITE"
+          value={`${overallSuccessPct}%`}
+          trend={
+            totalQuestionsAnswered > 0
+              ? { tone: overallSuccessPct >= 70 ? "up" : "neutral", text: "Tous modules" }
+              : null
+          }
+        />
+        <StatCard
+          tone="amber"
+          icon={<ClockIcon />}
+          label="TEMPS CUMULÉ"
+          value={formatMinutes(cumulativeMinutes)}
+          trend={
+            attempts.length > 0
+              ? { tone: "neutral", text: `${attempts.filter((a) => a.finishedAt).length} sessions` }
+              : null
           }
         />
       </section>
+
+      {/* ============ SHORTCUTS ============ */}
+      <section className="shortcuts">
+        <Shortcut
+          tone="civique"
+          href="/entrainement?module=CIVIQUE"
+          icon={<ShieldIcon />}
+          title={`Civique · ${procedureLabelShort(user.targetProcedure)}`}
+          desc="Entraînement par thématique"
+        />
+        <Shortcut
+          tone="tcf"
+          href={user.hasTcf ? "/entrainement?module=TCF" : "/paiement"}
+          icon={<BookIcon />}
+          title={`TCF · ${tcfLevelLabel(user.targetProcedure)}`}
+          desc={user.hasTcf ? "CO · CE · Structure" : "Premium Intégral requis"}
+        />
+        <Shortcut
+          tone="exam"
+          href="/examens-blancs"
+          icon={<ClockIcon />}
+          title="Examen blanc"
+          desc="40 questions · 45 minutes"
+        />
+        <Shortcut
+          tone="review"
+          href="/revision"
+          icon={<RefreshIcon />}
+          title="Mes erreurs"
+          desc={
+            wrongCount > 0
+              ? `${wrongCount} questions à retravailler`
+              : "Aucune erreur en attente"
+          }
+        />
+      </section>
+
+      {/* ============ CHART + THEMES ============ */}
+      <section className="row-2">
+        <ScoreChart data={chartData} />
+        <ThemeMastery rows={themeRows} loading={loading} />
+      </section>
+
+      {/* ============ RECENT SESSIONS ============ */}
+      <RecentSessions attempts={attempts.slice(0, 5)} />
 
       <style>{styles}</style>
     </main>
@@ -231,187 +347,615 @@ export default function DashboardPage() {
 }
 
 // ============================================================================
-// SNAPSHOT
+// SUB-COMPONENTS
 // ============================================================================
-function SnapshotCard({
-  module,
-  stats,
-  hasAccess,
-  loading,
-}: {
-  module: ModuleEnum;
-  stats: UserStatsResponse | null | undefined;
-  hasAccess: boolean;
-  loading: boolean;
-}) {
-  const isTcf = module === "TCF";
-  const moduleLabel = isTcf ? "TCF IRN" : "Civique";
-  const tone = isTcf ? "red" : "blue";
-  const answered = stats?.questionsAnswered ?? 0;
-  const successPct = stats ? Math.round(stats.successRate * 100) : 0;
-  const sessions = stats?.attemptsTotal ?? 0;
 
+function StatCard({
+  tone,
+  icon,
+  label,
+  value,
+  trend,
+}: {
+  tone: "blue" | "red" | "green" | "amber";
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  trend: { tone: "up" | "down" | "neutral"; text: string } | null;
+}) {
   return (
-    <div className={`snap snap-${tone}`}>
-      <div className="snap-head">
-        <span className={`snap-tag ${isTcf ? "tcf" : "civique"}`}>{moduleLabel}</span>
-        {!hasAccess && <span className="snap-demo">DÉMO</span>}
-      </div>
-      {loading ? (
-        <div className="snap-skel" />
-      ) : answered === 0 ? (
-        <div className="snap-empty">
-          <p>Pas encore de session sur ce module.</p>
-          <Link href={`/entrainement`} className="snap-empty-cta">
-            Lancer un entraînement →
+    <div className="stat-card">
+      <div className={`stat-icon stat-icon-${tone}`}>{icon}</div>
+      <div className="stat-label">{label}</div>
+      <div className="stat-value">{value}</div>
+      {trend && <div className={`stat-trend stat-trend-${trend.tone}`}>{trend.text}</div>}
+    </div>
+  );
+}
+
+function Shortcut({
+  tone,
+  href,
+  icon,
+  title,
+  desc,
+}: {
+  tone: "civique" | "tcf" | "exam" | "review";
+  href: string;
+  icon: React.ReactNode;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <Link href={href} className={`shortcut shortcut-${tone}`}>
+      <span className="shortcut-arrow">→</span>
+      <div className="shortcut-icon">{icon}</div>
+      <h4>{title}</h4>
+      <p>{desc}</p>
+    </Link>
+  );
+}
+
+function ScoreChart({ data }: { data: ChartDatum[] }) {
+  if (data.length < 2) {
+    return (
+      <div className="card">
+        <div className="card-head">
+          <div>
+            <h3>Évolution de vos scores</h3>
+            <p>Vos derniers examens blancs</p>
+          </div>
+        </div>
+        <div className="chart-empty">
+          <p>Pas encore assez d&apos;examens blancs pour tracer une courbe.</p>
+          <Link href="/examens-blancs" className="chart-empty-cta">
+            Lancer un examen blanc →
           </Link>
         </div>
+      </div>
+    );
+  }
+
+  const w = 600;
+  const h = 200;
+  const padX = 24;
+  const padTop = 20;
+  const padBottom = 36;
+  const innerW = w - padX * 2;
+  const innerH = h - padTop - padBottom;
+
+  const civiqueY = (score: number) => {
+    // score on /40, threshold at 32. Map to (padTop, padTop + innerH).
+    const ratio = 1 - Math.min(1, Math.max(0, score / 40));
+    return padTop + ratio * innerH;
+  };
+  const thresholdY = civiqueY(32);
+
+  const x = (i: number) => padX + (innerW * i) / (data.length - 1);
+
+  const civPath = data
+    .map((d, i) => {
+      const xi = x(i);
+      const yi = d.civique !== null ? civiqueY(d.civique) : null;
+      if (yi === null) return null;
+      return `${i === 0 ? "M" : "L"}${xi.toFixed(1)},${yi.toFixed(1)}`;
+    })
+    .filter(Boolean)
+    .join(" ");
+
+  const tcfPath = data
+    .map((d, i) => {
+      const xi = x(i);
+      const yi = d.tcfPct !== null ? padTop + (1 - d.tcfPct / 100) * innerH : null;
+      if (yi === null) return null;
+      return `${i === 0 ? "M" : "L"}${xi.toFixed(1)},${yi.toFixed(1)}`;
+    })
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <div>
+          <h3>Évolution de vos scores</h3>
+          <p>{data.length} derniers examens blancs</p>
+        </div>
+        <Link href="/historique" className="card-head-link">
+          Voir tout →
+        </Link>
+      </div>
+      <div className="chart-legend">
+        <span className="legend-item">
+          <span className="legend-dot blue" /> Civique
+        </span>
+        <span className="legend-item">
+          <span className="legend-dot red" /> TCF
+        </span>
+        <span className="legend-item">
+          <span className="legend-dot line" /> Seuil 32/40
+        </span>
+      </div>
+      <svg className="chart-svg" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+        {[0.25, 0.5, 0.75].map((r) => (
+          <line
+            key={r}
+            x1="0"
+            y1={padTop + innerH * r}
+            x2={w}
+            y2={padTop + innerH * r}
+            stroke="#EEF0F8"
+            strokeWidth="1"
+          />
+        ))}
+        <line
+          x1="0"
+          y1={thresholdY}
+          x2={w}
+          y2={thresholdY}
+          stroke="#168F5B"
+          strokeWidth="1.5"
+          strokeDasharray="4 4"
+        />
+        <text
+          x={w - 6}
+          y={thresholdY - 5}
+          fontFamily="JetBrains Mono"
+          fontSize="10"
+          fill="#168F5B"
+          fontWeight="700"
+          textAnchor="end"
+        >
+          32 / 40
+        </text>
+        {tcfPath && (
+          <path
+            d={tcfPath}
+            fill="none"
+            stroke="#E1372F"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+        {civPath && (
+          <path
+            d={civPath}
+            fill="none"
+            stroke="#1E3A8C"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+        {data.map((d, i) => {
+          const xi = x(i);
+          const civY = d.civique !== null ? civiqueY(d.civique) : null;
+          const tcfY = d.tcfPct !== null ? padTop + (1 - d.tcfPct / 100) * innerH : null;
+          return (
+            <g key={i}>
+              {tcfY !== null && <circle cx={xi} cy={tcfY} r="3" fill="#E1372F" />}
+              {civY !== null && (
+                <circle
+                  cx={xi}
+                  cy={civY}
+                  r={i === data.length - 1 ? "5" : "3.5"}
+                  fill="#1E3A8C"
+                  stroke={i === data.length - 1 ? "#fff" : "none"}
+                  strokeWidth="2"
+                />
+              )}
+            </g>
+          );
+        })}
+        <g fontFamily="JetBrains Mono" fontSize="9" fill="#9CA2BD">
+          {data.map((d, i) => {
+            const labelEvery = Math.ceil(data.length / 5);
+            if (i % labelEvery !== 0 && i !== data.length - 1) return null;
+            return (
+              <text key={i} x={x(i)} y={h - 12} textAnchor="middle">
+                {d.label}
+              </text>
+            );
+          })}
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+function ThemeMastery({
+  rows,
+  loading,
+}: {
+  rows: { num: string; name: string; pct: number; tone: "green" | "blue" | "amber" | "red" }[];
+  loading: boolean;
+}) {
+  return (
+    <div className="card">
+      <div className="card-head">
+        <div>
+          <h3>Maîtrise par thématique</h3>
+          <p>Examen civique</p>
+        </div>
+        <Link href="/statistiques" className="card-head-link">
+          Détails →
+        </Link>
+      </div>
+      {loading ? (
+        <div className="theme-skel" />
+      ) : rows.length === 0 ? (
+        <div className="theme-empty">
+          <p>Faites quelques questions pour voir apparaître votre maîtrise par thématique.</p>
+        </div>
       ) : (
-        <>
-          <div className="snap-main">
-            <span className="snap-pct" data-tone={toneFor(successPct)}>{successPct}%</span>
-            <span className="snap-pct-label">Taux de réussite</span>
-          </div>
-          <div className="snap-stats">
-            <div className="snap-stat">
-              <span className="l">Sessions</span>
-              <span className="v">{sessions}</span>
+        <div className="theme-list">
+          {rows.map((r) => (
+            <div className="theme-row" key={r.name}>
+              <span className="theme-num">{r.num}</span>
+              <div className="theme-row-content">
+                <div className="theme-name">{r.name}</div>
+                <div className="theme-bar">
+                  <div
+                    className={`theme-bar-fill theme-bar-${r.tone}`}
+                    style={{ width: `${Math.max(2, r.pct)}%` }}
+                  />
+                </div>
+              </div>
+              <span className="theme-score">
+                {r.pct}
+                <span className="theme-score-suf">%</span>
+              </span>
             </div>
-            <div className="snap-stat">
-              <span className="l">Questions</span>
-              <span className="v">{answered}</span>
-            </div>
-          </div>
-          <Link href={`/statistiques`} className="snap-cta">
-            Voir le détail →
-          </Link>
-        </>
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
-function toneFor(pct: number): "green" | "amber" | "red" {
-  if (pct >= 75) return "green";
-  if (pct >= 50) return "amber";
-  return "red";
-}
-
-// ============================================================================
-// ACTION CARD
-// ============================================================================
-function ActionCard({
-  tone,
-  href,
-  title,
-  desc,
-  cta,
-}: {
-  tone: "blue" | "red" | "green";
-  href: string;
-  title: string;
-  desc: string;
-  cta: string;
-}) {
+function RecentSessions({ attempts }: { attempts: AttemptSummaryResponse[] }) {
+  if (attempts.length === 0) return null;
   return (
-    <Link href={href} className={`act act-${tone}`}>
-      <h3>{title}</h3>
-      <p>{desc}</p>
-      <span className="act-cta">{cta} →</span>
-    </Link>
-  );
-}
-
-// ============================================================================
-// RECENT ROW
-// ============================================================================
-function RecentRow({
-  attempt,
-  isLastAttempt,
-}: {
-  attempt: AttemptSummaryResponse;
-  isLastAttempt: boolean;
-}) {
-  const isTcf = attempt.module === "TCF";
-  const isExam = attempt.type === "MOCK_EXAM";
-  const score = attempt.score ?? 0;
-  const total = attempt.totalQuestions;
-  const isFinished = !!attempt.finishedAt;
-
-  let label: string;
-  let labelTone: "good" | "warn" | "neutral";
-  if (!isFinished) {
-    label = "En cours";
-    labelTone = "neutral";
-  } else if (isTcf || !isExam) {
-    label = `${score}/${total}`;
-    labelTone = "neutral";
-  } else if (attempt.passThreshold !== null && attempt.passThreshold !== undefined) {
-    const passed = score >= attempt.passThreshold;
-    label = passed ? "Réussi" : "Non atteint";
-    labelTone = passed ? "good" : "warn";
-  } else {
-    label = `${score}/${total}`;
-    labelTone = "neutral";
-  }
-
-  return (
-    <Link href={`/sessions/${attempt.id}`} className="recent-row">
-      <div className="recent-row-date">
-        <span className="recent-day">{new Date(attempt.startedAt).getDate().toString().padStart(2, "0")}</span>
-        <span className="recent-month">{MONTHS[new Date(attempt.startedAt).getMonth()]}</span>
-      </div>
-      <div className="recent-row-body">
-        <div className="recent-row-meta">
-          <span className={`recent-tag ${isTcf ? "tcf" : "civique"}`}>
-            {isTcf ? "TCF" : "Civique"}
-          </span>
-          <span className="recent-type">
-            {isExam ? "Examen blanc" : "Entraînement"}
-          </span>
-          {isLastAttempt && !isFinished && <span className="recent-pulse">●</span>}
+    <div className="card">
+      <div className="card-head">
+        <div>
+          <h3>Sessions récentes</h3>
+          <p>Vos {attempts.length} dernières activités</p>
         </div>
-        <div className="recent-row-stats">
-          {isFinished
-            ? `${score} bonnes / ${total}`
-            : `Démarré il y a ${timeAgo(attempt.startedAt)}`}
-        </div>
+        <Link href="/historique" className="card-head-link">
+          Voir l&apos;historique complet →
+        </Link>
       </div>
-      <span className={`recent-badge ${labelTone}`}>{label}</span>
-    </Link>
-  );
-}
-
-const MONTHS = [
-  "janv.", "févr.", "mars", "avr.", "mai", "juin",
-  "juil.", "août", "sept.", "oct.", "nov.", "déc.",
-];
-
-function timeAgo(iso: string): string {
-  const diffMin = Math.floor((Date.now() - Date.parse(iso)) / 60000);
-  if (diffMin < 1) return "moins d'une minute";
-  if (diffMin < 60) return `${diffMin} min`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH} h`;
-  return `${Math.floor(diffH / 24)} j`;
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="dash-row">
-      <span className="dash-row-l">{label}</span>
-      <span className="dash-row-v">{value}</span>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>DATE</th>
+              <th>TYPE</th>
+              <th>MODULE</th>
+              <th>DURÉE</th>
+              <th>SCORE</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {attempts.map((a) => (
+              <RecentRow key={a.id} a={a} />
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
-function DashboardSkeleton() {
+function RecentRow({ a }: { a: AttemptSummaryResponse }) {
+  const isTcf = a.module === "TCF";
+  const isExam = a.type === "MOCK_EXAM";
+  const minutes =
+    a.finishedAt && a.startedAt
+      ? Math.max(1, Math.round((Date.parse(a.finishedAt) - Date.parse(a.startedAt)) / 60000))
+      : null;
+  const passed =
+    isExam && a.passThreshold != null && a.score != null
+      ? a.score >= a.passThreshold
+      : null;
+
+  return (
+    <tr onClick={() => (window.location.href = `/sessions/${a.id}`)}>
+      <td>{formatDate(a.startedAt)}</td>
+      <td>
+        <span className={`tag tag-${isExam ? "exam" : "train"}`}>
+          {isExam ? "EXAMEN" : "ENTRAÎN."}
+        </span>
+      </td>
+      <td>{isTcf ? "TCF" : "Civique"}</td>
+      <td>{minutes != null ? `${minutes} min` : "—"}</td>
+      <td>
+        {a.finishedAt && a.score != null ? (
+          <span className={`score-pill score-pill-${passed === false ? "fail" : "pass"}`}>
+            <span className="score-pill-ico">{passed === false ? "✕" : "✓"}</span>{" "}
+            {a.score} / {a.totalQuestions}
+          </span>
+        ) : (
+          <span className="score-pill score-pill-neutral">En cours</span>
+        )}
+      </td>
+      <td className="recent-chevron">›</td>
+    </tr>
+  );
+}
+
+// ============================================================================
+// COUNTDOWN
+// ============================================================================
+function Countdown({
+  examDate,
+  onEdit,
+}: {
+  examDate: string | null;
+  onEdit: () => void;
+}) {
+  // Refresh every minute to keep the minutes block alive.
+  const [, force] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => force((v) => v + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (!examDate) {
+    return (
+      <button type="button" className="countdown countdown-empty" onClick={onEdit}>
+        <div className="countdown-label">DATE D&apos;EXAMEN</div>
+        <div className="countdown-empty-text">
+          Définir ma date d&apos;examen <ArrowIcon />
+        </div>
+      </button>
+    );
+  }
+
+  const target = new Date(examDate).getTime();
+  const now = Date.now();
+  const diff = target - now;
+
+  if (diff <= 0) {
+    return (
+      <button type="button" className="countdown" onClick={onEdit}>
+        <div className="countdown-label">EXAMEN PASSÉ</div>
+        <div className="countdown-empty-text">Mettre à jour ma date</div>
+      </button>
+    );
+  }
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const minutes = Math.floor((diff / (1000 * 60)) % 60);
+
+  return (
+    <button type="button" className="countdown" onClick={onEdit}>
+      <div className="countdown-label">EXAMEN DANS</div>
+      <div className="countdown-blocks">
+        <div className="cdblock">
+          <div className="cdblock-num">{String(days).padStart(2, "0")}</div>
+          <div className="cdblock-unit">JOURS</div>
+        </div>
+        <div className="cdblock">
+          <div className="cdblock-num">{String(hours).padStart(2, "0")}</div>
+          <div className="cdblock-unit">HEURES</div>
+        </div>
+        <div className="cdblock">
+          <div className="cdblock-num">{String(minutes).padStart(2, "0")}</div>
+          <div className="cdblock-unit">MIN</div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function ExamDatePicker({
+  current,
+  onSave,
+  onClose,
+}: {
+  current: string | null;
+  onSave: (d: string | null) => void;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(() => current ?? "");
+  const minDate = new Date().toISOString().slice(0, 10);
+
+  return (
+    <div className="exam-picker-overlay" onClick={onClose}>
+      <div
+        className="exam-picker"
+        role="dialog"
+        aria-label="Date d'examen"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3>Quelle est votre date d&apos;examen ?</h3>
+        <p>On affichera le compte à rebours sur votre tableau de bord.</p>
+        <input
+          type="date"
+          min={minDate}
+          value={value.slice(0, 10)}
+          onChange={(e) => setValue(e.target.value)}
+          className="exam-picker-input"
+        />
+        <div className="exam-picker-actions">
+          {current && (
+            <button
+              type="button"
+              className="exam-picker-clear"
+              onClick={() => onSave(null)}
+            >
+              Effacer
+            </button>
+          )}
+          <button type="button" className="exam-picker-cancel" onClick={onClose}>
+            Annuler
+          </button>
+          <button
+            type="button"
+            className="exam-picker-save"
+            disabled={!value}
+            onClick={() => value && onSave(value)}
+          >
+            Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+function procedureLabelShort(p: TargetProcedure | null | undefined): string {
+  switch (p) {
+    case "NAT": return "NATURALISATION";
+    case "CR": return "RÉSIDENT";
+    case "CSP": return "CSP";
+    default: return "VOTRE PARCOURS";
+  }
+}
+
+function tcfLevelLabel(p: TargetProcedure | null | undefined): string {
+  switch (p) {
+    case "NAT": return "B2";
+    case "CR": return "B1";
+    case "CSP": return "A2";
+    default: return "Tous niveaux";
+  }
+}
+
+function buildBannerCopy({
+  user,
+  avgScore,
+}: {
+  user: { firstName: string; targetProcedure: TargetProcedure | null } | null;
+  avgScore: number | null;
+}): { title: string; body: string } {
+  if (!user || avgScore === null) {
+    return {
+      title: "Bienvenue dans votre espace SejourFR.",
+      body: "Commencez par un examen blanc pour vous situer, ou attaquez l'entraînement par thématique. Tout est gratuit pour vos premières questions.",
+    };
+  }
+  const gap = 32 - avgScore;
+  if (gap <= 0) {
+    return {
+      title: "Vous êtes au-dessus du seuil. Maintenez le cap.",
+      body: `Score moyen sur vos 5 derniers examens blancs civiques : ${avgScore.toFixed(1)}/40. Continuez à varier les thèmes pour ne pas reculer.`,
+    };
+  }
+  return {
+    title: `Vous êtes à ${gap.toFixed(1)} points du seuil du civique.`,
+    body: `Score moyen sur vos 5 derniers examens blancs : ${avgScore.toFixed(1)}/40. Le seuil officiel est de 32/40. Trois sessions ciblées devraient suffire.`,
+  };
+}
+
+function computeStreak(attempts: AttemptSummaryResponse[]): number {
+  if (attempts.length === 0) return 0;
+  const days = new Set<string>();
+  for (const a of attempts) {
+    days.add(new Date(a.startedAt).toISOString().slice(0, 10));
+  }
+  let streak = 0;
+  const cursor = new Date();
+  cursor.setHours(0, 0, 0, 0);
+  // Allow yesterday-only too: if today missing but yesterday present, start at 1.
+  const today = cursor.toISOString().slice(0, 10);
+  if (!days.has(today)) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  while (days.has(cursor.toISOString().slice(0, 10))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+function computeCumulativeMinutes(attempts: AttemptSummaryResponse[]): number {
+  let total = 0;
+  for (const a of attempts) {
+    if (!a.finishedAt || !a.startedAt) continue;
+    total += (Date.parse(a.finishedAt) - Date.parse(a.startedAt)) / 60000;
+  }
+  return Math.round(total);
+}
+
+function formatMinutes(m: number): string {
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  if (h < 100) {
+    return r > 0 ? `${h}h${String(r).padStart(2, "0")}` : `${h}h`;
+  }
+  return `${h}h`;
+}
+
+const SHORT_MONTHS = [
+  "janv", "févr", "mars", "avr", "mai", "juin",
+  "juil", "août", "sept", "oct", "nov", "déc",
+];
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const day = new Date(d);
+  day.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((today.getTime() - day.getTime()) / (1000 * 60 * 60 * 24));
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  if (diffDays === 0) return `Aujourd'hui · ${hh}:${mm}`;
+  if (diffDays === 1) return `Hier · ${hh}:${mm}`;
+  return `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]} · ${hh}:${mm}`;
+}
+
+type ChartDatum = {
+  label: string;
+  civique: number | null;
+  tcfPct: number | null;
+};
+
+function buildChartData(attempts: AttemptSummaryResponse[]): ChartDatum[] {
+  const finished = attempts
+    .filter(
+      (a) =>
+        a.type === "MOCK_EXAM" &&
+        a.finishedAt !== null &&
+        a.finishedAt !== undefined &&
+        a.score !== null &&
+        a.score !== undefined,
+    )
+    .sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt))
+    .slice(-10);
+
+  return finished.map((a, idx) => {
+    const score = a.score ?? 0;
+    const tcfPct = a.module === "TCF" ? Math.round((score / a.totalQuestions) * 100) : null;
+    const civique = a.module === "CIVIQUE" ? score : null;
+    const d = new Date(a.startedAt);
+    const label =
+      idx === finished.length - 1
+        ? "HIER"
+        : `${d.getDate()}/${d.getMonth() + 1}`;
+    return { label, civique, tcfPct };
+  });
+}
+
+// ============================================================================
+// SKELETONS / EMPTY
+// ============================================================================
+function DashSkeleton() {
   return (
     <div className="dash-loading">
       <p>Chargement…</p>
       <style>{`
         .dash-loading {
-          padding: 120px 28px; text-align: center;
+          padding: 120px 36px; text-align: center;
           color: var(--color-muted);
           font-family: var(--font-mono);
           font-size: 12px; letter-spacing: 0.1em;
@@ -420,354 +964,627 @@ function DashboardSkeleton() {
     </div>
   );
 }
+const emptyStyle = `
+  .dash-empty { padding: 120px 36px; text-align: center; color: var(--color-muted); }
+  .dash-empty-link { color: var(--color-blue); text-decoration: underline; }
+`;
 
-function procedureLabel(p: string): string {
-  switch (p) {
-    case "CSP": return "Carte de séjour pluriannuelle (CSP)";
-    case "CR":  return "Carte de résident (CR)";
-    case "NAT": return "Naturalisation (NAT)";
-    default:    return p;
-  }
-}
+// ============================================================================
+// ICONS
+// ============================================================================
+const I = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  />
+);
+const ArrowIcon = () => (
+  <I width="14" height="14">
+    <path d="M5 12h14m-6 -6 6 6 -6 6" />
+  </I>
+);
+const ClockIcon = () => (
+  <I>
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </I>
+);
+const StreakIcon = () => (
+  <I width="18" height="18">
+    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+  </I>
+);
+const CheckBadgeIcon = () => (
+  <I width="18" height="18">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <polyline points="22 4 12 14.01 9 11.01" />
+  </I>
+);
+const TrendingIcon = () => (
+  <I width="18" height="18">
+    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+    <polyline points="17 6 23 6 23 12" />
+  </I>
+);
+const ShieldIcon = () => (
+  <I width="20" height="20">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </I>
+);
+const BookIcon = () => (
+  <I width="20" height="20">
+    <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+    <path d="M21 19a2 2 0 0 1-2 2h-1v-7h3zM3 19a2 2 0 0 0 2 2h1v-7H3z" />
+  </I>
+);
+const RefreshIcon = () => (
+  <I width="20" height="20">
+    <path d="M3 12a9 9 0 1 0 9-9" />
+    <polyline points="3 5 3 12 10 12" />
+  </I>
+);
 
 // ============================================================================
 // STYLES
 // ============================================================================
 const styles = `
-  .dash { padding: 36px 32px 64px; max-width: 1000px; margin: 0 auto; }
-  @media (max-width: 760px) { .dash { padding: 24px 16px 56px; } }
+  .dash { padding: 24px 36px 60px; max-width: 1320px; }
+  @media (max-width: 760px) { .dash { padding: 20px 16px 56px; } }
 
-  .dash-head { margin-bottom: 24px; }
-  .dash-head h1 {
-    font-family: var(--font-display); font-weight: 500;
-    font-size: clamp(28px, 4vw, 40px); line-height: 1.05; letter-spacing: -0.025em;
-    margin: 10px 0 8px;
+  /* ========== TOPBAR ========== */
+  .topbar {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 26px;
+    gap: 16px;
+    flex-wrap: wrap;
   }
-  .dash-head h1 em { font-style: italic; color: var(--color-red); }
-  .dash-head p {
-    color: var(--color-muted); font-size: 15px; margin: 0;
-    max-width: 600px; line-height: 1.55;
+  .breadcrumb {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
   }
+  .breadcrumb .sep { margin: 0 6px; opacity: 0.5; }
+  .topbar h1 {
+    font-family: var(--font-display);
+    font-size: clamp(24px, 3.2vw, 32px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0;
+    line-height: 1.15;
+  }
+  .topbar h1 em {
+    color: var(--color-blue);
+    font-style: italic;
+    font-weight: 500;
+  }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
-  /* RESUME BAR */
-  .dash-resume {
-    display: flex; align-items: center; gap: 14px;
-    background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
-    color: #fff;
-    border-radius: 14px;
-    padding: 14px 18px;
-    margin-bottom: 22px;
-    text-decoration: none;
-    transition: transform 0.15s;
-  }
-  .dash-resume:hover { transform: translateY(-2px); }
-  .dash-resume-marker {
-    width: 38px; height: 38px;
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .dash-resume-content { flex: 1; min-width: 0; }
-  .dash-resume-title { font-weight: 700; font-size: 14.5px; line-height: 1.2; }
-  .dash-resume-sub {
-    font-size: 12px; opacity: 0.78; margin-top: 3px;
-    font-family: var(--font-mono); letter-spacing: 0.06em;
-  }
-  .dash-resume-cta {
-    font-weight: 700; font-size: 13px;
-    flex-shrink: 0;
-  }
-
-  /* ONBOARDING — parcours non choisi */
-  .dash-onboard {
-    display: flex; align-items: center; gap: 14px;
-    background: linear-gradient(135deg, var(--color-blue-soft) 0%, #fff 100%);
-    border: 1px solid var(--color-blue-light);
-    border-left: 4px solid var(--color-blue);
-    border-radius: 14px;
-    padding: 14px 18px;
-    margin-bottom: 22px;
-    text-decoration: none;
-    color: inherit;
-    transition: all 0.18s;
+  .btn-primary, .btn-outline, .btn-outline-light {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 16px; border-radius: 10px;
     font-family: var(--font-sans);
+    font-size: 13px; font-weight: 600;
+    text-decoration: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
   }
-  .dash-onboard:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 14px 30px -16px rgba(30, 58, 140, 0.22);
+  .btn-primary { background: var(--color-blue); color: #fff; }
+  .btn-primary:hover { background: var(--color-blue-dark); transform: translateY(-1px); }
+  .btn-outline {
+    background: #fff; color: var(--color-ink); border-color: var(--color-line);
   }
-  .dash-onboard-icon {
-    width: 44px; height: 44px;
+  .btn-outline:hover { border-color: var(--color-blue); color: var(--color-blue); }
+  .btn-outline-light {
+    background: transparent; color: #fff;
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+  .btn-outline-light:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #fff;
+  }
+
+  /* ========== HERO BANNER ========== */
+  .hero-banner {
+    background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
+    border-radius: 22px;
+    padding: 28px 32px;
+    color: #fff;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 32px;
+    align-items: center;
+  }
+  .hero-banner::before {
+    content: '';
+    position: absolute;
+    width: 280px; height: 280px;
+    border-radius: 50%;
+    background: var(--color-red);
+    opacity: 0.2;
+    top: -120px; right: -60px;
+  }
+  .hero-banner::after {
+    content: '';
+    position: absolute;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    background: #fff;
+    opacity: 0.06;
+    bottom: -80px; right: 120px;
+  }
+  .hero-banner-text { position: relative; z-index: 1; }
+  .hero-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    opacity: 0.75;
+    margin-bottom: 10px;
+  }
+  .hero-banner h2 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(20px, 2.4vw, 26px);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    margin: 0 0 8px;
+  }
+  .hero-banner h2 em { color: #FFB3B0; font-style: italic; font-weight: 500; }
+  .hero-banner p {
+    margin: 0 0 18px;
+    opacity: 0.85;
+    font-size: 14.5px;
+    max-width: 460px;
+    line-height: 1.55;
+  }
+  .hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .hero-banner .btn-primary {
+    background: #fff;
+    color: var(--color-blue);
+  }
+  .hero-banner .btn-primary:hover {
+    background: var(--color-paper);
+  }
+
+  .countdown {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 18px;
+    position: relative;
+    z-index: 1;
+    cursor: pointer;
+    transition: background 0.15s;
+    color: #fff;
+    text-align: left;
+    font-family: inherit;
+  }
+  .countdown:hover { background: rgba(255, 255, 255, 0.15); }
+  .countdown-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    opacity: 0.75;
+    margin-bottom: 12px;
+  }
+  .countdown-blocks { display: flex; gap: 10px; }
+  .cdblock {
+    flex: 1; text-align: center;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 10px 4px;
+  }
+  .cdblock-num {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .cdblock-unit {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.75;
+    margin-top: 4px;
+  }
+  .countdown-empty { padding: 20px; }
+  .countdown-empty-text {
+    font-size: 14px;
+    font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  /* exam date picker */
+  .exam-picker-overlay {
+    position: fixed; inset: 0;
+    background: rgba(15, 24, 57, 0.55);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; padding: 24px;
+  }
+  .exam-picker {
+    background: #fff;
+    border-radius: 18px;
+    padding: 32px;
+    max-width: 420px; width: 100%;
+    color: var(--color-ink);
+    box-shadow: 0 30px 60px -20px rgba(15, 24, 57, 0.4);
+  }
+  .exam-picker h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 22px;
+    margin: 0 0 8px;
+    letter-spacing: -0.015em;
+  }
+  .exam-picker p {
+    color: var(--color-muted);
+    font-size: 14px;
+    margin: 0 0 22px;
+  }
+  .exam-picker-input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--color-line);
+    border-radius: 10px;
+    font-size: 15px;
+    font-family: inherit;
+    margin-bottom: 22px;
+    color: var(--color-ink);
+  }
+  .exam-picker-input:focus {
+    outline: none;
+    border-color: var(--color-blue);
+    box-shadow: 0 0 0 3px rgba(30, 58, 140, 0.12);
+  }
+  .exam-picker-actions {
+    display: flex; gap: 8px; justify-content: flex-end;
+    align-items: center;
+  }
+  .exam-picker-clear {
+    margin-right: auto;
+    background: none; border: none;
+    color: var(--color-red);
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    padding: 8px 4px;
+  }
+  .exam-picker-cancel, .exam-picker-save {
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    font-family: inherit;
+  }
+  .exam-picker-cancel {
+    background: #fff;
+    border-color: var(--color-line);
+    color: var(--color-ink);
+  }
+  .exam-picker-cancel:hover { border-color: var(--color-ink); }
+  .exam-picker-save {
     background: var(--color-blue);
     color: #fff;
-    border-radius: 11px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
   }
-  .dash-onboard-content { flex: 1; min-width: 0; }
-  .dash-onboard-title {
-    font-weight: 800; font-size: 14.5px; color: var(--color-ink); line-height: 1.2;
-  }
-  .dash-onboard-sub {
-    font-size: 12.5px; color: var(--color-muted); line-height: 1.4; margin-top: 4px;
-  }
-  .dash-onboard-cta {
-    font-weight: 700; font-size: 13px; color: var(--color-blue);
-    flex-shrink: 0;
-  }
+  .exam-picker-save:hover { background: var(--color-blue-dark); }
+  .exam-picker-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  /* SNAPSHOT */
-  .dash-snapshot {
+  /* ========== STATS GRID ========== */
+  .stats-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    margin-bottom: 22px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 26px;
   }
-  @media (max-width: 720px) { .dash-snapshot { grid-template-columns: 1fr; } }
-
-  .snap {
+  .stat-card {
     background: #fff;
     border: 1px solid var(--color-line);
     border-radius: 16px;
-    padding: 22px;
-    position: relative;
-    overflow: hidden;
+    padding: 18px;
   }
-  .snap::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0;
-    height: 3px;
+  .stat-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 14px;
   }
-  .snap-blue::before { background: var(--color-blue); }
-  .snap-red::before { background: var(--color-red); }
-
-  .snap-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
-  .snap-tag {
-    font-family: var(--font-mono); font-size: 10px;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    padding: 3px 8px; border-radius: 4px;
-    font-weight: 700;
+  .stat-icon-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .stat-icon-red { background: var(--color-red-light); color: var(--color-red); }
+  .stat-icon-green { background: rgba(22, 143, 91, 0.1); color: var(--color-green); }
+  .stat-icon-amber { background: rgba(232, 163, 23, 0.12); color: var(--color-amber); }
+  .stat-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    margin-bottom: 6px;
+    font-weight: 600;
   }
-  .snap-tag.civique { background: var(--color-blue-light); color: var(--color-blue); }
-  .snap-tag.tcf { background: var(--color-red-light); color: var(--color-red); }
-  .snap-demo {
-    font-family: var(--font-mono); font-size: 9.5px;
-    letter-spacing: 0.14em; font-weight: 700;
-    background: rgba(232, 163, 23, 0.16);
-    color: var(--color-amber);
-    padding: 3px 7px; border-radius: 4px;
-  }
-
-  .snap-main {
-    display: flex; flex-direction: column; gap: 4px;
-    margin-bottom: 16px;
-  }
-  .snap-pct {
-    font-family: var(--font-display); font-weight: 500;
-    font-size: 42px; line-height: 1; letter-spacing: -0.04em;
-  }
-  .snap-pct[data-tone="green"] { color: var(--color-green); }
-  .snap-pct[data-tone="amber"] { color: var(--color-amber); }
-  .snap-pct[data-tone="red"] { color: var(--color-red); }
-  .snap-pct-label {
-    font-family: var(--font-mono); font-size: 10px;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--color-muted); font-weight: 600;
-  }
-
-  .snap-stats { display: flex; gap: 18px; margin-bottom: 14px; }
-  .snap-stat { display: flex; flex-direction: column; gap: 2px; }
-  .snap-stat .l {
-    font-family: var(--font-mono); font-size: 9.5px;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--color-muted); font-weight: 600;
-  }
-  .snap-stat .v {
-    font-family: var(--font-mono); font-size: 16px; font-weight: 700;
+  .stat-value {
+    font-family: var(--font-display);
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
     color: var(--color-ink);
   }
-  .snap-cta {
-    font-family: var(--font-sans); font-size: 12.5px; font-weight: 700;
-    color: var(--color-blue);
+  .stat-trend {
+    font-size: 12px;
+    margin-top: 6px;
+    font-weight: 500;
+  }
+  .stat-trend-up { color: var(--color-green); }
+  .stat-trend-down { color: var(--color-red); }
+  .stat-trend-neutral { color: var(--color-muted); }
+
+  /* ========== SHORTCUTS ========== */
+  .shortcuts {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 26px;
+  }
+  .shortcut {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 16px;
+    padding: 18px;
     text-decoration: none;
-    border-top: 1px solid var(--color-line-2);
-    padding-top: 10px;
+    color: inherit;
+    transition: all 0.15s;
+    position: relative;
     display: block;
   }
-  .snap-empty p {
-    font-size: 13px; color: var(--color-muted); margin: 0 0 10px; line-height: 1.5;
+  .shortcut:hover {
+    border-color: var(--color-blue);
+    transform: translateY(-2px);
   }
-  .snap-empty-cta {
-    font-family: var(--font-sans); font-weight: 700; font-size: 13px;
+  .shortcut-icon {
+    width: 40px; height: 40px;
+    border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 14px;
+  }
+  .shortcut-civique .shortcut-icon { background: var(--color-blue-light); color: var(--color-blue); }
+  .shortcut-tcf .shortcut-icon { background: var(--color-red-light); color: var(--color-red); }
+  .shortcut-exam .shortcut-icon { background: rgba(232, 163, 23, 0.12); color: var(--color-amber); }
+  .shortcut-review .shortcut-icon { background: rgba(22, 143, 91, 0.1); color: var(--color-green); }
+  .shortcut h4 {
+    margin: 0 0 4px;
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--color-ink);
+  }
+  .shortcut p { margin: 0; color: var(--color-muted); font-size: 12.5px; }
+  .shortcut-arrow {
+    position: absolute;
+    top: 18px; right: 18px;
+    color: var(--color-muted-2);
+    transition: transform 0.15s, color 0.15s;
+  }
+  .shortcut:hover .shortcut-arrow {
+    color: var(--color-blue);
+    transform: translateX(3px);
+  }
+
+  /* ========== ROW 2 cols ========== */
+  .row-2 {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 20px;
+    margin-bottom: 26px;
+  }
+  .card {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 18px;
+    padding: 22px;
+  }
+  .card-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 18px;
+    gap: 12px;
+  }
+  .card-head h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 19px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .card-head p { margin: 0; color: var(--color-muted); font-size: 13px; }
+  .card-head-link {
+    font-size: 13px;
+    color: var(--color-blue);
+    font-weight: 600;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+  .card-head-link:hover { text-decoration: underline; }
+
+  .chart-legend {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12px; color: var(--color-muted);
+  }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .legend-dot.blue { background: var(--color-blue); }
+  .legend-dot.red { background: var(--color-red); }
+  .legend-dot.line { background: var(--color-green); }
+  .chart-svg { width: 100%; height: 220px; display: block; }
+  .chart-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--color-muted);
+  }
+  .chart-empty p { margin: 0 0 12px; font-size: 14px; }
+  .chart-empty-cta {
+    font-size: 13.5px; font-weight: 700;
     color: var(--color-blue);
   }
-  .snap-skel {
-    height: 110px;
+
+  /* ========== THEMES ========== */
+  .theme-list { display: flex; flex-direction: column; gap: 14px; }
+  .theme-row {
+    display: grid;
+    grid-template-columns: 28px 1fr 60px;
+    gap: 12px;
+    align-items: center;
+  }
+  .theme-num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-blue);
+    font-weight: 700;
+  }
+  .theme-row-content { min-width: 0; }
+  .theme-name {
+    font-size: 13.5px; font-weight: 600; color: var(--color-ink);
+    margin-bottom: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .theme-bar {
+    height: 6px;
+    background: var(--color-line-2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .theme-bar-fill {
+    height: 100%; border-radius: 3px;
+    background: var(--color-blue);
+  }
+  .theme-bar-green { background: var(--color-green); }
+  .theme-bar-blue { background: var(--color-blue); }
+  .theme-bar-amber { background: var(--color-amber); }
+  .theme-bar-red { background: var(--color-red); }
+  .theme-score {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-ink);
+  }
+  .theme-score-suf { color: var(--color-muted); font-weight: 500; }
+  .theme-skel {
+    height: 200px;
     background: var(--color-paper-2);
     border-radius: 10px;
-    animation: snap-pulse 1.4s ease-in-out infinite;
+    animation: dash-pulse 1.4s ease-in-out infinite;
   }
-  @keyframes snap-pulse {
+  @keyframes dash-pulse {
     0%, 100% { opacity: 0.55; }
     50% { opacity: 1; }
   }
-
-  /* ACTIONS */
-  .dash-actions { margin-bottom: 22px; }
-  .dash-actions-label {
-    font-family: var(--font-mono); font-size: 10.5px;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--color-muted); font-weight: 600;
-    margin-bottom: 10px; display: inline-block;
-  }
-  .dash-actions-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
-  }
-  @media (max-width: 720px) { .dash-actions-grid { grid-template-columns: 1fr; } }
-
-  .act {
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 14px;
-    padding: 20px;
-    text-decoration: none;
-    color: inherit;
-    transition: all 0.18s;
-    position: relative; overflow: hidden;
-    display: flex; flex-direction: column; gap: 6px;
-  }
-  .act::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  }
-  .act-blue::before { background: var(--color-blue); }
-  .act-red::before { background: var(--color-red); }
-  .act-green::before { background: var(--color-green); }
-  .act:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 14px 30px -16px rgba(15, 24, 57, 0.18);
-  }
-  .act h3 {
-    font-family: var(--font-display); font-weight: 500; font-size: 18px;
-    letter-spacing: -0.015em; margin: 0;
-    color: var(--color-ink);
-  }
-  .act p {
-    color: var(--color-muted); font-size: 13px;
-    line-height: 1.5; margin: 0; flex: 1;
-  }
-  .act-cta { margin-top: 6px; font-size: 13px; font-weight: 700; }
-  .act-blue .act-cta { color: var(--color-blue); }
-  .act-red .act-cta { color: var(--color-red); }
-  .act-green .act-cta { color: var(--color-green); }
-
-  /* RECENT */
-  .dash-recent {
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 16px;
-    padding: 20px 22px;
-    margin-bottom: 22px;
-  }
-  .dash-recent-head {
-    display: flex; align-items: baseline; justify-content: space-between;
-    margin-bottom: 14px;
-  }
-  .dash-recent-title {
-    font-family: var(--font-sans); font-weight: 800; font-size: 13.5px;
-    color: var(--color-ink);
-    text-transform: uppercase; letter-spacing: 0.04em;
-  }
-  .dash-recent-more {
-    font-family: var(--font-sans); font-size: 12.5px; font-weight: 700;
-    color: var(--color-blue); text-decoration: none;
-  }
-  .dash-recent-list { display: flex; flex-direction: column; gap: 8px; }
-
-  .recent-row {
-    display: grid;
-    grid-template-columns: 40px 1fr auto;
-    align-items: center; gap: 12px;
-    padding: 10px 12px;
-    background: var(--color-paper);
-    border-radius: 10px;
-    text-decoration: none;
-    color: inherit;
-    transition: background 0.15s;
-  }
-  .recent-row:hover { background: var(--color-paper-2); }
-  .recent-row-date {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  .theme-empty p {
+    color: var(--color-muted);
+    font-size: 13.5px;
     text-align: center;
+    margin: 30px 10px;
+    line-height: 1.5;
   }
-  .recent-day {
-    font-family: var(--font-display); font-weight: 500; font-size: 17px;
-    line-height: 1; color: var(--color-ink);
-  }
-  .recent-month {
-    font-family: var(--font-mono); font-size: 9px;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--color-muted); margin-top: 2px;
-  }
-  .recent-row-body { min-width: 0; }
-  .recent-row-meta {
-    display: flex; align-items: center; gap: 6px; margin-bottom: 2px;
-  }
-  .recent-tag {
-    font-family: var(--font-mono); font-size: 9px;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    padding: 2px 6px; border-radius: 3px;
-    font-weight: 700;
-  }
-  .recent-tag.civique { background: var(--color-blue-light); color: var(--color-blue); }
-  .recent-tag.tcf { background: var(--color-red-light); color: var(--color-red); }
-  .recent-type {
-    font-size: 12.5px; font-weight: 600; color: var(--color-ink);
-  }
-  .recent-pulse {
-    color: var(--color-amber); font-size: 12px;
-    animation: recent-pulse 1.4s ease-in-out infinite;
-  }
-  @keyframes recent-pulse {
-    0%, 100% { opacity: 0.5; }
-    50% { opacity: 1; }
-  }
-  .recent-row-stats {
-    font-size: 12px; color: var(--color-muted);
-  }
-  .recent-badge {
-    font-family: var(--font-mono); font-size: 10px;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 4px 9px; border-radius: 100px;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-  .recent-badge.good { background: rgba(22, 143, 91, 0.12); color: var(--color-green); }
-  .recent-badge.warn { background: var(--color-red-light); color: var(--color-red); }
-  .recent-badge.neutral { background: #fff; color: var(--color-muted); border: 1px solid var(--color-line); }
 
-  /* COMPTE */
-  .dash-account {
-    background: #fff;
-    border: 1px solid var(--color-line);
+  /* ========== TABLE ========== */
+  .table-wrap {
+    overflow: hidden;
     border-radius: 14px;
-    padding: 20px 24px;
+    border: 1px solid var(--color-line);
+    margin-top: -4px;
   }
-  .dash-account h3 {
-    font-family: var(--font-mono); font-size: 11px;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--color-muted); font-weight: 600;
-    margin: 0 0 14px;
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 13px 16px; }
+  th {
+    background: var(--color-paper);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    font-weight: 600;
+    border-bottom: 1px solid var(--color-line);
   }
-  .dash-row {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 10px 0;
+  td {
+    font-size: 13.5px;
+    color: var(--color-ink-2);
     border-bottom: 1px solid var(--color-line-2);
-    font-size: 14px;
   }
-  .dash-row:last-of-type { border-bottom: none; }
-  .dash-row-l { color: var(--color-muted); }
-  .dash-row-v {
-    color: var(--color-ink); font-weight: 500;
-    font-family: var(--font-mono); font-size: 13px;
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr {
+    transition: background 0.15s;
+    cursor: pointer;
+  }
+  tbody tr:hover { background: var(--color-blue-soft); }
+  .recent-chevron { text-align: right; color: var(--color-muted-2); }
+
+  .tag {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+  }
+  .tag-exam { background: rgba(232, 163, 23, 0.18); color: var(--color-amber); }
+  .tag-train { background: var(--color-line-2); color: var(--color-ink-2); }
+
+  .score-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .score-pill-pass { color: var(--color-green); }
+  .score-pill-fail { color: var(--color-red); }
+  .score-pill-neutral { color: var(--color-muted); font-weight: 600; }
+  .score-pill-ico {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff;
+    font-size: 9px;
+    background: var(--color-green);
+  }
+  .score-pill-fail .score-pill-ico { background: var(--color-red); }
+
+  /* ========== RESPONSIVE ========== */
+  @media (max-width: 1100px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .shortcuts { grid-template-columns: repeat(2, 1fr); }
+    .row-2 { grid-template-columns: 1fr; }
+    .hero-banner { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 680px) {
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .shortcuts { grid-template-columns: 1fr; }
+    .table-wrap { overflow-x: auto; }
+    table { min-width: 540px; }
   }
 `;

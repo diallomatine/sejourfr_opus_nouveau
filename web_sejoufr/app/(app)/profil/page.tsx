@@ -6,44 +6,53 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import type { TargetProcedure } from "@/lib/types";
 
+const EXAM_DATE_KEY = "sejourfr.examDate";
+
 /**
- * Page profil : vue d'ensemble du compte. L'édition est éclatée :
- *  - le parcours (CSP/CR/NAT) se modifie sur /parcours
- *  - le mot de passe via /mot-de-passe-oublie (en attendant un endpoint dédié
- *    /api/me/change-password côté Spring)
- *  - le firstName/lastName n'est pas éditable pour l'instant (endpoint /api/me/profile
- *    pas encore exposé côté backend)
- *  - la suppression de compte est désactivée en attendant DELETE /api/me/account
+ * Page profil : vue d'ensemble du compte avec sections en settings-list.
+ *  - Le parcours (CSP/CR/NAT) se modifie sur /parcours
+ *  - Le mot de passe via /mot-de-passe-oublie (en attendant /api/me/change-password)
+ *  - firstName/lastName non éditable pour l'instant (pas d'endpoint /api/me/profile)
+ *  - Suppression de compte = stub modal (en attendant DELETE /api/me/account)
+ *  - Date d'examen stockée en localStorage (synchro avec le dashboard)
  */
 export default function ProfilPage() {
   const router = useRouter();
   const { user, status, logout } = useAuth();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showDeleteSoon, setShowDeleteSoon] = useState(false);
+  const [showEditNameSoon, setShowEditNameSoon] = useState(false);
+  const [examDate, setExamDate] = useState<string | null>(null);
 
-  // Lock body scroll quand une modal est ouverte
   useEffect(() => {
-    if (!showLogoutConfirm && !showDeleteSoon) return;
+    if (typeof window === "undefined") return;
+    const v = window.localStorage.getItem(EXAM_DATE_KEY);
+    if (v) setExamDate(v);
+  }, []);
+
+  useEffect(() => {
+    if (!showLogoutConfirm && !showDeleteSoon && !showEditNameSoon) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [showLogoutConfirm, showDeleteSoon]);
+  }, [showLogoutConfirm, showDeleteSoon, showEditNameSoon]);
 
   function handleLogout() {
     logout();
     router.push("/");
   }
 
-  if (status === "loading") return <div className="pr-loading" />;
+  if (status === "loading") return <ProfilSkeleton />;
   if (!user) {
     return (
       <main className="pr-gate">
         <p>Connectez-vous pour voir votre compte.</p>
-        <Link href="/connexion?next=/profil" className="btn btn-blue">
-          Se connecter
+        <Link href="/connexion?next=/profil" className="pr-gate-cta">
+          Se connecter →
         </Link>
+        <style>{gateStyles}</style>
       </main>
     );
   }
@@ -56,158 +65,161 @@ export default function ProfilPage() {
 
   const planLabel = user.isPremium
     ? user.hasTcf
-      ? "Intégral (Civique + TCF)"
-      : "Civique 3 mois"
-    : "Démo (sans abonnement)";
-  const planTone: "primary" | "neutral" = user.isPremium ? "primary" : "neutral";
+      ? "Intégral · Civique + TCF"
+      : "Civique"
+    : "Démo";
+  const planSub = user.isPremium
+    ? user.premiumEndsAt
+      ? `Valide jusqu'au ${formatDate(user.premiumEndsAt)}`
+      : "Plan actif"
+    : "20 questions et 1 examen blanc gratuits par module";
 
   return (
     <main className="pr">
-      <div className="pr-wrap">
-        <header className="pr-head">
-          <span className="eyebrow">Mon compte</span>
+      {/* ============ TOPBAR ============ */}
+      <header className="topbar">
+        <div>
+          <div className="breadcrumb">
+            ACCUEIL <span className="sep">/</span> PROFIL
+          </div>
           <h1>
-            Bonjour, <em>{user.firstName ?? user.email.split("@")[0]}</em>.
+            Votre <em>compte</em>.
           </h1>
-          <p>
-            Gérez votre parcours, votre abonnement et la sécurité de votre
-            compte SejourFR.
-          </p>
-        </header>
+        </div>
+        <div className="topbar-actions">
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={() => setShowLogoutConfirm(true)}
+          >
+            Déconnexion
+          </button>
+        </div>
+      </header>
 
-        {/* IDENTITÉ */}
-        <section className="pr-card pr-identity">
-          <div className="pr-avatar" aria-hidden>{initials}</div>
-          <div className="pr-identity-info">
-            <div className="pr-name">{fullName}</div>
-            <div className="pr-email">{user.email}</div>
-          </div>
-          <span className={`pr-plan-badge ${planTone}`}>{planLabel}</span>
-        </section>
-
-        {/* PARCOURS */}
-        <section className="pr-section">
-          <div className="pr-section-head">
-            <span className="pr-section-title">Mon parcours</span>
-            <Link href="/parcours?from=/profil" className="pr-section-edit">
-              {user.targetProcedure ? "Modifier" : "Choisir"} →
-            </Link>
-          </div>
-          {user.targetProcedure ? (
-            <ProcedureCard procedure={user.targetProcedure} />
-          ) : (
-            <div className="pr-empty">
-              <div className="pr-empty-text">
-                Vous n&apos;avez pas encore choisi votre parcours administratif.
-                Sans parcours, l&apos;entraînement reste générique.
-              </div>
-              <Link href="/parcours?from=/profil" className="btn btn-blue">
-                Choisir mon parcours →
-              </Link>
-            </div>
-          )}
-        </section>
-
-        {/* ABONNEMENT */}
-        <section className="pr-section">
-          <div className="pr-section-head">
-            <span className="pr-section-title">Mon abonnement</span>
-            <Link href="/paiement" className="pr-section-edit">
-              Gérer →
-            </Link>
-          </div>
-          <div className="pr-card pr-sub">
-            <div className="pr-sub-icon" data-tone={planTone}>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                {user.isPremium ? (
-                  <>
-                    <path d="m12 2 3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" />
-                  </>
-                ) : (
-                  <>
-                    <rect x="2" y="6" width="20" height="12" rx="2" />
-                    <path d="M2 10h20" />
-                  </>
-                )}
-              </svg>
-            </div>
-            <div className="pr-sub-info">
-              <div className="pr-sub-plan">{planLabel}</div>
-              <div className="pr-sub-detail">
-                {user.isPremium ? (
-                  user.premiumEndsAt ? (
-                    <>Valide jusqu&apos;au {formatDate(user.premiumEndsAt)}</>
-                  ) : (
-                    <>Plan actif sans date de fin</>
-                  )
-                ) : (
-                  <>20 questions et 1 examen blanc gratuits par module</>
-                )}
-              </div>
-            </div>
-            {!user.isPremium && (
-              <Link href="/paiement" className="btn btn-red pr-sub-cta">
-                S&apos;abonner →
-              </Link>
+      {/* ============ IDENTITY ============ */}
+      <section className="identity-card">
+        <div className="identity-avatar" aria-hidden>
+          {initials}
+        </div>
+        <div className="identity-info">
+          <h2 className="identity-name">{fullName}</h2>
+          <div className="identity-email">{user.email}</div>
+          <div className="identity-badges">
+            <span className={`plan-pill plan-pill-${user.isPremium ? "primary" : "neutral"}`}>
+              {planLabel}
+            </span>
+            {user.targetProcedure && (
+              <span className="proc-pill">
+                Parcours · {user.targetProcedure}
+              </span>
             )}
           </div>
-        </section>
-
-        {/* SÉCURITÉ */}
-        <section className="pr-section">
-          <span className="pr-section-title">Sécurité</span>
-          <div className="pr-actions">
-            <Link href="/mot-de-passe-oublie" className="pr-action">
-              <div className="pr-action-icon" aria-hidden>
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-              </div>
-              <div className="pr-action-text">
-                <div className="pr-action-title">Changer mon mot de passe</div>
-                <div className="pr-action-sub">Vous recevrez un lien par email</div>
-              </div>
-              <span className="pr-action-arrow">›</span>
-            </Link>
-
-            <button
-              type="button"
-              className="pr-action"
-              onClick={() => setShowDeleteSoon(true)}
-            >
-              <div className="pr-action-icon danger" aria-hidden>
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                </svg>
-              </div>
-              <div className="pr-action-text">
-                <div className="pr-action-title">Supprimer mon compte</div>
-                <div className="pr-action-sub">
-                  Toutes vos données et votre progression seront effacées
-                </div>
-              </div>
-              <span className="pr-action-arrow">›</span>
-            </button>
-          </div>
-        </section>
-
-        {/* LOGOUT */}
-        <button
-          type="button"
-          className="pr-logout"
-          onClick={() => setShowLogoutConfirm(true)}
-        >
-          Se déconnecter
-        </button>
-
-        <div className="pr-footnote">
-          Besoin d&apos;aide ? <Link href="/#faq">Consultez la FAQ</Link> ou
-          écrivez-nous à <a href="mailto:hello@sejourfr.fr">hello@sejourfr.fr</a>.
         </div>
+      </section>
+
+      {/* ============ PARCOURS ============ */}
+      <SettingsGroup title="Démarche">
+        <SettingsRow
+          name="Parcours visé"
+          value={
+            user.targetProcedure
+              ? PROCEDURE_INFO[user.targetProcedure].title
+              : "Pas encore défini"
+          }
+          accent={user.targetProcedure ? null : "warning"}
+          href={`/parcours?from=/profil`}
+          chevron
+        />
+        <SettingsRow
+          name="Niveau de français visé"
+          value={
+            user.targetProcedure
+              ? PROCEDURE_INFO[user.targetProcedure].tcfLevel
+              : "—"
+          }
+          valueTone="red"
+        />
+        <SettingsRow
+          name="Date d'examen prévue"
+          value={examDate ? formatDate(examDate) : "Non définie"}
+          accent={examDate ? null : "muted"}
+          actionLabel={examDate ? "Modifier" : "Définir"}
+          onAction={() => router.push("/dashboard")}
+        />
+      </SettingsGroup>
+
+      {/* ============ INFOS PERSONNELLES ============ */}
+      <SettingsGroup title="Informations personnelles">
+        <SettingsRow
+          name="Nom complet"
+          value={fullName}
+          actionLabel="Modifier"
+          onAction={() => setShowEditNameSoon(true)}
+        />
+        <SettingsRow
+          name="Adresse e-mail"
+          value={user.email}
+          actionLabel="Modifier"
+          onAction={() => setShowEditNameSoon(true)}
+        />
+        <SettingsRow
+          name="Mot de passe"
+          value="•••••••••"
+          actionLabel="Modifier"
+          href="/mot-de-passe-oublie"
+        />
+        <SettingsRow
+          name="Identifiant utilisateur"
+          value={user.id}
+          mono
+        />
+      </SettingsGroup>
+
+      {/* ============ ABONNEMENT ============ */}
+      <SettingsGroup title="Abonnement">
+        <SettingsRow
+          name="Plan actuel"
+          value={planLabel}
+          valueTone={user.isPremium ? "blue" : "muted"}
+          valueStrong
+        />
+        <SettingsRow name="Détails" value={planSub} />
+        {user.isPremium && user.premiumEndsAt && (
+          <SettingsRow
+            name="Renouvellement"
+            value="Sans renouvellement automatique"
+            valueTone="muted"
+          />
+        )}
+        <SettingsRow
+          name={user.isPremium ? "Gérer mon abonnement" : "Passer Premium"}
+          value=""
+          accent={user.isPremium ? null : "primary"}
+          href="/paiement"
+          chevron
+        />
+      </SettingsGroup>
+
+      {/* ============ ZONE DANGER ============ */}
+      <SettingsGroup title="Zone danger" danger>
+        <SettingsRow
+          name="Supprimer mon compte"
+          value="Toutes vos données et votre progression"
+          valueTone="muted"
+          accent="danger"
+          onAction={() => setShowDeleteSoon(true)}
+          actionLabel="Supprimer"
+        />
+      </SettingsGroup>
+
+      {/* FOOTNOTE */}
+      <div className="pr-footnote">
+        Besoin d&apos;aide ? <Link href="/#faq">Consultez la FAQ</Link> ou
+        écrivez-nous à <a href="mailto:hello@sejourfr.fr">hello@sejourfr.fr</a>.
       </div>
 
-      {/* MODAL LOGOUT */}
+      {/* MODALS */}
       {showLogoutConfirm && (
         <ConfirmModal
           title="Se déconnecter ?"
@@ -218,20 +230,27 @@ export default function ProfilPage() {
           onCancel={() => setShowLogoutConfirm(false)}
         />
       )}
-
-      {/* MODAL DELETE — stub */}
       {showDeleteSoon && (
         <ConfirmModal
           title="Suppression du compte"
           body={
-            "Cette fonctionnalité arrive bientôt. En attendant, envoyez-nous un email " +
-            "à hello@sejourfr.fr depuis l'adresse de votre compte et nous procéderons " +
-            "à la suppression manuellement, conformément au RGPD."
+            "Cette fonctionnalité arrive bientôt. En attendant, envoyez-nous un email à hello@sejourfr.fr depuis l'adresse de votre compte et nous procéderons à la suppression manuellement, conformément au RGPD."
           }
           confirmLabel="J'ai compris"
           confirmTone="neutral"
           onConfirm={() => setShowDeleteSoon(false)}
           onCancel={() => setShowDeleteSoon(false)}
+          singleAction
+        />
+      )}
+      {showEditNameSoon && (
+        <ConfirmModal
+          title="Édition à venir"
+          body="L'édition du nom et de l'email arrive bientôt. En attendant, écrivez à hello@sejourfr.fr en précisant votre demande."
+          confirmLabel="OK"
+          confirmTone="neutral"
+          onConfirm={() => setShowEditNameSoon(false)}
+          onCancel={() => setShowEditNameSoon(false)}
           singleAction
         />
       )}
@@ -242,50 +261,106 @@ export default function ProfilPage() {
 }
 
 // ============================================================================
-// PROCEDURE CARD
+// SETTINGS GROUP
 // ============================================================================
-function ProcedureCard({ procedure }: { procedure: TargetProcedure }) {
-  const info = PROCEDURE_INFO[procedure];
+function SettingsGroup({
+  title,
+  children,
+  danger,
+}: {
+  title: string;
+  children: React.ReactNode;
+  danger?: boolean;
+}) {
   return (
-    <div className="pr-card pr-proc">
-      <span className="pr-proc-badge">{procedure}</span>
-      <div className="pr-proc-info">
-        <div className="pr-proc-title">{info.title}</div>
-        <div className="pr-proc-desc">{info.desc}</div>
+    <section className={`settings-group ${danger ? "is-danger" : ""}`}>
+      <div className={`settings-group-title ${danger ? "is-danger" : ""}`}>
+        {title}
       </div>
-      <div className="pr-proc-tcf">
-        <span className="pr-proc-tcf-label">TCF requis</span>
-        <span className="pr-proc-tcf-value">{info.tcfLevel}</span>
+      <div className={`settings-list ${danger ? "is-danger" : ""}`}>
+        {children}
       </div>
-    </div>
+    </section>
   );
 }
 
-const PROCEDURE_INFO: Record<TargetProcedure, { title: string; desc: string; tcfLevel: string }> = {
-  CSP: {
-    title: "Titre de séjour pluriannuel",
-    desc: "Premier renouvellement après le visa long séjour.",
-    tcfLevel: "A2",
-  },
-  CR: {
-    title: "Carte de résident (10 ans)",
-    desc: "Stabilité longue durée, démarches allégées.",
-    tcfLevel: "B1",
-  },
-  NAT: {
-    title: "Naturalisation française",
-    desc: "Nationalité française. Niveau d'exigence le plus élevé.",
-    tcfLevel: "B2",
-  },
-};
+// ============================================================================
+// SETTINGS ROW
+// ============================================================================
+function SettingsRow({
+  name,
+  value,
+  valueTone,
+  valueStrong,
+  mono,
+  accent,
+  href,
+  onAction,
+  actionLabel,
+  chevron,
+}: {
+  name: string;
+  value: string;
+  valueTone?: "blue" | "red" | "muted";
+  valueStrong?: boolean;
+  mono?: boolean;
+  accent?: "primary" | "danger" | "warning" | "muted" | null;
+  href?: string;
+  onAction?: () => void;
+  actionLabel?: string;
+  chevron?: boolean;
+}) {
+  const valueEl = (
+    <span
+      className={`row-value ${valueTone ? `row-value-${valueTone}` : ""} ${mono ? "is-mono" : ""}`}
+    >
+      {valueStrong ? <strong>{value}</strong> : value}
+    </span>
+  );
 
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+  const actionEl = actionLabel ? (
+    <span className={`row-action row-action-${accent ?? "default"}`}>
+      {actionLabel}
+    </span>
+  ) : chevron ? (
+    <span className="row-chevron">›</span>
+  ) : null;
+
+  const isClickable = !!href || !!onAction;
+
+  const inner = (
+    <>
+      <span className="row-name">{name}</span>
+      <span className="row-value-wrap">
+        {valueEl}
+        {actionEl}
+      </span>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className={`settings-row ${isClickable ? "is-clickable" : ""}`}>
+        {inner}
+      </Link>
+    );
+  }
+  if (onAction) {
+    return (
+      <button
+        type="button"
+        className={`settings-row ${isClickable ? "is-clickable" : ""}`}
+        onClick={onAction}
+      >
+        {inner}
+      </button>
+    );
+  }
+  return <div className="settings-row">{inner}</div>;
 }
 
 // ============================================================================
-// MODAL
+// CONFIRM MODAL
 // ============================================================================
 function ConfirmModal({
   title,
@@ -320,13 +395,13 @@ function ConfirmModal({
         <p className="cm-body">{body}</p>
         <div className="cm-actions">
           {!singleAction && (
-            <button type="button" className="btn btn-ghost" onClick={onCancel}>
+            <button type="button" className="cm-btn cm-btn-ghost" onClick={onCancel}>
               Annuler
             </button>
           )}
           <button
             type="button"
-            className={`btn ${confirmTone === "danger" ? "btn-red" : "btn-blue"}`}
+            className={`cm-btn cm-btn-${confirmTone}`}
             onClick={onConfirm}
           >
             {confirmLabel}
@@ -339,252 +414,323 @@ function ConfirmModal({
 }
 
 // ============================================================================
-// STYLES
+// HELPERS
 // ============================================================================
-const styles = `
-  .pr { background: var(--color-paper); min-height: calc(100vh - 110px); padding: 32px 16px 64px; }
-  .pr-loading { min-height: 60vh; }
+const PROCEDURE_INFO: Record<
+  TargetProcedure,
+  { title: string; desc: string; tcfLevel: string }
+> = {
+  CSP: {
+    title: "Carte de séjour pluriannuelle",
+    desc: "Premier renouvellement après le visa long séjour.",
+    tcfLevel: "A2",
+  },
+  CR: {
+    title: "Carte de résident (10 ans)",
+    desc: "Stabilité longue durée, démarches allégées.",
+    tcfLevel: "B1",
+  },
+  NAT: {
+    title: "Naturalisation française",
+    desc: "Nationalité française. Niveau d'exigence le plus élevé.",
+    tcfLevel: "B2",
+  },
+};
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function ProfilSkeleton() {
+  return (
+    <div className="pr-loading">
+      <style>{`.pr-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
+    </div>
+  );
+}
+
+const gateStyles = `
   .pr-gate {
     min-height: 60vh;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 14px; color: var(--color-muted);
+    gap: 14px;
+    color: var(--color-muted);
+    padding: 36px;
   }
-  .pr-wrap { max-width: 720px; margin: 0 auto; }
+  .pr-gate-cta { color: var(--color-blue); font-weight: 700; text-decoration: none; }
+`;
 
-  .pr-head { margin: 0 0 24px; }
-  .pr-head h1 {
-    font-family: var(--font-display); font-weight: 500;
-    font-size: clamp(28px, 4vw, 38px); line-height: 1.05; letter-spacing: -0.025em;
-    margin: 10px 0 10px;
-  }
-  .pr-head h1 em { font-style: italic; color: var(--color-red); }
-  .pr-head p {
-    color: var(--color-muted); font-size: 15px;
-    margin: 0; max-width: 540px; line-height: 1.55;
-  }
+// ============================================================================
+// STYLES
+// ============================================================================
+const styles = `
+  .pr { padding: 24px 36px 64px; max-width: 900px; }
+  @media (max-width: 760px) { .pr { padding: 20px 16px 56px; } }
 
-  .pr-card {
+  /* ========== TOPBAR ========== */
+  .topbar {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 16px; flex-wrap: wrap;
+    margin-bottom: 26px;
+  }
+  .breadcrumb {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .breadcrumb .sep { margin: 0 6px; opacity: 0.5; }
+  .topbar h1 {
+    font-family: var(--font-display);
+    font-size: clamp(24px, 3.2vw, 32px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0;
+    line-height: 1.15;
+  }
+  .topbar h1 em {
+    color: var(--color-blue);
+    font-style: italic;
+    font-weight: 500;
+  }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+  .btn-outline {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 10px 16px; border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+    text-decoration: none;
+    border: 1px solid var(--color-line);
+    background: #fff;
+    color: var(--color-ink);
+    transition: all 0.15s;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-outline:hover { border-color: var(--color-blue); color: var(--color-blue); }
+
+  /* ========== IDENTITY ========== */
+  .identity-card {
     background: #fff;
     border: 1px solid var(--color-line);
-    border-radius: 14px;
-    padding: 18px 20px;
+    border-radius: 22px;
+    padding: 28px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    margin-bottom: 26px;
+    position: relative;
+    overflow: hidden;
   }
-
-  /* IDENTITÉ */
-  .pr-identity {
-    display: grid;
-    grid-template-columns: 64px 1fr auto;
-    align-items: center; gap: 16px;
-    margin-bottom: 24px;
+  .identity-card::before {
+    content: '';
+    position: absolute;
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--color-blue-light) 0%, transparent 70%);
+    top: -90px; right: -60px;
+    opacity: 0.6;
+    pointer-events: none;
   }
-  .pr-avatar {
-    width: 64px; height: 64px;
-    background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
+  .identity-avatar {
+    width: 80px; height: 80px;
+    background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-red) 100%);
     color: #fff;
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-family: var(--font-display); font-weight: 500;
-    font-size: 24px; letter-spacing: -0.02em;
-    box-shadow: 0 8px 20px -8px rgba(30, 58, 140, 0.32);
-  }
-  .pr-identity-info { min-width: 0; }
-  .pr-name {
-    font-family: var(--font-sans); font-weight: 700; font-size: 17px;
-    color: var(--color-ink); line-height: 1.2;
-  }
-  .pr-email {
-    font-family: var(--font-mono); font-size: 12.5px;
-    color: var(--color-muted); margin-top: 4px;
-    word-break: break-all;
-  }
-  .pr-plan-badge {
-    font-family: var(--font-mono); font-size: 10px;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    padding: 4px 10px; border-radius: 100px;
-    font-weight: 700;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 28px;
+    letter-spacing: -0.02em;
     flex-shrink: 0;
+    box-shadow: 0 12px 28px -10px rgba(30, 58, 140, 0.4);
+    position: relative;
+    z-index: 1;
   }
-  .pr-plan-badge.primary { background: var(--color-blue); color: #fff; }
-  .pr-plan-badge.neutral { background: var(--color-paper-2); color: var(--color-muted); }
-  @media (max-width: 560px) {
-    .pr-identity {
-      grid-template-columns: 48px 1fr;
-      gap: 12px;
-    }
-    .pr-avatar { width: 48px; height: 48px; font-size: 18px; }
-    .pr-plan-badge { grid-column: 1 / -1; justify-self: start; }
+  .identity-info {
+    min-width: 0;
+    position: relative;
+    z-index: 1;
   }
-
-  /* SECTION */
-  .pr-section { margin-bottom: 22px; }
-  .pr-section-head {
-    display: flex; align-items: baseline; justify-content: space-between;
+  .identity-name {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 22px;
+    margin: 0 0 4px;
+    letter-spacing: -0.015em;
+    color: var(--color-ink);
+    line-height: 1.2;
+  }
+  .identity-email {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--color-muted);
+    word-break: break-all;
     margin-bottom: 10px;
   }
-  .pr-section-title {
-    font-family: var(--font-mono); font-size: 10.5px;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--color-muted); font-weight: 700;
+  .identity-badges {
+    display: flex; flex-wrap: wrap; gap: 6px;
   }
-  .pr-section-edit {
-    font-family: var(--font-sans); font-size: 12.5px; font-weight: 700;
-    color: var(--color-blue); text-decoration: none;
-  }
-
-  /* PARCOURS */
-  .pr-proc {
-    display: grid;
-    grid-template-columns: 48px 1fr auto;
-    align-items: center; gap: 14px;
-  }
-  .pr-proc-badge {
+  .plan-pill {
     font-family: var(--font-mono);
-    background: var(--color-blue);
-    color: #fff;
-    padding: 6px 10px;
-    border-radius: 8px;
-    font-size: 13px; font-weight: 700; letter-spacing: 0.08em;
-    text-align: center;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-weight: 700;
+    text-transform: uppercase;
   }
-  .pr-proc-info { min-width: 0; }
-  .pr-proc-title {
-    font-weight: 700; font-size: 14.5px;
-    color: var(--color-ink); line-height: 1.25;
-  }
-  .pr-proc-desc {
-    font-size: 12.5px; color: var(--color-muted);
-    margin-top: 3px; line-height: 1.4;
-  }
-  .pr-proc-tcf {
-    display: flex; flex-direction: column; align-items: center;
-    padding: 8px 12px;
-    background: var(--color-paper);
-    border-radius: 8px;
-  }
-  .pr-proc-tcf-label {
-    font-family: var(--font-mono); font-size: 8.5px;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--color-muted); font-weight: 700;
-  }
-  .pr-proc-tcf-value {
-    font-family: var(--font-mono); font-size: 14px;
-    font-weight: 700; color: var(--color-red);
-  }
-  @media (max-width: 480px) { .pr-proc-tcf { display: none; } }
-
-  /* EMPTY parcours */
-  .pr-empty {
-    background: var(--color-blue-soft);
-    border: 1px dashed var(--color-blue-light);
-    border-radius: 14px;
-    padding: 18px 20px;
-    display: flex; flex-direction: column; gap: 14px;
-    align-items: flex-start;
-  }
-  .pr-empty-text {
-    font-size: 13.5px; color: var(--color-ink-2);
-    line-height: 1.5;
-  }
-
-  /* ABONNEMENT */
-  .pr-sub {
-    display: grid;
-    grid-template-columns: 44px 1fr auto;
-    align-items: center; gap: 14px;
-  }
-  .pr-sub-icon {
-    width: 44px; height: 44px;
-    border-radius: 11px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .pr-sub-icon[data-tone="primary"] {
-    background: var(--color-blue-light); color: var(--color-blue);
-  }
-  .pr-sub-icon[data-tone="neutral"] {
-    background: var(--color-paper-2); color: var(--color-muted);
-  }
-  .pr-sub-info { min-width: 0; }
-  .pr-sub-plan {
-    font-weight: 700; font-size: 14.5px; color: var(--color-ink); line-height: 1.2;
-  }
-  .pr-sub-detail {
-    font-size: 12.5px; color: var(--color-muted); margin-top: 3px;
-  }
-  .pr-sub-cta { flex-shrink: 0; }
-  @media (max-width: 560px) {
-    .pr-sub-cta { grid-column: 1 / -1; width: 100%; }
-  }
-
-  /* ACTIONS */
-  .pr-actions { display: flex; flex-direction: column; gap: 8px; }
-  .pr-action {
-    display: grid;
-    grid-template-columns: 36px 1fr 20px;
-    align-items: center; gap: 14px;
-    width: 100%;
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 12px;
-    padding: 14px 16px;
-    text-align: left;
-    cursor: pointer;
-    text-decoration: none;
-    color: inherit;
-    transition: all 0.15s;
-    font-family: var(--font-sans);
-  }
-  .pr-action:hover {
-    border-color: var(--color-blue);
-    background: var(--color-blue-soft);
-  }
-  .pr-action-icon {
-    width: 36px; height: 36px;
-    background: var(--color-blue-light); color: var(--color-blue);
-    border-radius: 9px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .pr-action-icon.danger {
-    background: var(--color-red-light); color: var(--color-red);
-  }
-  .pr-action-text { min-width: 0; }
-  .pr-action-title {
-    font-weight: 700; font-size: 14px; color: var(--color-ink); line-height: 1.2;
-  }
-  .pr-action-sub {
-    font-size: 12.5px; color: var(--color-muted); margin-top: 3px;
-  }
-  .pr-action-arrow {
-    color: var(--color-muted-2); font-size: 18px; flex-shrink: 0;
-  }
-
-  /* LOGOUT */
-  .pr-logout {
-    width: 100%;
-    padding: 14px;
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 12px;
-    font-family: var(--font-sans);
-    font-size: 14px; font-weight: 600;
-    color: var(--color-red);
-    cursor: pointer;
-    transition: all 0.15s;
-    margin-top: 14px;
-  }
-  .pr-logout:hover {
+  .plan-pill-primary { background: var(--color-blue); color: #fff; }
+  .plan-pill-neutral { background: var(--color-paper-2); color: var(--color-muted); }
+  .proc-pill {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    padding: 4px 10px;
+    border-radius: 100px;
+    font-weight: 700;
     background: var(--color-red-light);
+    color: var(--color-red);
+    text-transform: uppercase;
+  }
+  @media (max-width: 560px) {
+    .identity-card {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 22px;
+    }
+    .identity-avatar { width: 64px; height: 64px; font-size: 22px; }
+  }
+
+  /* ========== SETTINGS GROUP ========== */
+  .settings-group {
+    margin-bottom: 22px;
+  }
+  .settings-group-title {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    font-weight: 600;
+    margin-bottom: 10px;
+    padding: 0 4px;
+  }
+  .settings-group-title.is-danger { color: var(--color-red); }
+  .settings-list {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .settings-list.is-danger {
     border-color: rgba(225, 55, 47, 0.3);
   }
 
-  /* FOOTNOTE */
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--color-line-2);
+    background: transparent;
+    text-decoration: none;
+    color: inherit;
+    width: 100%;
+    border-left: none; border-right: none; border-top: none;
+    font-family: inherit;
+    text-align: left;
+    transition: background 0.12s;
+  }
+  .settings-list > .settings-row:last-child {
+    border-bottom: none;
+  }
+  .settings-row.is-clickable {
+    cursor: pointer;
+  }
+  .settings-row.is-clickable:hover {
+    background: var(--color-blue-soft);
+  }
+  .settings-list.is-danger .settings-row.is-clickable:hover {
+    background: var(--color-red-light);
+  }
+
+  .row-name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--color-ink);
+    flex-shrink: 0;
+  }
+  .row-value-wrap {
+    display: flex; align-items: center; gap: 10px;
+    min-width: 0;
+    flex-wrap: nowrap;
+  }
+  .row-value {
+    font-size: 13px;
+    color: var(--color-muted);
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 280px;
+  }
+  .row-value.is-mono {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.04em;
+  }
+  .row-value-blue { color: var(--color-blue); }
+  .row-value-blue strong { color: var(--color-blue); }
+  .row-value-red { color: var(--color-red); font-weight: 700; }
+  .row-value-muted { color: var(--color-muted-2); }
+  .row-value strong { color: var(--color-ink); font-weight: 700; }
+
+  .row-action {
+    font-size: 12.5px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .row-action-default { color: var(--color-blue); }
+  .row-action-primary { color: var(--color-blue); }
+  .row-action-danger { color: var(--color-red); }
+  .row-action-warning { color: var(--color-amber); }
+  .row-action-muted { color: var(--color-muted); }
+  .row-chevron {
+    color: var(--color-muted-2);
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 560px) {
+    .settings-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+    .row-value-wrap {
+      justify-content: space-between;
+      width: 100%;
+    }
+    .row-value { text-align: left; max-width: none; }
+  }
+
+  /* ========== FOOTNOTE ========== */
   .pr-footnote {
     text-align: center;
-    margin-top: 24px;
-    font-size: 12.5px; color: var(--color-muted);
+    margin-top: 32px;
+    font-size: 12.5px;
+    color: var(--color-muted);
     line-height: 1.55;
   }
-  .pr-footnote a { color: var(--color-blue); }
+  .pr-footnote a { color: var(--color-blue); text-decoration: none; }
+  .pr-footnote a:hover { text-decoration: underline; }
 `;
 
 const modalStyles = `
@@ -595,7 +741,8 @@ const modalStyles = `
   }
   .cm-backdrop {
     position: absolute; inset: 0;
-    background: rgba(15, 24, 57, 0.45);
+    background: rgba(15, 24, 57, 0.55);
+    backdrop-filter: blur(4px);
     animation: cm-fade 0.18s ease-out;
   }
   @keyframes cm-fade { from { opacity: 0; } to { opacity: 1; } }
@@ -607,7 +754,7 @@ const modalStyles = `
     position: relative;
     background: #fff;
     border-radius: 22px 22px 0 0;
-    padding: 28px 24px 22px;
+    padding: 28px 28px 22px;
     width: 100%;
     max-width: 460px;
     animation: cm-slide 0.22s ease-out;
@@ -618,7 +765,7 @@ const modalStyles = `
     .cm-sheet { border-radius: 18px; }
   }
   .cm-title {
-    font-family: var(--font-display); font-weight: 500;
+    font-family: var(--font-display); font-weight: 600;
     font-size: 22px; letter-spacing: -0.02em;
     color: var(--color-ink);
     margin: 0 0 8px;
@@ -631,4 +778,35 @@ const modalStyles = `
   .cm-actions {
     display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;
   }
+  .cm-btn {
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+  }
+  .cm-btn-ghost {
+    background: #fff;
+    border-color: var(--color-line);
+    color: var(--color-ink);
+  }
+  .cm-btn-ghost:hover { border-color: var(--color-ink); }
+  .cm-btn-primary {
+    background: var(--color-blue);
+    color: #fff;
+  }
+  .cm-btn-primary:hover { background: var(--color-blue-dark); }
+  .cm-btn-danger {
+    background: var(--color-red);
+    color: #fff;
+  }
+  .cm-btn-danger:hover { background: var(--color-red-dark); }
+  .cm-btn-neutral {
+    background: var(--color-ink);
+    color: #fff;
+  }
+  .cm-btn-neutral:hover { background: var(--color-ink-2); }
 `;
