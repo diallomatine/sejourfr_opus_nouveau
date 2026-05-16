@@ -41,6 +41,14 @@ export interface AuthenticatedUser {
   role: Role;
   targetProcedure?: TargetProcedure;
   targetLevel?: TargetLevel;
+  /** Vrai si l'utilisateur a au moins un plan payant actif (CIVIQUE ou INTÉGRAL). */
+  isPremium?: boolean;
+  /** Accès au module Civique (vrai si plan CIVIQUE_3MOIS ou INTEGRAL_3MOIS actif). */
+  hasCivique?: boolean;
+  /** Accès au module TCF (vrai si plan INTEGRAL_3MOIS actif). */
+  hasTcf?: boolean;
+  /** Date d'expiration de l'accès payant (ISO 8601), null si pas de plan actif. */
+  premiumEndsAt?: string | null;
 }
 
 // ============ THEME ============

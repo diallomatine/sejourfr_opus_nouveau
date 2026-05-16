@@ -54,8 +54,6 @@ sejourfr:
   stripe:
     secret-key: ${STRIPE_SECRET_KEY}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET}
-    price-monthly: ${STRIPE_PRICE_MONTHLY}
-    price-yearly: ${STRIPE_PRICE_YEARLY}
-    success-url: ${STRIPE_SUCCESS_URL:https://app.sejourfr.fr/paiement/succes?session_id={CHECKOUT_SESSION_ID}}
-    cancel-url: ${STRIPE_CANCEL_URL:https://app.sejourfr.fr/paiement}
+    payment-link-civique: ${STRIPE_PAYMENT_LINK_CIVIQUE}
+    payment-link-integral: ${STRIPE_PAYMENT_LINK_INTEGRAL}
 

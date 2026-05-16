@@ -45,13 +45,17 @@ sejourfr:
     allowed-origins: http://localhost:3000,http://localhost:5173
   stripe:
     # Doivent être surchargés en dev/prod. Par défaut vides → le backend
-    # démarre, mais POST /api/billing/create-checkout-session renverra 503.
+    # démarre, mais l'endpoint billing renverra 503 tant qu'ils ne sont pas
+    # renseignés.
+    #
+    # Modèle de paiement : Stripe Payment Links one-shot. Les liens sont
+    # créés manuellement dans le Dashboard Stripe (Produits → Payment Links),
+    # puis collés ici. Le backend ajoute client_reference_id=<user_id> à
+    # l'URL avant de la renvoyer au front.
     secret-key: ""
     webhook-secret: ""
-    price-monthly: ""
-    price-yearly: ""
-    success-url: "http://localhost:3000/paiement/succes?session_id={CHECKOUT_SESSION_ID}"
-    cancel-url: "http://localhost:3000/paiement"
+    payment-link-civique: ""
+    payment-link-integral: ""
   security:
     jwt:
       issuer: sejourfr-backend

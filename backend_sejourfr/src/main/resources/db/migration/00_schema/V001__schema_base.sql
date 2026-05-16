@@ -35,6 +35,13 @@ CREATE TABLE plans (
     name            VARCHAR(120) NOT NULL,
     billing_cycle   VARCHAR(16) NOT NULL,
     price           NUMERIC(10, 2) NOT NULL,
+    -- Prix « normal » affiché barré sur la page paiement (offre de lancement).
+    -- NULL = pas de promo, on affiche juste price.
+    original_price  NUMERIC(10, 2),
+    -- Modules accessibles : NONE (FREE), CIVIQUE (civique seul), INTEGRAL (civique + TCF).
+    module_access   VARCHAR(16) NOT NULL DEFAULT 'NONE',
+    -- Durée d'accès en jours après paiement one-shot (0 pour FREE).
+    duration_days   INTEGER NOT NULL DEFAULT 0,
     is_active       BOOLEAN NOT NULL DEFAULT TRUE
 );
 

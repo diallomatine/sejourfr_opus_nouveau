@@ -1,12 +1,12 @@
 package com.sejourfr.app.enums;
 
 /**
- * Plans facturés via Stripe. Mappés vers les codes Plan en base
- * (PREMIUM_MONTHLY / PREMIUM_YEARLY).
+ * Plans payants commercialisés via Stripe (Payment Links one-shot).
+ * Mappés vers les codes Plan en base.
  */
 public enum BillingPlan {
-    MENSUEL("PREMIUM_MONTHLY"),
-    ANNUEL("PREMIUM_YEARLY");
+    CIVIQUE_3MOIS("CIVIQUE_3MOIS"),
+    INTEGRAL_3MOIS("INTEGRAL_3MOIS");
 
     private final String planCode;
 

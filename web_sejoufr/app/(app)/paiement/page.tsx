@@ -1,29 +1,56 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { ApiException, billingApi } from "@/lib/api";
 
-type Plan = "mensuel" | "annuel";
+type PlanCode = "CIVIQUE_3MOIS" | "INTEGRAL_3MOIS";
 
-const PLAN_DATA = {
-  mensuel: {
-    name: "Premium Mensuel",
-    base: 9.99,
-    discount: 0,
-    total: 9.99,
-    period: "/mois",
+interface PlanCard {
+  code: PlanCode;
+  name: string;
+  tag: string;
+  originalPrice: number; // prix « normal », affiché barré
+  price: number; // prix de lancement
+  duration: string;
+  features: string[];
+  cta: string;
+  highlighted?: boolean;
+}
+
+const PLANS: PlanCard[] = [
+  {
+    code: "CIVIQUE_3MOIS",
+    name: "Civique",
+    tag: "Pour CSP · CR · NAT",
+    originalPrice: 9.99,
+    price: 5.99,
+    duration: "3 mois",
+    features: [
+      "Accès illimité à toutes les questions civique (CSP, CR, NAT)",
+      "Examens blancs civique à volonté",
+      "Suivi de progression par thème",
+      "Mode entraînement et révision des erreurs",
+    ],
+    cta: "Souscrire à Civique",
   },
-  annuel: {
-    name: "Premium Annuel",
-    base: 120,
-    discount: 31,
-    total: 89,
-    period: "/an",
+  {
+    code: "INTEGRAL_3MOIS",
+    name: "Intégral",
+    tag: "Civique + TCF",
+    originalPrice: 19.99,
+    price: 14.99,
+    duration: "3 mois",
+    features: [
+      "Tout ce que contient Civique",
+      "Accès complet au TCF (A2, B1, B2)",
+      "Examens blancs TCF",
+      "Compréhension écrite, orale et structure de la langue",
+    ],
+    cta: "Souscrire à Intégral",
+    highlighted: true,
   },
-} as const;
+];
 
 export default function PaiementPage() {
   return (
@@ -34,26 +61,14 @@ export default function PaiementPage() {
 }
 
 function PaiementInner() {
-  const sp = useSearchParams();
-  const initialPlan = (sp.get("plan") === "premium" ? "mensuel" : "annuel") as Plan;
-  const [plan, setPlan] = useState<Plan>(initialPlan);
-  const [loading, setLoading] = useState(false);
-  const [portalLoading, setPortalLoading] = useState(false);
-  const [portalMessage, setPortalMessage] = useState<string | null>(null);
+  const [loadingPlan, setLoadingPlan] = useState<PlanCode | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const planData = PLAN_DATA[plan];
-  const tvaShare = +(planData.total - planData.total / 1.2).toFixed(2);
-
-  async function handleCheckout(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function handleSubscribe(plan: PlanCode) {
     setError(null);
-    setLoading(true);
-
+    setLoadingPlan(plan);
     try {
-      const { url } = await billingApi.createCheckoutSession(
-        plan === "mensuel" ? "MENSUEL" : "ANNUEL",
-      );
+      const { url } = await billingApi.getPaymentLink(plan);
       window.location.assign(url);
     } catch (err) {
       if (err instanceof ApiException) {
@@ -69,559 +84,256 @@ function PaiementInner() {
       } else {
         setError("Impossible d'initier le paiement. Réessayez dans un instant.");
       }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function openPortal() {
-    setPortalMessage(null);
-    setPortalLoading(true);
-    try {
-      const { url } = await billingApi.createPortalSession();
-      window.location.assign(url);
-    } catch (err) {
-      if (err instanceof ApiException && err.status === 404) {
-        setPortalMessage(
-          "Aucun abonnement Stripe associé à ce compte. Souscrivez d'abord ci-dessous.",
-        );
-      } else if (err instanceof ApiException && err.status === 503) {
-        setPortalMessage("Le portail Stripe n'est pas configuré côté serveur.");
-      } else {
-        setPortalMessage(
-          err instanceof Error ? err.message : "Impossible d'ouvrir le portail.",
-        );
-      }
-    } finally {
-      setPortalLoading(false);
+      setLoadingPlan(null);
     }
   }
 
   return (
-    <>
-      <div className="checkout-wrap">
-        {/* LEFT : FORM */}
-        <div>
-          <div className="steps-bar">
-            <span className="step-done">✓ Compte</span>
-            <span className="sep">·</span>
-            <span className="step-current">2. Paiement</span>
-            <span className="sep">·</span>
-            <span>3. Accès</span>
-          </div>
-
-          <h1 className="h1-edit">
-            Dernière étape <em>avant la préparation</em>.
+    <div className="pay-page">
+      <div className="container-x">
+        <header className="pay-header">
+          <span className="eyebrow">Offre de lancement</span>
+          <h1 className="editorial">
+            Choisissez votre <em>formule</em>.
           </h1>
-          <p className="sub">
-            Annulable à tout moment · Garantie satisfait remboursé 14 jours.
+          <p className="lead">
+            Un paiement unique, accès 3 mois.<br />
+            <strong>Pas de renouvellement automatique</strong> — vous renouvellerez vous-même si vous le souhaitez.
           </p>
+        </header>
 
-          <div className="portal-banner">
-            <div>
-              <strong>Déjà abonné&nbsp;?</strong> Gérez votre carte, vos
-              factures ou résiliez votre abonnement depuis le portail Stripe.
-              {portalMessage && (
-                <div className="portal-msg">{portalMessage}</div>
-              )}
-            </div>
-            <button
-              type="button"
-              className="portal-btn"
-              onClick={openPortal}
-              disabled={portalLoading}
+        <div className="pay-cards">
+          {PLANS.map((plan) => (
+            <article
+              key={plan.code}
+              className={`pay-card ${plan.highlighted ? "is-featured" : ""}`}
             >
-              {portalLoading ? "Ouverture..." : "Gérer mon abonnement →"}
-            </button>
-          </div>
+              {plan.highlighted && (
+                <span className="ribbon">Le plus complet</span>
+              )}
+              <header className="pay-card-head">
+                <span className="eyebrow">{plan.tag}</span>
+                <h2>{plan.name}</h2>
+                <p className="muted">{plan.duration} d'accès</p>
+              </header>
 
-          <form onSubmit={handleCheckout}>
-            {/* Plan */}
-            <div className="section">
-              <div className="section-head">
-                <div className="section-num">1</div>
-                <h2>Votre formule</h2>
+              <div className="pay-price">
+                <span className="price-strike" aria-label="Prix normal barré">
+                  {plan.originalPrice.toFixed(2).replace(".", ",")} €
+                </span>
+                <span className="price-now">
+                  {plan.price.toFixed(2).replace(".", ",")}
+                  <span className="cents"> €</span>
+                </span>
+                <span className="price-period">paiement unique</span>
               </div>
 
-              <div className="plan-switch">
-                <label
-                  className={`plan-opt ${plan === "mensuel" ? "active" : ""}`}
-                >
-                  <input
-                    type="radio"
-                    name="plan"
-                    value="mensuel"
-                    checked={plan === "mensuel"}
-                    onChange={() => setPlan("mensuel")}
-                  />
-                  <div className="pn">Mensuel</div>
-                  <div className="pp">
-                    9,99 €<span className="small">/mois</span>
-                  </div>
-                  <div className="pper">Sans engagement</div>
-                </label>
-                <label
-                  className={`plan-opt ${plan === "annuel" ? "active" : ""}`}
-                >
-                  <span className="ribbon">−26 %</span>
-                  <input
-                    type="radio"
-                    name="plan"
-                    value="annuel"
-                    checked={plan === "annuel"}
-                    onChange={() => setPlan("annuel")}
-                  />
-                  <div className="pn">Annuel</div>
-                  <div className="pp">
-                    89 €<span className="small">/an</span>
-                  </div>
-                  <div className="pper">Soit 7,42 €/mois</div>
-                </label>
-              </div>
-            </div>
-
-            {/* Facturation */}
-            <div className="section">
-              <div className="section-head">
-                <div className="section-num">2</div>
-                <h2>Informations de facturation</h2>
-              </div>
-
-              <div className="field" style={{ marginBottom: 14 }}>
-                <label className="field-label" htmlFor="bill-email">
-                  Email
-                </label>
-                <input
-                  id="bill-email"
-                  type="email"
-                  className="field-input"
-                  defaultValue="fatima.achour@example.com"
-                  required
-                />
-              </div>
-
-              <div className="row-2">
-                <div className="field">
-                  <label className="field-label">Prénom</label>
-                  <input type="text" className="field-input" placeholder="Fatima" required />
-                </div>
-                <div className="field">
-                  <label className="field-label">Nom</label>
-                  <input type="text" className="field-input" placeholder="Achour" required />
-                </div>
-              </div>
-
-              <div className="field" style={{ marginTop: 14 }}>
-                <label className="field-label">Pays</label>
-                <select className="field-input" defaultValue="France">
-                  <option>France</option>
-                  <option>Belgique</option>
-                  <option>Suisse</option>
-                  <option>Maroc</option>
-                  <option>Tunisie</option>
-                  <option>Algérie</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Stripe placeholder */}
-            <div className="section">
-              <div className="section-head">
-                <div className="section-num">3</div>
-                <h2>Mode de paiement</h2>
-              </div>
-
-              <div className="stripe-placeholder">
-                <div className="stripe-line">
-                  <span className="ico-card" aria-hidden>💳</span>
-                  <div>
-                    <div className="stripe-line-title">
-                      Vous serez redirigé vers Stripe
-                    </div>
-                    <div className="stripe-line-sub">
-                      Carte bancaire, SEPA, Apple Pay, Google Pay. Chiffrement 256 bits.
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {error && <div className="form-error" style={{ marginTop: 16 }}>{error}</div>}
+              <ul className="pay-features">
+                {plan.features.map((f) => (
+                  <li key={f}>
+                    <span className="check" aria-hidden>✓</span>
+                    {f}
+                  </li>
+                ))}
+              </ul>
 
               <button
-                type="submit"
-                disabled={loading}
-                className="btn-pay"
-                style={{ marginTop: 20 }}
+                type="button"
+                className={`btn btn-lg ${plan.highlighted ? "btn-red" : ""}`}
+                onClick={() => handleSubscribe(plan.code)}
+                disabled={loadingPlan !== null}
               >
-                <span className="lock" aria-hidden>
-                  <svg viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M5 6V4.5a3 3 0 1 1 6 0V6h1a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h1zm1.5 0h3V4.5a1.5 1.5 0 0 0-3 0V6z" />
-                  </svg>
-                </span>
-                {loading
-                  ? "Préparation..."
-                  : `Payer ${planData.total.toLocaleString("fr-FR")} € maintenant`}
+                {loadingPlan === plan.code ? "Redirection…" : plan.cta}
               </button>
-
-              <p className="legal-row">
-                En cliquant sur « Payer », vous acceptez les{" "}
-                <Link href="#">CGV</Link> et la{" "}
-                <Link href="#">politique de remboursement</Link>.
-                <br />
-                Votre abonnement {plan} se renouvelle automatiquement. Vous
-                pouvez le résilier à tout moment depuis votre espace.
-              </p>
-            </div>
-          </form>
+            </article>
+          ))}
         </div>
 
-        {/* RIGHT : SUMMARY */}
-        <div className="summary-wrap">
-          <div className="summary">
-            <div className="summary-head">
-              <div className="tag">Récapitulatif</div>
-              <h3>{planData.name}</h3>
-            </div>
-            <div className="summary-body">
-              <div className="sum-line">
-                <span className="lbl">{planData.name}</span>
-                <span className="val">
-                  {planData.base.toLocaleString("fr-FR")},00 €
-                </span>
-              </div>
-              {planData.discount > 0 && (
-                <div className="sum-line discount">
-                  <span className="lbl">Remise lancement −35 %</span>
-                  <span className="val">
-                    −{planData.discount.toLocaleString("fr-FR")},00 €
-                  </span>
-                </div>
-              )}
-              <div className="sum-line">
-                <span className="lbl">TVA incluse (20 %)</span>
-                <span className="val">
-                  {tvaShare.toLocaleString("fr-FR")} €
-                </span>
-              </div>
-
-              <div className="sum-total">
-                <span className="lbl">Total · TTC</span>
-                <span className="val">
-                  {planData.total.toLocaleString("fr-FR")},00 €
-                </span>
-              </div>
-            </div>
-
-            <div className="includes">
-              <h4>Votre abonnement inclut</h4>
-              <ul>
-                <li>1 240+ questions tous modules</li>
-                <li>Examens blancs illimités (civique + TCF)</li>
-                <li>Suivi de progression par thématique</li>
-                <li>Mode hors-ligne sur mobile</li>
-                <li>Support email sous 24 h</li>
-                <li>Mises à jour réglementaires gratuites</li>
-              </ul>
-            </div>
+        {error && (
+          <div className="pay-error" role="alert">
+            {error}
           </div>
+        )}
 
-          <div className="trust-bar">
-            <div className="trust-line">
-              <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-                <path d="M8 1 2 4v4c0 4 3 7 6 8 3-1 6-4 6-8V4l-6-3zm0 2.2 4 2v2.8c0 3-2.2 5.4-4 6.2-1.8-.8-4-3.2-4-6.2V5.2l4-2z" />
-              </svg>
-              <span>
-                Paiement <strong>chiffré 256 bits</strong>
-              </span>
-            </div>
-            <div className="trust-line">
-              <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-                <path d="M14 4 6 12 2 8l1.4-1.4L6 9.2l6.6-6.6L14 4z" />
-              </svg>
-              <span>
-                <strong>Garantie 14 jours</strong> · remboursement sans condition
-              </span>
-            </div>
-            <div className="trust-line">
-              <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden>
-                <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zM7 11.4 3.4 7.8l1.4-1.4 2.2 2.2 4.2-4.2 1.4 1.4L7 11.4z" />
-              </svg>
-              <span>
-                Résiliable <strong>en 1 clic</strong> à tout moment
-              </span>
-            </div>
-          </div>
-
-          <div className="stripe-badge">
-            Sécurisé par <span className="stripe-logo">Stripe</span>
-          </div>
+        <div className="pay-trust">
+          <p>
+            <strong>Paiement 100 % sécurisé Stripe</strong> · CB, Apple Pay, Google Pay
+          </p>
+          <p className="muted small">
+            Aucun renouvellement automatique. Aucun prélèvement après les 3 mois.
+            Vous gardez le contrôle total : à l'expiration, vous pouvez racheter
+            quand vous voulez.
+          </p>
+          <p className="muted small">
+            Une question ?{" "}
+            <Link href="/contact" className="btn-link-soft">Contactez-nous</Link>.
+          </p>
         </div>
       </div>
 
-      <style>{`
-        .checkout-wrap {
-          max-width: 1140px; margin: 0 auto;
-          padding: 56px 28px 80px;
-          display: grid;
-          grid-template-columns: 1.3fr 1fr;
-          gap: 56px;
-        }
-
-        .steps-bar {
-          display: flex; align-items: center; gap: 10px;
-          margin-bottom: 36px;
-          font-family: var(--font-mono); font-size: 11px;
-          letter-spacing: 0.14em; text-transform: uppercase;
-          color: var(--color-muted);
-        }
-        .step-done { color: var(--color-green); }
-        .step-current { color: var(--color-blue); font-weight: 600; }
-        .sep { color: var(--color-muted-2); }
-
-        .h1-edit {
-          font-family: var(--font-display); font-weight: 500; font-size: 38px;
-          line-height: 1.05; letter-spacing: -0.025em; margin: 0 0 12px;
-        }
-        .h1-edit em { font-style: italic; color: var(--color-red); }
-        .sub { color: var(--color-muted); font-size: 16px; margin: 0 0 24px; }
-
-        .portal-banner {
-          display: flex; gap: 18px; align-items: center; justify-content: space-between;
-          padding: 14px 18px;
-          background: var(--color-blue-soft);
-          border: 1px solid var(--color-blue-light);
-          border-left: 3px solid var(--color-blue);
-          border-radius: 10px;
-          margin-bottom: 32px;
-          font-size: 13.5px;
-          color: var(--color-ink-2);
-          flex-wrap: wrap;
-        }
-        .portal-banner strong { color: var(--color-ink); font-weight: 700; }
-        .portal-msg {
-          margin-top: 6px;
-          font-size: 12.5px; color: var(--color-red);
-        }
-        .portal-btn {
-          background: #fff;
-          color: var(--color-blue);
-          border: 1px solid var(--color-blue);
-          padding: 9px 16px;
-          border-radius: 8px;
-          font-family: var(--font-sans);
-          font-weight: 600;
-          font-size: 13px;
-          cursor: pointer;
-          white-space: nowrap;
-          transition: all 0.15s;
-        }
-        .portal-btn:hover { background: var(--color-blue); color: #fff; }
-        .portal-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-        .section {
-          background: #fff;
-          border: 1px solid var(--color-line);
-          border-radius: 14px;
-          padding: 28px;
-          margin-bottom: 18px;
-        }
-        .section-head {
-          display: flex; align-items: center; gap: 12px;
-          margin-bottom: 22px;
-        }
-        .section-num {
-          width: 26px; height: 26px;
-          background: var(--color-blue); color: #fff;
-          border-radius: 50%;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 12px; font-weight: 700;
-          font-family: var(--font-mono);
-        }
-        .section-head h2 {
-          font-family: var(--font-sans); font-weight: 700; font-size: 17px;
-          margin: 0; letter-spacing: -0.01em;
-        }
-
-        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-        .plan-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .plan-opt {
-          border: 1.5px solid var(--color-line); border-radius: 12px;
-          padding: 16px;
-          cursor: pointer;
-          transition: all 0.15s;
-          position: relative;
-          background: #fff;
-        }
-        .plan-opt:hover { border-color: var(--color-ink-2); }
-        .plan-opt input { position: absolute; opacity: 0; pointer-events: none; }
-        .plan-opt.active { border-color: var(--color-blue); background: var(--color-blue-light); }
-        .plan-opt .ribbon {
-          position: absolute; top: -10px; right: 12px;
-          background: var(--color-red); color: #fff;
-          font-family: var(--font-mono); font-size: 9px;
-          letter-spacing: 0.1em; text-transform: uppercase;
-          padding: 3px 9px; border-radius: 100px;
-          font-weight: 700;
-        }
-        .plan-opt .pn { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
-        .plan-opt .pp {
-          font-family: var(--font-display); font-size: 22px; font-weight: 500;
-          letter-spacing: -0.01em;
-        }
-        .plan-opt .pp .small { font-size: 13px; color: var(--color-muted); margin-left: 4px; }
-        .plan-opt .pper { font-size: 12px; color: var(--color-muted); margin-top: 2px; }
-
-        .stripe-placeholder {
+      <style jsx>{`
+        .pay-page {
+          padding: 48px 0 80px;
           background: var(--color-paper);
-          border: 1px dashed var(--color-line);
-          border-radius: 12px;
-          padding: 22px;
+          min-height: calc(100vh - 64px);
         }
-        .stripe-line { display: flex; gap: 14px; align-items: flex-start; }
-        .ico-card { font-size: 28px; line-height: 1; }
-        .stripe-line-title { font-weight: 600; color: var(--color-ink); margin-bottom: 4px; font-size: 14px; }
-        .stripe-line-sub { font-size: 13px; color: var(--color-muted); line-height: 1.5; }
-
-        .btn-pay {
-          width: 100%;
-          background: var(--color-red); color: #fff; border: none; border-radius: 12px;
-          padding: 16px 22px; font-size: 16px; font-weight: 700;
-          font-family: var(--font-sans);
-          cursor: pointer; transition: all 0.15s;
-          display: flex; align-items: center; justify-content: center; gap: 10px;
-          letter-spacing: -0.01em;
+        .pay-header {
+          text-align: center;
+          max-width: 720px;
+          margin: 0 auto 48px;
         }
-        .btn-pay:hover { background: var(--color-red-dark); transform: translateY(-1px); }
-        .btn-pay:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
-        .btn-pay .lock svg { width: 14px; height: 14px; }
-
-        .legal-row {
-          margin-top: 18px;
-          font-size: 12px; color: var(--color-muted);
-          text-align: center; line-height: 1.5;
+        .pay-header h1 {
+          font-size: clamp(2rem, 4vw, 3rem);
+          margin: 12px 0 16px;
+          color: var(--color-ink);
         }
-        .legal-row a { color: var(--color-blue); }
+        .lead {
+          font-size: 1.0625rem;
+          color: var(--color-muted);
+          line-height: 1.6;
+        }
+        .lead strong {
+          color: var(--color-ink);
+        }
 
-        .summary-wrap { position: sticky; top: 24px; align-self: start; }
-        .summary {
+        .pay-cards {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 24px;
+          max-width: 920px;
+          margin: 0 auto;
+        }
+        @media (max-width: 720px) {
+          .pay-cards {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        .pay-card {
+          position: relative;
           background: #fff;
           border: 1px solid var(--color-line);
           border-radius: 16px;
-          overflow: hidden;
+          padding: 32px 28px;
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
         }
-        .summary-head {
-          background: var(--color-ink);
+        .pay-card.is-featured {
+          border-color: var(--color-blue);
+          box-shadow: 0 24px 40px -28px rgba(30, 58, 140, 0.45);
+          transform: scale(1.02);
+        }
+        @media (max-width: 720px) {
+          .pay-card.is-featured {
+            transform: none;
+          }
+        }
+        .ribbon {
+          position: absolute;
+          top: -14px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: var(--color-red);
           color: #fff;
-          padding: 22px 26px;
-          position: relative;
-        }
-        .summary-head::after {
-          content: ''; position: absolute;
-          bottom: -1px; left: 0; right: 0;
-          height: 4px;
-          background: linear-gradient(90deg,
-            var(--color-blue) 0%, var(--color-blue) 33%,
-            #fff 33%, #fff 66%,
-            var(--color-red) 66%);
-        }
-        .summary-head .tag {
-          font-family: var(--font-mono); font-size: 10px;
-          letter-spacing: 0.16em; text-transform: uppercase;
-          color: rgba(255, 255, 255, 0.55); margin-bottom: 4px;
-        }
-        .summary-head h3 {
-          font-family: var(--font-display); font-weight: 500; font-size: 22px;
-          margin: 0; letter-spacing: -0.015em;
-        }
-        .summary-body { padding: 24px 26px; }
-        .sum-line {
-          display: flex; justify-content: space-between; align-items: center;
-          padding: 12px 0;
-          border-bottom: 1px solid var(--color-line-2);
-          font-size: 14px;
-        }
-        .sum-line:last-of-type { border-bottom: none; }
-        .sum-line .lbl { color: var(--color-muted); }
-        .sum-line .val {
-          font-weight: 600; color: var(--color-ink);
           font-family: var(--font-mono);
-          font-feature-settings: 'tnum' on;
+          font-size: 0.7rem;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          padding: 6px 14px;
+          border-radius: 999px;
         }
-        .sum-line.discount .val { color: var(--color-green); }
-        .sum-total {
-          display: flex; justify-content: space-between; align-items: baseline;
-          margin-top: 16px;
-          padding-top: 18px;
-          border-top: 2px solid var(--color-ink);
+        .pay-card-head h2 {
+          font-family: var(--font-display);
+          font-size: 1.75rem;
+          color: var(--color-ink);
+          margin: 6px 0 4px;
         }
-        .sum-total .lbl {
-          font-family: var(--font-mono);
-          font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+        .muted {
           color: var(--color-muted);
+          font-size: 0.9375rem;
         }
-        .sum-total .val {
-          font-family: var(--font-display); font-size: 34px; font-weight: 500;
-          letter-spacing: -0.02em;
-          font-feature-settings: 'tnum' on;
-        }
-        .includes {
-          background: var(--color-paper-2);
-          padding: 20px 26px 22px;
-          border-top: 1px solid var(--color-line);
-        }
-        .includes h4 {
-          font-family: var(--font-mono); font-size: 10px;
-          letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-muted);
-          margin: 0 0 12px;
-        }
-        .includes ul {
-          list-style: none; padding: 0; margin: 0;
-          display: flex; flex-direction: column; gap: 8px;
-        }
-        .includes li {
-          display: flex; gap: 10px; align-items: flex-start;
-          font-size: 13px; color: var(--color-ink-2); line-height: 1.4;
-        }
-        .includes li::before {
-          content: ''; width: 14px; height: 14px;
-          margin-top: 2px; flex-shrink: 0;
-          background: var(--color-green);
-          -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='M3 8.5l3 3 7-7'/></svg>") no-repeat center / contain;
-                  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='M3 8.5l3 3 7-7'/></svg>") no-repeat center / contain;
-        }
-        .trust-bar {
-          margin-top: 16px;
-          display: flex; flex-direction: column; gap: 10px;
-          padding: 18px 22px;
-          background: #fff;
-          border: 1px solid var(--color-line);
-          border-radius: 12px;
-        }
-        .trust-line {
-          display: flex; gap: 10px; align-items: center;
-          font-size: 13px; color: var(--color-ink-2);
-        }
-        .trust-line svg { width: 16px; height: 16px; color: var(--color-green); flex-shrink: 0; }
-        .trust-line strong { color: var(--color-ink); font-weight: 600; }
-        .stripe-badge {
-          margin-top: 16px;
-          display: flex; align-items: center; justify-content: center; gap: 8px;
-          font-family: var(--font-mono); font-size: 11px;
-          color: var(--color-muted); letter-spacing: 0.1em;
-        }
-        .stripe-badge .stripe-logo {
-          font-family: var(--font-sans);
-          font-weight: 800; color: #635BFF;
-          font-size: 13px; letter-spacing: -0.02em;
+        .small {
+          font-size: 0.875rem;
         }
 
-        @media (max-width: 900px) {
-          .checkout-wrap { grid-template-columns: 1fr; gap: 32px; padding: 32px 20px 60px; }
-          .summary-wrap { position: static; order: -1; }
-          .h1-edit { font-size: 30px; }
+        .pay-price {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          padding-bottom: 16px;
+          border-bottom: 1px solid var(--color-line-2);
+        }
+        .price-strike {
+          font-family: var(--font-mono);
+          color: var(--color-muted-2);
+          text-decoration: line-through;
+          font-size: 0.95rem;
+        }
+        .price-now {
+          font-family: var(--font-display);
+          font-size: 3rem;
+          font-weight: 700;
+          color: var(--color-ink);
+          line-height: 1;
+        }
+        .cents {
+          font-size: 1.5rem;
+          font-weight: 600;
+        }
+        .price-period {
+          font-family: var(--font-mono);
+          font-size: 0.75rem;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--color-muted);
+          margin-top: 4px;
+        }
+
+        .pay-features {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          flex: 1;
+        }
+        .pay-features li {
+          display: flex;
+          gap: 10px;
+          align-items: flex-start;
+          color: var(--color-ink-2);
+          font-size: 0.9375rem;
+          line-height: 1.5;
+        }
+        .check {
+          color: var(--color-green);
+          font-weight: 700;
+          flex-shrink: 0;
+        }
+
+        .pay-error {
+          max-width: 920px;
+          margin: 24px auto 0;
+          padding: 16px 20px;
+          background: var(--color-red-light);
+          color: var(--color-red-dark);
+          border: 1px solid var(--color-red);
+          border-radius: 12px;
+          font-size: 0.9375rem;
+        }
+
+        .pay-trust {
+          max-width: 720px;
+          margin: 48px auto 0;
+          text-align: center;
+        }
+        .pay-trust p {
+          margin: 0 0 8px;
         }
       `}</style>
-    </>
+    </div>
   );
 }

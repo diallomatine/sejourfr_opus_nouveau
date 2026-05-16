@@ -1,8 +1,10 @@
 package com.sejourfr.app.dto;
 
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.enums.TargetProcedure;
+import java.time.Instant;
 import java.util.UUID;
 
 public record AuthenticatedUser(
@@ -12,9 +14,12 @@ public record AuthenticatedUser(
         String lastName,
         Role role,
         TargetProcedure targetProcedure,
-        boolean isPremium
+        boolean isPremium,
+        boolean hasCivique,
+        boolean hasTcf,
+        Instant premiumEndsAt
 ) {
-    public static AuthenticatedUser from(User u, boolean isPremium) {
+    public static AuthenticatedUser from(User u, ModuleAccess access, Instant premiumEndsAt) {
         return new AuthenticatedUser(
                 u.getId(),
                 u.getEmail(),
@@ -22,7 +27,10 @@ public record AuthenticatedUser(
                 u.getLastName(),
                 u.getRole(),
                 u.getTargetProcedure(),
-                isPremium
+                access != ModuleAccess.NONE,
+                access.hasCivique(),
+                access.hasTcf(),
+                premiumEndsAt
         );
     }
 }

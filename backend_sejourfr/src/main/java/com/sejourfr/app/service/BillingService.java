@@ -10,14 +10,10 @@ import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.repository.PlanRepository;
 import com.sejourfr.app.repository.UserRepository;
 import com.sejourfr.app.repository.UserSubscriptionRepository;
-import com.stripe.Stripe;
 import com.stripe.exception.SignatureVerificationException;
-import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
-import com.stripe.model.Subscription;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
-import com.stripe.param.checkout.SessionCreateParams;
 import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,11 +22,25 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
 import java.util.UUID;
 
+/**
+ * Gestion des paiements via Stripe Payment Links one-shot.
+ *
+ * Flux :
+ *   1. Le front demande l'URL du payment link pour un plan via
+ *      GET /api/billing/payment-link?plan=...
+ *   2. Le back enrichit l'URL avec client_reference_id=<user_id> et la renvoie.
+ *   3. L'utilisateur paie sur Stripe (hosted page).
+ *   4. Stripe notifie le webhook checkout.session.completed.
+ *   5. Le back active la UserSubscription pour durationDays jours.
+ *
+ * Pas de renouvellement automatique : l'utilisateur rachète manuellement
+ * si besoin. Pas de gestion d'abonnement Stripe récurrent.
+ */
 @Service
 public class BillingService {
 
@@ -54,100 +64,36 @@ public class BillingService {
     }
 
     /**
-     * Crée une Stripe Checkout Session pour l'utilisateur et le plan demandé.
-     * L'URL renvoyée est celle vers laquelle le front doit rediriger.
+     * Construit l'URL du Stripe Payment Link pour le plan demandé, enrichie
+     * de client_reference_id=<user_id> pour le retrouver dans le webhook.
      */
-    public BillingCheckoutResponse createCheckoutSession(UUID userId, BillingPlan plan) {
+    public BillingCheckoutResponse getPaymentLink(UUID userId, BillingPlan plan) {
         if (!stripeProperties.isConfigured()) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
-                    "Stripe n'est pas configuré côté backend (secret-key / price-* manquants)."
+                    "Stripe n'est pas configuré côté backend (secret-key / payment-link-* manquants)."
             );
         }
-        Stripe.apiKey = stripeProperties.getSecretKey();
-
-        User user = userRepository.findById(userId)
+        // Vérifie que l'utilisateur existe (sinon l'URL serait inutile).
+        userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User introuvable"));
 
-        String priceId = switch (plan) {
-            case MENSUEL -> stripeProperties.getPriceMonthly();
-            case ANNUEL -> stripeProperties.getPriceYearly();
+        String baseUrl = switch (plan) {
+            case CIVIQUE_3MOIS -> stripeProperties.getPaymentLinkCivique();
+            case INTEGRAL_3MOIS -> stripeProperties.getPaymentLinkIntegral();
         };
 
-        SessionCreateParams params = SessionCreateParams.builder()
-                .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
-                .setSuccessUrl(stripeProperties.getSuccessUrl())
-                .setCancelUrl(stripeProperties.getCancelUrl())
-                .setCustomerEmail(user.getEmail())
-                .addLineItem(
-                        SessionCreateParams.LineItem.builder()
-                                .setPrice(priceId)
-                                .setQuantity(1L)
-                                .build()
-                )
-                .putMetadata("user_id", userId.toString())
-                .putMetadata("plan", plan.name())
-                .build();
+        String separator = baseUrl.contains("?") ? "&" : "?";
+        String fullUrl = baseUrl + separator + "client_reference_id=" + userId;
 
-        try {
-            Session session = Session.create(params);
-            return new BillingCheckoutResponse(session.getUrl());
-        } catch (StripeException e) {
-            log.error("Stripe checkout session creation failed", e);
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_GATEWAY,
-                    "Stripe n'a pas pu créer la session : " + e.getMessage()
-            );
-        }
-    }
-
-    /**
-     * Crée une session Stripe Customer Portal pour l'utilisateur courant.
-     * Le portail Stripe-hosted permet à l'user de gérer sa carte, ses
-     * factures et d'annuler son abonnement. Nécessite que l'user ait déjà
-     * un stripe_customer_id (rempli au premier checkout completed).
-     */
-    public BillingCheckoutResponse createPortalSession(UUID userId) {
-        if (!stripeProperties.isConfigured()) {
-            throw new ResponseStatusException(
-                    HttpStatus.SERVICE_UNAVAILABLE,
-                    "Stripe n'est pas configuré côté backend."
-            );
-        }
-        String customerId = userSubscriptionRepository.findByUserId(userId).stream()
-                .filter(s -> s.getStripeCustomerId() != null)
-                .max(Comparator.comparing(UserSubscription::getStartsAt))
-                .map(UserSubscription::getStripeCustomerId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Aucun abonnement Stripe associé à ce compte."
-                ));
-
-        Stripe.apiKey = stripeProperties.getSecretKey();
-        try {
-            com.stripe.param.billingportal.SessionCreateParams params =
-                    com.stripe.param.billingportal.SessionCreateParams.builder()
-                            .setCustomer(customerId)
-                            .setReturnUrl(stripeProperties.getCancelUrl())
-                            .build();
-            com.stripe.model.billingportal.Session session =
-                    com.stripe.model.billingportal.Session.create(params);
-            return new BillingCheckoutResponse(session.getUrl());
-        } catch (StripeException e) {
-            log.error("Stripe Customer Portal session failed", e);
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_GATEWAY,
-                    "Stripe n'a pas pu créer la session portail : " + e.getMessage()
-            );
-        }
+        return new BillingCheckoutResponse(fullUrl);
     }
 
     /**
      * Reçoit un événement webhook Stripe, vérifie la signature, et applique
-     * la mise à jour :
-     *   - checkout.session.completed  → active une nouvelle UserSubscription
-     *   - customer.subscription.updated → resynchronise endsAt + status
-     *   - customer.subscription.deleted → marque la UserSubscription EXPIRED
+     * la mise à jour. Avec des Payment Links one-shot, seul
+     * checkout.session.completed nous intéresse : l'utilisateur a payé, on
+     * lui ouvre l'accès pour durationDays jours.
      */
     @Transactional
     public void handleWebhook(String payload, String signatureHeader) {
@@ -162,11 +108,10 @@ public class BillingService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Signature webhook invalide");
         }
 
-        switch (event.getType()) {
-            case "checkout.session.completed" -> handleCheckoutCompleted(event);
-            case "customer.subscription.updated" -> handleSubscriptionUpdated(event);
-            case "customer.subscription.deleted" -> handleSubscriptionDeleted(event);
-            default -> log.debug("Stripe event ignoré : {}", event.getType());
+        if ("checkout.session.completed".equals(event.getType())) {
+            handleCheckoutCompleted(event);
+        } else {
+            log.debug("Stripe event ignoré : {}", event.getType());
         }
     }
 
@@ -178,75 +123,74 @@ public class BillingService {
                         "Payload Stripe sans objet Session"
                 ));
 
-        String userIdStr = session.getMetadata().get("user_id");
-        String planName = session.getMetadata().get("plan");
-        if (userIdStr == null || planName == null) {
-            log.warn("Checkout completed sans metadata user_id/plan : {}", session.getId());
+        // Identifier l'utilisateur : on a passé user_id dans client_reference_id
+        // lors de la génération du payment link.
+        String userIdStr = session.getClientReferenceId();
+        if (userIdStr == null || userIdStr.isBlank()) {
+            log.warn("Checkout completed sans client_reference_id : {}", session.getId());
             return;
         }
 
-        UUID userId = UUID.fromString(userIdStr);
-        BillingPlan plan = BillingPlan.valueOf(planName);
-        activateSubscription(userId, plan, session.getCustomer(), session.getSubscription());
-        log.info("Abonnement activé pour user={} plan={} subscription={}",
-                userId, plan, session.getSubscription());
+        // Identifier le plan via le montant payé (cohérent avec la table plans).
+        long amountTotalCents = session.getAmountTotal() != null ? session.getAmountTotal() : 0L;
+        BillingPlan plan = mapAmountToPlan(amountTotalCents);
+        if (plan == null) {
+            log.warn("Checkout completed avec montant inconnu : {} cents (session {})",
+                    amountTotalCents, session.getId());
+            return;
+        }
+
+        UUID userId;
+        try {
+            userId = UUID.fromString(userIdStr);
+        } catch (IllegalArgumentException e) {
+            log.warn("client_reference_id mal formé : {}", userIdStr);
+            return;
+        }
+
+        activateSubscription(userId, plan, session.getCustomer(), session.getId());
+        log.info("Abonnement {} activé pour user={} session={}",
+                plan, userId, session.getId());
     }
 
     /**
-     * Resync : Stripe nous prévient quand le statut, la période ou le mode de
-     * paiement de l'abonnement change. On met simplement à jour endsAt et
-     * status sur la UserSubscription correspondante (lookup par
-     * stripe_subscription_id).
+     * Mappe le montant total payé (en centimes) vers un BillingPlan.
+     * S'appuie sur les prix de lancement et prix « normaux » de la table
+     * plans, pour rester cohérent si l'admin change un prix côté Stripe.
      */
-    private void handleSubscriptionUpdated(Event event) {
-        Subscription stripeSub = (Subscription) event.getDataObjectDeserializer()
-                .getObject()
-                .orElse(null);
-        if (stripeSub == null) return;
-
-        userSubscriptionRepository.findByStripeSubscriptionId(stripeSub.getId())
-                .ifPresent(sub -> {
-                    sub.setStatus(mapStripeStatus(stripeSub.getStatus()));
-                    Long currentPeriodEnd = stripeSub.getCurrentPeriodEnd();
-                    if (currentPeriodEnd != null && currentPeriodEnd > 0) {
-                        sub.setEndsAt(Instant.ofEpochSecond(currentPeriodEnd));
-                    }
-                    userSubscriptionRepository.save(sub);
-                    log.info("Subscription updated : {} -> status={} endsAt={}",
-                            stripeSub.getId(), sub.getStatus(), sub.getEndsAt());
-                });
+    private BillingPlan mapAmountToPlan(long amountCents) {
+        Plan civique = planRepository.findByCode(BillingPlan.CIVIQUE_3MOIS.planCode()).orElse(null);
+        Plan integral = planRepository.findByCode(BillingPlan.INTEGRAL_3MOIS.planCode()).orElse(null);
+        if (civique != null && matchesPlanAmount(civique, amountCents)) {
+            return BillingPlan.CIVIQUE_3MOIS;
+        }
+        if (integral != null && matchesPlanAmount(integral, amountCents)) {
+            return BillingPlan.INTEGRAL_3MOIS;
+        }
+        return null;
     }
 
-    private void handleSubscriptionDeleted(Event event) {
-        Subscription stripeSub = (Subscription) event.getDataObjectDeserializer()
-                .getObject()
-                .orElse(null);
-        if (stripeSub == null) return;
-
-        userSubscriptionRepository.findByStripeSubscriptionId(stripeSub.getId())
-                .ifPresent(sub -> {
-                    sub.setStatus(SubscriptionStatus.EXPIRED);
-                    sub.setEndsAt(Instant.now());
-                    userSubscriptionRepository.save(sub);
-                    log.info("Subscription supprimée : {}", stripeSub.getId());
-                });
-    }
-
-    private SubscriptionStatus mapStripeStatus(String stripeStatus) {
-        if (stripeStatus == null) return SubscriptionStatus.EXPIRED;
-        return switch (stripeStatus) {
-            case "active", "trialing", "past_due" -> SubscriptionStatus.ACTIVE;
-            case "canceled" -> SubscriptionStatus.CANCELED;
-            case "incomplete_expired", "unpaid", "incomplete" -> SubscriptionStatus.EXPIRED;
-            default -> SubscriptionStatus.ACTIVE;
-        };
+    private boolean matchesPlanAmount(Plan plan, long amountCents) {
+        long planCents = plan.getPrice().multiply(BigDecimal.valueOf(100)).longValueExact();
+        if (planCents == amountCents) {
+            return true;
+        }
+        // Tolère aussi le prix « normal » : si l'admin a coupé l'offre de
+        // lancement côté Stripe sans synchroniser la DB, on accepte tout de
+        // même le paiement.
+        if (plan.getOriginalPrice() != null) {
+            long originalCents = plan.getOriginalPrice()
+                    .multiply(BigDecimal.valueOf(100)).longValueExact();
+            return originalCents == amountCents;
+        }
+        return false;
     }
 
     private void activateSubscription(
             UUID userId,
             BillingPlan plan,
             String stripeCustomerId,
-            String stripeSubscriptionId
+            String stripeSessionId
     ) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User introuvable"));
@@ -254,10 +198,8 @@ public class BillingService {
                 .orElseThrow(() -> new EntityNotFoundException("Plan introuvable : " + plan.planCode()));
 
         Instant now = Instant.now();
-        Instant endsAt = switch (plan) {
-            case MENSUEL -> now.plus(31, ChronoUnit.DAYS);
-            case ANNUEL -> now.plus(366, ChronoUnit.DAYS);
-        };
+        int durationDays = dbPlan.getDurationDays() > 0 ? dbPlan.getDurationDays() : 90;
+        Instant endsAt = now.plus(durationDays, ChronoUnit.DAYS);
 
         UserSubscription sub = new UserSubscription();
         sub.setUser(user);
@@ -266,7 +208,9 @@ public class BillingService {
         sub.setStartsAt(now);
         sub.setEndsAt(endsAt);
         sub.setStripeCustomerId(stripeCustomerId);
-        sub.setStripeSubscriptionId(stripeSubscriptionId);
+        // Avec Payment Links one-shot il n'y a pas de Subscription Stripe,
+        // mais on garde l'ID de la session checkout pour la traçabilité.
+        sub.setStripeSubscriptionId(stripeSessionId);
         userSubscriptionRepository.save(sub);
     }
 }

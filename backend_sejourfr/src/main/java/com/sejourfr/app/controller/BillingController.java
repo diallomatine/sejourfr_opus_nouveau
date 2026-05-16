@@ -1,10 +1,9 @@
 package com.sejourfr.app.controller;
 
-import com.sejourfr.app.dto.BillingCheckoutRequest;
 import com.sejourfr.app.dto.BillingCheckoutResponse;
+import com.sejourfr.app.enums.BillingPlan;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.BillingService;
-import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,21 +19,15 @@ public class BillingController {
         this.currentUser = currentUser;
     }
 
-    @PostMapping("/create-checkout-session")
-    public BillingCheckoutResponse createCheckoutSession(
-            @Valid @RequestBody BillingCheckoutRequest req
-    ) {
-        return billingService.createCheckoutSession(currentUser.getId(), req.plan());
-    }
-
     /**
-     * Crée une session Stripe Customer Portal pour l'utilisateur courant
-     * (gestion de carte, factures, annulation). Renvoie 404 s'il n'a aucun
-     * abonnement Stripe lié.
+     * Renvoie l'URL du Stripe Payment Link correspondant au plan demandé,
+     * enrichie d'un client_reference_id (= user_id) pour retrouver
+     * l'utilisateur lors du webhook checkout.session.completed.
+     * Le front redirige ensuite directement vers cette URL.
      */
-    @PostMapping("/portal-session")
-    public BillingCheckoutResponse createPortalSession() {
-        return billingService.createPortalSession(currentUser.getId());
+    @GetMapping("/payment-link")
+    public BillingCheckoutResponse getPaymentLink(@RequestParam("plan") BillingPlan plan) {
+        return billingService.getPaymentLink(currentUser.getId(), plan);
     }
 
     /**

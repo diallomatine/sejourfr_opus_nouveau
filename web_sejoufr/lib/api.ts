@@ -251,33 +251,23 @@ export const themeApi = {
 };
 
 // ============================================================================
-// Endpoints Billing (Stripe Checkout)
+// Endpoints Billing (Stripe Payment Links)
 // ============================================================================
 
-export type BillingPlan = "MENSUEL" | "ANNUEL";
+export type BillingPlan = "CIVIQUE_3MOIS" | "INTEGRAL_3MOIS";
 
 export const billingApi = {
   /**
-   * Crée une Stripe Checkout Session côté backend et renvoie l'URL vers
-   * laquelle rediriger l'utilisateur (page Stripe hosted).
+   * Récupère l'URL du Stripe Payment Link pour le plan demandé (one-shot,
+   * pas de renouvellement automatique). Le backend ajoute déjà
+   * client_reference_id=<user_id> à l'URL. Le front n'a plus qu'à rediriger
+   * vers cette URL.
    */
-  createCheckoutSession(plan: BillingPlan): Promise<{ url: string }> {
-    return apiFetch<{ url: string }>("/api/billing/create-checkout-session", {
-      method: "POST",
-      json: { plan },
-      auth: true,
-    });
-  },
-
-  /**
-   * Ouvre une session Stripe Customer Portal (gestion carte, factures,
-   * annulation). 404 si l'user n'a pas encore d'abonnement Stripe.
-   */
-  createPortalSession(): Promise<{ url: string }> {
-    return apiFetch<{ url: string }>("/api/billing/portal-session", {
-      method: "POST",
-      auth: true,
-    });
+  getPaymentLink(plan: BillingPlan): Promise<{ url: string }> {
+    return apiFetch<{ url: string }>(
+      `/api/billing/payment-link?plan=${encodeURIComponent(plan)}`,
+      { auth: true }
+    );
   },
 };
 

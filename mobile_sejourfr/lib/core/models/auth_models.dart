@@ -9,6 +9,9 @@ class AuthUser {
     required this.role,
     this.targetProcedure,
     this.isPremium = false,
+    this.hasCivique = false,
+    this.hasTcf = false,
+    this.premiumEndsAt,
   });
 
   final String id;
@@ -17,13 +20,35 @@ class AuthUser {
   final String? lastName;
   final UserRole role;
   final TargetProcedure? targetProcedure;
+
+  /// Vrai si l'utilisateur a au moins un plan payant actif (CIVIQUE ou INTÉGRAL).
   final bool isPremium;
+
+  /// Accès au module Civique (plan CIVIQUE_3MOIS ou INTEGRAL_3MOIS actif).
+  final bool hasCivique;
+
+  /// Accès au module TCF (uniquement plan INTEGRAL_3MOIS actif).
+  final bool hasTcf;
+
+  /// Date d'expiration de l'accès payant, null si pas de plan actif.
+  final DateTime? premiumEndsAt;
 
   /// L'utilisateur a-t-il choisi son parcours administratif ?
   /// Les comptes ADMIN n'ont pas besoin de cette étape : on les considère
   /// toujours comme onboardés.
   bool get hasCompletedOnboarding =>
       role == UserRole.admin || targetProcedure != null;
+
+  /// L'utilisateur a-t-il accès complet au module donné ?
+  /// - CIVIQUE : nécessite plan Civique 3 mois OU Intégral 3 mois.
+  /// - TCF     : nécessite plan Intégral 3 mois (les comptes Civique n'y ont pas accès).
+  bool canAccessModule(AppModule module) {
+    if (role == UserRole.admin) return true;
+    return switch (module) {
+      AppModule.civique => hasCivique,
+      AppModule.tcf => hasTcf,
+    };
+  }
 
   String get displayName {
     final fn = firstName?.trim();
@@ -34,7 +59,13 @@ class AuthUser {
     return email;
   }
 
-  AuthUser copyWith({TargetProcedure? targetProcedure, bool? isPremium}) =>
+  AuthUser copyWith({
+    TargetProcedure? targetProcedure,
+    bool? isPremium,
+    bool? hasCivique,
+    bool? hasTcf,
+    DateTime? premiumEndsAt,
+  }) =>
       AuthUser(
         id: id,
         email: email,
@@ -43,6 +74,9 @@ class AuthUser {
         role: role,
         targetProcedure: targetProcedure ?? this.targetProcedure,
         isPremium: isPremium ?? this.isPremium,
+        hasCivique: hasCivique ?? this.hasCivique,
+        hasTcf: hasTcf ?? this.hasTcf,
+        premiumEndsAt: premiumEndsAt ?? this.premiumEndsAt,
       );
 
   factory AuthUser.fromJson(Map<String, dynamic> json) => AuthUser(
@@ -55,6 +89,11 @@ class AuthUser {
             ? null
             : TargetProcedure.fromWire(json['targetProcedure'] as String),
         isPremium: json['isPremium'] as bool? ?? false,
+        hasCivique: json['hasCivique'] as bool? ?? false,
+        hasTcf: json['hasTcf'] as bool? ?? false,
+        premiumEndsAt: json['premiumEndsAt'] != null
+            ? DateTime.tryParse(json['premiumEndsAt'] as String)
+            : null,
       );
 
   Map<String, dynamic> toJson() => {
@@ -65,6 +104,10 @@ class AuthUser {
         'role': role.wire,
         if (targetProcedure != null) 'targetProcedure': targetProcedure!.wire,
         'isPremium': isPremium,
+        'hasCivique': hasCivique,
+        'hasTcf': hasTcf,
+        if (premiumEndsAt != null)
+          'premiumEndsAt': premiumEndsAt!.toIso8601String(),
       };
 }
 

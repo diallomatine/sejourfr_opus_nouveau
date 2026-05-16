@@ -103,7 +103,7 @@ Flyway scanne récursivement `classpath:db/migration` (prod & dev) et `classpath
 ```
 db/migration/
 ├── 00_schema/                       V0xx        évolutions de schéma (step 10 : place pour hotfix entre 2 features)
-├── 10_reference/                    V1xx        données de référence (thèmes, plans Stripe)
+├── 10_reference/                    V1xx        données de référence (thèmes, plans, exam templates)
 ├── 20_civique/                      V2xx        seeds civique
 │   ├── 00_initial/                  V20x        seed des thèmes (V200 principes, V201 thèmes 2-5)
 │   ├── 10_institutions/             V21x        (V210-V216 = reformulations lot01-04 + niveau CSP/CR/NAT)
@@ -120,7 +120,8 @@ db/migration-dev/                    V9xx        seeds dev uniquement (V900 comp
 ```
 
 **Convention** : le numéro de version du fichier reflète son emplacement dans l'arbre.
-- `00_schema/Vxxx` : 1er chiffre = 0 (catégorie schéma). Espacement step 10 (V001, V010, V020...) pour pouvoir intercaler.
+- `00_schema/Vxxx` : 1er chiffre = 0 (catégorie schéma). Espacement step 10 (V001, V010, V020...) pour pouvoir intercaler. **DDL pur** (CREATE/ALTER), pas d'INSERT qui dépend de données seedées plus tard.
+- `10_reference/V1xx` : seeds de référence (thèmes, plans, exam templates). Toute donnée fixe partagée prod/dev.
 - `20_civique/10_institutions/V21x` : 1er chiffre 2 = civique, 2e chiffre 1 = institutions. Files V210..V219 (10 slots par sous-thème).
 - Idem TCF.
 

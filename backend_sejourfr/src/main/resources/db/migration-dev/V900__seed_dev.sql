@@ -32,12 +32,13 @@ INSERT INTO users (id, email, password_hash, first_name, last_name, target_proce
 -- ---------------------------------------------------------------------------
 -- Abonnements
 -- ---------------------------------------------------------------------------
-INSERT INTO user_subscriptions (id, user_id, plan_id, status, starts_at) VALUES
+INSERT INTO user_subscriptions (id, user_id, plan_id, status, starts_at, ends_at) VALUES
   ('bbbbbbbb-0000-0000-0000-000000000001',
    'aaaaaaaa-0000-0000-0000-000000000002',
-   '33333333-0000-0000-0000-000000000002',  -- Premium mensuel
+   '33333333-0000-0000-0000-000000000003',  -- Intégral 3 mois (accès civique + TCF)
    'ACTIVE',
-   NOW() - INTERVAL '15 days');
+   NOW() - INTERVAL '15 days',
+   NOW() + INTERVAL '75 days');
 
 -- ---------------------------------------------------------------------------
 -- Questions Civique (extraites du mockup admin)

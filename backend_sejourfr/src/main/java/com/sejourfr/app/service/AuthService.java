@@ -54,8 +54,9 @@ public class AuthService {
 
         String access = jwtService.generateAccessToken(u);
         String refresh = jwtService.generateRefreshToken(u);
-        boolean premium = subscriptionService.isPremium(u.getId());
-        return TokenResponse.of(access, refresh, jwtService.accessTokenTtlSeconds(), AuthenticatedUser.from(u, premium));
+        SubscriptionService.CurrentAccess current = subscriptionService.currentAccess(u.getId());
+        return TokenResponse.of(access, refresh, jwtService.accessTokenTtlSeconds(),
+                AuthenticatedUser.from(u, current.module(), current.endsAt()));
     }
 
     public TokenResponse refresh(RefreshRequest req) {
@@ -78,15 +79,16 @@ public class AuthService {
 
         String access = jwtService.generateAccessToken(u);
         String newRefresh = jwtService.generateRefreshToken(u);
-        boolean premium = subscriptionService.isPremium(u.getId());
-        return TokenResponse.of(access, newRefresh, jwtService.accessTokenTtlSeconds(), AuthenticatedUser.from(u, premium));
+        SubscriptionService.CurrentAccess current = subscriptionService.currentAccess(u.getId());
+        return TokenResponse.of(access, newRefresh, jwtService.accessTokenTtlSeconds(),
+                AuthenticatedUser.from(u, current.module(), current.endsAt()));
     }
 
     @Transactional(readOnly = true)
     public AuthenticatedUser me(String email) {
         User u = userRepository.findByEmail(email)
                 .orElseThrow(() -> NotFoundException.of("User", email));
-        boolean premium = subscriptionService.isPremium(u.getId());
-        return AuthenticatedUser.from(u, premium);
+        SubscriptionService.CurrentAccess current = subscriptionService.currentAccess(u.getId());
+        return AuthenticatedUser.from(u, current.module(), current.endsAt());
     }
 }

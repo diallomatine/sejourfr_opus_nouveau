@@ -42,12 +42,13 @@ sejourfr:
     # ignoré par git), JAMAIS en clair dans ce fichier — sinon GitHub
     # Push Protection bloque le commit.
     # https://dashboard.stripe.com/test/apikeys
+    #
+    # Payment Links : créés dans Dashboard → Produits → Payment Links.
+    # Format attendu : https://buy.stripe.com/test_xxxxxx
     secret-key: ${STRIPE_SECRET_KEY:}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
-    price-monthly: ${STRIPE_PRICE_MONTHLY:}
-    price-yearly: ${STRIPE_PRICE_YEARLY:}
-    success-url: "http://localhost:3000/paiement/succes?session_id={CHECKOUT_SESSION_ID}"
-    cancel-url: "http://localhost:3000/paiement"
+    payment-link-civique: ${STRIPE_PAYMENT_LINK_CIVIQUE:}
+    payment-link-integral: ${STRIPE_PAYMENT_LINK_INTEGRAL:}
   security:
     jwt:
       # Cle de signature (HS256) en BASE64. >= 32 octets.

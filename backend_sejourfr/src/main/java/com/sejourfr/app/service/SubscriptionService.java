@@ -2,6 +2,7 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.entity.Plan;
 import com.sejourfr.app.entity.UserSubscription;
+import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.repository.UserSubscriptionRepository;
 import org.springframework.stereotype.Service;
@@ -25,14 +26,60 @@ public class SubscriptionService {
 
     /**
      * Renvoie true si l'utilisateur a au moins un abonnement payant ACTIVE
-     * ou TRIAL non expiré. Les souscriptions au plan FREE, ou les statuts
-     * CANCELED / EXPIRED, ne donnent pas accès aux contenus Premium.
+     * non expiré, quel que soit le module. Conservé pour compat : équivaut à
+     * hasCivique(userId) || hasTcf(userId).
      */
     public boolean isPremium(UUID userId) {
-        Instant now = Instant.now();
-        return userSubscriptionRepository.findByUserId(userId).stream()
-                .anyMatch(s -> isCovering(s, now));
+        return effectiveModuleAccess(userId) != ModuleAccess.NONE;
     }
+
+    /** Accès au module Civique (CIVIQUE_3MOIS ou INTEGRAL_3MOIS actif). */
+    public boolean hasCivique(UUID userId) {
+        return effectiveModuleAccess(userId).hasCivique();
+    }
+
+    /** Accès au module TCF (INTEGRAL_3MOIS actif uniquement). */
+    public boolean hasTcf(UUID userId) {
+        return effectiveModuleAccess(userId).hasTcf();
+    }
+
+    /**
+     * Calcule le niveau d'accès effectif d'un utilisateur : on prend le plus
+     * permissif parmi les souscriptions ACTIVE non expirées. INTEGRAL gagne
+     * sur CIVIQUE.
+     */
+    public ModuleAccess effectiveModuleAccess(UUID userId) {
+        return currentAccess(userId).module();
+    }
+
+    /**
+     * Renvoie l'accès courant : (module le plus permissif, date de fin la
+     * plus tardive parmi les souscriptions actives le couvrant). endsAt est
+     * null si l'utilisateur n'a aucun accès payant.
+     */
+    public CurrentAccess currentAccess(UUID userId) {
+        Instant now = Instant.now();
+        ModuleAccess best = ModuleAccess.NONE;
+        Instant latestEnd = null;
+        for (UserSubscription s : userSubscriptionRepository.findByUserId(userId)) {
+            if (!isCovering(s, now)) {
+                continue;
+            }
+            ModuleAccess access = s.getPlan().getModuleAccess();
+            // INTEGRAL gagne toujours, CIVIQUE remplace NONE.
+            if (access == ModuleAccess.INTEGRAL
+                    || (access == ModuleAccess.CIVIQUE && best == ModuleAccess.NONE)) {
+                best = access;
+            }
+            Instant endsAt = s.getEndsAt();
+            if (endsAt != null && (latestEnd == null || endsAt.isAfter(latestEnd))) {
+                latestEnd = endsAt;
+            }
+        }
+        return new CurrentAccess(best, latestEnd);
+    }
+
+    public record CurrentAccess(ModuleAccess module, Instant endsAt) {}
 
     private boolean isCovering(UserSubscription s, Instant now) {
         if (s.getStatus() != SubscriptionStatus.ACTIVE && s.getStatus() != SubscriptionStatus.TRIAL) {
