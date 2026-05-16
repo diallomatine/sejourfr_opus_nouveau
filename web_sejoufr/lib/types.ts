@@ -192,6 +192,23 @@ export interface AnswerResultResponse {
   explanation: string | null;
 }
 
+// ============ PLAN (vitrine publique) ============
+export type BillingCycle = "NONE" | "MONTHLY" | "YEARLY" | "THREE_MONTHS" | "SIX_MONTHS";
+export type ModuleAccess = "NONE" | "CIVIQUE" | "TCF" | "INTEGRAL";
+
+export interface PlanPublicResponse {
+  code: string;
+  name: string;
+  billingCycle: BillingCycle;
+  /** Prix actuel (peut être prix de lancement). */
+  price: number;
+  /** Prix "normal" affiché barré (offre de lancement). Null si pas de réduction. */
+  originalPrice: number | null;
+  moduleAccess: ModuleAccess;
+  /** Durée d'accès en jours après paiement one-shot. 0 pour FREE. */
+  durationDays: number;
+}
+
 // ============ ATTEMPT SUMMARY (historique) ============
 // Renvoyé par GET /api/me/attempts — version légère sans les questions.
 export interface AttemptSummaryResponse {

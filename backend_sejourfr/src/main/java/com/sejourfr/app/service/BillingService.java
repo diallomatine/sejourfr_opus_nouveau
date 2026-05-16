@@ -2,6 +2,7 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.config.StripeProperties;
 import com.sejourfr.app.dto.BillingCheckoutResponse;
+import com.sejourfr.app.dto.PlanPublicResponse;
 import com.sejourfr.app.entity.Plan;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserSubscription;
@@ -25,6 +26,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -61,6 +64,28 @@ public class BillingService {
         this.userRepository = userRepository;
         this.planRepository = planRepository;
         this.userSubscriptionRepository = userSubscriptionRepository;
+    }
+
+    /**
+     * Liste les plans actifs pour la landing publique (section Tarifs).
+     * Tri : prix croissant, le gratuit en tête. Le plan "FREE" est inclus —
+     * c'est au front de décider quoi en faire (affichage en colonne "Découverte"
+     * ou masqué).
+     */
+    public List<PlanPublicResponse> listPublicPlans() {
+        return planRepository.findAll().stream()
+                .filter(Plan::isActive)
+                .sorted(Comparator.comparing(Plan::getPrice))
+                .map(p -> new PlanPublicResponse(
+                        p.getCode(),
+                        p.getName(),
+                        p.getBillingCycle(),
+                        p.getPrice(),
+                        p.getOriginalPrice(),
+                        p.getModuleAccess(),
+                        p.getDurationDays()
+                ))
+                .toList();
     }
 
     /**

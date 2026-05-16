@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { billingApi } from "@/lib/api";
+import type { PlanPublicResponse } from "@/lib/types";
 
 // ============================================================================
 // STRIP — bandeau de confiance
@@ -486,7 +488,125 @@ export function HowItWorksSection() {
 // ============================================================================
 // PRICING
 // ============================================================================
-export function PricingSection() {
+
+/**
+ * Métadonnées éditoriales des plans, indexées par `code` backend. La source
+ * de vérité pour les prix et la durée reste GET /api/billing/plans ; ici on
+ * stocke uniquement ce qui est statique côté front (titre marketing,
+ * description, features, libellé CTA).
+ */
+const PLAN_PRESENTATION: Record<
+  string,
+  {
+    name: string;
+    desc: string;
+    features: { label: string; muted?: boolean; strong?: boolean }[];
+    cta: { label: string; href: string; variant: "ghost" | "red" | "primary" };
+    featured?: boolean;
+    badge?: { label: string; tone: "red" | "green" };
+  }
+> = {
+  FREE: {
+    name: "Découverte",
+    desc: "Pour tester la méthode et voir où vous en êtes.",
+    cta: { label: "Créer mon compte", href: "/inscription", variant: "ghost" },
+    features: [
+      { label: "20 questions d'entraînement par module" },
+      { label: "1 examen blanc civique complet" },
+      { label: "1 examen blanc TCF complet" },
+      { label: "Correction expliquée après chaque réponse" },
+      { label: "Banque complète de 1 200+ questions", muted: true },
+      { label: "Examens blancs illimités", muted: true },
+      { label: "Révision des erreurs", muted: true },
+    ],
+  },
+  CIVIQUE_3MOIS: {
+    name: "Civique — 3 mois",
+    desc: "L'accès complet au module civique pour préparer CSP, CR ou naturalisation.",
+    cta: {
+      label: "Choisir Civique",
+      href: "/paiement?plan=CIVIQUE_3MOIS",
+      variant: "primary",
+    },
+    features: [
+      { label: "Banque complète civique", strong: true },
+      { label: "Examens blancs civiques illimités" },
+      { label: "Entraînement illimité, par thème" },
+      { label: "Révision ciblée des erreurs" },
+      { label: "Statistiques par thématique" },
+      { label: "3 mois d'accès, sans renouvellement automatique" },
+    ],
+  },
+  INTEGRAL_3MOIS: {
+    name: "Intégral — 3 mois",
+    desc: "Civique + TCF IRN, le plus complet pour viser CR ou naturalisation.",
+    cta: {
+      label: "Choisir Intégral",
+      href: "/paiement?plan=INTEGRAL_3MOIS",
+      variant: "red",
+    },
+    featured: true,
+    badge: { label: "Recommandé", tone: "red" },
+    features: [
+      { label: "Tout le Civique inclus", strong: true },
+      { label: "Module TCF complet (CO, CE, Structure)", strong: true },
+      { label: "Diagnostic CECRL (A2 / B1 / B2)" },
+      { label: "Examens blancs TCF illimités" },
+      { label: "Révision ciblée + statistiques" },
+      { label: "3 mois d'accès, sans renouvellement automatique" },
+    ],
+  },
+};
+
+/**
+ * Fallback statique si le backend est inaccessible (build à froid, panne) :
+ * on garde la grille à 3 colonnes plutôt que d'afficher un état dégradé.
+ * Les valeurs ici doivent rester alignées avec V100__seed_reference.sql.
+ */
+const PLANS_FALLBACK: PlanPublicResponse[] = [
+  { code: "FREE", name: "Gratuit", billingCycle: "NONE", price: 0, originalPrice: null, moduleAccess: "NONE", durationDays: 0 },
+  { code: "CIVIQUE_3MOIS", name: "Civique — 3 mois", billingCycle: "THREE_MONTHS", price: 5.99, originalPrice: 9.99, moduleAccess: "CIVIQUE", durationDays: 90 },
+  { code: "INTEGRAL_3MOIS", name: "Intégral (Civique + TCF) — 3 mois", billingCycle: "THREE_MONTHS", price: 14.99, originalPrice: 19.99, moduleAccess: "INTEGRAL", durationDays: 90 },
+];
+
+const PLAN_ORDER = ["FREE", "CIVIQUE_3MOIS", "INTEGRAL_3MOIS"];
+
+function formatPrice(value: number): string {
+  // 5.99 → "5,99" / 0 → "0" / 14 → "14".
+  if (Number.isInteger(value)) return String(value);
+  return value.toFixed(2).replace(".", ",").replace(/,?0+$/, (m) => (m.startsWith(",") ? "" : m));
+}
+
+function formatPeriod(plan: PlanPublicResponse): string {
+  if (plan.code === "FREE") return "Gratuit · sans abonnement";
+  if (plan.durationDays >= 365) return `pour ${Math.round(plan.durationDays / 365)} an${plan.durationDays >= 730 ? "s" : ""}`;
+  if (plan.durationDays >= 30) {
+    const months = Math.round(plan.durationDays / 30);
+    return `pour ${months} mois · paiement unique`;
+  }
+  return `pour ${plan.durationDays} jours`;
+}
+
+export async function PricingSection() {
+  let plans: PlanPublicResponse[];
+  try {
+    const fetched = await billingApi.listPlans();
+    plans = fetched.length > 0 ? fetched : PLANS_FALLBACK;
+  } catch {
+    // Backend HS ou non joignable en SSR : on bascule sur le fallback pour
+    // éviter d'afficher une section Tarifs vide.
+    plans = PLANS_FALLBACK;
+  }
+
+  // Tri stable selon l'ordre éditorial souhaité (Découverte → Civique → Intégral).
+  const sorted = [...plans].sort((a, b) => {
+    const ai = PLAN_ORDER.indexOf(a.code);
+    const bi = PLAN_ORDER.indexOf(b.code);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+  // On limite à 3 colonnes max pour ne pas casser la grille.
+  const display = sorted.slice(0, 3);
+
   return (
     <section
       id="tarifs"
@@ -501,87 +621,31 @@ export function PricingSection() {
           eyebrow="Tarifs"
           title="Choisissez ce qui"
           emphasis="vous correspond."
-          sub="Commencez gratuitement, passez Premium quand vous êtes prêt. Sans engagement, résiliable à tout moment."
+          sub="Démo gratuite par module, puis paiement unique 3 mois sans renouvellement automatique. Pas de prélèvement surprise."
         />
 
         <div className="plans">
-          {/* Découverte */}
-          <div className="plan">
-            <div className="plan-name">Découverte</div>
-            <p className="plan-desc">Pour tester la méthode et voir où vous en êtes.</p>
-            <div className="plan-price">
-              <span className="amount">0</span>
-              <span className="currency">€</span>
-            </div>
-            <div className="plan-period">Gratuit · pour toujours</div>
-            <div style={{ marginBottom: 24 }}>
-              <Link href="/inscription" className="btn btn-ghost" style={{ width: "100%" }}>
-                Créer mon compte
-              </Link>
-            </div>
-            <ul className="plan-feat">
-              <li>10 QCM par catégorie</li>
-              <li>1 examen blanc civique complet</li>
-              <li>1 examen blanc TCF complet</li>
-              <li>Correction expliquée</li>
-              <li className="muted">Banque complète de questions</li>
-              <li className="muted">Examens blancs illimités</li>
-            </ul>
-          </div>
-
-          {/* Premium mensuel */}
-          <div className="plan featured">
-            <div className="plan-tag">Recommandé</div>
-            <div className="plan-name">Premium mensuel</div>
-            <p className="plan-desc">L&apos;essentiel pour préparer votre examen sereinement.</p>
-            <div className="plan-price">
-              <span className="amount">9,99</span>
-              <span className="currency">€</span>
-            </div>
-            <div className="plan-period">par mois · sans engagement</div>
-            <div style={{ marginBottom: 24 }}>
-              <Link href="/paiement?plan=premium" className="btn btn-red" style={{ width: "100%" }}>
-                Passer Premium
-              </Link>
-            </div>
-            <ul className="plan-feat">
-              <li><strong>1 200+ questions</strong> tous modules</li>
-              <li>Examens blancs <strong>illimités</strong></li>
-              <li>Entraînement illimité sur l&apos;app</li>
-              <li>Révision ciblée des erreurs</li>
-              <li>Mode hors-ligne (app mobile)</li>
-              <li>Garantie satisfait remboursé 14 jours</li>
-            </ul>
-          </div>
-
-          {/* Premium annuel */}
-          <div className="plan">
-            <div className="plan-tag plan-tag-green">−26 %</div>
-            <div className="plan-name">Premium annuel</div>
-            <p className="plan-desc">Préparez plusieurs examens dans l&apos;année.</p>
-            <div className="plan-price">
-              <span className="amount">89</span>
-              <span className="currency">€</span>
-            </div>
-            <div className="plan-period">par an · soit 7,42 €/mois</div>
-            <div style={{ marginBottom: 24 }}>
-              <Link href="/paiement?plan=annuel" className="btn" style={{ width: "100%" }}>
-                Choisir l&apos;annuel
-              </Link>
-            </div>
-            <ul className="plan-feat">
-              <li>Tout le Premium mensuel inclus</li>
-              <li><strong>Économisez 31 €</strong> sur l&apos;année</li>
-              <li>Accès prioritaire aux nouveautés</li>
-              <li>Support email sous 24 h</li>
-              <li>Sans rappel d&apos;échéance</li>
-            </ul>
-          </div>
+          {display.map((plan) => (
+            <PlanCard key={plan.code} plan={plan} />
+          ))}
         </div>
+
+        <p className="plans-foot">
+          Paiement sécurisé Stripe · TVA incluse · L&apos;accès se termine
+          automatiquement à la fin de la période, vous rachetez si besoin.
+        </p>
       </div>
 
       <style>{`
         .plans { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .plans-foot {
+          margin: 32px auto 0;
+          max-width: 580px;
+          text-align: center;
+          font-size: 12.5px;
+          color: var(--color-muted);
+          line-height: 1.6;
+        }
         .plan {
           background: #fff;
           border: 1px solid var(--color-line);
@@ -607,6 +671,14 @@ export function PricingSection() {
           font-weight: 600;
         }
         .plan-tag-green { background: var(--color-green); }
+        .plan-price-original {
+          font-family: var(--font-display);
+          font-size: 18px;
+          color: var(--color-muted-2);
+          text-decoration: line-through;
+          margin-right: 4px;
+          align-self: center;
+        }
         .plan-name {
           font-family: var(--font-sans);
           font-weight: 700; font-size: 18px;
@@ -650,6 +722,59 @@ export function PricingSection() {
         }
       `}</style>
     </section>
+  );
+}
+
+function PlanCard({ plan }: { plan: PlanPublicResponse }) {
+  const preset = PLAN_PRESENTATION[plan.code];
+  // Si le backend renvoie un nouveau code qu'on n'a pas encore éditorialisé,
+  // on rend une présentation minimale (juste les données + un CTA générique)
+  // pour éviter de masquer un plan que l'équipe vient d'activer côté admin.
+  const name = preset?.name ?? plan.name;
+  const desc = preset?.desc ?? "";
+  const cta = preset?.cta ?? {
+    label: plan.code === "FREE" ? "Créer mon compte" : "Choisir ce plan",
+    href: plan.code === "FREE" ? "/inscription" : `/paiement?plan=${plan.code}`,
+    variant: "primary" as const,
+  };
+  const featured = preset?.featured ?? false;
+  const badge = preset?.badge ?? null;
+  const features = preset?.features ?? [];
+
+  const btnClass =
+    cta.variant === "ghost" ? "btn btn-ghost" :
+    cta.variant === "red" ? "btn btn-red" : "btn";
+
+  return (
+    <div className={`plan ${featured ? "featured" : ""}`}>
+      {badge && (
+        <div className={`plan-tag ${badge.tone === "green" ? "plan-tag-green" : ""}`}>
+          {badge.label}
+        </div>
+      )}
+      <div className="plan-name">{name}</div>
+      <p className="plan-desc">{desc}</p>
+      <div className="plan-price">
+        {plan.originalPrice !== null && plan.originalPrice > plan.price && (
+          <span className="plan-price-original">{formatPrice(plan.originalPrice)} €</span>
+        )}
+        <span className="amount">{formatPrice(plan.price)}</span>
+        <span className="currency">€</span>
+      </div>
+      <div className="plan-period">{formatPeriod(plan)}</div>
+      <div style={{ marginBottom: 24 }}>
+        <Link href={cta.href} className={btnClass} style={{ width: "100%" }}>
+          {cta.label}
+        </Link>
+      </div>
+      <ul className="plan-feat">
+        {features.map((f, i) => (
+          <li key={i} className={f.muted ? "muted" : ""}>
+            {f.strong ? <strong>{f.label}</strong> : f.label}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

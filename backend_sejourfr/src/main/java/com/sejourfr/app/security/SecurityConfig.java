@@ -54,6 +54,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/exams/**").permitAll()
+                        // Liste publique des plans pour la section Tarifs de la landing.
+                        // Lecture seule, pas de données sensibles.
+                        .requestMatchers(HttpMethod.GET, "/api/billing/plans").permitAll()
                         // Webhook Stripe : appelé par Stripe (pas un user), authentifié
                         // par signature HMAC vérifiée dans BillingService.
                         .requestMatchers(HttpMethod.POST, "/api/billing/webhook").permitAll()

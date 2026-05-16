@@ -10,6 +10,7 @@ import type {
   AuthenticatedUser,
   ExamTemplateSummary,
   LoginRequest,
+  PlanPublicResponse,
   QuestionReviewResponse,
   RegisterRequest,
   StartAttemptRequest,
@@ -76,6 +77,12 @@ interface FetchOptions extends RequestInit {
   json?: unknown; // body JSON à sérialiser
   /** Interne : court-circuite la tentative de refresh (utilisé par /auth/refresh). */
   skipRefresh?: boolean;
+  /**
+   * Extension Next.js : revalidation ISR (en secondes) ou tags de cache.
+   * Utilisé pour les endpoints publics qui peuvent être servis depuis le cache
+   * de la page statique (ex: /api/billing/plans sur la landing).
+   */
+  next?: { revalidate?: number | false; tags?: string[] };
 }
 
 // File d'attente partagée pour ne pas tenter plusieurs refresh en parallèle :
@@ -112,7 +119,7 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 async function rawFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
-  const { auth, json, headers, skipRefresh: _skip, ...rest } = opts;
+  const { auth, json, headers, skipRefresh: _skip, cache, next, ...rest } = opts;
 
   const finalHeaders: Record<string, string> = {
     Accept: "application/json",
@@ -128,12 +135,21 @@ async function rawFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
     if (t) finalHeaders["Authorization"] = `Bearer ${t}`;
   }
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  // Par défaut "no-store" pour ne pas servir de données utilisateur en cache.
+  // Les endpoints publics peuvent surcharger via opts.cache ou opts.next pour
+  // bénéficier du cache Next (ISR, tags) — voir billingApi.listPlans.
+  const fetchInit: RequestInit & { next?: FetchOptions["next"] } = {
     ...rest,
     headers: finalHeaders,
     body: json !== undefined ? JSON.stringify(json) : rest.body,
-    cache: "no-store",
-  });
+  };
+  if (next) {
+    fetchInit.next = next;
+  } else {
+    fetchInit.cache = cache ?? "no-store";
+  }
+
+  const res = await fetch(`${API_BASE_URL}${path}`, fetchInit);
 
   if (!res.ok) {
     let payload: ApiError | undefined;
@@ -273,6 +289,22 @@ export const billingApi = {
       `/api/billing/payment-link?plan=${encodeURIComponent(plan)}`,
       { auth: true }
     );
+  },
+
+  /**
+   * Liste publique des plans actifs (FREE + payants), avec prix actuel et prix
+   * d'origine (offre de lancement). Utilisé par la section Tarifs de la landing
+   * pour ne pas hardcoder les montants côté front.
+   *
+   * Mis en cache ISR 30 min : la landing reste statique et performante, mais
+   * les prix changeront automatiquement dans la demi-heure suivant une mise
+   * à jour côté admin (table `plans`).
+   */
+  listPlans(): Promise<PlanPublicResponse[]> {
+    return apiFetch<PlanPublicResponse[]>(`/api/billing/plans`, {
+      auth: false,
+      next: { revalidate: 1800 },
+    });
   },
 };
 

@@ -1,11 +1,14 @@
 package com.sejourfr.app.controller;
 
 import com.sejourfr.app.dto.BillingCheckoutResponse;
+import com.sejourfr.app.dto.PlanPublicResponse;
 import com.sejourfr.app.enums.BillingPlan;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.BillingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/billing")
@@ -17,6 +20,16 @@ public class BillingController {
     public BillingController(BillingService billingService, CurrentUser currentUser) {
         this.billingService = billingService;
         this.currentUser = currentUser;
+    }
+
+    /**
+     * Liste publique des plans actifs : prix, prix original (offre de lancement),
+     * durée, module débloqué. Consommé par la section Tarifs de la landing.
+     * Pas d'auth requise — donc à whitelister dans SecurityConfig.
+     */
+    @GetMapping("/plans")
+    public List<PlanPublicResponse> listPlans() {
+        return billingService.listPublicPlans();
     }
 
     /**
