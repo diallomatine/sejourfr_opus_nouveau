@@ -9,7 +9,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -42,17 +41,9 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
             Pageable pageable
     );
 
-    /**
-     * Quota mensuel des attempts "démo guest" (sans user) pour une IP donnée :
-     * compte les attempts créés depuis {@code since} (1er du mois courant)
-     * pour le couple (module, type). Cf. {@code idx_attempts_demo_quota}.
-     */
-    long countByClientIpAndModuleAndTypeAndUserIsNullAndStartedAtAfter(
-            String clientIp,
-            Module module,
-            AttemptType type,
-            Instant since
-    );
+    // Quota guest (countByClientIp...AndStartedAtAfter) supprimé 2026-05-17 :
+    // la démo est désormais illimitée. L'index partiel idx_attempts_demo_quota
+    // est laissé en base (cf. V092) au cas où on rétablit un quota plus tard.
 
     /**
      * Lookup sécurisé d'un attempt guest : exige que l'attempt soit bien

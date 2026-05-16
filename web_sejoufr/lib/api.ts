@@ -511,9 +511,9 @@ export const attemptApi = {
 // ============================================================================
 // Endpoints PUBLICS (démo guest, sans auth)
 // ============================================================================
-// Le backend gate par IP + 1 session TRAINING + 1 MOCK_EXAM par mois et par
-// module. Un quota dépassé remonte ici sous forme d'ApiException(status=429,
-// payload.error="DEMO_LIMIT_REACHED", payload.payload={ module, type }).
+// La démo est illimitée et déterministe : chaque lancement renvoie la même
+// série de questions pour un module donné. Le client_ip est toujours posée
+// côté serveur (pour audit) mais aucun quota n'est appliqué.
 
 export const publicThemeApi = {
   list(module: ModuleEnum): Promise<ThemeUserResponse[]> {

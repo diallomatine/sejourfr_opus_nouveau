@@ -115,6 +115,63 @@ public interface QuestionRepository
             Pageable pageable
     );
 
+    /**
+     * Variante déterministe de {@link #findRandomExcludingInternal} : même
+     * signature, mais ORDER BY {@code created_at ASC, id ASC} au lieu de
+     * {@code random()}. Utilisée par la composition d'un ExamTemplate côté
+     * démo / non-premium pour garantir que rejouer un template free redonne
+     * exactement la même série de questions.
+     */
+    @Query("""
+            SELECT q FROM Question q
+            WHERE q.active = true
+              AND q.module = :module
+              AND (:themeId IS NULL OR q.theme.id = :themeId)
+              AND (:difficulty IS NULL OR q.difficulty = :difficulty)
+              AND (:questionType IS NULL OR q.questionType = :questionType)
+              AND q.id NOT IN :excludeIds
+            ORDER BY q.createdAt ASC, q.id ASC
+            """)
+    List<Question> findOrderedExcludingInternal(
+            @Param("module") Module module,
+            @Param("themeId") UUID themeId,
+            @Param("difficulty") Difficulty difficulty,
+            @Param("questionType") QuestionType questionType,
+            @Param("excludeIds") Collection<UUID> excludeIds,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT q FROM Question q
+            WHERE q.active = true
+              AND q.module = :module
+              AND (:themeId IS NULL OR q.theme.id = :themeId)
+              AND (:difficulty IS NULL OR q.difficulty = :difficulty)
+              AND (:questionType IS NULL OR q.questionType = :questionType)
+            ORDER BY q.createdAt ASC, q.id ASC
+            """)
+    List<Question> findOrdered(
+            @Param("module") Module module,
+            @Param("themeId") UUID themeId,
+            @Param("difficulty") Difficulty difficulty,
+            @Param("questionType") QuestionType questionType,
+            Pageable pageable
+    );
+
+    default List<Question> findOrderedExcluding(
+            Module module,
+            UUID themeId,
+            Difficulty difficulty,
+            QuestionType questionType,
+            Collection<UUID> excludeIds,
+            Pageable pageable
+    ) {
+        if (excludeIds == null || excludeIds.isEmpty()) {
+            return findOrdered(module, themeId, difficulty, questionType, pageable);
+        }
+        return findOrderedExcludingInternal(module, themeId, difficulty, questionType, excludeIds, pageable);
+    }
+
     // ------------------------------------------------------------------------
     // Stats / agrégations
     // ------------------------------------------------------------------------

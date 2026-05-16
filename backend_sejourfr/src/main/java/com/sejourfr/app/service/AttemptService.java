@@ -75,12 +75,15 @@ public class AttemptService {
      * Démarre un attempt "démo guest" (visiteur non authentifié, cf.
      * PublicAttemptService). La taille / durée sont fixées comme pour le mode
      * démo des comptes gratuits :
-     * - TRAINING : {@link #FREE_TRAINING_MAX_SIZE} questions tirées du pool démo.
-     * - MOCK_EXAM : taille / chrono / seuil standard du module.
+     * - TRAINING : {@link #FREE_TRAINING_MAX_SIZE} questions tirées du pool démo
+     *   déterministe (toujours la même série).
+     * - MOCK_EXAM : si un examTemplateId est fourni, utilise les règles du
+     *   template (ordonnées, déterministes via findExcluding sans ORDER BY
+     *   random côté template — voir pickQuestionsForTemplate). Sinon fallback
+     *   sur le pool démo déterministe limité à la taille du module.
      * <p>
-     * Aucune vérification de quota n'est faite ici : c'est la responsabilité
-     * de {@code PublicAttemptService.startDemo} (qui rejette en 429 si besoin
-     * avant d'appeler cette méthode).
+     * La démo étant désormais illimitée, l'objectif est de présenter toujours
+     * les mêmes questions au visiteur — pour conversion, pas entraînement.
      */
     @Transactional
     public AttemptResponse startGuestDemo(StartAttemptRequest req, String clientIp) {
@@ -90,25 +93,37 @@ public class AttemptService {
         Integer timeLimit = null;
         Integer threshold = null;
         List<Question> questions;
+        ExamTemplate template = null;
 
         if (req.type() == AttemptType.MOCK_EXAM) {
-            if (req.module() == Module.CIVIQUE) {
-                size = CIVIQUE_EXAM_SIZE;
-                timeLimit = CIVIQUE_EXAM_TIME;
-                threshold = CIVIQUE_EXAM_THRESHOLD;
+            if (req.examTemplateId() != null) {
+                template = examTemplateRepository.findById(req.examTemplateId())
+                        .orElseThrow(() -> new EntityNotFoundException("Examen blanc introuvable"));
+                if (!template.isPublished() || !template.isFree()) {
+                    throw new AccessDeniedException("Examen blanc non disponible en démo");
+                }
+                size = template.getTotalQuestions();
+                timeLimit = template.getDurationSeconds();
+                threshold = template.getPassingScore();
+                // deterministic = true : guest sur template free → mêmes
+                // questions à chaque rejouage.
+                questions = pickQuestionsForTemplate(template, true);
             } else {
-                size = TCF_EXAM_SIZE;
-                timeLimit = TCF_EXAM_TIME;
+                if (req.module() == Module.CIVIQUE) {
+                    size = CIVIQUE_EXAM_SIZE;
+                    timeLimit = CIVIQUE_EXAM_TIME;
+                    threshold = CIVIQUE_EXAM_THRESHOLD;
+                } else {
+                    size = TCF_EXAM_SIZE;
+                    timeLimit = TCF_EXAM_TIME;
+                }
+                // Fallback (pas de template fourni) : on tire la même série
+                // déterministe que la démo TRAINING, juste plus longue.
+                questions = pickDemoQuestions(req.module(), size);
             }
-            // MOCK_EXAM guest = tirage aléatoire dans le module (pas via ExamTemplate
-            // pour ne pas exposer les règles fines aux visiteurs ; comportement
-            // équivalent à start() en MOCK_EXAM sans template).
-            questions = questionRepository.findRandom(
-                    req.module(), null, null, null, PageRequest.of(0, size)
-            );
         } else {
             size = FREE_TRAINING_MAX_SIZE;
-            questions = questionRepository.findDemoPool(req.module(), PageRequest.of(0, size));
+            questions = pickDemoQuestions(req.module(), size);
         }
 
         if (questions.isEmpty()) {
@@ -118,6 +133,7 @@ public class AttemptService {
         Attempt attempt = new Attempt();
         // user = null (guest)
         attempt.setClientIp(clientIp);
+        attempt.setExamTemplate(template);
         attempt.setType(req.type());
         attempt.setModule(req.module());
         attempt.setTotalQuestions(questions.size());
@@ -128,6 +144,16 @@ public class AttemptService {
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
         return toAttemptResponse(attempt, aqList, false);
+    }
+
+    /**
+     * Sélection déterministe pour le mode démo (guest OU connecté non-premium).
+     * Toujours la même série pour un module donné — l'ordre stable garanti par
+     * {@code findDemoPool} (ORDER BY createdAt ASC, id ASC) rend l'expérience
+     * reproductible entre deux lancements.
+     */
+    private List<Question> pickDemoQuestions(Module module, int size) {
+        return questionRepository.findDemoPool(module, PageRequest.of(0, size));
     }
 
     /**
@@ -213,10 +239,9 @@ public class AttemptService {
         if (demoMode) {
             // Mode démo : pool fixe par module (thème / difficulté / type ignorés)
             // pour garantir une expérience reproductible avant l'abonnement.
-            questions = questionRepository.findDemoPool(
-                    req.module(),
-                    PageRequest.of(0, size)
-            );
+            // Démo illimitée (cf. retrait du quota guest 2026-05-17) — on
+            // assume que rejouer redonne la même série.
+            questions = pickDemoQuestions(req.module(), size);
         } else {
             UUID themeId = req.type() == AttemptType.MOCK_EXAM ? null : req.themeId();
             var qType = req.type() == AttemptType.MOCK_EXAM ? null : req.questionType();
@@ -264,7 +289,11 @@ public class AttemptService {
             throw new AccessDeniedException("Examen blanc réservé aux abonnés");
         }
 
-        List<Question> picked = pickQuestionsForTemplate(template);
+        // Pour un premium : tirage aléatoire à chaque session (variété). Pour
+        // un non-premium qui rejoue un template free : tirage déterministe
+        // (cf. règle démo "mêmes questions à chaque lancement").
+        boolean deterministic = template.isFree() && !subscriptionService.isPremium(user.getId());
+        List<Question> picked = pickQuestionsForTemplate(template, deterministic);
         if (picked.isEmpty()) {
             throw new IllegalStateException("Aucune question disponible pour cet examen blanc");
         }
@@ -286,7 +315,15 @@ public class AttemptService {
         return toAttemptResponse(attempt, aqList, false);
     }
 
-    private List<Question> pickQuestionsForTemplate(ExamTemplate template) {
+    /**
+     * Pioche les questions d'un ExamTemplate en suivant ses règles.
+     *
+     * @param deterministic si vrai, ordre stable {@code created_at ASC, id ASC}
+     *                      au lieu de {@code random()} — utilisé pour la démo
+     *                      (guest ou non-premium sur template free) afin que
+     *                      rejouer redonne toujours la même série.
+     */
+    private List<Question> pickQuestionsForTemplate(ExamTemplate template, boolean deterministic) {
         LinkedHashSet<Question> picked = new LinkedHashSet<>();
         List<UUID> exclude = new ArrayList<>();
 
@@ -296,14 +333,23 @@ public class AttemptService {
             if (needed <= 0) continue;
 
             UUID themeId = rule.getTheme() != null ? rule.getTheme().getId() : null;
-            List<Question> drawn = questionRepository.findRandomExcluding(
-                    template.getModule(),
-                    themeId,
-                    rule.getDifficulty(),
-                    rule.getQuestionType(),
-                    exclude,
-                    PageRequest.of(0, needed)
-            );
+            List<Question> drawn = deterministic
+                    ? questionRepository.findOrderedExcluding(
+                            template.getModule(),
+                            themeId,
+                            rule.getDifficulty(),
+                            rule.getQuestionType(),
+                            exclude,
+                            PageRequest.of(0, needed)
+                    )
+                    : questionRepository.findRandomExcluding(
+                            template.getModule(),
+                            themeId,
+                            rule.getDifficulty(),
+                            rule.getQuestionType(),
+                            exclude,
+                            PageRequest.of(0, needed)
+                    );
             for (Question q : drawn) {
                 if (picked.add(q)) exclude.add(q.getId());
             }
@@ -314,14 +360,23 @@ public class AttemptService {
         int target = template.getTotalQuestions();
         int missing = target - picked.size();
         if (missing > 0) {
-            List<Question> extra = questionRepository.findRandomExcluding(
-                    template.getModule(),
-                    null,
-                    null,
-                    null,
-                    exclude,
-                    PageRequest.of(0, missing)
-            );
+            List<Question> extra = deterministic
+                    ? questionRepository.findOrderedExcluding(
+                            template.getModule(),
+                            null,
+                            null,
+                            null,
+                            exclude,
+                            PageRequest.of(0, missing)
+                    )
+                    : questionRepository.findRandomExcluding(
+                            template.getModule(),
+                            null,
+                            null,
+                            null,
+                            exclude,
+                            PageRequest.of(0, missing)
+                    );
             for (Question q : extra) {
                 if (picked.add(q)) exclude.add(q.getId());
             }

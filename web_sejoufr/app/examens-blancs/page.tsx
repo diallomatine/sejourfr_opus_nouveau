@@ -309,12 +309,8 @@ function HomeSkeleton() {
 }
 
 // ============================================================================
-// VERSION GUEST — démo gratuite : 1 examen par module et par mois
+// VERSION GUEST — démo gratuite illimitée : même série d'examen rejouable
 // ============================================================================
-interface DemoQuota {
-  used: boolean;
-  message: string;
-}
 
 function ExamsGuestHome() {
   const router = useRouter();
@@ -322,9 +318,6 @@ function ExamsGuestHome() {
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState<ModuleEnum | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [quotaByModule, setQuotaByModule] = useState<
-    Partial<Record<ModuleEnum, DemoQuota>>
-  >({});
 
   useEffect(() => {
     let cancelled = false;
@@ -366,7 +359,6 @@ function ExamsGuestHome() {
   async function startDemo(module: ModuleEnum) {
     const tpl = examsByModule[module];
     if (!tpl) return;
-    if (quotaByModule[module]?.used) return;
     setError(null);
     setStarting(module);
     try {
@@ -377,26 +369,11 @@ function ExamsGuestHome() {
       });
       router.push(`/sessions/${a.id}`);
     } catch (e) {
-      if (
-        e instanceof ApiException &&
-        e.status === 429 &&
-        e.payload?.error === "DEMO_LIMIT_REACHED"
-      ) {
-        setQuotaByModule((prev) => ({
-          ...prev,
-          [module]: {
-            used: true,
-            message:
-              "Démo déjà utilisée ce mois-ci. Créez un compte pour passer un examen blanc.",
-          },
-        }));
-      } else {
-        setError(
-          e instanceof ApiException
-            ? e.message
-            : "Impossible de démarrer la démo.",
-        );
-      }
+      setError(
+        e instanceof ApiException
+          ? e.message
+          : "Impossible de démarrer la démo.",
+      );
       setStarting(null);
     }
   }
@@ -409,7 +386,7 @@ function ExamsGuestHome() {
         </div>
         <div className="guest-banner-content">
           <div className="guest-banner-title">
-            Vous êtes en démo gratuite — 1 examen blanc par module, sans
+            Vous êtes en démo gratuite — un examen blanc par module, sans
             création de compte.
           </div>
           <div className="guest-banner-sub">
@@ -445,8 +422,6 @@ function ExamsGuestHome() {
           exam={examsByModule.CIVIQUE}
           loading={loading}
           starting={starting === "CIVIQUE"}
-          locked={quotaByModule.CIVIQUE?.used ?? false}
-          lockedMessage={quotaByModule.CIVIQUE?.message ?? null}
           onStart={() => startDemo("CIVIQUE")}
         />
         <GuestExamCard
@@ -457,8 +432,6 @@ function ExamsGuestHome() {
           exam={examsByModule.TCF}
           loading={loading}
           starting={starting === "TCF"}
-          locked={quotaByModule.TCF?.used ?? false}
-          lockedMessage={quotaByModule.TCF?.message ?? null}
           onStart={() => startDemo("TCF")}
         />
       </section>
@@ -482,8 +455,6 @@ function GuestExamCard({
   exam,
   loading,
   starting,
-  locked,
-  lockedMessage,
   onStart,
 }: {
   tone: "blue" | "red";
@@ -493,14 +464,12 @@ function GuestExamCard({
   exam: ExamTemplateSummary | null;
   loading: boolean;
   starting: boolean;
-  locked: boolean;
-  lockedMessage: string | null;
   onStart: () => void;
 }) {
   const minutes = exam ? Math.round(exam.durationSeconds / 60) : null;
   const tag = module === "CIVIQUE" ? "EXAMEN CIVIQUE · DÉMO" : "TCF IRN · DÉMO";
   return (
-    <div className={`gex gex-${tone} ${locked ? "is-locked" : ""}`}>
+    <div className={`gex gex-${tone}`}>
       <span className={`gex-tag gex-tag-${tone}`}>{tag}</span>
       <h2 className="gex-title">{title}</h2>
       <p className="gex-desc">{desc}</p>
@@ -524,23 +493,14 @@ function GuestExamCard({
           </div>
         </div>
       </div>
-      {locked ? (
-        <div className="gex-locked">
-          <div className="gex-locked-msg">{lockedMessage}</div>
-          <Link href="/inscription" className={`btn btn-${tone === "blue" ? "blue" : "red"}`}>
-            Créer mon compte gratuit →
-          </Link>
-        </div>
-      ) : (
-        <button
-          type="button"
-          className={`btn btn-${tone === "blue" ? "blue" : "red"} btn-lg gex-cta`}
-          onClick={onStart}
-          disabled={loading || starting || !exam}
-        >
-          {starting ? "Préparation…" : "Démo gratuite →"}
-        </button>
-      )}
+      <button
+        type="button"
+        className={`btn btn-${tone === "blue" ? "blue" : "red"} btn-lg gex-cta`}
+        onClick={onStart}
+        disabled={loading || starting || !exam}
+      >
+        {starting ? "Préparation…" : "Démo gratuite →"}
+      </button>
     </div>
   );
 }

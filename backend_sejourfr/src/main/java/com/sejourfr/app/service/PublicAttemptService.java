@@ -7,14 +7,9 @@ import com.sejourfr.app.dto.SubmitAnswerRequest;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.exception.BusinessException;
-import com.sejourfr.app.exception.DemoLimitReachedException;
-import com.sejourfr.app.repository.AttemptRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.UUID;
 
 /**
@@ -23,8 +18,10 @@ import java.util.UUID;
  * Règles :
  * <ul>
  *   <li>Seuls TRAINING et MOCK_EXAM sont autorisés (REVIEW exige un compte).</li>
- *   <li>Quota : 1 attempt par (client_ip, module, attempt_type) par mois
- *       calendaire. Au-delà → {@link DemoLimitReachedException} (HTTP 429).</li>
+ *   <li>Démo illimitée : aucun quota n'est appliqué. Les questions tirées sont
+ *       déterministes (cf. {@link AttemptService#startGuestDemo}), donc relancer
+ *       une démo redonne toujours la même série — l'objectif est de convertir,
+ *       pas d'offrir un entraînement complet.</li>
  *   <li>Accès en lecture / answers / finish : exige que l'attempt soit guest
  *       (user IS NULL) ET que l'IP du caller corresponde. Sinon 404 silencieux
  *       (pas 403, pour ne pas révéler l'existence).</li>
@@ -37,11 +34,9 @@ import java.util.UUID;
 public class PublicAttemptService {
 
     private final AttemptService attemptService;
-    private final AttemptRepository attemptRepository;
 
-    public PublicAttemptService(AttemptService attemptService, AttemptRepository attemptRepository) {
+    public PublicAttemptService(AttemptService attemptService) {
         this.attemptService = attemptService;
-        this.attemptRepository = attemptRepository;
     }
 
     @Transactional
@@ -51,24 +46,14 @@ public class PublicAttemptService {
         }
         if (clientIp == null || clientIp.isBlank()) {
             // En théorie impossible (getRemoteAddr renvoie toujours quelque chose
-            // dans un environnement servlet standard), mais on évite tout quota
-            // sur null qui permettrait de contourner avec un proxy bizarre.
+            // dans un environnement servlet standard). On conserve l'invariant
+            // "client_ip toujours posée pour un guest" pour l'audit / une
+            // éventuelle réactivation de quota plus tard.
             throw new BusinessException("Impossible de déterminer l'IP du client");
         }
 
-        Instant monthStart = LocalDate.now(ZoneOffset.UTC)
-                .withDayOfMonth(1)
-                .atStartOfDay(ZoneOffset.UTC)
-                .toInstant();
-
-        long used = attemptRepository
-                .countByClientIpAndModuleAndTypeAndUserIsNullAndStartedAtAfter(
-                        clientIp, req.module(), req.type(), monthStart
-                );
-        if (used >= 1) {
-            throw new DemoLimitReachedException(req.module(), req.type());
-        }
-
+        // Quota supprimé 2026-05-17 : la démo est désormais illimitée mais joue
+        // toujours la même série déterministe de questions (cf. AttemptService).
         return attemptService.startGuestDemo(req, clientIp);
     }
 

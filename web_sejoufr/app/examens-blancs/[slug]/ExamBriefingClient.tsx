@@ -20,7 +20,8 @@ import {
  * Dual-mode :
  *  - utilisateur connecté : attemptApi.start + gating premium/paywall classique
  *  - visiteur guest : publicAttemptApi.startDemo (seul un examen free est
- *    jouable, quota DEMO_LIMIT_REACHED intercepté pour pousser au compte).
+ *    jouable, démo illimitée mais déterministe — mêmes questions à chaque
+ *    lancement, l'objectif est de convertir).
  */
 export function ExamBriefingClient({ exam }: { exam: ExamTemplateSummary }) {
   const { status } = useAuth();
@@ -41,7 +42,6 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
-  const [demoQuotaReached, setDemoQuotaReached] = useState(false);
 
   const isTcf = exam.module === "TCF";
   const minutes = Math.round(exam.durationSeconds / 60);
@@ -71,13 +71,7 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
           });
       router.push(`/sessions/${a.id}`);
     } catch (e) {
-      if (
-        e instanceof ApiException &&
-        e.status === 429 &&
-        e.payload?.error === "DEMO_LIMIT_REACHED"
-      ) {
-        setDemoQuotaReached(true);
-      } else if (e instanceof ApiException && e.status === 403) {
+      if (e instanceof ApiException && e.status === 403) {
         setShowPaywall(true);
       } else {
         setError(e instanceof ApiException ? e.message : "Démarrage impossible.");
@@ -185,24 +179,7 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
 
             {error && <div className="form-error">{error}</div>}
 
-            {demoQuotaReached ? (
-              <div className="brf-paywall">
-                <div>
-                  <div className="brf-paywall-title">
-                    Démo déjà utilisée ce mois-ci
-                  </div>
-                  <div className="brf-paywall-body">
-                    Vous avez déjà passé un examen blanc{" "}
-                    {isTcf ? "TCF" : "civique"} en démo ce mois-ci. Créez un
-                    compte gratuit pour en passer plusieurs et conserver vos
-                    résultats.
-                  </div>
-                </div>
-                <Link href="/inscription" className="btn btn-red">
-                  Créer mon compte →
-                </Link>
-              </div>
-            ) : isGuest && !exam.free ? (
+            {isGuest && !exam.free ? (
               <div className="brf-paywall">
                 <div>
                   <div className="brf-paywall-title">

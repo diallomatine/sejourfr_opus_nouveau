@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { Lock } from "lucide-react";
-import { DualChromeShell } from "@/app/_components/DualChromeShell";
-import { PaywallSheet } from "@/app/_components/PaywallSheet";
-import { TargetPathBanner } from "@/app/_components/TargetPathBanner";
+import {useRouter, useSearchParams} from "next/navigation";
+import {Suspense, useEffect, useMemo, useState} from "react";
+import {Lock} from "lucide-react";
+import {DualChromeShell} from "@/app/_components/DualChromeShell";
+import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import {TargetPathBanner} from "@/app/_components/TargetPathBanner";
 import {
   ApiException,
   attemptApi,
@@ -17,10 +17,10 @@ import {
   statsApi,
   themeApi,
 } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
+import {useAuth} from "@/lib/auth-context";
 import {
-  canAccessModule,
   type AuthenticatedUser,
+  canAccessModule,
   type ExamTemplateSummary,
   type Module as ModuleEnum,
   type ThemeUserResponse,
@@ -33,500 +33,438 @@ const PREMIUM_BATCH_SIZE = 30;
 type Filter = "CIVIQUE" | "TCF";
 
 export default function EntrainementPage() {
-  return (
-    <Suspense fallback={<EntrainementSkeleton />}>
-      <EntrainementRoot />
-    </Suspense>
-  );
+    return (
+        <Suspense fallback={<EntrainementSkeleton/>}>
+            <EntrainementRoot/>
+        </Suspense>
+    );
 }
 
 function EntrainementRoot() {
-  const { status, user } = useAuth();
-  if (status === "loading") return <EntrainementSkeleton />;
-  const safeUser = status === "authenticated" ? user : null;
-  // Connecté → on emballe dans le DualChromeShell pour avoir la sidebar.
-  // Guest → on garde le chrome public (SiteHeader/Footer rendus par le layout racine).
-  if (safeUser) {
-    return (
-      <DualChromeShell>
-        <EntrainementHub user={safeUser} />
-      </DualChromeShell>
-    );
-  }
-  return <EntrainementHub user={null} />;
+    const {status, user} = useAuth();
+    if (status === "loading") return <EntrainementSkeleton/>;
+    const safeUser = status === "authenticated" ? user : null;
+    // Connecté → on emballe dans le DualChromeShell pour avoir la sidebar.
+    // Guest → on garde le chrome public (SiteHeader/Footer rendus par le layout racine).
+    if (safeUser) {
+        return (
+            <DualChromeShell>
+                <EntrainementHub user={safeUser}/>
+            </DualChromeShell>
+        );
+    }
+    return <EntrainementHub user={null}/>;
 }
 
 // ============================================================================
 // HUB (rendu unifié guest ↔ connecté)
 // ============================================================================
 
-interface DemoQuotaState {
-  used: boolean;
-  message: string;
-}
+function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const isGuest = user === null;
 
-function EntrainementHub({ user }: { user: AuthenticatedUser | null }) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const isGuest = user === null;
+    // Filter pré-rempli depuis le query string (?module=CIVIQUE|TCF).
+    const initialFilter: Filter = useMemo(() => {
+        const m = searchParams?.get("module");
+        if (m === "TCF") return "TCF";
+        return "CIVIQUE";
+    }, [searchParams]);
 
-  // Filter pré-rempli depuis le query string (?module=CIVIQUE|TCF).
-  const initialFilter: Filter = useMemo(() => {
-    const m = searchParams?.get("module");
-    if (m === "TCF") return "TCF";
-    return "CIVIQUE";
-  }, [searchParams]);
-
-  const [filter, setFilter] = useState<Filter>(initialFilter);
-  const [query, setQuery] = useState("");
-  const [themes, setThemes] = useState<Record<ModuleEnum, ThemeUserResponse[]>>({
-    CIVIQUE: [],
-    TCF: [],
-  });
-  const [statsByModule, setStatsByModule] = useState<
-    Partial<Record<ModuleEnum, UserStatsResponse | null>>
-  >({});
-  const [exams, setExams] = useState<ExamTemplateSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [startingThemeId, setStartingThemeId] = useState<string | null>(null);
-  const [startingExamId, setStartingExamId] = useState<string | null>(null);
-  const [paywallModule, setPaywallModule] = useState<ModuleEnum | null>(null);
-  const [demoQuotaByModule, setDemoQuotaByModule] = useState<
-    Partial<Record<ModuleEnum, DemoQuotaState>>
-  >({});
-  const [examDemoQuotaByModule, setExamDemoQuotaByModule] = useState<
-    Partial<Record<ModuleEnum, boolean>>
-  >({});
-
-  // ========== LOAD ==========
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-
-    const themeFetcher = isGuest ? publicThemeApi.list : themeApi.list;
-    const examFetcher = isGuest ? publicExamApi.list : examApi.list;
-
-    Promise.allSettled([
-      themeFetcher("CIVIQUE"),
-      themeFetcher("TCF"),
-      isGuest
-        ? Promise.resolve(null)
-        : statsApi.get("CIVIQUE").catch(() => null),
-      isGuest ? Promise.resolve(null) : statsApi.get("TCF").catch(() => null),
-      examFetcher(),
-    ]).then((results) => {
-      if (cancelled) return;
-      const [civT, tcfT, civS, tcfS, exL] = results;
-      setThemes({
-        CIVIQUE: civT.status === "fulfilled" ? civT.value : [],
-        TCF: tcfT.status === "fulfilled" ? tcfT.value : [],
-      });
-      setStatsByModule({
-        CIVIQUE: civS.status === "fulfilled" ? civS.value : null,
-        TCF: tcfS.status === "fulfilled" ? tcfS.value : null,
-      });
-      setExams(exL.status === "fulfilled" ? exL.value : []);
-      setLoading(false);
+    const [filter, setFilter] = useState<Filter>(initialFilter);
+    const [query, setQuery] = useState("");
+    const [themes, setThemes] = useState<Record<ModuleEnum, ThemeUserResponse[]>>({
+        CIVIQUE: [],
+        TCF: [],
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [isGuest]);
+    const [statsByModule, setStatsByModule] = useState<
+        Partial<Record<ModuleEnum, UserStatsResponse | null>>
+    >({});
+    const [exams, setExams] = useState<ExamTemplateSummary[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [startingThemeId, setStartingThemeId] = useState<string | null>(null);
+    const [startingExamId, setStartingExamId] = useState<string | null>(null);
+    const [paywallModule, setPaywallModule] = useState<ModuleEnum | null>(null);
 
-  const isPremiumCivique = !isGuest && canAccessModule(user, "CIVIQUE");
-  const isPremiumTcf = !isGuest && canAccessModule(user, "TCF");
-  // Guest = toujours en démo sur les 2 modules. Connecté = démo si pas premium.
-  const showDemoBanner = isGuest || !isPremiumCivique || !isPremiumTcf;
+    // ========== LOAD ==========
+    useEffect(() => {
+        let cancelled = false;
+        setLoading(true);
 
-  // ========== STARTERS ==========
-  async function startTraining(opts: {
-    module: ModuleEnum;
-    themeId?: string;
-    label: string; // pour startingThemeId
-  }) {
-    const { module, themeId, label } = opts;
-    const isPremium = module === "CIVIQUE" ? isPremiumCivique : isPremiumTcf;
+        const themeFetcher = isGuest ? publicThemeApi.list : themeApi.list;
+        const examFetcher = isGuest ? publicExamApi.list : examApi.list;
 
-    // Connecté non-premium qui clique sur un thème spécifique → paywall.
-    // (Le mixed reste accessible en démo.)
-    if (!isGuest && !isPremium && themeId) {
-      setPaywallModule(module);
-      return;
+        Promise.allSettled([
+            themeFetcher("CIVIQUE"),
+            themeFetcher("TCF"),
+            isGuest
+                ? Promise.resolve(null)
+                : statsApi.get("CIVIQUE").catch(() => null),
+            isGuest ? Promise.resolve(null) : statsApi.get("TCF").catch(() => null),
+            examFetcher(),
+        ]).then((results) => {
+            if (cancelled) return;
+            const [civT, tcfT, civS, tcfS, exL] = results;
+            setThemes({
+                CIVIQUE: civT.status === "fulfilled" ? civT.value : [],
+                TCF: tcfT.status === "fulfilled" ? tcfT.value : [],
+            });
+            setStatsByModule({
+                CIVIQUE: civS.status === "fulfilled" ? civS.value : null,
+                TCF: tcfS.status === "fulfilled" ? tcfS.value : null,
+            });
+            setExams(exL.status === "fulfilled" ? exL.value : []);
+            setLoading(false);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [isGuest]);
+
+    const isPremiumCivique = !isGuest && canAccessModule(user, "CIVIQUE");
+    const isPremiumTcf = !isGuest && canAccessModule(user, "TCF");
+    // Guest = toujours en démo sur les 2 modules. Connecté = démo si pas premium.
+    const showDemoBanner = isGuest || !isPremiumCivique || !isPremiumTcf;
+
+    // ========== STARTERS ==========
+    async function startTraining(opts: {
+        module: ModuleEnum;
+        themeId?: string;
+        label: string; // pour startingThemeId
+    }) {
+        const {module, themeId, label} = opts;
+        const isPremium = module === "CIVIQUE" ? isPremiumCivique : isPremiumTcf;
+
+        // Connecté non-premium qui clique sur un thème spécifique → paywall.
+        // (Le mixed reste accessible en démo.)
+        if (!isGuest && !isPremium && themeId) {
+            setPaywallModule(module);
+            return;
+        }
+
+        setError(null);
+        setStartingThemeId(label);
+        try {
+            const size = isPremium ? PREMIUM_BATCH_SIZE : DEMO_BATCH_SIZE;
+            const body = themeId
+                ? {type: "TRAINING" as const, module, themeId, size}
+                : {type: "TRAINING" as const, module, size};
+            const a = isGuest
+                ? await publicAttemptApi.startDemo(body)
+                : await attemptApi.start(body);
+            router.push(`/sessions/${a.id}`);
+        } catch (e) {
+            setError(
+                e instanceof ApiException
+                    ? e.message
+                    : "Impossible de démarrer l'entraînement.",
+            );
+            setStartingThemeId(null);
+        }
     }
-    // Guest avec démo déjà épuisée pour ce module → ouvre le message.
-    if (isGuest && demoQuotaByModule[module]?.used) {
-      return;
+
+    async function startExam(exam: ExamTemplateSummary) {
+        const isPremium = exam.module === "CIVIQUE" ? isPremiumCivique : isPremiumTcf;
+        // Connecté non-premium qui clique sur un exam non-free → paywall.
+        if (!isGuest && !isPremium && !exam.free) {
+            setPaywallModule(exam.module);
+            return;
+        }
+        // Guest sur un exam non-free → push compte.
+        if (isGuest && !exam.free) {
+            return;
+        }
+
+        setError(null);
+        setStartingExamId(exam.id);
+        try {
+            const body = {
+                type: "MOCK_EXAM" as const,
+                module: exam.module,
+                examTemplateId: exam.id,
+            };
+            const a = isGuest
+                ? await publicAttemptApi.startDemo(body)
+                : await attemptApi.start(body);
+            router.push(`/sessions/${a.id}`);
+        } catch (e) {
+            setError(
+                e instanceof ApiException
+                    ? e.message
+                    : "Impossible de démarrer l'examen.",
+            );
+            setStartingExamId(null);
+        }
     }
 
-    setError(null);
-    setStartingThemeId(label);
-    try {
-      const size = isPremium ? PREMIUM_BATCH_SIZE : DEMO_BATCH_SIZE;
-      const body = themeId
-        ? { type: "TRAINING" as const, module, themeId, size }
-        : { type: "TRAINING" as const, module, size };
-      const a = isGuest
-        ? await publicAttemptApi.startDemo(body)
-        : await attemptApi.start(body);
-      router.push(`/sessions/${a.id}`);
-    } catch (e) {
-      if (
-        isGuest &&
-        e instanceof ApiException &&
-        e.status === 429 &&
-        e.payload?.error === "DEMO_LIMIT_REACHED"
-      ) {
-        setDemoQuotaByModule((prev) => ({
-          ...prev,
-          [module]: {
-            used: true,
-            message:
-              module === "CIVIQUE"
-                ? "Vous avez déjà utilisé votre démo gratuite pour le module Civique ce mois-ci. Créez un compte pour accéder à 190+ questions civique."
-                : "Vous avez déjà utilisé votre démo gratuite pour le module TCF ce mois-ci. Créez un compte pour accéder à 60+ questions TCF.",
-          },
-        }));
-      } else {
-        setError(
-          e instanceof ApiException
-            ? e.message
-            : "Impossible de démarrer l'entraînement.",
-        );
-      }
-      setStartingThemeId(null);
-    }
-  }
-
-  async function startExam(exam: ExamTemplateSummary) {
-    const isPremium = exam.module === "CIVIQUE" ? isPremiumCivique : isPremiumTcf;
-    // Connecté non-premium qui clique sur un exam non-free → paywall.
-    if (!isGuest && !isPremium && !exam.free) {
-      setPaywallModule(exam.module);
-      return;
-    }
-    // Guest sur un exam non-free → push compte.
-    if (isGuest && !exam.free) {
-      return;
-    }
-    if (isGuest && examDemoQuotaByModule[exam.module]) return;
-
-    setError(null);
-    setStartingExamId(exam.id);
-    try {
-      const body = {
-        type: "MOCK_EXAM" as const,
-        module: exam.module,
-        examTemplateId: exam.id,
-      };
-      const a = isGuest
-        ? await publicAttemptApi.startDemo(body)
-        : await attemptApi.start(body);
-      router.push(`/sessions/${a.id}`);
-    } catch (e) {
-      if (
-        isGuest &&
-        e instanceof ApiException &&
-        e.status === 429 &&
-        e.payload?.error === "DEMO_LIMIT_REACHED"
-      ) {
-        setExamDemoQuotaByModule((prev) => ({ ...prev, [exam.module]: true }));
-      } else {
-        setError(
-          e instanceof ApiException
-            ? e.message
-            : "Impossible de démarrer l'examen.",
-        );
-      }
-      setStartingExamId(null);
-    }
-  }
-
-  // ========== DERIVED ==========
-  const mastery = useMemo(
-    () => buildMastery(statsByModule),
-    [statsByModule],
-  );
-
-  const filteredThemes = useMemo(() => {
-    const list = themes[filter] ?? [];
-    const q = query.trim().toLowerCase();
-    if (!q) return list;
-    return list.filter(
-      (t) =>
-        t.name.toLowerCase().includes(q) ||
-        t.code.toLowerCase().includes(q),
+    // ========== DERIVED ==========
+    const mastery = useMemo(
+        () => buildMastery(statsByModule),
+        [statsByModule],
     );
-  }, [filter, query, themes]);
 
-  const visibleMixedModules: ModuleEnum[] = useMemo(
-    () => (query.trim() ? [] : [filter]),
-    [filter, query],
-  );
+    const filteredThemes = useMemo(() => {
+        const list = themes[filter] ?? [];
+        const q = query.trim().toLowerCase();
+        if (!q) return list;
+        return list.filter(
+            (t) =>
+                t.name.toLowerCase().includes(q) ||
+                t.code.toLowerCase().includes(q),
+        );
+    }, [filter, query, themes]);
 
-  // Exams pour la section "Examens blancs" : on prend le 1er free de chaque
-  // module + les autres en mode locked.
-  const examsForFilter = useMemo(
-    () => exams.filter((e) => e.module === filter),
-    [exams, filter],
-  );
-  const freeExam = useMemo(
-    () => examsForFilter.find((e) => e.free) ?? null,
-    [examsForFilter],
-  );
-  const lockedExams = useMemo(
-    () => examsForFilter.filter((e) => !e.free),
-    [examsForFilter],
-  );
-  const isPremiumForFilter = filter === "CIVIQUE" ? isPremiumCivique : isPremiumTcf;
-  const examDemoUsed = isGuest && (examDemoQuotaByModule[filter] ?? false);
-  const trainingQuota = isGuest ? demoQuotaByModule[filter] : undefined;
+    const visibleMixedModules: ModuleEnum[] = useMemo(
+        () => (query.trim() ? [] : [filter]),
+        [filter, query],
+    );
 
-  // CTAs pour les locked exams : tarifs si connecté, inscription si guest.
-  const upsellHref = isGuest ? "/inscription" : "/paiement";
-  const upsellLabel = isGuest ? "Créer un compte" : "Voir les tarifs";
+    // Exams pour la section "Examens blancs" : on prend le 1er free de chaque
+    // module + les autres en mode locked.
+    const examsForFilter = useMemo(
+        () => exams.filter((e) => e.module === filter),
+        [exams, filter],
+    );
+    const freeExam = useMemo(
+        () => examsForFilter.find((e) => e.free) ?? null,
+        [examsForFilter],
+    );
+    const lockedExams = useMemo(
+        () => examsForFilter.filter((e) => !e.free),
+        [examsForFilter],
+    );
+    const isPremiumForFilter = filter === "CIVIQUE" ? isPremiumCivique : isPremiumTcf;
 
-  return (
-    <main className="train">
-      {/* ============ TOPBAR ============ */}
-      <header className="topbar">
-        <div>
-          <div className="breadcrumb">
-            ACCUEIL <span className="sep">/</span> ENTRAÎNEMENT
-          </div>
-          <h1>
-            Choisissez une <em>thématique</em>.
-          </h1>
-        </div>
-        {!isGuest && (
-          <div className="topbar-actions">
-            <Link href="/revision" className="btn-outline">
-              Mes erreurs
-            </Link>
-          </div>
-        )}
-      </header>
+    // CTAs pour les locked exams : tarifs si connecté, inscription si guest.
+    const upsellHref = isGuest ? "/connexion" : "/paiement";
+    const upsellLabel = isGuest ? "Se connecter" : "Voir les tarifs";
 
-      {/* parcours visé (connecté avec target seulement) */}
-      {!isGuest && user.targetProcedure && (
-        <div className="train-target">
-          <TargetPathBanner
-            procedure={user.targetProcedure ?? null}
-            level={user.targetLevel ?? null}
-          />
-        </div>
-      )}
+    return (
+        <main className="train">
+            {/* ============ TOPBAR ============ */}
+            <header className="topbar">
+                <div>
+                    <div className="breadcrumb">
+                        ACCUEIL <span className="sep">/</span> ENTRAÎNEMENT
+                    </div>
+                    <h1>
+                        Choisissez une <em>thématique</em>.
+                    </h1>
+                </div>
+                {!isGuest && (
+                    <div className="topbar-actions">
+                        <Link href="/revision" className="btn-outline">
+                            Mes erreurs
+                        </Link>
+                    </div>
+                )}
+            </header>
 
-      {/* démo banner */}
-      {showDemoBanner && (
-        <DemoBanner
-          isGuest={isGuest}
-          isPremiumCivique={isPremiumCivique}
-          isPremiumTcf={isPremiumTcf}
-          onOpenPaywall={(m) => setPaywallModule(m)}
-        />
-      )}
-
-      {/* ============ FILTERS ============ */}
-      <div className="filters">
-        <div className="filter-tabs" role="tablist" aria-label="Module">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={filter === "CIVIQUE"}
-            className={`tab tab-blue ${filter === "CIVIQUE" ? "is-active" : ""}`}
-            onClick={() => setFilter("CIVIQUE")}
-          >
-            Civique
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={filter === "TCF"}
-            className={`tab tab-red ${filter === "TCF" ? "is-active" : ""}`}
-            onClick={() => setFilter("TCF")}
-          >
-            TCF
-          </button>
-        </div>
-        <div className="search-wrap">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rechercher un thème…"
-            aria-label="Rechercher une thématique"
-          />
-        </div>
-      </div>
-
-      {error && <div className="form-error train-error">{error}</div>}
-
-      {/* Bandeau démo épuisée pour le module en cours */}
-      {trainingQuota?.used && (
-        <div className="quota-strip">
-          <div className="quota-strip-icon" aria-hidden>🔒</div>
-          <div className="quota-strip-body">
-            <div className="quota-strip-title">Démo utilisée ce mois-ci</div>
-            <div className="quota-strip-msg">{trainingQuota.message}</div>
-          </div>
-          <Link href="/inscription" className="btn btn-red">
-            Créer un compte →
-          </Link>
-        </div>
-      )}
-
-      {/* ============ GRID ============ */}
-      {loading ? (
-        <ThemesGridSkeleton />
-      ) : (
-        <div className="theme-grid">
-          {visibleMixedModules.map((m) => (
-            <MixedCard
-              key={`mixed-${m}`}
-              module={m}
-              isPremium={m === "CIVIQUE" ? isPremiumCivique : isPremiumTcf}
-              isGuest={isGuest}
-              demoUsed={isGuest && (demoQuotaByModule[m]?.used ?? false)}
-              onClick={() =>
-                startTraining({ module: m, label: `__mixed_${m}` })
-              }
-              starting={startingThemeId === `__mixed_${m}`}
-            />
-          ))}
-          {filteredThemes.map((t) => (
-            <ThemeTile
-              key={t.id}
-              theme={t}
-              mastery={isGuest ? null : (mastery.byTheme[t.id] ?? null)}
-              isPremium={
-                t.module === "CIVIQUE" ? isPremiumCivique : isPremiumTcf
-              }
-              isGuest={isGuest}
-              onClick={() =>
-                startTraining({
-                  module: t.module,
-                  themeId: t.id,
-                  label: t.id,
-                })
-              }
-              starting={startingThemeId === t.id}
-            />
-          ))}
-          {filteredThemes.length === 0 && visibleMixedModules.length === 0 && (
-            <div className="theme-empty">
-              <p>Aucun thème ne correspond à votre recherche.</p>
-              <button
-                type="button"
-                className="theme-empty-cta"
-                onClick={() => setQuery("")}
-              >
-                Effacer la recherche
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ============ EXAMENS BLANCS ============ */}
-      <section className="exams-section">
-        <div className="exams-section-head">
-          <h2>Examens blancs</h2>
-          <p>
-            Conditions réelles d&apos;examen : 40 questions chronométrées en
-            45 minutes pour CIVIQUE, 60 questions en 90 minutes pour TCF.
-          </p>
-        </div>
-
-        {loading ? (
-          <div className="exams-grid">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="exam-skel" />
-            ))}
-          </div>
-        ) : examsForFilter.length === 0 ? (
-          <div className="exams-empty">
-            Aucun examen blanc disponible pour ce module.
-          </div>
-        ) : (
-          <div className="exams-grid">
-            {freeExam && (
-              <ExamCard
-                exam={freeExam}
-                tone={filter === "CIVIQUE" ? "blue" : "red"}
-                locked={false}
-                demoUsed={examDemoUsed}
-                onStart={() => startExam(freeExam)}
-                starting={startingExamId === freeExam.id}
-                ctaLabel={
-                  isGuest ? "Démo gratuite →" : "Démarrer l'examen →"
-                }
-                upsellHref={upsellHref}
-              />
+            {/* parcours visé (connecté avec target seulement) */}
+            {!isGuest && user.targetProcedure && (
+                <div className="train-target">
+                    <TargetPathBanner
+                        procedure={user.targetProcedure ?? null}
+                        level={user.targetLevel ?? null}
+                    />
+                </div>
             )}
-            {lockedExams.map((e) => (
-              <ExamCard
-                key={e.id}
-                exam={e}
-                tone={filter === "CIVIQUE" ? "blue" : "red"}
-                locked={!isPremiumForFilter}
-                demoUsed={false}
-                onStart={() => startExam(e)}
-                starting={startingExamId === e.id}
-                ctaLabel={
-                  isPremiumForFilter
-                    ? "Démarrer l'examen →"
-                    : upsellLabel
+
+            {/* démo banner */}
+            {showDemoBanner && (
+                <DemoBanner
+                    isGuest={isGuest}
+                    isPremiumCivique={isPremiumCivique}
+                    isPremiumTcf={isPremiumTcf}
+                    onOpenPaywall={(m) => setPaywallModule(m)}
+                />
+            )}
+
+            {/* ============ FILTERS ============ */}
+            <div className="filters">
+                <div className="filter-tabs" role="tablist" aria-label="Module">
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={filter === "CIVIQUE"}
+                        className={`tab tab-blue ${filter === "CIVIQUE" ? "is-active" : ""}`}
+                        onClick={() => setFilter("CIVIQUE")}
+                    >
+                        Civique
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={filter === "TCF"}
+                        className={`tab tab-red ${filter === "TCF" ? "is-active" : ""}`}
+                        onClick={() => setFilter("TCF")}
+                    >
+                        TCF
+                    </button>
+                </div>
+                <div className="search-wrap">
+                    <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden
+                    >
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    <input
+                        type="search"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Rechercher un thème…"
+                        aria-label="Rechercher une thématique"
+                    />
+                </div>
+            </div>
+
+            {error && <div className="form-error train-error">{error}</div>}
+
+            {/* ============ GRID ============ */}
+            {loading ? (
+                <ThemesGridSkeleton/>
+            ) : (
+                <div className="theme-grid">
+                    {visibleMixedModules.map((m) => (
+                        <MixedCard
+                            key={`mixed-${m}`}
+                            module={m}
+                            isPremium={m === "CIVIQUE" ? isPremiumCivique : isPremiumTcf}
+                            isGuest={isGuest}
+                            onClick={() =>
+                                startTraining({module: m, label: `__mixed_${m}`})
+                            }
+                            starting={startingThemeId === `__mixed_${m}`}
+                        />
+                    ))}
+                    {filteredThemes.map((t) => (
+                        <ThemeTile
+                            key={t.id}
+                            theme={t}
+                            mastery={isGuest ? null : (mastery.byTheme[t.id] ?? null)}
+                            isPremium={
+                                t.module === "CIVIQUE" ? isPremiumCivique : isPremiumTcf
+                            }
+                            isGuest={isGuest}
+                            onClick={() =>
+                                startTraining({
+                                    module: t.module,
+                                    themeId: t.id,
+                                    label: t.id,
+                                })
+                            }
+                            starting={startingThemeId === t.id}
+                        />
+                    ))}
+                    {filteredThemes.length === 0 && visibleMixedModules.length === 0 && (
+                        <div className="theme-empty">
+                            <p>Aucun thème ne correspond à votre recherche.</p>
+                            <button
+                                type="button"
+                                className="theme-empty-cta"
+                                onClick={() => setQuery("")}
+                            >
+                                Effacer la recherche
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ============ EXAMENS BLANCS ============ */}
+            <section className="exams-section">
+                <div className="exams-section-head">
+                    <h2>Examens blancs</h2>
+                    <p>
+                        Conditions réelles d&apos;examen : 40 questions chronométrées en
+                        45 minutes pour CIVIQUE, 60 questions en 90 minutes pour TCF.
+                    </p>
+                </div>
+
+                {loading ? (
+                    <div className="exams-grid">
+                        {Array.from({length: 3}).map((_, i) => (
+                            <div key={i} className="exam-skel"/>
+                        ))}
+                    </div>
+                ) : examsForFilter.length === 0 ? (
+                    <div className="exams-empty">
+                        Aucun examen blanc disponible pour ce module.
+                    </div>
+                ) : (
+                    <div className="exams-grid">
+                        {freeExam && (
+                            <ExamCard
+                                exam={freeExam}
+                                tone={filter === "CIVIQUE" ? "blue" : "red"}
+                                locked={false}
+                                onStart={() => startExam(freeExam)}
+                                starting={startingExamId === freeExam.id}
+                                ctaLabel={
+                                    isGuest ? "Démo gratuite →" : "Démarrer l'examen →"
+                                }
+                                upsellHref={upsellHref}
+                            />
+                        )}
+                        {lockedExams.map((e) => (
+                            <ExamCard
+                                key={e.id}
+                                exam={e}
+                                tone={filter === "CIVIQUE" ? "blue" : "red"}
+                                locked={!isPremiumForFilter}
+                                onStart={() => startExam(e)}
+                                starting={startingExamId === e.id}
+                                ctaLabel={
+                                    isPremiumForFilter
+                                        ? "Démarrer l'examen →"
+                                        : upsellLabel
+                                }
+                                upsellHref={upsellHref}
+                            />
+                        ))}
+                    </div>
+                )}
+            </section>
+
+            {/* Foot CTA pour les guests */}
+            {isGuest && (
+                <div className="train-foot">
+                    Pour suivre votre progression, débloquer la révision ciblée et
+                    accéder à tous les examens blancs,{" "}
+                    <Link href="/inscription">créez votre compte gratuit</Link>.
+                </div>
+            )}
+
+            <PaywallSheet
+                open={paywallModule !== null}
+                onClose={() => setPaywallModule(null)}
+                title={
+                    paywallModule === "TCF"
+                        ? "Débloquez tout le TCF IRN"
+                        : "Choisissez votre thématique"
                 }
-                upsellHref={upsellHref}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+                message={
+                    paywallModule === "TCF"
+                        ? "Vous avez 20 questions de découverte et 1 examen blanc offerts en TCF. L'abonnement Intégral débloque l'entraînement illimité TCF + Civique, les examens blancs sans limite et la révision des erreurs."
+                        : "L'entraînement par thématique est réservé aux abonnés. Avec l'abonnement Civique, débloquez tous les thèmes et l'entraînement illimité."
+                }
+                plan={paywallModule === "TCF" ? "INTEGRAL_3MOIS" : "CIVIQUE_3MOIS"}
+            />
 
-      {/* Foot CTA pour les guests */}
-      {isGuest && (
-        <div className="train-foot">
-          Pour suivre votre progression, débloquer la révision ciblée et
-          accéder à tous les examens blancs,{" "}
-          <Link href="/inscription">créez votre compte gratuit</Link>.
-        </div>
-      )}
-
-      <PaywallSheet
-        open={paywallModule !== null}
-        onClose={() => setPaywallModule(null)}
-        title={
-          paywallModule === "TCF"
-            ? "Débloquez tout le TCF IRN"
-            : "Choisissez votre thématique"
-        }
-        message={
-          paywallModule === "TCF"
-            ? "Vous avez 20 questions de découverte et 1 examen blanc offerts en TCF. L'abonnement Intégral débloque l'entraînement illimité TCF + Civique, les examens blancs sans limite et la révision des erreurs."
-            : "L'entraînement par thématique est réservé aux abonnés. Avec l'abonnement Civique, débloquez tous les thèmes et l'entraînement illimité."
-        }
-        plan={paywallModule === "TCF" ? "INTEGRAL_3MOIS" : "CIVIQUE_3MOIS"}
-      />
-
-      <style>{styles}</style>
-    </main>
-  );
+            <style>{styles}</style>
+        </main>
+    );
 }
 
 // ============================================================================
@@ -534,366 +472,355 @@ function EntrainementHub({ user }: { user: AuthenticatedUser | null }) {
 // ============================================================================
 
 function DemoBanner({
-  isGuest,
-  isPremiumCivique,
-  isPremiumTcf,
-  onOpenPaywall,
-}: {
-  isGuest: boolean;
-  isPremiumCivique: boolean;
-  isPremiumTcf: boolean;
-  onOpenPaywall: (m: ModuleEnum) => void;
+                        isGuest,
+                        isPremiumCivique,
+                        isPremiumTcf,
+                        onOpenPaywall,
+                    }: {
+    isGuest: boolean;
+    isPremiumCivique: boolean;
+    isPremiumTcf: boolean;
+    onOpenPaywall: (m: ModuleEnum) => void;
 }) {
-  // Guest : message générique, CTA vers /inscription.
-  if (isGuest) {
+    // Guest : message générique, CTA vers /inscription.
+    if (isGuest) {
+        return (
+            <Link href="/inscription" className="demo-banner demo-banner-link">
+                <div className="demo-banner-icon" aria-hidden>
+                    <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    >
+                        <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"/>
+                    </svg>
+                </div>
+                <div className="demo-banner-content">
+                    <div className="demo-banner-title">
+                        Démo gratuite — {DEMO_BATCH_SIZE} questions par module.
+                    </div>
+                    <div className="demo-banner-sub">
+                        Créez un compte pour sauvegarder vos résultats, débloquer la
+                        révision ciblée et passer plusieurs examens blancs.
+                    </div>
+                </div>
+                <div className="demo-banner-arrow" aria-hidden>→</div>
+            </Link>
+        );
+    }
+    // Connecté non-premium : ouvre le paywall.
+    const locked: ModuleEnum[] = [];
+    if (!isPremiumCivique) locked.push("CIVIQUE");
+    if (!isPremiumTcf) locked.push("TCF");
+    const lockedLabel = locked
+        .map((m) => (m === "TCF" ? "TCF" : "Civique"))
+        .join(" + ");
+    const upsell: ModuleEnum = !isPremiumCivique ? "CIVIQUE" : "TCF";
     return (
-      <Link href="/inscription" className="demo-banner demo-banner-link">
-        <div className="demo-banner-icon" aria-hidden>
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" />
-          </svg>
-        </div>
-        <div className="demo-banner-content">
-          <div className="demo-banner-title">
-            Démo gratuite — {DEMO_BATCH_SIZE} questions par module.
-          </div>
-          <div className="demo-banner-sub">
-            Créez un compte pour sauvegarder vos résultats, débloquer la
-            révision ciblée et passer plusieurs examens blancs.
-          </div>
-        </div>
-        <div className="demo-banner-arrow" aria-hidden>→</div>
-      </Link>
-    );
-  }
-  // Connecté non-premium : ouvre le paywall.
-  const locked: ModuleEnum[] = [];
-  if (!isPremiumCivique) locked.push("CIVIQUE");
-  if (!isPremiumTcf) locked.push("TCF");
-  const lockedLabel = locked
-    .map((m) => (m === "TCF" ? "TCF" : "Civique"))
-    .join(" + ");
-  const upsell: ModuleEnum = !isPremiumCivique ? "CIVIQUE" : "TCF";
-  return (
-    <button
-      type="button"
-      className="demo-banner"
-      onClick={() => onOpenPaywall(upsell)}
-    >
-      <div className="demo-banner-icon" aria-hidden>
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+        <button
+            type="button"
+            className="demo-banner"
+            onClick={() => onOpenPaywall(upsell)}
         >
-          <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" />
-        </svg>
-      </div>
-      <div className="demo-banner-content">
-        <div className="demo-banner-title">
-          Mode démo {lockedLabel} · {DEMO_BATCH_SIZE} questions par session
-        </div>
-        <div className="demo-banner-sub">
-          Cliquez sur une thématique en démo pour déclencher la session mixte.
-          Activez l&apos;abonnement pour débloquer l&apos;entraînement par
-          thème et l&apos;illimité.
-        </div>
-      </div>
-      <div className="demo-banner-arrow" aria-hidden>→</div>
-    </button>
-  );
+            <div className="demo-banner-icon" aria-hidden>
+                <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                >
+                    <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"/>
+                </svg>
+            </div>
+            <div className="demo-banner-content">
+                <div className="demo-banner-title">
+                    Mode démo {lockedLabel} · {DEMO_BATCH_SIZE} questions par session
+                </div>
+                <div className="demo-banner-sub">
+                    Cliquez sur une thématique en démo pour déclencher la session mixte.
+                    Activez l&apos;abonnement pour débloquer l&apos;entraînement par
+                    thème et l&apos;illimité.
+                </div>
+            </div>
+            <div className="demo-banner-arrow" aria-hidden>→</div>
+        </button>
+    );
 }
 
 function MixedCard({
-  module,
-  isPremium,
-  isGuest,
-  demoUsed,
-  onClick,
-  starting,
-}: {
-  module: ModuleEnum;
-  isPremium: boolean;
-  isGuest: boolean;
-  demoUsed: boolean;
-  onClick: () => void;
-  starting: boolean;
+                       module,
+                       isPremium,
+                       isGuest,
+                       onClick,
+                       starting,
+                   }: {
+    module: ModuleEnum;
+    isPremium: boolean;
+    isGuest: boolean;
+    onClick: () => void;
+    starting: boolean;
 }) {
-  const isCivique = module === "CIVIQUE";
-  const label = isCivique ? "Civique mixte" : "TCF mixte";
-  const desc = isCivique
-    ? "Toutes thématiques mélangées · l'entraînement le plus polyvalent."
-    : "CO + CE + Structure mélangés · pour réviser large.";
-  const tag = isCivique ? "CIVIQUE · TOUT" : "TCF · TOUT";
-  const size = isPremium ? PREMIUM_BATCH_SIZE : DEMO_BATCH_SIZE;
-  const isDemo = !isPremium;
-  return (
-    <button
-      type="button"
-      className={`theme-card mixed mixed-${isCivique ? "blue" : "red"} ${
-        demoUsed ? "is-locked" : ""
-      }`}
-      onClick={onClick}
-      disabled={starting || demoUsed}
-    >
-      <div className="theme-card-head">
+    const isCivique = module === "CIVIQUE";
+    const label = isCivique ? "Civique mixte" : "TCF mixte";
+    const desc = isCivique
+        ? "Toutes thématiques mélangées · l'entraînement le plus polyvalent."
+        : "CO + CE + Structure mélangés · pour réviser large.";
+    const tag = isCivique ? "CIVIQUE · TOUT" : "TCF · TOUT";
+    const size = isPremium ? PREMIUM_BATCH_SIZE : DEMO_BATCH_SIZE;
+    const isDemo = !isPremium;
+    return (
+        <button
+            type="button"
+            className={`theme-card mixed mixed-${isCivique ? "blue" : "red"}`}
+            onClick={onClick}
+            disabled={starting}
+        >
+            <div className="theme-card-head">
         <span className={`theme-tag ${isCivique ? "tag-civique" : "tag-tcf"}`}>
           {tag}
         </span>
-        <span className="theme-mixed-icon" aria-hidden>
+                <span className="theme-mixed-icon" aria-hidden>
           {isCivique ? "⚜" : "✶"}
         </span>
-      </div>
-      <h4 className="theme-card-title">{label}</h4>
-      <p className="theme-card-desc">{desc}</p>
-      <div className="theme-card-foot">
+            </div>
+            <h4 className="theme-card-title">{label}</h4>
+            <p className="theme-card-desc">{desc}</p>
+            <div className="theme-card-foot">
         <span>
           {size} QUESTIONS{isDemo ? " · DÉMO" : ""}
         </span>
-        <span className="theme-card-start">
+                <span className="theme-card-start">
           {starting
-            ? "…"
-            : demoUsed
-              ? "Démo épuisée"
+              ? "…"
               : isGuest
-                ? "Lancer la démo →"
-                : "Démarrer →"}
+                  ? "Lancer la démo →"
+                  : "Démarrer →"}
         </span>
-      </div>
-    </button>
-  );
+            </div>
+        </button>
+    );
 }
 
 function ThemeTile({
-  theme,
-  mastery,
-  isPremium,
-  isGuest,
-  onClick,
-  starting,
-}: {
-  theme: ThemeUserResponse;
-  mastery: { pct: number; answered: number; total: number } | null;
-  isPremium: boolean;
-  isGuest: boolean;
-  onClick: () => void;
-  starting: boolean;
+                       theme,
+                       mastery,
+                       isPremium,
+                       isGuest,
+                       onClick,
+                       starting,
+                   }: {
+    theme: ThemeUserResponse;
+    mastery: { pct: number; answered: number; total: number } | null;
+    isPremium: boolean;
+    isGuest: boolean;
+    onClick: () => void;
+    starting: boolean;
 }) {
-  const isCivique = theme.module === "CIVIQUE";
-  const tone = mastery ? toneFor(mastery.pct) : null;
-  const tagLabel = `${isCivique ? "CIVIQUE" : "TCF"} · ${theme.code}`;
-  const desc = themeBlurb(theme.code);
+    const isCivique = theme.module === "CIVIQUE";
+    const tone = mastery ? toneFor(mastery.pct) : null;
+    const tagLabel = `${isCivique ? "CIVIQUE" : "TCF"} · ${theme.code}`;
+    const desc = themeBlurb(theme.code);
 
-  // Sur les thèmes spécifiques : verrouillé pour les guests et les connectés
-  // non-premium (la démo ne couvre que le mixte du module).
-  const locked = isGuest || !isPremium;
+    // Sur les thèmes spécifiques : verrouillé pour les guests et les connectés
+    // non-premium (la démo ne couvre que le mixte du module).
+    const locked = isGuest || !isPremium;
 
-  return (
-    <button
-      type="button"
-      className={`theme-card ${locked ? "is-locked" : ""} ${
-        tone === "red" ? "border-red" : tone === "amber" ? "border-amber" : ""
-      }`}
-      onClick={onClick}
-      disabled={starting}
-    >
-      {locked && (
-        <span className="theme-lock" aria-hidden>
-          <Lock size={14} />
+    return (
+        <button
+            type="button"
+            className={`theme-card ${locked ? "is-locked" : ""} ${
+                tone === "red" ? "border-red" : tone === "amber" ? "border-amber" : ""
+            }`}
+            onClick={onClick}
+            disabled={starting}
+        >
+            {locked && (
+                <span className="theme-lock" aria-hidden>
+          <Lock size={14}/>
         </span>
-      )}
-      <div className="theme-card-head">
+            )}
+            <div className="theme-card-head">
         <span className={`theme-tag ${isCivique ? "tag-civique" : "tag-tcf"}`}>
           {tagLabel}
         </span>
-        {mastery && (
-          <span className={`theme-mastery theme-mastery-${tone}`}>
+                {mastery && (
+                    <span className={`theme-mastery theme-mastery-${tone}`}>
             {mastery.pct}%
           </span>
-        )}
-      </div>
-      <h4 className="theme-card-title">{theme.name}</h4>
-      {desc && <p className="theme-card-desc">{desc}</p>}
-      <div className="theme-bar">
-        <div
-          className={`theme-bar-fill theme-bar-${tone ?? "blue"}`}
-          style={{ width: `${Math.max(2, mastery?.pct ?? 0)}%` }}
-        />
-      </div>
-      <div className="theme-card-foot">
+                )}
+            </div>
+            <h4 className="theme-card-title">{theme.name}</h4>
+            {desc && <p className="theme-card-desc">{desc}</p>}
+            <div className="theme-bar">
+                <div
+                    className={`theme-bar-fill theme-bar-${tone ?? "blue"}`}
+                    style={{width: `${Math.max(2, mastery?.pct ?? 0)}%`}}
+                />
+            </div>
+            <div className="theme-card-foot">
         <span>
           {mastery
-            ? `${mastery.answered} / ${theme.questionCount ?? mastery.total} QUESTIONS`
-            : `${theme.questionCount ?? "—"} QUESTIONS`}
+              ? `${mastery.answered} / ${theme.questionCount ?? mastery.total} QUESTIONS`
+              : `${theme.questionCount ?? "—"} QUESTIONS`}
         </span>
-        <span className="theme-card-start">
+                <span className="theme-card-start">
           {starting ? "…" : locked ? "Débloquer →" : "Démarrer →"}
         </span>
-      </div>
-    </button>
-  );
+            </div>
+        </button>
+    );
 }
 
 function ExamCard({
-  exam,
-  tone,
-  locked,
-  demoUsed,
-  onStart,
-  starting,
-  ctaLabel,
-  upsellHref,
-}: {
-  exam: ExamTemplateSummary;
-  tone: "blue" | "red";
-  locked: boolean;
-  demoUsed: boolean;
-  onStart: () => void;
-  starting: boolean;
-  ctaLabel: string;
-  upsellHref: string;
+                      exam,
+                      tone,
+                      locked,
+                      onStart,
+                      starting,
+                      ctaLabel,
+                      upsellHref,
+                  }: {
+    exam: ExamTemplateSummary;
+    tone: "blue" | "red";
+    locked: boolean;
+    onStart: () => void;
+    starting: boolean;
+    ctaLabel: string;
+    upsellHref: string;
 }) {
-  const minutes = Math.round(exam.durationSeconds / 60);
-  const isLockedOrUsed = locked || demoUsed;
-  return (
-    <div className={`exam-card exam-card-${tone} ${isLockedOrUsed ? "is-locked" : ""}`}>
-      {isLockedOrUsed && (
-        <span className="exam-lock" aria-hidden>
-          <Lock size={14} />
+    const minutes = Math.round(exam.durationSeconds / 60);
+    return (
+        <div className={`exam-card exam-card-${tone} ${locked ? "is-locked" : ""}`}>
+            {locked && (
+                <span className="exam-lock" aria-hidden>
+          <Lock size={14}/>
         </span>
-      )}
-      <span className={`exam-tag exam-tag-${tone}`}>
+            )}
+            <span className={`exam-tag exam-tag-${tone}`}>
         {exam.free ? "OFFERT" : "PREMIUM"}
-        {exam.module === "TCF" && exam.targetLevel ? ` · ${exam.targetLevel}` : ""}
-        {exam.module === "CIVIQUE" && exam.targetProcedure
-          ? ` · ${exam.targetProcedure}`
-          : ""}
+                {exam.module === "TCF" && exam.targetLevel ? ` · ${exam.targetLevel}` : ""}
+                {exam.module === "CIVIQUE" && exam.targetProcedure
+                    ? ` · ${exam.targetProcedure}`
+                    : ""}
       </span>
-      <h3 className="exam-title">{exam.name}</h3>
-      {exam.subtitle && <p className="exam-sub">{exam.subtitle}</p>}
-      <div className="exam-meta">
-        <div className="exam-meta-item">
-          <div className="l">QUESTIONS</div>
-          <div className="v">{exam.totalQuestions}</div>
+            <h3 className="exam-title">{exam.name}</h3>
+            {exam.subtitle && <p className="exam-sub">{exam.subtitle}</p>}
+            <div className="exam-meta">
+                <div className="exam-meta-item">
+                    <div className="l">QUESTIONS</div>
+                    <div className="v">{exam.totalQuestions}</div>
+                </div>
+                <div className="exam-meta-item">
+                    <div className="l">DURÉE</div>
+                    <div className="v">{minutes} min</div>
+                </div>
+                <div className="exam-meta-item">
+                    <div className="l">{exam.module === "CIVIQUE" ? "SEUIL" : "RESTITUTION"}</div>
+                    <div className="v">
+                        {exam.module === "CIVIQUE"
+                            ? `${exam.passingScore}/${exam.totalQuestions}`
+                            : "CECRL"}
+                    </div>
+                </div>
+            </div>
+            <div className="exam-foot">
+                {locked ? (
+                    <>
+                        <div className="exam-msg">Réservé aux abonnés Premium.</div>
+                        <Link href={upsellHref} className={`btn btn-${tone}`}>
+                            {ctaLabel}
+                        </Link>
+                    </>
+                ) : (
+                    <button
+                        type="button"
+                        className={`btn btn-${tone} btn-lg`}
+                        onClick={onStart}
+                        disabled={starting}
+                    >
+                        {starting ? "Préparation…" : ctaLabel}
+                    </button>
+                )}
+            </div>
         </div>
-        <div className="exam-meta-item">
-          <div className="l">DURÉE</div>
-          <div className="v">{minutes} min</div>
-        </div>
-        <div className="exam-meta-item">
-          <div className="l">{exam.module === "CIVIQUE" ? "SEUIL" : "RESTITUTION"}</div>
-          <div className="v">
-            {exam.module === "CIVIQUE"
-              ? `${exam.passingScore}/${exam.totalQuestions}`
-              : "CECRL"}
-          </div>
-        </div>
-      </div>
-      <div className="exam-foot">
-        {demoUsed ? (
-          <div className="exam-msg">Démo déjà utilisée ce mois-ci.</div>
-        ) : locked ? (
-          <>
-            <div className="exam-msg">Réservé aux abonnés Premium.</div>
-            <Link href={upsellHref} className={`btn btn-${tone}`}>
-              {ctaLabel}
-            </Link>
-          </>
-        ) : (
-          <button
-            type="button"
-            className={`btn btn-${tone} btn-lg`}
-            onClick={onStart}
-            disabled={starting}
-          >
-            {starting ? "Préparation…" : ctaLabel}
-          </button>
-        )}
-      </div>
-    </div>
-  );
+    );
 }
 
 // ============================================================================
 // HELPERS
 // ============================================================================
 function buildMastery(stats: Partial<Record<ModuleEnum, UserStatsResponse | null>>) {
-  const byTheme: Record<string, { pct: number; answered: number; total: number }> = {};
-  (["CIVIQUE", "TCF"] as ModuleEnum[]).forEach((m) => {
-    const list = stats[m]?.byTheme ?? [];
-    for (const t of list) {
-      if (t.answered === 0) {
-        byTheme[t.themeId] = { pct: 0, answered: 0, total: t.total };
-        continue;
-      }
-      byTheme[t.themeId] = {
-        pct: Math.round((t.correct / t.answered) * 100),
-        answered: t.answered,
-        total: t.total,
-      };
-    }
-  });
-  return { byTheme };
+    const byTheme: Record<string, { pct: number; answered: number; total: number }> = {};
+    (["CIVIQUE", "TCF"] as ModuleEnum[]).forEach((m) => {
+        const list = stats[m]?.byTheme ?? [];
+        for (const t of list) {
+            if (t.answered === 0) {
+                byTheme[t.themeId] = {pct: 0, answered: 0, total: t.total};
+                continue;
+            }
+            byTheme[t.themeId] = {
+                pct: Math.round((t.correct / t.answered) * 100),
+                answered: t.answered,
+                total: t.total,
+            };
+        }
+    });
+    return {byTheme};
 }
 
 function toneFor(pct: number): "green" | "blue" | "amber" | "red" {
-  if (pct >= 80) return "green";
-  if (pct >= 65) return "blue";
-  if (pct >= 45) return "amber";
-  return "red";
+    if (pct >= 80) return "green";
+    if (pct >= 65) return "blue";
+    if (pct >= 45) return "amber";
+    return "red";
 }
 
 function themeBlurb(code: string): string {
-  const map: Record<string, string> = {
-    PRINCIPES: "Devise, symboles, laïcité, République",
-    INSTITUTIONS: "Président, gouvernement, parlement",
-    DROITS_DEVOIRS: "Citoyenneté, libertés, obligations",
-    HISTOIRE_GEO: "Révolution, République, géographie",
-    SOCIETE: "Vie quotidienne, services, mises en situation",
-    CO: "Audios, dialogues, exposés",
-    CE: "SMS, e-mails, articles, annonces",
-    STRUCTURE: "Grammaire, lexique, conjugaison",
-  };
-  return map[code] ?? "";
+    const map: Record<string, string> = {
+        PRINCIPES: "Devise, symboles, laïcité, République",
+        INSTITUTIONS: "Président, gouvernement, parlement",
+        DROITS_DEVOIRS: "Citoyenneté, libertés, obligations",
+        HISTOIRE_GEO: "Révolution, République, géographie",
+        SOCIETE: "Vie quotidienne, services, mises en situation",
+        CO: "Audios, dialogues, exposés",
+        CE: "SMS, e-mails, articles, annonces",
+        STRUCTURE: "Grammaire, lexique, conjugaison",
+    };
+    return map[code] ?? "";
 }
 
 // ============================================================================
 // SKELETONS
 // ============================================================================
 function EntrainementSkeleton() {
-  return (
-    <div className="train-loading">
-      <style>{`
+    return (
+        <div className="train-loading">
+            <style>{`
         .train-loading {
           min-height: calc(100vh - 80px);
           background: #F7F8FC;
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 }
 
 function ThemesGridSkeleton() {
-  return (
-    <div className="theme-grid">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="theme-skel" />
-      ))}
-      <style>{`
+    return (
+        <div className="theme-grid">
+            {Array.from({length: 6}).map((_, i) => (
+                <div key={i} className="theme-skel"/>
+            ))}
+            <style>{`
         .theme-skel {
           height: 180px;
           background: #fff;
@@ -906,8 +833,8 @@ function ThemesGridSkeleton() {
           50% { opacity: 1; }
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 }
 
 // ============================================================================
@@ -1002,27 +929,6 @@ const styles = `
     color: var(--color-amber);
     font-size: 18px; font-weight: 700;
     flex-shrink: 0;
-  }
-
-  /* ========== QUOTA STRIP (guest demo épuisée) ========== */
-  .quota-strip {
-    display: flex; align-items: center; gap: 14px;
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-left: 3px solid var(--color-red);
-    border-radius: 12px;
-    padding: 14px 18px;
-    margin-bottom: 18px;
-    flex-wrap: wrap;
-  }
-  .quota-strip-icon { font-size: 20px; opacity: 0.7; }
-  .quota-strip-body { flex: 1; min-width: 220px; }
-  .quota-strip-title {
-    font-weight: 700; font-size: 14px; color: var(--color-ink);
-  }
-  .quota-strip-msg {
-    font-size: 12.5px; color: var(--color-muted);
-    line-height: 1.45; margin-top: 4px;
   }
 
   /* ========== FILTERS ========== */
