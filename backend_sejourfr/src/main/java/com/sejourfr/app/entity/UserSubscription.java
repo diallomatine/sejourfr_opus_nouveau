@@ -1,8 +1,9 @@
 package com.sejourfr.app.entity;
 
 import com.sejourfr.app.enums.SubscriptionStatus;
-import org.hibernate.annotations.UuidGenerator;
 import jakarta.persistence.*;
+import org.hibernate.annotations.UuidGenerator;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -33,33 +34,76 @@ public class UserSubscription {
     @Column(name = "ends_at")
     private Instant endsAt;
 
-    @Column(name = "stripe_customer_id", length = 64)
+    // 255 chars : aligne sur la recommandation Stripe (les Checkout Session
+    // IDs `cs_test_xxx` font typiquement 66-80 chars, et le format peut
+    // évoluer). Voir migration V91__stripe_id_lengths.sql.
+    @Column(name = "stripe_customer_id", length = 255)
     private String stripeCustomerId;
 
-    @Column(name = "stripe_subscription_id", length = 64)
+    @Column(name = "stripe_subscription_id", length = 255)
     private String stripeSubscriptionId;
 
-    public UUID getId() { return id; }
-    public void setId(UUID id) { this.id = id; }
+    public UUID getId() {
+        return id;
+    }
 
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
+    public void setId(UUID id) {
+        this.id = id;
+    }
 
-    public Plan getPlan() { return plan; }
-    public void setPlan(Plan plan) { this.plan = plan; }
+    public User getUser() {
+        return user;
+    }
 
-    public SubscriptionStatus getStatus() { return status; }
-    public void setStatus(SubscriptionStatus status) { this.status = status; }
+    public void setUser(User user) {
+        this.user = user;
+    }
 
-    public Instant getStartsAt() { return startsAt; }
-    public void setStartsAt(Instant startsAt) { this.startsAt = startsAt; }
+    public Plan getPlan() {
+        return plan;
+    }
 
-    public Instant getEndsAt() { return endsAt; }
-    public void setEndsAt(Instant endsAt) { this.endsAt = endsAt; }
+    public void setPlan(Plan plan) {
+        this.plan = plan;
+    }
 
-    public String getStripeCustomerId() { return stripeCustomerId; }
-    public void setStripeCustomerId(String stripeCustomerId) { this.stripeCustomerId = stripeCustomerId; }
+    public SubscriptionStatus getStatus() {
+        return status;
+    }
 
-    public String getStripeSubscriptionId() { return stripeSubscriptionId; }
-    public void setStripeSubscriptionId(String stripeSubscriptionId) { this.stripeSubscriptionId = stripeSubscriptionId; }
+    public void setStatus(SubscriptionStatus status) {
+        this.status = status;
+    }
+
+    public Instant getStartsAt() {
+        return startsAt;
+    }
+
+    public void setStartsAt(Instant startsAt) {
+        this.startsAt = startsAt;
+    }
+
+    public Instant getEndsAt() {
+        return endsAt;
+    }
+
+    public void setEndsAt(Instant endsAt) {
+        this.endsAt = endsAt;
+    }
+
+    public String getStripeCustomerId() {
+        return stripeCustomerId;
+    }
+
+    public void setStripeCustomerId(String stripeCustomerId) {
+        this.stripeCustomerId = stripeCustomerId;
+    }
+
+    public String getStripeSubscriptionId() {
+        return stripeSubscriptionId;
+    }
+
+    public void setStripeSubscriptionId(String stripeSubscriptionId) {
+        this.stripeSubscriptionId = stripeSubscriptionId;
+    }
 }

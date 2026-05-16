@@ -5,6 +5,7 @@ Backend Spring Boot 3.3 / Java 21 pour l'application SejourFR.
 ## Demarrage
 
 ### Prerequis
+
 - Java 21
 - PostgreSQL 14+ (local)
 - Maven 3.9+ (ou utiliser `./mvnw` si tu ajoutes le wrapper)
@@ -25,6 +26,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
 L'app demarre sur `http://localhost:8080`. Flyway charge automatiquement :
+
 - `V1__schema.sql` (toutes les tables)
 - `V2__seed_reference.sql` (themes officiels + plans)
 - `V3__seed_dev.sql` (admin + utilisateurs + ~15 questions + 2 conversations de test)
@@ -83,3 +85,7 @@ Tous prefixes par `/api/admin/**`, requiert un JWT avec role ADMIN.
 Auth : `POST /api/auth/login`, `POST /api/auth/refresh`, `GET /api/auth/me`.
 
 Fichiers uploades servis sur `/files/{key}`.
+
+# Stripe
+
+stripe listen --forward-to http://localhost:8080/api/billing/webhook
