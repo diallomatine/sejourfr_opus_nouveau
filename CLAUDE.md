@@ -96,16 +96,33 @@ flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080    # Android emu
 | `user@sejourfr.fr` | `User123!` | USER |
 | `karim.test@sejourfr.fr` | `User123!` | USER |
 
-## Migrations Flyway — convention de numérotation
+## Migrations Flyway — organisation et convention de numérotation
 
-Le backend a **un schéma central** + des **lots de seed civique/TCF** :
-- `V1__schema.sql`, `V2__seed_reference.sql`, `V3__seed_dev.sql` (dev only, dossier `migration-dev/`)
-- `V4__seed_principes_republique.sql`, `V5__seed_civique_themes_2_a_5.sql`, `V6__password_reset_tokens.sql`, `V7__runner_extensions.sql`
-- Lots civique : `V2xx` institutions, `V3xx` droits/devoirs, `V4xx` histoire/géo, `V5xx` société (chaque centaine = reformulations + élargissements CSP/CR/NAT)
-- Sous-dossiers `migration/civique/` et `migration/tcf/` pour les lots à venir
-- **Dernier numéro de schéma central utilisé : `V19__add_audio_mode_to_questions.sql`** (prochain libre : `V20`). Pour un seed civique/TCF, garde la centaine appropriée.
+Flyway scanne récursivement `classpath:db/migration` (prod & dev) et `classpath:db/migration-dev` (dev uniquement). L'arborescence est organisée par **plages numériques** et par **dossiers thématiques** :
 
-→ Pour un nouveau seed, prendre le prochain numéro libre dans la centaine cohérente avec le thème.
+```
+db/migration/
+├── 00_schema/          V001-V099   évolutions de schéma
+├── 10_reference/       V100-V199   données de référence (thèmes, plans Stripe)
+├── 20_civique/         V200-V299   seeds civique
+│   ├── _initial/                   seed des thèmes (V200 principes, V201 thèmes 2-5)
+│   ├── institutions/    V210-V216  (reformulations lot01-04 + niveau CSP/CR/NAT)
+│   ├── droits_devoirs/  V220-V224
+│   ├── histoire_geo/    V230-V236
+│   └── societe/         V240-V244
+└── 30_tcf/             V300-V399   seeds TCF
+    ├── lots_mixtes/    V300-V304   CE + STRUCTURE dans le même fichier
+    ├── ce/             V310-V319   CE focalisée par niveau (V310 A2, V311 B1, V312 B2)
+    ├── structure/      V320-V329   STRUCTURE focalisée
+    └── echantillons/   V330+       échantillons de validation de méthode
+
+db/migration-dev/        V900+      seeds dev uniquement (comptes seed, attempts factices)
+```
+
+- Pour une nouvelle évolution de schéma : prochain libre dans **`00_schema/`** (suit la séquence V0xx).
+- Pour un seed civique : ajoute dans le sous-dossier du thème concerné, prochain numéro libre dans la plage du thème.
+- Pour un seed TCF : choisis `lots_mixtes/`, `ce/`, `structure/` ou `echantillons/` selon la nature, prochain numéro libre dans la plage.
+- `out-of-order: true` est activé, donc l'ordre d'ajout n'est pas contraint tant que les numéros restent uniques.
 
 ## Pipeline de génération audio TCF (Compréhension Orale)
 

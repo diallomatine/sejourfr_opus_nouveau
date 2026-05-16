@@ -12,7 +12,7 @@ import java.util.UUID;
 @Service
 public class SubscriptionService {
 
-    // Code en base du plan gratuit (cf. V2__seed_reference.sql). Toute
+    // Code en base du plan gratuit (cf. 10_reference/V100__seed_reference.sql). Toute
     // souscription rattachée à ce plan est ignorée pour le calcul Premium,
     // même si son statut est ACTIVE.
     private static final String FREE_PLAN_CODE = "FREE";
