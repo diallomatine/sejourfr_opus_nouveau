@@ -24,9 +24,15 @@ public class Attempt {
     @Column(columnDefinition = "uuid")
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    // user_id devient nullable depuis V100 : un attempt "démo guest" (lancé
+    // depuis la landing par un visiteur non authentifié) n'a pas de user.
+    // Pour ces attempts, client_ip est posée à la place et sert au quota.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
     private User user;
+
+    @Column(name = "client_ip", length = 45)
+    private String clientIp;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "exam_template_id")
@@ -99,6 +105,9 @@ public class Attempt {
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
+
+    public String getClientIp() { return clientIp; }
+    public void setClientIp(String clientIp) { this.clientIp = clientIp; }
 
     public ExamTemplate getExamTemplate() { return examTemplate; }
     public void setExamTemplate(ExamTemplate examTemplate) { this.examTemplate = examTemplate; }

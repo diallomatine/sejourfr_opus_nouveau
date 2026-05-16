@@ -309,6 +309,63 @@ export const billingApi = {
 };
 
 // ============================================================================
+// Endpoints Newsletter (publique)
+// ============================================================================
+
+export interface NewsletterSubscribeResponse {
+  email: string;
+  alreadySubscribed: boolean;
+}
+
+export const newsletterApi = {
+  // POST /api/newsletter/subscribe — à implémenter côté Java.
+  // Tant que l'endpoint n'existe pas, le 404 est renvoyé au caller qui affiche
+  // un message "service bientôt disponible". Même pattern que billingApi.
+  subscribe(
+    email: string,
+    source?: string
+  ): Promise<NewsletterSubscribeResponse> {
+    return apiFetch<NewsletterSubscribeResponse>("/api/newsletter/subscribe", {
+      method: "POST",
+      auth: false,
+      json: { email, source },
+    });
+  },
+};
+
+// ============================================================================
+// Endpoints Contact (publique)
+// ============================================================================
+
+export interface ContactSubmitRequest {
+  fullName: string;
+  email: string;
+  subject: string;
+  message: string;
+  consent: boolean;
+  /** Honeypot anti-bot — toujours "" pour un humain. */
+  website: string;
+}
+
+export interface ContactSubmitResponse {
+  ticketId: string;
+}
+
+export const contactApi = {
+  // POST /api/contact — à implémenter côté Java.
+  // Tant que l'endpoint n'existe pas, le 404 est renvoyé au caller qui affiche
+  // un message inline "service bientôt disponible". Même pattern que
+  // newsletterApi / billingApi.
+  submit(body: ContactSubmitRequest): Promise<ContactSubmitResponse> {
+    return apiFetch<ContactSubmitResponse>("/api/contact", {
+      method: "POST",
+      auth: false,
+      json: body,
+    });
+  },
+};
+
+// ============================================================================
 // Endpoints Examens blancs (vitrine publique)
 // ============================================================================
 
@@ -400,9 +457,8 @@ export const statsApi = {
 
 export const attemptApi = {
   start(body: StartAttemptRequest, opts: { auth?: boolean } = {}): Promise<AttemptResponse> {
-    // L'examen blanc démo permet de lancer un attempt sans être connecté
-    // (le backend a un endpoint public /api/attempts/demo pour ça si besoin).
-    // Sinon, l'endpoint /api/attempts exige un Bearer.
+    // Pour les visiteurs anonymes, utiliser `publicAttemptApi.startDemo` qui
+    // pointe sur /api/public/attempts/demo (gating IP + quota mensuel).
     return apiFetch<AttemptResponse>("/api/attempts", {
       method: "POST",
       json: body,
@@ -449,5 +505,69 @@ export const attemptApi = {
     return apiFetch<AttemptSummaryResponse[]>(`/api/me/attempts${suffix}`, {
       auth: true,
     });
+  },
+};
+
+// ============================================================================
+// Endpoints PUBLICS (démo guest, sans auth)
+// ============================================================================
+// Le backend gate par IP + 1 session TRAINING + 1 MOCK_EXAM par mois et par
+// module. Un quota dépassé remonte ici sous forme d'ApiException(status=429,
+// payload.error="DEMO_LIMIT_REACHED", payload.payload={ module, type }).
+
+export const publicThemeApi = {
+  list(module: ModuleEnum): Promise<ThemeUserResponse[]> {
+    return apiFetch<ThemeUserResponse[]>(
+      `/api/public/themes?module=${module}`,
+      { auth: false },
+    );
+  },
+};
+
+export const publicExamApi = {
+  list(module?: ModuleEnum): Promise<ExamTemplateSummary[]> {
+    const qs = module ? `?module=${module}` : "";
+    return apiFetch<ExamTemplateSummary[]>(`/api/public/exams${qs}`, {
+      auth: false,
+    });
+  },
+
+  getBySlug(slug: string): Promise<ExamTemplateSummary> {
+    return apiFetch<ExamTemplateSummary>(`/api/public/exams/${slug}`, {
+      auth: false,
+    });
+  },
+};
+
+export const publicAttemptApi = {
+  startDemo(body: StartAttemptRequest): Promise<AttemptResponse> {
+    return apiFetch<AttemptResponse>("/api/public/attempts/demo", {
+      method: "POST",
+      json: body,
+      auth: false,
+    });
+  },
+
+  getById(id: string): Promise<AttemptResponse> {
+    return apiFetch<AttemptResponse>(`/api/public/attempts/${id}`, {
+      auth: false,
+    });
+  },
+
+  submitAnswer(
+    attemptId: string,
+    body: SubmitAnswerRequest,
+  ): Promise<AnswerResultResponse> {
+    return apiFetch<AnswerResultResponse>(
+      `/api/public/attempts/${attemptId}/answers`,
+      { method: "POST", json: body, auth: false },
+    );
+  },
+
+  finish(attemptId: string): Promise<AttemptResponse> {
+    return apiFetch<AttemptResponse>(
+      `/api/public/attempts/${attemptId}/finish`,
+      { method: "POST", auth: false },
+    );
   },
 };

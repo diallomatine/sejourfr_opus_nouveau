@@ -7,143 +7,143 @@ import Link from "next/link";
  * (timer examen blanc + score). Calé sur la maquette landing-sejourfr.html.
  */
 export function HeroSection() {
-  return (
-    <section className="hero">
-      <div aria-hidden className="hero-halo hero-halo-blue" />
-      <div aria-hidden className="hero-halo hero-halo-red" />
+    return (
+        <section className="hero">
+            <div aria-hidden className="hero-halo hero-halo-blue"/>
+            <div aria-hidden className="hero-halo hero-halo-red"/>
 
-      <div className="container-x hero-inner">
-        <div className="hero-copy">
-          <div className="hero-badge">
-            <span className="dot" />
-            OBLIGATOIRE DEPUIS LE 1<sup>ER</sup> JANVIER 2026
-          </div>
-          <h1 className="hero-h1">
-            Réussissez votre <em>examen civique</em>{" "}
-            <span className="amp">&amp;</span>
-            <br />
-            votre <span className="accent">TCF</span> en confiance.
-          </h1>
-          <p className="hero-lede">
-            Entraînement par QCM, corrections expliquées, examens blancs en
-            conditions réelles. Pour la carte de séjour pluriannuelle, la
-            carte de résident et la naturalisation.
-          </p>
+            <div className="container-x hero-inner">
+                <div className="hero-copy">
+                    <div className="hero-badge">
+                        <span className="dot"/>
+                        OBLIGATOIRE DEPUIS LE 1<sup>ER</sup> JANVIER 2026
+                    </div>
+                    <h1 className="hero-h1">
+                        Réussissez votre <em>examen civique</em>{" "}
+                        <span className="amp">&amp;</span>
+                        <br/>
+                        votre <span className="accent">TCF</span> en confiance.
+                    </h1>
+                    <p className="hero-lede">
+                        Entraînement par QCM, corrections expliquées, examens blancs en
+                        conditions réelles. Pour la carte de séjour pluriannuelle, la
+                        carte de résident et la naturalisation.
+                    </p>
 
-          <div className="hero-ctas">
-            <Link href="/inscription" className="btn btn-lg hero-cta-primary">
-              Démarrer gratuitement
-              <span className="arrow">→</span>
-            </Link>
-            <Link href="#fonctionnalites" className="btn btn-lg hero-cta-ghost">
-              Voir comment ça marche
-            </Link>
-          </div>
+                    <div className="hero-ctas">
+                        <Link href="/entrainement" className="btn btn-lg hero-cta-primary">
+                            Démarrer gratuitement
+                            <span className="arrow">→</span>
+                        </Link>
+                        <Link href="#fonctionnalites" className="btn btn-lg hero-cta-ghost">
+                            Voir comment ça marche
+                        </Link>
+                    </div>
 
-          <div className="hero-trust">
-            <div className="hero-avatars" aria-hidden>
-              <span />
-              <span />
-              <span />
-              <span />
+                    <div className="hero-trust">
+                        <div className="hero-avatars" aria-hidden>
+                            <span/>
+                            <span/>
+                            <span/>
+                            <span/>
+                        </div>
+                        <p>
+                            Conçu avec des candidats au CSP, à la CR et à la{" "}
+                            <strong>naturalisation</strong>.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="hero-visual">
+                    <Qcard/>
+                    <FloatChip
+                        className="float-1"
+                        tone="blue"
+                        label="EXAMEN BLANC"
+                        value="42:38"
+                        icon="⏱"
+                    />
+                    <FloatChip
+                        className="float-2"
+                        tone="red"
+                        label="SCORE"
+                        value="34 / 40 ✓"
+                        icon="★"
+                    />
+                </div>
             </div>
-            <p>
-              Conçu avec des candidats au CSP, à la CR et à la{" "}
-              <strong>naturalisation</strong>.
-            </p>
-          </div>
-        </div>
 
-        <div className="hero-visual">
-          <Qcard />
-          <FloatChip
-            className="float-1"
-            tone="blue"
-            label="EXAMEN BLANC"
-            value="42:38"
-            icon="⏱"
-          />
-          <FloatChip
-            className="float-2"
-            tone="red"
-            label="SCORE"
-            value="34 / 40 ✓"
-            icon="★"
-          />
-        </div>
-      </div>
-
-      <style>{heroStyles}</style>
-    </section>
-  );
+            <style>{heroStyles}</style>
+        </section>
+    );
 }
 
 function Qcard() {
-  return (
-    <div className="qcard">
-      <div className="qcard-head">
-        <span className="qcard-tag">CIVIQUE · NAT</span>
-        <span className="qcard-progress">
+    return (
+        <div className="qcard">
+            <div className="qcard-head">
+                <span className="qcard-tag">CIVIQUE · NAT</span>
+                <span className="qcard-progress">
           Question <strong>14</strong> / 40
         </span>
-      </div>
-      <p className="qcard-q">
-        Quelle est la devise de la République française&nbsp;?
-      </p>
-      <div className="qcard-options">
-        <div className="qopt">
-          <span className="qopt-letter">A</span>
-          <span>Travail, Famille, Patrie</span>
-        </div>
-        <div className="qopt correct">
-          <span className="qopt-letter">B</span>
-          <span>Liberté, Égalité, Fraternité</span>
-          <span className="qopt-mark" aria-hidden>
+            </div>
+            <p className="qcard-q">
+                Quelle est la devise de la République française&nbsp;?
+            </p>
+            <div className="qcard-options">
+                <div className="qopt">
+                    <span className="qopt-letter">A</span>
+                    <span>Travail, Famille, Patrie</span>
+                </div>
+                <div className="qopt correct">
+                    <span className="qopt-letter">B</span>
+                    <span>Liberté, Égalité, Fraternité</span>
+                    <span className="qopt-mark" aria-hidden>
             ✓
           </span>
+                </div>
+                <div className="qopt">
+                    <span className="qopt-letter">C</span>
+                    <span>Unité, Justice, Paix</span>
+                </div>
+                <div className="qopt">
+                    <span className="qopt-letter">D</span>
+                    <span>République, Démocratie, Laïcité</span>
+                </div>
+            </div>
+            <div className="qcard-feedback">
+                <strong>Correct.</strong> Cette devise apparaît dès la Révolution
+                française et est officiellement adoptée par la Troisième République.
+                Elle figure à l&apos;article 2 de la Constitution.
+            </div>
         </div>
-        <div className="qopt">
-          <span className="qopt-letter">C</span>
-          <span>Unité, Justice, Paix</span>
-        </div>
-        <div className="qopt">
-          <span className="qopt-letter">D</span>
-          <span>République, Démocratie, Laïcité</span>
-        </div>
-      </div>
-      <div className="qcard-feedback">
-        <strong>Correct.</strong> Cette devise apparaît dès la Révolution
-        française et est officiellement adoptée par la Troisième République.
-        Elle figure à l&apos;article 2 de la Constitution.
-      </div>
-    </div>
-  );
+    );
 }
 
 function FloatChip({
-  className,
-  tone,
-  label,
-  value,
-  icon,
-}: {
-  className: string;
-  tone: "blue" | "red";
-  label: string;
-  value: string;
-  icon: string;
+                       className,
+                       tone,
+                       label,
+                       value,
+                       icon,
+                   }: {
+    className: string;
+    tone: "blue" | "red";
+    label: string;
+    value: string;
+    icon: string;
 }) {
-  return (
-    <div className={`float-chip ${className}`}>
+    return (
+        <div className={`float-chip ${className}`}>
       <span className={`chip-icon chip-${tone}`} aria-hidden>
         {icon}
       </span>
-      <span className="chip-text">
+            <span className="chip-text">
         <span className="chip-label">{label}</span>
         <span className="chip-value">{value}</span>
       </span>
-    </div>
-  );
+        </div>
+    );
 }
 
 const heroStyles = `

@@ -71,6 +71,109 @@ public class AttemptService {
     // Création
     // ------------------------------------------------------------------------
 
+    /**
+     * Démarre un attempt "démo guest" (visiteur non authentifié, cf.
+     * PublicAttemptService). La taille / durée sont fixées comme pour le mode
+     * démo des comptes gratuits :
+     * - TRAINING : {@link #FREE_TRAINING_MAX_SIZE} questions tirées du pool démo.
+     * - MOCK_EXAM : taille / chrono / seuil standard du module.
+     * <p>
+     * Aucune vérification de quota n'est faite ici : c'est la responsabilité
+     * de {@code PublicAttemptService.startDemo} (qui rejette en 429 si besoin
+     * avant d'appeler cette méthode).
+     */
+    @Transactional
+    public AttemptResponse startGuestDemo(StartAttemptRequest req, String clientIp) {
+        // La validation du type (TRAINING / MOCK_EXAM uniquement) est faite
+        // côté PublicAttemptService — ici on suppose l'invariant respecté.
+        int size;
+        Integer timeLimit = null;
+        Integer threshold = null;
+        List<Question> questions;
+
+        if (req.type() == AttemptType.MOCK_EXAM) {
+            if (req.module() == Module.CIVIQUE) {
+                size = CIVIQUE_EXAM_SIZE;
+                timeLimit = CIVIQUE_EXAM_TIME;
+                threshold = CIVIQUE_EXAM_THRESHOLD;
+            } else {
+                size = TCF_EXAM_SIZE;
+                timeLimit = TCF_EXAM_TIME;
+            }
+            // MOCK_EXAM guest = tirage aléatoire dans le module (pas via ExamTemplate
+            // pour ne pas exposer les règles fines aux visiteurs ; comportement
+            // équivalent à start() en MOCK_EXAM sans template).
+            questions = questionRepository.findRandom(
+                    req.module(), null, null, null, PageRequest.of(0, size)
+            );
+        } else {
+            size = FREE_TRAINING_MAX_SIZE;
+            questions = questionRepository.findDemoPool(req.module(), PageRequest.of(0, size));
+        }
+
+        if (questions.isEmpty()) {
+            throw new IllegalStateException("Aucune question disponible pour ces critères");
+        }
+
+        Attempt attempt = new Attempt();
+        // user = null (guest)
+        attempt.setClientIp(clientIp);
+        attempt.setType(req.type());
+        attempt.setModule(req.module());
+        attempt.setTotalQuestions(questions.size());
+        attempt.setTimeLimitSeconds(timeLimit);
+        attempt.setPassThreshold(threshold);
+        attempt.setStartedAt(Instant.now());
+        attempt = attemptRepository.save(attempt);
+
+        List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
+        return toAttemptResponse(attempt, aqList, false);
+    }
+
+    /**
+     * Lookup d'un attempt guest pour la branche publique. Renvoie l'attempt
+     * SEULEMENT si user IS NULL ET client_ip matche. Toute non-correspondance
+     * (id inexistant, attempt d'un user, autre IP) est traitée en 404 par
+     * l'appelant pour ne pas révéler l'existence.
+     */
+    @Transactional(readOnly = true)
+    public Attempt loadGuestAttempt(UUID attemptId, String clientIp) {
+        return attemptRepository.findByIdAndClientIpAndUserIsNull(attemptId, clientIp)
+                .orElseThrow(() -> new EntityNotFoundException("Session introuvable"));
+    }
+
+    /**
+     * Variante de {@link #getById(UUID, UUID)} sans contrôle user (l'appelant
+     * a déjà validé l'IP via {@link #loadGuestAttempt}).
+     */
+    @Transactional(readOnly = true)
+    public AttemptResponse readAttempt(Attempt attempt) {
+        List<AttemptQuestion> aqs =
+                attemptQuestionRepository.findByAttemptIdOrderByPositionAsc(attempt.getId());
+        boolean revealCorrect = attempt.getFinishedAt() != null;
+        return toAttemptResponse(attempt, aqs, revealCorrect);
+    }
+
+    /**
+     * Variante de {@link #submitAnswer(UUID, UUID, SubmitAnswerRequest)} qui
+     * skip le contrôle user (déjà fait via IP côté guest).
+     */
+    @Transactional
+    public AnswerResultResponse submitAnswerForAttempt(Attempt attempt, SubmitAnswerRequest req) {
+        if (attempt.getFinishedAt() != null) {
+            throw new IllegalStateException("Session déjà terminée");
+        }
+        return doSubmitAnswer(attempt, req);
+    }
+
+    /**
+     * Variante de {@link #finish(UUID, UUID)} qui skip le contrôle user.
+     */
+    @Transactional
+    public AttemptResponse finishAttempt(Attempt attempt) {
+        return doFinish(attempt);
+    }
+
     @Transactional
     public AttemptResponse start(UUID userId, StartAttemptRequest req) {
         User user = userRepository.findById(userId)
@@ -281,11 +384,14 @@ public class AttemptService {
         if (attempt.getFinishedAt() != null) {
             throw new IllegalStateException("Session déjà terminée");
         }
+        return doSubmitAnswer(attempt, req);
+    }
 
+    private AnswerResultResponse doSubmitAnswer(Attempt attempt, SubmitAnswerRequest req) {
         AttemptQuestion aq = attemptQuestionRepository.findById(req.attemptQuestionId())
                 .orElseThrow(() -> new EntityNotFoundException("Question introuvable dans la session"));
 
-        if (!aq.getAttempt().getId().equals(attemptId)) {
+        if (!aq.getAttempt().getId().equals(attempt.getId())) {
             throw new IllegalArgumentException("Cette question n'appartient pas à cette session");
         }
 
@@ -329,6 +435,11 @@ public class AttemptService {
     @Transactional
     public AttemptResponse finish(UUID userId, UUID attemptId) {
         Attempt attempt = loadAndCheck(userId, attemptId);
+        return doFinish(attempt);
+    }
+
+    private AttemptResponse doFinish(Attempt attempt) {
+        UUID attemptId = attempt.getId();
         if (attempt.getFinishedAt() != null) {
             // Idempotent : on renvoie l'état actuel
             List<AttemptQuestion> aqs =
@@ -420,7 +531,9 @@ public class AttemptService {
     private Attempt loadAndCheck(UUID userId, UUID attemptId) {
         Attempt attempt = attemptRepository.findById(attemptId)
                 .orElseThrow(() -> new EntityNotFoundException("Session introuvable"));
-        if (!attempt.getUser().getId().equals(userId)) {
+        // Un attempt sans user (démo guest, cf. PublicAttemptService) ne peut
+        // pas appartenir à un user connecté.
+        if (attempt.getUser() == null || !attempt.getUser().getId().equals(userId)) {
             throw new AccessDeniedException("Cette session ne vous appartient pas");
         }
         return attempt;

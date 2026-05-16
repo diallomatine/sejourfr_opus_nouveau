@@ -3,6 +3,7 @@ import { Fraunces, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { MobileAppBanner } from "./_components/MobileAppPromo";
 import { SiteHeader } from "./_components/SiteHeader";
+import { Footer } from "./_components/Footer";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -52,6 +53,7 @@ export default function RootLayout({
           <MobileAppBanner />
           <SiteHeader />
           {children}
+          <Footer />
         </AuthProvider>
       </body>
     </html>

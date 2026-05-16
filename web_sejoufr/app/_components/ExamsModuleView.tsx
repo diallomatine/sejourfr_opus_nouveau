@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { ApiException, attemptApi, examApi } from "@/lib/api";
@@ -23,6 +24,7 @@ import {
  */
 export function ExamsModuleView({ module }: { module: ModuleEnum }) {
   const { user, status } = useAuth();
+  const router = useRouter();
   const isCivique = module === "CIVIQUE";
   const tone: "blue" | "red" = isCivique ? "blue" : "red";
 
@@ -31,6 +33,15 @@ export function ExamsModuleView({ module }: { module: ModuleEnum }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
+
+  // Guests : on les renvoie sur le hub /examens-blancs (qui expose les
+  // 2 modules en démo). Les sous-routes /civique et /tcf sont conçues pour
+  // l'espace connecté (stats par module).
+  useEffect(() => {
+    if (status === "guest") {
+      router.replace("/examens-blancs");
+    }
+  }, [status, router]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -114,18 +125,7 @@ export function ExamsModuleView({ module }: { module: ModuleEnum }) {
     return { featured, others };
   }, [exams, user, isCivique]);
 
-  if (status === "loading") return <ModuleSkeleton />;
-  if (!user) {
-    return (
-      <main className="mod-gate">
-        <p>Connectez-vous pour passer un examen blanc.</p>
-        <Link href={`/connexion?next=/examens-blancs/${isCivique ? "civique" : "tcf"}`} className="mod-gate-cta">
-          Se connecter →
-        </Link>
-        <style>{gateStyles}</style>
-      </main>
-    );
-  }
+  if (status === "loading" || status === "guest" || !user) return <ModuleSkeleton />;
 
   const isLocked = (e: ExamTemplateSummary) => {
     if (e.free) return false;
@@ -494,19 +494,6 @@ function FeaturedSkeleton() {
     </div>
   );
 }
-
-const gateStyles = `
-  .mod-gate {
-    min-height: 60vh;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 14px;
-    color: var(--color-muted);
-    padding: 36px;
-  }
-  .mod-gate-cta {
-    color: var(--color-blue); font-weight: 700; text-decoration: none;
-  }
-`;
 
 // ============================================================================
 // ICONS

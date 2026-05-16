@@ -43,6 +43,29 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage(), req, null);
     }
 
+    @ExceptionHandler(DemoLimitReachedException.class)
+    public ResponseEntity<Map<String, Object>> handleDemoLimit(
+            DemoLimitReachedException e,
+            WebRequest req
+    ) {
+        // 429 dédié pour le quota démo guest : le front s'en sert pour pousser
+        // l'inscription. Le payload reprend module + type pour permettre un
+        // message ciblé côté UI.
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("timestamp", Instant.now().toString());
+        body.put("status", HttpStatus.TOO_MANY_REQUESTS.value());
+        body.put("error", "DEMO_LIMIT_REACHED");
+        body.put("message",
+                "Vous avez déjà utilisé votre démo gratuite pour ce module ce mois-ci. "
+                + "Créez un compte pour continuer.");
+        body.put("path", req.getDescription(false).replace("uri=", ""));
+        body.put("payload", Map.of(
+                "module", e.getModule().name(),
+                "type", e.getAttemptType().name()
+        ));
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleForbidden(AccessDeniedException e, WebRequest req) {
         return build(HttpStatus.FORBIDDEN, e.getMessage(), req, null);

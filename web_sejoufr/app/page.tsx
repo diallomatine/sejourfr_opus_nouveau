@@ -1,4 +1,3 @@
-import { Footer } from "./_components/Footer";
 import { HeroSection } from "./_components/HeroSection";
 import {
   TrustStrip,
@@ -27,7 +26,6 @@ export default function HomePage() {
         <FaqSection />
         <FinalCtaSection />
       </main>
-      <Footer />
     </>
   );
 }

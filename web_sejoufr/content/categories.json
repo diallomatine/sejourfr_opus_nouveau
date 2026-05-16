@@ -1,0 +1,26 @@
+{
+  "titre-de-sejour": {
+    "name": "Titre de séjour",
+    "slug": "titre-de-sejour",
+    "color": "blue",
+    "description": "Tout ce qu'il faut savoir sur les titres de séjour en France"
+  },
+  "naturalisation": {
+    "name": "Naturalisation",
+    "slug": "naturalisation",
+    "color": "red",
+    "description": "Le parcours pour devenir français"
+  },
+  "actualite": {
+    "name": "Actualité",
+    "slug": "actualite",
+    "color": "amber",
+    "description": "L'actualité juridique de l'immigration et de la naturalisation"
+  },
+  "conseils": {
+    "name": "Conseils",
+    "slug": "conseils",
+    "color": "indigo",
+    "description": "Méthodes et conseils pour réussir vos démarches"
+  }
+}

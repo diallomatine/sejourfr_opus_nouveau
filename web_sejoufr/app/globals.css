@@ -270,3 +270,168 @@ a {
   padding: 10px 14px;
   font-size: 13.5px;
 }
+
+/* ============================================================================
+   MDX prose (blog) — typographie longue du contenu d'article
+   ============================================================================ */
+.mdx-prose {
+  color: var(--color-ink-2);
+  font-size: 16.5px;
+  line-height: 1.7;
+}
+@media (min-width: 1024px) {
+  .mdx-prose {
+    font-size: 17.5px;
+  }
+}
+.mdx-prose h2,
+.mdx-prose h3,
+.mdx-prose h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  scroll-margin-top: 96px;
+}
+.mdx-prose h2 {
+  font-size: 26px;
+  line-height: 1.2;
+  margin: 44px 0 16px;
+}
+@media (min-width: 1024px) {
+  .mdx-prose h2 {
+    font-size: 32px;
+    margin: 56px 0 20px;
+  }
+}
+.mdx-prose h3 {
+  font-size: 21px;
+  line-height: 1.25;
+  margin: 32px 0 12px;
+}
+@media (min-width: 1024px) {
+  .mdx-prose h3 {
+    font-size: 24px;
+    margin: 40px 0 14px;
+  }
+}
+.mdx-prose h4 {
+  font-size: 18px;
+  line-height: 1.3;
+  margin: 24px 0 10px;
+}
+@media (min-width: 1024px) {
+  .mdx-prose h4 {
+    font-size: 20px;
+    margin: 32px 0 12px;
+  }
+}
+.mdx-prose p {
+  margin: 0 0 20px;
+}
+@media (min-width: 1024px) {
+  .mdx-prose p {
+    margin: 0 0 24px;
+  }
+}
+.mdx-prose strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+.mdx-prose em {
+  font-style: italic;
+}
+.mdx-prose a {
+  color: var(--color-blue);
+  text-decoration: underline;
+  text-decoration-color: rgba(30, 58, 140, 0.3);
+  text-underline-offset: 2px;
+  transition: text-decoration-color 0.15s;
+}
+.mdx-prose a:hover {
+  text-decoration-color: var(--color-blue);
+}
+.mdx-prose ul,
+.mdx-prose ol {
+  margin: 20px 0 24px;
+  padding-left: 24px;
+}
+.mdx-prose li {
+  margin-bottom: 8px;
+  line-height: 1.65;
+}
+.mdx-prose li::marker {
+  color: var(--color-blue);
+}
+.mdx-prose ol li::marker {
+  font-weight: 600;
+}
+.mdx-prose blockquote {
+  margin: 24px 0;
+  padding: 4px 0 4px 20px;
+  border-left: 4px solid var(--color-line);
+  font-style: italic;
+  color: var(--color-muted);
+}
+.mdx-prose hr {
+  margin: 40px 0;
+  border: 0;
+  border-top: 1px solid var(--color-line);
+}
+.mdx-prose code {
+  background: var(--color-paper-2);
+  color: var(--color-blue);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+.mdx-prose pre {
+  margin: 24px 0;
+  padding: 18px;
+  border-radius: 12px;
+  background: var(--color-ink);
+  color: #fff;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.mdx-prose pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+.mdx-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+  font-size: 15px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+}
+.mdx-prose th {
+  background: var(--color-paper-2);
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-ink);
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-line);
+}
+.mdx-prose td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-line-2);
+  vertical-align: top;
+  color: var(--color-ink-2);
+}
+.mdx-prose tr:last-child td {
+  border-bottom: 0;
+}
+.mdx-prose .heading-anchor {
+  color: inherit;
+  text-decoration: none;
+}
+.mdx-prose .heading-anchor:hover {
+  text-decoration: none;
+}

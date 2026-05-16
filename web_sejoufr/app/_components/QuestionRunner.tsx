@@ -13,9 +13,28 @@ import type {
   AttemptQuestionResponse,
   AttemptResponse,
   Module as ModuleEnum,
+  StartAttemptRequest,
+  SubmitAnswerRequest,
 } from "@/lib/types";
 
 export type RunnerMode = "training" | "exam";
+
+/**
+ * Backend adapters injectables : permettent de faire tourner le même runner
+ * en mode connecté (auth API) et en mode démo guest (public API). Par défaut,
+ * le runner utilise les endpoints authentifiés.
+ */
+export interface RunnerBackend {
+  submitAnswer: (
+    attemptId: string,
+    body: SubmitAnswerRequest,
+  ) => Promise<AnswerResultResponse>;
+  finish: (attemptId: string) => Promise<AttemptResponse>;
+  /** Extension training infinite. Null = pas d'extension supportée (démo guest). */
+  extend?: (body: StartAttemptRequest) => Promise<AttemptResponse>;
+  /** Toggle favori. Optionnel : la démo guest passe null pour cacher l'icône. */
+  toggleFavorite?: (questionId: string, isCurrentlyFavorite: boolean) => Promise<void>;
+}
 
 export interface QuestionRunnerProps {
   initialAttempt: AttemptResponse;
@@ -36,7 +55,19 @@ export interface QuestionRunnerProps {
   timeLimitSeconds?: number;
   /** Mode exam : timestamp ISO de démarrage de l'attempt (pour recaler après reload). */
   startedAt?: string;
+  /** Backend adapter : par défaut, endpoints authentifiés. La démo guest injecte les endpoints publics. */
+  backend?: RunnerBackend;
 }
+
+const DEFAULT_BACKEND: RunnerBackend = {
+  submitAnswer: (id, body) => attemptApi.submitAnswer(id, body),
+  finish: (id) => attemptApi.finish(id),
+  extend: (body) => attemptApi.start(body),
+  toggleFavorite: async (qid, wasFav) => {
+    if (wasFav) await userContentApi.removeFavorite(qid);
+    else await userContentApi.addFavorite(qid);
+  },
+};
 
 interface RunnerState {
   /** Liste cumulée des questions (un seul batch en exam, plusieurs en training infini). */
@@ -69,7 +100,9 @@ export function QuestionRunner({
   onCompleted,
   timeLimitSeconds,
   startedAt,
+  backend = DEFAULT_BACKEND,
 }: QuestionRunnerProps) {
+  const favoritesEnabled = backend.toggleFavorite !== undefined;
   const [state, setState] = useState<RunnerState>(() => {
     const firstUnanswered = initialAttempt.questions.findIndex((q) => !q.answered);
     const startIndex =
@@ -141,7 +174,7 @@ export function QuestionRunner({
 
     setState((s) => ({ ...s, submitting: true, error: null }));
     try {
-      const res = await attemptApi.submitAnswer(attemptIdForQ, {
+      const res = await backend.submitAnswer(attemptIdForQ, {
         attemptQuestionId: q.id,
         choiceIds,
       });
@@ -150,13 +183,13 @@ export function QuestionRunner({
       const msg = e instanceof ApiException ? e.message : "Erreur lors de la soumission.";
       setState((s) => ({ ...s, submitting: false, error: msg }));
     }
-  }, [state.questions, state.currentIndex, state.answersByQuestion, state.attemptIdByQuestionId]);
+  }, [backend, state.questions, state.currentIndex, state.answersByQuestion, state.attemptIdByQuestionId]);
 
   const extendBatch = useCallback(async () => {
-    if (!infinite || !extensionParams) return false;
+    if (!infinite || !extensionParams || !backend.extend) return false;
     setState((s) => ({ ...s, extending: true, error: null }));
     try {
-      const newAttempt = await attemptApi.start({
+      const newAttempt = await backend.extend({
         type: "TRAINING",
         module: extensionParams.module,
         themeId: extensionParams.themeId,
@@ -186,19 +219,19 @@ export function QuestionRunner({
       setState((s) => ({ ...s, extending: false, error: msg }));
       return false;
     }
-  }, [infinite, extensionParams]);
+  }, [infinite, extensionParams, backend]);
 
   const finishCurrentAttempt = useCallback(async () => {
     setState((s) => ({ ...s, submitting: true, error: null }));
     try {
-      const finalAttempt = await attemptApi.finish(state.activeAttempt.id);
+      const finalAttempt = await backend.finish(state.activeAttempt.id);
       setState((s) => ({ ...s, submitting: false, activeAttempt: finalAttempt }));
       onCompleted(finalAttempt);
     } catch (e) {
       const msg = e instanceof ApiException ? e.message : "Erreur lors de la finalisation.";
       setState((s) => ({ ...s, submitting: false, error: msg }));
     }
-  }, [state.activeAttempt.id, onCompleted]);
+  }, [backend, state.activeAttempt.id, onCompleted]);
 
   // ============== TIMER (mode exam) ==============
   // Calcule le temps restant à partir de startedAt + timeLimitSeconds. Tient
@@ -268,7 +301,7 @@ export function QuestionRunner({
   }, [mode, selected.length, submitCurrent, goNext]);
 
   const toggleFavorite = useCallback(async () => {
-    if (!current) return;
+    if (!current || !backend.toggleFavorite) return;
     const qid = current.question.id;
     const wasFav = state.favoriteIds.has(qid);
     // Optimistic
@@ -279,8 +312,7 @@ export function QuestionRunner({
       return { ...s, favoriteIds: next };
     });
     try {
-      if (wasFav) await userContentApi.removeFavorite(qid);
-      else await userContentApi.addFavorite(qid);
+      await backend.toggleFavorite(qid, wasFav);
     } catch {
       // Rollback silencieux
       setState((s) => {
@@ -290,7 +322,7 @@ export function QuestionRunner({
         return { ...s, favoriteIds: reverted };
       });
     }
-  }, [current, state.favoriteIds]);
+  }, [backend, current, state.favoriteIds]);
 
   // Prefetch du batch suivant dès qu'on entre sur l'avant-dernière question
   // en mode infinite, pour que le passage soit instantané.
@@ -347,14 +379,14 @@ export function QuestionRunner({
         goPrevious();
         return;
       }
-      if (e.key === "b" || e.key === "B") {
+      if ((e.key === "b" || e.key === "B") && favoritesEnabled) {
         e.preventDefault();
         void toggleFavorite();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [current, hasFeedback, mode, selected.length, submitCurrent, onClickNext, goPrevious, toggleFavorite, toggleChoice]);
+  }, [current, hasFeedback, mode, selected.length, submitCurrent, onClickNext, goPrevious, toggleFavorite, toggleChoice, favoritesEnabled]);
 
   if (!current) {
     return (
@@ -390,15 +422,17 @@ export function QuestionRunner({
             </span>
           </div>
           <div className="qr-topbar-actions">
-            <button
-              type="button"
-              className={`qr-bookmark ${isCurrentFavorite ? "is-on" : ""}`}
-              onClick={toggleFavorite}
-              aria-label={isCurrentFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
-              title="Favori (B)"
-            >
-              {isCurrentFavorite ? <BookmarkFilled /> : <BookmarkOutline />}
-            </button>
+            {favoritesEnabled && (
+              <button
+                type="button"
+                className={`qr-bookmark ${isCurrentFavorite ? "is-on" : ""}`}
+                onClick={toggleFavorite}
+                aria-label={isCurrentFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                title="Favori (B)"
+              >
+                {isCurrentFavorite ? <BookmarkFilled /> : <BookmarkOutline />}
+              </button>
+            )}
             {timerActive && secondsLeft !== null ? (
               <ExamTimerBadge secondsLeft={secondsLeft} />
             ) : (
@@ -551,7 +585,8 @@ export function QuestionRunner({
 
         {/* Astuce raccourcis (discret) */}
         <div className="qr-tips" aria-hidden>
-          <span>1-4</span> choix · <span>Entrée</span> valider · <span>←/→</span> nav · <span>B</span> favori
+          <span>1-4</span> choix · <span>Entrée</span> valider · <span>←/→</span> nav
+          {favoritesEnabled && <> · <span>B</span> favori</>}
         </div>
       </div>
 

@@ -1,30 +1,30 @@
 import Link from "next/link";
-import { billingApi } from "@/lib/api";
-import type { PlanPublicResponse } from "@/lib/types";
+import {billingApi} from "@/lib/api";
+import type {PlanPublicResponse} from "@/lib/types";
 
 // ============================================================================
 // STATS STRIP — bandeau de 4 chiffres clés, juste sous le hero
 // ============================================================================
 export function TrustStrip() {
-  const stats = [
-    { num: "2 500+", label: "Questions disponibles" },
-    { num: "6", label: "Niveaux × mentions" },
-    { num: "100 %", label: "Hors-ligne sur mobile" },
-    { num: "32/40", label: "Seuil officiel civique" },
-  ];
-  return (
-    <section className="trust-strip">
-      <div className="container-x">
-        <div className="trust-grid">
-          {stats.map((s) => (
-            <div className="trust-item" key={s.label}>
-              <div className="trust-num">{s.num}</div>
-              <div className="trust-label">{s.label}</div>
+    const stats = [
+        {num: "2 500+", label: "Questions disponibles"},
+        {num: "6", label: "Niveaux × mentions"},
+        {num: "100 %", label: "Hors-ligne sur mobile"},
+        {num: "32/40", label: "Seuil officiel civique"},
+    ];
+    return (
+        <section className="trust-strip">
+            <div className="container-x">
+                <div className="trust-grid">
+                    {stats.map((s) => (
+                        <div className="trust-item" key={s.label}>
+                            <div className="trust-num">{s.num}</div>
+                            <div className="trust-label">{s.label}</div>
+                        </div>
+                    ))}
+                </div>
             </div>
-          ))}
-        </div>
-      </div>
-      <style>{`
+            <style>{`
         .trust-strip {
           border-top: 1px solid var(--color-line);
           border-bottom: 1px solid var(--color-line);
@@ -55,28 +55,28 @@ export function TrustStrip() {
           .trust-grid { grid-template-columns: repeat(2, 1fr); gap: 28px; }
         }
       `}</style>
-    </section>
-  );
+        </section>
+    );
 }
 
 // ============================================================================
 // SectionHead — titre éditorial réutilisable
 // ============================================================================
 function SectionHead({
-  eyebrow,
-  children,
-  sub,
-}: {
-  eyebrow: string;
-  children: React.ReactNode;
-  sub?: string;
+                         eyebrow,
+                         children,
+                         sub,
+                     }: {
+    eyebrow: string;
+    children: React.ReactNode;
+    sub?: string;
 }) {
-  return (
-    <div className="sec-head">
-      <span className="eyebrow">{eyebrow}</span>
-      <h2 className="sec-h2">{children}</h2>
-      {sub && <p className="sec-sub">{sub}</p>}
-      <style>{`
+    return (
+        <div className="sec-head">
+            <span className="eyebrow">{eyebrow}</span>
+            <h2 className="sec-h2">{children}</h2>
+            {sub && <p className="sec-sub">{sub}</p>}
+            <style>{`
         .sec-head {
           max-width: 720px;
           margin: 0 auto 60px;
@@ -104,110 +104,112 @@ function SectionHead({
           line-height: 1.55;
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 }
 
 // ============================================================================
 // EXAMS — Civique + TCF cards avec meta-grid + checklist
 // ============================================================================
 export function ExamsSection() {
-  return (
-    <section id="examens" className="exams-sec">
-      <div className="container-x">
-        <SectionHead
-          eyebrow="DEUX EXAMENS, UNE SEULE APP"
-          sub="Tous les contenus sont calés sur les référentiels officiels. Les examens blancs reproduisent les conditions du jour J : durée, nombre de questions, seuil de réussite."
-        >
-          Préparez l&apos;<em>examen civique</em> et le <em>TCF</em> sans
-          changer d&apos;outil.
-        </SectionHead>
+    return (
+        <section id="examens" className="exams-sec">
+            <div className="container-x">
+                <SectionHead
+                    eyebrow="DEUX EXAMENS, UNE SEULE APP"
+                    sub="Tous les contenus sont calés sur les référentiels officiels. Les examens blancs reproduisent les conditions du jour J : durée, nombre de questions, seuil de réussite."
+                >
+                    Préparez l&apos;<em>examen civique</em> et le <em>TCF</em> sans
+                    changer d&apos;outil.
+                </SectionHead>
 
-        <div className="exams-grid">
-          {/* CIVIQUE */}
-          <article className="exam-card civique">
-            <span className="exam-tag civique">EXAMEN CIVIQUE</span>
-            <h3 className="exam-h3">
-              Connaissance des valeurs et principes de la République
-            </h3>
-            <p className="exam-sub">
-              Obligatoire pour la carte de séjour pluriannuelle, la carte de
-              résident et la naturalisation depuis le 1<sup>er</sup> janvier
-              2026.
-            </p>
+                <div className="exams-grid">
+                    {/* CIVIQUE */}
+                    <article className="exam-card civique">
+                        <span className="exam-tag civique">EXAMEN CIVIQUE</span>
+                        <h3 className="exam-h3">
+                            Connaissance des valeurs et principes de la République
+                        </h3>
+                        <p className="exam-sub">
+                            Obligatoire pour la carte de séjour pluriannuelle, la carte de
+                            résident et la naturalisation depuis le 1<sup>er</sup> janvier
+                            2026.
+                        </p>
 
-            <div className="exam-meta">
-              <div className="meta-item">
-                <div className="meta-label">QUESTIONS</div>
-                <div className="meta-value">40 QCM</div>
-              </div>
-              <div className="meta-item">
-                <div className="meta-label">DURÉE</div>
-                <div className="meta-value">45 min</div>
-              </div>
-              <div className="meta-item">
-                <div className="meta-label">SEUIL</div>
-                <div className="meta-value">32 / 40</div>
-              </div>
+                        <div className="exam-meta">
+                            <div className="meta-item">
+                                <div className="meta-label">QUESTIONS</div>
+                                <div className="meta-value">40 QCM</div>
+                            </div>
+                            <div className="meta-item">
+                                <div className="meta-label">DURÉE</div>
+                                <div className="meta-value">45 min</div>
+                            </div>
+                            <div className="meta-item">
+                                <div className="meta-label">SEUIL</div>
+                                <div className="meta-value">32 / 40</div>
+                            </div>
+                        </div>
+
+                        <ul className="exam-list civique">
+                            <li><span className="num">01</span> Principes et valeurs de la République</li>
+                            <li><span className="num">02</span> Système institutionnel et politique</li>
+                            <li><span className="num">03</span> Droits et devoirs</li>
+                            <li><span className="num">04</span> Histoire, géographie et culture</li>
+                            <li><span className="num">05</span> Vivre dans la société française</li>
+                        </ul>
+
+                        <Link href="/entrainement" className="btn exam-cta">
+                            S&apos;entraîner au civique
+                            <span className="arrow">→</span>
+                        </Link>
+                    </article>
+
+                    {/* TCF */}
+                    <article className="exam-card tcf" id="tcf">
+                        <span className="exam-tag tcf">TCF IRN</span>
+                        <h3 className="exam-h3">
+                            Test de connaissance du français pour l&apos;intégration
+                        </h3>
+                        <p className="exam-sub">
+                            Niveau requis selon votre démarche : A2 pour la CSP, B1 pour la
+                            CR, B2 pour la naturalisation.
+                        </p>
+
+                        <div className="exam-meta">
+                            <div className="meta-item">
+                                <div className="meta-label">CSP</div>
+                                <div className="meta-value">A2</div>
+                            </div>
+                            <div className="meta-item">
+                                <div className="meta-label">CR</div>
+                                <div className="meta-value">B1</div>
+                            </div>
+                            <div className="meta-item">
+                                <div className="meta-label">NATURALISATION</div>
+                                <div className="meta-value">B2</div>
+                            </div>
+                        </div>
+
+                        <ul className="exam-list tcf">
+                            <li><span className="num">01</span> Compréhension orale (25 QCM · 20 min)</li>
+                            <li><span className="num">02</span> Compréhension écrite (25 QCM · 35 min)</li>
+                            <li><span className="num">03</span> Structure de la langue<span className="bonus">entraînement bonus</span>
+                            </li>
+                            <li><span className="num">04</span> Supports authentiques : SMS, e-mails, annonces
+                            </li>
+                            <li><span className="num">05</span> Audios natifs avec accents variés</li>
+                        </ul>
+
+                        <Link href="/entrainement" className="btn exam-cta exam-cta-red">
+                            S&apos;entraîner au TCF
+                            <span className="arrow">→</span>
+                        </Link>
+                    </article>
+                </div>
             </div>
 
-            <ul className="exam-list civique">
-              <li><span className="num">01</span> Principes et valeurs de la République</li>
-              <li><span className="num">02</span> Système institutionnel et politique</li>
-              <li><span className="num">03</span> Droits et devoirs</li>
-              <li><span className="num">04</span> Histoire, géographie et culture</li>
-              <li><span className="num">05</span> Vivre dans la société française</li>
-            </ul>
-
-            <Link href="/inscription" className="btn exam-cta">
-              S&apos;entraîner au civique
-              <span className="arrow">→</span>
-            </Link>
-          </article>
-
-          {/* TCF */}
-          <article className="exam-card tcf" id="tcf">
-            <span className="exam-tag tcf">TCF IRN</span>
-            <h3 className="exam-h3">
-              Test de connaissance du français pour l&apos;intégration
-            </h3>
-            <p className="exam-sub">
-              Niveau requis selon votre démarche : A2 pour la CSP, B1 pour la
-              CR, B2 pour la naturalisation.
-            </p>
-
-            <div className="exam-meta">
-              <div className="meta-item">
-                <div className="meta-label">CSP</div>
-                <div className="meta-value">A2</div>
-              </div>
-              <div className="meta-item">
-                <div className="meta-label">CR</div>
-                <div className="meta-value">B1</div>
-              </div>
-              <div className="meta-item">
-                <div className="meta-label">NATURALISATION</div>
-                <div className="meta-value">B2</div>
-              </div>
-            </div>
-
-            <ul className="exam-list tcf">
-              <li><span className="num">01</span> Compréhension orale (25 QCM · 20 min)</li>
-              <li><span className="num">02</span> Compréhension écrite (25 QCM · 35 min)</li>
-              <li><span className="num">03</span> Structure de la langue<span className="bonus">entraînement bonus</span></li>
-              <li><span className="num">04</span> Supports authentiques : SMS, e-mails, annonces</li>
-              <li><span className="num">05</span> Audios natifs avec accents variés</li>
-            </ul>
-
-            <Link href="/inscription" className="btn exam-cta exam-cta-red">
-              S&apos;entraîner au TCF
-              <span className="arrow">→</span>
-            </Link>
-          </article>
-        </div>
-      </div>
-
-      <style>{`
+            <style>{`
         .exams-sec { padding: 100px 0; background: #fff; }
         .exams-grid {
           display: grid;
@@ -333,87 +335,87 @@ export function ExamsSection() {
           .exams-sec { padding: 70px 0; }
         }
       `}</style>
-    </section>
-  );
+        </section>
+    );
 }
 
 // ============================================================================
 // FEATURES — 6 cells avec icônes
 // ============================================================================
 export function ProblemSection() {
-  // (Conservé sous ce nom pour ne pas casser l'import depuis page.tsx.)
-  const feats: {
-    tone: "blue" | "red" | "green" | "amber";
-    icon: React.ReactNode;
-    title: string;
-    body: string;
-  }[] = [
-    {
-      tone: "blue",
-      icon: <CheckIcon />,
-      title: "Correction expliquée",
-      body:
-        "Après chaque question, on vous explique la règle et pourquoi les autres réponses sont fausses. Une à une.",
-    },
-    {
-      tone: "red",
-      icon: <ClockIcon />,
-      title: "Examens blancs réalistes",
-      body:
-        "40 questions, 45 minutes, seuil officiel. La simulation respecte la répartition par thématique du jour J.",
-    },
-    {
-      tone: "green",
-      icon: <TrendingIcon />,
-      title: "Suivi de progression",
-      body:
-        "Vos scores par thématique, vos questions favorites, vos erreurs récurrentes. Tout est tracé pour vous concentrer sur l'essentiel.",
-    },
-    {
-      tone: "amber",
-      icon: <StarIcon />,
-      title: "Révision ciblée",
-      body:
-        "Une session « mes erreurs » qui ne re-pose que les questions ratées. Pareil pour vos favoris.",
-    },
-    {
-      tone: "blue",
-      icon: <DeviceIcon />,
-      title: "Web et mobile",
-      body:
-        "Bossez sur ordinateur à la maison, sur mobile dans le RER. Votre progression vous suit partout, hors-ligne aussi.",
-    },
-    {
-      tone: "red",
-      icon: <ShieldIcon />,
-      title: "Conformité référentielle",
-      body:
-        "Les questions civiques suivent les 5 thématiques officielles. Le TCF reproduit fidèlement la structure de l'examen IRN.",
-    },
-  ];
+    // (Conservé sous ce nom pour ne pas casser l'import depuis page.tsx.)
+    const feats: {
+        tone: "blue" | "red" | "green" | "amber";
+        icon: React.ReactNode;
+        title: string;
+        body: string;
+    }[] = [
+        {
+            tone: "blue",
+            icon: <CheckIcon/>,
+            title: "Correction expliquée",
+            body:
+                "Après chaque question, on vous explique la règle et pourquoi les autres réponses sont fausses. Une à une.",
+        },
+        {
+            tone: "red",
+            icon: <ClockIcon/>,
+            title: "Examens blancs réalistes",
+            body:
+                "40 questions, 45 minutes, seuil officiel. La simulation respecte la répartition par thématique du jour J.",
+        },
+        {
+            tone: "green",
+            icon: <TrendingIcon/>,
+            title: "Suivi de progression",
+            body:
+                "Vos scores par thématique, vos questions favorites, vos erreurs récurrentes. Tout est tracé pour vous concentrer sur l'essentiel.",
+        },
+        {
+            tone: "amber",
+            icon: <StarIcon/>,
+            title: "Révision ciblée",
+            body:
+                "Une session « mes erreurs » qui ne re-pose que les questions ratées. Pareil pour vos favoris.",
+        },
+        {
+            tone: "blue",
+            icon: <DeviceIcon/>,
+            title: "Web et mobile",
+            body:
+                "Bossez sur ordinateur à la maison, sur mobile dans le RER. Votre progression vous suit partout, hors-ligne aussi.",
+        },
+        {
+            tone: "red",
+            icon: <ShieldIcon/>,
+            title: "Conformité référentielle",
+            body:
+                "Les questions civiques suivent les 5 thématiques officielles. Le TCF reproduit fidèlement la structure de l'examen IRN.",
+        },
+    ];
 
-  return (
-    <section className="feats" id="fonctionnalites">
-      <div className="container-x">
-        <SectionHead
-          eyebrow="LA MÉTHODE SEJOURFR"
-          sub="Vous apprenez en répondant. Chaque erreur déclenche une explication précise. Vous re-tombez dessus jusqu'à la maîtriser."
-        >
-          Pas de cours. Que de la <em>pratique active</em>.
-        </SectionHead>
+    return (
+        <section className="feats" id="fonctionnalites">
+            <div className="container-x">
+                <SectionHead
+                    eyebrow="LA MÉTHODE SEJOURFR"
+                    sub="Vous apprenez en répondant. Chaque erreur déclenche une explication précise. Vous re-tombez dessus jusqu'à la maîtriser."
+                >
+                    Pas de cours. Que de la <em>pratique active</em>.
+                </SectionHead>
 
-        <div className="feats-grid">
-          {feats.map((f) => (
-            <div className="feat" key={f.title}>
-              <div className={`feat-icon feat-${f.tone}`}>{f.icon}</div>
-              <h3>{f.title}</h3>
-              <p>{f.body}</p>
+                <div className="feats-grid">
+                    {feats.map((f) => (
+                        <div className="feat" key={f.title}>
+                            <div className={`feat-icon feat-${f.tone}`}>{f.icon}</div>
+                            <h3>{f.title}</h3>
+                            <p>{f.body}</p>
+                        </div>
+                    ))}
+                </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      <style>{`
+            <style>{`
         .feats {
           background: var(--color-paper);
           border-top: 1px solid var(--color-line);
@@ -464,107 +466,119 @@ export function ProblemSection() {
           .feats-grid { grid-template-columns: 1fr; }
         }
       `}</style>
-    </section>
-  );
+        </section>
+    );
 }
 
 function CheckIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
+    return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+             strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+        </svg>
+    );
 }
+
 function ClockIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
+    return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+             strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+        </svg>
+    );
 }
+
 function TrendingIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-      <polyline points="17 6 23 6 23 12" />
-    </svg>
-  );
+    return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+             strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+            <polyline points="17 6 23 6 23 12"/>
+        </svg>
+    );
 }
+
 function StarIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
-  );
+    return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+             strokeLinecap="round" strokeLinejoin="round">
+            <polygon
+                points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+    );
 }
+
 function DeviceIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="3" width="20" height="14" rx="2" />
-      <line x1="8" y1="21" x2="16" y2="21" />
-      <line x1="12" y1="17" x2="12" y2="21" />
-    </svg>
-  );
+    return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+             strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+    );
 }
+
 function ShieldIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    </svg>
-  );
+    return (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+             strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+    );
 }
 
 // ============================================================================
 // HOW IT WORKS — 4 étapes
 // ============================================================================
 export function HowItWorksSection() {
-  const steps = [
-    {
-      tag: "01 — DÉMARCHE",
-      title: "Choisissez votre objectif",
-      body:
-        "CSP, carte de résident ou naturalisation. On adapte le contenu à votre niveau visé.",
-    },
-    {
-      tag: "02 — ENTRAÎNEMENT",
-      title: "Répondez par thématique",
-      body:
-        "Vous travaillez les sujets à votre rythme. La correction tombe juste après votre réponse.",
-    },
-    {
-      tag: "03 — EXAMEN BLANC",
-      title: "Testez-vous en conditions",
-      body:
-        "40 questions, 45 minutes, sans aide. On vous indique si vous auriez réussi.",
-    },
-    {
-      tag: "04 — RÉVISION",
-      title: "Concentrez-vous sur les erreurs",
-      body:
-        "L'app re-propose les questions ratées jusqu'à ce qu'elles soient acquises.",
-    },
-  ];
+    const steps = [
+        {
+            tag: "01 — DÉMARCHE",
+            title: "Choisissez votre objectif",
+            body:
+                "CSP, carte de résident ou naturalisation. On adapte le contenu à votre niveau visé.",
+        },
+        {
+            tag: "02 — ENTRAÎNEMENT",
+            title: "Répondez par thématique",
+            body:
+                "Vous travaillez les sujets à votre rythme. La correction tombe juste après votre réponse.",
+        },
+        {
+            tag: "03 — EXAMEN BLANC",
+            title: "Testez-vous en conditions",
+            body:
+                "40 questions, 45 minutes, sans aide. On vous indique si vous auriez réussi.",
+        },
+        {
+            tag: "04 — RÉVISION",
+            title: "Concentrez-vous sur les erreurs",
+            body:
+                "L'app re-propose les questions ratées jusqu'à ce qu'elles soient acquises.",
+        },
+    ];
 
-  return (
-    <section className="steps-sec">
-      <div className="container-x">
-        <SectionHead eyebrow="EN 4 ÉTAPES">
-          Comment ça <em>marche</em>.
-        </SectionHead>
+    return (
+        <section className="steps-sec">
+            <div className="container-x">
+                <SectionHead eyebrow="EN 4 ÉTAPES">
+                    Comment ça <em>marche</em>.
+                </SectionHead>
 
-        <div className="steps-grid">
-          {steps.map((s) => (
-            <div className="step" key={s.tag}>
-              <div className="step-num">{s.tag}</div>
-              <h4>{s.title}</h4>
-              <p>{s.body}</p>
+                <div className="steps-grid">
+                    {steps.map((s) => (
+                        <div className="step" key={s.tag}>
+                            <div className="step-num">{s.tag}</div>
+                            <h4>{s.title}</h4>
+                            <p>{s.body}</p>
+                        </div>
+                    ))}
+                </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      <style>{`
+            <style>{`
         .steps-sec { padding: 100px 0; background: #fff; }
         .steps-grid {
           display: grid;
@@ -610,8 +624,8 @@ export function HowItWorksSection() {
           .steps-grid { grid-template-columns: 1fr; }
         }
       `}</style>
-    </section>
-  );
+        </section>
+    );
 }
 
 // ============================================================================
@@ -619,121 +633,145 @@ export function HowItWorksSection() {
 // ============================================================================
 
 const PLAN_PRESENTATION: Record<
-  string,
-  {
-    name: string;
-    desc: string;
-    features: { label: string; muted?: boolean; strong?: boolean }[];
-    cta: { label: string; href: string; variant: "ghost" | "red" | "primary" };
-    featured?: boolean;
-    badge?: { label: string; tone: "red" | "green" };
-  }
+    string,
+    {
+        name: string;
+        desc: string;
+        features: { label: string; muted?: boolean; strong?: boolean }[];
+        cta: { label: string; href: string; variant: "ghost" | "red" | "primary" };
+        featured?: boolean;
+        badge?: { label: string; tone: "red" | "green" };
+    }
 > = {
-  FREE: {
-    name: "DÉCOUVERTE",
-    desc: "Un échantillon représentatif pour évaluer la méthode.",
-    cta: { label: "Commencer gratuitement", href: "/inscription", variant: "ghost" },
-    features: [
-      { label: "20 questions par module" },
-      { label: "Corrections expliquées" },
-      { label: "1 examen blanc par module" },
-      { label: "Pas de suivi de progression complet", muted: true },
-      { label: "Pas d'accès hors-ligne", muted: true },
-    ],
-  },
-  CIVIQUE_3MOIS: {
-    name: "CIVIQUE",
-    desc: "Accès complet au module civique. Sans renouvellement.",
-    cta: { label: "Choisir Civique", href: "/paiement?plan=CIVIQUE_3MOIS", variant: "primary" },
-    features: [
-      { label: "Banque complète civique", strong: true },
-      { label: "Examens blancs civiques illimités" },
-      { label: "Entraînement par thème" },
-      { label: "Révision des erreurs et favoris" },
-      { label: "Statistiques par thématique" },
-      { label: "3 mois d'accès" },
-    ],
-  },
-  INTEGRAL_3MOIS: {
-    name: "INTÉGRAL",
-    desc: "Civique + TCF IRN. Le plus complet pour CR ou naturalisation.",
-    cta: { label: "Passer Intégral", href: "/paiement?plan=INTEGRAL_3MOIS", variant: "primary" },
-    featured: true,
-    badge: { label: "RECOMMANDÉ", tone: "red" },
-    features: [
-      { label: "Tout le Civique inclus", strong: true },
-      { label: "Module TCF complet (CO + CE + Structure)", strong: true },
-      { label: "Diagnostic CECRL (A2 / B1 / B2)" },
-      { label: "Examens blancs TCF illimités" },
-      { label: "Révision + statistiques" },
-      { label: "3 mois d'accès" },
-    ],
-  },
+    FREE: {
+        name: "DÉCOUVERTE",
+        desc: "Un échantillon représentatif pour évaluer la méthode.",
+        cta: {label: "Commencer gratuitement", href: "/inscription", variant: "ghost"},
+        features: [
+            {label: "20 questions par module"},
+            {label: "Corrections expliquées"},
+            {label: "1 examen blanc par module"},
+            {label: "Pas de suivi de progression complet", muted: true},
+            {label: "Pas d'accès hors-ligne", muted: true},
+        ],
+    },
+    CIVIQUE_3MOIS: {
+        name: "CIVIQUE",
+        desc: "Accès complet au module civique. Sans renouvellement.",
+        cta: {label: "Choisir Civique", href: "/paiement?plan=CIVIQUE_3MOIS", variant: "primary"},
+        features: [
+            {label: "Banque complète civique", strong: true},
+            {label: "Examens blancs civiques illimités"},
+            {label: "Entraînement par thème"},
+            {label: "Révision des erreurs et favoris"},
+            {label: "Statistiques par thématique"},
+            {label: "3 mois d'accès"},
+        ],
+    },
+    INTEGRAL_3MOIS: {
+        name: "INTÉGRAL",
+        desc: "Civique + TCF IRN. Le plus complet pour CR ou naturalisation.",
+        cta: {label: "Passer Intégral", href: "/paiement?plan=INTEGRAL_3MOIS", variant: "primary"},
+        featured: true,
+        badge: {label: "RECOMMANDÉ", tone: "red"},
+        features: [
+            {label: "Tout le Civique inclus", strong: true},
+            {label: "Module TCF complet (CO + CE + Structure)", strong: true},
+            {label: "Diagnostic CECRL (A2 / B1 / B2)"},
+            {label: "Examens blancs TCF illimités"},
+            {label: "Révision + statistiques"},
+            {label: "3 mois d'accès"},
+        ],
+    },
 };
 
 const PLANS_FALLBACK: PlanPublicResponse[] = [
-  { code: "FREE", name: "Découverte", billingCycle: "NONE", price: 0, originalPrice: null, moduleAccess: "NONE", durationDays: 0 },
-  { code: "CIVIQUE_3MOIS", name: "Civique — 3 mois", billingCycle: "THREE_MONTHS", price: 5.99, originalPrice: 9.99, moduleAccess: "CIVIQUE", durationDays: 90 },
-  { code: "INTEGRAL_3MOIS", name: "Intégral — 3 mois", billingCycle: "THREE_MONTHS", price: 14.99, originalPrice: 19.99, moduleAccess: "INTEGRAL", durationDays: 90 },
+    {
+        code: "FREE",
+        name: "Découverte",
+        billingCycle: "NONE",
+        price: 0,
+        originalPrice: null,
+        moduleAccess: "NONE",
+        durationDays: 0
+    },
+    {
+        code: "CIVIQUE_3MOIS",
+        name: "Civique — 3 mois",
+        billingCycle: "THREE_MONTHS",
+        price: 5.99,
+        originalPrice: 9.99,
+        moduleAccess: "CIVIQUE",
+        durationDays: 90
+    },
+    {
+        code: "INTEGRAL_3MOIS",
+        name: "Intégral — 3 mois",
+        billingCycle: "THREE_MONTHS",
+        price: 14.99,
+        originalPrice: 19.99,
+        moduleAccess: "INTEGRAL",
+        durationDays: 90
+    },
 ];
 
 const PLAN_ORDER = ["FREE", "CIVIQUE_3MOIS", "INTEGRAL_3MOIS"];
 
 function formatPrice(value: number): string {
-  if (value === 0) return "0";
-  if (Number.isInteger(value)) return String(value);
-  return value.toFixed(2).replace(".", ",").replace(/,?0+$/, (m) => (m.startsWith(",") ? "" : m));
+    if (value === 0) return "0";
+    if (Number.isInteger(value)) return String(value);
+    return value.toFixed(2).replace(".", ",").replace(/,?0+$/, (m) => (m.startsWith(",") ? "" : m));
 }
 
 function formatPeriod(plan: PlanPublicResponse): string {
-  if (plan.code === "FREE") return "pour toujours";
-  if (plan.durationDays >= 30) {
-    const months = Math.round(plan.durationDays / 30);
-    return `pour ${months} mois`;
-  }
-  return `pour ${plan.durationDays} jours`;
+    if (plan.code === "FREE") return "pour toujours";
+    if (plan.durationDays >= 30) {
+        const months = Math.round(plan.durationDays / 30);
+        return `pour ${months} mois`;
+    }
+    return `pour ${plan.durationDays} jours`;
 }
 
 export async function PricingSection() {
-  let plans: PlanPublicResponse[];
-  try {
-    const fetched = await billingApi.listPlans();
-    plans = fetched.length > 0 ? fetched : PLANS_FALLBACK;
-  } catch {
-    plans = PLANS_FALLBACK;
-  }
+    let plans: PlanPublicResponse[];
+    try {
+        const fetched = await billingApi.listPlans();
+        plans = fetched.length > 0 ? fetched : PLANS_FALLBACK;
+    } catch {
+        plans = PLANS_FALLBACK;
+    }
 
-  const sorted = [...plans].sort((a, b) => {
-    const ai = PLAN_ORDER.indexOf(a.code);
-    const bi = PLAN_ORDER.indexOf(b.code);
-    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-  });
-  const display = sorted.slice(0, 3);
+    const sorted = [...plans].sort((a, b) => {
+        const ai = PLAN_ORDER.indexOf(a.code);
+        const bi = PLAN_ORDER.indexOf(b.code);
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+    const display = sorted.slice(0, 3);
 
-  return (
-    <section id="tarifs" className="pricing-sec">
-      <div className="container-x">
-        <SectionHead
-          eyebrow="TARIFS"
-          sub="Pas de carte bancaire pour démarrer. Vous goûtez, vous décidez."
-        >
-          Commencez <em>gratuitement</em>. Passez Premium quand vous serez
-          prêt.
-        </SectionHead>
+    return (
+        <section id="tarifs" className="pricing-sec">
+            <div className="container-x">
+                <SectionHead
+                    eyebrow="TARIFS"
+                    sub="Pas de carte bancaire pour démarrer. Vous goûtez, vous décidez."
+                >
+                    Commencez <em>gratuitement</em>. Passez Premium quand vous serez
+                    prêt.
+                </SectionHead>
 
-        <div className="plans">
-          {display.map((plan) => (
-            <PlanCard key={plan.code} plan={plan} />
-          ))}
-        </div>
+                <div className="plans">
+                    {display.map((plan) => (
+                        <PlanCard key={plan.code} plan={plan}/>
+                    ))}
+                </div>
 
-        <p className="plans-foot">
-          Paiement sécurisé Stripe · TVA incluse · L&apos;accès se termine
-          automatiquement à la fin de la période, vous rachetez si besoin.
-        </p>
-      </div>
+                <p className="plans-foot">
+                    Paiement sécurisé Stripe · TVA incluse · L&apos;accès se termine
+                    automatiquement à la fin de la période, vous rachetez si besoin.
+                </p>
+            </div>
 
-      <style>{`
+            <style>{`
         .pricing-sec {
           background: var(--color-paper);
           border-top: 1px solid var(--color-line);
@@ -843,113 +881,113 @@ export async function PricingSection() {
           .pricing-sec { padding: 70px 0; }
         }
       `}</style>
-    </section>
-  );
+        </section>
+    );
 }
 
-function PlanCard({ plan }: { plan: PlanPublicResponse }) {
-  const preset = PLAN_PRESENTATION[plan.code];
-  const name = preset?.name ?? plan.name.toUpperCase();
-  const desc = preset?.desc ?? "";
-  const cta = preset?.cta ?? {
-    label: plan.code === "FREE" ? "Créer mon compte" : "Choisir ce plan",
-    href: plan.code === "FREE" ? "/inscription" : `/paiement?plan=${plan.code}`,
-    variant: "primary" as const,
-  };
-  const featured = preset?.featured ?? false;
-  const badge = preset?.badge ?? null;
-  const features = preset?.features ?? [];
+function PlanCard({plan}: { plan: PlanPublicResponse }) {
+    const preset = PLAN_PRESENTATION[plan.code];
+    const name = preset?.name ?? plan.name.toUpperCase();
+    const desc = preset?.desc ?? "";
+    const cta = preset?.cta ?? {
+        label: plan.code === "FREE" ? "Créer mon compte" : "Choisir ce plan",
+        href: plan.code === "FREE" ? "/inscription" : `/paiement?plan=${plan.code}`,
+        variant: "primary" as const,
+    };
+    const featured = preset?.featured ?? false;
+    const badge = preset?.badge ?? null;
+    const features = preset?.features ?? [];
 
-  const btnClass =
-    cta.variant === "ghost" ? "btn btn-ghost plan-cta" :
-    cta.variant === "red" ? "btn btn-red plan-cta" : "btn plan-cta";
+    const btnClass =
+        cta.variant === "ghost" ? "btn btn-ghost plan-cta" :
+            cta.variant === "red" ? "btn btn-red plan-cta" : "btn plan-cta";
 
-  return (
-    <div className={`plan ${featured ? "featured" : ""}`}>
-      {badge && (
-        <span className={`plan-badge ${badge.tone === "green" ? "green" : ""}`}>
+    return (
+        <div className={`plan ${featured ? "featured" : ""}`}>
+            {badge && (
+                <span className={`plan-badge ${badge.tone === "green" ? "green" : ""}`}>
           {badge.label}
         </span>
-      )}
-      <div className="plan-name">{name}</div>
-      <div className="plan-price">
-        {plan.originalPrice !== null && plan.originalPrice > plan.price && (
-          <span className="num-old">{formatPrice(plan.originalPrice)}€</span>
-        )}
-        <span className="num">{formatPrice(plan.price)}€</span>
-        <span className="per">/ {formatPeriod(plan)}</span>
-      </div>
-      <p className="plan-desc">{desc}</p>
-      <ul className="plan-feat">
-        {features.map((f, i) => (
-          <li key={i} className={f.muted ? "muted" : ""}>
+            )}
+            <div className="plan-name">{name}</div>
+            <div className="plan-price">
+                {plan.originalPrice !== null && plan.originalPrice > plan.price && (
+                    <span className="num-old">{formatPrice(plan.originalPrice)}€</span>
+                )}
+                <span className="num">{formatPrice(plan.price)}€</span>
+                <span className="per">/ {formatPeriod(plan)}</span>
+            </div>
+            <p className="plan-desc">{desc}</p>
+            <ul className="plan-feat">
+                {features.map((f, i) => (
+                    <li key={i} className={f.muted ? "muted" : ""}>
             <span className={f.muted ? "dash" : "tick"}>
               {f.muted ? "—" : "✓"}
             </span>
-            <span>{f.strong ? <strong>{f.label}</strong> : f.label}</span>
-          </li>
-        ))}
-      </ul>
-      <Link href={cta.href} className={btnClass}>
-        {cta.label}
-      </Link>
-    </div>
-  );
+                        <span>{f.strong ? <strong>{f.label}</strong> : f.label}</span>
+                    </li>
+                ))}
+            </ul>
+            <Link href={cta.href} className={btnClass}>
+                {cta.label}
+            </Link>
+        </div>
+    );
 }
 
 // ============================================================================
 // TESTIMONIALS
 // ============================================================================
 export function TestimonialsSection() {
-  const testimonials = [
-    {
-      body: "J'ai passé l'examen pour la naturalisation après six semaines d'entraînement. 37/40. Les examens blancs sont identiques au format réel.",
-      initials: "FA",
-      name: "Fatima A.",
-      meta: "Naturalisation · Marseille",
-      cls: "",
-    },
-    {
-      body: "Le TCF B1 me faisait peur. Les exercices de compréhension orale m'ont vraiment préparé. J'ai eu ma carte de résident.",
-      initials: "VO",
-      name: "Viktor O.",
-      meta: "Carte de résident · Lyon",
-      cls: "r",
-    },
-    {
-      body: "L'app mobile m'a permis de réviser dans le métro tous les jours. Les explications après chaque question font la différence.",
-      initials: "CB",
-      name: "Chen B.",
-      meta: "CSP · Paris",
-      cls: "g",
-    },
-  ];
+    const testimonials = [
+        {
+            body: "J'ai passé l'examen pour la naturalisation après six semaines d'entraînement. 37/40. Les examens blancs sont identiques au format réel.",
+            initials: "FA",
+            name: "Fatima A.",
+            meta: "Naturalisation · Marseille",
+            cls: "",
+        },
+        {
+            body: "Le TCF B1 me faisait peur. Les exercices de compréhension orale m'ont vraiment préparé. J'ai eu ma carte de résident.",
+            initials: "VO",
+            name: "Viktor O.",
+            meta: "Carte de résident · Lyon",
+            cls: "r",
+        },
+        {
+            body: "L'app mobile m'a permis de réviser dans le métro tous les jours. Les explications après chaque question font la différence.",
+            initials: "CB",
+            name: "Chen B.",
+            meta: "CSP · Paris",
+            cls: "g",
+        },
+    ];
 
-  return (
-    <section id="temoignages" className="testi-sec">
-      <div className="container-x">
-        <SectionHead eyebrow="TÉMOIGNAGES">
-          Ils ont réussi <em>avec SejourFR</em>.
-        </SectionHead>
+    return (
+        <section id="temoignages" className="testi-sec">
+            <div className="container-x">
+                <SectionHead eyebrow="TÉMOIGNAGES">
+                    Ils ont réussi <em>avec SejourFR</em>.
+                </SectionHead>
 
-        <div className="testi-grid">
-          {testimonials.map((t) => (
-            <div className="testi-card" key={t.name}>
-              <span className="quote-mark">&ldquo;</span>
-              <p className="testi-body">{t.body}</p>
-              <div className="testi-foot">
-                <div className={`testi-avatar ${t.cls}`}>{t.initials}</div>
-                <div>
-                  <div className="testi-name">{t.name}</div>
-                  <div className="testi-meta">{t.meta}</div>
+                <div className="testi-grid">
+                    {testimonials.map((t) => (
+                        <div className="testi-card" key={t.name}>
+                            <span className="quote-mark">&ldquo;</span>
+                            <p className="testi-body">{t.body}</p>
+                            <div className="testi-foot">
+                                <div className={`testi-avatar ${t.cls}`}>{t.initials}</div>
+                                <div>
+                                    <div className="testi-name">{t.name}</div>
+                                    <div className="testi-meta">{t.meta}</div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
-              </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      <style>{`
+            <style>{`
         .testi-sec { padding: 100px 0; background: #fff; }
         .testi-grid {
           display: grid;
@@ -1011,67 +1049,67 @@ export function TestimonialsSection() {
           .testi-sec { padding: 70px 0; }
         }
       `}</style>
-    </section>
-  );
+        </section>
+    );
 }
 
 // ============================================================================
 // FAQ
 // ============================================================================
 export function FaqSection() {
-  const faqs: { q: string; a: React.ReactNode; open?: boolean }[] = [
-    {
-      q: "L'examen civique est-il vraiment obligatoire ?",
-      a: (
-        <>
-          Oui, depuis le 1<sup>er</sup> janvier 2026, il est requis pour la
-          délivrance de la carte de séjour pluriannuelle, de la carte de
-          résident et pour la naturalisation. Le contenu varie selon la
-          démarche : SejourFR adapte automatiquement le niveau de difficulté.
-        </>
-      ),
-      open: true,
-    },
-    {
-      q: "Quelle est la différence entre le TCF et le TCF IRN ?",
-      a: "Le TCF IRN (Intégration · Résidence · Nationalité) est la version utilisée pour les démarches administratives en France. Il comprend 4 épreuves : compréhension orale, compréhension écrite, expression orale et expression écrite. SejourFR vous prépare aux deux épreuves de QCM (CO et CE).",
-    },
-    {
-      q: "Puis-je m'entraîner sans connexion internet ?",
-      a: "Oui, sur mobile. L'app Flutter télécharge la banque de questions en local et synchronise votre progression dès qu'une connexion est disponible. Pratique dans les transports.",
-    },
-    {
-      q: "Combien de temps faut-il pour être prêt ?",
-      a: "Cela dépend de votre niveau de départ. La plupart des candidats atteignent le seuil de 32/40 à l'examen civique après 3 à 6 semaines d'entraînement régulier (15 à 30 minutes par jour). Le TCF demande plus de temps, surtout pour viser le B2.",
-    },
-    {
-      q: "Les questions sont-elles celles de l'examen officiel ?",
-      a: "Non. SejourFR n'utilise pas les questions officielles (qui sont confidentielles). Nos questions sont conçues d'après les référentiels publics et reproduisent fidèlement le format, la difficulté et les thématiques de l'examen.",
-    },
-    {
-      q: "Puis-je résilier à tout moment ?",
-      a: "Nos abonnements sont à paiement unique 3 mois, sans renouvellement automatique. Vous ne pouvez pas être prélevé par surprise — vous rachetez seulement si vous voulez prolonger.",
-    },
-  ];
+    const faqs: { q: string; a: React.ReactNode; open?: boolean }[] = [
+        {
+            q: "L'examen civique est-il vraiment obligatoire ?",
+            a: (
+                <>
+                    Oui, depuis le 1<sup>er</sup> janvier 2026, il est requis pour la
+                    délivrance de la carte de séjour pluriannuelle, de la carte de
+                    résident et pour la naturalisation. Le contenu varie selon la
+                    démarche : SejourFR adapte automatiquement le niveau de difficulté.
+                </>
+            ),
+            open: true,
+        },
+        {
+            q: "Quelle est la différence entre le TCF et le TCF IRN ?",
+            a: "Le TCF IRN (Intégration · Résidence · Nationalité) est la version utilisée pour les démarches administratives en France. Il comprend 4 épreuves : compréhension orale, compréhension écrite, expression orale et expression écrite. SejourFR vous prépare aux deux épreuves de QCM (CO et CE).",
+        },
+        {
+            q: "Puis-je m'entraîner sans connexion internet ?",
+            a: "Oui, sur mobile. L'app Flutter télécharge la banque de questions en local et synchronise votre progression dès qu'une connexion est disponible. Pratique dans les transports.",
+        },
+        {
+            q: "Combien de temps faut-il pour être prêt ?",
+            a: "Cela dépend de votre niveau de départ. La plupart des candidats atteignent le seuil de 32/40 à l'examen civique après 3 à 6 semaines d'entraînement régulier (15 à 30 minutes par jour). Le TCF demande plus de temps, surtout pour viser le B2.",
+        },
+        {
+            q: "Les questions sont-elles celles de l'examen officiel ?",
+            a: "Non. SejourFR n'utilise pas les questions officielles (qui sont confidentielles). Nos questions sont conçues d'après les référentiels publics et reproduisent fidèlement le format, la difficulté et les thématiques de l'examen.",
+        },
+        {
+            q: "Puis-je résilier à tout moment ?",
+            a: "Nos abonnements sont à paiement unique 3 mois, sans renouvellement automatique. Vous ne pouvez pas être prélevé par surprise — vous rachetez seulement si vous voulez prolonger.",
+        },
+    ];
 
-  return (
-    <section id="faq" className="faq-sec">
-      <div className="container-x">
-        <SectionHead eyebrow="QUESTIONS FRÉQUENTES">
-          On vous a peut-être <em>déjà répondu</em>.
-        </SectionHead>
+    return (
+        <section id="faq" className="faq-sec">
+            <div className="container-x">
+                <SectionHead eyebrow="QUESTIONS FRÉQUENTES">
+                    On vous a peut-être <em>déjà répondu</em>.
+                </SectionHead>
 
-        <div className="faq-list">
-          {faqs.map((f, i) => (
-            <details className="faq-item" key={i} open={f.open}>
-              <summary>{f.q}</summary>
-              <p>{f.a}</p>
-            </details>
-          ))}
-        </div>
-      </div>
+                <div className="faq-list">
+                    {faqs.map((f, i) => (
+                        <details className="faq-item" key={i} open={f.open}>
+                            <summary>{f.q}</summary>
+                            <p>{f.a}</p>
+                        </details>
+                    ))}
+                </div>
+            </div>
 
-      <style>{`
+            <style>{`
         .faq-sec { padding: 100px 0; background: #fff; }
         .faq-list { max-width: 780px; margin: 0 auto; }
         .faq-item {
@@ -1107,33 +1145,33 @@ export function FaqSection() {
           .faq-item summary { font-size: 17px; }
         }
       `}</style>
-    </section>
-  );
+        </section>
+    );
 }
 
 // ============================================================================
 // FINAL CTA — bandeau bleu sombre avec halos
 // ============================================================================
 export function FinalCtaSection() {
-  return (
-    <section className="finalcta-wrap">
-      <div className="container-x">
-        <div className="cta-block">
-          <h2>
-            Votre <em>titre de séjour</em> ne devrait pas dépendre d&apos;un
-            coup de chance.
-          </h2>
-          <p>
-            Démarrez aujourd&apos;hui. Les premières questions sont gratuites,
-            sans inscription longue, sans carte bancaire.
-          </p>
-          <Link href="/inscription" className="btn btn-lg cta-block-btn">
-            Commencer maintenant <span className="arrow">→</span>
-          </Link>
-        </div>
-      </div>
+    return (
+        <section className="finalcta-wrap">
+            <div className="container-x">
+                <div className="cta-block">
+                    <h2>
+                        Votre <em>titre de séjour</em> ne devrait pas dépendre d&apos;un
+                        coup de chance.
+                    </h2>
+                    <p>
+                        Démarrez aujourd&apos;hui. Les premières questions sont gratuites,
+                        sans inscription longue, sans carte bancaire.
+                    </p>
+                    <Link href="/inscription" className="btn btn-lg cta-block-btn">
+                        Commencer maintenant <span className="arrow">→</span>
+                    </Link>
+                </div>
+            </div>
 
-      <style>{`
+            <style>{`
         .finalcta-wrap {
           padding: 60px 0 100px;
           background: #fff;
@@ -1184,6 +1222,6 @@ export function FinalCtaSection() {
           .cta-block { padding: 40px 28px; }
         }
       `}</style>
-    </section>
-  );
+        </section>
+    );
 }
