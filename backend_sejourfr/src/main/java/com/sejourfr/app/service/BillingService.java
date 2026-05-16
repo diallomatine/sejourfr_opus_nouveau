@@ -12,9 +12,12 @@ import com.sejourfr.app.repository.PlanRepository;
 import com.sejourfr.app.repository.UserRepository;
 import com.sejourfr.app.repository.UserSubscriptionRepository;
 import com.stripe.Stripe;
+import com.stripe.exception.EventDataObjectDeserializationException;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
+import com.stripe.model.EventDataObjectDeserializer;
+import com.stripe.model.StripeObject;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
 import com.stripe.param.checkout.SessionCreateParams;
@@ -225,12 +228,7 @@ public class BillingService {
     }
 
     private void handleCheckoutCompleted(Event event) {
-        Session session = (Session) event.getDataObjectDeserializer()
-                .getObject()
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Payload Stripe sans objet Session"
-                ));
+        Session session = deserializeSession(event);
 
         // Identifier l'utilisateur : on a passé user_id dans client_reference_id
         // lors de la génération du payment link.
@@ -260,6 +258,46 @@ public class BillingService {
         activateSubscription(userId, plan, session.getCustomer(), session.getId());
         log.info("Abonnement {} activé pour user={} session={}",
                 plan, userId, session.getId());
+    }
+
+    /**
+     * Désérialise le Session attaché à un Event Stripe.
+     *
+     * Le chemin nominal `getDataObjectDeserializer().getObject()` renvoie
+     * un Optional vide quand la version d'API Stripe du payload ne
+     * correspond pas exactement à celle du SDK (ex: dashboard Stripe en
+     * v2024-09-30 / SDK en v2024-06-20). C'est le cas le plus fréquent en
+     * dev quand on crée le webhook via `stripe listen` qui forwarde tels
+     * quels les events en version courante de l'API.
+     *
+     * On fait fallback sur `deserializeUnsafe()` qui parse le JSON brut
+     * sans valider la version d'API — pour notre besoin (lire
+     * client_reference_id, amount_total, id) les champs sont stables d'une
+     * version d'API à l'autre.
+     *
+     * Cf doc Stripe : https://docs.stripe.com/webhooks#api-version-issues
+     */
+    private Session deserializeSession(Event event) {
+        EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
+        StripeObject obj = deserializer.getObject().orElse(null);
+        if (obj == null) {
+            log.debug("Stripe event API version mismatch (event={}), fallback deserializeUnsafe", event.getApiVersion());
+            try {
+                obj = deserializer.deserializeUnsafe();
+            } catch (EventDataObjectDeserializationException e) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Payload Stripe non désérialisable : " + e.getMessage()
+                );
+            }
+        }
+        if (!(obj instanceof Session session)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Payload Stripe : objet attendu Session, reçu " + obj.getClass().getSimpleName()
+            );
+        }
+        return session;
     }
 
     /**
