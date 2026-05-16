@@ -15,6 +15,7 @@ import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/eyebrow.dart';
+import '../../core/widgets/tcf_paywall.dart';
 import '../home/widgets/module_switch.dart';
 
 /// Liste des examens blancs publiés pour le module actif. Le filtre module
@@ -111,6 +112,26 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
     final examsAsync = ref.watch(examsByModuleProvider(module));
     final auth = ref.watch(authControllerProvider);
     final isPremium = auth is AuthAuthenticated && auth.user.isPremium;
+    final tcfBlocked = module == AppModule.tcf &&
+        auth is AuthAuthenticated &&
+        !auth.user.canAccessModule(AppModule.tcf);
+
+    if (tcfBlocked) {
+      return Scaffold(
+        body: SafeArea(
+          bottom: false,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            children: const [
+              SizedBox(height: 8),
+              ModuleSwitch(),
+              SizedBox(height: 22),
+              TcfPaywallCard(),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       body: SafeArea(

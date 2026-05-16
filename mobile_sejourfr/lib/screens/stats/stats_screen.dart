@@ -14,6 +14,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/eyebrow.dart';
+import '../../core/widgets/tcf_paywall.dart';
 import '../home/widgets/module_switch.dart';
 
 const _kCheckoutUrl = 'https://sejourfr.fr/paiement';
@@ -42,6 +43,9 @@ class StatsScreen extends ConsumerWidget {
     final module = ref.watch(selectedModuleProvider);
     final auth = ref.watch(authControllerProvider);
     final isPremium = auth is AuthAuthenticated && auth.user.isPremium;
+    final tcfBlocked = module == AppModule.tcf &&
+        auth is AuthAuthenticated &&
+        !auth.user.canAccessModule(AppModule.tcf);
 
     return Scaffold(
       body: SafeArea(
@@ -72,6 +76,10 @@ class StatsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 18),
               const ModuleSwitch(),
+              if (tcfBlocked) ...[
+                const SizedBox(height: 22),
+                const TcfPaywallCard(),
+              ] else ...[
               if (!isPremium) ...[
                 const SizedBox(height: 18),
                 _ProgressUpsellBanner(
@@ -91,6 +99,7 @@ class StatsScreen extends ConsumerWidget {
                   isPremium: isPremium,
                 ),
               ),
+              ],
             ],
           ),
         ),

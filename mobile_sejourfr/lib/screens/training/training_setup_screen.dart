@@ -10,9 +10,11 @@ import '../../core/models/attempt_models.dart';
 import '../../core/models/question_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/models/enums.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/eyebrow.dart';
+import '../../core/widgets/tcf_paywall.dart';
 import '../home/widgets/module_switch.dart';
 import '../shared/target_path_banner.dart';
 
@@ -88,6 +90,10 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
     final targetProcedure =
         auth is AuthAuthenticated ? auth.user.targetProcedure : null;
     final isPremium = auth is AuthAuthenticated && auth.user.isPremium;
+    final selectedModule = ref.watch(selectedModuleProvider);
+    final tcfBlocked = selectedModule == AppModule.tcf &&
+        auth is AuthAuthenticated &&
+        !auth.user.canAccessModule(AppModule.tcf);
 
     ref.listen(selectedModuleProvider, (_, __) {
       setState(() => _selectedTheme = null);
@@ -118,50 +124,56 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
             ],
             const ModuleSwitch(),
             const SizedBox(height: 22),
-            if (!isPremium) ...[
-              _DemoBanner(onUpgradeTap: _showPaywall),
-              const SizedBox(height: 18),
-            ],
-            _SectionLabel(
-              'Thématique',
-              hint: isPremium ? 'optionnel' : 'réservé Premium',
-            ),
-            const SizedBox(height: 12),
-            themes.when(
-              loading: () => const _ThemesSkeleton(),
-              error: (e, _) => _ErrorBox(
-                message: ApiClient.toApiException(e).message,
-                onRetry: () => ref.refresh(_themesProvider),
+            if (tcfBlocked) ...[
+              const TcfPaywallCard(),
+            ] else ...[
+              if (!isPremium) ...[
+                _DemoBanner(onUpgradeTap: _showPaywall),
+                const SizedBox(height: 18),
+              ],
+              _SectionLabel(
+                'Thématique',
+                hint: isPremium ? 'optionnel' : 'réservé Premium',
               ),
-              data: (list) => _ThemesList(
-                themes: list,
-                selectedThemeId: _selectedTheme?.id,
-                locked: !isPremium,
-                onSelect: (t) => setState(() {
-                  _selectedTheme = _selectedTheme?.id == t?.id ? null : t;
-                }),
-                onLockedTap: _showPaywall,
+              const SizedBox(height: 12),
+              themes.when(
+                loading: () => const _ThemesSkeleton(),
+                error: (e, _) => _ErrorBox(
+                  message: ApiClient.toApiException(e).message,
+                  onRetry: () => ref.refresh(_themesProvider),
+                ),
+                data: (list) => _ThemesList(
+                  themes: list,
+                  selectedThemeId: _selectedTheme?.id,
+                  locked: !isPremium,
+                  onSelect: (t) => setState(() {
+                    _selectedTheme = _selectedTheme?.id == t?.id ? null : t;
+                  }),
+                  onLockedTap: _showPaywall,
+                ),
               ),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 16),
-              _InlineError(message: _error!),
+              if (_error != null) ...[
+                const SizedBox(height: 16),
+                _InlineError(message: _error!),
+              ],
+              const SizedBox(height: 12),
             ],
-            const SizedBox(height: 12),
           ],
         ),
       ),
-      bottomNavigationBar: _StickyAction(
-        helper: helper,
-        button: AppButton(
-          label: isPremium
-              ? 'Commencer l\'entraînement'
-              : 'Commencer la démo',
-          icon: Icons.play_arrow_rounded,
-          onPressed: _starting ? null : _start,
-          isLoading: _starting,
-        ),
-      ),
+      bottomNavigationBar: tcfBlocked
+          ? null
+          : _StickyAction(
+              helper: helper,
+              button: AppButton(
+                label: isPremium
+                    ? 'Commencer l\'entraînement'
+                    : 'Commencer la démo',
+                icon: Icons.play_arrow_rounded,
+                onPressed: _starting ? null : _start,
+                isLoading: _starting,
+              ),
+            ),
     );
   }
 }
