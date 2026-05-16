@@ -54,6 +54,11 @@ sejourfr:
   stripe:
     secret-key: ${STRIPE_SECRET_KEY}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET}
-    payment-link-civique: ${STRIPE_PAYMENT_LINK_CIVIQUE}
-    payment-link-integral: ${STRIPE_PAYMENT_LINK_INTEGRAL}
+    # Mode recommandé : Checkout Sessions. Renseigner les Price IDs.
+    price-civique: ${STRIPE_PRICE_CIVIQUE:}
+    price-integral: ${STRIPE_PRICE_INTEGRAL:}
+    app-base-url: ${APP_BASE_URL:https://sejourfr.fr}
+    # Fallback : Payment Links statiques (utilisés si les Price IDs sont vides).
+    payment-link-civique: ${STRIPE_PAYMENT_LINK_CIVIQUE:}
+    payment-link-integral: ${STRIPE_PAYMENT_LINK_INTEGRAL:}
 

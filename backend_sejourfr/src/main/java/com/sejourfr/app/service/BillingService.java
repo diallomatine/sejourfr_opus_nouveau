@@ -11,10 +11,14 @@ import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.repository.PlanRepository;
 import com.sejourfr.app.repository.UserRepository;
 import com.sejourfr.app.repository.UserSubscriptionRepository;
+import com.stripe.Stripe;
 import com.stripe.exception.SignatureVerificationException;
+import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
+import com.stripe.param.checkout.SessionCreateParams;
+import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +71,19 @@ public class BillingService {
     }
 
     /**
+     * Initialise la clé API Stripe globale au démarrage si elle est
+     * configurée. Stripe SDK 28 utilise cette variable statique pour toutes
+     * les requêtes (Session.create, etc.). Le webhook reste indépendant — il
+     * vérifie la signature avec sa propre clé.
+     */
+    @PostConstruct
+    public void initStripe() {
+        if (!stripeProperties.getSecretKey().isBlank()) {
+            Stripe.apiKey = stripeProperties.getSecretKey();
+        }
+    }
+
+    /**
      * Liste les plans actifs pour la landing publique (section Tarifs).
      * Tri : prix croissant, le gratuit en tête. Le plan "FREE" est inclus —
      * c'est au front de décider quoi en faire (affichage en colonne "Découverte"
@@ -89,28 +106,95 @@ public class BillingService {
     }
 
     /**
-     * Construit l'URL du Stripe Payment Link pour le plan demandé, enrichie
-     * de client_reference_id=<user_id> pour le retrouver dans le webhook.
+     * Renvoie une URL de paiement Stripe pour le plan demandé.
+     *
+     * Deux stratégies selon la configuration :
+     *
+     *   - Si les Stripe Price IDs sont fournis (sejourfr.stripe.price-*), on
+     *     crée une Checkout Session via l'API Stripe avec success_url et
+     *     cancel_url définies en code → l'utilisateur revient automatiquement
+     *     sur /paiement/succes après paiement (ou /paiement?canceled=1 en cas
+     *     d'abandon). C'est la stratégie recommandée.
+     *
+     *   - Sinon, fallback sur les Payment Links statiques (URLs
+     *     sejourfr.stripe.payment-link-*). La redirection après paiement
+     *     dépend alors de la config dashboard Stripe de chaque lien.
+     *
+     * Dans les deux cas on injecte client_reference_id=<user_id> pour
+     * retrouver l'utilisateur dans le webhook checkout.session.completed.
      */
     public BillingCheckoutResponse getPaymentLink(UUID userId, BillingPlan plan) {
         if (!stripeProperties.isConfigured()) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,
-                    "Stripe n'est pas configuré côté backend (secret-key / payment-link-* manquants)."
+                    "Stripe n'est pas configuré côté backend (secret-key + price-* ou payment-link-* manquants)."
             );
         }
         // Vérifie que l'utilisateur existe (sinon l'URL serait inutile).
         userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User introuvable"));
 
+        if (stripeProperties.isCheckoutSessionConfigured()) {
+            return createCheckoutSession(userId, plan);
+        }
+        return buildPaymentLinkUrl(userId, plan);
+    }
+
+    /**
+     * Stratégie recommandée : crée une Checkout Session via l'API Stripe avec
+     * success_url et cancel_url construites côté code à partir de
+     * `sejourfr.stripe.app-base-url`. Le query param `plan=...` est injecté
+     * dans success_url pour que la page /paiement/succes puisse afficher le
+     * bon libellé sans dépendre du statut user (le webhook peut arriver
+     * quelques secondes après le retour du user).
+     */
+    private BillingCheckoutResponse createCheckoutSession(UUID userId, BillingPlan plan) {
+        String priceId = switch (plan) {
+            case CIVIQUE_3MOIS -> stripeProperties.getPriceCivique();
+            case INTEGRAL_3MOIS -> stripeProperties.getPriceIntegral();
+        };
+        String appBaseUrl = stripeProperties.getAppBaseUrl();
+        // Placeholder remplacé par Stripe avant la redirection.
+        String successUrl = appBaseUrl + "/paiement/succes"
+                + "?session_id={CHECKOUT_SESSION_ID}&plan=" + plan.name();
+        String cancelUrl = appBaseUrl + "/paiement?canceled=1";
+
+        SessionCreateParams params = SessionCreateParams.builder()
+                .setMode(SessionCreateParams.Mode.PAYMENT)
+                .setClientReferenceId(userId.toString())
+                .setSuccessUrl(successUrl)
+                .setCancelUrl(cancelUrl)
+                .addLineItem(
+                        SessionCreateParams.LineItem.builder()
+                                .setPrice(priceId)
+                                .setQuantity(1L)
+                                .build()
+                )
+                .build();
+        try {
+            Session session = Session.create(params);
+            return new BillingCheckoutResponse(session.getUrl());
+        } catch (StripeException e) {
+            log.error("Échec création Checkout Session (plan={}) : {}", plan, e.getMessage());
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "Impossible de créer la session Stripe. Réessayez dans un instant."
+            );
+        }
+    }
+
+    /**
+     * Stratégie de fallback : utilise les Payment Links statiques pré-créés
+     * dans le dashboard Stripe. La redirection après paiement doit alors être
+     * configurée sur le lien lui-même côté dashboard.
+     */
+    private BillingCheckoutResponse buildPaymentLinkUrl(UUID userId, BillingPlan plan) {
         String baseUrl = switch (plan) {
             case CIVIQUE_3MOIS -> stripeProperties.getPaymentLinkCivique();
             case INTEGRAL_3MOIS -> stripeProperties.getPaymentLinkIntegral();
         };
-
         String separator = baseUrl.contains("?") ? "&" : "?";
         String fullUrl = baseUrl + separator + "client_reference_id=" + userId;
-
         return new BillingCheckoutResponse(fullUrl);
     }
 

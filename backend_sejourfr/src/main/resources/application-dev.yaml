@@ -43,10 +43,21 @@ sejourfr:
     # Push Protection bloque le commit.
     # https://dashboard.stripe.com/test/apikeys
     #
-    # Payment Links : créés dans Dashboard → Produits → Payment Links.
-    # Format attendu : https://buy.stripe.com/test_xxxxxx
+    # Mode recommandé — Checkout Sessions (success_url/cancel_url dynamiques) :
+    # définir STRIPE_PRICE_CIVIQUE et STRIPE_PRICE_INTEGRAL avec les Price IDs
+    # (format `price_xxx`) trouvés dans Dashboard → Products → un produit →
+    # son prix. Pas de config dashboard à faire sur la redirection.
+    #
+    # Mode fallback — Payment Links : URLs créées manuellement dans le
+    # dashboard Stripe (menu "Payment Links"). Format `https://buy.stripe.com/test_xxx`.
+    # La redirection après paiement doit être configurée sur chaque lien.
     secret-key: ${STRIPE_SECRET_KEY:}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+    # Checkout Sessions (recommandé)
+    price-civique: ${STRIPE_PRICE_CIVIQUE:}
+    price-integral: ${STRIPE_PRICE_INTEGRAL:}
+    app-base-url: ${APP_BASE_URL:http://localhost:3000}
+    # Payment Links (fallback historique)
     payment-link-civique: ${STRIPE_PAYMENT_LINK_CIVIQUE:}
     payment-link-integral: ${STRIPE_PAYMENT_LINK_INTEGRAL:}
   security:
