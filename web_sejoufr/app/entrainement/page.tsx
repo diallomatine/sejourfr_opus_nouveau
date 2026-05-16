@@ -391,59 +391,57 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
             )}
 
             {/* ============ EXAMENS BLANCS ============ */}
-            <section className="exams-section">
-                <div className="exams-section-head">
-                    <h2>Examens blancs</h2>
-                    <p>
-                        Conditions réelles d&apos;examen : 40 questions chronométrées en
-                        45 minutes pour CIVIQUE, 60 questions en 90 minutes pour TCF.
-                    </p>
-                </div>
+            {/* Section masquée pour les connectés : ils ont déjà /examens-blancs
+                dans la sidebar — éviter la redondance. */}
+            {isGuest && (
+                <section className="exams-section">
+                    <div className="exams-section-head">
+                        <h2>Examens blancs</h2>
+                        <p>
+                            Conditions réelles d&apos;examen : 40 questions chronométrées en
+                            45 minutes pour CIVIQUE, 60 questions en 90 minutes pour TCF.
+                        </p>
+                    </div>
 
-                {loading ? (
-                    <div className="exams-grid">
-                        {Array.from({length: 3}).map((_, i) => (
-                            <div key={i} className="exam-skel"/>
-                        ))}
-                    </div>
-                ) : examsForFilter.length === 0 ? (
-                    <div className="exams-empty">
-                        Aucun examen blanc disponible pour ce module.
-                    </div>
-                ) : (
-                    <div className="exams-grid">
-                        {freeExam && (
-                            <ExamCard
-                                exam={freeExam}
-                                tone={filter === "CIVIQUE" ? "blue" : "red"}
-                                locked={false}
-                                onStart={() => startExam(freeExam)}
-                                starting={startingExamId === freeExam.id}
-                                ctaLabel={
-                                    isGuest ? "Démo gratuite →" : "Démarrer l'examen →"
-                                }
-                                upsellHref={upsellHref}
-                            />
-                        )}
-                        {lockedExams.map((e) => (
-                            <ExamCard
-                                key={e.id}
-                                exam={e}
-                                tone={filter === "CIVIQUE" ? "blue" : "red"}
-                                locked={!isPremiumForFilter}
-                                onStart={() => startExam(e)}
-                                starting={startingExamId === e.id}
-                                ctaLabel={
-                                    isPremiumForFilter
-                                        ? "Démarrer l'examen →"
-                                        : upsellLabel
-                                }
-                                upsellHref={upsellHref}
-                            />
-                        ))}
-                    </div>
-                )}
-            </section>
+                    {loading ? (
+                        <div className="exams-grid">
+                            {Array.from({length: 3}).map((_, i) => (
+                                <div key={i} className="exam-skel"/>
+                            ))}
+                        </div>
+                    ) : examsForFilter.length === 0 ? (
+                        <div className="exams-empty">
+                            Aucun examen blanc disponible pour ce module.
+                        </div>
+                    ) : (
+                        <div className="exams-grid">
+                            {freeExam && (
+                                <ExamCard
+                                    exam={freeExam}
+                                    tone={filter === "CIVIQUE" ? "blue" : "red"}
+                                    locked={false}
+                                    onStart={() => startExam(freeExam)}
+                                    starting={startingExamId === freeExam.id}
+                                    ctaLabel="Démo gratuite →"
+                                    upsellHref={upsellHref}
+                                />
+                            )}
+                            {lockedExams.map((e) => (
+                                <ExamCard
+                                    key={e.id}
+                                    exam={e}
+                                    tone={filter === "CIVIQUE" ? "blue" : "red"}
+                                    locked={true}
+                                    onStart={() => startExam(e)}
+                                    starting={startingExamId === e.id}
+                                    ctaLabel={upsellLabel}
+                                    upsellHref={upsellHref}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </section>
+            )}
 
             {/* Foot CTA pour les guests */}
             {isGuest && (

@@ -90,6 +90,13 @@ export function SiteHeader() {
                                         Tableau de bord
                                     </Link>
                                     <Link
+                                        href="/entrainement"
+                                        className="site-header__menuItem"
+                                        onClick={() => setMenuOpen(false)}
+                                    >
+                                        Entrainements
+                                    </Link>
+                                    <Link
                                         href="/examens-blancs"
                                         className="site-header__menuItem"
                                         onClick={() => setMenuOpen(false)}
