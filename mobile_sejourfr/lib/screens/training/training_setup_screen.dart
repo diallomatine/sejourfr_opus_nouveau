@@ -39,9 +39,16 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
   bool _starting = false;
   String? _error;
 
-  bool get _isPremium {
+  /// L'utilisateur a-t-il l'accès payant pour le module courant ?
+  ///
+  /// CIVIQUE_3MOIS débloque civique seul ; INTEGRAL_3MOIS débloque les deux.
+  /// Quand on n'a pas l'accès pour CE module, on bascule en mode démo (20 Q
+  /// sans choix de thème) — la règle vaut pour CIVIQUE comme pour TCF.
+  bool _isPremiumForCurrentModule() {
     final auth = ref.read(authControllerProvider);
-    return auth is AuthAuthenticated && auth.user.isPremium;
+    if (auth is! AuthAuthenticated) return false;
+    final module = ref.read(selectedModuleProvider);
+    return auth.user.canAccessModule(module);
   }
 
   Future<void> _start() async {
@@ -51,7 +58,7 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
     });
     try {
       final module = ref.read(selectedModuleProvider);
-      final demo = !_isPremium;
+      final demo = !_isPremiumForCurrentModule();
       final attempt = await ref.read(attemptsRepositoryProvider).start(
             StartAttemptRequest(
               type: AttemptType.training,
@@ -87,21 +94,22 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
     final auth = ref.watch(authControllerProvider);
     final targetProcedure =
         auth is AuthAuthenticated ? auth.user.targetProcedure : null;
-    final isPremium = auth is AuthAuthenticated && auth.user.isPremium;
     final selectedModule = ref.watch(selectedModuleProvider);
-    final tcfBlocked = selectedModule == AppModule.tcf &&
-        auth is AuthAuthenticated &&
-        !auth.user.canAccessModule(AppModule.tcf);
+    // Premium pour CE module spécifiquement (pas le flag global isPremium) :
+    // un utilisateur CIVIQUE_3MOIS reste en démo sur TCF, et inversement.
+    final isPremiumForModule = auth is AuthAuthenticated &&
+        auth.user.canAccessModule(selectedModule);
 
     ref.listen(selectedModuleProvider, (_, __) {
       setState(() => _selectedTheme = null);
     });
 
-    final helper = isPremium
+    final demoLabel = selectedModule == AppModule.tcf ? 'TCF IRN' : 'civique';
+    final helper = isPremiumForModule
         ? (_selectedTheme == null
             ? 'Toutes thématiques · $_kInitialBatchSize questions par session'
             : '${_selectedTheme!.name} · $_kInitialBatchSize questions par session')
-        : 'Mode démo · $_kDemoBatchSize questions offertes pour découvrir';
+        : 'Mode démo $demoLabel · $_kDemoBatchSize questions offertes pour découvrir';
 
     return Scaffold(
       body: SafeArea(
@@ -122,56 +130,53 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
             ],
             const ModuleSwitch(),
             const SizedBox(height: 22),
-            if (tcfBlocked) ...[
-              const TcfPaywallCard(),
-            ] else ...[
-              if (!isPremium) ...[
-                _DemoBanner(onUpgradeTap: _showPaywall),
-                const SizedBox(height: 18),
-              ],
-              _SectionLabel(
-                'Thématique',
-                hint: isPremium ? 'optionnel' : 'réservé Premium',
+            if (!isPremiumForModule) ...[
+              _DemoBanner(
+                module: selectedModule,
+                onUpgradeTap: _showPaywall,
               ),
-              const SizedBox(height: 12),
-              themes.when(
-                loading: () => const _ThemesSkeleton(),
-                error: (e, _) => _ErrorBox(
-                  message: ApiClient.toApiException(e).message,
-                  onRetry: () => ref.refresh(_themesProvider),
-                ),
-                data: (list) => _ThemesList(
-                  themes: list,
-                  selectedThemeId: _selectedTheme?.id,
-                  locked: !isPremium,
-                  onSelect: (t) => setState(() {
-                    _selectedTheme = _selectedTheme?.id == t?.id ? null : t;
-                  }),
-                  onLockedTap: _showPaywall,
-                ),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 16),
-                _InlineError(message: _error!),
-              ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 18),
             ],
+            _SectionLabel(
+              'Thématique',
+              hint: isPremiumForModule ? 'optionnel' : 'réservé Premium',
+            ),
+            const SizedBox(height: 12),
+            themes.when(
+              loading: () => const _ThemesSkeleton(),
+              error: (e, _) => _ErrorBox(
+                message: ApiClient.toApiException(e).message,
+                onRetry: () => ref.refresh(_themesProvider),
+              ),
+              data: (list) => _ThemesList(
+                themes: list,
+                selectedThemeId: _selectedTheme?.id,
+                locked: !isPremiumForModule,
+                onSelect: (t) => setState(() {
+                  _selectedTheme = _selectedTheme?.id == t?.id ? null : t;
+                }),
+                onLockedTap: _showPaywall,
+              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 16),
+              _InlineError(message: _error!),
+            ],
+            const SizedBox(height: 12),
           ],
         ),
       ),
-      bottomNavigationBar: tcfBlocked
-          ? null
-          : _StickyAction(
-              helper: helper,
-              button: AppButton(
-                label: isPremium
-                    ? 'Commencer l\'entraînement'
-                    : 'Commencer la démo',
-                icon: Icons.play_arrow_rounded,
-                onPressed: _starting ? null : _start,
-                isLoading: _starting,
-              ),
-            ),
+      bottomNavigationBar: _StickyAction(
+        helper: helper,
+        button: AppButton(
+          label: isPremiumForModule
+              ? 'Commencer l\'entraînement'
+              : 'Commencer la démo',
+          icon: Icons.play_arrow_rounded,
+          onPressed: _starting ? null : _start,
+          isLoading: _starting,
+        ),
+      ),
     );
   }
 }
@@ -227,12 +232,17 @@ class _ThemesList extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _DemoBanner extends StatelessWidget {
-  const _DemoBanner({required this.onUpgradeTap});
+  const _DemoBanner({required this.module, required this.onUpgradeTap});
 
+  final AppModule module;
   final VoidCallback onUpgradeTap;
 
   @override
   Widget build(BuildContext context) {
+    final moduleLabel = module == AppModule.tcf ? 'TCF IRN' : 'civique';
+    final subText = module == AppModule.tcf
+        ? 'Activez l’Intégral sur le web pour l’entraînement TCF illimité (civique inclus).'
+        : 'Activez l’accès complet sur le web pour l’entraînement illimité et tous les thèmes.';
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -269,7 +279,7 @@ class _DemoBanner extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Mode démo · $_kDemoBatchSize questions',
+                      'Mode démo $moduleLabel · $_kDemoBatchSize questions',
                       style: AppFonts.jakarta(
                         size: 13.5,
                         weight: FontWeight.w800,
@@ -279,7 +289,7 @@ class _DemoBanner extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Activez l’accès complet sur le web pour l’entraînement illimité et tous les thèmes.',
+                      subText,
                       style: AppFonts.jakarta(
                         size: 11.5,
                         color: AppColors.muted,

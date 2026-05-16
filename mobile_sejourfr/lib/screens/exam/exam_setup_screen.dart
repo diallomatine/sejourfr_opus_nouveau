@@ -37,9 +37,14 @@ class ExamSetupScreen extends ConsumerStatefulWidget {
 class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
   bool _starting = false;
 
-  bool get _isPremium {
+  /// L'utilisateur a-t-il l'accès payant pour le module actuellement sélectionné ?
+  /// Sans accès, il peut quand même passer l'examen blanc `free` (1 par module),
+  /// les autres restent verrouillés derrière le paywall.
+  bool _isPremiumForCurrentModule() {
     final auth = ref.read(authControllerProvider);
-    return auth is AuthAuthenticated && auth.user.isPremium;
+    if (auth is! AuthAuthenticated) return false;
+    final module = ref.read(selectedModuleProvider);
+    return auth.user.canAccessModule(module);
   }
 
   Future<void> _startExam(ExamTemplateSummary exam) async {
@@ -73,7 +78,7 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
   }
 
   void _onExamTap(ExamTemplateSummary exam, int number) {
-    if (!exam.free && !_isPremium) {
+    if (!exam.free && !_isPremiumForCurrentModule()) {
       _showPaywall();
       return;
     }
@@ -110,27 +115,11 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
     final module = ref.watch(selectedModuleProvider);
     final examsAsync = ref.watch(examsByModuleProvider(module));
     final auth = ref.watch(authControllerProvider);
-    final isPremium = auth is AuthAuthenticated && auth.user.isPremium;
-    final tcfBlocked = module == AppModule.tcf &&
-        auth is AuthAuthenticated &&
-        !auth.user.canAccessModule(AppModule.tcf);
-
-    if (tcfBlocked) {
-      return Scaffold(
-        body: SafeArea(
-          bottom: false,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            children: const [
-              SizedBox(height: 8),
-              ModuleSwitch(),
-              SizedBox(height: 22),
-              TcfPaywallCard(),
-            ],
-          ),
-        ),
-      );
-    }
+    // Premium pour CE module (CIVIQUE_3MOIS = civique, INTEGRAL_3MOIS = les deux).
+    // En non-premium pour ce module, l'utilisateur peut passer l'examen `free`
+    // du module (1 par module) ; les autres restent au paywall.
+    final isPremiumForModule = auth is AuthAuthenticated &&
+        auth.user.canAccessModule(module);
 
     return Scaffold(
       body: SafeArea(
@@ -146,7 +135,7 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
             ),
             data: (exams) => _ExamListView(
               exams: exams,
-              isPremium: isPremium,
+              isPremium: isPremiumForModule,
               onTap: _onExamTap,
               onUpgradeTap: _showPaywall,
             ),

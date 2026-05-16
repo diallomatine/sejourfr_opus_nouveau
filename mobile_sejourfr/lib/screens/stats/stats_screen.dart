@@ -39,10 +39,11 @@ class StatsScreen extends ConsumerWidget {
     final stats = ref.watch(_statsProvider);
     final module = ref.watch(selectedModuleProvider);
     final auth = ref.watch(authControllerProvider);
-    final isPremium = auth is AuthAuthenticated && auth.user.isPremium;
-    final tcfBlocked = module == AppModule.tcf &&
-        auth is AuthAuthenticated &&
-        !auth.user.canAccessModule(AppModule.tcf);
+    // Premium pour CE module : règle identique aux écrans training/exam.
+    // Sans accès payant, l'utilisateur voit quand même ses stats (issues de la
+    // démo) et un upsell pour passer à la formule du module en question.
+    final isPremiumForModule = auth is AuthAuthenticated &&
+        auth.user.canAccessModule(module);
 
     return Scaffold(
       body: SafeArea(
@@ -73,11 +74,7 @@ class StatsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 18),
               const ModuleSwitch(),
-              if (tcfBlocked) ...[
-                const SizedBox(height: 22),
-                const TcfPaywallCard(),
-              ] else ...[
-              if (!isPremium) ...[
+              if (!isPremiumForModule) ...[
                 const SizedBox(height: 18),
                 _ProgressUpsellBanner(
                   onTap: () => _showProgressPaywall(context),
@@ -93,10 +90,9 @@ class StatsScreen extends ConsumerWidget {
                 data: (s) => _StatsContent(
                   stats: s,
                   module: module,
-                  isPremium: isPremium,
+                  isPremium: isPremiumForModule,
                 ),
               ),
-              ],
             ],
           ),
         ),

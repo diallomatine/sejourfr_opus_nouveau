@@ -13,7 +13,6 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/sejourfr_logo.dart';
-import '../../core/widgets/tcf_paywall.dart';
 
 final _civiqueStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
   return ref.watch(userContentRepositoryProvider).stats(module: AppModule.civique);
@@ -66,7 +65,9 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               _TcfCard(
                 stats: tcfStats,
-                locked: user != null && !user.canAccessModule(AppModule.tcf),
+                // Démo TCF accessible à tous (20 Q + 1 examen blanc gratuits) ;
+                // l'upsell Intégral est affiché dans les écrans setup eux-mêmes.
+                isDemo: user != null && !user.canAccessModule(AppModule.tcf),
                 onTraining: () => selectAndGo(AppModule.tcf, AppRoutes.trainingSetup),
                 onExam: () => selectAndGo(AppModule.tcf, AppRoutes.examSetup),
               ),
@@ -642,21 +643,23 @@ class _TcfCard extends StatelessWidget {
     required this.stats,
     required this.onTraining,
     required this.onExam,
-    this.locked = false,
+    this.isDemo = false,
   });
 
   final AsyncValue<UserStats> stats;
   final VoidCallback onTraining;
   final VoidCallback onExam;
 
-  /// Pas d'accès Intégral : le bloc reste visible (pour donner envie) mais
-  /// les actions sont remplacées par un CTA d'upgrade.
-  final bool locked;
+  /// L'utilisateur n'a pas l'Intégral : il reste en mode démo (20 Q d'entraînement
+  /// + 1 examen blanc gratuits). On affiche un petit badge pour le signaler ;
+  /// les actions restent cliquables et redirigent vers leurs écrans setup qui
+  /// portent l'upsell détaillé.
+  final bool isDemo;
 
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      onTap: locked ? () => showTcfPaywallSheet(context) : onTraining,
+      onTap: onTraining,
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -712,6 +715,28 @@ class _TcfCard extends StatelessWidget {
                             ),
                           ),
                         ),
+                        if (isDemo) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.amber.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'DÉMO',
+                              style: AppFonts.mono(
+                                size: 9,
+                                color: AppColors.amber,
+                                letterSpacing: 1.2,
+                                weight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 3),
@@ -756,85 +781,26 @@ class _TcfCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          if (locked)
-            _TcfLockedAction(onTap: () => showTcfPaywallSheet(context))
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: _TcfSubAction(
-                    icon: Icons.play_arrow_rounded,
-                    label: 'Entraînement',
-                    onTap: onTraining,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _TcfSubAction(
-                    icon: Icons.timer_outlined,
-                    label: 'Examen blanc',
-                    onTap: onExam,
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TcfLockedAction extends StatelessWidget {
-  const _TcfLockedAction({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppColors.blueLight,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.blue, width: 1),
-          ),
-          child: Row(
+          Row(
             children: [
-              const Icon(Icons.lock_outline, size: 18, color: AppColors.blue),
-              const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Réservé à la formule Intégral',
-                      style: AppFonts.jakarta(
-                        size: 13,
-                        weight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      'Passez à Intégral pour débloquer le TCF',
-                      style: AppFonts.jakarta(
-                        size: 11,
-                        color: AppColors.muted,
-                      ),
-                    ),
-                  ],
+                child: _TcfSubAction(
+                  icon: Icons.play_arrow_rounded,
+                  label: 'Entraînement',
+                  onTap: onTraining,
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded,
-                  size: 20, color: AppColors.blue),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _TcfSubAction(
+                  icon: Icons.timer_outlined,
+                  label: 'Examen blanc',
+                  onTap: onExam,
+                ),
+              ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
