@@ -1053,101 +1053,6 @@ export function TestimonialsSection() {
     );
 }
 
-// ============================================================================
-// FAQ
-// ============================================================================
-export function FaqSection() {
-    const faqs: { q: string; a: React.ReactNode; open?: boolean }[] = [
-        {
-            q: "L'examen civique est-il vraiment obligatoire ?",
-            a: (
-                <>
-                    Oui, depuis le 1<sup>er</sup> janvier 2026, il est requis pour la
-                    délivrance de la carte de séjour pluriannuelle, de la carte de
-                    résident et pour la naturalisation. Le contenu varie selon la
-                    démarche : SejourFR adapte automatiquement le niveau de difficulté.
-                </>
-            ),
-            open: true,
-        },
-        {
-            q: "Quelle est la différence entre le TCF et le TCF IRN ?",
-            a: "Le TCF IRN (Intégration · Résidence · Nationalité) est la version utilisée pour les démarches administratives en France. Il comprend 4 épreuves : compréhension orale, compréhension écrite, expression orale et expression écrite. SejourFR vous prépare aux deux épreuves de QCM (CO et CE).",
-        },
-        {
-            q: "Puis-je m'entraîner sans connexion internet ?",
-            a: "Oui, sur mobile. L'app Flutter télécharge la banque de questions en local et synchronise votre progression dès qu'une connexion est disponible. Pratique dans les transports.",
-        },
-        {
-            q: "Combien de temps faut-il pour être prêt ?",
-            a: "Cela dépend de votre niveau de départ. La plupart des candidats atteignent le seuil de 32/40 à l'examen civique après 3 à 6 semaines d'entraînement régulier (15 à 30 minutes par jour). Le TCF demande plus de temps, surtout pour viser le B2.",
-        },
-        {
-            q: "Les questions sont-elles celles de l'examen officiel ?",
-            a: "Non. SejourFR n'utilise pas les questions officielles (qui sont confidentielles). Nos questions sont conçues d'après les référentiels publics et reproduisent fidèlement le format, la difficulté et les thématiques de l'examen.",
-        },
-        {
-            q: "Puis-je résilier à tout moment ?",
-            a: "Nos abonnements sont à paiement unique 3 mois, sans renouvellement automatique. Vous ne pouvez pas être prélevé par surprise — vous rachetez seulement si vous voulez prolonger.",
-        },
-    ];
-
-    return (
-        <section id="faq" className="faq-sec">
-            <div className="container-x">
-                <SectionHead eyebrow="QUESTIONS FRÉQUENTES">
-                    On vous a peut-être <em>déjà répondu</em>.
-                </SectionHead>
-
-                <div className="faq-list">
-                    {faqs.map((f, i) => (
-                        <details className="faq-item" key={i} open={f.open}>
-                            <summary>{f.q}</summary>
-                            <p>{f.a}</p>
-                        </details>
-                    ))}
-                </div>
-            </div>
-
-            <style>{`
-        .faq-sec { padding: 100px 0; background: #fff; }
-        .faq-list { max-width: 780px; margin: 0 auto; }
-        .faq-item {
-          border-bottom: 1px solid var(--color-line);
-          padding: 22px 0;
-        }
-        .faq-item summary {
-          font-family: var(--font-display);
-          font-size: 19px; font-weight: 500;
-          color: var(--color-ink);
-          cursor: pointer;
-          list-style: none;
-          display: flex; justify-content: space-between; align-items: center;
-          gap: 16px;
-          letter-spacing: -0.01em;
-        }
-        .faq-item summary::-webkit-details-marker { display: none; }
-        .faq-item summary::after {
-          content: '+';
-          font-family: var(--font-mono);
-          font-size: 22px; color: var(--color-blue);
-          transition: transform 0.25s;
-        }
-        .faq-item[open] summary::after { content: '−'; }
-        .faq-item p {
-          color: var(--color-muted);
-          margin: 12px 0 0;
-          font-size: 15px;
-          line-height: 1.6;
-        }
-        @media (max-width: 600px) {
-          .faq-sec { padding: 70px 0; }
-          .faq-item summary { font-size: 17px; }
-        }
-      `}</style>
-        </section>
-    );
-}
 
 // ============================================================================
 // FINAL CTA — bandeau bleu sombre avec halos
@@ -1158,7 +1063,7 @@ export function FinalCtaSection() {
             <div className="container-x">
                 <div className="cta-block">
                     <h2>
-                        Votre <em>titre de séjour</em> ne devrait pas dépendre d&apos;un
+                        Votre <em>titre de séjour </em> ne devrait pas dépendre d&apos;un
                         coup de chance.
                     </h2>
                     <p>

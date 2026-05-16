@@ -44,8 +44,8 @@ const Github = ({ className }: IconProps) => (
 );
 
 const productLinks = [
-  { href: "/civique", label: "Module civique" },
-  { href: "/naturalisation", label: "Module naturalisation" },
+  { href: "/entrainement?module=CIVIQUE", label: "Module civique" },
+  { href: "/entrainement?module=TCF", label: "Module TCF" },
   { href: "/tarifs", label: "Tarifs" },
 ];
 

@@ -66,13 +66,17 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
     const isGuest = user === null;
 
     // Filter pré-rempli depuis le query string (?module=CIVIQUE|TCF).
-    const initialFilter: Filter = useMemo(() => {
+    // Navigation interne (Link footer) ne remount pas la page → on resynchronise
+    // l'état local quand searchParams change.
+    const filterFromUrl: Filter = useMemo(() => {
         const m = searchParams?.get("module");
-        if (m === "TCF") return "TCF";
-        return "CIVIQUE";
+        return m === "TCF" ? "TCF" : "CIVIQUE";
     }, [searchParams]);
 
-    const [filter, setFilter] = useState<Filter>(initialFilter);
+    const [filter, setFilter] = useState<Filter>(filterFromUrl);
+    useEffect(() => {
+        setFilter(filterFromUrl);
+    }, [filterFromUrl]);
     const [query, setQuery] = useState("");
     const [themes, setThemes] = useState<Record<ModuleEnum, ThemeUserResponse[]>>({
         CIVIQUE: [],
