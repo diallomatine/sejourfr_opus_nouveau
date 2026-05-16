@@ -137,10 +137,14 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
         const {module, themeId, label} = opts;
         const isPremium = module === "CIVIQUE" ? isPremiumCivique : isPremiumTcf;
 
-        // Connecté non-premium qui clique sur un thème spécifique → paywall.
-        // (Le mixed reste accessible en démo.)
-        if (!isGuest && !isPremium && themeId) {
-            setPaywallModule(module);
+        // Thème spécifique verrouillé : la démo ne couvre que le mixte du module.
+        // Guest → inscription, connecté non-premium → paywall. (Le mixed passe.)
+        if (themeId && !isPremium) {
+            if (isGuest) {
+                router.push("/connexion");
+            } else {
+                setPaywallModule(module);
+            }
             return;
         }
 
@@ -485,7 +489,7 @@ function DemoBanner({
     // Guest : message générique, CTA vers /inscription.
     if (isGuest) {
         return (
-            <Link href="/inscription" className="demo-banner demo-banner-link">
+            <Link href="/connexion" className="demo-banner demo-banner-link">
                 <div className="demo-banner-icon" aria-hidden>
                     <svg
                         width="20"
