@@ -914,7 +914,7 @@ function ThemesGridSkeleton() {
 // STYLES
 // ============================================================================
 const styles = `
-  .train { padding: 24px 36px 64px; max-width: 1320px; }
+  .train { padding: 24px 36px 64px; max-width: 1320px; margin: 0 auto; }
   @media (max-width: 760px) { .train { padding: 20px 16px 56px; } }
 
   /* ========== TOPBAR ========== */
