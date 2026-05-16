@@ -7,15 +7,21 @@ import { ApiException } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type { TargetProcedure } from "@/lib/types";
 
+const MENTIONS: { v: TargetProcedure; code: string; name: string; tcf: string }[] = [
+  { v: "CSP", code: "CSP", name: "Carte de séjour", tcf: "A2" },
+  { v: "CR", code: "CR", name: "Carte de résident", tcf: "B1" },
+  { v: "NAT", code: "NAT", name: "Naturalisation", tcf: "B2" },
+];
+
 export default function InscriptionPage() {
   const router = useRouter();
   const { register, status, user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mention, setMention] = useState<TargetProcedure>("CSP");
+  const [showPassword, setShowPassword] = useState(false);
 
-  // Si l'utilisateur est déjà connecté, on ne lui montre pas le form
-  // d'inscription : on file directement au dashboard.
+  // Si l'utilisateur est déjà connecté, on file directement au dashboard.
   useEffect(() => {
     if (status === "authenticated" && user) {
       router.replace("/dashboard");
@@ -57,22 +63,36 @@ export default function InscriptionPage() {
 
   return (
     <div className="auth-wrap">
-      {/* LEFT : FORM */}
-      <div className="auth-form-side">
-        <div className="auth-inner">
-          <span className="eyebrow">Compte gratuit · 30 secondes</span>
-          <h1 className="h1-edit">
+      {/* ============ LEFT : FORM ============ */}
+      <div className="form-side">
+        <Link href="/" className="form-brand" aria-label="Retour à l'accueil SejourFR">
+          <span className="form-cocarde" aria-hidden />
+          <span className="form-wordmark">
+            Sejour<span className="fr">FR</span>
+          </span>
+        </Link>
+
+        <div className="form-inner">
+          <div className="form-eyebrow">
+            <span className="dot" aria-hidden />
+            Compte gratuit · 30 secondes
+          </div>
+          <h1 className="form-h1">
             Commencez votre <em>préparation</em>.
           </h1>
-          <p className="sub">
-            Pas de carte bancaire. 10 QCM par catégorie offerts et un examen
-            blanc complet pour chaque module.
+          <p className="form-sub">
+            Pas de carte bancaire. 20 QCM offerts par module et un examen blanc
+            complet pour chaque module.
           </p>
 
-          <form onSubmit={handleSubmit} className="auth-form">
-            {error && <div className="form-error">{error}</div>}
+          <form onSubmit={handleSubmit} className="form" noValidate>
+            {error && (
+              <div className="form-error" role="alert">
+                {error}
+              </div>
+            )}
 
-            <div className="row-2">
+            <div className="form-row-2">
               <div className="field">
                 <label htmlFor="firstName" className="field-label">
                   Prénom
@@ -122,236 +142,583 @@ export default function InscriptionPage() {
               <label htmlFor="password" className="field-label">
                 Mot de passe
               </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                minLength={8}
-                placeholder="8 caractères minimum"
-                className="field-input"
-                autoComplete="new-password"
-              />
+              <div className="field-pwd-wrap">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={8}
+                  placeholder="8 caractères minimum"
+                  className="field-input"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  className="field-pwd-toggle"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Masquer" : "Afficher"}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                </button>
+              </div>
             </div>
 
             <div className="field">
               <label className="field-label">Votre démarche</label>
               <div className="mention-grid">
-                {(
-                  [
-                    { v: "CSP", code: "CSP", name: "Carte de séjour" },
-                    { v: "CR", code: "CR", name: "Carte de résident" },
-                    { v: "NAT", code: "NAT", name: "Naturalisation" },
-                  ] as const
-                ).map((opt) => (
-                  <label
-                    key={opt.v}
-                    className={`mention-opt ${mention === opt.v ? "active" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name="mention"
-                      value={opt.v}
-                      checked={mention === opt.v}
-                      onChange={() => setMention(opt.v)}
-                    />
-                    <span className="code">{opt.code}</span>
-                    <span className="name">{opt.name}</span>
-                  </label>
-                ))}
+                {MENTIONS.map((opt) => {
+                  const active = mention === opt.v;
+                  return (
+                    <label
+                      key={opt.v}
+                      className={`mention-opt ${active ? "is-active" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="mention"
+                        value={opt.v}
+                        checked={active}
+                        onChange={() => setMention(opt.v)}
+                      />
+                      <span className="mention-code">{opt.code}</span>
+                      <span className="mention-name">{opt.name}</span>
+                      <span className="mention-tcf">
+                        TCF <strong>{opt.tcf}</strong>
+                      </span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
 
-            <label className="check">
+            <label className="form-check">
               <input type="checkbox" required />
               <span>
-                J'accepte les <Link href="#">Conditions générales</Link> et la{" "}
+                J&apos;accepte les{" "}
+                <Link href="#">Conditions générales</Link> et la{" "}
                 <Link href="#">Politique de confidentialité</Link>.
               </span>
             </label>
 
-            <button type="submit" disabled={submitting} className="btn-submit">
-              {submitting ? "Création..." : "Créer mon compte gratuit"}
-              <span>→</span>
+            <button type="submit" disabled={submitting} className="form-submit">
+              {submitting ? "Création…" : "Créer mon compte gratuit"}
+              <span className="form-submit-arrow">→</span>
             </button>
+
+            <p className="form-already">
+              Déjà un compte ?{" "}
+              <Link href="/connexion" className="form-already-link">
+                Se connecter →
+              </Link>
+            </p>
           </form>
 
-          <p className="legal">
-            Vos données sont hébergées en France · Conforme RGPD
-            <br />
-            Aucune donnée transmise à des tiers sans votre accord.
+          <p className="form-legal">
+            <ShieldIcon /> Données hébergées en France · Conforme RGPD · Aucun
+            partage avec des tiers.
           </p>
         </div>
       </div>
 
-      {/* RIGHT : VISUAL */}
-      <div className="auth-visual-side">
+      {/* ============ RIGHT : VISUAL ============ */}
+      <div className="visual-side" aria-hidden>
+        <div className="visual-bg" />
         <div className="visual-content">
-          <div className="visual-top">Ils ont réussi · Trust score</div>
-
-          <div className="visual-quote">
-            <h2>
-              « 37/40 à l'examen civique après six semaines avec SejourFR. Les
-              blancs sont identiques au format réel. »
-            </h2>
-            <div className="author">
-              <div className="avatar">FA</div>
-              <div>
-                <div className="name">Fatima A.</div>
-                <div className="meta">Naturalisation · Marseille</div>
-              </div>
-            </div>
+          <div className="visual-top">
+            <span className="visual-top-bar" />
+            ILS ONT RÉUSSI · TRUST SCORE
           </div>
 
-          <div className="trust-grid">
-            <div className="trust-item">
-              <h4>
-                8 200<span className="accent">+</span>
-              </h4>
-              <p>Candidats inscrits</p>
-            </div>
-            <div className="trust-item">
-              <h4>
-                94 <span className="accent">%</span>
-              </h4>
-              <p>Taux de réussite</p>
-            </div>
-            <div className="trust-item">
-              <h4>
-                1 240<span className="accent">+</span>
-              </h4>
-              <p>Questions calibrées</p>
-            </div>
-            <div className="trust-item">
-              <h4>
-                4,8<span className="accent">/5</span>
-              </h4>
-              <p>Note des utilisateurs</p>
-            </div>
+          <blockquote className="visual-quote">
+            <div className="visual-quote-mark">&ldquo;</div>
+            <p>
+              37 sur 40 à l&apos;examen civique après six semaines avec
+              SejourFR. Les blancs sont identiques au format réel.
+            </p>
+            <footer className="visual-author">
+              <div className="visual-avatar">FA</div>
+              <div>
+                <div className="visual-name">Fatima A.</div>
+                <div className="visual-meta">NATURALISATION · MARSEILLE</div>
+              </div>
+            </footer>
+          </blockquote>
+
+          <div className="visual-stats">
+            <Stat num="2 500+" label="Questions calibrées" />
+            <Stat num="94 %" label="Taux de réussite" />
+            <Stat num="8 200+" label="Candidats inscrits" />
+            <Stat num="4,8 /5" label="Note utilisateurs" />
           </div>
         </div>
       </div>
 
-      <style>{`
-        .auth-wrap { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; }
-
-        .auth-form-side { padding: 40px 48px; display: flex; flex-direction: column; background: var(--color-paper); }
-        .auth-inner { max-width: 440px; margin: 0 auto; width: 100%; flex: 1; display: flex; flex-direction: column; justify-content: center; padding-bottom: 32px; }
-
-        .h1-edit {
-          font-family: var(--font-display); font-weight: 500; font-size: 42px;
-          line-height: 1.05; letter-spacing: -0.025em; margin: 14px 0 12px;
-        }
-        .h1-edit em { font-style: italic; color: var(--color-red); }
-        .sub { color: var(--color-muted); font-size: 16px; margin: 0 0 36px; }
-
-        .auth-form { display: flex; flex-direction: column; gap: 18px; }
-        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-
-        .mention-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-        .mention-opt {
-          border: 1px solid var(--color-line); border-radius: 10px; background: #fff;
-          padding: 14px 10px; text-align: center; cursor: pointer;
-          transition: all 0.15s;
-          display: flex; flex-direction: column; gap: 4px;
-          position: relative;
-        }
-        .mention-opt:hover { border-color: var(--color-ink-2); }
-        .mention-opt input { position: absolute; opacity: 0; pointer-events: none; }
-        .mention-opt .code {
-          font-family: var(--font-mono); font-size: 12px;
-          font-weight: 500; color: var(--color-blue); letter-spacing: 0.05em;
-        }
-        .mention-opt .name { font-size: 12px; color: var(--color-muted); }
-        .mention-opt.active {
-          border-color: var(--color-blue); background: var(--color-blue-light); border-width: 2px; padding: 13px 9px;
-        }
-        .mention-opt.active .code { color: var(--color-blue-dark); }
-        .mention-opt.active .name { color: var(--color-ink-2); font-weight: 500; }
-
-        .check { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; color: var(--color-ink-2); line-height: 1.5; }
-        .check input { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--color-blue); flex-shrink: 0; }
-        .check a { color: var(--color-blue); font-weight: 600; }
-
-        .btn-submit {
-          background: var(--color-red); color: #fff; border: none; border-radius: 10px;
-          padding: 14px 22px; font-size: 15px; font-weight: 600;
-          font-family: var(--font-sans);
-          cursor: pointer; transition: all 0.15s;
-          display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        .btn-submit:hover { background: var(--color-red-dark); transform: translateY(-1px); }
-        .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
-
-        .legal { margin-top: 28px; font-size: 12px; color: var(--color-muted-2); text-align: center; line-height: 1.5; }
-
-        .auth-visual-side {
-          background: var(--color-blue); color: #fff; padding: 48px;
-          position: relative; overflow: hidden;
-          display: flex; flex-direction: column;
-        }
-        .auth-visual-side::before {
-          content: ''; position: absolute; inset: 0;
-          background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.06) 0%, transparent 40%),
-                      radial-gradient(circle at 80% 80%, rgba(225,55,47,0.25) 0%, transparent 50%);
-          pointer-events: none;
-        }
-        .visual-content { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
-
-        .visual-top {
-          display: flex; align-items: center; gap: 10px;
-          font-family: var(--font-mono); font-size: 11px;
-          letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.55);
-        }
-        .visual-top::before {
-          content: ''; width: 24px; height: 1px; background: rgba(255,255,255,0.4);
-        }
-
-        .visual-quote h2 {
-          font-family: var(--font-display); font-weight: 400; font-style: italic;
-          font-size: 32px; line-height: 1.2; letter-spacing: -0.015em;
-          color: #fff; margin: 0 0 28px;
-        }
-        .visual-quote .author { display: flex; gap: 12px; align-items: center; }
-        .visual-quote .avatar {
-          width: 44px; height: 44px; border-radius: 50%;
-          background: var(--color-red); color: #fff;
-          display: flex; align-items: center; justify-content: center;
-          font-weight: 700;
-        }
-        .visual-quote .name { font-weight: 600; font-size: 15px; }
-        .visual-quote .meta {
-          font-family: var(--font-mono); font-size: 11px;
-          color: rgba(255,255,255,0.55); letter-spacing: 0.08em;
-        }
-
-        .trust-grid {
-          display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px;
-          border-top: 1px solid rgba(255,255,255,0.12);
-          padding-top: 32px;
-        }
-        .trust-item h4 {
-          font-family: var(--font-display); font-weight: 500; font-size: 28px;
-          margin: 0 0 4px; letter-spacing: -0.02em;
-        }
-        .trust-item h4 .accent { color: #ffb3b0; }
-        .trust-item p {
-          font-family: var(--font-mono); font-size: 10.5px;
-          letter-spacing: 0.12em; text-transform: uppercase;
-          color: rgba(255,255,255,0.6); margin: 0;
-        }
-
-        @media (max-width: 900px) {
-          .auth-wrap { grid-template-columns: 1fr; }
-          .auth-visual-side { display: none; }
-          .auth-form-side { padding: 24px; }
-        }
-        @media (max-width: 480px) {
-          .row-2 { grid-template-columns: 1fr; }
-          .mention-grid { grid-template-columns: 1fr; }
-          .h1-edit { font-size: 32px; }
-        }
-      `}</style>
+      <style>{styles}</style>
     </div>
   );
 }
+
+// ============================================================================
+// STAT
+// ============================================================================
+function Stat({ num, label }: { num: string; label: string }) {
+  return (
+    <div className="visual-stat">
+      <div className="visual-stat-num">{num}</div>
+      <div className="visual-stat-label">{label}</div>
+    </div>
+  );
+}
+
+// ============================================================================
+// ICONS
+// ============================================================================
+const EyeIcon = () => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+const EyeOffIcon = () => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+);
+const ShieldIcon = () => (
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+);
+
+// ============================================================================
+// STYLES
+// ============================================================================
+const styles = `
+  .auth-wrap {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: #fff;
+  }
+
+  /* ============ FORM SIDE ============ */
+  .form-side {
+    padding: 28px 48px 48px;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    position: relative;
+  }
+  .form-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    width: fit-content;
+    margin-bottom: 30px;
+  }
+  .form-cocarde {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background:
+      radial-gradient(circle, var(--color-red) 0 28%, transparent 28%),
+      radial-gradient(circle, #fff 0 60%, transparent 60%),
+      var(--color-blue);
+  }
+  .form-wordmark {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 20px;
+    letter-spacing: -0.02em;
+    color: var(--color-blue);
+  }
+  .form-wordmark .fr { color: var(--color-red); }
+
+  .form-inner {
+    max-width: 460px;
+    margin: 0 auto;
+    width: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .form-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    padding: 6px 12px;
+    border-radius: 100px;
+    background: rgba(22, 143, 91, 0.10);
+    color: var(--color-green);
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+  .form-eyebrow .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--color-green);
+    box-shadow: 0 0 0 3px rgba(22, 143, 91, 0.18);
+  }
+  .form-h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(32px, 4vw, 44px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    margin: 0 0 14px;
+    color: var(--color-ink);
+  }
+  .form-h1 em {
+    font-style: italic;
+    font-weight: 500;
+    color: var(--color-blue);
+  }
+  .form-sub {
+    color: var(--color-muted);
+    font-size: 15.5px;
+    margin: 0 0 32px;
+    line-height: 1.55;
+    max-width: 420px;
+  }
+
+  .form { display: flex; flex-direction: column; gap: 18px; }
+  .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* PASSWORD TOGGLE */
+  .field-pwd-wrap { position: relative; }
+  .field-pwd-wrap .field-input { padding-right: 44px; }
+  .field-pwd-toggle {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px; height: 36px;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    color: var(--color-muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, background 0.15s;
+  }
+  .field-pwd-toggle:hover {
+    color: var(--color-blue);
+    background: var(--color-blue-soft);
+  }
+
+  /* MENTION GRID */
+  .mention-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .mention-opt {
+    position: relative;
+    border: 1.5px solid var(--color-line);
+    background: #fff;
+    border-radius: 12px;
+    padding: 14px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.18s;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+  }
+  .mention-opt:hover:not(.is-active) {
+    border-color: var(--color-blue);
+    background: var(--color-blue-soft);
+  }
+  .mention-opt input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .mention-code {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--color-blue);
+    letter-spacing: 0.08em;
+  }
+  .mention-name {
+    font-size: 12px;
+    color: var(--color-muted);
+    line-height: 1.3;
+  }
+  .mention-tcf {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+    color: var(--color-muted-2);
+    margin-top: 2px;
+  }
+  .mention-tcf strong {
+    color: var(--color-red);
+    font-weight: 700;
+  }
+  .mention-opt.is-active {
+    border-color: var(--color-blue);
+    background: var(--color-blue-light);
+  }
+  .mention-opt.is-active .mention-code { color: var(--color-blue-dark); }
+  .mention-opt.is-active .mention-name {
+    color: var(--color-ink);
+    font-weight: 600;
+  }
+
+  /* CHECK */
+  .form-check {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 13px;
+    color: var(--color-ink-2);
+    line-height: 1.5;
+  }
+  .form-check input {
+    width: 16px; height: 16px;
+    margin-top: 2px;
+    accent-color: var(--color-blue);
+    flex-shrink: 0;
+  }
+  .form-check a {
+    color: var(--color-blue);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .form-check a:hover { text-decoration: underline; }
+
+  /* SUBMIT */
+  .form-submit {
+    background: var(--color-red);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 15px 22px;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .form-submit:hover:not(:disabled) {
+    background: var(--color-red-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px -10px rgba(225, 55, 47, 0.4);
+  }
+  .form-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+  .form-submit-arrow { transition: transform 0.15s; }
+  .form-submit:hover .form-submit-arrow { transform: translateX(3px); }
+
+  .form-already {
+    text-align: center;
+    font-size: 13.5px;
+    color: var(--color-muted);
+    margin: 0;
+  }
+  .form-already-link {
+    color: var(--color-blue);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .form-already-link:hover { text-decoration: underline; }
+
+  .form-legal {
+    margin-top: 32px;
+    font-size: 11.5px;
+    color: var(--color-muted-2);
+    text-align: center;
+    line-height: 1.5;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+  }
+
+  /* ============ VISUAL SIDE ============ */
+  .visual-side {
+    background:
+      linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
+    color: #fff;
+    padding: 56px 56px 48px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .visual-bg {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(circle at 100% 0%, var(--color-red) 0%, transparent 35%),
+      radial-gradient(circle at 0% 100%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .visual-content {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .visual-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: rgba(255, 255, 255, 0.65);
+    font-weight: 600;
+  }
+  .visual-top-bar {
+    width: 32px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.4);
+  }
+
+  /* QUOTE */
+  .visual-quote {
+    margin: 64px 0 56px;
+    padding: 0;
+    position: relative;
+  }
+  .visual-quote-mark {
+    font-family: var(--font-display);
+    font-size: 96px;
+    line-height: 0.5;
+    color: rgba(255, 255, 255, 0.18);
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  .visual-quote p {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: clamp(22px, 2.4vw, 30px);
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    color: #fff;
+    margin: 0 0 28px;
+    max-width: 480px;
+  }
+  .visual-author {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .visual-avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-red), var(--color-amber));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .visual-name { font-weight: 700; font-size: 15px; }
+  .visual-meta {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: rgba(255, 255, 255, 0.6);
+    letter-spacing: 0.12em;
+    margin-top: 2px;
+  }
+
+  /* STATS */
+  .visual-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
+    padding-top: 32px;
+  }
+  .visual-stat-num {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(26px, 2.8vw, 32px);
+    letter-spacing: -0.025em;
+    line-height: 1;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .visual-stat-label {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 980px) {
+    .auth-wrap { grid-template-columns: 1fr; min-height: auto; }
+    .visual-side { display: none; }
+    .form-side { padding: 24px 24px 48px; min-height: 100vh; }
+    .form-inner { padding-top: 12px; }
+  }
+  @media (max-width: 480px) {
+    .form-row-2 { grid-template-columns: 1fr; }
+    .mention-grid { grid-template-columns: 1fr; }
+    .mention-opt {
+      flex-direction: row;
+      justify-content: flex-start;
+      gap: 12px;
+      text-align: left;
+      padding: 12px 14px;
+    }
+    .mention-tcf { margin-top: 0; margin-left: auto; }
+  }
+`;

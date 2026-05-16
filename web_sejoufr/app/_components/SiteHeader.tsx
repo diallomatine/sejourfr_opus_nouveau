@@ -6,9 +6,10 @@ import { useEffect, useRef, useState } from "react";
 import { Brand } from "./Brand";
 import { useAuth } from "@/lib/auth-context";
 
-/** Routes utilisateur connecté qui ont leur propre sidebar — le SiteHeader
- *  global n'apparaît pas pour éviter une double-navigation. */
+/** Routes qui portent leur propre chrome (sidebar ou layout 2-pane) — le
+ *  SiteHeader global n'apparaît pas pour éviter une double-navigation. */
 const APP_PREFIXES = [
+  // Espace personnel (sidebar)
   "/dashboard",
   "/entrainement",
   "/examens-blancs",
@@ -19,6 +20,11 @@ const APP_PREFIXES = [
   "/revision",
   "/sessions",
   "/statistiques",
+  // Pages d'authentification (layout 2-pane, brand link en haut à gauche)
+  "/inscription",
+  "/connexion",
+  "/mot-de-passe-oublie",
+  "/reinitialiser-mot-de-passe",
 ];
 
 export function SiteHeader() {

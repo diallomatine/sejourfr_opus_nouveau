@@ -6,53 +6,39 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import type { AuthenticatedUser } from "@/lib/types";
 
+type SyncState = "syncing" | "ready" | "timeout";
+
 export default function PaiementSuccesPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<SuccesSkeleton />}>
       <SuccesInner />
     </Suspense>
   );
 }
 
-type SyncState = "syncing" | "ready" | "timeout";
-
 /**
  * Page de retour Stripe après checkout one-shot.
  *
- * Le user revient ici (configuration "After payment → redirect" du Payment
- * Link côté dashboard Stripe). Le webhook `checkout.session.completed` est
- * envoyé en parallèle au backend, qui met à jour `hasCivique`/`hasTcf` et
- * `premiumEndsAt` sur l'utilisateur.
- *
- * Côté front, le contexte d'auth a une version périmée du user au moment du
- * retour. On déclenche un `refreshUser()` au mount, puis on poll (toutes les
- * 1,5 s, max 8 tentatives = 12 s) tant que le statut premium n'est pas
- * détecté. Si après ce délai le webhook n'est pas arrivé, on affiche un
- * message "ça arrive sous peu" — l'utilisateur peut quand même naviguer,
- * son accès sera actif au prochain reload.
+ * Le webhook `checkout.session.completed` arrive en parallèle au backend, qui
+ * met à jour `hasCivique`/`hasTcf` et `premiumEndsAt` sur l'utilisateur.
+ * Côté front, on poll `refreshUser()` (1,5s × 8 = 12s max) tant que le
+ * statut premium n'est pas détecté. Au-delà, message "ça arrive sous peu"
+ * — l'utilisateur peut naviguer, son accès sera actif au prochain reload.
  */
 function SuccesInner() {
   const sp = useSearchParams();
   const { user, status, refreshUser } = useAuth();
   const sessionId = sp.get("session_id");
-  // Stripe peut renseigner `plan` si on l'a mis dans le success_url du Payment
-  // Link côté dashboard. Sinon on dérive du statut user après refresh.
   const planParam = sp.get("plan");
 
-  // `timedOut` est le seul state interne — `syncState` est dérivé de
-  // `isPremium(user)` + `timedOut` pour rester en sync avec le contexte
-  // d'auth sans cascading renders (cf react-hooks/set-state-in-effect).
   const [timedOut, setTimedOut] = useState(false);
   const synced = isPremium(user);
   const syncState: SyncState = synced ? "ready" : timedOut ? "timeout" : "syncing";
   const attemptsRef = useRef(0);
 
-  // Boucle de polling : on refresh tant que le statut premium n'est pas
-  // détecté, max 8 tentatives × 1,5 s = 12 s avant d'afficher le message
-  // "ça arrivera dans la minute".
   useEffect(() => {
     if (status !== "authenticated") return;
-    if (synced) return; // déjà premium, plus rien à faire
+    if (synced) return;
 
     let stopped = false;
     const MAX_ATTEMPTS = 8;
@@ -64,7 +50,7 @@ function SuccesInner() {
       try {
         await refreshUser();
       } catch {
-        // ignore : le polling continue tant que MAX_ATTEMPTS n'est pas atteint
+        // ignore
       }
     };
 
@@ -85,20 +71,16 @@ function SuccesInner() {
     };
   }, [status, refreshUser, synced]);
 
-  if (status === "loading") {
-    return <div className="succes-loading" />;
-  }
+  if (status === "loading") return <SuccesSkeleton />;
 
   if (!user) {
     return (
       <main className="succes">
-        <div className="succes-card">
-          <h1>Votre paiement a été reçu</h1>
-          <p className="succes-sub">
-            Connectez-vous pour finaliser l&apos;activation de votre abonnement.
-          </p>
-          <Link href="/connexion?next=/paiement/succes" className="btn btn-blue">
-            Se connecter
+        <div className="succes-gate">
+          <h1>Votre paiement a été reçu.</h1>
+          <p>Connectez-vous pour finaliser l&apos;activation de votre abonnement.</p>
+          <Link href="/connexion?next=/paiement/succes" className="btn-primary">
+            Se connecter →
           </Link>
         </div>
         <style>{styles}</style>
@@ -107,110 +89,188 @@ function SuccesInner() {
   }
 
   const planLabel = derivePlanLabel(user, planParam);
-  const showSyncing = syncState === "syncing";
-  const showTimeout = syncState === "timeout" && !isPremium(user);
 
   return (
     <main className="succes">
-      <div className="succes-card">
-        <div className={`succes-icon ${showSyncing ? "is-syncing" : ""}`} aria-hidden>
-          {showSyncing ? (
-            <span className="succes-spinner" />
+      {/* ============ TOPBAR ============ */}
+      <header className="topbar">
+        <div className="breadcrumb">
+          ACCUEIL <span className="sep">/</span>{" "}
+          <Link href="/paiement" className="breadcrumb-link">
+            ABONNEMENT
+          </Link>{" "}
+          <span className="sep">/</span> SUCCÈS
+        </div>
+      </header>
+
+      {/* ============ HERO CARD ============ */}
+      <section className={`succes-hero succes-hero-${syncState}`}>
+        <div className="succes-halo" aria-hidden />
+
+        <div className="succes-icon-wrap">
+          {syncState === "syncing" ? (
+            <div className="succes-spinner" aria-hidden />
           ) : (
-            <svg viewBox="0 0 24 24" fill="none">
-              <path
-                d="M20 6 9 17l-5-5"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+            <div className="succes-check" aria-hidden>
+              <svg viewBox="0 0 32 32" width="32" height="32">
+                <path
+                  d="M8 16l5 5 11-12"
+                  stroke="#fff"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </svg>
+            </div>
           )}
         </div>
 
-        <span className="eyebrow">
-          {showSyncing ? "Activation en cours" : "Paiement confirmé"}
-        </span>
-        <h1>
-          {showSyncing ? (
-            <>Activation de votre <em>{planLabel}</em>…</>
-          ) : showTimeout ? (
-            <>Paiement reçu — <em>activation en cours</em></>
-          ) : (
-            <>Bienvenue dans <em>{planLabel}</em>.</>
-          )}
-        </h1>
-        <p className="succes-sub">
-          {showSyncing
-            ? "Stripe nous notifie l'activation, ça prend quelques secondes. Ne fermez pas cette page."
-            : showTimeout
-              ? "Votre paiement est validé côté Stripe. La synchronisation côté SejourFR peut prendre une ou deux minutes — votre accès s'ouvrira automatiquement. Vous pouvez naviguer ou revenir sur cette page plus tard."
-              : `${user.firstName ? `${user.firstName}, votre` : "Votre"} abonnement est actif. Vous avez maintenant accès à ${
-                  user.hasTcf
-                    ? "tout le contenu : Civique + TCF IRN, examens blancs illimités, révision des erreurs"
-                    : "tout le contenu civique : 1 200+ questions, examens blancs illimités, révision des erreurs"
-                }.`}
-        </p>
-
-        {!showSyncing && !showTimeout && (
-          <div className="succes-next">
-            <h2>Et maintenant ?</h2>
-            <ol>
-              <li>
-                <strong>Lancez votre premier entraînement complet</strong>
-                {" "}— maintenant que vous êtes abonné, l&apos;entraînement est
-                illimité par thème.
-              </li>
-              <li>
-                <strong>Passez un examen blanc en conditions réelles</strong>
-                {" "}— chronomètre, pas de correction live, score officiel à la fin.
-              </li>
-              <li>
-                <strong>Suivez votre progression</strong> sur{" "}
-                <Link href="/statistiques">/statistiques</Link> et révisez vos
-                erreurs sur <Link href="/revision">/revision</Link>.
-              </li>
-            </ol>
-          </div>
-        )}
-
-        <div className="succes-actions">
-          {!showSyncing && (
+        <div className="succes-eyebrow">
+          {syncState === "syncing" ? (
             <>
-              <Link href="/entrainement" className="btn btn-red btn-lg">
-                Lancer un entraînement
-              </Link>
-              <Link href="/dashboard" className="btn btn-ghost">
-                Tableau de bord
-              </Link>
+              <span className="dot dot-blue" /> ACTIVATION EN COURS
+            </>
+          ) : syncState === "timeout" ? (
+            <>
+              <span className="dot dot-amber" /> ACTIVATION EN ATTENTE
+            </>
+          ) : (
+            <>
+              <span className="dot dot-green" /> PAIEMENT CONFIRMÉ
             </>
           )}
         </div>
 
-        {(sessionId || planParam) && (
-          <p className="succes-meta">
-            {sessionId && (
-              <>Référence transaction&nbsp;: <code>{sessionId}</code></>
-            )}
-          </p>
+        <h1 className="succes-h1">
+          {syncState === "syncing" ? (
+            <>
+              Activation de votre <em>{planLabel}</em>…
+            </>
+          ) : syncState === "timeout" ? (
+            <>
+              Paiement reçu — <em>activation en cours</em>
+            </>
+          ) : (
+            <>
+              Bienvenue dans <em>{planLabel}</em>.
+            </>
+          )}
+        </h1>
+
+        <p className="succes-sub">
+          {syncState === "syncing"
+            ? "Stripe nous notifie l'activation, ça prend quelques secondes. Ne fermez pas cette page."
+            : syncState === "timeout"
+              ? "Votre paiement est validé côté Stripe. La synchronisation côté SejourFR peut prendre une ou deux minutes — votre accès s'ouvrira automatiquement. Vous pouvez naviguer ou revenir sur cette page plus tard."
+              : `${user.firstName ? `${user.firstName}, votre` : "Votre"} abonnement est actif. Vous avez maintenant accès à ${
+                  user.hasTcf
+                    ? "tout le contenu : Civique + TCF IRN, examens blancs illimités, révision des erreurs"
+                    : "tout le contenu civique : la banque complète, examens blancs illimités, révision des erreurs"
+                }.`}
+        </p>
+
+        {syncState !== "syncing" && (
+          <div className="succes-actions">
+            <Link href="/entrainement" className="btn-primary-red">
+              Lancer un entraînement <span className="arrow">→</span>
+            </Link>
+            <Link href="/dashboard" className="btn-outline">
+              Tableau de bord
+            </Link>
+          </div>
         )}
-      </div>
+      </section>
+
+      {/* ============ NEXT STEPS ============ */}
+      {syncState === "ready" && (
+        <section className="next-section">
+          <h2 className="next-title">Et maintenant ?</h2>
+          <div className="next-grid">
+            <NextCard
+              num="01"
+              tone="blue"
+              title="Lancer un entraînement complet"
+              body="L'entraînement par thème est désormais illimité. Travaillez vos points faibles à votre rythme."
+              href="/entrainement"
+              ctaLabel="S'entraîner"
+            />
+            <NextCard
+              num="02"
+              tone="red"
+              title="Passer un examen blanc"
+              body="En conditions réelles : chronomètre, pas de correction live, score officiel à la fin."
+              href="/examens-blancs"
+              ctaLabel="Examens blancs"
+            />
+            <NextCard
+              num="03"
+              tone="green"
+              title="Suivre votre progression"
+              body="Statistiques par thématique, calendrier d'activité et révision ciblée de vos erreurs."
+              href="/statistiques"
+              ctaLabel="Mes stats"
+            />
+          </div>
+        </section>
+      )}
+
+      {/* ============ REFERENCE ============ */}
+      {sessionId && (
+        <section className="succes-meta">
+          <span className="succes-meta-label">RÉFÉRENCE TRANSACTION</span>
+          <code className="succes-meta-value">{sessionId}</code>
+          <span className="succes-meta-foot">
+            Conservez cette référence en cas de question sur votre paiement.
+            Une question ? Écrivez à{" "}
+            <a href="mailto:hello@sejourfr.fr">hello@sejourfr.fr</a>.
+          </span>
+        </section>
+      )}
 
       <style>{styles}</style>
     </main>
   );
 }
 
+// ============================================================================
+// NEXT CARD
+// ============================================================================
+function NextCard({
+  num,
+  tone,
+  title,
+  body,
+  href,
+  ctaLabel,
+}: {
+  num: string;
+  tone: "blue" | "red" | "green";
+  title: string;
+  body: string;
+  href: string;
+  ctaLabel: string;
+}) {
+  return (
+    <Link href={href} className={`next-card next-card-${tone}`}>
+      <span className={`next-num next-num-${tone}`}>{num}</span>
+      <h3 className="next-card-title">{title}</h3>
+      <p className="next-card-body">{body}</p>
+      <span className={`next-card-cta next-card-cta-${tone}`}>
+        {ctaLabel} <span className="arrow">→</span>
+      </span>
+    </Link>
+  );
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
 function isPremium(user: AuthenticatedUser | null): boolean {
   if (!user) return false;
   return Boolean(user.hasCivique || user.hasTcf);
 }
 
-/**
- * Libellé du plan acquis : on privilégie le query param Stripe (`plan=...`)
- * s'il est passé dans le success_url, sinon on dérive du statut user actuel.
- */
 function derivePlanLabel(user: AuthenticatedUser, planParam: string | null): string {
   if (planParam === "INTEGRAL_3MOIS") return "Intégral";
   if (planParam === "CIVIQUE_3MOIS") return "Civique";
@@ -219,115 +279,362 @@ function derivePlanLabel(user: AuthenticatedUser, planParam: string | null): str
   return "Premium";
 }
 
-const styles = `
-  .succes-loading { min-height: 60vh; }
+function SuccesSkeleton() {
+  return (
+    <div className="succes-loading">
+      <style>{`.succes-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
+    </div>
+  );
+}
 
-  .succes {
-    max-width: 720px; margin: 0 auto;
-    padding: 64px 28px 80px;
+// ============================================================================
+// STYLES
+// ============================================================================
+const styles = `
+  .succes { padding: 24px 36px 64px; max-width: 1100px; }
+  @media (max-width: 760px) { .succes { padding: 20px 16px 56px; } }
+
+  /* ========== TOPBAR ========== */
+  .topbar { margin-bottom: 22px; }
+  .breadcrumb {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
   }
-  .succes-card {
-    background: #fff; border: 1px solid var(--color-line);
-    border-radius: 18px;
-    padding: 48px 44px 40px;
+  .breadcrumb-link {
+    color: var(--color-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .breadcrumb-link:hover { color: var(--color-blue); }
+  .breadcrumb .sep { margin: 0 6px; opacity: 0.5; }
+
+  /* ========== HERO CARD ========== */
+  .succes-hero {
+    position: relative;
     text-align: center;
-    box-shadow: 0 30px 70px -30px rgba(15, 24, 57, 0.18);
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 24px;
+    padding: 56px 40px 44px;
+    overflow: hidden;
+    margin-bottom: 32px;
   }
-  .succes-icon {
-    width: 64px; height: 64px;
+  .succes-halo {
+    position: absolute;
+    top: -120px; left: 50%;
+    transform: translateX(-50%);
+    width: 600px; height: 360px;
+    pointer-events: none;
     border-radius: 50%;
-    background: rgba(22, 143, 91, 0.12);
-    color: var(--color-green);
+    filter: blur(50px);
+    opacity: 0.5;
+  }
+  .succes-hero-ready .succes-halo {
+    background: radial-gradient(circle, rgba(22, 143, 91, 0.25) 0%, transparent 70%);
+  }
+  .succes-hero-syncing .succes-halo {
+    background: radial-gradient(circle, rgba(30, 58, 140, 0.18) 0%, transparent 70%);
+  }
+  .succes-hero-timeout .succes-halo {
+    background: radial-gradient(circle, rgba(232, 163, 23, 0.22) 0%, transparent 70%);
+  }
+
+  .succes-icon-wrap {
+    position: relative;
+    z-index: 1;
+    margin-bottom: 22px;
+    display: flex; justify-content: center;
+  }
+  .succes-check {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-green) 0%, #128050 100%);
+    color: #fff;
     display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 18px;
-    transition: background 0.3s, color 0.3s;
+    box-shadow:
+      0 0 0 10px rgba(22, 143, 91, 0.12),
+      0 16px 32px -10px rgba(22, 143, 91, 0.5);
+    animation: succes-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
-  .succes-icon.is-syncing {
-    background: var(--color-blue-light);
-    color: var(--color-blue);
+  .succes-hero-timeout .succes-check {
+    background: linear-gradient(135deg, var(--color-amber) 0%, #c08510 100%);
+    box-shadow:
+      0 0 0 10px rgba(232, 163, 23, 0.14),
+      0 16px 32px -10px rgba(232, 163, 23, 0.5);
   }
-  .succes-icon svg { width: 30px; height: 30px; }
+  @keyframes succes-pop {
+    0% { transform: scale(0.3); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
   .succes-spinner {
-    width: 28px; height: 28px;
-    border: 3px solid rgba(30, 58, 140, 0.18);
+    width: 72px; height: 72px;
+    border: 4px solid rgba(30, 58, 140, 0.16);
     border-top-color: var(--color-blue);
     border-radius: 50%;
     animation: succes-spin 0.9s linear infinite;
   }
   @keyframes succes-spin { to { transform: rotate(360deg); } }
 
-  .succes h1 {
-    font-family: var(--font-display); font-weight: 500; font-size: clamp(28px, 4vw, 40px);
-    line-height: 1.05; letter-spacing: -0.025em;
-    margin: 12px 0 14px;
+  .succes-eyebrow {
+    position: relative; z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.15em;
+    font-weight: 700;
+    color: var(--color-muted);
+    margin-bottom: 14px;
   }
-  .succes h1 em { font-style: italic; color: var(--color-red); }
+  .succes-eyebrow .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+  }
+  .dot-green {
+    background: var(--color-green);
+    box-shadow: 0 0 0 3px rgba(22, 143, 91, 0.2);
+  }
+  .dot-blue {
+    background: var(--color-blue);
+    box-shadow: 0 0 0 3px rgba(30, 58, 140, 0.2);
+    animation: succes-pulse 1.4s ease-in-out infinite;
+  }
+  .dot-amber {
+    background: var(--color-amber);
+    box-shadow: 0 0 0 3px rgba(232, 163, 23, 0.2);
+  }
+  @keyframes succes-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .succes-h1 {
+    position: relative; z-index: 1;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(28px, 4vw, 42px);
+    line-height: 1.08;
+    letter-spacing: -0.025em;
+    color: var(--color-ink);
+    margin: 0 0 16px;
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .succes-h1 em {
+    font-style: italic;
+    font-weight: 500;
+  }
+  .succes-hero-ready .succes-h1 em { color: var(--color-blue); }
+  .succes-hero-syncing .succes-h1 em { color: var(--color-blue); }
+  .succes-hero-timeout .succes-h1 em { color: var(--color-amber); }
 
   .succes-sub {
-    color: var(--color-muted); font-size: 16px;
-    margin: 0 auto 32px; max-width: 520px;
-    line-height: 1.55;
-  }
-
-  .succes-next {
-    background: var(--color-paper); border-radius: 14px;
-    padding: 28px 32px; text-align: left;
-    margin-bottom: 28px;
-  }
-  .succes-next h2 {
-    font-family: var(--font-sans); font-weight: 700; font-size: 13px;
-    letter-spacing: 0.08em; text-transform: uppercase;
+    position: relative; z-index: 1;
     color: var(--color-muted);
-    margin: 0 0 16px;
+    font-size: 16px;
+    line-height: 1.55;
+    margin: 0 auto 30px;
+    max-width: 600px;
   }
-  .succes-next ol {
-    list-style: none; padding: 0; margin: 0;
-    counter-reset: succes-step;
-  }
-  .succes-next li {
-    counter-increment: succes-step;
-    padding: 14px 0 16px 44px;
-    border-bottom: 1px solid var(--color-line-2);
-    position: relative;
-    font-size: 14.5px; line-height: 1.55; color: var(--color-ink-2);
-  }
-  .succes-next li:last-child { border-bottom: none; }
-  .succes-next li::before {
-    content: counter(succes-step);
-    position: absolute; left: 0; top: 12px;
-    width: 28px; height: 28px;
-    background: var(--color-blue); color: #fff;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-family: var(--font-mono); font-size: 13px; font-weight: 700;
-  }
-  .succes-next li strong { color: var(--color-ink); font-weight: 600; }
-  .succes-next li a {
-    color: var(--color-blue); text-decoration: none;
-    font-family: var(--font-mono); font-size: 13px;
-  }
-  .succes-next li a:hover { text-decoration: underline; }
 
   .succes-actions {
-    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
-    margin-bottom: 20px;
-    min-height: 4px;
+    position: relative; z-index: 1;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
   }
-  .succes-meta {
-    font-family: var(--font-mono); font-size: 11px;
-    letter-spacing: 0.08em; color: var(--color-muted);
-    margin: 0;
+  .btn-primary, .btn-primary-red, .btn-outline {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 13px 22px; border-radius: 12px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
   }
-  .succes-meta code {
-    background: var(--color-paper);
-    padding: 2px 6px; border-radius: 4px;
-    color: var(--color-ink-2);
+  .btn-primary { background: var(--color-blue); color: #fff; }
+  .btn-primary:hover { background: var(--color-blue-dark); transform: translateY(-1px); }
+  .btn-primary-red {
+    background: var(--color-red);
+    color: #fff;
+    box-shadow: 0 10px 24px -10px rgba(225, 55, 47, 0.5);
+  }
+  .btn-primary-red:hover {
+    background: var(--color-red-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px -10px rgba(225, 55, 47, 0.6);
+  }
+  .btn-outline {
+    background: #fff;
+    color: var(--color-ink);
+    border-color: var(--color-line);
+  }
+  .btn-outline:hover {
+    border-color: var(--color-blue);
+    color: var(--color-blue);
+  }
+  .arrow { transition: transform 0.15s; }
+  .btn-primary-red:hover .arrow,
+  .btn-primary:hover .arrow { transform: translateX(3px); }
+
+  /* ========== NEXT STEPS ========== */
+  .next-section { margin-bottom: 32px; }
+  .next-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: -0.015em;
+    color: var(--color-ink);
+    margin: 0 0 16px;
+  }
+  .next-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 980px) {
+    .next-grid { grid-template-columns: 1fr; }
   }
 
-  @media (max-width: 560px) {
-    .succes { padding: 28px 16px 60px; }
-    .succes-card { padding: 32px 24px 28px; }
-    .succes-next { padding: 22px 20px; }
-    .succes-next li { padding-left: 38px; }
+  .next-card {
+    position: relative;
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 18px;
+    padding: 24px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.18s;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .next-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .next-card-blue::before { background: var(--color-blue); }
+  .next-card-red::before { background: var(--color-red); }
+  .next-card-green::before { background: var(--color-green); }
+  .next-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 30px -16px rgba(15, 24, 57, 0.20);
+  }
+  .next-card-blue:hover { border-color: var(--color-blue); }
+  .next-card-red:hover { border-color: var(--color-red); }
+  .next-card-green:hover { border-color: var(--color-green); }
+
+  .next-num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .next-num-blue { color: var(--color-blue); }
+  .next-num-red { color: var(--color-red); }
+  .next-num-green { color: var(--color-green); }
+
+  .next-card-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: -0.01em;
+    margin: 0 0 8px;
+    color: var(--color-ink);
+    line-height: 1.25;
+  }
+  .next-card-body {
+    color: var(--color-muted);
+    font-size: 13.5px;
+    line-height: 1.5;
+    margin: 0 0 16px;
+    flex: 1;
+  }
+  .next-card-cta {
+    font-size: 13px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .next-card-cta-blue { color: var(--color-blue); }
+  .next-card-cta-red { color: var(--color-red); }
+  .next-card-cta-green { color: var(--color-green); }
+  .next-card:hover .next-card-cta .arrow { transform: translateX(3px); }
+
+  /* ========== META ========== */
+  .succes-meta {
+    background: var(--color-paper);
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .succes-meta-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    color: var(--color-muted);
+    font-weight: 700;
+  }
+  .succes-meta-value {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-ink-2);
+    background: #fff;
+    padding: 8px 12px;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    word-break: break-all;
+    display: inline-block;
+  }
+  .succes-meta-foot {
+    font-size: 12.5px;
+    color: var(--color-muted);
+    line-height: 1.5;
+    margin-top: 4px;
+  }
+  .succes-meta-foot a {
+    color: var(--color-blue);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .succes-meta-foot a:hover { text-decoration: underline; }
+
+  /* ========== GATE ========== */
+  .succes-gate {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 22px;
+    padding: 48px 40px;
+    text-align: center;
+    max-width: 480px;
+    margin: 48px auto 0;
+  }
+  .succes-gate h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 28px;
+    color: var(--color-ink);
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+  }
+  .succes-gate p {
+    color: var(--color-muted);
+    font-size: 14.5px;
+    margin: 0 0 24px;
   }
 `;
