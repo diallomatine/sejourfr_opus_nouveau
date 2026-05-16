@@ -83,7 +83,7 @@ export function Footer() {
                 <Link href="/#tarifs">Tarifs</Link>
               </li>
               <li>
-                <Link href="/examen-blanc">Examen blanc</Link>
+                <Link href="/examens-blancs">Examens blancs</Link>
               </li>
             </ul>
           </div>

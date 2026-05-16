@@ -42,6 +42,12 @@ export function AppSidebar() {
         <SideLink href="/dashboard" pathname={pathname}>
           ↳ Tableau de bord
         </SideLink>
+        <SideLink href="/statistiques" pathname={pathname}>
+          ↳ Statistiques
+        </SideLink>
+        <SideLink href="/historique" pathname={pathname}>
+          ↳ Historique
+        </SideLink>
 
         <span className="app-nav__section">Pratiquer</span>
         <SideLink href="/entrainement" pathname={pathname}>
@@ -50,8 +56,14 @@ export function AppSidebar() {
         <SideLink href="/examens-blancs" pathname={pathname}>
           ↳ Examens blancs
         </SideLink>
+        <SideLink href="/revision" pathname={pathname}>
+          ↳ Révision
+        </SideLink>
 
         <span className="app-nav__section">Compte</span>
+        <SideLink href="/profil" pathname={pathname}>
+          ↳ Mon profil
+        </SideLink>
         <SideLink href="/paiement" pathname={pathname}>
           ↳ Mon abonnement
         </SideLink>

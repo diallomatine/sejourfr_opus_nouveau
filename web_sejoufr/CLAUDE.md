@@ -58,26 +58,63 @@ app/
 ├── layout.tsx                    # injection fonts via next/font, variables CSS
 ├── globals.css                   # @import "tailwindcss" + @theme (tokens design)
 ├── page.tsx                      # landing one-pager (compose les sous-sections)
-├── _components/
-│   ├── Brand.tsx                 # Cocarde (CSS pur, 3 cercles), Wordmark, Brand (Link)
-│   ├── TopNav.tsx                # nav sticky avec ancres vers sections landing
-│   ├── Footer.tsx                # footer 4 colonnes
-│   ├── HeroSection.tsx           # hero + preview QCM
-│   └── LandingSections.tsx       # TrustStrip, Problem, Exams, HowItWorks, Pricing,
-│                                 #   Testimonials, Faq, FinalCta (tout dans 1 fichier)
-├── inscription/page.tsx          # "use client" + authApi.register()
-├── connexion/page.tsx            # "use client" + authApi.login()
-├── examen-blanc/page.tsx         # "use client", 4 stages: choice/briefing/running/result
-│                                 #   + timer, soumission par question, finalize
-└── paiement/page.tsx             # "use client" + Suspense + useSearchParams
-                                  #   plan switcher (mensuel/annuel), Stripe Checkout
+├── _components/                  # composants partagés (PascalCase.tsx, "use client")
+│   ├── Brand.tsx, TopNav.tsx, SiteHeader.tsx, Footer.tsx,
+│   ├── AppSidebar.tsx            # nav latérale des routes (app)
+│   ├── HeroSection.tsx, LandingSections.tsx, MobileAppPromo.tsx
+│   ├── MediaView.tsx             # rend MediaResponse (audio/image/vidéo/SVG inline)
+│   ├── QuestionRunner.tsx        # ★ runner réutilisable training/exam (favoris, prev/next,
+│   │                              #   training infini avec extension auto, raccourcis 1-4/Enter/B/←/→)
+│   ├── ModuleSwitch.tsx          # segmented Civique/TCF avec icônes
+│   ├── ThemeCard.tsx             # tile d'un thème en radio + état lock
+│   ├── TargetPathBanner.tsx      # bandeau parcours visé (CSP/CR/NAT ou A2/B1/B2)
+│   ├── TcfPaywallCard.tsx        # carte legacy si user.hasTcf === false — non utilisée
+│   │                              #   depuis hotfix démo TCF, conservée pour future cas d'usage
+│   ├── PaywallSheet.tsx          # modal paywall (bottom sheet mobile, dialog desktop)
+│   ├── TrainingResultCard.tsx    # carte de résultat fin de session training
+│   └── ExamResultCard.tsx        # carte de résultat fin d'examen blanc (TCF level vs civique pass)
+│
+├── (app)/                        # route group : connecté, layout sidebar+main
+│   ├── layout.tsx                # grid 260px / 1fr, passe en horizontal sous 900px
+│   ├── dashboard/page.tsx        # ★ tableau de bord : snapshot stats civique+TCF, action cards,
+│   │                              #   dernières sessions, "reprendre" si attempt en cours
+│   ├── statistiques/page.tsx     # ★ progression par thème (tri faibles d'abord), couleurs
+│   │                              #   vert/ambre/rouge, clic sur thème → start training ciblé
+│   ├── revision/page.tsx         # ★ tabs erreurs/favoris avec compteurs, modal détail
+│   │                              #   (statement, choix résolus, explanation, toggle favori)
+│   ├── historique/page.tsx       # ★ liste examens MOCK_EXAM passés, header résumé (taux moyen),
+│   │                              #   graphique custom SVG (barres + ligne seuil), clic → /sessions/<id>
+│   ├── profil/page.tsx           # ★ vue compte : identité, parcours (tile cliquable), abonnement,
+│   │                              #   sécurité (mdp via /mot-de-passe-oublie, suppr compte stub), logout
+│   ├── parcours/page.tsx         # ★ édition target path (CSP/CR/NAT) avec cards radio + niveau TCF
+│   │                              #   dérivé. Sert d'onboarding si user.targetProcedure manquant.
+│   │                              #   Support ?from=<route> pour retour.
+│   ├── entrainement/page.tsx     # ★ setup : module/thème/taille/gating démo par module,
+│   │                              #   redirige vers /sessions/<attemptId> après attemptApi.start
+│   ├── examens-blancs/page.tsx   # ★ liste des templates (free/premium, gating par module)
+│   ├── examens-blancs/[slug]/page.tsx  # ★ briefing + start, redirige vers /sessions/<id>
+│   ├── sessions/[attemptId]/page.tsx   # ★ runner générique : training OU exam selon attempt.type
+│   │                              #   (charge l'attempt + favoris, gère running/result/error,
+│   │                              #   timer si MOCK_EXAM via QuestionRunner)
+│   ├── paiement/page.tsx, succes/page.tsx        # Stripe Payment Link
+│
+├── inscription/, connexion/, mot-de-passe-oublie/, reinitialiser-mot-de-passe/
+└── examen-blanc/page.tsx         # ancienne route publique (à dépublier en V2)
 
 lib/
-├── api.ts                        # client HTTP : authApi, themeApi, attemptApi
-│                                 #   + tokenStorage (localStorage + cookie)
-│                                 #   + ApiException (status + payload.fieldErrors)
-└── types.ts                      # types miroirs des DTOs Java
+├── api.ts                        # authApi, themeApi, attemptApi, examApi, billingApi,
+│                                 #   userContentApi (favoris/wrong/reviewQuestion/targetPath),
+│                                 #   statsApi, tokenStorage, ApiException
+└── types.ts                      # DTOs miroirs Java + helper canAccessModule()
 ```
+
+**Le QuestionRunner est la pièce centrale** : c'est lui qui matérialise la session
+de QCM (training avec correction immédiate, ou exam avec submission silencieuse).
+Le state est interne (questions cumulées, currentIndex, answersByQuestion,
+attemptIdByQuestionId, lastResult, favoriteIds). En mode `infinite=true` (training
+premium), il étend automatiquement la session avec un nouveau batch quand on
+arrive sur la dernière question — un prefetch est déclenché dès que la correction
+de l'avant-dernière s'affiche, pour rendre le passage instantané.
 
 ## Identité visuelle (à ne pas dévier)
 
@@ -169,25 +206,63 @@ du total et de la TVA, récap, badges trust). Le clic sur "Payer" appelle
 
 Si la route renvoie 404, le front affiche un `alert()` explicite (fallback démo, ne pas garder en prod).
 
-## À faire ensuite (priorisé)
+## Stratégie produit — parité fonctionnelle avec le mobile
 
-1. **Dashboard utilisateur** après connexion (`/dashboard`) — stats par thématique, dernière tentative, taux
-   de réussite, liste des examens blancs passés
-2. **Entraînement libre** (`/entrainement`) — sélection thème + difficulté + nombre de questions, runner
-   partagé avec l'examen blanc (mêmes composants, mais avec correction immédiate par question puisque
-   `type: "TRAINING"`)
-3. **Révision des erreurs / favoris** (`/revision`) — liste des questions ratées ou marquées
-4. **Page de succès post-paiement** (`/paiement/succes`) — récupère `?session_id=...` envoyé par Stripe,
-   confirme l'abonnement côté back
-5. **Middleware Next** pour protéger les routes auth — lecture du cookie `sejourfr.accessToken` et redirect
-   vers `/connexion` si absent
-6. **Mot de passe oublié** — page `/mot-de-passe-oublie` qui appelle `POST /api/auth/forgot-password`, puis
-   `/reinitialiser-mot-de-passe?token=...` qui appelle `POST /api/auth/reset-password` (endpoints déjà prévus
-   côté back)
-7. **Refresh token automatique** — intercepteur dans `apiFetch` qui rejoue la requête après un 401 si un
-   refresh token est disponible
-8. **Mode sombre** — non prévu pour l'instant, mais le design system est compatible (variables CSS
-   centralisées)
+Décision **2026-05-16** : le web n'est plus une simple vitrine, c'est désormais une
+surface d'entraînement complète à parité fonctionnelle avec l'app mobile, avec le
+même paywall Stripe (CIVIQUE_3MOIS / INTEGRAL_3MOIS). Le mobile reste l'app
+quotidienne (offline futur, notifs), mais tout est faisable depuis le web.
+
+Chantier découpé en vagues :
+
+- **Vague 1** ✅ — Cœur entraînement : runner réutilisable, route
+  `/sessions/[attemptId]` (générique), gating démo (20Q) / premium (illimité),
+  favoris, raccourcis clavier, target path banner, paywall sheet.
+- **Vague 2** ✅ — Examens blancs complets : `QuestionRunner` enrichi avec timer
+  (mode exam, urgence rouge sous 5min, auto-finish à 0), refonte `/examens-blancs`
+  (liste sectionnée free/premium, gating par module, paywall sheet) +
+  `/examens-blancs/[slug]` (briefing + start qui POST l'attempt et redirige vers
+  `/sessions/<id>`). `ExamResultCard` gère civique (passed/failed vs seuil) et TCF
+  (level achieved A2/B1/B2). Ancien `ExamRunnerClient.tsx` supprimé,
+  `/examen-blanc` redirige vers `/examens-blancs`.
+- **Vague 3** ✅ — Stats / Historique / Révision / Favoris :
+  `/statistiques` (stats par thème + tri faibles d'abord, couleurs vert/ambre/rouge),
+  `/revision` (tabs erreurs+favoris avec modal détail réutilisant `QuestionReviewResponse`),
+  `/historique` (liste MOCK_EXAM via `attemptApi.listMine`, graphique custom SVG).
+  Dashboard refondu : snapshot par module, action cards, dernières sessions, bandeau
+  "reprendre" si attempt en cours. Sidebar enrichie (3 nouveaux liens).
+- **Vague 4** ✅ — Profil, parcours, onboarding intégré : `/profil` (identité,
+  parcours, abonnement, sécurité avec stubs pour update profile/delete account
+  en attendant les endpoints backend), `/parcours` (édition target path CSP/CR/NAT,
+  cards radio + niveau TCF dérivé, sert aussi d'onboarding quand `targetProcedure`
+  est null). Bandeau onboarding sur dashboard si pas de parcours choisi.
+  `TargetPathBanner` pointe désormais vers `/parcours?from=<courant>` pour
+  édition directe + retour au contexte. Sidebar enrichie avec "Mon profil".
+
+### Endpoints backend manquants (à créer si besoin)
+
+Côté Spring, ces endpoints n'existent pas encore et leur absence est gérée par
+des stubs/fallbacks côté web :
+
+- `PATCH /api/me/profile` (firstName/lastName) — non utilisé pour l'instant,
+  les champs sont en lecture seule sur `/profil`.
+- `POST /api/me/change-password` — workaround actuel : la page profil envoie
+  vers `/mot-de-passe-oublie` qui utilise le flow par email.
+- `DELETE /api/me/account` — la page profil affiche une modal "bientôt" qui
+  invite à écrire à hello@sejourfr.fr.
+- `POST /api/auth/logout` (révocation serveur du refresh token) — actuellement
+  on clear juste le storage côté client.
+
+## À faire ensuite (transverse, hors vagues)
+
+1. **Refresh token automatique** — intercepteur dans `apiFetch` qui rejoue la
+   requête après un 401 si un refresh token est disponible. Le mobile le fait
+   via Dio interceptor.
+2. **Middleware Next** pour protéger les routes auth — lecture du cookie
+   `sejourfr.accessToken` et redirect vers `/connexion` si absent. Aujourd'hui
+   géré côté client par `useAuth` mais flash possible au SSR.
+3. **Mode sombre** — non prévu pour l'instant, mais le design system est
+   compatible (variables CSS centralisées).
 
 ## Préférences utilisateur
 

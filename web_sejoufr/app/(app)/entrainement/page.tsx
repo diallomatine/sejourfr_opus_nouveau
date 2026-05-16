@@ -1,179 +1,149 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { MediaView } from "../../_components/MediaView";
+import { ModuleSwitch } from "@/app/_components/ModuleSwitch";
+import { TargetPathBanner } from "@/app/_components/TargetPathBanner";
+import { PaywallSheet } from "@/app/_components/PaywallSheet";
+import { ThemeCard } from "@/app/_components/ThemeCard";
 import { ApiException, attemptApi, themeApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import type {
-  AnswerResultResponse,
-  AttemptQuestionResponse,
-  AttemptResponse,
-  Module as ModuleEnum,
-  ThemeUserResponse,
+import {
+  canAccessModule,
+  type AuthenticatedUser,
+  type Module as ModuleEnum,
+  type ThemeUserResponse,
 } from "@/lib/types";
 
-type Stage = "setup" | "running" | "result";
-
-const FREE_MAX = 20;
-const SIZE_OPTIONS = [5, 10, 15, 20] as const;
+const DEMO_BATCH_SIZE = 20;
+const PREMIUM_BATCH_SIZE = 30;
 
 export default function EntrainementPage() {
+  const router = useRouter();
   const { user, status } = useAuth();
+
   const [module, setModule] = useState<ModuleEnum>("CIVIQUE");
   const [themes, setThemes] = useState<ThemeUserResponse[]>([]);
-  const [themeId, setThemeId] = useState<string | "">("");
-  const [size, setSize] = useState<(typeof SIZE_OPTIONS)[number]>(10);
-  const [stage, setStage] = useState<Stage>("setup");
-  const [attempt, setAttempt] = useState<AttemptResponse | null>(null);
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [feedback, setFeedback] = useState<AnswerResultResponse | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [themesLoading, setThemesLoading] = useState(false);
+  const [selectedThemeId, setSelectedThemeId] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPaywall, setShowPaywall] = useState(false);
 
-  // Charge la liste des thèmes du module sélectionné.
+  // L'utilisateur a-t-il l'abonnement payant pour le MODULE actuellement sélectionné ?
+  // CIVIQUE_3MOIS débloque civique seulement ; INTEGRAL_3MOIS débloque les deux.
+  // Quand il n'a pas l'accès payant pour ce module : on tombe en mode démo
+  // (20 questions par session, pas de choix de thème). Cette règle vaut pour
+  // CIVIQUE comme pour TCF — l'app mobile suit la même logique.
+  const isPremiumForModule = user !== null && canAccessModule(user, module);
+  // Plan à pousser dans le paywall selon le module verrouillé.
+  const upsellPlan = module === "TCF" ? "INTEGRAL_3MOIS" : "CIVIQUE_3MOIS";
+
+  // Charge les thèmes du module sélectionné.
   useEffect(() => {
+    if (status !== "authenticated") return;
     let cancelled = false;
     setThemes([]);
-    setThemeId("");
+    setSelectedThemeId(null);
+    setError(null);
+    setThemesLoading(true);
     themeApi
       .list(module)
       .then((list) => {
         if (cancelled) return;
         setThemes(list);
-        if (list.length > 0) setThemeId(list[0].id);
       })
       .catch(() => {
         if (cancelled) return;
         setError("Impossible de charger les thèmes.");
+      })
+      .finally(() => {
+        if (!cancelled) setThemesLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [module]);
+  }, [module, status]);
 
-  async function startTraining() {
-    setLoading(true);
+  async function startSession() {
     setError(null);
+    setStarting(true);
     try {
-      const a = await attemptApi.start(
-        {
-          type: "TRAINING",
-          module,
-          themeId: themeId || undefined,
-          size,
-        },
-        { auth: true },
-      );
-      setAttempt(a);
-      setCurrentIdx(0);
-      setFeedback(null);
-      setSelected(null);
-      setStage("running");
-    } catch (err) {
-      if (err instanceof ApiException) setError(err.message);
-      else setError("Impossible de démarrer l'entraînement.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function submitAnswer() {
-    if (!attempt || !selected) return;
-    const aq = attempt.questions[currentIdx];
-    setLoading(true);
-    try {
-      const res = await attemptApi.submitAnswer(attempt.id, {
-        attemptQuestionId: aq.id,
-        choiceIds: [selected],
+      const a = await attemptApi.start({
+        type: "TRAINING",
+        module,
+        // En démo : pas de thème (mélange varié). En premium : sélection si définie.
+        themeId: isPremiumForModule ? (selectedThemeId ?? undefined) : undefined,
+        size: isPremiumForModule ? PREMIUM_BATCH_SIZE : DEMO_BATCH_SIZE,
       });
-      setFeedback(res);
+      // L'URL devient partageable, reload-friendly, et le runner gère lui-même
+      // le préchargement des favoris. Route générique partagée avec les examens.
+      router.push(`/sessions/${a.id}`);
     } catch (err) {
-      if (err instanceof ApiException) setError(err.message);
-      else setError("Erreur lors de la soumission.");
-    } finally {
-      setLoading(false);
+      setError(err instanceof ApiException ? err.message : "Impossible de démarrer l'entraînement.");
+      setStarting(false);
     }
   }
 
-  function next() {
-    if (!attempt) return;
-    if (currentIdx + 1 >= attempt.questions.length) {
-      // Fin de session : on finalise pour stocker le score côté back.
-      void finishTraining();
-      return;
+  const helperText = useMemo(() => {
+    if (!isPremiumForModule) {
+      const label = module === "TCF" ? "TCF IRN" : "Civique";
+      return `Mode démo ${label} · ${DEMO_BATCH_SIZE} questions offertes`;
     }
-    setCurrentIdx((i) => i + 1);
-    setSelected(null);
-    setFeedback(null);
+    if (selectedThemeId) {
+      const t = themes.find((x) => x.id === selectedThemeId);
+      return `${t?.name ?? "Thématique"} · entraînement illimité`;
+    }
+    return "Toutes thématiques · entraînement illimité";
+  }, [isPremiumForModule, module, selectedThemeId, themes]);
+
+  if (status === "loading") {
+    return <div className="train-loading" />;
   }
 
-  async function finishTraining() {
-    if (!attempt) return;
-    try {
-      const final = await attemptApi.finish(attempt.id);
-      setAttempt(final);
-    } finally {
-      setStage("result");
-    }
+  if (!user) {
+    return (
+      <main className="train-empty">
+        <p>Connectez-vous pour vous entraîner.</p>
+        <Link href="/connexion?next=/entrainement" className="btn btn-blue">Se connecter</Link>
+      </main>
+    );
   }
-
-  const currentAq: AttemptQuestionResponse | null = useMemo(
-    () => (attempt ? (attempt.questions[currentIdx] ?? null) : null),
-    [attempt, currentIdx],
-  );
-
-  if (status === "loading") return null;
-  if (!user) return null;
 
   return (
     <main className="train">
-      {stage === "setup" && (
-        <Setup
-          module={module}
-          onModule={setModule}
-          themes={themes}
-          themeId={themeId}
-          onTheme={setThemeId}
-          size={size}
-          onSize={setSize}
-          onStart={startTraining}
-          loading={loading}
-          error={error}
-        />
-      )}
+      <SetupView
+        isPremiumForModule={isPremiumForModule}
+        user={user}
+        module={module}
+        onModule={setModule}
+        themes={themes}
+        themesLoading={themesLoading}
+        selectedThemeId={selectedThemeId}
+        onSelectTheme={(id) => setSelectedThemeId(id)}
+        helperText={helperText}
+        starting={starting}
+        error={error}
+        onStart={startSession}
+        onLockedThemeTap={() => setShowPaywall(true)}
+      />
 
-      {stage === "running" && currentAq && attempt && (
-        <Runner
-          attempt={attempt}
-          aq={currentAq}
-          currentIdx={currentIdx}
-          totalQuestions={attempt.totalQuestions}
-          selected={selected}
-          feedback={feedback}
-          loading={loading}
-          onSelect={(id) => {
-            if (feedback) return; // verrouille après réponse
-            setSelected(id);
-          }}
-          onSubmit={submitAnswer}
-          onNext={next}
-        />
-      )}
-
-      {stage === "result" && attempt && (
-        <Result
-          attempt={attempt}
-          onAgain={() => {
-            setAttempt(null);
-            setStage("setup");
-            setCurrentIdx(0);
-            setFeedback(null);
-            setSelected(null);
-          }}
-        />
-      )}
+      <PaywallSheet
+        open={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        title={
+          module === "TCF"
+            ? "Débloquez tout le TCF IRN"
+            : "Choisissez votre thématique"
+        }
+        message={
+          module === "TCF"
+            ? "Vous avez 20 questions de découverte et 1 examen blanc offerts en TCF. L'abonnement Intégral débloque l'entraînement illimité TCF + Civique, les examens blancs sans limite et la révision des erreurs."
+            : "L'entraînement par thématique est réservé aux abonnés. Avec l'abonnement, débloquez tous les thèmes et l'entraînement illimité."
+        }
+        plan={upsellPlan}
+      />
 
       <style>{trainStyles}</style>
     </main>
@@ -181,319 +151,154 @@ export default function EntrainementPage() {
 }
 
 // ============================================================================
-// SETUP
+// SETUP VIEW
 // ============================================================================
-function Setup({
-  module,
-  onModule,
-  themes,
-  themeId,
-  onTheme,
-  size,
-  onSize,
-  onStart,
-  loading,
-  error,
-}: {
+
+interface SetupViewProps {
+  isPremiumForModule: boolean;
+  user: AuthenticatedUser;
   module: ModuleEnum;
   onModule: (m: ModuleEnum) => void;
   themes: ThemeUserResponse[];
-  themeId: string;
-  onTheme: (id: string) => void;
-  size: (typeof SIZE_OPTIONS)[number];
-  onSize: (s: (typeof SIZE_OPTIONS)[number]) => void;
-  onStart: () => void;
-  loading: boolean;
+  themesLoading: boolean;
+  selectedThemeId: string | null;
+  onSelectTheme: (id: string | null) => void;
+  helperText: string;
+  starting: boolean;
   error: string | null;
-}) {
+  onStart: () => void;
+  onLockedThemeTap: () => void;
+}
+
+function SetupView({
+  isPremiumForModule,
+  user,
+  module,
+  onModule,
+  themes,
+  themesLoading,
+  selectedThemeId,
+  onSelectTheme,
+  helperText,
+  starting,
+  error,
+  onStart,
+  onLockedThemeTap,
+}: SetupViewProps) {
+  const demoBannerLabel = module === "TCF" ? "TCF IRN" : "Civique";
+  const demoBannerSub = module === "TCF"
+    ? "Activez l'Intégral pour l'entraînement TCF illimité + Civique inclus."
+    : "Activez l'abonnement pour l'entraînement illimité et tous les thèmes.";
   return (
     <section className="setup">
-      <div className="container-x">
+      <div className="setup-wrap">
         <header className="setup-head">
           <span className="eyebrow">Entraînement</span>
           <h1>
-            10 minutes par jour, <em>et vous y êtes</em>.
+            Entraînement <em>libre</em>.
           </h1>
           <p>
-            Choisissez un thème et lancez-vous. Le web est limité à{" "}
-            <strong>{FREE_MAX} questions par session</strong> : l&apos;entraînement
-            illimité, les favoris et la révision des erreurs se trouvent dans
-            l&apos;app mobile.
+            Enchaînez les questions sans limite, à votre rythme. Vous pouvez
+            quitter quand vous voulez, votre progression est conservée.
           </p>
         </header>
 
-        <div className="setup-card">
-          <div className="setup-row">
-            <label className="setup-label">Module</label>
-            <div className="seg">
-              <button
-                type="button"
-                className={`seg-opt ${module === "CIVIQUE" ? "seg-active" : ""}`}
-                onClick={() => onModule("CIVIQUE")}
-              >
-                Civique
-              </button>
-              <button
-                type="button"
-                className={`seg-opt ${module === "TCF" ? "seg-active" : ""}`}
-                onClick={() => onModule("TCF")}
-              >
-                TCF IRN
-              </button>
+        {(user.targetProcedure || user.targetLevel) && (
+          <div className="setup-banner">
+            <TargetPathBanner
+              procedure={user.targetProcedure ?? null}
+              level={user.targetLevel ?? null}
+            />
+          </div>
+        )}
+
+        <div className="setup-row">
+          <label className="setup-label">Module</label>
+          <ModuleSwitch value={module} onChange={onModule} />
+        </div>
+
+        {!isPremiumForModule && (
+          <button
+            type="button"
+            className="demo-banner"
+            onClick={onLockedThemeTap}
+          >
+            <div className="demo-banner-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" />
+              </svg>
             </div>
+            <div className="demo-banner-content">
+              <div className="demo-banner-title">Mode démo {demoBannerLabel} · {DEMO_BATCH_SIZE} questions</div>
+              <div className="demo-banner-sub">{demoBannerSub}</div>
+            </div>
+            <div className="demo-banner-arrow">→</div>
+          </button>
+        )}
+
+        <div className="setup-row">
+          <div className="setup-label-row">
+            <label className="setup-label">Thématique</label>
+            <span className="setup-label-hint">
+              {isPremiumForModule ? "optionnel" : "réservé aux abonnés"}
+            </span>
           </div>
 
-          <div className="setup-row">
-            <label className="setup-label" htmlFor="theme-select">
-              Thème
-            </label>
-            <select
-              id="theme-select"
-              className="setup-select"
-              value={themeId}
-              onChange={(e) => onTheme(e.target.value)}
-            >
+          {themesLoading ? (
+            <div className="themes-skeleton">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="themes-skeleton-tile" />
+              ))}
+            </div>
+          ) : (
+            <div className="themes-list">
+              <ThemeCard
+                theme={null}
+                selected={!isPremiumForModule || selectedThemeId === null}
+                locked={false}
+                onClick={() => onSelectTheme(null)}
+              />
               {themes.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                  {t.questionCount ? ` · ${t.questionCount} questions` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="setup-row">
-            <label className="setup-label">Nombre de questions</label>
-            <div className="seg">
-              {SIZE_OPTIONS.map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  className={`seg-opt ${size === n ? "seg-active" : ""}`}
-                  onClick={() => onSize(n)}
-                >
-                  {n}
-                </button>
+                <ThemeCard
+                  key={t.id}
+                  theme={t}
+                  selected={isPremiumForModule && selectedThemeId === t.id}
+                  locked={!isPremiumForModule}
+                  onClick={() => {
+                    if (!isPremiumForModule) {
+                      onLockedThemeTap();
+                      return;
+                    }
+                    onSelectTheme(selectedThemeId === t.id ? null : t.id);
+                  }}
+                />
               ))}
             </div>
+          )}
+        </div>
+
+        {error && <div className="form-error">{error}</div>}
+
+        <div className="setup-cta-wrap">
+          <div className="setup-cta-helper">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4M12 8h.01" />
+            </svg>
+            {helperText}
           </div>
-
-          {error && <div className="form-error">{error}</div>}
-
           <button
             type="button"
             className="btn btn-red btn-lg setup-cta"
-            disabled={loading || !themeId}
             onClick={onStart}
+            disabled={starting}
           >
-            {loading ? "Préparation…" : `Lancer ${size} questions`}
-            <span>→</span>
+            {starting
+              ? "Préparation…"
+              : isPremiumForModule
+                ? "Commencer l'entraînement →"
+                : "Commencer la démo →"}
           </button>
-
-          <div className="setup-note">
-            Pour s&apos;entraîner sans limite — favoris, hors-ligne, statistiques
-            par thématique —{" "}
-            <Link href="#telecharger" style={{ color: "var(--color-red)" }}>
-              installez l&apos;app mobile
-            </Link>
-            .
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ============================================================================
-// RUNNER — correction immédiate, calque sur la capture mobile
-// ============================================================================
-function Runner({
-  attempt,
-  aq,
-  currentIdx,
-  totalQuestions,
-  selected,
-  feedback,
-  loading,
-  onSelect,
-  onSubmit,
-  onNext,
-}: {
-  attempt: AttemptResponse;
-  aq: AttemptQuestionResponse;
-  currentIdx: number;
-  totalQuestions: number;
-  selected: string | null;
-  feedback: AnswerResultResponse | null;
-  loading: boolean;
-  onSelect: (id: string) => void;
-  onSubmit: () => void;
-  onNext: () => void;
-}) {
-  const q = aq.question;
-  const correctIds = feedback?.correctChoiceIds ?? [];
-  const isCorrect = feedback?.correct === true;
-  const moduleLabel = attempt.module === "CIVIQUE" ? "Civique" : "TCF IRN";
-
-  return (
-    <section className="runner">
-      <div className="runner-frame">
-        <div className="runner-topbar">
-          <Link href="/entrainement" className="runner-x" aria-label="Quitter">
-            ✕
-          </Link>
-          <div className="runner-topbar-center">
-            <span className="eyebrow">Entraînement</span>
-            <span className="runner-count">Question {currentIdx + 1}</span>
-          </div>
-          <span className="runner-progress">
-            {currentIdx + 1} / {totalQuestions}
-          </span>
-        </div>
-
-        <div className="runner-tags">
-          <span className="rtag rtag-red">{moduleLabel}</span>
-          <span className="rtag rtag-blue">{q.themeName}</span>
-        </div>
-
-        <h2 className="runner-q">{q.statement}</h2>
-
-        {q.media && (
-          <div className="runner-media">
-            {/* key=q.id force le remount du <audio> au changement de question :
-                le navigateur detruit l'element et arrete la lecture en cours. */}
-            <MediaView key={q.id} media={q.media} />
-          </div>
-        )}
-
-        {q.passageText && (
-          <div className="runner-passage">{q.passageText}</div>
-        )}
-
-        <div className="runner-options">
-          {q.choices.map((c, i) => {
-            const letter = String.fromCharCode(65 + i);
-            const isSel = selected === c.id;
-            const isThisCorrect = feedback && correctIds.includes(c.id);
-            const isWrongPick = feedback && isSel && !isCorrect;
-
-            const cls = [
-              "ropt",
-              isSel && !feedback ? "ropt-sel" : "",
-              isThisCorrect ? "ropt-correct" : "",
-              isWrongPick ? "ropt-wrong" : "",
-            ]
-              .filter(Boolean)
-              .join(" ");
-
-            return (
-              <button
-                type="button"
-                key={c.id}
-                className={cls}
-                onClick={() => onSelect(c.id)}
-                disabled={loading || !!feedback}
-              >
-                <span className="ropt-letter">{letter}</span>
-                <span className="ropt-label">{c.label}</span>
-                {isThisCorrect && (
-                  <span className="ropt-check" aria-hidden>
-                    <svg viewBox="0 0 16 16" width="16" height="16">
-                      <circle cx="8" cy="8" r="8" fill="currentColor" />
-                      <path
-                        d="M4.5 8.5l2.4 2.2 4.6-5"
-                        stroke="#fff"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        fill="none"
-                      />
-                    </svg>
-                  </span>
-                )}
-                {isWrongPick && (
-                  <span className="ropt-x" aria-hidden>
-                    ✕
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {feedback && (
-          <div className={`runner-explain ${isCorrect ? "good" : "bad"}`}>
-            <div className="runner-explain-head">
-              <span className="runner-explain-title">
-                {isCorrect ? "✓ Bonne réponse" : "✗ Mauvaise réponse"}
-              </span>
-              <span className="runner-explain-tag">EXPLICATION</span>
-            </div>
-            {feedback.explanation && <p>{feedback.explanation}</p>}
-          </div>
-        )}
-
-        <div className="runner-action">
-          {!feedback ? (
-            <button
-              type="button"
-              className="btn btn-blue btn-lg full"
-              onClick={onSubmit}
-              disabled={!selected || loading}
-            >
-              {loading ? "..." : "Valider ma réponse"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-blue btn-lg full"
-              onClick={onNext}
-            >
-              {currentIdx + 1 === totalQuestions ? "Voir le résultat" : "Question suivante"}{" "}
-              →
-            </button>
-          )}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ============================================================================
-// RESULT
-// ============================================================================
-function Result({ attempt, onAgain }: { attempt: AttemptResponse; onAgain: () => void }) {
-  const score = attempt.score ?? 0;
-  const total = attempt.totalQuestions;
-  const pct = total > 0 ? Math.round((score / total) * 100) : 0;
-  const passed = pct >= 70;
-
-  return (
-    <section className="result">
-      <div className="container-x" style={{ maxWidth: 640 }}>
-        <div className="result-card">
-          <span className={`result-tag ${passed ? "good" : "bad"}`}>
-            {passed ? "Belle session" : "Continuez à pratiquer"}
-          </span>
-          <h1>
-            {score} <span className="of">/ {total}</span>
-          </h1>
-          <p className="result-pct">{pct} % de bonnes réponses</p>
-
-          <div className="result-cta">
-            <button type="button" className="btn btn-ghost" onClick={onAgain}>
-              ↻ Nouvel entraînement
-            </button>
-            <Link href="#telecharger" className="btn btn-red">
-              Continuer sur l&apos;app mobile →
-            </Link>
-          </div>
-
-          <div className="result-note">
-            Sur le web, c&apos;est 20 questions maximum par session. L&apos;app mobile,
-            elle, vous propose tout le pool (1 200+ questions) avec révision
-            ciblée des erreurs et favoris.
-          </div>
         </div>
       </div>
     </section>
@@ -503,283 +308,128 @@ function Result({ attempt, onAgain }: { attempt: AttemptResponse; onAgain: () =>
 // ============================================================================
 // STYLES
 // ============================================================================
+
 const trainStyles = `
   .train { background: var(--color-paper); min-height: calc(100vh - 110px); }
+  .train-loading { min-height: 60vh; }
+  .train-empty {
+    min-height: 60vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px;
+    color: var(--color-muted);
+  }
 
-  .setup { padding: 56px 0 80px; }
-  .setup-head { text-align: center; max-width: 720px; margin: 0 auto 40px; }
+  .setup { padding: 32px 16px 64px; }
+  .setup-wrap { max-width: 640px; margin: 0 auto; }
+
+  .setup-head { text-align: center; margin: 0 auto 28px; }
   .setup-head h1 {
-    font-family: var(--font-display); font-weight: 500; font-size: clamp(32px, 4vw, 44px);
-    line-height: 1.05; letter-spacing: -0.025em; margin: 14px 0 14px;
+    font-family: var(--font-display); font-weight: 500;
+    font-size: clamp(28px, 4vw, 40px);
+    line-height: 1.05; letter-spacing: -0.025em;
+    margin: 10px 0 12px;
   }
   .setup-head h1 em { font-style: italic; color: var(--color-red); }
-  .setup-head p { color: var(--color-muted); font-size: 16px; line-height: 1.55; margin: 0; }
-  .setup-head p strong { color: var(--color-ink); font-weight: 600; }
-
-  .setup-card {
-    max-width: 520px; margin: 0 auto;
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 18px;
-    padding: 32px;
-    box-shadow: 0 30px 60px -30px rgba(15, 24, 57, 0.18);
+  .setup-head p {
+    color: var(--color-muted);
+    font-size: 15px; line-height: 1.55;
+    margin: 0 auto; max-width: 480px;
   }
-  .setup-row { margin-bottom: 22px; }
+
+  .setup-banner { margin-bottom: 22px; }
+  .setup-row { margin-bottom: 24px; }
   .setup-label {
     display: block;
     font-family: var(--font-mono); font-size: 10px;
-    letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-muted);
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--color-muted);
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  .setup-label-row {
+    display: flex; align-items: baseline; gap: 10px;
     margin-bottom: 10px;
   }
-  .setup-select {
-    width: 100%;
-    padding: 12px 14px;
-    border: 1px solid var(--color-line);
-    border-radius: 10px;
-    background: #fff;
-    font-family: var(--font-sans); font-size: 14.5px;
-    color: var(--color-ink);
-  }
-  .seg {
-    display: inline-flex; padding: 4px;
-    background: var(--color-paper-2);
-    border-radius: 100px;
-    gap: 4px;
-  }
-  .seg-opt {
-    padding: 8px 18px;
-    border: none; background: none;
-    border-radius: 100px;
-    font-family: var(--font-sans); font-weight: 600;
-    font-size: 13.5px;
-    color: var(--color-muted);
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .seg-opt:hover { color: var(--color-ink); }
-  .seg-active {
-    background: #fff;
-    color: var(--color-ink);
-    box-shadow: 0 4px 12px -4px rgba(15, 24, 57, 0.15);
+  .setup-label-row .setup-label { margin-bottom: 0; }
+  .setup-label-hint {
+    font-size: 11.5px;
+    color: var(--color-muted-2);
   }
 
-  .setup-cta { width: 100%; margin-top: 8px; }
-  .setup-note {
-    margin-top: 20px;
-    text-align: center;
-    font-size: 13px;
-    color: var(--color-muted);
-    line-height: 1.5;
-  }
-
-  /* ----- runner ----- */
-  .runner { padding: 32px 0 64px; }
-  .runner-frame {
-    max-width: 560px; margin: 0 auto;
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 18px;
-    padding: 22px 26px 24px;
-    box-shadow: 0 30px 60px -30px rgba(15, 24, 57, 0.18);
-  }
-
-  .runner-topbar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--color-line-2);
-    margin-bottom: 18px;
-  }
-  .runner-x {
-    text-decoration: none; color: var(--color-ink);
-    width: 32px; height: 32px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px;
-    border-radius: 8px;
-  }
-  .runner-x:hover { background: var(--color-paper-2); }
-  .runner-topbar-center { display: flex; flex-direction: column; align-items: center; }
-  .runner-count {
-    font-family: var(--font-sans); font-weight: 700; font-size: 15px;
-    margin-top: 2px;
-  }
-  .runner-progress {
-    font-family: var(--font-mono); font-size: 11.5px;
-    color: var(--color-muted); letter-spacing: 0.06em;
-  }
-
-  .runner-tags { display: flex; gap: 6px; margin-bottom: 16px; }
-  .rtag {
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-family: var(--font-mono); font-size: 10px;
-    letter-spacing: 0.1em; font-weight: 600;
-    border: 1px solid;
-  }
-  .rtag-red { background: var(--color-red-light); color: var(--color-red); border-color: rgba(225, 55, 47, 0.3); }
-  .rtag-blue { background: var(--color-blue-light); color: var(--color-blue); border-color: rgba(30, 58, 140, 0.3); }
-
-  .runner-q {
-    font-family: var(--font-sans); font-weight: 700;
-    font-size: 20px; line-height: 1.3;
-    color: var(--color-ink); margin: 0 0 18px;
-  }
-  .runner-passage {
-    background: var(--color-paper);
-    border-left: 3px solid var(--color-blue);
-    border-radius: 8px;
-    padding: 12px 14px;
-    font-size: 14px; color: var(--color-ink-2); line-height: 1.55;
-    margin: 0 0 18px;
-    white-space: pre-wrap;
-  }
-
-  .runner-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
-  .ropt {
-    background: #fff;
-    border: 1.5px solid var(--color-line);
-    border-radius: 12px;
-    padding: 13px 14px;
+  .demo-banner {
     display: flex; align-items: center; gap: 12px;
-    font-family: var(--font-sans);
-    font-size: 14.5px; color: var(--color-ink-2);
-    text-align: left;
-    cursor: pointer;
-    transition: all 0.15s;
     width: 100%;
+    background: rgba(232, 163, 23, 0.08);
+    border: 1px solid rgba(232, 163, 23, 0.35);
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 22px;
+    cursor: pointer;
+    transition: background 0.15s;
+    text-align: left;
+    font-family: var(--font-sans);
   }
-  .ropt:hover:not(:disabled) { border-color: var(--color-blue); background: var(--color-blue-soft); }
-  .ropt:disabled { cursor: default; }
-  .ropt-letter {
-    width: 28px; height: 28px;
-    border-radius: 50%;
-    background: var(--color-line-2);
-    color: var(--color-muted);
+  .demo-banner:hover { background: rgba(232, 163, 23, 0.14); }
+  .demo-banner-icon {
+    width: 38px; height: 38px;
+    background: rgba(232, 163, 23, 0.16);
+    color: var(--color-amber);
+    border-radius: 11px;
     display: flex; align-items: center; justify-content: center;
-    font-family: var(--font-mono); font-size: 12px; font-weight: 600;
     flex-shrink: 0;
   }
-  .ropt-label { flex: 1; }
-  .ropt-sel { border-color: var(--color-blue); background: var(--color-blue-light); }
-  .ropt-sel .ropt-letter { background: var(--color-blue); color: #fff; }
-
-  .ropt-correct {
-    border-color: var(--color-green);
-    background: rgba(22, 143, 91, 0.06);
-    box-shadow: 0 0 0 1px var(--color-green);
+  .demo-banner-content { flex: 1; min-width: 0; }
+  .demo-banner-title {
+    font-weight: 800; font-size: 13.5px;
+    color: var(--color-ink);
+    line-height: 1.2;
   }
-  .ropt-correct .ropt-letter { background: rgba(22, 143, 91, 0.15); color: var(--color-green); }
-  .ropt-check { color: var(--color-green); display: flex; align-items: center; }
-
-  .ropt-wrong {
-    border-color: var(--color-red);
-    background: rgba(225, 55, 47, 0.05);
-    box-shadow: 0 0 0 1px var(--color-red);
+  .demo-banner-sub {
+    font-size: 12px; color: var(--color-muted);
+    line-height: 1.4; margin-top: 3px;
   }
-  .ropt-wrong .ropt-letter { background: rgba(225, 55, 47, 0.15); color: var(--color-red); }
-  .ropt-x { color: var(--color-red); font-weight: 700; font-size: 15px; margin-left: auto; }
-
-  .runner-explain {
-    border-radius: 12px;
-    padding: 14px 16px;
-    margin-bottom: 16px;
-    border: 1px solid;
-  }
-  .runner-explain.good {
-    background: rgba(22, 143, 91, 0.06);
-    border-color: rgba(22, 143, 91, 0.25);
-  }
-  .runner-explain.bad {
-    background: rgba(225, 55, 47, 0.05);
-    border-color: rgba(225, 55, 47, 0.25);
-  }
-  .runner-explain-head {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 6px;
-  }
-  .runner-explain.good .runner-explain-title { color: var(--color-green); }
-  .runner-explain.bad .runner-explain-title { color: var(--color-red); }
-  .runner-explain-title {
-    font-family: var(--font-sans); font-weight: 700; font-size: 14px;
-  }
-  .runner-explain-tag {
-    font-family: var(--font-mono); font-size: 9px;
-    letter-spacing: 0.14em; font-weight: 600;
-    background: rgba(0,0,0,0.06);
-    padding: 2px 8px; border-radius: 4px;
-  }
-  .runner-explain.good .runner-explain-tag {
-    background: rgba(22, 143, 91, 0.12);
-    color: var(--color-green);
-  }
-  .runner-explain.bad .runner-explain-tag {
-    background: rgba(225, 55, 47, 0.12);
-    color: var(--color-red);
-  }
-  .runner-explain p {
-    font-size: 13.5px; line-height: 1.5;
-    color: var(--color-ink-2); margin: 0;
+  .demo-banner-arrow {
+    color: var(--color-amber);
+    font-size: 16px;
+    flex-shrink: 0;
   }
 
-  .runner-action { margin-top: 6px; }
-  .full { width: 100%; }
-  .btn-blue {
-    background: var(--color-blue); color: #fff;
-    border: none; border-radius: 12px;
-    padding: 14px 22px; font-size: 15px; font-weight: 700;
-    font-family: var(--font-sans);
-    cursor: pointer; transition: all 0.15s;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
+  .themes-list {
+    display: flex; flex-direction: column; gap: 10px;
   }
-  .btn-blue:hover { background: var(--color-blue-dark); }
-  .btn-blue:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  /* ----- result ----- */
-  .result { padding: 64px 0 80px; }
-  .result-card {
+  .themes-skeleton {
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .themes-skeleton-tile {
+    height: 72px;
     background: #fff;
     border: 1px solid var(--color-line);
-    border-radius: 18px;
-    padding: 48px 44px;
-    text-align: center;
-    box-shadow: 0 30px 70px -30px rgba(15, 24, 57, 0.18);
+    border-radius: 14px;
+    animation: themes-pulse 1.4s ease-in-out infinite;
   }
-  .result-tag {
-    display: inline-block;
-    font-family: var(--font-mono); font-size: 11px;
-    letter-spacing: 0.16em; text-transform: uppercase;
-    padding: 6px 12px; border-radius: 100px;
-    margin-bottom: 22px; font-weight: 600;
-  }
-  .result-tag.good { background: rgba(22, 143, 91, 0.12); color: var(--color-green); }
-  .result-tag.bad { background: var(--color-red-light); color: var(--color-red-dark); }
-  .result-card h1 {
-    font-family: var(--font-display); font-weight: 500;
-    font-size: 84px; line-height: 1; letter-spacing: -0.04em;
-    color: var(--color-blue);
-    margin: 0 0 6px;
-  }
-  .result-card h1 .of { font-size: 36px; color: var(--color-muted-2); }
-  .result-pct {
-    font-family: var(--font-mono); font-size: 13px;
-    color: var(--color-muted); letter-spacing: 0.1em;
-    margin: 0 0 32px;
-  }
-  .result-cta {
-    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
-    margin-bottom: 24px;
-  }
-  .result-note {
-    font-size: 13px; color: var(--color-muted);
-    line-height: 1.5; max-width: 460px; margin: 0 auto;
-    padding-top: 22px;
-    border-top: 1px solid var(--color-line-2);
+  @keyframes themes-pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
   }
 
+  .setup-cta-wrap {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
+    padding: 16px;
+    margin-top: 6px;
+    box-shadow: 0 12px 28px -16px rgba(15, 24, 57, 0.18);
+  }
+  .setup-cta-helper {
+    display: flex; align-items: center; gap: 8px;
+    color: var(--color-muted);
+    font-size: 12.5px;
+    margin-bottom: 12px;
+  }
+  .setup-cta { width: 100%; }
+
   @media (max-width: 560px) {
-    .setup-card { padding: 24px 20px; }
-    .setup-card .seg-opt { padding: 8px 14px; }
-    .runner-frame { padding: 18px 20px; }
-    .result-card { padding: 32px 22px; }
-    .result-card h1 { font-size: 56px; }
+    .setup { padding: 24px 12px 56px; }
+    .setup-head h1 { font-size: 26px; }
   }
 `;

@@ -5,14 +5,19 @@ import type {
   AnswerResultResponse,
   ApiError,
   AttemptResponse,
+  AttemptSummaryResponse,
+  AttemptType,
   AuthenticatedUser,
   ExamTemplateSummary,
   LoginRequest,
+  QuestionReviewResponse,
   RegisterRequest,
   StartAttemptRequest,
   SubmitAnswerRequest,
+  TargetProcedure,
   ThemeUserResponse,
   TokenResponse,
+  UserStatsResponse,
   Module as ModuleEnum,
 } from "./types";
 
@@ -287,6 +292,77 @@ export const examApi = {
 };
 
 // ============================================================================
+// Endpoints User content (favoris, questions ratées, stats, target path)
+// ============================================================================
+
+export const userContentApi = {
+  favorites(module?: ModuleEnum): Promise<QuestionReviewResponse[]> {
+    const qs = module ? `?module=${module}` : "";
+    return apiFetch<QuestionReviewResponse[]>(
+      `/api/me/questions/favorites${qs}`,
+      { auth: true },
+    );
+  },
+
+  addFavorite(questionId: string): Promise<void> {
+    return apiFetch<void>(`/api/me/questions/${questionId}/favorite`, {
+      method: "POST",
+      auth: true,
+    });
+  },
+
+  removeFavorite(questionId: string): Promise<void> {
+    return apiFetch<void>(`/api/me/questions/${questionId}/favorite`, {
+      method: "DELETE",
+      auth: true,
+    });
+  },
+
+  wrong(module?: ModuleEnum): Promise<QuestionReviewResponse[]> {
+    const qs = module ? `?module=${module}` : "";
+    return apiFetch<QuestionReviewResponse[]>(
+      `/api/me/questions/wrong${qs}`,
+      { auth: true },
+    );
+  },
+
+  /**
+   * Version détaillée d'une question pour la révision : choix résolus + explanation.
+   * Backend exige que l'utilisateur ait déjà tenté ou favorisé la question.
+   */
+  reviewQuestion(questionId: string): Promise<QuestionReviewResponse> {
+    return apiFetch<QuestionReviewResponse>(
+      `/api/me/questions/${questionId}/review`,
+      { auth: true },
+    );
+  },
+
+  /**
+   * Définit / met à jour le parcours administratif visé (CSP/CR/NAT).
+   * Le backend dérive ensuite automatiquement la difficulté.
+   */
+  updateTargetPath(procedure: TargetProcedure): Promise<void> {
+    return apiFetch<void>(`/api/me/target-path`, {
+      method: "PUT",
+      json: { targetProcedure: procedure },
+      auth: true,
+    });
+  },
+};
+
+// ============================================================================
+// Endpoints Stats
+// ============================================================================
+
+export const statsApi = {
+  get(module: ModuleEnum): Promise<UserStatsResponse> {
+    return apiFetch<UserStatsResponse>(`/api/me/stats?module=${module}`, {
+      auth: true,
+    });
+  },
+};
+
+// ============================================================================
 // Endpoints Attempts
 // ============================================================================
 
@@ -320,6 +396,25 @@ export const attemptApi = {
   finish(attemptId: string): Promise<AttemptResponse> {
     return apiFetch<AttemptResponse>(`/api/attempts/${attemptId}/finish`, {
       method: "POST",
+      auth: true,
+    });
+  },
+
+  /**
+   * Historique des sessions de l'utilisateur. Sans les questions imbriquées,
+   * juste les méta — utilisé par /historique pour la liste paginée.
+   */
+  listMine(opts: {
+    type?: AttemptType;
+    module?: ModuleEnum;
+    limit?: number;
+  } = {}): Promise<AttemptSummaryResponse[]> {
+    const qs = new URLSearchParams();
+    if (opts.type) qs.set("type", opts.type);
+    if (opts.module) qs.set("module", opts.module);
+    if (opts.limit !== undefined) qs.set("limit", String(opts.limit));
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return apiFetch<AttemptSummaryResponse[]>(`/api/me/attempts${suffix}`, {
       auth: true,
     });
   },

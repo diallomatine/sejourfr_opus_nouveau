@@ -10,6 +10,7 @@ export type QuestionType = "KNOWLEDGE" | "SITUATION";
 export type AttemptType = "TRAINING" | "MOCK_EXAM" | "REVIEW";
 export type MediaType = "AUDIO" | "IMAGE" | "VIDEO";
 export type Role = "USER" | "ADMIN";
+export type AudioMode = "WRITTEN_QUESTION" | "FULL_AUDIO";
 
 // ============ AUTH ============
 export interface LoginRequest {
@@ -92,9 +93,37 @@ export interface QuestionPublicResponse {
   difficulty: Difficulty;
   questionType: QuestionType;
   statement: string;
+  /** Renvoyé uniquement quand l'attempt parent est finalisé (rapport post-examen). */
+  explanation?: string | null;
   passageText?: string;
   media?: MediaResponse;
+  audioMode?: AudioMode | null;
   choices: ChoicePublicResponse[];
+}
+
+// ============ QUESTION (vue review : explication + correct résolu) ============
+// Renvoyé par GET /api/me/questions/favorites, /api/me/questions/wrong,
+// /api/me/questions/{id}/review. Le user a déjà tenté ou favori la question.
+export interface ChoiceFullResponse {
+  id: string;
+  label: string;
+  displayOrder: number;
+  correct: boolean;
+}
+
+export interface QuestionReviewResponse {
+  id: string;
+  module: Module;
+  themeId: string;
+  themeName: string;
+  difficulty: Difficulty;
+  questionType: QuestionType;
+  statement: string;
+  passageText?: string;
+  media?: MediaResponse;
+  audioMode?: AudioMode | null;
+  explanation?: string | null;
+  choices: ChoiceFullResponse[];
 }
 
 // ============ EXAM TEMPLATE (vitrine publique) ============
@@ -161,6 +190,49 @@ export interface AnswerResultResponse {
   correct: boolean | null;
   correctChoiceIds: string[] | null;
   explanation: string | null;
+}
+
+// ============ ATTEMPT SUMMARY (historique) ============
+// Renvoyé par GET /api/me/attempts — version légère sans les questions.
+export interface AttemptSummaryResponse {
+  id: string;
+  type: AttemptType;
+  module: Module;
+  /** Cohérence avec le backend Java : `difficulty` est utilisé indifféremment
+   *  pour les niveaux TCF (A2/B1/B2) et les parcours civiques (CSP/CR/NAT). */
+  difficulty?: Difficulty | TargetLevel | TargetProcedure | null;
+  totalQuestions: number;
+  passThreshold?: number | null;
+  startedAt: string;
+  finishedAt?: string | null;
+  score?: number | null;
+}
+
+// ============ STATS ============
+export interface ThemeStatsResponse {
+  themeId: string;
+  themeName: string;
+  answered: number;
+  correct: number;
+  total: number;
+}
+
+export interface UserStatsResponse {
+  attemptsTotal: number;
+  questionsAnswered: number;
+  questionsCorrect: number;
+  successRate: number; // 0..1
+  byTheme: ThemeStatsResponse[];
+}
+
+// ============ HELPERS ============
+export function canAccessModule(
+  user: Pick<AuthenticatedUser, "hasCivique" | "hasTcf"> | null,
+  module: Module,
+): boolean {
+  if (!user) return false;
+  if (module === "CIVIQUE") return user.hasCivique ?? false;
+  return user.hasTcf ?? false;
 }
 
 // ============ ERREURS API ============

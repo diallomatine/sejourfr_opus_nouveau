@@ -1,17 +1,24 @@
 import { notFound } from "next/navigation";
 import { examApi } from "@/lib/api";
-import { ExamRunnerClient } from "./ExamRunnerClient";
+import type { ExamTemplateSummary } from "@/lib/types";
+import { ExamBriefingClient } from "./ExamBriefingClient";
 
-export default async function ExamPage({
+/**
+ * Server component : pré-fetch les métadonnées du template d'examen pour
+ * afficher rapidement le briefing. La logique de démarrage (et redirect vers
+ * /sessions/<attemptId>) vit dans le client component.
+ */
+export default async function ExamBriefingPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  let exam: ExamTemplateSummary;
   try {
-    const exam = await examApi.getBySlug(slug);
-    return <ExamRunnerClient exam={exam} />;
+    exam = await examApi.getBySlug(slug);
   } catch {
     notFound();
   }
+  return <ExamBriefingClient exam={exam} />;
 }
