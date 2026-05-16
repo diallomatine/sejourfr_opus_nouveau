@@ -14,7 +14,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-00000000001a', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
  'Sur quel continent se trouve la France métropolitaine ?',
- 'La France métropolitaine se situé sur le continent européen, dans l''Europe occidentale.',
+ 'La France métropolitaine se situe sur le continent européen, dans l''Europe occidentale.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000001-0000-0000-0000-00000000001a', 'L''Europe', TRUE, 0),
@@ -58,7 +58,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-00000000001e', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
  'Quelle mer borde la France au sud ?',
- 'La mer Méditerranée borde la France au sud (côtés provencale, languedocienne et corse). Au nord se trouvent la Manche et la mer du Nord, à l''ouest l''ocean Atlantique.',
+ 'La mer Méditerranée borde la France au sud (côtes provençale, languedocienne et corse). Au nord se trouvent la Manche et la mer du Nord, à l''ouest l''océan Atlantique.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000001-0000-0000-0000-00000000001e', 'La mer Méditerranée', TRUE, 0),
@@ -80,17 +80,17 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-000000000020', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
  'Où se trouve la Corse ?',
- 'La Corse est une île française située en mer Méditerranée, au sud-est de la France métropolitaine. C''est une collectivite territoriale unique depuis 2018.',
+ 'La Corse est une île française située en mer Méditerranée, au sud-est de la France métropolitaine. C''est une collectivité territoriale unique depuis 2018.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000020', 'En mer Méditerranée, au sud-est de la France', TRUE, 0),
-(gen_random_uuid(), 'f4000001-0000-0000-0000-000000000020', 'Dans l''ocean Atlantique', FALSE, 1),
+(gen_random_uuid(), 'f4000001-0000-0000-0000-000000000020', 'Dans l''océan Atlantique', FALSE, 1),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000020', 'Au nord de la France', FALSE, 2),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000020', 'En Amérique', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-000000000021', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quelle chaine de montagnes se trouve entre la France et l''Italie ?',
+ 'Quelle chaîne de montagnes se trouve entre la France et l''Italie ?',
  'Les Alpes constituent la frontière naturelle entre la France et l''Italie (et la Suisse). Le Mont-Blanc, plus haut sommet d''Europe occidentale (4 809 m), s''y trouve.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
@@ -102,7 +102,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-000000000022', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
  'Qui était Molière ?',
- 'Molière (Jean-Baptiste Poquelin, 1622-1673) était un dramaturge français du XVIIe siècle. Il est consideré comme l''un des plus grands auteurs de comedie. Œuvres : Le Tartuffe, L''Avare, Le Misanthrope.',
+ 'Molière (Jean-Baptiste Poquelin, 1622-1673) était un dramaturge français du XVIIe siècle. Il est considéré comme l''un des plus grands auteurs de comédie. Œuvres : Le Tartuffe, L''Avare, Le Misanthrope.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000022', 'Un dramaturge français du XVIIe siècle', TRUE, 0),
@@ -124,10 +124,10 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-000000000024', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Qui était George Sand ?',
- 'George Sand (Aurore Dupin, 1804-1876) était une romanciere française du XIXe siècle, figure du romantisme et pionniere de la cause feminine.',
+ 'George Sand (Aurore Dupin, 1804-1876) était une romancière française du XIXe siècle, figure du romantisme et pionnière de la cause féminine.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000001-0000-0000-0000-000000000024', 'Une romanciere française du XIXe siècle', TRUE, 0),
+(gen_random_uuid(), 'f4000001-0000-0000-0000-000000000024', 'Une romancière française du XIXe siècle', TRUE, 0),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000024', 'Une chanteuse contemporaine', FALSE, 1),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000024', 'Une scientifique', FALSE, 2),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000024', 'Une reine de France', FALSE, 3);

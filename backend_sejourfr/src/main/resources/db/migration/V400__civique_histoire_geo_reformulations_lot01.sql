@@ -2,8 +2,8 @@
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-000000000001', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
- 'En quelle année a commence la Révolution française ?',
- 'La Révolution française a commence en 1789, marquée par la prise de la Bastille le 14 juillet 1789 et la Déclaration des droits de l''homme et du citoyen le 26 août 1789.',
+ 'En quelle année a commencé la Révolution française ?',
+ 'La Révolution française a commencé en 1789, marquée par la prise de la Bastille le 14 juillet 1789 et la Déclaration des droits de l''homme et du citoyen le 26 août 1789.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000001', '1789', TRUE, 0),
@@ -14,7 +14,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-000000000002', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
  'Qui était Napoléon Bonaparte (Napoléon Ier) ?',
- 'Napoléon Bonaparte (1769-1821) fut un général puis empereur des Français (1804-1814 et 1815). Il a rédigé le Code civil, conquis l''Europe et a marqué profondement l''histoire de France.',
+ 'Napoléon Bonaparte (1769-1821) fut un général puis empereur des Français (1804-1814 et 1815). Il a rédigé le Code civil, conquis l''Europe et a marqué profondément l''histoire de France.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000002', 'Empereur des Français (1804-1814)', TRUE, 0),
@@ -36,7 +36,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-000000000004', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
  'Sous quelle République vivons-nous actuellement en France ?',
- 'La France vit actuellement sous la Ve République, instauree par la Constitution de 1958 à l''initiative du général de Gaulle.',
+ 'La France vit actuellement sous la Ve République, instaurée par la Constitution de 1958 à l''initiative du général de Gaulle.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000004', 'La Ve République (depuis 1958)', TRUE, 0),
@@ -47,21 +47,21 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-000000000005', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Que désigne la Shoah ?',
- 'La Shoah designe l''extermination systématique de 6 millions de Juifs (dont 1,5 million d''enfants) par l''Allemagne nazie pendant la Seconde Guerre mondiale (1939-1945).',
+ 'La Shoah désigne l''extermination systématique de 6 millions de Juifs (dont 1,5 million d''enfants) par l''Allemagne nazie pendant la Seconde Guerre mondiale (1939-1945).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000005', 'L''extermination des Juifs par les nazis pendant la Seconde Guerre', TRUE, 0),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000005', 'Une fête religieuse', FALSE, 1),
-(gen_random_uuid(), 'f4000001-0000-0000-0000-000000000005', 'Une bataille napoleonienne', FALSE, 2),
+(gen_random_uuid(), 'f4000001-0000-0000-0000-000000000005', 'Une bataille napoléonienne', FALSE, 2),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000005', 'Un mouvement artistique', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-000000000006', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
- 'Lequel de ces territoires a été colonise par la France à un moment de son histoire ?',
- 'La France a colonise de nombreux territoires : Algerie, Maroc, Tunisie, Indochine (Vietnam), Madagascar, Sénégal, Côté d''Ivoire, Antilles, etc. La plupart sont devenus indépendants au XXe siècle.',
+ 'Lequel de ces territoires a été colonisé par la France à un moment de son histoire ?',
+ 'La France a colonisé de nombreux territoires : Algérie, Maroc, Tunisie, Indochine (Vietnam), Madagascar, Sénégal, Côte d''Ivoire, Antilles, etc. La plupart sont devenus indépendants au XXe siècle.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000001-0000-0000-0000-000000000006', 'L''Algerie', TRUE, 0),
+(gen_random_uuid(), 'f4000001-0000-0000-0000-000000000006', 'L''Algérie', TRUE, 0),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000006', 'Le Royaume-Uni', FALSE, 1),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000006', 'L''Allemagne', FALSE, 2),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000006', 'La Russie', FALSE, 3);
@@ -79,8 +79,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-000000000008', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
- 'À quelles dates la Seconde Guerre mondiale s''est-elle deroulée ?',
- 'La Seconde Guerre mondiale a eu lieu de 1939 à 1945. Elle a opposé les Allies (France, Royaume-Uni, USA, URSS) aux puissances de l''Axe (Allemagne, Italie, Japon).',
+ 'À quelles dates la Seconde Guerre mondiale s''est-elle déroulée ?',
+ 'La Seconde Guerre mondiale a eu lieu de 1939 à 1945. Elle a opposé les Alliés (France, Royaume-Uni, USA, URSS) aux puissances de l''Axe (Allemagne, Italie, Japon).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000008', '1939-1945', TRUE, 0),
@@ -90,7 +90,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-000000000009', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
- 'À quelles dates la Première Guerre mondiale s''est-elle deroulée ?',
+ 'À quelles dates la Première Guerre mondiale s''est-elle déroulée ?',
  'La Première Guerre mondiale a eu lieu de 1914 à 1918. Elle a opposé la Triple-Entente (France, Royaume-Uni, Russie, USA en 1917) aux Empires centraux (Allemagne, Autriche-Hongrie).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
@@ -101,7 +101,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-00000000000a', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'En quelle année a été creée la Communauté économique européenne (CEE) ?',
+ 'En quelle année a été créée la Communauté économique européenne (CEE) ?',
  'La CEE a été créée en 1957 par le traité de Rome, signé par 6 pays fondateurs (France, Allemagne, Italie, Belgique, Pays-Bas, Luxembourg).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
@@ -112,8 +112,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-00000000000b', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
- 'Que commemore le 11 novembre, jour ferie en France ?',
- 'Le 11 novembre commemore l''armistice de 1918, qui a mis fin à la Première Guerre mondiale. C''est un hommage aux soldats morts pour la France.',
+ 'Que commémore le 11 novembre, jour férié en France ?',
+ 'Le 11 novembre commémore l''armistice de 1918, qui a mis fin à la Première Guerre mondiale. C''est un hommage aux soldats morts pour la France.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000001-0000-0000-0000-00000000000b', 'L''armistice de la Première Guerre mondiale (1918)', TRUE, 0),

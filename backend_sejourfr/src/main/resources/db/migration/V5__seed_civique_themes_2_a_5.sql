@@ -112,13 +112,13 @@ VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000007',
         'Faire respecter la loi et juger les litiges', TRUE, 0),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000007', 'Voter les lois', FALSE, 1),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000007', 'Nommer le président', FALSE, 2),
-       (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000007', 'Diriger l''armee', FALSE, 3);
+       (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000007', 'Diriger l''armée', FALSE, 3);
 
--- Q8 - Quel pouvoir detient un juge ?
+-- Q8 - Quel pouvoir détient un juge ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f2000000-0000-0000-0000-000000000008', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
-        'Quel pouvoir detient un juge ? Le pouvoir :',
+        'Quel pouvoir détient un juge ? Le pouvoir :',
         'Le juge exerce le pouvoir judiciaire : il dit le droit, tranche les litiges et sanctionne les infractions, en toute indépendance.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
@@ -150,7 +150,7 @@ VALUES ('f2000000-0000-0000-0000-00000000000a', 'CIVIQUE',
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000000a', 'Il peut être jugé comme tout citoyen',
         TRUE, 0),
-       (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000000a', 'Rien, il à l''immunité totale', FALSE, 1),
+       (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000000a', 'Rien, il a l''immunité totale', FALSE, 1),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000000a', 'Il perd seulement son poste', FALSE, 2),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000000a', 'Il décide lui-même de sa sanction', FALSE,
         3);
@@ -160,7 +160,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f2000000-0000-0000-0000-00000000000b', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
         'Qui est élu lors des élections législatives ?',
-        'Les élections législatives elisent les députés de l''Assemblée nationale, au suffrage universel direct.',
+        'Les élections législatives élisent les députés de l''Assemblée nationale, au suffrage universel direct.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000000b', 'Les députés', TRUE, 0),
@@ -186,10 +186,10 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f2000000-0000-0000-0000-00000000000d', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'NAT', 'CONNAISSANCE',
         'Quand sont élus les sénateurs ?',
-        'Les sénateurs sont élus pour 6 ans au suffrage indirect, par environ 162 000 "grands électeurs" (députés, conseillers régionaux, départementaux, municipaux). Le Sénat est renouvelé par moitie tous les 3 ans.',
+        'Les sénateurs sont élus pour 6 ans au suffrage indirect, par environ 162 000 "grands électeurs" (députés, conseillers régionaux, départementaux, municipaux). Le Sénat est renouvelé par moitié tous les 3 ans.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
-VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000000d', 'Tous les 3 ans, par moitie', TRUE, 0),
+VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000000d', 'Tous les 3 ans, par moitié', TRUE, 0),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000000d', 'Tous les ans', FALSE, 1),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000000d', 'Tous les 5 ans en même temps', FALSE, 2),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000000d', 'Tous les 10 ans', FALSE, 3);
@@ -199,11 +199,11 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f2000000-0000-0000-0000-00000000000e', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
         'Qui est élu lors des élections municipales ?',
-        'Les élections municipales elisent les conseillers municipaux. Ces conseillers elisent ensuite le maire de la commune.',
+        'Les élections municipales elisent les conseillers municipaux. Ces conseillers élisent ensuite le maire de la commune.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000000e',
-        'Les conseillers municipaux (qui elisent le maire)', TRUE, 0),
+        'Les conseillers municipaux (qui élisent le maire)', TRUE, 0),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000000e', 'Le président de la République', FALSE, 1),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000000e', 'Les députés', FALSE, 2),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000000e', 'Les préfets', FALSE, 3);
@@ -213,7 +213,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f2000000-0000-0000-0000-00000000000f', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
         'Qui est élu lors des élections présidentielles ?',
-        'L''élection présidentielle elit le président de la République, au suffrage universel direct, pour un mandat de 5 ans, depuis 1962.',
+        'L''élection présidentielle élit le président de la République, au suffrage universel direct, pour un mandat de 5 ans, depuis 1962.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000000f', 'Le président de la République', TRUE, 0),
@@ -226,7 +226,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f2000000-0000-0000-0000-000000000010', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
         'À partir de quel âge a-t-on le droit de voter ?',
-        'En France, le droit de vote est accordé à partir de 18 ans, âge de la majorité civile fixe depuis 1974.',
+        'En France, le droit de vote est accordé à partir de 18 ans, âge de la majorité civile fixée depuis 1974.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000010', '18 ans', TRUE, 0),
@@ -264,7 +264,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f2000000-0000-0000-0000-000000000013', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
         'Pour combien de temps sont élus les sénateurs ?',
-        'Les sénateurs sont élus pour 6 ans au suffrage universel indirect. Le Sénat est renouvelé par moitie tous les 3 ans.',
+        'Les sénateurs sont élus pour 6 ans au suffrage universel indirect. Le Sénat est renouvelé par moitié tous les 3 ans.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000013', '6 ans', TRUE, 0),
@@ -272,11 +272,11 @@ VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000013', '6 ans', TRUE
        (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000013', '3 ans', FALSE, 2),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000013', '9 ans', FALSE, 3);
 
--- Q20 - Qui possede le pouvoir exécutif ?
+-- Q20 - Qui possède le pouvoir exécutif ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f2000000-0000-0000-0000-000000000014', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
-        'Qui possede le pouvoir exécutif ?',
+        'Qui possède le pouvoir exécutif ?',
         'Le pouvoir exécutif est détenu par le président de la République et le gouvernement (Premier ministre et ministres).',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
@@ -300,7 +300,7 @@ VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000015',
        (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000015', 'Avoir suivi des études supérieures',
         FALSE, 1),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000015', 'Être propriétaire', FALSE, 2),
-       (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000015', 'Payer un impot spécifique', FALSE, 3);
+       (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000015', 'Payer un impôt spécifique', FALSE, 3);
 
 -- Q22 - Qui peut voter aux élections en France ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
@@ -347,7 +347,7 @@ VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000018',
         'Plusieurs partis politiques peuvent exister librement', TRUE, 0),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000018', 'Il n''y a qu''un seul parti autorisé',
         FALSE, 1),
-       (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000018', 'Les partis politiques sont interdités',
+       (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000018', 'Les partis politiques sont interdits',
         FALSE, 2),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000018',
         'Seuls les ministres peuvent créer un parti', FALSE, 3);
@@ -357,7 +357,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f2000000-0000-0000-0000-000000000019', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
         'Quel est le rôle des députés ?',
-        'Les députés votent les lois, controlent l''action du gouvernement et représentent les citoyens de leur circonscription à l''Assemblée nationale.',
+        'Les députés votent les lois, contrôlent l''action du gouvernement et représentent les citoyens de leur circonscription à l''Assemblée nationale.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000019',
@@ -365,11 +365,11 @@ VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000019',
        (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000019', 'Diriger les ministères', FALSE, 1),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000019', 'Juger les criminels', FALSE, 2),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000019', 'Nommer le président', FALSE, 3);
--- Q26 - La separation des pouvoirs : quels sont les trois pouvoirs ?
+-- Q26 - La séparation des pouvoirs : quels sont les trois pouvoirs ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f2000000-0000-0000-0000-00000000001a', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
-        'La separation des pouvoirs est un principe fondamental. Quels sont les trois pouvoirs concernes ?',
+        'La séparation des pouvoirs est un principe fondamental. Quels sont les trois pouvoirs concernés ?',
         'Selon Montesquieu, les trois pouvoirs sont : législatif (faire les lois), exécutif (les appliquer), judiciaire (sanctionner leur non-respect). Ils doivent être séparés pour éviter la concentration du pouvoir.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
@@ -380,11 +380,11 @@ VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000001a', 'Législatif,
        (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000001a', 'National, régional, local', FALSE, 2),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000001a', 'Civil, pénal, administratif', FALSE, 3);
 
--- Q27 - Qui possede le pouvoir législatif ?
+-- Q27 - Qui possède le pouvoir législatif ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f2000000-0000-0000-0000-00000000001b', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
-        'Qui possede le pouvoir législatif ?',
+        'Qui possède le pouvoir législatif ?',
         'Le pouvoir législatif est détenu par le Parlement, composé de l''Assemblée nationale et du Sénat. Il vote les lois et le budget de l''État.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
@@ -407,11 +407,11 @@ VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000001c', 'Un tribunal 
        (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000001c', 'La victime elle-même', FALSE, 2),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000001c', 'Le Premier ministre', FALSE, 3);
 
--- Q29 - Qui elit les députés ?
+-- Q29 - Qui élit les députés ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f2000000-0000-0000-0000-00000000001d', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
-        'Qui elit les députés ?',
+        'Qui élit les députés ?',
         'Les députés sont élus par les citoyens français majeurs au suffrage universel direct, par circonscription.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
@@ -487,11 +487,11 @@ VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000022', 'Le maire', T
        (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000022', 'Le député', FALSE, 2),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000022', 'Le ministre de l''Intérieur', FALSE, 3);
 
--- Q35 - Est-ce que le président à tous les pouvoirs ?
+-- Q35 - Est-ce que le président a tous les pouvoirs ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f2000000-0000-0000-0000-000000000023', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
-        'Est-ce que le président de la République à tous les pouvoirs ?',
+        'Est-ce que le président de la République a tous les pouvoirs ?',
         'Non. Les pouvoirs sont séparés : le président partage le pouvoir exécutif avec le gouvernement, le Parlement vote les lois, et la justice est indépendante.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
@@ -514,14 +514,14 @@ VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000024',
        (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000024', 'Un élu municipal', FALSE, 1),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000024', 'Le chef de la police nationale', FALSE,
         2),
-       (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000024', 'Un juge specialise', FALSE, 3);
+       (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000024', 'Un juge spécialisé', FALSE, 3);
 
 -- Q37 - Quel est le rôle du Parlement ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f2000000-0000-0000-0000-000000000025', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
         'Quel est le rôle du Parlement ?',
-        'Le Parlement vote les lois, autorisé le budget de l''État et contrôle l''action du gouvernement.',
+        'Le Parlement vote les lois, autorise le budget de l''État et contrôle l''action du gouvernement.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000025',
@@ -588,12 +588,12 @@ VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000029',
        (gen_random_uuid(), 'f2000000-0000-0000-0000-000000000029', 'Parler trois langues européennes', FALSE,
         3);
 
--- Q42 - À quelle frequence les élections européennes sont-elles organisées ?
+-- Q42 - À quelle fréquence les élections européennes sont-elles organisées ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f2000000-0000-0000-0000-00000000002a', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
-        'À quelle frequence les élections européennes sont-elles organisées ?',
-        'Les élections européennes ont lieu tous les 5 ans, simultanement dans tous les États membres de l''UE.',
+        'À quelle fréquence les élections européennes sont-elles organisées ?',
+        'Les élections européennes ont lieu tous les 5 ans, simultanément dans tous les États membres de l''UE.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000002a', 'Tous les 5 ans', TRUE, 0),
@@ -619,7 +619,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f2000000-0000-0000-0000-00000000002c', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
         'Quelle est la monnaie utilisée en France ?',
-        'L''euro est la monnaie de la France depuis le 1er janvier 2002, partagee avec 19 autres pays de la zone euro.',
+        'L''euro est la monnaie de la France depuis le 1er janvier 2002, partagée avec 19 autres pays de la zone euro.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000002c', 'L''euro', TRUE, 0),
@@ -627,11 +627,11 @@ VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000002c', 'L''euro', TR
        (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000002c', 'La livre sterling', FALSE, 2),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000002c', 'Le dollar', FALSE, 3);
 
--- Q45 - Qui elit les députés européens ?
+-- Q45 - Qui élit les députés européens ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f2000000-0000-0000-0000-00000000002d', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
-        'Qui elit les députés européens ?',
+        'Qui élit les députés européens ?',
         'Les députés du Parlement européen sont élus au suffrage universel direct par les citoyens des États membres, tous les 5 ans.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
@@ -641,12 +641,12 @@ VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000002d', 'Les citoyens
        (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000002d', 'Les ministres', FALSE, 2),
        (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000002d', 'La Cour de justice européenne', FALSE, 3);
 
--- Q46 - Quand célèbre-t-on la journee de l'Europe ?
+-- Q46 - Quand célèbre-t-on la journée de l'Europe ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f2000000-0000-0000-0000-00000000002e', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000002', 'NAT', 'CONNAISSANCE',
-        'Quand célèbre-t-on la journee de l''Europe ?',
-        'La journee de l''Europe est célébrée le 9 mai, en commemoration de la déclaration de Robert Schuman du 9 mai 1950, acte fondateur de la construction européenne.',
+        'Quand célèbre-t-on la journée de l''Europe ?',
+        'La journée de l''Europe est célébrée le 9 mai, en commémoration de la déclaration de Robert Schuman du 9 mai 1950, acte fondateur de la construction européenne.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f2000000-0000-0000-0000-00000000002e', 'Le 9 mai', TRUE, 0),
@@ -674,7 +674,7 @@ VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000001', 'La Constitut
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f3000000-0000-0000-0000-000000000002', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CR', 'CONNAISSANCE',
-        'Comment s''appelle le texte qui enonce les droits et devoirs des personnes résidant en France ?',
+        'Comment s''appelle le texte qui énonce les droits et devoirs des personnes résidant en France ?',
         'La Charte des droits et devoirs du citoyen français, établie en 2012, rappelle les principes fondamentaux et les valeurs essentielles de la République.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
@@ -694,10 +694,10 @@ VALUES ('f3000000-0000-0000-0000-000000000003', 'CIVIQUE',
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000003',
         'Ils sont garantis à toute personne, sans discrimination', TRUE, 0),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000003', 'Ils sont réserves aux citoyens français',
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000003', 'Ils sont réservés aux citoyens français',
         FALSE, 1),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000003',
-        'Ils s''achetent par un titre de propriété', FALSE, 2),
+        'Ils s''achètent par un titre de propriété', FALSE, 2),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000003', 'Ils dépendent de la religion', FALSE, 3);
 
 -- Q4 - De quelle année date la Déclaration des droits de l'homme ?
@@ -731,7 +731,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f3000000-0000-0000-0000-000000000006', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CR', 'CONNAISSANCE',
         'Parmi ces textes, lequel garantit les droits et libertés en France ?',
-        'La Déclaration des droits de l''homme et du citoyen de 1789, intégrée au "bloc de constitutionnalite", garantit les droits et libertés fondamentales.',
+        'La Déclaration des droits de l''homme et du citoyen de 1789, intégrée au "bloc de constitutionnalité", garantit les droits et libertés fondamentales.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000006',
@@ -745,7 +745,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f3000000-0000-0000-0000-000000000007', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CR', 'CONNAISSANCE',
         'Qu''est-ce que la liberté d''expression ?',
-        'La liberté d''expression est le droit de dire, ecrire ou publier ses opinions, dans le respect des lois (pas d''injures, de diffamation, d''incitation à la haine).',
+        'La liberté d''expression est le droit de dire, écrire ou publier ses opinions, dans le respect des lois (pas d''injures, de diffamation, d''incitation à la haine).',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000007',
@@ -754,7 +754,7 @@ VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000007',
         1),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000007', 'L''interdiction de parler en public',
         FALSE, 2),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000007', 'Une liberté reservée aux journalistes',
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000007', 'Une liberté réservée aux journalistes',
         FALSE, 3);
 
 -- Q8 - Quel droit permet à une personne de se défendre devant la justice ?
@@ -762,26 +762,26 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f3000000-0000-0000-0000-000000000008', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CR', 'CONNAISSANCE',
         'Quel droit permet à une personne de se défendre devant la justice ?',
-        'Le droit à la défense (et le droit à un avocat) est un principe fondamental. Toute personne accusee à le droit d''être defendue, présumée innocente jusqu''à preuve du contraire.',
+        'Le droit à la défense (et le droit à un avocat) est un principe fondamental. Toute personne accusée a le droit d''être défendue, présumée innocente jusqu''à preuve du contraire.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000008', 'Le droit à la défense (et à un avocat)',
         TRUE, 0),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000008', 'Le droit de vote', FALSE, 1),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000008', 'Le droit de propriété', FALSE, 2),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000008', 'Le droit à la sante', FALSE, 3);
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000008', 'Le droit à la santé', FALSE, 3);
 
--- Q9 - Quel est le texte fondateur etablissant les droits et devoirs ?
+-- Q9 - Quel est le texte fondateur établissant les droits et devoirs ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f3000000-0000-0000-0000-000000000009', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'NAT', 'CONNAISSANCE',
-        'Quel est le texte fondateur etablissant en France les droits et les devoirs de chaque citoyen ?',
+        'Quel est le texte fondateur établissant en France les droits et les devoirs de chaque citoyen ?',
         'La Déclaration des droits de l''homme et du citoyen de 1789 est le texte fondateur des droits et libertés en France. Elle reste intégrée à la Constitution actuelle.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000009',
         'La Déclaration des droits de l''homme et du citoyen (1789)', TRUE, 0),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000009', 'Le Code de la sante publique', FALSE, 1),
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000009', 'Le Code de la santé publique', FALSE, 1),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000009', 'Le Traité de Rome', FALSE, 2),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000009', 'La Charte des Nations unies', FALSE, 3);
 
@@ -834,7 +834,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f3000000-0000-0000-0000-00000000000d', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CR', 'MISE_SITUATION',
         'Est-il toujours possible de divorcer ?',
-        'Oui, le divorce est légal en France depuis 1792. Toute personne mariée peut demander le divorce, selon des procedures definies par la loi.',
+        'Oui, le divorce est légal en France depuis 1792. Toute personne mariée peut demander le divorce, selon des procédures définies par la loi.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000000d', 'Oui, c''est un droit garanti par la loi',
@@ -850,7 +850,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f3000000-0000-0000-0000-00000000000e', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CR', 'CONNAISSANCE',
         'La peine de mort est :',
-        'La peine de mort a été abolié en France le 9 octobre 1981 par la loi Badinter. Son abolition est inscrite dans la Constitution depuis 2007.',
+        'La peine de mort a été abolie en France le 9 octobre 1981 par la loi Badinter. Son abolition est inscrite dans la Constitution depuis 2007.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000000e', 'Abolie en France depuis 1981', TRUE, 0),
@@ -866,7 +866,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f3000000-0000-0000-0000-00000000000f', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'NAT', 'CONNAISSANCE',
         'Concernant les limites aux libertés individuelles, quelle proposition est correcte ?',
-        'Les libertés individuelles ne sont jamais absolues : elles s''arretent la ou commencent celles des autres, et sont encadrées par la loi pour proteger l''ordre public et autrui.',
+        'Les libertés individuelles ne sont jamais absolues : elles s''arrêtent là où commencent celles des autres, et sont encadrées par la loi pour protéger l''ordre public et autrui.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000000f',
@@ -878,15 +878,15 @@ VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000000f',
        (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000000f',
         'Il n''existe pas de libertés individuelles en France', FALSE, 3);
 
--- Q16 - En France, est-il légal d'être marie a plusieurs personnes ?
+-- Q16 - En France, est-il légal d'être marié à plusieurs personnes ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f3000000-0000-0000-0000-000000000010', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CR', 'MISE_SITUATION',
-        'En France, est-ce légal d''être marie a plusieurs personnes en même temps ?',
-        'Non. La polygamie est interditée en France. Le mariage est l''union de deux personnes seulement. La bigamie est un delit pénal.',
+        'En France, est-il légal d''être marié à plusieurs personnes en même temps ?',
+        'Non. La polygamie est interdite en France. Le mariage est l''union de deux personnes seulement. La bigamie est un délit pénal.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
-VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000010', 'Non, la polygamie est interditée', TRUE,
+VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000010', 'Non, la polygamie est interdite', TRUE,
         0),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000010', 'Oui, c''est autorisé sans restriction',
         FALSE, 1),
@@ -895,15 +895,15 @@ VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000010', 'Non, la poly
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000010', 'Oui, selon les traditions familiales',
         FALSE, 3);
 
--- Q17 - Faut-il reduire ses dechets ?
+-- Q17 - Faut-il réduire ses déchets ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f3000000-0000-0000-0000-000000000011', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CSP', 'MISE_SITUATION',
-        'Faut-il reduire ses dechets ?',
-        'Oui, la reduction des dechets est un devoir citoyen pour proteger l''environnement, prévu par le Code de l''environnement. Le tri et le recyclage sont obligatoires.',
+        'Faut-il réduire ses déchets ?',
+        'Oui, la réduction des déchets est un devoir citoyen pour protéger l''environnement, prévu par le Code de l''environnement. Le tri et le recyclage sont obligatoires.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
-VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000011', 'Oui, pour proteger l''environnement',
+VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000011', 'Oui, pour protéger l''environnement',
         TRUE, 0),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000011', 'Non, ce n''est pas important', FALSE, 1),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000011', 'Uniquement les commerces', FALSE, 2),
@@ -914,27 +914,27 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f3000000-0000-0000-0000-000000000012', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CSP', 'MISE_SITUATION',
         'Jeter une bouteille dans la rue est :',
-        'Jeter ses dechets dans la rue est une infraction (depot sauvage). C''est puni par une amende pouvant aller jusqu''à 1500 euros.',
+        'Jeter ses déchets dans la rue est une infraction (dépôt sauvage). C''est puni par une amende pouvant aller jusqu''à 1500 euros.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000012', 'Une infraction punie par la loi', TRUE,
         0),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000012', 'Autorise dans les grandes villes', FALSE,
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000012', 'Autorisé dans les grandes villes', FALSE,
         1),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000012',
         'Sans conséquence si la bouteille est en verre', FALSE, 2),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000012', 'Recommande la nuit', FALSE, 3);
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000012', 'Recommandé la nuit', FALSE, 3);
 
 -- Q19 - Pourquoi les libertés individuelles peuvent-elles être limitées ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f3000000-0000-0000-0000-000000000013', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'NAT', 'CONNAISSANCE',
         'Pourquoi les libertés individuelles peuvent-elles être limitées ?',
-        'Les libertés peuvent être limitées pour proteger l''ordre public, la sécurité, la sante ou les libertés d''autrui. Ces limites doivent être proportionnees et fixées par la loi.',
+        'Les libertés peuvent être limitées pour protéger l''ordre public, la sécurité, la santé ou les libertés d''autrui. Ces limites doivent être proportionnées et fixées par la loi.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000013',
-        'Pour proteger les droits des autres et l''ordre public', TRUE, 0),
+        'Pour protéger les droits des autres et l''ordre public', TRUE, 0),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000013', 'Selon le bon vouloir du président', FALSE,
         1),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000013', 'Pour favoriser une religion', FALSE, 2),
@@ -946,11 +946,11 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f3000000-0000-0000-0000-000000000014', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CSP', 'MISE_SITUATION',
         'Que doit faire une personne en cas d''accident ?',
-        'L''assistance a personne en danger est une obligation légale. Il faut prevenir les secours (15 SAMU, 17 Police, 18 Pompiers, 112 numéro européen) et aider sans se mettre en danger.',
+        'L''assistance à personne en danger est une obligation légale. Il faut prévenir les secours (15 SAMU, 17 Police, 18 Pompiers, 112 numéro européen) et aider sans se mettre en danger.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000014',
-        'Porter assistance et prevenir les secours', TRUE, 0),
+        'Porter assistance et prévenir les secours', TRUE, 0),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000014', 'Partir rapidement', FALSE, 1),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000014', 'Filmer la scène', FALSE, 2),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000014',
@@ -961,12 +961,12 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f3000000-0000-0000-0000-000000000015', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CR', 'CONNAISSANCE',
         'Que permet la citoyenneté française ?',
-        'La citoyenneté française donne des droits (voter, être élu, exercer certaines fonctions) et des devoirs (respecter la loi, payer ses impots, défense, jury d''assises).',
+        'La citoyenneté française donne des droits (voter, être élu, exercer certaines fonctions) et des devoirs (respecter la loi, payer ses impôts, défense, jury d''assises).',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000015',
         'D''avoir des droits politiques (voter, être élu) et des devoirs', TRUE, 0),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000015', 'D''être dispense d''impots', FALSE, 1),
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000015', 'D''être dispensé d''impôts', FALSE, 1),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000015', 'D''être au-dessus des lois', FALSE, 2),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000015', 'De voyager partout sans visa', FALSE, 3);
 
@@ -975,7 +975,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f3000000-0000-0000-0000-000000000016', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
         'Que risque une personne qui ne respecte pas la loi ?',
-        'Selon la gravite, les sanctions vont de l''amende à la prison. Toute infraction est jugée par un tribunal et peut entrainer des conséquences pénales et civiles.',
+        'Selon la gravité, les sanctions vont de l''amende à la prison. Toute infraction est jugée par un tribunal et peut entraîner des conséquences pénales et civiles.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000016',
@@ -992,13 +992,13 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f3000000-0000-0000-0000-000000000017', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CR', 'CONNAISSANCE',
         'Quel est le rôle de la gendarmerie ?',
-        'La gendarmerie assure la sécurité publique, principalement en zone rurale et periurbaine. Elle exerce des missions de police judiciaire et administrative, sous tutelle du ministère de l''Intérieur.',
+        'La gendarmerie assure la sécurité publique, principalement en zone rurale et périurbaine. Elle exerce des missions de police judiciaire et administrative, sous tutelle du ministère de l''Intérieur.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000017',
         'Assurer la sécurité, principalement en zone rurale', TRUE, 0),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000017', 'Voter les lois', FALSE, 1),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000017', 'Eduquer les enfants', FALSE, 2),
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000017', 'Éduquer les enfants', FALSE, 2),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000017', 'Faire la guerre à l''étranger', FALSE, 3);
 
 -- Q24 - Quel est le rôle de la police ?
@@ -1006,73 +1006,73 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f3000000-0000-0000-0000-000000000018', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
         'Quel est le rôle de la police ?',
-        'La police nationale assure la sécurité des personnes et des biens, principalement en zone urbaine. Elle previent et constate les infractions, fait respecter l''ordre public.',
+        'La police nationale assure la sécurité des personnes et des biens, principalement en zone urbaine. Elle prévient et constate les infractions, fait respecter l''ordre public.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000018',
         'Assurer la sécurité et faire respecter la loi', TRUE, 0),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000018', 'Juger les criminels', FALSE, 1),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000018', 'Voter les lois', FALSE, 2),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000018', 'Eduquer les enfants', FALSE, 3);
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000018', 'Éduquer les enfants', FALSE, 3);
 
 -- Q25 - Qu'est-ce qu'une infraction ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f3000000-0000-0000-0000-000000000019', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CR', 'CONNAISSANCE',
         'Qu''est-ce qu''une infraction ?',
-        'Une infraction est un comportement interdit par la loi et puni. Il en existe trois catégories : contraventions (les moins graves), delits, crimes (les plus graves).',
+        'Une infraction est un comportement interdit par la loi et puni. Il en existe trois catégories : contraventions (les moins graves), délits, crimes (les plus graves).',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000019',
         'Une violation de la loi punie par celle-ci', TRUE, 0),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000019', 'Un type d''impot', FALSE, 1),
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000019', 'Un type d''impôt', FALSE, 1),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000019', 'Un texte de loi', FALSE, 2),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-000000000019', 'Un titre administratif', FALSE, 3);
 
--- Q26 - Comment peut-on reduire ses dechets ?
+-- Q26 - Comment peut-on réduire ses déchets ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f3000000-0000-0000-0000-00000000001a', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CSP', 'MISE_SITUATION',
-        'Comment peut-on reduire ses dechets ?',
-        'On peut reduire ses dechets en triant, recyclant, compostant les dechets organiques, achetant en vrac, evitant le suremballage et reparant plutot que jetant.',
+        'Comment peut-on réduire ses déchets ?',
+        'On peut réduire ses déchets en triant, recyclant, compostant les déchets organiques, achetant en vrac, évitant le suremballage et réparant plutôt que jetant.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001a',
-        'En triant, recyclant et evitant le gaspillage', TRUE, 0),
+        'En triant, recyclant et évitant le gaspillage', TRUE, 0),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001a', 'En jetant tout dans la nature', FALSE, 1),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001a', 'En achetant toujours plus emballe', FALSE,
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001a', 'En achetant toujours plus emballé', FALSE,
         2),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001a', 'En brulant ses dechets soi-même', FALSE,
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001a', 'En brûlant ses déchets soi-même', FALSE,
         3);
 
--- Q27 - Déposer une machine a laver cassée sur le trottoir est :
+-- Q27 - Déposer une machine à laver cassée sur le trottoir est :
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f3000000-0000-0000-0000-00000000001b', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CR', 'MISE_SITUATION',
-        'Déposer une machine a laver cassée sur le trottoir est :',
-        'Déposer un encombrant sur le trottoir sans demande préalable est interdit. Il faut prendre rendez-vous avec le service "encombrants" de la mairie ou se rendre en dechetterie.',
+        'Déposer une machine à laver cassée sur le trottoir est :',
+        'Déposer un encombrant sur le trottoir sans demande préalable est interdit. Il faut prendre rendez-vous avec le service "encombrants" de la mairie ou se rendre en déchetterie.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001b',
-        'Interdit : il faut prendre rendez-vous pour les encombrants ou aller en dechetterie', TRUE, 0),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001b', 'Autorise tous les jours', FALSE, 1),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001b', 'Autorise dans les grandes villes', FALSE,
+        'Interdit : il faut prendre rendez-vous pour les encombrants ou aller en déchetterie', TRUE, 0),
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001b', 'Autorisé tous les jours', FALSE, 1),
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001b', 'Autorisé dans les grandes villes', FALSE,
         2),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001b', 'Une bonne action ecologique', FALSE, 3);
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001b', 'Une bonne action écologique', FALSE, 3);
 
--- Q28 - En quoi consiste la traité des etres humains ?
+-- Q28 - En quoi consiste la traite des êtres humains ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f3000000-0000-0000-0000-00000000001c', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'NAT', 'CONNAISSANCE',
-        'En quoi consiste la traité des etres humains ?',
-        'La traité des etres humains consiste a exploiter une personne (travail force, prostitution, esclavage...) par la contrainte. C''est un crime grave puni par la loi.',
+        'En quoi consiste la traite des êtres humains ?',
+        'La traite des êtres humains consiste à exploiter une personne (travail forcé, prostitution, esclavage...) par la contrainte. C''est un crime grave puni par la loi.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001c',
-        'Exploiter une personne par la force (travail force, prostitution...)', TRUE, 0),
+        'Exploiter une personne par la force (travail forcé, prostitution...)', TRUE, 0),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001c', 'Un type de commerce légal', FALSE, 1),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001c', 'L''immigration légale', FALSE, 2),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001c', 'L''accueil des refugies', FALSE, 3);
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001c', 'L''accueil des réfugiés', FALSE, 3);
 
 -- Q29 - Que doit faire une victime de violences ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
@@ -1086,19 +1086,19 @@ VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001d',
         'Appeler les secours, porter plainte ou contacter une association', TRUE, 0),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001d', 'Garder le silence et se taire', FALSE, 1),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001d', 'Se venger soi-même', FALSE, 2),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001d', 'Demenager sans rien dire', FALSE, 3);
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001d', 'Déménager sans rien dire', FALSE, 3);
 
 -- Q30 - Quelle est l'infraction la plus grave ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f3000000-0000-0000-0000-00000000001e', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000003', 'CR', 'CONNAISSANCE',
         'Quelle est l''infraction la plus grave ?',
-        'Les infractions sont classees en trois catégories par gravite croissante : contraventions, delits, crimes. Le crime (meurtre, viol...) est l''infraction la plus grave.',
+        'Les infractions sont classées en trois catégories par gravité croissante : contraventions, délits, crimes. Le crime (meurtre, viol...) est l''infraction la plus grave.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001e', 'Le crime', TRUE, 0),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001e', 'La contravention', FALSE, 1),
-       (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001e', 'Le delit', FALSE, 2),
+       (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001e', 'Le délit', FALSE, 2),
        (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001e', 'Toutes les infractions sont équivalentes',
         FALSE, 3);
 -- ============================================================================
@@ -1107,12 +1107,12 @@ VALUES (gen_random_uuid(), 'f3000000-0000-0000-0000-00000000001e', 'Le crime', T
 
 -- ---------- HISTOIRE ----------
 
--- Q1 - En quelle année a debute la Révolution française ?
+-- Q1 - En quelle année a débuté la Révolution française ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f4000000-0000-0000-0000-000000000001', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
-        'En quelle année a debute la Révolution française ?',
-        'La Révolution française debute en 1789. La prise de la Bastille à lieu le 14 juillet 1789.', TRUE);
+        'En quelle année a débuté la Révolution française ?',
+        'La Révolution française débute en 1789. La prise de la Bastille a lieu le 14 juillet 1789.', TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000001', '1789', TRUE, 0),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000001', '1689', FALSE, 1),
@@ -1124,22 +1124,22 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-000000000002', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
         'Qui était Napoléon Ier ?',
-        'Napoléon Bonaparte (1769-1821) fut empereur des Français de 1804 à 1814 puis en 1815. Il a reorganise l''État (Code civil, préfets, lycées) et conquis une grande partie de l''Europe.',
+        'Napoléon Bonaparte (1769-1821) fut empereur des Français de 1804 à 1814 puis en 1815. Il a réorganisé l''État (Code civil, préfets, lycées) et conquis une grande partie de l''Europe.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000002',
-        'Un empereur français (debut du XIXe siècle)', TRUE, 0),
+        'Un empereur français (début du XIXe siècle)', TRUE, 0),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000002', 'Un roi du Moyen Âge', FALSE, 1),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000002', 'Un président de la Ve République', FALSE,
         2),
-       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000002', 'Un philosophe des Lumieres', FALSE, 3);
+       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000002', 'Un philosophe des Lumières', FALSE, 3);
 
 -- Q3 - Lequel de ces personnages historiques est français ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f4000000-0000-0000-0000-000000000003', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
         'Lequel de ces personnages historiques est français ?',
-        'Jeanne d''Arc (1412-1431), originaire de Domremy, est une figure majeure de l''histoire de France. Elle a contribue a libérer la France pendant la guerre de Cent Ans.',
+        'Jeanne d''Arc (1412-1431), originaire de Domrémy, est une figure majeure de l''histoire de France. Elle a contribué à libérer la France pendant la guerre de Cent Ans.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000003', 'Jeanne d''Arc', TRUE, 0),
@@ -1164,26 +1164,26 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-000000000005', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
         'Qu''est-ce que la Shoah ?',
-        'La Shoah est le genocide des Juifs d''Europe par l''Allemagne nazie pendant la Seconde Guerre mondiale (1939-1945). Six millions de Juifs ont été extermines.',
+        'La Shoah est le génocide des Juifs d''Europe par l''Allemagne nazie pendant la Seconde Guerre mondiale (1939-1945). Six millions de Juifs ont été exterminés.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000005',
-        'Le genocide des Juifs par les nazis (1939-1945)', TRUE, 0),
+        'Le génocide des Juifs par les nazis (1939-1945)', TRUE, 0),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000005',
         'Une bataille de la Première Guerre mondiale', FALSE, 1),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000005', 'Une révolution européenne', FALSE, 2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000005', 'Une fête religieuse', FALSE, 3);
 
--- Q6 - Quel pays a été colonise par la France ?
+-- Q6 - Quel pays a été colonisé par la France ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f4000000-0000-0000-0000-000000000006', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
-        'Quel pays ou région du monde a été colonise par la France ?',
-        'L''Algerie, la Tunisie, le Maroc, le Sénégal, le Mali, l''Indochine et de nombreux autres pays d''Afrique et d''Asie ont été colonises par la France entre le XVIIe et le XXe siècle.',
+        'Quel pays ou région du monde a été colonisé par la France ?',
+        'L''Algérie, la Tunisie, le Maroc, le Sénégal, le Mali, l''Indochine et de nombreux autres pays d''Afrique et d''Asie ont été colonisés par la France entre le XVIIe et le XXe siècle.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
-VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000006', 'L''Algerie', TRUE, 0),
-       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000006', 'La Suede', FALSE, 1),
+VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000006', 'L''Algérie', TRUE, 0),
+       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000006', 'La Suède', FALSE, 1),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000006', 'Le Brésil', FALSE, 2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000006', 'L''Australie', FALSE, 3);
 
@@ -1205,7 +1205,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-000000000008', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
         'Quand a eu lieu la Seconde Guerre mondiale ?',
-        'La Seconde Guerre mondiale s''est deroulée de 1939 à 1945. Elle a opposé les Allies (dont la France libre) à l''Axe (Allemagne nazie, Italie, Japon).',
+        'La Seconde Guerre mondiale s''est déroulée de 1939 à 1945. Elle a opposé les Alliés (dont la France libre) à l''Axe (Allemagne nazie, Italie, Japon).',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000008', '1939-1945', TRUE, 0),
@@ -1218,7 +1218,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-000000000009', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
         'Quand a eu lieu la Première Guerre mondiale ?',
-        'La Première Guerre mondiale s''est deroulée de 1914 à 1918. Elle s''est terminee par l''armistice signe le 11 novembre 1918.',
+        'La Première Guerre mondiale s''est déroulée de 1914 à 1918. Elle s''est terminée par l''armistice signé le 11 novembre 1918.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000009', '1914-1918', TRUE, 0),
@@ -1226,11 +1226,11 @@ VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000009', '1914-1918', 
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000009', '1870-1871', FALSE, 2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000009', '1789-1799', FALSE, 3);
 
--- Q10 - En quelle année a été creée la CEE ?
+-- Q10 - En quelle année a été créée la CEE ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f4000000-0000-0000-0000-00000000000a', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
-        'En quelle année a été creée la Communauté Économique Européenne (CEE) ?',
+        'En quelle année a été créée la Communauté Économique Européenne (CEE) ?',
         'La CEE a été créée en 1957 par le traité de Rome, signé par 6 pays fondateurs : France, Allemagne, Italie, Belgique, Pays-Bas, Luxembourg. Elle est devenue l''Union européenne en 1993.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
@@ -1239,12 +1239,12 @@ VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000000a', '1957', TRUE,
        (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000000a', '1989', FALSE, 2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000000a', '2002', FALSE, 3);
 
--- Q11 - Le 11 novembre est un jour ferie. À quoi correspond cette date ?
+-- Q11 - Le 11 novembre est un jour férié. À quoi correspond cette date ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f4000000-0000-0000-0000-00000000000b', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
-        'Le 11 novembre est un jour ferie. À quoi correspond cette date ?',
-        'Le 11 novembre commemore l''armistice de 1918, qui a mis fin à la Première Guerre mondiale, et rend hommage aux soldats morts pour la France.',
+        'Le 11 novembre est un jour férié. À quoi correspond cette date ?',
+        'Le 11 novembre commémore l''armistice de 1918, qui a mis fin à la Première Guerre mondiale, et rend hommage aux soldats morts pour la France.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000000b',
@@ -1267,12 +1267,12 @@ VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000000c', 'Charles de G
        (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000000c', 'Georges Pompidou', FALSE, 2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000000c', 'Jacques Chirac', FALSE, 3);
 
--- Q13 - Quand l'esclavage a-t-il été aboli definitivement en France ?
+-- Q13 - Quand l'esclavage a-t-il été aboli définitivement en France ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f4000000-0000-0000-0000-00000000000d', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
-        'En quelle année l''esclavage a-t-il été aboli definitivement en France ?',
-        'L''esclavage a été aboli definitivement en France le 27 avril 1848, sous l''impulsion de Victor Schoelcher. Il avait déjà été aboli une première fois en 1794, puis retabli par Napoléon en 1802.',
+        'En quelle année l''esclavage a-t-il été aboli définitivement en France ?',
+        'L''esclavage a été aboli définitivement en France le 27 avril 1848, sous l''impulsion de Victor Schœlcher. Il avait déjà été aboli une première fois en 1794, puis rétabli par Napoléon en 1802.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000000d', '1848', TRUE, 0),
@@ -1285,7 +1285,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-00000000000e', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
         'Depuis quelle année l''école publique est-elle gratuite ?',
-        'L''école publique est gratuite depuis 1881, grace à la loi Jules Ferry. L''instruction est devenue obligatoire et laïque en 1882.',
+        'L''école publique est gratuite depuis 1881, grâce à la loi Jules Ferry. L''instruction est devenue obligatoire et laïque en 1882.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000000e', '1881', TRUE, 0),
@@ -1311,7 +1311,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-000000000010', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
         'Qui était le roi de France au moment de la Révolution française ?',
-        'Louis XVI était roi de France au debut de la Révolution. Il a été guillotine le 21 janvier 1793, marquant la fin de la monarchie.',
+        'Louis XVI était roi de France au début de la Révolution. Il a été guillotiné le 21 janvier 1793, marquant la fin de la monarchie.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000010', 'Louis XVI', TRUE, 0),
@@ -1324,7 +1324,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-000000000011', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
         'Qui a fondé la Ve République ?',
-        'Charles de Gaulle a fondé la Ve République en 1958, en redigeant une nouvelle Constitution adoptée par référendum.',
+        'Charles de Gaulle a fondé la Ve République en 1958, en rédigeant une nouvelle Constitution adoptée par référendum.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000011', 'Charles de Gaulle', TRUE, 0),
@@ -1337,7 +1337,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-000000000012', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
         'Que célèbre-t-on le 14 juillet ?',
-        'Le 14 juillet, fête nationale, commemore la prise de la Bastille (14 juillet 1789), symbole de la Révolution française.',
+        'Le 14 juillet, fête nationale, commémore la prise de la Bastille (14 juillet 1789), symbole de la Révolution française.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000012',
@@ -1352,12 +1352,12 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-000000000013', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
         'Quelle guerre a eu lieu entre 1914 et 1918 ?',
-        'La Première Guerre mondiale (Grande Guerre) s''est deroulée de 1914 à 1918. Elle a opposé principalement la France, le Royaume-Uni et la Russie à l''Allemagne et l''Autriche-Hongrie.',
+        'La Première Guerre mondiale (Grande Guerre) s''est déroulée de 1914 à 1918. Elle a opposé principalement la France, le Royaume-Uni et la Russie à l''Allemagne et l''Autriche-Hongrie.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000013', 'La Première Guerre mondiale', TRUE, 0),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000013', 'La Seconde Guerre mondiale', FALSE, 1),
-       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000013', 'La guerre d''Algerie', FALSE, 2),
+       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000013', 'La guerre d''Algérie', FALSE, 2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000013', 'La guerre de Cent Ans', FALSE, 3);
 
 -- Q20 - Pourquoi l'année 1958 est importante ?
@@ -1369,7 +1369,7 @@ VALUES ('f4000000-0000-0000-0000-000000000014', 'CIVIQUE',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000014', 'Fondation de la Ve République', TRUE, 0),
-       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000014', 'Debut de la Première Guerre mondiale',
+       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000014', 'Début de la Première Guerre mondiale',
         FALSE, 1),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000014', 'Indépendance de la France', FALSE, 2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000014', 'Abolition de l''esclavage', FALSE, 3);
@@ -1380,7 +1380,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-000000000015', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
         'Quel fleuve coule en France ?',
-        'La Seine, la Loire, le Rhone et la Garonne sont les principaux fleuves français. La Seine traverse Paris.',
+        'La Seine, la Loire, le Rhône et la Garonne sont les principaux fleuves français. La Seine traverse Paris.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000015', 'La Seine', TRUE, 0),
@@ -1401,18 +1401,18 @@ VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000016', 'Lyon', TRUE,
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000016', 'Berlin', FALSE, 2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000016', 'Rome', FALSE, 3);
 
--- Q23 - Quel ocean borde la côté ouest française ?
+-- Q23 - Quel océan borde la côte ouest française ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f4000000-0000-0000-0000-000000000017', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
-        'Quel ocean borde la côté ouest française ?',
-        'L''ocean Atlantique borde la côté ouest de la France. La côté sud est bordee par la mer Méditerranée.',
+        'Quel océan borde la côte ouest française ?',
+        'L''océan Atlantique borde la côte ouest de la France. La côte sud est bordée par la mer Méditerranée.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
-VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000017', 'L''ocean Atlantique', TRUE, 0),
-       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000017', 'L''ocean Pacifique', FALSE, 1),
-       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000017', 'L''ocean Indien', FALSE, 2),
-       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000017', 'L''ocean Arctique', FALSE, 3);
+VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000017', 'L''océan Atlantique', TRUE, 0),
+       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000017', 'L''océan Pacifique', FALSE, 1),
+       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000017', 'L''océan Indien', FALSE, 2),
+       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000017', 'L''océan Arctique', FALSE, 3);
 
 -- Q24 - Qu'est-ce que Paris ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
@@ -1425,7 +1425,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000018', 'La capitale de la France', TRUE, 0),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000018', 'Un département d''outre-mer', FALSE, 1),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000018', 'Un fleuve', FALSE, 2),
-       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000018', 'Une chaine de montagnes', FALSE, 3);
+       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000018', 'Une chaîne de montagnes', FALSE, 3);
 
 -- Q25 - Capitale de la France ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
@@ -1440,7 +1440,7 @@ VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000019', 'Paris', TRUE
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000019', 'Marseille', FALSE, 2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000019', 'Bordeaux', FALSE, 3);
 
--- Q26 - Continent ou se situe la France métropolitaine ?
+-- Q26 - Continent où se situe la France métropolitaine ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f4000000-0000-0000-0000-00000000001a', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
@@ -1496,7 +1496,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-00000000001e', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
         'Quelle est la mer au sud de la France métropolitaine ?',
-        'La mer Méditerranée borde le sud de la France, de la frontière espagnole à la frontière italienne, en passant par Marseille, Nice et la Côté d''Azur.',
+        'La mer Méditerranée borde le sud de la France, de la frontière espagnole à la frontière italienne, en passant par Marseille, Nice et la Côte d''Azur.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000001e', 'La Méditerranée', TRUE, 0),
@@ -1509,7 +1509,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-00000000001f', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
         'Quelle ville est située au bord de la mer Méditerranée ?',
-        'Marseille, Nice, Toulon, Montpellier... Plusieurs grandes villes françaises sont situées sur la côté méditerranéenne.',
+        'Marseille, Nice, Toulon, Montpellier... Plusieurs grandes villes françaises sont situées sur la côte méditerranéenne.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000001f', 'Marseille', TRUE, 0),
@@ -1517,25 +1517,25 @@ VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000001f', 'Marseille', 
        (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000001f', 'Strasbourg', FALSE, 2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000001f', 'Rennes', FALSE, 3);
 
--- Q32 - Ou se situe la Corse ?
+-- Q32 - Où se situe la Corse ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f4000000-0000-0000-0000-000000000020', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
-        'Ou se situe la Corse ?',
+        'Où se situe la Corse ?',
         'La Corse est une île française située en mer Méditerranée, au sud de la France métropolitaine, à l''ouest de l''Italie.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000020', 'En mer Méditerranée', TRUE, 0),
-       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000020', 'Dans l''ocean Atlantique', FALSE, 1),
+       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000020', 'Dans l''océan Atlantique', FALSE, 1),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000020', 'En Manche', FALSE, 2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000020', 'Dans la mer du Nord', FALSE, 3);
 
--- Q33 - Chaine de montagnes entre la France et l'Italie ?
+-- Q33 - Chaîne de montagnes entre la France et l'Italie ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f4000000-0000-0000-0000-000000000021', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
-        'Quelle chaine de montagnes est située entre la France et l''Italie ?',
-        'Les Alpes separent la France de l''Italie. Le point culminant est le mont Blanc (4 808 m), plus haut sommet d''Europe occidentale.',
+        'Quelle chaîne de montagnes est située entre la France et l''Italie ?',
+        'Les Alpes séparent la France de l''Italie. Le point culminant est le mont Blanc (4 808 m), plus haut sommet d''Europe occidentale.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000021', 'Les Alpes', TRUE, 0),
@@ -1550,7 +1550,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-000000000022', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
         'Qui était Molière ?',
-        'Molière (1622-1673) était un dramaturge et comedien français du XVIIe siècle. Il est l''auteur de comedies célèbres comme "L''Avare", "Le Misanthrope", "Tartuffe".',
+        'Molière (1622-1673) était un dramaturge et comédien français du XVIIe siècle. Il est l''auteur de comédies célèbres comme "L''Avare", "Le Misanthrope", "Tartuffe".',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000022', 'Un dramaturge français du XVIIe siècle',
@@ -1578,26 +1578,26 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-000000000024', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
         'Qui était George Sand ?',
-        'George Sand (1804-1876, vrai nom Aurore Dupin) était une romanciere française du XIXe siècle. Elle est connue pour ses romans (La Mare au Diable, La Petite Fadette) et son engagement social.',
+        'George Sand (1804-1876, vrai nom Aurore Dupin) était une romancière française du XIXe siècle. Elle est connue pour ses romans (La Mare au Diable, La Petite Fadette) et son engagement social.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
-VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000024', 'Une romanciere française du XIXe siècle',
+VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000024', 'Une romancière française du XIXe siècle',
         TRUE, 0),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000024', 'Une chanteuse américaine', FALSE, 1),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000024', 'Une reine d''Angleterre', FALSE, 2),
-       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000024', 'Une cineaste italienne', FALSE, 3);
+       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000024', 'Une cinéaste italienne', FALSE, 3);
 
 -- Q37 - Qui était Simone de Beauvoir ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f4000000-0000-0000-0000-000000000025', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
         'Qui était Simone de Beauvoir ?',
-        'Simone de Beauvoir (1908-1986) était une philosophe, romanciere et figure du féminisme français. Auteure du "Deuxième Sexe" (1949), texte fondateur du féminisme contemporain.',
+        'Simone de Beauvoir (1908-1986) était une philosophe, romancière et figure du féminisme français. Auteure du "Deuxième Sexe" (1949), texte fondateur du féminisme contemporain.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000025',
-        'Une philosophe et romanciere française, figure du féminisme', TRUE, 0),
-       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000025', 'Une danseuse de l''Opera', FALSE, 1),
+        'Une philosophe et romancière française, figure du féminisme', TRUE, 0),
+       (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000025', 'Une danseuse de l''Opéra', FALSE, 1),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000025', 'Une chimiste belge', FALSE, 2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000025', 'Une exploratrice polaire', FALSE, 3);
 
@@ -1606,11 +1606,11 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-000000000026', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
         'Qui était Albert Camus ?',
-        'Albert Camus (1913-1960) était un ecrivain et philosophe français, ne en Algerie. Prix Nobel de litterature en 1957, auteur de "L''Étranger", "La Peste".',
+        'Albert Camus (1913-1960) était un écrivain et philosophe français, né en Algérie. Prix Nobel de littérature en 1957, auteur de "L''Étranger", "La Peste".',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000026',
-        'Un ecrivain français (Prix Nobel de litterature 1957)', TRUE, 0),
+        'Un écrivain français (Prix Nobel de littérature 1957)', TRUE, 0),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000026', 'Un footballeur', FALSE, 1),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000026', 'Un peintre cubiste', FALSE, 2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000026', 'Un industriel', FALSE, 3);
@@ -1620,7 +1620,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-000000000027', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
         'Qui était Paul Cézanne ?',
-        'Paul Cézanne (1839-1906) était un peintre français post-impressionniste, originaire d''Aix-en-Provence. Considere comme l''un des plus grands peintres modernes.',
+        'Paul Cézanne (1839-1906) était un peintre français post-impressionniste, originaire d''Aix-en-Provence. Considéré comme l''un des plus grands peintres modernes.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000027', 'Un peintre français post-impressionniste',
@@ -1634,7 +1634,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-000000000028', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
         'Qui était Marc Chagall ?',
-        'Marc Chagall (1887-1985) était un peintre français d''origine russe, l''un des plus grands artistes du XXe siècle. Il a notamment peint le plafond de l''Opera Garnier de Paris.',
+        'Marc Chagall (1887-1985) était un peintre français d''origine russe, l''un des plus grands artistes du XXe siècle. Il a notamment peint le plafond de l''Opéra Garnier de Paris.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000028', 'Un peintre français d''origine russe',
@@ -1643,16 +1643,16 @@ VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000028', 'Un peintre f
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000028', 'Un sculpteur grec', FALSE, 2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000028', 'Un cuisinier italien', FALSE, 3);
 
--- Q41 - Qui était Josephine Baker ?
+-- Q41 - Qui était Joséphine Baker ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f4000000-0000-0000-0000-000000000029', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
-        'Qui était Josephine Baker ?',
-        'Josephine Baker (1906-1975) était une artiste franco-américaine, danseuse et chanteuse, mais aussi resistante pendant la Seconde Guerre mondiale. Entrée au Pantheon en 2021.',
+        'Qui était Joséphine Baker ?',
+        'Joséphine Baker (1906-1975) était une artiste franco-américaine, danseuse et chanteuse, mais aussi résistante pendant la Seconde Guerre mondiale. Entrée au Panthéon en 2021.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000029',
-        'Une artiste, resistante, entrée au Pantheon en 2021', TRUE, 0),
+        'Une artiste, résistante, entrée au Panthéon en 2021', TRUE, 0),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000029', 'Une scientifique française', FALSE, 1),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000029', 'Une exploratrice', FALSE, 2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-000000000029', 'Une religieuse', FALSE, 3);
@@ -1662,7 +1662,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-00000000002a', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
         'Qui était une chanteuse française célèbre ?',
-        'Édith Piaf (1915-1963) est une icone de la chanson française. Ses chansons "La Vie en rose", "Non, je ne regrette rien" sont mondialement célèbres.',
+        'Édith Piaf (1915-1963) est une icône de la chanson française. Ses chansons "La Vie en rose", "Non, je ne regrette rien" sont mondialement célèbres.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000002a', 'Édith Piaf', TRUE, 0),
@@ -1675,11 +1675,11 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-00000000002b', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
         'Qu''est-ce que le Louvre ?',
-        'Le Louvre est l''un des plus grands musées du monde, situé à Paris. Il abrite des œuvres majeures comme la Joconde, la Venus de Milo, la Victoire de Samothrace.',
+        'Le Louvre est l''un des plus grands musées du monde, situé à Paris. Il abrite des œuvres majeures comme la Joconde, la Vénus de Milo, la Victoire de Samothrace.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000002b', 'Un grand musée à Paris', TRUE, 0),
-       (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000002b', 'Un opera', FALSE, 1),
+       (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000002b', 'Un opéra', FALSE, 1),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000002b', 'Une bibliothèque universitaire', FALSE,
         2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000002b', 'Un stade de football', FALSE, 3);
@@ -1695,15 +1695,15 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000002c',
         'Un poète français célèbre pour ses Fables', TRUE, 0),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000002c', 'Un architecte', FALSE, 1),
-       (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000002c', 'Un mathematicien', FALSE, 2),
+       (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000002c', 'Un mathématicien', FALSE, 2),
        (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000002c', 'Un peintre', FALSE, 3);
 
--- Q45 - Quel ecrivain est français ?
+-- Q45 - Quel écrivain est français ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f4000000-0000-0000-0000-00000000002d', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
-        'Quel ecrivain est français ?',
-        'Victor Hugo (1802-1885) est l''un des plus grands ecrivains français. Auteur des "Misérables", "Notre-Dame de Paris", il fut aussi homme politique et defenseur des droits humains.',
+        'Quel écrivain est français ?',
+        'Victor Hugo (1802-1885) est l''un des plus grands écrivains français. Auteur des "Misérables", "Notre-Dame de Paris", il fut aussi homme politique et défenseur des droits humains.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000002d', 'Victor Hugo', TRUE, 0),
@@ -1729,7 +1729,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f4000000-0000-0000-0000-00000000002f', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
         'Quand célèbre-t-on Noël ?',
-        'Noël est célébré le 25 décembre. C''est une fête chrétienne, mais aussi un jour ferie en France et une fête familiale célébrée par beaucoup de Français quelle que soit leur religion.',
+        'Noël est célébré le 25 décembre. C''est une fête chrétienne, mais aussi un jour férié en France et une fête familiale célébrée par beaucoup de Français quelle que soit leur religion.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f4000000-0000-0000-0000-00000000002f', 'Le 25 décembre', TRUE, 0),
@@ -1791,11 +1791,11 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f5000000-0000-0000-0000-000000000004', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'MISE_SITUATION',
         'Après avoir obtenu le permis de conduire, que faut-il faire pour pouvoir conduire sa voiture ?',
-        'Après l''obtention du permis, il faut faire immatriculer son vehicule (carte grise) et le faire assurer obligatoirement (assurance auto au minimum responsabilité civile).',
+        'Après l''obtention du permis, il faut faire immatriculer son véhicule (carte grise) et le faire assurer obligatoirement (assurance auto au minimum responsabilité civile).',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000004',
-        'Assurer son vehicule (l''assurance est obligatoire)', TRUE, 0),
+        'Assurer son véhicule (l''assurance est obligatoire)', TRUE, 0),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000004', 'Rien, le permis suffit', FALSE, 1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000004', 'Demander une autorisation à la mairie',
         FALSE, 2),
@@ -1818,7 +1818,7 @@ VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000005',
         FALSE, 1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000005', 'Si les parents donnent leur accord',
         FALSE, 2),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000005', 'S''il est annonce dans le journal', FALSE,
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000005', 'S''il est annoncé dans le journal', FALSE,
         3);
 
 -- Q6 - Quand faut-il déclarer son enfant à l'état civil ?
@@ -1837,19 +1837,19 @@ VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000006', 'Dans les 5 j
 
 -- ---------- TRAVAIL & EMPLOI ----------
 
--- Q7 - Le travail non déclare est :
+-- Q7 - Le travail non déclaré est :
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f5000000-0000-0000-0000-000000000007', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'CONNAISSANCE',
-        'Le travail non déclare est :',
-        'Le travail non déclare (travail au noir) est illégal. Il privé le travailleur de droits sociaux (chomage, retraite, sécurité sociale) et expose employeur et salarié à des sanctions.',
+        'Le travail non déclaré est :',
+        'Le travail non déclaré (travail au noir) est illégal. Il prive le travailleur de droits sociaux (chômage, retraite, sécurité sociale) et expose employeur et salarié à des sanctions.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000007', 'Interdit et puni par la loi', TRUE, 0),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000007', 'Autorise pour les petits emplois', FALSE,
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000007', 'Autorisé pour les petits emplois', FALSE,
         1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000007', 'Sans conséquence', FALSE, 2),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000007', 'Encourage par l''État', FALSE, 3);
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000007', 'Encouragé par l''État', FALSE, 3);
 
 -- Q8 - Que doit faire un employeur pour fixer un salaire ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
@@ -1860,7 +1860,7 @@ VALUES ('f5000000-0000-0000-0000-000000000008', 'CIVIQUE',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000008', 'Respecter au minimum le SMIC', TRUE, 0),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000008', 'Decider seul du montant', FALSE, 1),
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000008', 'Décider seul du montant', FALSE, 1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000008', 'Payer ce que le salarié demande', FALSE,
         2),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000008', 'Adapter le salaire au sexe du salarié',
@@ -1876,21 +1876,21 @@ VALUES ('f5000000-0000-0000-0000-000000000009', 'CIVIQUE',
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000009', 'Le salaire minimum légal en France', TRUE,
         0),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000009', 'Un impot paye par les salariés', FALSE,
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000009', 'Un impôt payé par les salariés', FALSE,
         1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000009', 'Le nom d''une assurance', FALSE, 2),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000009', 'Une aide sociale pour les chomeurs',
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000009', 'Une aide sociale pour les chômeurs',
         FALSE, 3);
 
--- Q10 - Première demarche pour chercher un emploi ?
+-- Q10 - Première démarche pour chercher un emploi ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f5000000-0000-0000-0000-00000000000a', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'MISE_SITUATION',
-        'Quelle est la première demarche a realiser pour chercher un emploi ?',
-        'La première demarche est de s''inscrire a France Travail (anciennement Pole Emploi). Cela permet de bénéficier d''un accompagnement et éventuellement d''indemnites de chomage.',
+        'Quelle est la première démarche à réaliser pour chercher un emploi ?',
+        'La première démarche est de s''inscrire à France Travail (anciennement Pôle Emploi). Cela permet de bénéficier d''un accompagnement et éventuellement d''indemnités de chômage.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
-VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000a', 'S''inscrire a France Travail', TRUE, 0),
+VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000a', 'S''inscrire à France Travail', TRUE, 0),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000a', 'Attendre une convocation de l''État',
         FALSE, 1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000a',
@@ -1910,30 +1910,30 @@ VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000b', '35 heures', 
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000b', '48 heures', FALSE, 2),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000b', '30 heures', FALSE, 3);
 
--- Q12 - Qui est aide par France Travail ?
+-- Q12 - Qui est aidé par France Travail ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f5000000-0000-0000-0000-00000000000c', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'CONNAISSANCE',
-        'Qui est aide par France Travail ?',
-        'France Travail (ex-Pole Emploi) accompagné les demandeurs d''emploi : inscription, recherche d''emploi, indemnites, formation. Les entreprises peuvent également être aidees dans leurs recrutements.',
+        'Qui est aidé par France Travail ?',
+        'France Travail (ex-Pôle Emploi) accompagne les demandeurs d''emploi : inscription, recherche d''emploi, indemnités, formation. Les entreprises peuvent également être aidées dans leurs recrutements.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000c', 'Les demandeurs d''emploi', TRUE, 0),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000c', 'Les retraites', FALSE, 1),
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000c', 'Les retraités', FALSE, 1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000c', 'Les élèves d''école primaire', FALSE, 2),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000c', 'Les touristes étrangers', FALSE, 3);
 
--- Q13 - Étranger en situation reguliere peut créer son entreprise ?
+-- Q13 - Étranger en situation régulière peut créer son entreprise ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f5000000-0000-0000-0000-00000000000d', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'MISE_SITUATION',
-        'Une personne étrangère en situation reguliere peut créer son entreprise :',
-        'Oui. Toute personne étrangère en situation reguliere peut créer une entreprise en France, dans les mêmes conditions qu''un citoyen français.',
+        'Une personne étrangère en situation régulière peut créer son entreprise :',
+        'Oui. Toute personne étrangère en situation régulière peut créer une entreprise en France, dans les mêmes conditions qu''un citoyen français.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000d',
         'Oui, dans les mêmes conditions qu''un Français', TRUE, 0),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000d', 'Non, c''est réserve aux Français', FALSE,
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000d', 'Non, c''est réservé aux Français', FALSE,
         1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000d',
         'Oui, mais uniquement en s''associant à un Français', FALSE, 2),
@@ -1950,7 +1950,7 @@ VALUES ('f5000000-0000-0000-0000-00000000000e', 'CIVIQUE',
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000e',
         'Oui, dans les mêmes conditions qu''un homme', TRUE, 0),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000e', 'Non, c''est réserve aux hommes', FALSE,
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000e', 'Non, c''est réservé aux hommes', FALSE,
         1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000e', 'Oui, avec l''autorisation de son mari',
         FALSE, 2),
@@ -1962,23 +1962,23 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f5000000-0000-0000-0000-00000000000f', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'CONNAISSANCE',
         'À partir de quel âge un mineur peut-il travailler ?',
-        'Un mineur peut travailler à partir de 16 ans (avec autorisation parentale). Des 14 ans, il peut faire des petits travaux pendant les vacances scolaires sous conditions strictes.',
+        'Un mineur peut travailler à partir de 16 ans (avec autorisation parentale). Dès 14 ans, il peut faire des petits travaux pendant les vacances scolaires sous conditions strictes.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000f',
         'À partir de 16 ans (avec accord parental)', TRUE, 0),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000f', 'À partir de 18 ans seulement', FALSE, 1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000f', 'À partir de 12 ans', FALSE, 2),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000f', 'A tout âge, sans restriction', FALSE, 3);
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000000f', 'À tout âge, sans restriction', FALSE, 3);
 
--- ---------- SANTE ----------
+-- ---------- SANTÉ ----------
 
--- Q16 - Organisme pour rembourser les frais de sante ?
+-- Q16 - Organisme pour rembourser les frais de santé ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f5000000-0000-0000-0000-000000000010', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'CONNAISSANCE',
-        'Aupres de quel organisme faut-il demander le remboursement des frais de sante ?',
-        'Les remboursements de frais de sante sont assures par l''Assurance Maladie (CPAM - Caisse Primaire d''Assurance Maladie), qui fait partie de la Sécurité sociale.',
+        'Auprès de quel organisme faut-il demander le remboursement des frais de santé ?',
+        'Les remboursements de frais de santé sont assurés par l''Assurance Maladie (CPAM - Caisse Primaire d''Assurance Maladie), qui fait partie de la Sécurité sociale.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000010', 'L''Assurance Maladie (CPAM)', TRUE, 0),
@@ -1986,12 +1986,12 @@ VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000010', 'L''Assurance
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000010', 'La préfecture', FALSE, 2),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000010', 'France Travail', FALSE, 3);
 
--- Q17 - Acces aux soins : quelle proposition est correcte ?
+-- Q17 - Accès aux soins : quelle proposition est correcte ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f5000000-0000-0000-0000-000000000011', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'CONNAISSANCE',
         'Concernant l''accès aux soins, quelle proposition est correcte ?',
-        'L''accès aux soins est un droit en France. Le système de Sécurité sociale permet à toute personne résidant en France de bénéficier d''une prise en charge des frais de sante.',
+        'L''accès aux soins est un droit en France. Le système de Sécurité sociale permet à toute personne résidant en France de bénéficier d''une prise en charge des frais de santé.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000011',
@@ -1999,16 +1999,16 @@ VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000011',
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000011', 'Seuls les Français ont accès aux soins',
         FALSE, 1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000011',
-        'Les soins sont réserves aux personnes salariées', FALSE, 2),
+        'Les soins sont réservés aux personnes salariées', FALSE, 2),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000011', 'L''accès aux soins dépend de la religion',
         FALSE, 3);
 
--- Q18 - Probleme de sante non urgent : à qui s'adresser ?
+-- Q18 - Problème de santé non urgent : à qui s'adresser ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f5000000-0000-0000-0000-000000000012', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CSP', 'MISE_SITUATION',
-        'En cas de problème de sante non urgent, à qui faut-il s''adresser en premier ?',
-        'En cas de problème de sante non urgent, il faut consulter son médecin traitant. Il est le premier contact dans le parcours de soins et oriente si nécessaire vers un spécialiste.',
+        'En cas de problème de santé non urgent, à qui faut-il s''adresser en premier ?',
+        'En cas de problème de santé non urgent, il faut consulter son médecin traitant. Il est le premier contact dans le parcours de soins et oriente si nécessaire vers un spécialiste.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000012', 'Au médecin traitant', TRUE, 0),
@@ -2021,22 +2021,22 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f5000000-0000-0000-0000-000000000013', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'CONNAISSANCE',
         'Quel est le rôle du médecin traitant ?',
-        'Le médecin traitant est le premier contact pour les questions de sante. Il coordonne le parcours de soins, oriente vers les spécialistes et permet un meilleur remboursement par la Sécurité sociale.',
+        'Le médecin traitant est le premier contact pour les questions de santé. Il coordonne le parcours de soins, oriente vers les spécialistes et permet un meilleur remboursement par la Sécurité sociale.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000013',
-        'Suivre la sante du patient et coordonner les soins', TRUE, 0),
+        'Suivre la santé du patient et coordonner les soins', TRUE, 0),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000013', 'Faire uniquement de la chirurgie', FALSE,
         1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000013', 'Rembourser les soins', FALSE, 2),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000013', 'Vendre des medicaments', FALSE, 3);
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000013', 'Vendre des médicaments', FALSE, 3);
 
 -- Q20 - Quand se rendre aux urgences de l'hôpital ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f5000000-0000-0000-0000-000000000014', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'MISE_SITUATION',
         'Dans quelles situations doit-on se rendre aux urgences de l''hôpital ?',
-        'Les urgences sont reservées aux situations graves et imminentes : accident, malaise grave, hemorragie, douleur intense, perte de conscience. Pour les soins non urgents, voir un médecin traitant.',
+        'Les urgences sont réservées aux situations graves et imminentes : accident, malaise grave, hémorragie, douleur intense, perte de conscience. Pour les soins non urgents, voir un médecin traitant.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000014',
@@ -2051,16 +2051,16 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f5000000-0000-0000-0000-000000000015', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'CONNAISSANCE',
         'Quel est l''objectif des vaccinations obligatoires ?',
-        'Les vaccinations obligatoires protegent l''enfant contre certaines maladies graves et evitent leur propagation. En France, 11 vaccins sont obligatoires pour les enfants nes depuis 2018.',
+        'Les vaccinations obligatoires protègent l''enfant contre certaines maladies graves et évitent leur propagation. En France, 11 vaccins sont obligatoires pour les enfants nés depuis 2018.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000015',
-        'Proteger la sante individuelle et collective', TRUE, 0),
+        'Protéger la santé individuelle et collective', TRUE, 0),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000015', 'Rapporter de l''argent à l''État', FALSE,
         1),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000015', 'Reduire le nombre de naissances', FALSE,
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000015', 'Réduire le nombre de naissances', FALSE,
         2),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000015', 'Empecher les enfants d''aller à l''école',
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000015', 'Empêcher les enfants d''aller à l''école',
         FALSE, 3);
 
 -- Q22 - À quoi sert la carte Vitale ?
@@ -2068,30 +2068,30 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f5000000-0000-0000-0000-000000000016', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'CONNAISSANCE',
         'À quoi sert la carte Vitale ?',
-        'La carte Vitale est la carte d''assure social. Elle permet de bénéficier des remboursements de l''Assurance Maladie en attestant des droits à la Sécurité sociale.',
+        'La carte Vitale est la carte d''assuré social. Elle permet de bénéficier des remboursements de l''Assurance Maladie en attestant des droits à la Sécurité sociale.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
-VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000016', 'A être rembourse de ses frais de sante',
+VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000016', 'À être remboursé de ses frais de santé',
         TRUE, 0),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000016', 'A voter aux élections', FALSE, 1),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000016', 'A passer les frontières', FALSE, 2),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000016', 'A retirer de l''argent au distributeur',
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000016', 'À voter aux élections', FALSE, 1),
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000016', 'À passer les frontières', FALSE, 2),
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000016', 'À retirer de l''argent au distributeur',
         FALSE, 3);
 
--- Q23 - À quoi sert une mutuelle sante ?
+-- Q23 - À quoi sert une mutuelle santé ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f5000000-0000-0000-0000-000000000017', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'CONNAISSANCE',
-        'À quoi sert une mutuelle sante ?',
-        'La mutuelle (complementaire sante) rembourse la partie des frais de sante qui n''est pas prise en chargé par la Sécurité sociale. Elle est facultative mais fortement recommandée.',
+        'À quoi sert une mutuelle santé ?',
+        'La mutuelle (complémentaire santé) rembourse la partie des frais de santé qui n''est pas prise en charge par la Sécurité sociale. Elle est facultative mais fortement recommandée.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000017',
-        'A compléter les remboursements de la Sécurité sociale', TRUE, 0),
+        'À compléter les remboursements de la Sécurité sociale', TRUE, 0),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000017',
-        'A remplacer entierement la Sécurité sociale', FALSE, 1),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000017', 'A assurer la voiture', FALSE, 2),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000017', 'A payer les impots', FALSE, 3);
+        'À remplacer entièrement la Sécurité sociale', FALSE, 1),
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000017', 'À assurer la voiture', FALSE, 2),
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000017', 'À payer les impôts', FALSE, 3);
 
 -- ---------- ÉCOLE ----------
 
@@ -2100,7 +2100,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f5000000-0000-0000-0000-000000000018', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
         'Jusqu''à quel âge l''école est-elle obligatoire ?',
-        'L''instruction est obligatoire de 3 à 16 ans en France (depuis 2019, l''âge d''entrée a été abaisse à 3 ans, contre 6 ans auparavant).',
+        'L''instruction est obligatoire de 3 à 16 ans en France (depuis 2019, l''âge d''entrée a été abaissé à 3 ans, contre 6 ans auparavant).',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000018', 'Jusqu''à 16 ans', TRUE, 0),
@@ -2113,11 +2113,11 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f5000000-0000-0000-0000-000000000019', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'CONNAISSANCE',
         'L''autorité parentale prévoit l''obligation :',
-        'L''autorité parentale impose aux parents de proteger, eduquer, instruire et assurer l''entretien de leurs enfants jusqu''à leur majorité (18 ans).',
+        'L''autorité parentale impose aux parents de protéger, éduquer, instruire et assurer l''entretien de leurs enfants jusqu''à leur majorité (18 ans).',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000019',
-        'De proteger, nourrir, eduquer et instruire les enfants', TRUE, 0),
+        'De protéger, nourrir, éduquer et instruire les enfants', TRUE, 0),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000019', 'De choisir un métier pour ses enfants',
         FALSE, 1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-000000000019', 'De marier ses enfants', FALSE, 2),
@@ -2129,7 +2129,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f5000000-0000-0000-0000-00000000001a', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
         'Pour qui l''école est-elle obligatoire ?',
-        'L''instruction est obligatoire pour tous les enfants de 3 à 16 ans résidant en France, qu''ils soient français ou étrangers, en situation reguliere ou non.',
+        'L''instruction est obligatoire pour tous les enfants de 3 à 16 ans résidant en France, qu''ils soient français ou étrangers, en situation régulière ou non.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001a',
@@ -2145,20 +2145,20 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f5000000-0000-0000-0000-00000000001b', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
         'Quel diplôme obtient-on à la fin du lycée ?',
-        'À la fin du lycée, les élèves passent le baccalaureat (le "bac"), diplôme qui sanctionne la fin des études secondaires et permet de poursuivre dans l''enseignement supérieur.',
+        'À la fin du lycée, les élèves passent le baccalauréat (le "bac"), diplôme qui sanctionne la fin des études secondaires et permet de poursuivre dans l''enseignement supérieur.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
-VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001b', 'Le baccalaureat (bac)', TRUE, 0),
+VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001b', 'Le baccalauréat (bac)', TRUE, 0),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001b', 'Le brevet', FALSE, 1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001b', 'La licence', FALSE, 2),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001b', 'Le master', FALSE, 3);
 
--- Q28 - Établissements après l'école elementaire ?
+-- Q28 - Établissements après l'école élémentaire ?
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active)
 VALUES ('f5000000-0000-0000-0000-00000000001c', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'CONNAISSANCE',
-        'Dans quels établissements scolaires vont les élèves après l''école elementaire ?',
-        'Après l''école elementaire (jusqu''au CM2), les élèves vont au collège (6e à 3e), puis au lycée (2nde, 1ere, terminale).',
+        'Dans quels établissements scolaires vont les élèves après l''école élémentaire ?',
+        'Après l''école élémentaire (jusqu''au CM2), les élèves vont au collège (6e à 3e), puis au lycée (2de, 1re, terminale).',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001c', 'Au collège', TRUE, 0),
@@ -2176,7 +2176,7 @@ VALUES ('f5000000-0000-0000-0000-00000000001d', 'CIVIQUE',
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001d',
         'Pour tous les enfants, sans distinction de nationalité', TRUE, 0),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001d', 'Seulement pour les enfants nes en France',
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001d', 'Seulement pour les enfants nés en France',
         FALSE, 1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001d', 'Seulement pour les enfants de salariés',
         FALSE, 2),
@@ -2188,16 +2188,16 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f5000000-0000-0000-0000-00000000001e', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'CONNAISSANCE',
         'Un enfant inscrit à l''école :',
-        'Un enfant inscrit à l''école doit la frequenter de manière reguliere. L''assiduite est obligatoire. Les absences injustifiees peuvent être sanctionnees.',
+        'Un enfant inscrit à l''école doit la fréquenter de manière régulière. L''assiduité est obligatoire. Les absences injustifiées peuvent être sanctionnées.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001e',
-        'Doit y aller régulièrement (assiduite obligatoire)', TRUE, 0),
+        'Doit y aller régulièrement (assiduité obligatoire)', TRUE, 0),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001e', 'Peut y aller quand il le souhaite', FALSE,
         1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001e', 'N''est pas tenu de suivre les cours',
         FALSE, 2),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001e', 'Peut choisir lui-même ses matieres',
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001e', 'Peut choisir lui-même ses matières',
         FALSE, 3);
 
 -- Q31 - Les enfants qui ne parlent pas français :
@@ -2205,14 +2205,14 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 VALUES ('f5000000-0000-0000-0000-00000000001f', 'CIVIQUE',
         '11111111-0000-0000-0000-000000000005', 'CR', 'MISE_SITUATION',
         'Les enfants qui ne parlent pas français :',
-        'Les enfants qui ne parlent pas français sont accueillis à l''école dans des dispositifs adaptes (UPE2A - Unite Pedagogique pour Eleves Allophones Arrivants) pour apprendre le français et suivre une scolarite normale.',
+        'Les enfants qui ne parlent pas français sont accueillis à l''école dans des dispositifs adaptés (UPE2A - Unité Pédagogique pour Élèves Allophones Arrivants) pour apprendre le français et suivre une scolarité normale.',
         TRUE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order)
 VALUES (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001f',
-        'Sont accueillis à l''école avec un soutien adapte pour apprendre le français', TRUE, 0),
+        'Sont accueillis à l''école avec un soutien adapté pour apprendre le français', TRUE, 0),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001f', 'Ne peuvent pas aller à l''école', FALSE,
         1),
        (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001f',
         'Doivent attendre de parler français pour y aller', FALSE, 2),
-       (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001f', 'Sont renvoyes dans leur pays d''origine',
+       (gen_random_uuid(), 'f5000000-0000-0000-0000-00000000001f', 'Sont renvoyés dans leur pays d''origine',
         FALSE, 3);

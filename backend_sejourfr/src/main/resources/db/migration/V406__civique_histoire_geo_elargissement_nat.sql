@@ -3,7 +3,7 @@
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-00000000005d', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Quel traité a mis fin à la guerre de Trente Ans (1648) ?',
- 'Les traités de Westphalie (1648) ont mis fin à la guerre de Trente Ans. Ils ont posé les bases du droit international moderne et confirme la puissance de la France de Louis XIV.',
+ 'Les traités de Westphalie (1648) ont mis fin à la guerre de Trente Ans. Ils ont posé les bases du droit international moderne et confirmé la puissance de la France de Louis XIV.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000005d', 'Les traités de Westphalie (1648)', TRUE, 0),
@@ -13,8 +13,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-00000000005e', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quelle dynastie regnait sur la France à la veille de la Révolution ?',
- 'La dynastie des Bourbons regnait sur la France depuis 1589 (Henri IV). Louis XVI était le dernier Bourbon a regner avant la Révolution et l''abolition de la monarchie en 1792.',
+ 'Quelle dynastie régnait sur la France à la veille de la Révolution ?',
+ 'La dynastie des Bourbons régnait sur la France depuis 1589 (Henri IV). Louis XVI était le dernier Bourbon à régner avant la Révolution et l''abolition de la monarchie en 1792.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000005e', 'Les Bourbons', TRUE, 0),
@@ -25,7 +25,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-00000000005f', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Quel événement majeur a eu lieu le 20 juin 1789 à Versailles ?',
- 'Le serment du Jeu de paume (20 juin 1789) : les députés du tiers état, rejoints par d''autres, ont jure de ne pas se séparer avant d''avoir donne une constitution à la France.',
+ 'Le serment du Jeu de paume (20 juin 1789) : les députés du tiers état, rejoints par d''autres, ont juré de ne pas se séparer avant d''avoir donné une constitution à la France.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000005f', 'Le serment du Jeu de paume', TRUE, 0),
@@ -36,18 +36,18 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000060', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Que désigne la Terreur dans le contexte de la Révolution française ?',
- 'La Terreur (1793-1794) fut une période de la Révolution caracterisee par des executions massives (guillotine) sous l''impulsion de Robespierre et du Comite de salut public. Robespierre lui-même fut guillotine en juillet 1794.',
+ 'La Terreur (1793-1794) fut une période de la Révolution caractérisée par des exécutions massives (guillotine) sous l''impulsion de Robespierre et du Comité de salut public. Robespierre lui-même fut guillotiné en juillet 1794.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000060', 'Une période de repression révolutionnaire (1793-1794)', TRUE, 0),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000060', 'Une période de répression révolutionnaire (1793-1794)', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000060', 'Une bataille', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000060', 'Une famine', FALSE, 2),
-(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000060', 'Une epidemie', FALSE, 3);
+(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000060', 'Une épidémie', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000061', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Quel personnage est dit ''l''Incorruptible'' pendant la Révolution ?',
- 'Maximilien de Robespierre (1758-1794) était surnomme ''l''Incorruptible''. Figure du club des Jacobins, il a domine la Terreur, avant d''être guillotine le 28 juillet 1794 (9 thermidor an II).',
+ 'Maximilien de Robespierre (1758-1794) était surnommé ''l''Incorruptible''. Figure du club des Jacobins, il a dominé la Terreur, avant d''être guillotiné le 28 juillet 1794 (9 thermidor an II).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000061', 'Robespierre', TRUE, 0),
@@ -57,8 +57,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000062', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quel coup d''État a porte Napoléon Bonaparte au pouvoir ?',
- 'Le coup d''État du 18 brumaire an VIII (9 novembre 1799) a porte Napoléon Bonaparte au pouvoir. Il a mis fin au Directoire et installe le Consulat, prelude à l''Empire (1804).',
+ 'Quel coup d''État a porté Napoléon Bonaparte au pouvoir ?',
+ 'Le coup d''État du 18 brumaire an VIII (9 novembre 1799) a porté Napoléon Bonaparte au pouvoir. Il a mis fin au Directoire et installé le Consulat, prélude à l''Empire (1804).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000062', 'Le coup d''État du 18 brumaire (1799)', TRUE, 0),
@@ -68,8 +68,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000063', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quelle bataille a marqué la chute definitive de Napoléon en 1815 ?',
- 'La bataille de Waterloo (18 juin 1815), en Belgique, a marqué la defaite definitive de Napoléon face aux forces alliees (Wellington, Blucher). Il fut ensuite exile a Sainte-Hélène.',
+ 'Quelle bataille a marqué la chute définitive de Napoléon en 1815 ?',
+ 'La bataille de Waterloo (18 juin 1815), en Belgique, a marqué la défaite définitive de Napoléon face aux forces alliées (Wellington, Blücher). Il fut ensuite exilé à Sainte-Hélène.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000063', 'La bataille de Waterloo (1815)', TRUE, 0),
@@ -80,7 +80,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000064', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Quel régime politique a suivi la chute de Napoléon en 1815 ?',
- 'La Restauration (1815-1830) a ramené les Bourbons sur le trone : Louis XVIII (1815-1824) puis Charles X (1824-1830). Charles X fut renverse par la révolution de juillet 1830.',
+ 'La Restauration (1815-1830) a ramené les Bourbons sur le trône : Louis XVIII (1815-1824) puis Charles X (1824-1830). Charles X fut renversé par la révolution de juillet 1830.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000064', 'La Restauration (Louis XVIII puis Charles X)', TRUE, 0),
@@ -91,40 +91,40 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000065', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Que désigne le ''Second Empire'' français ?',
- 'Le Second Empire (1852-1870) fut le régime de Napoléon III (Louis-Napoléon Bonaparte, neveu de Napoléon Ier). Il a transforme Paris (travaux Haussmann) avant de tomber a Sedan en 1870.',
+ 'Le Second Empire (1852-1870) fut le régime de Napoléon III (Louis-Napoléon Bonaparte, neveu de Napoléon Ier). Il a transformé Paris (travaux Haussmann) avant de tomber à Sedan en 1870.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000065', 'Le régime de Napoléon III (1852-1870)', TRUE, 0),
-(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000065', 'Le regne de Louis XIV', FALSE, 1),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000065', 'Le règne de Louis XIV', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000065', 'La Restauration', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000065', 'Le régime de Vichy', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000066', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quel événement a fait naitre la IIIe République ?',
- 'La IIIe République a été proclamee le 4 septembre 1870 après la defaite de Sedan et la capitulation de Napoléon III face à la Prusse. C''est le plus long régime républicain français (jusqu''en 1940).',
+ 'Quel événement a fait naître la IIIe République ?',
+ 'La IIIe République a été proclamée le 4 septembre 1870 après la défaite de Sedan et la capitulation de Napoléon III face à la Prusse. C''est le plus long régime républicain français (jusqu''en 1940).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000066', 'La defaite de Sedan et la chute de Napoléon III en 1870', TRUE, 0),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000066', 'La défaite de Sedan et la chute de Napoléon III en 1870', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000066', 'La Révolution de 1789', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000066', 'L''armistice de 1918', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000066', 'La Libération de 1944', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000067', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Que designe l''affaire Dreyfus ?',
- 'L''affaire Dreyfus (1894-1906) : Alfred Dreyfus, officier juif, accuse à tort de trahison, condamné au bagne. Sa rehabilitation a divise la France et marque la lutte contre l''antisemitisme et l''erreur judiciaire.',
+ 'Que désigne l''affaire Dreyfus ?',
+ 'L''affaire Dreyfus (1894-1906) : Alfred Dreyfus, officier juif, accusé à tort de trahison, condamné au bagne. Sa réhabilitation a divisé la France et marqué la lutte contre l''antisémitisme et l''erreur judiciaire.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000067', 'L''erreur judiciaire d''un officier juif accuse de trahison (1894-1906)', TRUE, 0),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000067', 'L''erreur judiciaire d''un officier juif accusé de trahison (1894-1906)', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000067', 'Une affaire d''espionnage industriel', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000067', 'Une bataille militaire', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000067', 'Un procès ordinaire', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000068', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'En quelle année la France a-t-elle perdu l''Alsace-Lorraine, recuperee en 1918 ?',
- 'L''Alsace-Lorraine a été annexee par l''Allemagne après la defaite de 1870-1871 (traité de Francfort, 1871). Elle a été restituée à la France après la Première Guerre mondiale (traité de Versailles, 1919).',
+ 'En quelle année la France a-t-elle perdu l''Alsace-Lorraine, récupérée en 1918 ?',
+ 'L''Alsace-Lorraine a été annexée par l''Allemagne après la défaite de 1870-1871 (traité de Francfort, 1871). Elle a été restituée à la France après la Première Guerre mondiale (traité de Versailles, 1919).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000068', 'En 1871 (après la guerre franco-prussienne)', TRUE, 0),
@@ -134,8 +134,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000069', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quelle bataille terrible de la Première Guerre a dure de février a décembre 1916 ?',
- 'La bataille de Verdun (21 février - 18 décembre 1916) est l''une des plus longues et meurtrieres de la Première Guerre mondiale : environ 700 000 victimes (morts, blesses, disparus) français et allemands.',
+ 'Quelle bataille terrible de la Première Guerre a duré de février à décembre 1916 ?',
+ 'La bataille de Verdun (21 février - 18 décembre 1916) est l''une des plus longues et meurtrières de la Première Guerre mondiale : environ 700 000 victimes (morts, blessés, disparus) français et allemands.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000069', 'La bataille de Verdun (1916)', TRUE, 0),
@@ -145,11 +145,11 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-00000000006a', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quel célèbre maréchal français a defendu Verdun ?',
- 'Philippe Petain a commande la défense française a Verdun en 1916, ce qui lui a valu une reputation de héros militaire. Après 1940, devenu chef de l''État français (Vichy), il s''est compromis avec l''Allemagne nazie.',
+ 'Quel célèbre maréchal français a défendu Verdun ?',
+ 'Philippe Pétain a commandé la défense française à Verdun en 1916, ce qui lui a valu une réputation de héros militaire. Après 1940, devenu chef de l''État français (Vichy), il s''est compromis avec l''Allemagne nazie.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006a', 'Philippe Petain (puis chef de l''État de Vichy)', TRUE, 0),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006a', 'Philippe Pétain (puis chef de l''État de Vichy)', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006a', 'Charles de Gaulle', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006a', 'Joseph Joffre', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006a', 'Napoléon Ier', FALSE, 3);
@@ -157,29 +157,29 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-00000000006b', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Quel mouvement social a eu lieu en France en 1936 ?',
- 'Le Front populaire (1936-1938), coalition de gauche dirigee par Leon Blum, a marqué une serie de réformes sociales majeures : congés payes, semaine de 40 heures, conventions collectives.',
+ 'Le Front populaire (1936-1938), coalition de gauche dirigée par Léon Blum, a marqué une série de réformes sociales majeures : congés payés, semaine de 40 heures, conventions collectives.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006b', 'Le Front populaire (Leon Blum, 1936)', TRUE, 0),
-(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006b', 'La Resistance', FALSE, 1),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006b', 'Le Front populaire (Léon Blum, 1936)', TRUE, 0),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006b', 'La Résistance', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006b', 'Mai 68', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006b', 'La Libération', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-00000000006c', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quels congés ont été crees par le Front populaire en 1936 ?',
- 'En 1936, le Front populaire de Leon Blum a institue les congés payes (2 semaines au depart, aujourd''hui 5 semaines). Cette mesure a transforme les vacances en France.',
+ 'Quels congés ont été créés par le Front populaire en 1936 ?',
+ 'En 1936, le Front populaire de Léon Blum a institué les congés payés (2 semaines au départ, aujourd''hui 5 semaines). Cette mesure a transformé les vacances en France.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006c', 'Les premiers congés payes (1936)', TRUE, 0),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006c', 'Les premiers congés payés (1936)', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006c', 'Les congés parentaux', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006c', 'Les vacances scolaires', FALSE, 2),
-(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006c', 'Les jours feries', FALSE, 3);
+(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006c', 'Les jours fériés', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-00000000006d', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Quel acte symbolique du général de Gaulle a fondé la France libre ?',
- 'L''appel du 18 juin 1940 lance par le général de Gaulle depuis Londres (BBC) a appelé à la resistance contre l''occupation nazie. C''est l''acte fondateur de la France libre.',
+ 'L''appel du 18 juin 1940 lancé par le général de Gaulle depuis Londres (BBC) a appelé à la résistance contre l''occupation nazie. C''est l''acte fondateur de la France libre.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006d', 'L''appel du 18 juin 1940 (BBC, Londres)', TRUE, 0),
@@ -189,18 +189,18 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-00000000006e', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quelle organisation clandestine a unifie la Resistance française pendant la guerre ?',
- 'Le Conseil national de la Resistance (CNR), créé par Jean Moulin le 27 mai 1943, a unifie les mouvements de Resistance intérieure. Son programme a inspiré les réformes d''après-guerre (Sécurité sociale).',
+ 'Quelle organisation clandestine a unifié la Résistance française pendant la guerre ?',
+ 'Le Conseil national de la Résistance (CNR), créé par Jean Moulin le 27 mai 1943, a unifié les mouvements de Résistance intérieure. Son programme a inspiré les réformes d''après-guerre (Sécurité sociale).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006e', 'Le Conseil national de la Resistance (CNR, 1943)', TRUE, 0),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006e', 'Le Conseil national de la Résistance (CNR, 1943)', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006e', 'Le Front populaire', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006e', 'Le Conseil d''État', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000006e', 'La Croix-Rouge', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-00000000006f', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quelle realisation majeure d''après-guerre a établi la protection sociale en France ?',
+ 'Quelle réalisation majeure d''après-guerre a établi la protection sociale en France ?',
  'La Sécurité sociale a été créée par les ordonnances des 4 et 19 octobre 1945, sur la base des programmes du CNR. Elle garantit l''accès aux soins, les retraites, les allocations familiales.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
@@ -212,7 +212,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000070', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Quand la France a-t-elle accordé l''indépendance à ses colonies d''Afrique sub-saharienne ?',
- 'Les anciennes colonies françaises d''Afrique sub-saharienne ont accède à l''indépendance en 1960 (Sénégal, Mali, Niger, Côté d''Ivoire, etc.). C''est l''''année de l''Afrique''.',
+ 'Les anciennes colonies françaises d''Afrique sub-saharienne ont accédé à l''indépendance en 1960 (Sénégal, Mali, Niger, Côte d''Ivoire, etc.). C''est l''''année de l''Afrique''.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000070', 'En 1960 (année de l''Afrique)', TRUE, 0),
@@ -234,7 +234,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000072', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Qui sont les ''pères fondateurs'' de la construction européenne du côté français ?',
- 'Jean Monnet et Robert Schuman sont considerés comme les pères fondateurs de la construction européenne, avec la Déclaration Schuman du 9 mai 1950 et la CECA.',
+ 'Jean Monnet et Robert Schuman sont considérés comme les pères fondateurs de la construction européenne, avec la Déclaration Schuman du 9 mai 1950 et la CECA.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000072', 'Jean Monnet et Robert Schuman', TRUE, 0),
@@ -255,11 +255,11 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000074', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quelle decolonisation a particulièrement marque la France après 1945 ?',
- 'Deux decolonisations marquantes : l''Indochine (guerre 1946-1954, defaite de Dien Bien Phu, accords de Genève) et l''Algerie (guerre 1954-1962, accords d''Evian).',
+ 'Quelle décolonisation a particulièrement marqué la France après 1945 ?',
+ 'Deux décolonisations marquantes : l''Indochine (guerre 1946-1954, défaite de Diên Biên Phu, accords de Genève) et l''Algérie (guerre 1954-1962, accords d''Évian).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000074', 'L''Indochine puis l''Algerie', TRUE, 0),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000074', 'L''Indochine puis l''Algérie', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000074', 'Le Canada', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000074', 'Le Royaume-Uni', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000074', 'L''Espagne', FALSE, 3);
@@ -267,43 +267,43 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000075', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Quel accord a mis fin à la guerre d''Indochine en 1954 ?',
- 'Les accords de Genève (juillet 1954) ont mis fin à la guerre d''Indochine, après la defaite française de Dien Bien Phu (mai 1954). Le Vietnam a été divise en deux.',
+ 'Les accords de Genève (juillet 1954) ont mis fin à la guerre d''Indochine, après la défaite française de Diên Biên Phu (mai 1954). Le Vietnam a été divisé en deux.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000075', 'Les accords de Genève (1954)', TRUE, 0),
-(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000075', 'Les accords d''Evian', FALSE, 1),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000075', 'Les accords d''Évian', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000075', 'Le traité de Versailles', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000075', 'Les accords de Yalta', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000076', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quel référendum decisif a eu lieu en 1962 sur le mode d''élection du président ?',
- 'Le référendum du 28 octobre 1962, propose par de Gaulle, a instaure l''élection du président au suffrage universel direct. Cette réforme a renforcé la légitimité présidentielle.',
+ 'Quel référendum décisif a eu lieu en 1962 sur le mode d''élection du président ?',
+ 'Le référendum du 28 octobre 1962, proposé par de Gaulle, a instauré l''élection du président au suffrage universel direct. Cette réforme a renforcé la légitimité présidentielle.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000076', 'Le référendum sur l''élection présidentielle au suffrage direct (1962)', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000076', 'Le référendum sur Maastricht', FALSE, 1),
-(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000076', 'Le référendum sur l''Algerie', FALSE, 2),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000076', 'Le référendum sur l''Algérie', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000076', 'Le référendum sur le quinquennat', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000077', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quelle crise politique majeure a frappe la France de mai a juin 1968 ?',
- 'Mai 68 a combine une crise étudiante (occupation de la Sorbonne, barricades), une crise sociale (10 millions de grevistes) et une crise politique. De Gaulle a dissous l''Assemblée et son parti a remporte les élections.',
+ 'Quelle crise politique majeure a frappé la France de mai à juin 1968 ?',
+ 'Mai 68 a combiné une crise étudiante (occupation de la Sorbonne, barricades), une crise sociale (10 millions de grévistes) et une crise politique. De Gaulle a dissous l''Assemblée et son parti a remporté les élections.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000077', 'Une crise étudiante, sociale et politique (Mai 68)', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000077', 'Une guerre civile', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000077', 'Une famine', FALSE, 2),
-(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000077', 'Une epidemie', FALSE, 3);
+(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000077', 'Une épidémie', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000078', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Quel président a accordé la majorité à 18 ans en 1974 ?',
- 'Valery Giscard d''Estaing (président de 1974 à 1981) a fait abaisser l''âge de la majorité de 21 à 18 ans en 1974, ouvrant le droit de vote des jeunes.',
+ 'Valéry Giscard d''Estaing (président de 1974 à 1981) a fait abaisser l''âge de la majorité de 21 à 18 ans en 1974, ouvrant le droit de vote des jeunes.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000078', 'Valery Giscard d''Estaing (1974)', TRUE, 0),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000078', 'Valéry Giscard d''Estaing (1974)', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000078', 'François Mitterrand', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000078', 'Jacques Chirac', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000078', 'Charles de Gaulle', FALSE, 3);
@@ -311,7 +311,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000079', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Qui a été le premier président socialiste de la Ve République ?',
- 'François Mitterrand (président de 1981 à 1995) a été le premier président socialiste de la Ve République. Il a fait abolir la peine de mort, decentralise l''État, instaure les 39h hebdomadaires.',
+ 'François Mitterrand (président de 1981 à 1995) a été le premier président socialiste de la Ve République. Il a fait abolir la peine de mort, décentralisé l''État, instauré les 39h hebdomadaires.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000079', 'François Mitterrand', TRUE, 0),
@@ -321,8 +321,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-00000000007a', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quel traité européen a été signe en 1992, ratifie par référendum en France ?',
- 'Le traité de Maastricht (signe le 7 février 1992) a créé l''Union européenne. La France l''a ratifié par référendum le 20 septembre 1992 (oui à 51,04%).',
+ 'Quel traité européen a été signé en 1992, ratifié par référendum en France ?',
+ 'Le traité de Maastricht (signé le 7 février 1992) a créé l''Union européenne. La France l''a ratifié par référendum le 20 septembre 1992 (oui à 51,04%).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007a', 'Le traité de Maastricht (1992)', TRUE, 0),
@@ -332,8 +332,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-00000000007b', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quel référendum français de 2005 a rejete le traité constitutionnel européen ?',
- 'Le référendum du 29 mai 2005 a rejete le projet de Constitution européenne (54,68% de non). Le traité de Lisbonne (2007) a intégré l''essentiel des dispositions sans référendum.',
+ 'Quel référendum français de 2005 a rejeté le traité constitutionnel européen ?',
+ 'Le référendum du 29 mai 2005 a rejeté le projet de Constitution européenne (54,68% de non). Le traité de Lisbonne (2007) a intégré l''essentiel des dispositions sans référendum.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007b', 'Le référendum sur la Constitution européenne (29 mai 2005)', TRUE, 0),
@@ -344,18 +344,18 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-00000000007c', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Quel événement tragique a marqué Paris le 13 novembre 2015 ?',
- 'Les attentats du 13 novembre 2015 (Bataclan, terrasses de cafes, Stade de France) ont fait 130 morts et plus de 400 blesses à Paris et Saint-Denis. L''état d''urgence a été declaré.',
+ 'Les attentats du 13 novembre 2015 (Bataclan, terrasses de cafés, Stade de France) ont fait 130 morts et plus de 400 blessés à Paris et Saint-Denis. L''état d''urgence a été déclaré.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007c', 'Les attentats terroristes du 13 novembre 2015', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007c', 'Une inondation', FALSE, 1),
-(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007c', 'Une greve générale', FALSE, 2),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007c', 'Une grève générale', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007c', 'Un incendie accidentel', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-0000000000d1', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quelle ecrivaine française a recu le prix Nobel de litterature en 2022 ?',
- 'Annie Ernaux, ecrivaine française née en 1940, a recu le prix Nobel de litterature en 2022 pour son œuvre autobiographique et sociologique. Première Française a obtenir ce prix.',
+ 'Quelle écrivaine française a reçu le prix Nobel de littérature en 2022 ?',
+ 'Annie Ernaux, écrivaine française née en 1940, a reçu le prix Nobel de littérature en 2022 pour son œuvre autobiographique et sociologique. Première Française à obtenir ce prix.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-0000000000d1', 'Annie Ernaux (2022)', TRUE, 0),
@@ -365,11 +365,11 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-0000000000d2', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quel monument parisien a brûlé en 2019 et a été restaure en 2024 ?',
- 'La cathédrale Notre-Dame de Paris a subi un grave incendie le 15 avril 2019. Sa restauration s''est achevée en décembre 2024, permettant sa reouverture au public.',
+ 'Quel monument parisien a brûlé en 2019 et a été restauré en 2024 ?',
+ 'La cathédrale Notre-Dame de Paris a subi un grave incendie le 15 avril 2019. Sa restauration s''est achevée en décembre 2024, permettant sa réouverture au public.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000002-0000-0000-0000-0000000000d2', 'Notre-Dame de Paris (incendie 2019, reouverture 2024)', TRUE, 0),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-0000000000d2', 'Notre-Dame de Paris (incendie 2019, réouverture 2024)', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-0000000000d2', 'La tour Eiffel', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-0000000000d2', 'Le Louvre', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-0000000000d2', 'L''Arc de Triomphe', FALSE, 3);
@@ -377,7 +377,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-0000000000d3', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Quel philosophe français existentialiste a refusé le prix Nobel en 1964 ?',
- 'Jean-Paul Sartre (1905-1980), philosophe existentialiste et ecrivain, a refusé le prix Nobel de litterature qui lui était decerne en 1964. Il était le compagnon de Simone de Beauvoir.',
+ 'Jean-Paul Sartre (1905-1980), philosophe existentialiste et écrivain, a refusé le prix Nobel de littérature qui lui était décerné en 1964. Il était le compagnon de Simone de Beauvoir.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-0000000000d3', 'Jean-Paul Sartre', TRUE, 0),
@@ -388,7 +388,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-0000000000d4', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Quelle école prestigieuse française forme les hauts fonctionnaires de l''État ?',
- 'L''ENA (École nationale d''administration), créée en 1945, a forme les hauts fonctionnaires français. Remplacee en 2022 par l''INSP (Institut national du service public).',
+ 'L''ENA (École nationale d''administration), créée en 1945, a formé les hauts fonctionnaires français. Remplacée en 2022 par l''INSP (Institut national du service public).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-0000000000d4', 'L''ENA, devenue INSP en 2022', TRUE, 0),
@@ -399,17 +399,17 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-0000000000d5', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Quelle île française du Pacifique a connu plusieurs référendums sur l''indépendance ?',
- 'La Nouvelle-Caledonie, collectivite française sui generis du Pacifique sud, a organise trois référendums sur l''indépendance (2018, 2020, 2021), tous rejetes.',
+ 'La Nouvelle-Calédonie, collectivité française sui generis du Pacifique sud, a organisé trois référendums sur l''indépendance (2018, 2020, 2021), tous rejetés.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000002-0000-0000-0000-0000000000d5', 'La Nouvelle-Caledonie', TRUE, 0),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-0000000000d5', 'La Nouvelle-Calédonie', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-0000000000d5', 'La Réunion', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-0000000000d5', 'La Guadeloupe', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-0000000000d5', 'Mayotte', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-0000000000d6', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Quel événement annuel important du sport français à lieu en juillet depuis 1903 ?',
+ 'Quel événement annuel important du sport français a lieu en juillet depuis 1903 ?',
  'Le Tour de France de cyclisme, créé en 1903, est une course mythique de trois semaines en juillet, traversant la France et les pays voisins. L''arrivée est aux Champs-Élysées.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
@@ -421,7 +421,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-0000000000d7', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Quel sommet mondial s''est tenu à Paris en décembre 2015 sur le climat ?',
- 'La COP21 (décembre 2015) a abouti à l''Accord de Paris sur le climat, qui engage les États a limiter le rechauffement climatique. Premier accord universel sur le climat.',
+ 'La COP21 (décembre 2015) a abouti à l''Accord de Paris sur le climat, qui engage les États à limiter le réchauffement climatique. Premier accord universel sur le climat.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-0000000000d7', 'La COP21 (Accord de Paris sur le climat)', TRUE, 0),
@@ -442,19 +442,19 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-00000000007d', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'MISE_SITUATION',
- 'Je veux honorer la mémoire des victimes des attentats de 2015. Que faire de citoyen ?',
- 'Participer aux cérémonies de commemoration (notamment le 13 novembre), respecter une minute de silence, soutenir les associations de victimes, transmettre la mémoire aux jeunes générations.',
+ 'Je veux honorer la mémoire des victimes des attentats de 2015. Que faire en tant que citoyen ?',
+ 'Participer aux cérémonies de commémoration (notamment le 13 novembre), respecter une minute de silence, soutenir les associations de victimes, transmettre la mémoire aux jeunes générations.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007d', 'Cérémonies, silence, associations, transmission', TRUE, 0),
-(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007d', 'Rien faire', FALSE, 1),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007d', 'Ne rien faire', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007d', 'Refuser de sortir', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007d', 'Quitter le pays', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-00000000007e', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'MISE_SITUATION',
- 'Quelqu''un me demande quand la France a aboli la peine de mort. Quels reperes donner ?',
- 'La peine de mort a été abolié par la loi du 9 octobre 1981, sous la présidence de François Mitterrand, sur proposition de Robert Badinter. Abolition inscrite dans la Constitution en 2007.',
+ 'Quelqu''un me demande quand la France a aboli la peine de mort. Quels repères donner ?',
+ 'La peine de mort a été abolie par la loi du 9 octobre 1981, sous la présidence de François Mitterrand, sur proposition de Robert Badinter. Abolition inscrite dans la Constitution en 2007.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007e', '1981 (loi Badinter sous Mitterrand) ; constitutionnel depuis 2007', TRUE, 0),
@@ -464,11 +464,11 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-00000000007f', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'MISE_SITUATION',
- 'Je veux comprendre l''importance du général de Gaulle dans l''histoire française. Quels reperes ?',
- 'De Gaulle a incarne la France libre pendant la guerre (1940-1945), libere le pays, fonde la Ve République (1958), reorganise les institutions, decolonise (Algerie en 1962). Président de 1959 à 1969.',
+ 'Je veux comprendre l''importance du général de Gaulle dans l''histoire française. Quels repères ?',
+ 'De Gaulle a incarné la France libre pendant la guerre (1940-1945), libéré le pays, fondé la Ve République (1958), réorganisé les institutions, décolonisé (Algérie en 1962). Président de 1959 à 1969.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007f', 'France libre, Libération, Ve République, decolonisation', TRUE, 0),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007f', 'France libre, Libération, Ve République, décolonisation', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007f', 'Aucun rôle majeur', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007f', 'Uniquement un président pacifique', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-00000000007f', 'Uniquement un militaire', FALSE, 3);
@@ -482,12 +482,12 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000080', 'La Déclaration Schuman du 9 mai 1950', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000080', 'Le jour de la Libération', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000080', 'La fête d''un saint', FALSE, 2),
-(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000080', 'Une bataille napoleonienne', FALSE, 3);
+(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000080', 'Une bataille napoléonienne', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000081', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'MISE_SITUATION',
  'On me demande qui étaient Jean Monnet et Robert Schuman. Que répondre ?',
- 'Tous deux Français, pères fondateurs de l''Europe : Jean Monnet (1888-1979) economiste à l''origine de la CECA et de la CEE. Robert Schuman (1886-1963) ministre auteur de la Déclaration de 1950.',
+ 'Tous deux Français, pères fondateurs de l''Europe : Jean Monnet (1888-1979) économiste à l''origine de la CECA et de la CEE. Robert Schuman (1886-1963) ministre auteur de la Déclaration de 1950.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000081', 'Les pères fondateurs français de la construction européenne', TRUE, 0),
@@ -497,19 +497,19 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000082', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'MISE_SITUATION',
- 'J''apprends que la France était en guerre d''Algerie. Quels reperes historiques essentiels ?',
- 'Guerre d''Algerie : 1954-1962. Indépendance de l''Algerie le 5 juillet 1962 après les accords d''Evian (mars 1962). Cette guerre a marqué la fin de l''Empire colonial français et la chute de la IVe République.',
+ 'J''apprends que la France était en guerre d''Algérie. Quels repères historiques essentiels ?',
+ 'Guerre d''Algérie : 1954-1962. Indépendance de l''Algérie le 5 juillet 1962 après les accords d''Évian (mars 1962). Cette guerre a marqué la fin de l''Empire colonial français et la chute de la IVe République.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000082', 'Guerre 1954-1962, accords d''Evian, indépendance le 5 juillet 1962', TRUE, 0),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000082', 'Guerre 1954-1962, accords d''Évian, indépendance le 5 juillet 1962', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000082', 'Guerre 1939-1945', FALSE, 1),
-(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000082', 'Bataille napoleonienne', FALSE, 2),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000082', 'Bataille napoléonienne', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000082', 'Une simple crise économique', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000083', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'MISE_SITUATION',
- 'Je veux mieux connaitre les Lumieres. Quels penseurs français essentiels ?',
- 'Les Lumieres (XVIIIe siècle) : Voltaire (tolerance, liberté d''expression), Rousseau (Du contrat social, souveraineté populaire), Diderot (l''Encyclopedie), Montesquieu (separation des pouvoirs).',
+ 'Je veux mieux connaître les Lumières. Quels penseurs français essentiels ?',
+ 'Les Lumières (XVIIIe siècle) : Voltaire (tolérance, liberté d''expression), Rousseau (Du contrat social, souveraineté populaire), Diderot (l''Encyclopédie), Montesquieu (séparation des pouvoirs).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000083', 'Voltaire, Rousseau, Diderot, Montesquieu', TRUE, 0),
@@ -520,32 +520,32 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000084', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'MISE_SITUATION',
  'Quelqu''un me dit que toutes les républiques françaises sont identiques. Que répondre ?',
- 'Non. Les 5 républiques différent par leurs institutions : Ire (1792, première République, Directoire), IIe (1848, suffrage universel masculin), IIIe (1870-1940, régime parlementaire), IVe (1946-1958, instable), Ve (1958, exécutif renforce).',
+ 'Non. Les 5 républiques diffèrent par leurs institutions : Ire (1792, première République, Directoire), IIe (1848, suffrage universel masculin), IIIe (1870-1940, régime parlementaire), IVe (1946-1958, instable), Ve (1958, exécutif renforcé).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000084', 'Chaque République à un cadre institutionnel différent', TRUE, 0),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000084', 'Chaque République a un cadre institutionnel différent', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000084', 'Elles sont identiques', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000084', 'Il n''y en a eu qu''une', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000084', 'Elles n''existent pas', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000085', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'MISE_SITUATION',
- 'Je veux connaitre les Justes de France. Que designe ce terme ?',
- 'Les ''Justes parmi les Nations'' sont des non-Juifs ayant aide a sauver des Juifs pendant la Shoah. Plus de 4 000 Français ont été distingués par Israel. Le 16 juillet, journee nationale à leur mémoire.',
+ 'Je veux connaître les Justes de France. Que désigne ce terme ?',
+ 'Les ''Justes parmi les Nations'' sont des non-Juifs ayant aidé à sauver des Juifs pendant la Shoah. Plus de 4 000 Français ont été distingués par Israël. Le 16 juillet, journée nationale à leur mémoire.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000085', 'Non-Juifs ayant sauve des Juifs pendant la Shoah', TRUE, 0),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000085', 'Non-Juifs ayant sauvé des Juifs pendant la Shoah', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000085', 'Des héros militaires', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000085', 'Des dirigeants politiques', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000085', 'Des scientifiques', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000002-0000-0000-0000-000000000086', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'MISE_SITUATION',
- 'Je veux comprendre la decentralisation française de 1982. En quoi consiste-t-elle ?',
- 'Les lois Defferre de 1982 (sous Mitterrand) ont transfere des competences de l''État vers les collectivites locales (régions, départements, communes), donnant plus de pouvoir aux élus locaux.',
+ 'Je veux comprendre la décentralisation française de 1982. En quoi consiste-t-elle ?',
+ 'Les lois Defferre de 1982 (sous Mitterrand) ont transféré des compétences de l''État vers les collectivités locales (régions, départements, communes), donnant plus de pouvoir aux élus locaux.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000086', 'Transfert de pouvoirs vers les collectivites locales (1982)', TRUE, 0),
+(gen_random_uuid(), 'f4000002-0000-0000-0000-000000000086', 'Transfert de pouvoirs vers les collectivités locales (1982)', TRUE, 0),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000086', 'Suppression de l''État', FALSE, 1),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000086', 'Indépendance des régions', FALSE, 2),
 (gen_random_uuid(), 'f4000002-0000-0000-0000-000000000086', 'Aucune réforme territoriale', FALSE, 3);

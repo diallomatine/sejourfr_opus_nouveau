@@ -38,7 +38,7 @@ ALTER TABLE answers
     ADD COLUMN IF NOT EXISTS is_correct          BOOLEAN;
 
 -- user_id était NOT NULL dans le schéma initial. Le nouveau code peut
--- s'appuyer sur attempt_question.attempt.user_id, donc on autorisé NULL
+-- s'appuyer sur attempt_question.attempt.user_id, donc on autorise NULL
 -- (le @PrePersist sur Answer le re-renseigne automatiquement).
 ALTER TABLE answers
     ALTER COLUMN user_id DROP NOT NULL;

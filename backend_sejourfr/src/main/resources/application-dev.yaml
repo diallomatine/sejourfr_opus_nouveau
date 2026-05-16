@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/sejourfr_nouveau
+    url: jdbc:postgresql://localhost:5432/sejourfr_nouveau_2
     username: diallomatine
     password:
     driver-class-name: org.postgresql.Driver

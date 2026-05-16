@@ -1,5 +1,5 @@
 -- ============================================================================
--- Données de reference (toujours chargées, en dev comme en prod)
+-- Données de référence (toujours chargées, en dev comme en prod)
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
@@ -11,13 +11,13 @@ VALUES ('11111111-0000-0000-0000-000000000001', 'CIVIQUE', 'CIV_PRINCIPES',
         'Devise, symboles, laïcité, liberté, égalité, fraternité', 1),
        ('11111111-0000-0000-0000-000000000002', 'CIVIQUE', 'CIV_INSTITUTIONS',
         'Système institutionnel et politique',
-        'Constitution, président, parlement, separation des pouvoirs', 2),
+        'Constitution, président, parlement, séparation des pouvoirs', 2),
        ('11111111-0000-0000-0000-000000000003', 'CIVIQUE', 'CIV_DROITS_DEVOIRS',
         'Droits et devoirs',
         'Charte des droits et devoirs du citoyen français', 3),
        ('11111111-0000-0000-0000-000000000004', 'CIVIQUE', 'CIV_HISTOIRE_GEO',
         'Histoire, géographie et culture',
-        'Reperes historiques, géographie, patrimoine culturel', 4),
+        'Repères historiques, géographie, patrimoine culturel', 4),
        ('11111111-0000-0000-0000-000000000005', 'CIVIQUE', 'CIV_SOCIETE',
         'Vivre dans la société française',
         'Vie quotidienne, services publics, vivre-ensemble', 5);
@@ -27,10 +27,10 @@ VALUES ('11111111-0000-0000-0000-000000000001', 'CIVIQUE', 'CIV_PRINCIPES',
 -- ---------------------------------------------------------------------------
 INSERT INTO themes (id, module, code, name, description, display_order)
 VALUES ('22222222-0000-0000-0000-000000000001', 'TCF', 'TCF_CO',
-        'Comprehension orale',
+        'Compréhension orale',
         'Audios courts, dialogues, annonces, extraits radio', 1),
        ('22222222-0000-0000-0000-000000000002', 'TCF', 'TCF_CE',
-        'Comprehension ecrite',
+        'Compréhension écrite',
         'SMS, e-mails, panneaux, articles, formulaires', 2),
        ('22222222-0000-0000-0000-000000000003', 'TCF', 'TCF_STRUCTURE',
         'Structure de la langue',

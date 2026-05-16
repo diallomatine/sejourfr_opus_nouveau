@@ -8,7 +8,7 @@
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-00000000000d', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'NAT', 'CONNAISSANCE',
  'Comment sont élus les sénateurs français ?',
- 'Les sénateurs sont élus au suffrage universel indirect par un collège de grands électeurs (députés, conseillers régionaux, départementaux, municipaux). Le Sénat est renouvelé par moitie tous les trois ans.', FALSE);
+ 'Les sénateurs sont élus au suffrage universel indirect par un collège de grands électeurs (députés, conseillers régionaux, départementaux, municipaux). Le Sénat est renouvelé par moitié tous les trois ans.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000000d', 'Au suffrage universel indirect, par des grands électeurs', TRUE, 0),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000000d', 'Au suffrage universel direct des citoyens', FALSE, 1),
@@ -18,8 +18,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 -- R14 (de f2000000-...00e / CSP / CONNAISSANCE) - Élections municipales
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-00000000000e', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
- 'Qui les citoyens elisent-ils lors des élections municipales ?',
- 'Les élections municipales permettent d''élire les conseillers municipaux qui, eux, elisent ensuite le maire et ses adjoints. Elles ont lieu tous les six ans.', FALSE);
+ 'Qui les citoyens élisent-ils lors des élections municipales ?',
+ 'Les élections municipales permettent d''élire les conseillers municipaux qui, eux, élisent ensuite le maire et ses adjoints. Elles ont lieu tous les six ans.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000000e', 'Les conseillers municipaux', TRUE, 0),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000000e', 'Le président de la République', FALSE, 1),
@@ -74,17 +74,17 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-000000000013', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Pour quelle durée un sénateur est-il élu ?',
- 'Les sénateurs sont élus pour 6 ans. Le Sénat est renouvelable par moitie tous les 3 ans.', FALSE);
+ 'Les sénateurs sont élus pour 6 ans. Le Sénat est renouvelable par moitié tous les 3 ans.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000013', '6 ans', TRUE, 0),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000013', '5 ans', FALSE, 1),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000013', '4 ans', FALSE, 2),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000013', '9 ans', FALSE, 3);
 
--- R20 (de f2000000-...014 / CR / CONNAISSANCE) - Qui detient l'exécutif
+-- R20 (de f2000000-...014 / CR / CONNAISSANCE) - Qui détient l'exécutif
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-000000000014', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
- 'Qui detient le pouvoir exécutif en France ?',
+ 'Qui détient le pouvoir exécutif en France ?',
  'Le pouvoir exécutif est détenu par le président de la République et le gouvernement (Premier ministre et ministres).', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000014', 'Le président et le gouvernement', TRUE, 0),
@@ -100,13 +100,13 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000015', 'Être français, majeur et inscrit sur les listes', TRUE, 0),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000015', 'Avoir le bac', FALSE, 1),
-(gen_random_uuid(), 'f2000001-0000-0000-0000-000000000015', 'Posseder un logement', FALSE, 2),
+(gen_random_uuid(), 'f2000001-0000-0000-0000-000000000015', 'Posséder un logement', FALSE, 2),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000015', 'Avoir fait son service militaire', FALSE, 3);
 
 -- R22 (de f2000000-...016 / CR / CONNAISSANCE) - Qui peut voter France
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-000000000016', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
- 'En général, qui à le droit de voter aux élections nationales françaises ?',
+ 'En général, qui a le droit de voter aux élections nationales françaises ?',
  'Seuls les citoyens français majeurs jouissant de leurs droits civiques peuvent voter aux élections nationales. Les ressortissants européens peuvent voter aux municipales et européennes.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000016', 'Les citoyens français majeurs avec droits civiques', TRUE, 0),
@@ -117,12 +117,12 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 -- R23 (de f2000000-...017 / NAT / CONNAISSANCE) - Suffrage universel
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-000000000017', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'NAT', 'CONNAISSANCE',
- 'Que designe l''expression "suffrage universel" ?',
+ 'Que désigne l''expression "suffrage universel" ?',
  'Le suffrage universel signifie que le droit de vote est ouvert à tous les citoyens majeurs, sans condition de richesse, de sexe ou de niveau d''éducation.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000017', 'Le droit de vote ouvert à tous les citoyens majeurs', TRUE, 0),
-(gen_random_uuid(), 'f2000001-0000-0000-0000-000000000017', 'Le vote réserve aux propriétaires', FALSE, 1),
-(gen_random_uuid(), 'f2000001-0000-0000-0000-000000000017', 'Le vote réserve aux hommes', FALSE, 2),
+(gen_random_uuid(), 'f2000001-0000-0000-0000-000000000017', 'Le vote réservé aux propriétaires', FALSE, 1),
+(gen_random_uuid(), 'f2000001-0000-0000-0000-000000000017', 'Le vote réservé aux hommes', FALSE, 2),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000017', 'Le vote des étrangers à toutes les élections', FALSE, 3);
 
 -- R24 (de f2000000-...018 / CR / CONNAISSANCE) - Partis politiques
@@ -133,5 +133,5 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000018', 'Plusieurs partis peuvent exister et concourir librement aux élections', TRUE, 0),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000018', 'Un seul parti unique est autorisé', FALSE, 1),
-(gen_random_uuid(), 'f2000001-0000-0000-0000-000000000018', 'Les partis sont interdités par la Constitution', FALSE, 2),
+(gen_random_uuid(), 'f2000001-0000-0000-0000-000000000018', 'Les partis sont interdits par la Constitution', FALSE, 2),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000018', 'Seuls deux partis sont autorisés', FALSE, 3);

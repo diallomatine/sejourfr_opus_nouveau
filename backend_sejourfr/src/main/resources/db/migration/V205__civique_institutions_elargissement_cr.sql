@@ -7,7 +7,7 @@
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000033', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
- 'Quel article de la Constitution definit le rôle du président comme garant des institutions ?',
+ 'Quel article de la Constitution définit le rôle du président comme garant des institutions ?',
  'L''article 5 dispose que le président veille au respect de la Constitution, assure le fonctionnement régulier des pouvoirs publics et garantit l''indépendance nationale.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
@@ -19,10 +19,10 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000034', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Quel article permet au gouvernement d''engager sa responsabilité sur un texte de loi ?',
- 'L''article 49 alinea 3 de la Constitution permet au gouvernement de faire adopter un texte sans vote, sauf si une motion de censure est adoptée.',
+ 'L''article 49 alinéa 3 de la Constitution permet au gouvernement de faire adopter un texte sans vote, sauf si une motion de censure est adoptée.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000034', 'L''article 49 alinea 3', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000034', 'L''article 49 alinéa 3', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000034', 'L''article 1er', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000034', 'L''article 12', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000034', 'L''article 89', FALSE, 3);
@@ -74,7 +74,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000039', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Quelle est la plus haute juridiction de l''ordre judiciaire ?',
- 'La Cour de cassation est la juridiction supreme judiciaire. Elle vérifié la bonne application de la loi par les tribunaux.',
+ 'La Cour de cassation est la juridiction suprême judiciaire. Elle vérifie la bonne application de la loi par les tribunaux.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000039', 'La Cour de cassation', TRUE, 0),
@@ -85,7 +85,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000003a', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Quelle juridiction juge les contraventions ?',
- 'Les contraventions (infractions les moins graves) sont jugées par le tribunal de police. Les delits relevent du tribunal correctionnel, les crimes de la cour d''assises.',
+ 'Les contraventions (infractions les moins graves) sont jugées par le tribunal de police. Les délits relèvent du tribunal correctionnel, les crimes de la cour d''assises.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000003a', 'Le tribunal de police', TRUE, 0),
@@ -96,7 +96,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000003b', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Quelle juridiction juge les crimes les plus graves (meurtre, viol) ?',
- 'Les crimes sont jugés par la cour d''assises, composée de magistrats professionnels et de jures tires au sort parmi les citoyens.',
+ 'Les crimes sont jugés par la cour d''assises, composée de magistrats professionnels et de jurés tirés au sort parmi les citoyens.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000003b', 'La cour d''assises', TRUE, 0),
@@ -106,12 +106,12 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000003c', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
- 'Quel echelon territorial constitue la base de l''organisation administrative française ?',
- 'La commune est la collectivite territoriale de base. Au-dessus : département, région, État.',
+ 'Quel échelon territorial constitue la base de l''organisation administrative française ?',
+ 'La commune est la collectivité territoriale de base. Au-dessus : département, région, État.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000003c', 'La commune (echelon de base)', TRUE, 0),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000003c', 'L''echelon le plus élève', FALSE, 1),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000003c', 'La commune (échelon de base)', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000003c', 'L''échelon le plus élevé', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000003c', 'Au-dessus de la région', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000003c', 'Un découpage uniquement religieux', FALSE, 3);
 
@@ -139,8 +139,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000003f', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
- 'Quelle est une competence importante des régions en France ?',
- 'Les régions gèrent notamment le developpement économique, la formation professionnelle, les lycées et les transports ferroviaires régionaux (TER).',
+ 'Quelle est une compétence importante des régions en France ?',
+ 'Les régions gèrent notamment le développement économique, la formation professionnelle, les lycées et les transports ferroviaires régionaux (TER).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000003f', 'La gestion des lycées et des TER', TRUE, 0),
@@ -150,8 +150,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000040', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
- 'À quel echelon administratif sont rattaches les collèges ?',
- 'Les collèges relevent des départements. Les lycées relevent des régions. Les écoles primaires relevent des communes.',
+ 'À quel échelon administratif sont rattachés les collèges ?',
+ 'Les collèges relèvent des départements. Les lycées relèvent des régions. Les écoles primaires relèvent des communes.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000040', 'Le département', TRUE, 0),
@@ -162,7 +162,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000041', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Qui dirige un conseil départemental ?',
- 'Le conseil départemental est presidé par son président, élu par les conseillers départementaux. Le préfet représente lui l''État dans le département.',
+ 'Le conseil départemental est présidé par son président, élu par les conseillers départementaux. Le préfet représente lui l''État dans le département.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000041', 'Le président du conseil départemental', TRUE, 0),
@@ -173,7 +173,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000042', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Le vote est-il obligatoire en France ?',
- 'Non. Voter est un droit et un devoir civique mais pas une obligation légale en France (contrairement à la Belgique). S''abstenir n''est pas sanctionne.',
+ 'Non. Voter est un droit et un devoir civique mais pas une obligation légale en France (contrairement à la Belgique). S''abstenir n''est pas sanctionné.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000042', 'Non, c''est un droit mais pas une obligation', TRUE, 0),
@@ -195,7 +195,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000044', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Quelle est la durée du mandat des conseillers municipaux ?',
- 'Les conseillers municipaux sont élus pour 6 ans. Le maire qu''ils elisent à la même durée de mandat.',
+ 'Les conseillers municipaux sont élus pour 6 ans. Le maire qu''ils élisent a la même durée de mandat.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000044', '6 ans', TRUE, 0),
@@ -227,8 +227,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000047', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
- 'Combien d''eurodeputes la France envoie-t-elle au Parlement européen ?',
- 'La France elit 81 députés européens (depuis le Brexit). Le nombre dépend de la population de chaque pays membre.',
+ 'Combien d''eurodéputés la France envoie-t-elle au Parlement européen ?',
+ 'La France élit 81 députés européens (depuis le Brexit). Le nombre dépend de la population de chaque pays membre.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000047', '81 députés européens', TRUE, 0),
@@ -249,8 +249,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000049', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
- 'Ou se situent les sièges du Parlement européen ?',
- 'Le Parlement européen siège à Strasbourg (sessions plenieres officielles) et à Bruxelles (sessions supplementaires et commissions).',
+ 'Où se situent les sièges du Parlement européen ?',
+ 'Le Parlement européen siège à Strasbourg (sessions plénières officielles) et à Bruxelles (sessions supplémentaires et commissions).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000049', 'À Strasbourg et à Bruxelles', TRUE, 0),
@@ -272,7 +272,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000004b', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Quel traité a créé l''Union européenne sous sa forme actuelle ?',
- 'Le traité de Maastricht (7 février 1992) a fondé l''UE. Il a aussi prepare la monnaie unique (euro) et la citoyenneté européenne.',
+ 'Le traité de Maastricht (7 février 1992) a fondé l''UE. Il a aussi préparé la monnaie unique (euro) et la citoyenneté européenne.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000004b', 'Le traité de Maastricht', TRUE, 0),
@@ -316,7 +316,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000004f', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'En cas de désaccord persistant entre Assemblée nationale et Sénat, qui tranche ?',
- 'L''Assemblée nationale à le dernier mot en cas de désaccord persistant. Cette procedure est prévue par la Constitution.',
+ 'L''Assemblée nationale a le dernier mot en cas de désaccord persistant. Cette procédure est prévue par la Constitution.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000004f', 'L''Assemblée nationale', TRUE, 0),
@@ -338,18 +338,18 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000051', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Que peut faire un citoyen face à un mauvais fonctionnement d''un service public ?',
- 'Il peut saisir le Defenseur des droits, autorité administrative indépendante qui defend les droits des usagers face aux administrations.',
+ 'Il peut saisir le Défenseur des droits, autorité administrative indépendante qui défend les droits des usagers face aux administrations.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000051', 'Saisir le Defenseur des droits', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000051', 'Saisir le Défenseur des droits', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000051', 'Devenir lui-même ministre', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000051', 'Demander à la presse de menacer le service', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000051', 'Rien, il n''y a aucun recours', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000052', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
- 'Qu''est-ce que la Question prioritaire de constitutionnalite (QPC) ?',
- 'Instauree en 2008, la QPC permet à tout citoyen de contester devant le Conseil constitutionnel la conformite d''une loi aux droits constitutionnels.',
+ 'Qu''est-ce que la Question prioritaire de constitutionnalité (QPC) ?',
+ 'Instaurée en 2008, la QPC permet à tout citoyen de contester devant le Conseil constitutionnel la conformité d''une loi aux droits constitutionnels.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000052', 'Recours du citoyen pour contester une loi devant le Conseil constitutionnel', TRUE, 0),
@@ -360,17 +360,17 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000053', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Comment appelle-t-on les regroupements de communes pour gérer ensemble certains services ?',
- 'Les intercommunalites (communautés de communes, d''agglomeration, urbaines, métropoles) mutualisent des services (transports, dechets, urbanisme).',
+ 'Les intercommunalités (communautés de communes, d''agglomération, urbaines, métropoles) mutualisent des services (transports, déchets, urbanisme).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000053', 'Les intercommunalites', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000053', 'Les intercommunalités', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000053', 'Les paroisses', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000053', 'Les cantons', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000053', 'Les districts religieux', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000054', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
- 'Quelle assemblée elit le maire d''une commune ?',
+ 'Quelle assemblée élit le maire d''une commune ?',
  'Le maire est élu par le conseil municipal (les conseillers municipaux) lors de la première réunion qui suit les élections municipales.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
@@ -387,13 +387,13 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000055', 'Voter les lois européennes et contrôler la Commission', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000055', 'Diriger un ministère national', FALSE, 1),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000055', 'Commander l''armee européenne', FALSE, 2),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000055', 'Commander l''armée européenne', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000055', 'Nommer le pape', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000056', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Quelle institution propose les lois européennes ?',
- 'La Commission européenne, basee à Bruxelles, est la seule a pouvoir proposer des lois européennes. Le Parlement et le Conseil les votent.',
+ 'La Commission européenne, basée à Bruxelles, est la seule à pouvoir proposer des lois européennes. Le Parlement et le Conseil les votent.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000056', 'La Commission européenne', TRUE, 0),
@@ -409,7 +409,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005a', 'L''indépendance vis-à-vis du pouvoir politique', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005a', 'La dépendance au président', FALSE, 1),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005a', 'L''allegeance à un parti', FALSE, 2),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005a', 'L''allégeance à un parti', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005a', 'La soumission au préfet', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
@@ -419,25 +419,25 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005b', 'Le Parlement', TRUE, 0),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005b', 'L''armee', FALSE, 1),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005b', 'L''armée', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005b', 'Le pape', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005b', 'Le maire de Paris', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000005c', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Que sont les commissions parlementaires ?',
- 'Les commissions parlementaires sont des groupes de députés ou sénateurs specialises dans un domaine (lois, finances, défense...) qui preparent les travaux des assemblées.',
+ 'Les commissions parlementaires sont des groupes de députés ou sénateurs spécialisés dans un domaine (lois, finances, défense...) qui préparent les travaux des assemblées.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005c', 'Des groupes de parlementaires specialises par domaine', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005c', 'Des groupes de parlementaires spécialisés par domaine', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005c', 'Des tribunaux spéciaux', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005c', 'Des associations de citoyens', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005c', 'Des émissions de télévision', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000005d', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
- 'Un parlementaire peut-il être arrete sans condition ?',
- 'Non. Les parlementaires bénéficient d''une immunité parlementaire pour proteger leur fonction. Elle n''empeche pas la justice de les poursuivre, mais protège la liberté d''expression dans leur fonction.',
+ 'Un parlementaire peut-il être arrêté sans condition ?',
+ 'Non. Les parlementaires bénéficient d''une immunité parlementaire pour protéger leur fonction. Elle n''empêche pas la justice de les poursuivre, mais protège la liberté d''expression dans leur fonction.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005d', 'Non, ils ont une immunité parlementaire', TRUE, 0),
@@ -447,8 +447,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000005e', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
- 'Le président de la République peut-il être poursuivi penalement pendant son mandat ?',
- 'Le président bénéficie d''une immunité pendant son mandat pour les actes accomplis en cette qualité. Il peut être poursuivi après la fin de son mandat ou destitue par le Parlement reuni en Haute Cour.',
+ 'Le président de la République peut-il être poursuivi pénalement pendant son mandat ?',
+ 'Le président bénéficie d''une immunité pendant son mandat pour les actes accomplis en cette qualité. Il peut être poursuivi après la fin de son mandat ou destitué par le Parlement réuni en Haute Cour.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005e', 'Il est protégé pendant le mandat, sauf destitution par la Haute Cour', TRUE, 0),
@@ -458,8 +458,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000005f', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'MISE_SITUATION',
- 'Mon employeur veut me licencier sans motif valable. Quel recours s''offre a moi ?',
- 'Vous pouvez saisir le conseil des prud''hommes, juridiction specialisee dans les conflits du travail entre salariés et employeurs.',
+ 'Mon employeur veut me licencier sans motif valable. Quel recours s''offre à moi ?',
+ 'Vous pouvez saisir le conseil des prud''hommes, juridiction spécialisée dans les conflits du travail entre salariés et employeurs.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000005f', 'Saisir le conseil des prud''hommes', TRUE, 0),
@@ -470,51 +470,51 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000061', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'MISE_SITUATION',
  'Une loi votée me paraît contraire à un de mes droits fondamentaux. Que faire ?',
- 'Au cours d''un procès, vous pouvez demander à votre juge de transmettre une Question prioritaire de constitutionnalite (QPC) au Conseil constitutionnel pour faire annuler la loi.',
+ 'Au cours d''un procès, vous pouvez demander à votre juge de transmettre une Question prioritaire de constitutionnalité (QPC) au Conseil constitutionnel pour faire annuler la loi.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000061', 'Soulever une Question prioritaire de constitutionnalite (QPC)', TRUE, 0),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000061', 'Reecrire moi-même la Constitution', FALSE, 1),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000061', 'Soulever une Question prioritaire de constitutionnalité (QPC)', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000061', 'Réécrire moi-même la Constitution', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000061', 'Saisir une église', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000061', 'Aucune action possible', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000062', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'MISE_SITUATION',
- 'Je veux participer à la vie démocratique sans être élu. Quelles possibilites existent ?',
+ 'Je veux participer à la vie démocratique sans être élu. Quelles possibilités existent ?',
  'On peut s''engager dans un parti politique, dans une association, participer à des consultations publiques, lancer une pétition, ou intervenir lors d''enquêtes publiques.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000062', 'Adherer à un parti, une association, participer à des consultations', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000062', 'Adhérer à un parti, une association, participer à des consultations', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000062', 'Forcer la porte de l''Élysée', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000062', 'Acheter un mandat de député', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000062', 'Rien hors du vote n''est possible', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000063', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'MISE_SITUATION',
- 'Un agent de mairie refuse de me delivrer un document auquel j''ai droit. Que faire ?',
- 'Demandez d''abord par ecrit pour conserver une trace. En cas de refus persistant, saisissez le Defenseur des droits ou le tribunal administratif.',
+ 'Un agent de mairie refuse de me délivrer un document auquel j''ai droit. Que faire ?',
+ 'Demandez d''abord par écrit pour conserver une trace. En cas de refus persistant, saisissez le Défenseur des droits ou le tribunal administratif.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000063', 'Saisir le Defenseur des droits ou le tribunal administratif', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000063', 'Saisir le Défenseur des droits ou le tribunal administratif', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000063', 'Forcer l''accès avec un huissier', FALSE, 1),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000063', 'Renoncer immediatement', FALSE, 2),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000063', 'Ecrire au pape', FALSE, 3);
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000063', 'Renoncer immédiatement', FALSE, 2),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000063', 'Écrire au pape', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000064', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'MISE_SITUATION',
  'Je veux participer à une commission d''enquête parlementaire pour témoigner. Est-ce possible ?',
- 'Les commissions d''enquête parlementaires peuvent auditionner des témoins. Le témoignage peut être obligatoire et le faux témoignage est puni penalement.',
+ 'Les commissions d''enquête parlementaires peuvent auditionner des témoins. Le témoignage peut être obligatoire et le faux témoignage est puni pénalement.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000064', 'Oui, on peut être cité comme témoin par une commission d''enquête', TRUE, 0),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000064', 'Non, c''est strictement réserve aux députés', FALSE, 1),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000064', 'Uniquement les retraites', FALSE, 2),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000064', 'Non, c''est strictement réservé aux députés', FALSE, 1),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000064', 'Uniquement les retraités', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000064', 'Uniquement avec accord de l''Église', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000065', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'MISE_SITUATION',
  'Je conteste un PV de stationnement. À quelle juridiction m''adresser ?',
- 'Pour contester un PV de stationnement (forfait post-stationnement), il faut saisir la Commission du contentieux du stationnement payant, juridiction administrative specialisee.',
+ 'Pour contester un PV de stationnement (forfait post-stationnement), il faut saisir la Commission du contentieux du stationnement payant, juridiction administrative spécialisée.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000065', 'La Commission du contentieux du stationnement payant', TRUE, 0),
@@ -524,30 +524,30 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000066', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'MISE_SITUATION',
- 'Mon député defend un projet contraire à mes idées. Que puis-je faire ?',
- 'On peut lui ecrire pour exprimer son désaccord, participer à une manifestation légale, soutenir un autre candidat aux prochaines élections, ou militer dans un parti.',
+ 'Mon député défend un projet contraire à mes idées. Que puis-je faire ?',
+ 'On peut lui écrire pour exprimer son désaccord, participer à une manifestation légale, soutenir un autre candidat aux prochaines élections, ou militer dans un parti.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000066', 'Ecrire, manifester légalement, voter différemment au scrutin suivant', TRUE, 0),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000066', 'Le faire arreter', FALSE, 1),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000066', 'Refuser de payer mes impots', FALSE, 2),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000066', 'Écrire, manifester légalement, voter différemment au scrutin suivant', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000066', 'Le faire arrêter', FALSE, 1),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000066', 'Refuser de payer mes impôts', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000066', 'Quitter la France', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000067', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'MISE_SITUATION',
- 'Je suis convoque comme jure de cour d''assises. Puis-je refuser ?',
- 'Être jure est une obligation civique. Seuls certains motifs (âge, incapacite, profession incompatible) permettent d''être dispense. Refuser sans raison expose à une amende.',
+ 'Je suis convoqué comme juré de cour d''assises. Puis-je refuser ?',
+ 'Être juré est une obligation civique. Seuls certains motifs (âge, incapacité, profession incompatible) permettent d''être dispensé. Refuser sans raison expose à une amende.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000067', 'C''est une obligation civique, refuser sans motif est sanctionne', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000067', 'C''est une obligation civique, refuser sans motif est sanctionné', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000067', 'Oui, c''est facultatif', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000067', 'Uniquement les femmes y sont obligées', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000067', 'Uniquement les fonctionnaires', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000068', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'MISE_SITUATION',
- 'Mon voisin n''a pas respecte une règle d''urbanisme. À quelle autorité signaler ?',
- 'Les règles d''urbanisme sont controlées par la mairie. Vous pouvez signaler l''infraction au maire, qui peut diligenter un contrôle et éventuellement prendre un arrete.',
+ 'Mon voisin n''a pas respecté une règle d''urbanisme. À quelle autorité signaler ?',
+ 'Les règles d''urbanisme sont contrôlées par la mairie. Vous pouvez signaler l''infraction au maire, qui peut diligenter un contrôle et éventuellement prendre un arrêté.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000068', 'Au maire de la commune', TRUE, 0),

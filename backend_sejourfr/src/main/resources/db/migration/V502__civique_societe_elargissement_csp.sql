@@ -9,17 +9,17 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000001', 'La Caisse d''allocations familiales', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000001', 'Une banque privée', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000001', 'Une assurance auto', FALSE, 2),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000001', 'Une compagnie aerienne', FALSE, 3);
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000001', 'Une compagnie aérienne', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000002', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Que sont les APL ?',
- 'Les Aides personnalisees au logement (APL) sont des allocations versées par la CAF aux personnes a faibles revenus pour les aider a payer leur loyer ou leur emprunt immobilier.',
+ 'Les Aides personnalisées au logement (APL) sont des allocations versées par la CAF aux personnes à faibles revenus pour les aider à payer leur loyer ou leur emprunt immobilier.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000002', 'Aides personnalisees au logement', TRUE, 0),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000002', 'Aides personnalisées au logement', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000002', 'Une carte de transport', FALSE, 1),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000002', 'Un impot', FALSE, 2),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000002', 'Un impôt', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000002', 'Un syndicat', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
@@ -36,7 +36,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000004', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'À qui faut-il s''adresser pour obtenir un logement social ?',
- 'Pour un logement social (HLM), on depose un dossier en mairie ou aupres d''un bailleur social. Les demandes sont examinees selon des criteres sociaux et de revenus.',
+ 'Pour un logement social (HLM), on dépose un dossier en mairie ou auprès d''un bailleur social. Les demandes sont examinées selon des critères sociaux et de revenus.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000004', 'À la mairie ou un bailleur social', TRUE, 0),
@@ -47,10 +47,10 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000005', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Qu''est-ce qu''un HLM ?',
- 'Un HLM (Habitation a loyer modere) est un logement social, dont le loyer est plafonne et dont l''attribution est reservée aux personnes aux revenus modestes.',
+ 'Un HLM (Habitation à loyer modéré) est un logement social, dont le loyer est plafonné et dont l''attribution est réservée aux personnes aux revenus modestes.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000005', 'Un logement social a loyer modere', TRUE, 0),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000005', 'Un logement social à loyer modéré', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000005', 'Une grande villa', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000005', 'Un hôtel', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000005', 'Une boutique', FALSE, 3);
@@ -58,7 +58,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000006', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Quel âge minimum pour passer le permis de conduire (B) ?',
- 'Le permis B se passe à partir de 17 ans en conduite accompagnée, et 18 ans en filiere classique. Pour conduire seul, il faut 18 ans dans tous les cas.',
+ 'Le permis B se passe à partir de 17 ans en conduite accompagnée, et 18 ans en filière classique. Pour conduire seul, il faut 18 ans dans tous les cas.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000006', '18 ans pour conduire seul (17 en conduite accompagnée)', TRUE, 0),
@@ -68,11 +68,11 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000007', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
- 'Que représente le ''titre de sejour'' pour un étranger en France ?',
- 'Le titre de sejour (carte de sejour) est un document qui autorisé un étranger non européen a sejourner régulièrement en France. Il existe plusieurs types (étudiant, salarié, vie privée, résident).',
+ 'Que représente le ''titre de séjour'' pour un étranger en France ?',
+ 'Le titre de séjour (carte de séjour) est un document qui autorise un étranger non européen à séjourner régulièrement en France. Il existe plusieurs types (étudiant, salarié, vie privée, résident).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000007', 'Un document autorisant un étranger non européen a sejourner', TRUE, 0),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000007', 'Un document autorisant un étranger non européen à séjourner', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000007', 'Un permis de conduire', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000007', 'Un passeport', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000007', 'Une carte de bibliothèque', FALSE, 3);
@@ -80,7 +80,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000008', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Quel âge marque l''entrée au collège en France ?',
- 'L''entrée au collège se fait normalement à 11 ans, en classe de 6e, après la fin de l''école elementaire (CM2). Le collège se termine en 3e avec le brevet.',
+ 'L''entrée au collège se fait normalement à 11 ans, en classe de 6e, après la fin de l''école élémentaire (CM2). Le collège se termine en 3e avec le brevet.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000008', '11 ans (entrée en 6e)', TRUE, 0),
@@ -102,18 +102,18 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000000a', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Quel diplôme obtient-on à la fin du collège ?',
- 'Le brevet (Diplome national du brevet, DNB) est l''examen passe en fin de 3e, à 14-15 ans. C''est le premier diplôme de la scolarite obligatoire.',
+ 'Le brevet (Diplôme national du brevet, DNB) est l''examen passé en fin de 3e, à 14-15 ans. C''est le premier diplôme de la scolarité obligatoire.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000000a', 'Le brevet (DNB)', TRUE, 0),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000000a', 'Le baccalaureat', FALSE, 1),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000000a', 'Le baccalauréat', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000000a', 'Le CAP', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000000a', 'Le permis de conduire', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000000b', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'À quel âge commence l''école obligatoire en France ?',
- 'Depuis 2019, l''instruction est obligatoire des 3 ans (auparavant 6 ans). C''est l''école maternelle qui debute donc l''instruction obligatoire.',
+ 'Depuis 2019, l''instruction est obligatoire dès 3 ans (auparavant 6 ans). C''est l''école maternelle qui débute donc l''instruction obligatoire.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000000b', '3 ans (école maternelle, depuis 2019)', TRUE, 0),
@@ -124,7 +124,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000000c', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Que désigne la cantine scolaire en France ?',
- 'La cantine scolaire est le service de restauration propose dans les écoles. Elle est généralement geree par la commune. Son coût est souvent ajuste selon les revenus des familles.',
+ 'La cantine scolaire est le service de restauration proposé dans les écoles. Elle est généralement gérée par la commune. Son coût est souvent ajusté selon les revenus des familles.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000000c', 'Le service de restauration scolaire', TRUE, 0),
@@ -141,11 +141,11 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000000d', 'Oui, depuis les lois Ferry (1881-1882)', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000000d', 'Non, elle suit la religion catholique', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000000d', 'Cela varie selon les villes', FALSE, 2),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000000d', 'Uniquement les jours feries', FALSE, 3);
+(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000000d', 'Uniquement les jours fériés', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000000e', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
- 'Que designe-t-on par ''mariage civil'' en France ?',
+ 'Que désigne-t-on par ''mariage civil'' en France ?',
  'Le mariage civil est l''union légale célébrée par un officier d''état civil (maire ou adjoint) à la mairie. C''est le seul mariage reconnu par l''État français. Un mariage religieux n''a pas de valeur civile.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
@@ -157,7 +157,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000000f', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Que désigne le PACS ?',
- 'Le PACS (Pacte civil de solidarité) est un contrat conclu entre deux personnes majeures pour organiser leur vie commune. C''est une alternative au mariage, sans toutes ses formalites.',
+ 'Le PACS (Pacte civil de solidarité) est un contrat conclu entre deux personnes majeures pour organiser leur vie commune. C''est une alternative au mariage, sans toutes ses formalités.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000000f', 'Un contrat de vie commune entre deux majeurs', TRUE, 0),
@@ -168,21 +168,21 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000010', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Que fait un pharmacien en France ?',
- 'Le pharmacien dispense les medicaments en officine, conseille les patients, peut effectuer certaines vaccinations (grippe, COVID), realiser des tests rapides, accompagner les traitements.',
+ 'Le pharmacien dispense les médicaments en officine, conseille les patients, peut effectuer certaines vaccinations (grippe, COVID), réaliser des tests rapides, accompagner les traitements.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000010', 'Dispenser des medicaments, conseiller, vacciner', TRUE, 0),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000010', 'Operer en hôpital', FALSE, 1),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000010', 'Dispenser des médicaments, conseiller, vacciner', TRUE, 0),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000010', 'Opérer en hôpital', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000010', 'Conduire les ambulances', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000010', 'Diriger un commissariat', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000011', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Quel professionnel donne les premiers soins en cabinet de ville ?',
- 'Le médecin generaliste (médecin traitant) est le premier interlocuteur en ville. Il diagnostique, soigne, oriente vers les spécialistes. C''est le pivot du parcours de soins.',
+ 'Le médecin généraliste (médecin traitant) est le premier interlocuteur en ville. Il diagnostique, soigne, oriente vers les spécialistes. C''est le pivot du parcours de soins.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000011', 'Le médecin generaliste / médecin traitant', TRUE, 0),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000011', 'Le médecin généraliste / médecin traitant', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000011', 'Le notaire', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000011', 'L''avocat', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000011', 'Le boulanger', FALSE, 3);
@@ -190,7 +190,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000012', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Le tabac est-il interdit aux mineurs en France ?',
- 'Oui. La vente de tabac aux mineurs (moins de 18 ans) est interditée. Le commerçant peut être sanctionne. La consommation par les mineurs est très deconseillee.',
+ 'Oui. La vente de tabac aux mineurs (moins de 18 ans) est interdite. Le commerçant peut être sanctionné. La consommation par les mineurs est très déconseillée.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000012', 'Oui, vente interdite aux moins de 18 ans', TRUE, 0),
@@ -211,8 +211,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000014', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
- 'Quel sigle designe l''école en France pour les enfants de 3-5 ans ?',
- 'L''école maternelle accueille les enfants de 3 à 5/6 ans (petite, moyenne et grande section). Elle précédé l''école elementaire et est obligatoire depuis 2019.',
+ 'Quel sigle désigne l''école en France pour les enfants de 3-5 ans ?',
+ 'L''école maternelle accueille les enfants de 3 à 5/6 ans (petite, moyenne et grande section). Elle précède l''école élémentaire et est obligatoire depuis 2019.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000014', 'L''école maternelle', TRUE, 0),
@@ -237,7 +237,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
  'Le mariage civil est célébré publiquement à la mairie, généralement dans la salle des mariages. Tout citoyen peut y assister. Le mariage est inscrit à l''état civil.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000016', 'Public, célèbre à la mairie', TRUE, 0),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000016', 'Public, célébré à la mairie', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000016', 'Strictement privé', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000016', 'Uniquement religieux', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000016', 'Uniquement entre amis', FALSE, 3);
@@ -245,10 +245,10 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000017', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Qu''est-ce que le ''parcours du combattant'' administratif ?',
- 'L''expression décrit (informellement) les nombreuses demarches administratives parfois complexes (cartes d''identité, permis, allocations, retraites). Le site service-public.fr regroupe les demarches.',
+ 'L''expression décrit (informellement) les nombreuses démarches administratives parfois complexes (cartes d''identité, permis, allocations, retraites). Le site service-public.fr regroupe les démarches.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000017', 'Les nombreuses demarches administratives a effectuer', TRUE, 0),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000017', 'Les nombreuses démarches administratives à effectuer', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000017', 'Une formation militaire', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000017', 'Un sport olympique', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000017', 'Un examen scolaire', FALSE, 3);
@@ -256,18 +256,18 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000018', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Comment s''appelle le document officiel d''état civil prouvant la naissance ?',
- 'L''acte de naissance est le document officiel établi par la mairie à la déclaration de naissance. Il est ensuite nécessaire pour de nombreuses demarches (carte d''identité, passeport, mariage).',
+ 'L''acte de naissance est le document officiel établi par la mairie à la déclaration de naissance. Il est ensuite nécessaire pour de nombreuses démarches (carte d''identité, passeport, mariage).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000018', 'L''acte de naissance', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000018', 'Le permis de conduire', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000018', 'Le passeport', FALSE, 2),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000018', 'Le carnet de sante', FALSE, 3);
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000018', 'Le carnet de santé', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000019', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Quel document atteste de la nationalité française ?',
- 'La carte nationale d''identité et le passeport prouvent la nationalité française. Un certificat de nationalité française (CNF) peut aussi être delivré par les tribunaux.',
+ 'La carte nationale d''identité et le passeport prouvent la nationalité française. Un certificat de nationalité française (CNF) peut aussi être délivré par les tribunaux.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000019', 'La carte d''identité ou le passeport', TRUE, 0),
@@ -278,7 +278,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000001a', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Quel âge permet de quitter le foyer parental ?',
- 'À 18 ans (majorité légale), une personne peut quitter le foyer familial sans autorisation. Avant, l''émancipation est possible des 16 ans, mais elle est encadrée.',
+ 'À 18 ans (majorité légale), une personne peut quitter le foyer familial sans autorisation. Avant, l''émancipation est possible dès 16 ans, mais elle est encadrée.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000001a', '18 ans (majorité légale), 16 ans avec émancipation', TRUE, 0),
@@ -288,19 +288,19 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000001b', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
- 'Le voyage en avion nécessité-t-il un document d''identité ?',
- 'Oui. Pour tout voyage en avion (intérieur ou international), il faut presenter une piece d''identité (carte d''identité, passeport). Pour l''international hors UE, un passeport est généralement obligatoire.',
+ 'Le voyage en avion nécessite-t-il un document d''identité ?',
+ 'Oui. Pour tout voyage en avion (intérieur ou international), il faut présenter une pièce d''identité (carte d''identité, passeport). Pour l''international hors UE, un passeport est généralement obligatoire.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000001b', 'Oui, piece d''identité obligatoire', TRUE, 0),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000001b', 'Oui, pièce d''identité obligatoire', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000001b', 'Non, jamais', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000001b', 'Uniquement pour l''international', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000001b', 'Uniquement pour les hommes', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000001c', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
- 'Quel âge minimum pour entrer en boite de nuit en France ?',
- 'L''accès aux boites de nuit est généralement réserve aux personnes majeures (18 ans). Certains établissements peuvent fixer un âge plus élève. La vente d''alcool aux mineurs est interditée.',
+ 'Quel âge minimum pour entrer en boîte de nuit en France ?',
+ 'L''accès aux boîtes de nuit est généralement réservé aux personnes majeures (18 ans). Certains établissements peuvent fixer un âge plus élevé. La vente d''alcool aux mineurs est interdite.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000001c', '18 ans', TRUE, 0),
@@ -311,17 +311,17 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000001d', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'À quoi servent les transports en commun urbains (bus, métro) ?',
- 'Les transports en commun urbains permettent de circuler en ville. Ils sont gerees par les autorités locales et offrent des tarifs reduits pour les jeunes, retraites, étudiants, demandeurs d''emploi.',
+ 'Les transports en commun urbains permettent de circuler en ville. Ils sont gérés par les autorités locales et offrent des tarifs réduits pour les jeunes, retraités, étudiants, demandeurs d''emploi.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000001d', 'Circuler en ville, avec des tarifs reduits selon les profils', TRUE, 0),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000001d', 'Circuler en ville, avec des tarifs réduits selon les profils', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000001d', 'Les voyages à l''étranger uniquement', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000001d', 'Le transport de marchandises lourdes', FALSE, 2),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000001d', 'Aucune utilite particulière', FALSE, 3);
+(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000001d', 'Aucune utilité particulière', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000001e', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
- 'Que designe l''INSEE ?',
+ 'Que désigne l''INSEE ?',
  'L''INSEE (Institut national de la statistique et des études économiques) produit les statistiques officielles de la France : population, économie, emploi, prix.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
@@ -332,8 +332,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000001f', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
- 'Quel établissement gère le pret de livres gratuitement ?',
- 'La bibliothèque (ou médiathèque municipale) permet d''emprunter gratuitement des livres, parfois des CD/DVD, et offre l''accès a internet. L''inscription est généralement peu chere ou gratuite.',
+ 'Quel établissement gère le prêt de livres gratuitement ?',
+ 'La bibliothèque (ou médiathèque municipale) permet d''emprunter gratuitement des livres, parfois des CD/DVD, et offre l''accès à internet. L''inscription est généralement peu chère ou gratuite.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000001f', 'La bibliothèque ou la médiathèque', TRUE, 0),
@@ -344,7 +344,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000020', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Quel âge permet de passer le permis de conduire la moto (A1) ?',
- 'Le permis A1 (motos de 125 cm3 maximum) peut être passe à partir de 16 ans. Le permis A2 (moto plus puissante) requiert 18 ans, le permis A (toute moto) 24 ans (ou 20 ans avec A2 pendant 2 ans).',
+ 'Le permis A1 (motos de 125 cm3 maximum) peut être passé à partir de 16 ans. Le permis A2 (moto plus puissante) requiert 18 ans, le permis A (toute moto) 24 ans (ou 20 ans avec A2 pendant 2 ans).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000020', '16 ans pour le permis A1 (125cm3)', TRUE, 0),
@@ -354,11 +354,11 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000021', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
- 'Le port du casque est-il obligatoire a velo en France ?',
- 'Le port du casque a velo est obligatoire pour les enfants de moins de 12 ans (conducteur ou passager). Pour les adultes, il est seulement recommande mais très conseille.',
+ 'Le port du casque est-il obligatoire à vélo en France ?',
+ 'Le port du casque à vélo est obligatoire pour les enfants de moins de 12 ans (conducteur ou passager). Pour les adultes, il est seulement recommandé mais très conseillé.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000021', 'Obligatoire pour les moins de 12 ans, recommande pour les adultes', TRUE, 0),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000021', 'Obligatoire pour les moins de 12 ans, recommandé pour les adultes', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000021', 'Obligatoire pour tous', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000021', 'Interdit à tous', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000021', 'Uniquement la nuit', FALSE, 3);
@@ -366,7 +366,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000022', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Quel objet est obligatoire dans une voiture en France ?',
- 'Les vehicules doivent posseder : un gilet jaune fluorescent, un triangle de signalisation, ainsi qu''un ethylotest (officiellement). Le constat amiable est aussi essentiel.',
+ 'Les véhicules doivent posséder : un gilet jaune fluorescent, un triangle de signalisation, ainsi qu''un éthylotest (officiellement). Le constat amiable est aussi essentiel.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000022', 'Un gilet jaune et un triangle de signalisation', TRUE, 0),
@@ -376,8 +376,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000023', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
- 'Quel numéro composer pour les renseignements telephoniques administratifs ?',
- 'Le 39 39 (Allo service public) renseigne sur les demarches administratives. Service au coût d''un appel local depuis un fixe.',
+ 'Quel numéro composer pour les renseignements téléphoniques administratifs ?',
+ 'Le 39 39 (Allo service public) renseigne sur les démarches administratives. Service au coût d''un appel local depuis un fixe.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000023', 'Le 39 39 (Allo service public)', TRUE, 0),
@@ -387,30 +387,30 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000024', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
- 'Que désigne la ''piece d''identité'' en France ?',
- 'Une piece d''identité (carte nationale d''identité, passeport, titre de sejour) est un document officiel avec photo, permettant de prouver son identité. Elle peut être exigée dans de nombreuses situations.',
+ 'Que désigne la ''pièce d''identité'' en France ?',
+ 'Une pièce d''identité (carte nationale d''identité, passeport, titre de séjour) est un document officiel avec photo, permettant de prouver son identité. Elle peut être exigée dans de nombreuses situations.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000024', 'Un document officiel avec photo prouvant l''identité', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000024', 'Une carte bancaire', FALSE, 1),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000024', 'Une carte de fidelite', FALSE, 2),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000024', 'Une carte de fidélité', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000024', 'Un journal', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000025', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
  'Combien de temps est valable une carte nationale d''identité française ?',
- 'Une carte nationale d''identité française est valable 15 ans pour les majeurs (depuis 2014), 10 ans pour les mineurs. Pour voyager hors UE, certains pays exigent une carte non perimee.',
+ 'Une carte nationale d''identité française est valable 15 ans pour les majeurs (depuis 2014), 10 ans pour les mineurs. Pour voyager hors UE, certains pays exigent une carte non périmée.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000025', '15 ans pour les majeurs (10 ans pour mineurs)', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000025', '5 ans pour tous', FALSE, 1),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000025', 'A vie', FALSE, 2),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000025', 'À vie', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000025', '1 an renouvelable', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000026', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'CONNAISSANCE',
- 'Qu''est-ce qu''un ''centre des impots'' en France ?',
- 'Le centre des impots (ou service des impots des particuliers) est l''administration qui gère la fiscalite des particuliers : déclaration de revenus, impot sur le revenu, impots locaux.',
+ 'Qu''est-ce qu''un ''centre des impôts'' en France ?',
+ 'Le centre des impôts (ou service des impôts des particuliers) est l''administration qui gère la fiscalité des particuliers : déclaration de revenus, impôt sur le revenu, impôts locaux.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000026', 'L''administration fiscale pour les particuliers', TRUE, 0),
@@ -425,7 +425,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000027', 'Déclarer la perte au commissariat puis demander un renouvellement', TRUE, 0),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000027', 'Rien faire', FALSE, 1),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000027', 'Ne rien faire', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000027', 'Mentir sur son identité', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000027', 'Quitter la France', FALSE, 3);
 
@@ -442,41 +442,41 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000029', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'MISE_SITUATION',
- 'Je viens d''avoir un enfant. Quelles demarches dois-je faire ?',
- 'Déclarer la naissance à la mairie dans les 5 jours, prevenir la CAF, l''Assurance Maladie (carte Vitale), l''employeur (congés paternite/maternite), la mutuelle, l''école/crèche si nécessaire.',
+ 'Je viens d''avoir un enfant. Quelles démarches dois-je faire ?',
+ 'Déclarer la naissance à la mairie dans les 5 jours, prévenir la CAF, l''Assurance Maladie (carte Vitale), l''employeur (congés paternité/maternité), la mutuelle, l''école/crèche si nécessaire.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000029', 'Mairie, CAF, Assurance Maladie, employeur, mutuelle', TRUE, 0),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000029', 'Aucune demarche', FALSE, 1),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000029', 'Aucune démarche', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000029', 'Uniquement l''école', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000029', 'Uniquement le pape', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000002a', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'MISE_SITUATION',
  'Je perds mon emploi. Que dois-je faire en premier ?',
- 'S''inscrire a France Travail (anciennement Pole emploi) dans les meilleurs delais : c''est la condition pour percevoir des indemnites chomage (selon droits cotises) et bénéficier d''un accompagnement.',
+ 'S''inscrire à France Travail (anciennement Pôle emploi) dans les meilleurs délais : c''est la condition pour percevoir des indemnités chômage (selon droits cotisés) et bénéficier d''un accompagnement.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002a', 'S''inscrire a France Travail rapidement', TRUE, 0),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002a', 'Rien faire', FALSE, 1),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002a', 'S''inscrire à France Travail rapidement', TRUE, 0),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002a', 'Ne rien faire', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002a', 'Quitter la France', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002a', 'Demander à la mairie un travail', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000002b', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'MISE_SITUATION',
  'J''ai mal et je dois consulter un médecin. Quelles options ?',
- 'Si non urgent, prendre rendez-vous avec son médecin traitant (en ligne, par téléphone). Sinon, SOS Médecins, maison de garde, telemedecine. En urgence vitale : 15 ou 112.',
+ 'Si non urgent, prendre rendez-vous avec son médecin traitant (en ligne, par téléphone). Sinon, SOS Médecins, maison de garde, télémédecine. En urgence vitale : 15 ou 112.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002b', 'Médecin traitant en général, urgences en cas grave', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002b', 'Aller directement aux urgences quoi qu''il arrive', FALSE, 1),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002b', 'Attendre que ca passe', FALSE, 2),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002b', 'Attendre que ça passe', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002b', 'Demander à un voisin', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000002c', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'MISE_SITUATION',
- 'Je n''arrive plus a payer mon loyer. À qui demander de l''aide ?',
- 'Contacter la CAF (peut être une APL), le CCAS (centre communal d''action sociale) de la mairie, des associations (Restos du cœur, Secours populaire). Éviter d''accumuler les impayes.',
+ 'Je n''arrive plus à payer mon loyer. À qui demander de l''aide ?',
+ 'Contacter la CAF (peut être une APL), le CCAS (centre communal d''action sociale) de la mairie, des associations (Restos du cœur, Secours populaire). Éviter d''accumuler les impayés.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002c', 'CAF, CCAS de la mairie, associations sociales', TRUE, 0),
@@ -487,18 +487,18 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000002d', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'MISE_SITUATION',
  'Mon enfant a besoin de soutien scolaire. Quels recours sont disponibles ?',
- 'Demander de l''aide à l''enseignant et au directeur d''école, profiter du soutien scolaire propose en classe, recourir au CNED, demander un PPRE (plan d''aide), s''inscrire à des associations d''aide aux devoirs.',
+ 'Demander de l''aide à l''enseignant et au directeur d''école, profiter du soutien scolaire proposé en classe, recourir au CNED, demander un PPRE (plan d''aide), s''inscrire à des associations d''aide aux devoirs.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002d', 'Soutien scolaire école, aide aux devoirs en associations', TRUE, 0),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002d', 'Rien faire', FALSE, 1),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002d', 'Ne rien faire', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002d', 'Changer d''école sans concertation', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002d', 'Renvoyer l''enfant à la maison', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000002e', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'MISE_SITUATION',
- 'Je veux inscrire mon enfant à l''école publique. Quelle demarche ?',
- 'L''inscription se fait à la mairie (avec justificatifs : livret de famille, justificatif de domicile). Ensuite, l''admission est confirmée à l''école de secteur. La scolarite est gratuite.',
+ 'Je veux inscrire mon enfant à l''école publique. Quelle démarche ?',
+ 'L''inscription se fait à la mairie (avec justificatifs : livret de famille, justificatif de domicile). Ensuite, l''admission est confirmée à l''école de secteur. La scolarité est gratuite.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002e', 'Inscription à la mairie de la commune de résidence', TRUE, 0),
@@ -508,22 +508,22 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-00000000002f', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'MISE_SITUATION',
- 'Je veux accéder à l''aide médicale en cas de difficulté financiere. Quelles options ?',
- 'Demander la PUMA (Protection universelle maladie). Si revenus très bas, demander la Complementaire sante solidaire (C2S) qui prend en charge les frais de mutuelle. Les PASS (permanence d''accès aux soins de sante) dans les hôpitaux accueillent aussi.',
+ 'Je veux accéder à l''aide médicale en cas de difficulté financière. Quelles options ?',
+ 'Demander la PUMA (Protection universelle maladie). Si revenus très bas, demander la Complémentaire santé solidaire (C2S) qui prend en charge les frais de mutuelle. Les PASS (permanence d''accès aux soins de santé) dans les hôpitaux accueillent aussi.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002f', 'PUMA + Complementaire sante solidaire (C2S) + PASS hospitaliers', TRUE, 0),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002f', 'PUMA + Complémentaire santé solidaire (C2S) + PASS hospitaliers', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002f', 'Renoncer aux soins', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002f', 'Payer intégralement', FALSE, 2),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002f', 'Aller chez un guerisseur', FALSE, 3);
+(gen_random_uuid(), 'f5000002-0000-0000-0000-00000000002f', 'Aller chez un guérisseur', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000030', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'MISE_SITUATION',
  'Je veux ouvrir un compte bancaire en France. Que faut-il ?',
- 'Justificatif d''identité et de domicile, parfois preuve de revenus. En cas de refus par toutes les banques, on peut exercer le ''droit au compte'' aupres de la Banque de France.',
+ 'Justificatif d''identité et de domicile, parfois preuve de revenus. En cas de refus par toutes les banques, on peut exercer le ''droit au compte'' auprès de la Banque de France.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000030', 'Pieces d''identité et de domicile ; droit au compte en cas de refus', TRUE, 0),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000030', 'Pièces d''identité et de domicile ; droit au compte en cas de refus', TRUE, 0),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000030', 'Rien n''est nécessaire', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000030', 'Une recommandation du maire', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000030', 'Un parrainage de 10 personnes', FALSE, 3);
@@ -531,21 +531,21 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000031', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'MISE_SITUATION',
  'Je suis témoin de violences conjugales chez un voisin. Quel comportement ?',
- 'Appeler le 17 (police) si la situation est immediate. Sinon, signaler au 3919 (violences conjugales), au 119 (enfance en danger si enfants). Ne pas intervenir physiquement seul.',
+ 'Appeler le 17 (police) si la situation est immédiate. Sinon, signaler au 3919 (violences conjugales), au 119 (enfance en danger si enfants). Ne pas intervenir physiquement seul.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000031', 'Appeler le 17, signaler au 3919 ou 119', TRUE, 0),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000031', 'Rien faire', FALSE, 1),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000031', 'Ne rien faire', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000031', 'Intervenir physiquement seul', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000031', 'Quitter le quartier', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f5000002-0000-0000-0000-000000000032', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', 'CSP', 'MISE_SITUATION',
- 'Mon enfant subit du harcelement à l''école. Que faire ?',
- 'Alerter l''enseignant et le directeur. Si pas de réponse, l''inspection académique. Appeler le 3018 (numéro national contre le harcelement scolaire). Une plainte est possible : le harcelement est un delit.',
+ 'Mon enfant subit du harcèlement à l''école. Que faire ?',
+ 'Alerter l''enseignant et le directeur. Si pas de réponse, l''inspection académique. Appeler le 3018 (numéro national contre le harcèlement scolaire). Une plainte est possible : le harcèlement est un délit.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000032', 'Alerter l''école, l''inspection, appeler le 3018, plainte si nécessaire', TRUE, 0),
-(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000032', 'Rien faire', FALSE, 1),
+(gen_random_uuid(), 'f5000002-0000-0000-0000-000000000032', 'Ne rien faire', FALSE, 1),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000032', 'Punir l''enfant victime', FALSE, 2),
 (gen_random_uuid(), 'f5000002-0000-0000-0000-000000000032', 'Changer de pays', FALSE, 3);

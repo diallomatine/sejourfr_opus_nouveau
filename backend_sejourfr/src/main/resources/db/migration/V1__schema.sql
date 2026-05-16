@@ -1,8 +1,8 @@
 -- ============================================================================
--- SejourFR - Schema initial
+-- SejourFR - Schéma initial
 -- ============================================================================
 -- Convention : tous les ids en UUID, timestamps en TIMESTAMPTZ, enums en VARCHAR
--- (Hibernate ecrit les enums en STRING).
+-- (Hibernate écrit les enums en STRING).
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

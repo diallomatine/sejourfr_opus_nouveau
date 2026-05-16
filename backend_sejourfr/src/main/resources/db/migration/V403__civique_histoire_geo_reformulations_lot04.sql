@@ -3,10 +3,10 @@
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-000000000025', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Qui était Simone de Beauvoir ?',
- 'Simone de Beauvoir (1908-1986) était une philosophe et ecrivaine française du XXe siècle, figure majeure de l''existentialisme et du féminisme (Le Deuxième Sexe, 1949).',
+ 'Simone de Beauvoir (1908-1986) était une philosophe et écrivaine française du XXe siècle, figure majeure de l''existentialisme et du féminisme (Le Deuxième Sexe, 1949).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000001-0000-0000-0000-000000000025', 'Une philosophe et ecrivaine française féministe', TRUE, 0),
+(gen_random_uuid(), 'f4000001-0000-0000-0000-000000000025', 'Une philosophe et écrivaine française féministe', TRUE, 0),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000025', 'Une chanteuse de jazz', FALSE, 1),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000025', 'Une politicienne du XIXe siècle', FALSE, 2),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000025', 'Une artiste peintre', FALSE, 3);
@@ -14,10 +14,10 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-000000000026', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
  'Qui était Albert Camus ?',
- 'Albert Camus (1913-1960) était un ecrivain et philosophe français, prix Nobel de litterature 1957. Romans : L''Étranger, La Peste. Essais : Le Mythe de Sisyphe, L''Homme revolte.',
+ 'Albert Camus (1913-1960) était un écrivain et philosophe français, prix Nobel de littérature 1957. Romans : L''Étranger, La Peste. Essais : Le Mythe de Sisyphe, L''Homme révolté.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000001-0000-0000-0000-000000000026', 'Un ecrivain français, prix Nobel de litterature', TRUE, 0),
+(gen_random_uuid(), 'f4000001-0000-0000-0000-000000000026', 'Un écrivain français, prix Nobel de littérature', TRUE, 0),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000026', 'Un peintre cubiste', FALSE, 1),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000026', 'Un président', FALSE, 2),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000026', 'Un sportif', FALSE, 3);
@@ -25,7 +25,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-000000000027', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Qui était Paul Cézanne ?',
- 'Paul Cézanne (1839-1906) était un peintre français, considère comme l''un des précurseurs du cubisme. Ses paysages provencaux et ses natures mortes sont mondialement connus.',
+ 'Paul Cézanne (1839-1906) était un peintre français, considéré comme l''un des précurseurs du cubisme. Ses paysages provençaux et ses natures mortes sont mondialement connus.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000027', 'Un peintre français précurseur du cubisme', TRUE, 0),
@@ -36,7 +36,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-000000000028', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
  'Qui était Marc Chagall ?',
- 'Marc Chagall (1887-1985) était un peintre français d''origine russe (juif), une des grandes figures de l''art moderne. Il a peint le plafond de l''Opera Garnier de Paris.',
+ 'Marc Chagall (1887-1985) était un peintre français d''origine russe (juif), une des grandes figures de l''art moderne. Il a peint le plafond de l''Opéra Garnier de Paris.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000028', 'Un peintre français d''origine russe', TRUE, 0),
@@ -46,11 +46,11 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-000000000029', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'NAT', 'CONNAISSANCE',
- 'Qui était Josephine Baker ?',
- 'Josephine Baker (1906-1975), américaine devenue française, était une chanteuse, danseuse et resistante. Première femme noire entrée au Pantheon en 2021 pour son engagement contre le racisme et pour la France libre.',
+ 'Qui était Joséphine Baker ?',
+ 'Joséphine Baker (1906-1975), américaine devenue française, était une chanteuse, danseuse et résistante. Première femme noire entrée au Panthéon en 2021 pour son engagement contre le racisme et pour la France libre.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f4000001-0000-0000-0000-000000000029', 'Une chanteuse americano-française et resistante (au Pantheon)', TRUE, 0),
+(gen_random_uuid(), 'f4000001-0000-0000-0000-000000000029', 'Une chanteuse américano-française et résistante (au Panthéon)', TRUE, 0),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000029', 'Une scientifique', FALSE, 1),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000029', 'Une reine d''Angleterre', FALSE, 2),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-000000000029', 'Une politicienne contemporaine', FALSE, 3);
@@ -58,7 +58,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-00000000002a', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
  'Laquelle de ces personnes a été une chanteuse française célèbre ?',
- 'Plusieurs chanteuses françaises célèbres : Édith Piaf, Dalida, Mireille Mathieu, Barbara, Catherine Deneuve, Vanessa Paradis, Mylene Farmer, Patricia Kaas.',
+ 'Plusieurs chanteuses françaises célèbres : Édith Piaf, Dalida, Mireille Mathieu, Barbara, Catherine Deneuve, Vanessa Paradis, Mylène Farmer, Patricia Kaas.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000001-0000-0000-0000-00000000002a', 'Édith Piaf', TRUE, 0),
@@ -69,7 +69,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-00000000002b', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'CSP', 'CONNAISSANCE',
  'Qu''est-ce que le Louvre ?',
- 'Le Louvre est un musée situé à Paris, l''un des plus visités au monde. Il abrite des œuvres célèbres comme la Joconde de Leonard de Vinci ou la Venus de Milo.',
+ 'Le Louvre est un musée situé à Paris, l''un des plus visités au monde. Il abrite des œuvres célèbres comme la Joconde de Léonard de Vinci ou la Vénus de Milo.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000001-0000-0000-0000-00000000002b', 'Un musée parisien mondialement connu', TRUE, 0),
@@ -84,14 +84,14 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000001-0000-0000-0000-00000000002c', 'Un poète français du XVIIe siècle, auteur des Fables', TRUE, 0),
-(gen_random_uuid(), 'f4000001-0000-0000-0000-00000000002c', 'Un philosophe des Lumieres', FALSE, 1),
+(gen_random_uuid(), 'f4000001-0000-0000-0000-00000000002c', 'Un philosophe des Lumières', FALSE, 1),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-00000000002c', 'Un peintre baroque', FALSE, 2),
 (gen_random_uuid(), 'f4000001-0000-0000-0000-00000000002c', 'Un roi', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f4000001-0000-0000-0000-00000000002d', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', 'CR', 'CONNAISSANCE',
- 'Lequel de ces ecrivains est français ?',
- 'Parmi les grands ecrivains français : Victor Hugo, Émile Zola, Marcel Proust, Albert Camus, Simone de Beauvoir, Antoine de Saint-Exupery, Marguerite Duras.',
+ 'Lequel de ces écrivains est français ?',
+ 'Parmi les grands écrivains français : Victor Hugo, Émile Zola, Marcel Proust, Albert Camus, Simone de Beauvoir, Antoine de Saint-Exupéry, Marguerite Duras.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f4000001-0000-0000-0000-00000000002d', 'Victor Hugo', TRUE, 0),

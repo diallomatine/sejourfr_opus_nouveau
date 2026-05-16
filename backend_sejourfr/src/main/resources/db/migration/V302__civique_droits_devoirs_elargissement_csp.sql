@@ -2,8 +2,8 @@
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000001', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
- 'En France, peut-on être arrete sans motif précis ?',
- 'Non. Toute privation de liberté doit avoir un fondement légal. La police judiciaire ne peut placer en garde a vue qu''une personne soupconnee d''avoir commis ou tente une infraction.',
+ 'En France, peut-on être arrêté sans motif précis ?',
+ 'Non. Toute privation de liberté doit avoir un fondement légal. La police judiciaire ne peut placer en garde à vue qu''une personne soupçonnée d''avoir commis ou tenté une infraction.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000001', 'Non, il faut un motif légal', TRUE, 0),
@@ -13,8 +13,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000002', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
- 'Toute personne accusee d''une infraction peut-elle se taire devant la police ?',
- 'Oui. Le droit au silence est un droit fondamental. Une personne en garde a vue à le droit de ne faire aucune déclaration et d''attendre la presence d''un avocat.',
+ 'Toute personne accusée d''une infraction peut-elle se taire devant la police ?',
+ 'Oui. Le droit au silence est un droit fondamental. Une personne en garde à vue a le droit de ne faire aucune déclaration et d''attendre la présence d''un avocat.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000002', 'Oui, le droit au silence est garanti', TRUE, 0),
@@ -36,7 +36,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000004', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'Quel numéro d''urgence permet d''appeler le SAMU (urgences médicales) ?',
- 'Le 15 est le numéro du SAMU (service d''aide médicale urgente). Il est gratuit, accessible 24h/24, et joint un médecin regulateur.',
+ 'Le 15 est le numéro du SAMU (service d''aide médicale urgente). Il est gratuit, accessible 24h/24, et joint un médecin régulateur.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000004', 'Le 15', TRUE, 0),
@@ -47,7 +47,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000005', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'Quel numéro européen permet de joindre toutes les urgences en Europe ?',
- 'Le 112 est le numéro d''urgence européen unique, accessible gratuitement dans tous les pays de l''UE. Il peut être utilise pour la police, les pompiers ou le SAMU.',
+ 'Le 112 est le numéro d''urgence européen unique, accessible gratuitement dans tous les pays de l''UE. Il peut être utilisé pour la police, les pompiers ou le SAMU.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000005', 'Le 112', TRUE, 0),
@@ -58,7 +58,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000006', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'Quel est l''âge minimum pour conduire une voiture en France ?',
- 'L''âge minimum pour conduire une voiture (permis B) est de 18 ans. Une conduite accompagnée est possible des 15 ans, mais l''examen n''est passe qu''à partir de 17 ans dans certains cas.',
+ 'L''âge minimum pour conduire une voiture (permis B) est de 18 ans. Une conduite accompagnée est possible dès 15 ans, mais l''examen n''est passé qu''à partir de 17 ans dans certains cas.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000006', '18 ans (avec quelques exceptions)', TRUE, 0),
@@ -69,7 +69,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000007', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'Le port de la ceinture de sécurité est-il obligatoire en voiture ?',
- 'Oui. Le port de la ceinture est obligatoire pour tous les occupants du vehicule (avant et arrière). Ne pas la porter est une infraction passible d''amende.',
+ 'Oui. Le port de la ceinture est obligatoire pour tous les occupants du véhicule (avant et arrière). Ne pas la porter est une infraction passible d''amende.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000007', 'Oui, pour tous les passagers', TRUE, 0),
@@ -79,24 +79,24 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000008', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
- 'Conduire en état d''ivresse est-il un delit en France ?',
- 'Oui. Conduire avec un taux d''alcool supérieur à 0,5 g par litre de sang (0,2 g pour les jeunes conducteurs) est une infraction. Au-dela de 0,8 g, c''est un delit puni de prison.',
+ 'Conduire en état d''ivresse est-il un délit en France ?',
+ 'Oui. Conduire avec un taux d''alcool supérieur à 0,5 g par litre de sang (0,2 g pour les jeunes conducteurs) est une infraction. Au-delà de 0,8 g, c''est un délit puni de prison.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000008', 'Oui, c''est une infraction sanctionnee', TRUE, 0),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000008', 'Oui, c''est une infraction sanctionnée', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000008', 'Non, c''est libre', FALSE, 1),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000008', 'Uniquement la nuit', FALSE, 2),
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000008', 'Uniquement les jours feries', FALSE, 3);
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000008', 'Uniquement les jours fériés', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000009', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'L''enregistrement audio sans accord d''une personne est-il légal ?',
- 'Non, en général. Enregistrer une conversation privée sans le consentement des participants est interdit et puni penalement (article 226-1 du Code pénal).',
+ 'Non, en général. Enregistrer une conversation privée sans le consentement des participants est interdit et puni pénalement (article 226-1 du Code pénal).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000009', 'Non, c''est interdit sans consentement', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000009', 'Oui, sans condition', FALSE, 1),
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000009', 'Uniquement en presence d''un avocat', FALSE, 2),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000009', 'Uniquement en présence d''un avocat', FALSE, 2),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000009', 'Uniquement sur autoroute', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
@@ -105,7 +105,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
  'Non, en général. Toute personne a droit à son image. Diffuser ou utiliser l''image de quelqu''un sans son accord est une atteinte à la vie privée, punie par la loi.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000a', 'Non, le droit à l''image protege chacun', TRUE, 0),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000a', 'Non, le droit à l''image protège chacun', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000a', 'Oui, sans condition', FALSE, 1),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000a', 'Oui, dans la rue uniquement', FALSE, 2),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000a', 'Oui, si la personne est connue', FALSE, 3);
@@ -113,10 +113,10 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-00000000000b', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'Voler quelque chose dans un magasin est-il une infraction ?',
- 'Oui. Le vol est un delit (article 311-1 du Code pénal), puni de jusqu''à 3 ans de prison et 45 000 EUR d''amende, plus selon les circonstances (vol avec violence, en bande, etc.).',
+ 'Oui. Le vol est un délit (article 311-1 du Code pénal), puni de jusqu''à 3 ans de prison et 45 000 EUR d''amende, plus selon les circonstances (vol avec violence, en bande, etc.).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000b', 'Oui, c''est un delit puni penalement', TRUE, 0),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000b', 'Oui, c''est un délit puni pénalement', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000b', 'Non, c''est gratuit en cas d''oubli', FALSE, 1),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000b', 'Uniquement pour des sommes supérieures à 100 EUR', FALSE, 2),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000b', 'Uniquement la nuit', FALSE, 3);
@@ -124,10 +124,10 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-00000000000c', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'Frapper quelqu''un dans la rue est-il une infraction en France ?',
- 'Oui. Les violences volontaires sont des delits punis par la loi (de l''amende a plusieurs années de prison selon les blessures). Ne pas avoir blesse n''exonere pas de sanction.',
+ 'Oui. Les violences volontaires sont des délits punis par la loi (de l''amende à plusieurs années de prison selon les blessures). Ne pas avoir blessé n''exonère pas de sanction.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000c', 'Oui, les violences volontaires sont sanctionnees', TRUE, 0),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000c', 'Oui, les violences volontaires sont sanctionnées', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000c', 'Non, c''est libre', FALSE, 1),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000c', 'Uniquement en cas de blessures', FALSE, 2),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000c', 'Uniquement entre adultes', FALSE, 3);
@@ -146,7 +146,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-00000000000e', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'La consommation de drogues comme le cannabis est-elle légale en France ?',
- 'Non. La consommation, la détention et le trafic de stupefiants (cannabis inclus) sont interdités et punis par la loi.',
+ 'Non. La consommation, la détention et le trafic de stupéfiants (cannabis inclus) sont interdits et punis par la loi.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000e', 'Non, c''est interdit et puni', TRUE, 0),
@@ -157,7 +157,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-00000000000f', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'L''achat et la consommation d''alcool sont-ils interdits aux mineurs ?',
- 'Oui. La vente d''alcool aux mineurs (moins de 18 ans) est interditée et punie par la loi. Les commerçants peuvent demander une piece d''identité.',
+ 'Oui. La vente d''alcool aux mineurs (moins de 18 ans) est interdite et punie par la loi. Les commerçants peuvent demander une pièce d''identité.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000000f', 'Oui, interdit aux moins de 18 ans', TRUE, 0),
@@ -168,12 +168,12 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000010', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'Que faut-il faire en cas de cambriolage ?',
- 'Il faut prevenir immediatement la police (17) ou la gendarmerie, et déposer plainte au commissariat. Ne rien toucher avant l''arrivée des enquêteurs.',
+ 'Il faut prévenir immédiatement la police (17) ou la gendarmerie, et déposer plainte au commissariat. Ne rien toucher avant l''arrivée des enquêteurs.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000010', 'Appeler la police (17) et déposer plainte', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000010', 'Ranger soi-même la maison', FALSE, 1),
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000010', 'Rien dire a personne', FALSE, 2),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000010', 'Rien dire à personne', FALSE, 2),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000010', 'Affronter le cambrioleur seul', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
@@ -190,18 +190,18 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000012', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'Un parent peut-il frapper son enfant en France ?',
- 'Non. La loi de 2019 a inscrit dans le Code civil l''interdiction des violences éducatives ordinaires (chatiments corporels et humiliations).',
+ 'Non. La loi de 2019 a inscrit dans le Code civil l''interdiction des violences éducatives ordinaires (châtiments corporels et humiliations).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000012', 'Non, les violences éducatives sont interditées', TRUE, 0),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000012', 'Non, les violences éducatives sont interdites', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000012', 'Oui, sans condition', FALSE, 1),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000012', 'Uniquement la mère', FALSE, 2),
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000012', 'Uniquement les jours feries', FALSE, 3);
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000012', 'Uniquement les jours fériés', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000013', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
- 'Doit-on payer ses impots en France ?',
- 'Oui. Payer ses impots est une obligation civique. C''est inscrit dans la Déclaration de 1789 (article 13) : la contribution commune est indispensable au fonctionnement de l''État.',
+ 'Doit-on payer ses impôts en France ?',
+ 'Oui. Payer ses impôts est une obligation civique. C''est inscrit dans la Déclaration de 1789 (article 13) : la contribution commune est indispensable au fonctionnement de l''État.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000013', 'Oui, c''est un devoir civique', TRUE, 0),
@@ -212,7 +212,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000014', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'La protection des enfants est-elle un devoir en France ?',
- 'Oui. Tous les adultes ont l''obligation de proteger les enfants et de signaler toute situation de maltraitance. Le numéro 119 est dedie à l''enfance en danger.',
+ 'Oui. Tous les adultes ont l''obligation de protéger les enfants et de signaler toute situation de maltraitance. Le numéro 119 est dédié à l''enfance en danger.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000014', 'Oui, et le 119 permet de signaler', TRUE, 0),
@@ -223,7 +223,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000015', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'Que doit-on faire si on connait un enfant en danger ?',
- 'Il faut le signaler immediatement. On peut appeler le 119 (enfance en danger), contacter une assistante sociale ou la police. Le silence peut être puni.',
+ 'Il faut le signaler immédiatement. On peut appeler le 119 (enfance en danger), contacter une assistante sociale ou la police. Le silence peut être puni.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000015', 'Le signaler (119, services sociaux, police)', TRUE, 0),
@@ -234,13 +234,13 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000016', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'Une personne malade a-t-elle droit à la sécurité sociale ?',
- 'Oui. Toute personne résidant régulièrement en France a droit à la protection maladie universelle (PUMA), qui rembourse une partie des frais de sante.',
+ 'Oui. Toute personne résidant régulièrement en France a droit à la protection maladie universelle (PUMA), qui rembourse une partie des frais de santé.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000016', 'Oui, via la Sécurité sociale (PUMA)', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000016', 'Non, jamais', FALSE, 1),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000016', 'Uniquement les Français', FALSE, 2),
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000016', 'Uniquement les retraites', FALSE, 3);
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000016', 'Uniquement les retraités', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000017', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
@@ -256,7 +256,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000018', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'L''école publique est-elle payante en France ?',
- 'Non. L''école publique est gratuite. La gratuite a été instaurée en 1881 par les lois Jules Ferry.',
+ 'Non. L''école publique est gratuite. La gratuité a été instaurée en 1881 par les lois Jules Ferry.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000018', 'Non, elle est gratuite (depuis 1881)', TRUE, 0),
@@ -277,8 +277,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-00000000001a', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
- 'Le travail au noir (non declare) est-il légal en France ?',
- 'Non. Le travail dissimule (sans déclaration ni cotisations) est interdit et puni par la loi, autant pour l''employeur que pour le salarié. Cela privé aussi de droits sociaux.',
+ 'Le travail au noir (non déclaré) est-il légal en France ?',
+ 'Non. Le travail dissimulé (sans déclaration ni cotisations) est interdit et puni par la loi, autant pour l''employeur que pour le salarié. Cela prive aussi de droits sociaux.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000001a', 'Non, c''est interdit et puni', TRUE, 0),
@@ -289,7 +289,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-00000000001b', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'Combien d''heures peut-on travailler maximum par semaine en France ?',
- 'La durée légale du travail est de 35 heures par semaine. Au-dela, ce sont des heures supplementaires (majorees). Le plafond absolu est de 48 heures hebdomadaires.',
+ 'La durée légale du travail est de 35 heures par semaine. Au-delà, ce sont des heures supplémentaires (majorées). Le plafond absolu est de 48 heures hebdomadaires.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000001b', '35 heures légales, 48 heures maximum absolu', TRUE, 0),
@@ -299,14 +299,14 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-00000000001c', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
- 'Combien de semaines de congés payes annuels minimum à un salarié à temps plein ?',
- 'Tout salarié a droit à 5 semaines (25 jours ouvres) de congés payes par an, en France, pour une année complète de travail.',
+ 'Combien de semaines de congés payés annuels minimum a un salarié à temps plein ?',
+ 'Tout salarié a droit à 5 semaines (25 jours ouvrés) de congés payés par an, en France, pour une année complète de travail.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000001c', '5 semaines (25 jours ouvres)', TRUE, 0),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000001c', '5 semaines (25 jours ouvrés)', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000001c', '2 semaines', FALSE, 1),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000001c', '10 semaines', FALSE, 2),
-(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000001c', 'Aucun conge légal', FALSE, 3);
+(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000001c', 'Aucun congé légal', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-00000000001d', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
@@ -333,24 +333,24 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-00000000001f', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'Doit-on dire la vérité quand on est témoin devant la justice ?',
- 'Oui. Le faux témoignage devant une juridiction est un delit puni par la loi. Tout témoin doit dire la vérité sous serment.',
+ 'Oui. Le faux témoignage devant une juridiction est un délit puni par la loi. Tout témoin doit dire la vérité sous serment.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000001f', 'Oui, le faux témoignage est puni', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000001f', 'Non, on peut mentir', FALSE, 1),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000001f', 'Uniquement les adultes doivent dire vrai', FALSE, 2),
-(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000001f', 'Uniquement les ecrits sont obligatoires', FALSE, 3);
+(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000001f', 'Uniquement les écrits sont obligatoires', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000020', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
- 'Comment appelle-t-on l''obligation de ne pas reveler ce qu''on apprend dans son métier (médecin, avocat, pretre) ?',
- 'Le secret professionnel impose a certaines professions de ne pas reveler les informations confidentielles obtenues dans l''exercice de leur métier. Le violer est un delit.',
+ 'Comment appelle-t-on l''obligation de ne pas révéler ce qu''on apprend dans son métier (médecin, avocat, prêtre) ?',
+ 'Le secret professionnel impose à certaines professions de ne pas révéler les informations confidentielles obtenues dans l''exercice de leur métier. Le violer est un délit.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000020', 'Le secret professionnel', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000020', 'Le silence administratif', FALSE, 1),
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000020', 'Le serment d''allegeance', FALSE, 2),
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000020', 'La discretion volontaire', FALSE, 3);
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000020', 'Le serment d''allégeance', FALSE, 2),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000020', 'La discrétion volontaire', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000021', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
@@ -365,8 +365,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000022', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
- 'Quel droit fondamental garantit la liberté de se deplacer en France ?',
- 'La liberté d''aller et venir est un droit fondamental. Elle permet a chacun de circuler librement sur le territoire, sauf restrictions légales (zone interdite, ordre judiciaire).',
+ 'Quel droit fondamental garantit la liberté de se déplacer en France ?',
+ 'La liberté d''aller et venir est un droit fondamental. Elle permet à chacun de circuler librement sur le territoire, sauf restrictions légales (zone interdite, ordre judiciaire).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000022', 'La liberté d''aller et venir', TRUE, 0),
@@ -376,8 +376,8 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000023', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
- 'Une victime peut-elle demander reparation à l''auteur d''une infraction ?',
- 'Oui. La victime peut se constituer partie civile lors du procès pénal pour obtenir des dommages et intérêts, ou engager une procedure civile parallele.',
+ 'Une victime peut-elle demander réparation à l''auteur d''une infraction ?',
+ 'Oui. La victime peut se constituer partie civile lors du procès pénal pour obtenir des dommages et intérêts, ou engager une procédure civile parallèle.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000023', 'Oui, en se constituant partie civile', TRUE, 0),
@@ -388,29 +388,29 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000024', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'L''esclavage est-il interdit en France ?',
- 'Oui. L''esclavage a été definitivement aboli en 1848. Tout traitement assimile (servitude, travail force) est aujourd''hui un crime puni penalement.',
+ 'Oui. L''esclavage a été définitivement aboli en 1848. Tout traitement assimilé (servitude, travail forcé) est aujourd''hui un crime puni pénalement.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000024', 'Oui, aboli en 1848 et puni en tant que crime', TRUE, 0),
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000024', 'Non, encore tolere parfois', FALSE, 1),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000024', 'Non, encore toléré parfois', FALSE, 1),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000024', 'Uniquement entre adultes', FALSE, 2),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000024', 'Uniquement dans certains métiers', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000025', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'Un agent public peut-il accepter de l''argent pour rendre un service ?',
- 'Non. Accepter de l''argent ou un avantage pour rendre un service public est de la corruption, un delit grave puni par la loi.',
+ 'Non. Accepter de l''argent ou un avantage pour rendre un service public est de la corruption, un délit grave puni par la loi.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000025', 'Non, c''est de la corruption, un delit grave', TRUE, 0),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000025', 'Non, c''est de la corruption, un délit grave', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000025', 'Oui, c''est une coutume', FALSE, 1),
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000025', 'Uniquement sur les marches', FALSE, 2),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000025', 'Uniquement sur les marchés', FALSE, 2),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000025', 'Uniquement le dimanche', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000026', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
- 'Doit-on respecter les consignes de tri des dechets ?',
- 'Oui. Le tri selectif est obligatoire dans la plupart des communes. Ne pas respecter le tri ou déposer des dechets hors des bacs prévus est une infraction passible d''amende.',
+ 'Doit-on respecter les consignes de tri des déchets ?',
+ 'Oui. Le tri sélectif est obligatoire dans la plupart des communes. Ne pas respecter le tri ou déposer des déchets hors des bacs prévus est une infraction passible d''amende.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000026', 'Oui, c''est une obligation civique et légale', TRUE, 0),
@@ -421,7 +421,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000027', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'Quel est le numéro national d''aide aux femmes victimes de violences ?',
- 'Le 3919 est le numéro national d''ecoute pour les femmes victimes de violences (conjugales, sexuelles, harcelement). C''est gratuit et confidentiel.',
+ 'Le 3919 est le numéro national d''écoute pour les femmes victimes de violences (conjugales, sexuelles, harcèlement). C''est gratuit et confidentiel.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000027', 'Le 3919', TRUE, 0),
@@ -432,21 +432,21 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000028', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'CONNAISSANCE',
  'Le racisme est-il puni par la loi française ?',
- 'Oui. Les actes et propos racistes (injures, discriminations, provocation à la haine) sont des delits punis par la loi (loi du 29 juillet 1881 sur la liberté de la presse).',
+ 'Oui. Les actes et propos racistes (injures, discriminations, provocation à la haine) sont des délits punis par la loi (loi du 29 juillet 1881 sur la liberté de la presse).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000028', 'Oui, c''est un delit puni par la loi', TRUE, 0),
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000028', 'Non, c''est une opinion protegée', FALSE, 1),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000028', 'Oui, c''est un délit puni par la loi', TRUE, 0),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000028', 'Non, c''est une opinion protégée', FALSE, 1),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000028', 'Uniquement en public', FALSE, 2),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000028', 'Uniquement sur internet', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000029', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'MISE_SITUATION',
  'Je vois quelqu''un en train de voler dans un magasin. Que faire ?',
- 'Vous pouvez prevenir le personnel du magasin ou la police (17). Ne tentez pas d''intervenir physiquement vous-même : c''est dangereux et l''intervention revient aux professionnels.',
+ 'Vous pouvez prévenir le personnel du magasin ou la police (17). Ne tentez pas d''intervenir physiquement vous-même : c''est dangereux et l''intervention revient aux professionnels.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000029', 'Prevenir le personnel ou appeler la police', TRUE, 0),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000029', 'Prévenir le personnel ou appeler la police', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000029', 'Voler aussi', FALSE, 1),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000029', 'Filmer pour les réseaux sociaux', FALSE, 2),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000029', 'Rester sans rien faire', FALSE, 3);
@@ -454,7 +454,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-00000000002a', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'MISE_SITUATION',
  'Je suis témoin d''un accident de la route. Que dois-je faire ?',
- 'Sécuriser la zone, appeler les secours (112, 15, 18), porter assistance dans la limite de ses capacités et attendre les autorités. Ne pas deplacer les victimes sauf danger imminent.',
+ 'Sécuriser la zone, appeler les secours (112, 15, 18), porter assistance dans la limite de ses capacités et attendre les autorités. Ne pas déplacer les victimes sauf danger imminent.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002a', 'Sécuriser, appeler les secours, porter assistance', TRUE, 0),
@@ -465,7 +465,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-00000000002b', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'MISE_SITUATION',
  'Mon voisin fait du bruit toute la nuit. Quel recours ?',
- 'On peut d''abord essayer le dialogue. Sinon : prevenir la mairie ou la police, demander un constat par huissier en cas de nuisances repetees, ou saisir le tribunal.',
+ 'On peut d''abord essayer le dialogue. Sinon : prévenir la mairie ou la police, demander un constat par huissier en cas de nuisances répétées, ou saisir le tribunal.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002b', 'Dialogue, mairie/police, voire huissier ou tribunal', TRUE, 0),
@@ -476,29 +476,29 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-00000000002c', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'MISE_SITUATION',
  'Un inconnu prend des photos de mes enfants dans un parc. Que faire ?',
- 'Demandez-lui de cesser et de supprimer les photos. Si refus, prevenez la police : la prise de vue et la diffusion d''images de mineurs sans accord parental sont penalement sanctionnees.',
+ 'Demandez-lui de cesser et de supprimer les photos. Si refus, prévenez la police : la prise de vue et la diffusion d''images de mineurs sans accord parental sont pénalement sanctionnées.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002c', 'Demander l''arret et prevenir la police', TRUE, 0),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002c', 'Demander l''arrêt et prévenir la police', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002c', 'Sourire et l''encourager', FALSE, 1),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002c', 'Le frapper', FALSE, 2),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002c', 'Lui demander un tirage gratuit', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-00000000002d', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'MISE_SITUATION',
- 'Je suis contrôle par un policier. Quels droits dois-je connaitre ?',
- 'Vous devez presenter une piece d''identité si demandee. Vous avez le droit de demander la raison du contrôle, d''être traité avec respect, et de ne pas être fouille sans cadre légal.',
+ 'Je suis contrôlé par un policier. Quels droits dois-je connaître ?',
+ 'Vous devez présenter une pièce d''identité si demandée. Vous avez le droit de demander la raison du contrôle, d''être traité avec respect, et de ne pas être fouillé sans cadre légal.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002d', 'Presenter une piece d''identité, demander le motif, être traité avec respect', TRUE, 0),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002d', 'Présenter une pièce d''identité, demander le motif, être traité avec respect', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002d', 'Refuser tout dialogue', FALSE, 1),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002d', 'Frapper le policier', FALSE, 2),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002d', 'Mentir sur mon identité', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-00000000002e', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'MISE_SITUATION',
- 'Je decouvre qu''un colis livre n''est pas le mien et contient de l''argent. Que faire ?',
- 'Il faut le remettre au transporteur, à la police ou à la mairie. Garder un objet qui ne vous appartient pas est un delit (recel ou abus de confiance).',
+ 'Je découvre qu''un colis livré n''est pas le mien et contient de l''argent. Que faire ?',
+ 'Il faut le remettre au transporteur, à la police ou à la mairie. Garder un objet qui ne vous appartient pas est un délit (recel ou abus de confiance).',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002e', 'Le remettre à la police, au transporteur ou à la mairie', TRUE, 0),
@@ -508,19 +508,19 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-00000000002f', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'MISE_SITUATION',
- 'Mon employeur me demande de travailler le dimanche sans paye supplementaire. Est-ce légal ?',
- 'Le travail dominical est encadré. Selon la convention collective, il peut donner droit à une majoration salariale ou un repos compensateur. Refuser le paiement majore peut être conteste aux prud''hommes.',
+ 'Mon employeur me demande de travailler le dimanche sans paie supplémentaire. Est-ce légal ?',
+ 'Le travail dominical est encadré. Selon la convention collective, il peut donner droit à une majoration salariale ou un repos compensateur. Refuser le paiement majoré peut être contesté aux prud''hommes.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002f', 'C''est encadré par la loi et la convention collective ; saisir les prud''hommes au besoin', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002f', 'Accepter sans discussion', FALSE, 1),
-(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002f', 'Demissionner immediatement', FALSE, 2),
-(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002f', 'Faire greve seul', FALSE, 3);
+(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002f', 'Démissionner immédiatement', FALSE, 2),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-00000000002f', 'Faire grève seul', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000030', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'MISE_SITUATION',
  'Je veux divorcer mais mon conjoint refuse. Est-ce possible ?',
- 'Oui. Même sans le consentement de l''autre conjoint, le divorce reste possible : divorce pour faute, divorce pour alteration definitive du lien conjugal (après 1 an de separation), divorce pour acceptation.',
+ 'Oui. Même sans le consentement de l''autre conjoint, le divorce reste possible : divorce pour faute, divorce pour altération définitive du lien conjugal (après 1 an de séparation), divorce pour acceptation.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000030', 'Oui, plusieurs formes de divorce existent même sans accord', TRUE, 0),
@@ -531,21 +531,21 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000031', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'MISE_SITUATION',
  'Un voisin me menace verbalement et physiquement. Que faire ?',
- 'Notez les faits par ecrit avec dates et heures. Allez déposer plainte au commissariat ou en gendarmerie. Si besoin urgent, appelez le 17.',
+ 'Notez les faits par écrit avec dates et heures. Allez déposer plainte au commissariat ou en gendarmerie. Si besoin urgent, appelez le 17.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000031', 'Noter les faits et déposer plainte', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000031', 'Rendre les coups en retour', FALSE, 1),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000031', 'Faire comme si de rien n''était', FALSE, 2),
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000031', 'Demenager immediatement', FALSE, 3);
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000031', 'Déménager immédiatement', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f3000002-0000-0000-0000-000000000032', 'CIVIQUE', '11111111-0000-0000-0000-000000000003', 'CSP', 'MISE_SITUATION',
  'Je suis témoin d''un acte raciste dans la rue. Quel comportement adopter ?',
- 'On peut soutenir la victime, appeler la police (17), recueillir des témoignages. Les actes racistes sont des delits que la loi punit severement.',
+ 'On peut soutenir la victime, appeler la police (17), recueillir des témoignages. Les actes racistes sont des délits que la loi punit sévèrement.',
  FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000032', 'Soutenir la victime, prevenir la police', TRUE, 0),
+(gen_random_uuid(), 'f3000002-0000-0000-0000-000000000032', 'Soutenir la victime, prévenir la police', TRUE, 0),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000032', 'Encourager le raciste', FALSE, 1),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000032', 'Faire de même', FALSE, 2),
 (gen_random_uuid(), 'f3000002-0000-0000-0000-000000000032', 'Filmer pour rire', FALSE, 3);

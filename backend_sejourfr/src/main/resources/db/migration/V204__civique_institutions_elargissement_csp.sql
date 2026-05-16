@@ -50,22 +50,22 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000005', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
  'Le président de la République peut-il être réélu pour un nouveau mandat ?',
- 'Oui, mais il ne peut exercer plus de deux mandats consecutifs depuis la révision constitutionnelle de 2008.', FALSE);
+ 'Oui, mais il ne peut exercer plus de deux mandats consécutifs depuis la révision constitutionnelle de 2008.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000005', 'Oui, mais deux mandats consecutifs au maximum', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000005', 'Oui, mais deux mandats consécutifs au maximum', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000005', 'Non, jamais', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000005', 'Oui, sans aucune limite', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000005', 'Oui, mais une seule fois sur toute la vie', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000006', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
- 'Qui est le chef des armees françaises ?',
- 'Le président de la République est le chef des armees. Il preside les conseils et comites supérieurs de la défense nationale (article 15 de la Constitution).', FALSE);
+ 'Qui est le chef des armées françaises ?',
+ 'Le président de la République est le chef des armées. Il préside les conseils et comités supérieurs de la défense nationale (article 15 de la Constitution).', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000006', 'Le président de la République', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000006', 'Le ministre de la Défense', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000006', 'Le Premier ministre', FALSE, 2),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000006', 'Le général le plus âge', FALSE, 3);
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000006', 'Le général le plus âgé', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000007', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
@@ -80,7 +80,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000008', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
  'Le président représente-t-il la France à l''étranger ?',
- 'Oui. Le président de la République représente la France lors des deplacements officiels à l''étranger, des sommets internationaux et des rencontres avec les autres chefs d''État.', FALSE);
+ 'Oui. Le président de la République représente la France lors des déplacements officiels à l''étranger, des sommets internationaux et des rencontres avec les autres chefs d''État.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000008', 'Oui, c''est l''une de ses fonctions', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000008', 'Non, ce rôle revient au maire de Paris', FALSE, 1),
@@ -100,7 +100,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000000a', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
  'Que désigne le Conseil des ministres ?',
- 'Le Conseil des ministres est la réunion hebdomadaire du président, du Premier ministre et des ministres, en général le mercredi matin à l''Élysée. C''est la qu''on prend les décisions politiques importantes.', FALSE);
+ 'Le Conseil des ministres est la réunion hebdomadaire du président, du Premier ministre et des ministres, en général le mercredi matin à l''Élysée. C''est là qu''on prend les décisions politiques importantes.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000000a', 'La réunion hebdomadaire du président et des ministres', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000000a', 'Un tribunal spécial', FALSE, 1),
@@ -110,9 +110,9 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000000b', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
  'Que fait un ministre dans le gouvernement ?',
- 'Chaque ministre dirige un domaine particulier (éducation, justice, sante, économie, etc.). Il propose et applique les politiques publiques de son secteur.', FALSE);
+ 'Chaque ministre dirige un domaine particulier (éducation, justice, santé, économie, etc.). Il propose et applique les politiques publiques de son secteur.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000000b', 'Il dirige un domaine d''action publique (sante, éducation...)', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000000b', 'Il dirige un domaine d''action publique (santé, éducation...)', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000000b', 'Il juge les criminels', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000000b', 'Il vote les lois directement', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000000b', 'Il dirige une mairie', FALSE, 3);
@@ -120,9 +120,9 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000000c', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
  'Le président peut-il renvoyer le Premier ministre ?',
- 'Oui. Le président peut mettre fin aux fonctions du Premier ministre sur la presentation par celui-ci de la demission du gouvernement (article 8 de la Constitution).', FALSE);
+ 'Oui. Le président peut mettre fin aux fonctions du Premier ministre sur la présentation par celui-ci de la démission du gouvernement (article 8 de la Constitution).', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000000c', 'Oui, lorsque le Premier ministre presente la demission du gouvernement', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000000c', 'Oui, lorsque le Premier ministre présente la démission du gouvernement', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000000c', 'Non, jamais', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000000c', 'Oui, avec accord du pape', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000000c', 'Uniquement en cas de guerre', FALSE, 3);
@@ -140,7 +140,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000000e', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
  'Le président peut-il dissoudre l''Assemblée nationale ?',
- 'Oui. Le président de la République peut dissoudre l''Assemblée nationale, ce qui declenche de nouvelles élections législatives. Cette décision est prévue à l''article 12 de la Constitution.', FALSE);
+ 'Oui. Le président de la République peut dissoudre l''Assemblée nationale, ce qui déclenche de nouvelles élections législatives. Cette décision est prévue à l''article 12 de la Constitution.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000000e', 'Oui, en provoquant de nouvelles élections législatives', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000000e', 'Non, jamais', FALSE, 1),
@@ -161,7 +161,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 -- ----------------------------------------------------------------------------
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000010', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
- 'Ou siègent les députés français ?',
+ 'Où siègent les députés français ?',
  'Les députés siègent au Palais Bourbon, à Paris, qui est le lieu de réunion de l''Assemblée nationale.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000010', 'Au Palais Bourbon (Assemblée nationale)', TRUE, 0),
@@ -171,7 +171,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000011', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
- 'Ou siègent les sénateurs français ?',
+ 'Où siègent les sénateurs français ?',
  'Les sénateurs siègent au palais du Luxembourg, situé à Paris dans le 6e arrondissement. C''est le lieu de réunion du Sénat.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000011', 'Au palais du Luxembourg', TRUE, 0),
@@ -182,17 +182,17 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000012', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
  'Une loi votée par le Parlement s''applique-t-elle à toute la France ?',
- 'Oui. Une loi votée par le Parlement et promulguee par le président s''applique sur tout le territoire national, sauf disposition spécifique pour l''outre-mer.', FALSE);
+ 'Oui. Une loi votée par le Parlement et promulguée par le président s''applique sur tout le territoire national, sauf disposition spécifique pour l''outre-mer.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000012', 'Oui, sur tout le territoire national', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000012', 'Non, uniquement à Paris', FALSE, 1),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000012', 'Uniquement dans la commune ou elle est votée', FALSE, 2),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000012', 'Uniquement dans la commune où elle est votée', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000012', 'Uniquement la première année', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000013', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
  'Que vote le Parlement en plus des lois ?',
- 'Le Parlement vote également le budget de l''État (loi de finances) chaque année. Il fixe les recettes (impots) et les depenses publiques.', FALSE);
+ 'Le Parlement vote également le budget de l''État (loi de finances) chaque année. Il fixe les recettes (impôts) et les dépenses publiques.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000013', 'Le budget annuel de l''État', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000013', 'Les émissions de télévision', FALSE, 1),
@@ -204,10 +204,10 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
  'Les députés représentent-ils les habitants de leur région uniquement ?',
  'Les députés représentent toute la nation, pas seulement leur circonscription. Cependant, ils sont élus dans une circonscription locale et y conservent un ancrage de terrain.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000014', 'Ils représentent la nation entiere', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000014', 'Ils représentent la nation entière', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000014', 'Uniquement leur commune', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000014', 'Uniquement leur famille', FALSE, 2),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000014', 'Uniquement les électeurs ayant vote pour eux', FALSE, 3);
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000014', 'Uniquement les électeurs ayant voté pour eux', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000015', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
@@ -216,13 +216,13 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000015', 'Oui, lors des séances de questions au gouvernement', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000015', 'Non, le silence est obligatoire', FALSE, 1),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000015', 'Uniquement par ecrit pendant la nuit', FALSE, 2),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000015', 'Uniquement par écrit pendant la nuit', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000015', 'Uniquement avec autorisation du président', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000016', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
  'Un citoyen peut-il visiter l''Assemblée nationale ?',
- 'Oui. L''Assemblée nationale (Palais Bourbon) et le Sénat (palais du Luxembourg) sont ouverts au public lors de visites organisées, notamment pendant les Journees du patrimoine.', FALSE);
+ 'Oui. L''Assemblée nationale (Palais Bourbon) et le Sénat (palais du Luxembourg) sont ouverts au public lors de visites organisées, notamment pendant les Journées du patrimoine.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000016', 'Oui, lors des visites organisées', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000016', 'Non, l''accès est interdit à tous', FALSE, 1),
@@ -236,7 +236,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000017', 'Oui, au même titre que l''Assemblée nationale', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000017', 'Non, c''est interdit', FALSE, 1),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000017', 'Uniquement sur la fiscalite', FALSE, 2),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000017', 'Uniquement sur la fiscalité', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000017', 'Uniquement avec autorisation du Pape', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
@@ -252,7 +252,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000019', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
  'L''Assemblée nationale peut-elle renverser le gouvernement ?',
- 'Oui. L''Assemblée nationale peut voter une motion de censure pour forcer la demission du gouvernement. C''est l''un des contrôles du Parlement sur l''exécutif.', FALSE);
+ 'Oui. L''Assemblée nationale peut voter une motion de censure pour forcer la démission du gouvernement. C''est l''un des contrôles du Parlement sur l''exécutif.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000019', 'Oui, par une motion de censure', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000019', 'Non, jamais', FALSE, 1),
@@ -263,18 +263,18 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 -- ----------------------------------------------------------------------------
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000001a', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
- 'Une personne accusee d''un delit a-t-elle le droit à un avocat ?',
- 'Oui. Toute personne mise en cause à le droit d''être defendue par un avocat. Si elle n''a pas les moyens, elle peut bénéficier de l''aide juridictionnelle (avocat aux frais de l''État).', FALSE);
+ 'Une personne accusée d''un délit a-t-elle le droit à un avocat ?',
+ 'Oui. Toute personne mise en cause a le droit d''être défendue par un avocat. Si elle n''a pas les moyens, elle peut bénéficier de l''aide juridictionnelle (avocat aux frais de l''État).', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000001a', 'Oui, et l''aide juridictionnelle existe pour les plus modestes', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000001a', 'Non, jamais', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000001a', 'Uniquement les hommes y ont droit', FALSE, 2),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000001a', 'Uniquement si le delit est leger', FALSE, 3);
+(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000001a', 'Uniquement si le délit est léger', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000001b', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
- 'Toute personne accusee est-elle considerée comme coupable avant son jugement ?',
- 'Non. La présomption d''innocence est un principe fondamental : toute personne est considerée comme innocente tant qu''elle n''a pas été jugée coupable.', FALSE);
+ 'Toute personne accusée est-elle considérée comme coupable avant son jugement ?',
+ 'Non. La présomption d''innocence est un principe fondamental : toute personne est considérée comme innocente tant qu''elle n''a pas été jugée coupable.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000001b', 'Non, elle bénéficie de la présomption d''innocence', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000001b', 'Oui, automatiquement', FALSE, 1),
@@ -284,7 +284,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000001c', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
  'Que fait la police nationale ?',
- 'La police nationale est chargée de maintenir l''ordre public, prevenir et constater les infractions, proteger les personnes et les biens. Elle agit dans les communes urbaines.', FALSE);
+ 'La police nationale est chargée de maintenir l''ordre public, prévenir et constater les infractions, protéger les personnes et les biens. Elle agit dans les communes urbaines.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000001c', 'Elle assure la sécurité et constate les infractions', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000001c', 'Elle vote les lois', FALSE, 1),
@@ -304,7 +304,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000001e', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
  'Quel numéro permet de joindre la police en France (hors numéro européen) ?',
- 'En France, le 17 est le numéro d''urgence dedie à la police et à la gendarmerie. Il est gratuit et accessible 24h/24.', FALSE);
+ 'En France, le 17 est le numéro d''urgence dédié à la police et à la gendarmerie. Il est gratuit et accessible 24h/24.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000001e', 'Le 17', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000001e', 'Le 15', FALSE, 1),
@@ -313,28 +313,28 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000001f', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
- 'Comment s''appelle l''argent que l''État collecte aupres des citoyens et entreprises ?',
- 'L''argent que l''État collecte est appelé "impots". Les impots financent les services publics (écoles, hôpitaux, police, routes...).', FALSE);
+ 'Comment s''appelle l''argent que l''État collecte auprès des citoyens et entreprises ?',
+ 'L''argent que l''État collecte est appelé "impôts". Les impôts financent les services publics (écoles, hôpitaux, police, routes...).', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000001f', 'Les impots', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000001f', 'Les impôts', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000001f', 'Les dons', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000001f', 'Les héritages', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000001f', 'Les pourboires', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000020', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
- 'Tout le monde paie-t-il des impots en France ?',
- 'Toute personne qui consomme paie au moins la TVA (incluse dans les prix). En revanche, l''impot sur le revenu n''est paye que par les personnes dont les revenus depassent un certain seuil.', FALSE);
+ 'Tout le monde paie-t-il des impôts en France ?',
+ 'Toute personne qui consomme paie au moins la TVA (incluse dans les prix). En revanche, l''impôt sur le revenu n''est payé que par les personnes dont les revenus dépassent un certain seuil.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000020', 'Tous paient au moins la TVA, mais pas l''impot sur le revenu', TRUE, 0),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000020', 'Personne ne paie d''impot', FALSE, 1),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000020', 'Tous paient au moins la TVA, mais pas l''impôt sur le revenu', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000020', 'Personne ne paie d''impôt', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000020', 'Uniquement les chefs d''entreprise', FALSE, 2),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000020', 'Uniquement les retraites', FALSE, 3);
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000020', 'Uniquement les retraités', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000021', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
- 'Comment appelle-t-on les batiments ou se reunissent les conseillers municipaux ?',
- 'Les conseils municipaux se reunissent dans la mairie (ou hôtel de ville pour les grandes communes), siège officiel de la commune.', FALSE);
+ 'Comment appelle-t-on les bâtiments où se réunissent les conseillers municipaux ?',
+ 'Les conseils municipaux se réunissent dans la mairie (ou hôtel de ville pour les grandes communes), siège officiel de la commune.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000021', 'La mairie (ou hôtel de ville)', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000021', 'La cathédrale', FALSE, 1),
@@ -344,29 +344,29 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000022', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
  'Le maire peut-il célébrer un mariage civil ?',
- 'Oui. Le maire (ou un adjoint au maire) est officier d''état civil. Il célèbre les mariages civils à la mairie, en presence des futurs epoux et de leurs témoins.', FALSE);
+ 'Oui. Le maire (ou un adjoint au maire) est officier d''état civil. Il célèbre les mariages civils à la mairie, en présence des futurs époux et de leurs témoins.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000022', 'Oui, c''est l''une de ses fonctions d''état civil', TRUE, 0),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000022', 'Non, seul un pretre peut le faire', FALSE, 1),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000022', 'Non, seul un prêtre peut le faire', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000022', 'Non, c''est le préfet', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000022', 'Uniquement les couples français', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000023', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
- 'Si une commune à 5 000 habitants, combien aura-t-elle de maires ?',
- 'Une commune n''a toujours qu''un seul maire, quelle que soit sa taille. Il peut être assiste de plusieurs adjoints au maire.', FALSE);
+ 'Si une commune a 5 000 habitants, combien aura-t-elle de maires ?',
+ 'Une commune n''a toujours qu''un seul maire, quelle que soit sa taille. Il peut être assisté de plusieurs adjoints au maire.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000023', 'Un seul maire (avec des adjoints)', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000023', 'Cinq maires', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000023', 'Un par quartier', FALSE, 2),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000023', 'Un par âge (jeune, adulte, aînée)', FALSE, 3);
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000023', 'Un par âge (jeune, adulte, aîné)', FALSE, 3);
 
 -- BLOC D : UE & VOTE (E36-E40)
 -- ----------------------------------------------------------------------------
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000024', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
- 'Quel symbole de l''Union européenne est composé d''étoiles dorees sur fond bleu ?',
- 'Le drapeau européen est constitué d''un cercle de douze étoiles dorees sur fond bleu. Les douze étoiles ne représentent pas les pays mais l''harmonie et l''unité.', FALSE);
+ 'Quel symbole de l''Union européenne est composé d''étoiles dorées sur fond bleu ?',
+ 'Le drapeau européen est constitué d''un cercle de douze étoiles dorées sur fond bleu. Les douze étoiles ne représentent pas les pays mais l''harmonie et l''unité.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000024', 'Le drapeau européen', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000024', 'Le drapeau de l''ONU', FALSE, 1),
@@ -376,7 +376,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000025', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
  'Combien d''étoiles compte le drapeau de l''Union européenne ?',
- 'Le drapeau européen comporte douze étoiles dorees, disposées en cercle. Ce nombre est fixé et ne change pas en fonction du nombre d''États membres.', FALSE);
+ 'Le drapeau européen comporte douze étoiles dorées, disposées en cercle. Ce nombre est fixé et ne change pas en fonction du nombre d''États membres.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000025', '12 étoiles', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000025', '27 étoiles', FALSE, 1),
@@ -391,12 +391,12 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000026', 'L''Ode à la joie de Beethoven', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000026', 'La Marseillaise', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000026', 'Imagine de John Lennon', FALSE, 2),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000026', 'Aucun hymne n''est defini', FALSE, 3);
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000026', 'Aucun hymne n''est défini', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000027', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
- 'L''euro est-il utilise par tous les pays de l''Union européenne ?',
- 'Non. L''euro est utilise par 20 pays de l''Union européenne (zone euro). Certains pays comme la Pologne ou la Suede ont conserve leur monnaie nationale.', FALSE);
+ 'L''euro est-il utilisé par tous les pays de l''Union européenne ?',
+ 'Non. L''euro est utilisé par 20 pays de l''Union européenne (zone euro). Certains pays comme la Pologne ou la Suède ont conservé leur monnaie nationale.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000027', 'Non, seulement par les pays de la zone euro', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000027', 'Oui, tous les 27 pays utilisent l''euro', FALSE, 1),
@@ -422,23 +422,23 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000029', 'M''inscrire (ou vérifier mon inscription) sur les listes électorales', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000029', 'Demander une autorisation au préfet', FALSE, 1),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000029', 'Passer un examen civique paye', FALSE, 2),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000029', 'Passer un examen civique payé', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000029', 'Rien, le président m''envoie une convocation', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000002a', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'MISE_SITUATION',
- 'Le jour des élections, je suis malade et ne peux pas me deplacer. Puis-je donner mon vote a quelqu''un ?',
+ 'Le jour des élections, je suis malade et ne peux pas me déplacer. Puis-je donner mon vote à quelqu''un ?',
  'Oui. Vous pouvez donner procuration à un autre électeur (mandataire) pour qu''il vote à votre place. La demande se fait dans un commissariat, une gendarmerie ou en ligne.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
-(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000002a', 'Oui, en etablissant une procuration de vote', TRUE, 0),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000002a', 'Oui, en établissant une procuration de vote', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000002a', 'Non, le vote est strictement personnel', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000002a', 'Uniquement si la personne est de ma famille', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000002a', 'Uniquement avec accord médical', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000002b', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'MISE_SITUATION',
- 'Je veux contester un arrete pris par le maire de ma commune. Quels sont mes recours ?',
- 'Vous pouvez faire un recours administratif aupres du maire ou saisir le tribunal administratif. Ce dernier peut annuler un arrete illégal.', FALSE);
+ 'Je veux contester un arrêté pris par le maire de ma commune. Quels sont mes recours ?',
+ 'Vous pouvez faire un recours administratif auprès du maire ou saisir le tribunal administratif. Ce dernier peut annuler un arrêté illégal.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000002b', 'Saisir le tribunal administratif', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000002b', 'Aucun recours possible', FALSE, 1),
@@ -448,7 +448,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000002c', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'MISE_SITUATION',
  'On me propose d''acheter mon vote contre de l''argent. Que faire ?',
- 'Acheter un vote ou se faire payer pour voter est un delit pénal grave (corruption électorale). Vous devez refuser et pouvez signaler les faits à la police ou au procureur.', FALSE);
+ 'Acheter un vote ou se faire payer pour voter est un délit pénal grave (corruption électorale). Vous devez refuser et pouvez signaler les faits à la police ou au procureur.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000002c', 'Refuser et signaler les faits à la police', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000002c', 'Accepter, c''est légal', FALSE, 1),
@@ -468,17 +468,17 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000002e', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'MISE_SITUATION',
  'Je veux poser une question au député de ma circonscription. Est-ce possible ?',
- 'Oui. Les députés recoivent les habitants de leur circonscription dans leur permanence parlementaire. On peut prendre rendez-vous ou ecrire pour exposer un problème.', FALSE);
+ 'Oui. Les députés reçoivent les habitants de leur circonscription dans leur permanence parlementaire. On peut prendre rendez-vous ou écrire pour exposer un problème.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000002e', 'Oui, dans leur permanence parlementaire', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000002e', 'Non, c''est strictement interdit', FALSE, 1),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000002e', 'Uniquement par voie d''huissier', FALSE, 2),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000002e', 'Uniquement en presence d''un avocat', FALSE, 3);
+(gen_random_uuid(), 'f2000002-0000-0000-0000-00000000002e', 'Uniquement en présence d''un avocat', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-00000000002f', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'MISE_SITUATION',
  'Je veux demander un acte de naissance. À quelle administration dois-je m''adresser ?',
- 'Pour obtenir un acte de naissance, il faut s''adresser à la mairie de la commune ou la personne est née. La demande peut souvent se faire en ligne.', FALSE);
+ 'Pour obtenir un acte de naissance, il faut s''adresser à la mairie de la commune où la personne est née. La demande peut souvent se faire en ligne.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000002f', 'À la mairie de la commune de naissance', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-00000000002f', 'Au Parlement', FALSE, 1),
@@ -488,7 +488,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000030', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'MISE_SITUATION',
  'Quelqu''un me dit que je ne dois pas voter parce que je suis une femme. Est-ce vrai ?',
- 'Non. Toutes les femmes françaises majeures ont le droit de vote depuis 1944, exactement comme les hommes. Vouloir les en empecher constitue une discrimination interdite.', FALSE);
+ 'Non. Toutes les femmes françaises majeures ont le droit de vote depuis 1944, exactement comme les hommes. Vouloir les en empêcher constitue une discrimination interdite.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000030', 'Non, les femmes ont le droit de vote depuis 1944', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000030', 'Oui, c''est une règle ancienne', FALSE, 1),
@@ -498,16 +498,16 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000031', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'MISE_SITUATION',
  'Je suis victime d''un vol dans la rue. Que dois-je faire pour le signaler officiellement ?',
- 'Vous devez déposer plainte au commissariat de police ou à la gendarmerie. Vous pouvez aussi appeler le 17 (police) en cas d''urgence ou faire une pre-plainte en ligne.', FALSE);
+ 'Vous devez déposer plainte au commissariat de police ou à la gendarmerie. Vous pouvez aussi appeler le 17 (police) en cas d''urgence ou faire une pré-plainte en ligne.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000031', 'Déposer plainte au commissariat ou à la gendarmerie', TRUE, 0),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000031', 'Demander à un voisin de gérer', FALSE, 1),
-(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000031', 'Ecrire un message à l''Élysée', FALSE, 2),
+(gen_random_uuid(), 'f2000002-0000-0000-0000-000000000031', 'Écrire un message à l''Élysée', FALSE, 2),
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000031', 'Faire justice moi-même', FALSE, 3);
 
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000002-0000-0000-0000-000000000032', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'MISE_SITUATION',
- 'Je viens d''emmenager dans une nouvelle commune. Dois-je changer mon inscription électorale ?',
+ 'Je viens d''emménager dans une nouvelle commune. Dois-je changer mon inscription électorale ?',
  'Oui. Pour voter dans votre nouvelle commune, vous devez vous inscrire sur ses listes électorales (en mairie ou en ligne). Sinon vous resterez inscrit dans votre ancienne commune.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000002-0000-0000-0000-000000000032', 'Oui, m''inscrire sur les listes de ma nouvelle commune', TRUE, 0),

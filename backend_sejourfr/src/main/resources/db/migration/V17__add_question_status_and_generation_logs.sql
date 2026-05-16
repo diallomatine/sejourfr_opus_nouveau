@@ -1,11 +1,11 @@
 -- ============================================================================
--- V17 : Pipeline de generation automatique de questions audio (TCF CO)
+-- V17 : Pipeline de génération automatique de questions audio (TCF CO)
 -- ============================================================================
--- 1. Extension pg_trgm pour la detection de doublons par similarite de transcript.
+-- 1. Extension pg_trgm pour la détection de doublons par similarité de transcript.
 -- 2. Statut DRAFT/ACTIVE/ARCHIVED sur la table questions (les questions audio
---    generees commencent en DRAFT et passent en ACTIVE apres validation admin).
--- 3. Table d'audit audio_question_generation_logs : tracage des appels API,
---    couts Anthropic + Azure, statut final, rate-limiting.
+--    générées commencent en DRAFT et passent en ACTIVE après validation admin).
+-- 3. Table d'audit audio_question_generation_logs : traçage des appels API,
+--    coûts Anthropic + Azure, statut final, rate-limiting.
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
@@ -13,9 +13,9 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- ---------------------------------------------------------------------------
 -- 1. STATUT DES QUESTIONS
 -- ---------------------------------------------------------------------------
--- Les questions existantes restent en ACTIVE (defaut). Le boolean is_active
--- conserve sa semantique (visibilite utilisateur final). status apporte le
--- cycle de vie DRAFT -> ACTIVE -> ARCHIVED utilise par la pipeline audio.
+-- Les questions existantes restent en ACTIVE (défaut). Le boolean is_active
+-- conserve sa sémantique (visibilité utilisateur final). status apporte le
+-- cycle de vie DRAFT -> ACTIVE -> ARCHIVED utilisé par la pipeline audio.
 
 ALTER TABLE questions
     ADD COLUMN IF NOT EXISTS status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE';
@@ -27,17 +27,17 @@ ALTER TABLE questions
 CREATE INDEX IF NOT EXISTS idx_questions_status ON questions(status);
 
 COMMENT ON COLUMN questions.status IS
-    'Cycle de vie : DRAFT (brouillon admin, non utilisable), ACTIVE (utilisable), ARCHIVED (retire).';
+    'Cycle de vie : DRAFT (brouillon admin, non utilisable), ACTIVE (utilisable), ARCHIVED (retiré).';
 
 -- ---------------------------------------------------------------------------
--- 2. TABLE D'AUDIT DES GENERATIONS
+-- 2. TABLE D'AUDIT DES GÉNÉRATIONS
 -- ---------------------------------------------------------------------------
--- Trace chaque tentative de generation audio :
+-- Trace chaque tentative de génération audio :
 --   - qui : admin_user_id
---   - quoi : requested_params (JSON de la requete)
---   - cout : tokens Anthropic + caracteres Azure, montants EUR
---   - resultat : status (SUCCESS / FAILED_* / RATE_LIMITED) + error_message
---   - lien : question_id (NULL si echec avant insertion DB)
+--   - quoi : requested_params (JSON de la requête)
+--   - coût : tokens Anthropic + caractères Azure, montants EUR
+--   - résultat : status (SUCCESS / FAILED_* / RATE_LIMITED) + error_message
+--   - lien : question_id (NULL si échec avant insertion DB)
 
 CREATE TABLE IF NOT EXISTS audio_question_generation_logs (
     id                          UUID PRIMARY KEY,
@@ -85,14 +85,14 @@ CREATE INDEX IF NOT EXISTS idx_audio_gen_logs_question
     ON audio_question_generation_logs(question_id)
     WHERE question_id IS NOT NULL;
 
--- Index dedie au rate-limiting : compter les SUCCESS recents d'un admin
+-- Index dédié au rate-limiting : compter les SUCCESS récents d'un admin
 CREATE INDEX IF NOT EXISTS idx_audio_gen_logs_rate_limit
     ON audio_question_generation_logs(admin_user_id, created_at DESC)
     WHERE status = 'SUCCESS';
 
 COMMENT ON TABLE audio_question_generation_logs IS
-    'Audit des generations de questions audio CO via la pipeline Anthropic + Azure + R2.';
+    'Audit des générations de questions audio CO via la pipeline Anthropic + Azure + R2.';
 COMMENT ON COLUMN audio_question_generation_logs.requested_params IS
-    'Parametres de la requete : niveau, theme, type, competence, consignes (JSONB).';
+    'Paramètres de la requête : niveau, thème, type, compétence, consignes (JSONB).';
 COMMENT ON COLUMN audio_question_generation_logs.r2_object_key IS
-    'Cle de l''objet MP3 dans le bucket R2, ex: audio/<media_uuid>.mp3';
+    'Clé de l''objet MP3 dans le bucket R2, ex: audio/<media_uuid>.mp3';

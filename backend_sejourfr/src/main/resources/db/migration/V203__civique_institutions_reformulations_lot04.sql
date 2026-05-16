@@ -11,7 +11,7 @@ INSERT INTO questions (id, module, theme_id, difficulty, question_type, statemen
  'Le Parlement vote les lois et le budget de l''État, et contrôle l''action du gouvernement. Il est composé de l''Assemblée nationale et du Sénat.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000025', 'Voter les lois et contrôler le gouvernement', TRUE, 0),
-(gen_random_uuid(), 'f2000001-0000-0000-0000-000000000025', 'Diriger l''armee', FALSE, 1),
+(gen_random_uuid(), 'f2000001-0000-0000-0000-000000000025', 'Diriger l''armée', FALSE, 1),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000025', 'Nommer le président', FALSE, 2),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000025', 'Réviser la Constitution sans vote', FALSE, 3);
 
@@ -41,7 +41,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-000000000028', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Parmi ces pays, lequel ne fait pas partie de l''Union européenne ?',
- 'La Suisse n''est pas membre de l''Union européenne, bien qu''elle entretienne des accords bilateraux etroits avec elle. Le Royaume-Uni en est sorti en 2020.', FALSE);
+ 'La Suisse n''est pas membre de l''Union européenne, bien qu''elle entretienne des accords bilatéraux étroits avec elle. Le Royaume-Uni en est sorti en 2020.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000028', 'La Suisse', TRUE, 0),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000028', 'L''Espagne', FALSE, 1),
@@ -59,7 +59,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000029', 'Vivre depuis 20 ans dans le pays', FALSE, 2),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000029', 'Parler couramment l''anglais', FALSE, 3);
 
--- R42 (de f2000000-...02a / CR / CONNAISSANCE) - Frequence élections européennes
+-- R42 (de f2000000-...02a / CR / CONNAISSANCE) - Fréquence élections européennes
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-00000000002a', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Tous les combien d''années les élections européennes ont-elles lieu ?',
@@ -85,14 +85,14 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-00000000002c', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
  'Quelle est la monnaie en circulation en France ?',
- 'La France utilise l''euro depuis le 1er janvier 2002 (date de mise en circulation des pieces et billets). Avant, la monnaie était le franc.', FALSE);
+ 'La France utilise l''euro depuis le 1er janvier 2002 (date de mise en circulation des pièces et billets). Avant, la monnaie était le franc.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000002c', 'L''euro', TRUE, 0),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000002c', 'Le franc', FALSE, 1),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000002c', 'Le dollar', FALSE, 2),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000002c', 'La livre sterling', FALSE, 3);
 
--- R45 (de f2000000-...02d / CR / CONNAISSANCE) - Qui elit députés européens
+-- R45 (de f2000000-...02d / CR / CONNAISSANCE) - Qui élit députés européens
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-00000000002d', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Comment sont élus les députés au Parlement européen ?',
@@ -103,11 +103,11 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000002d', 'Par la Commission européenne', FALSE, 2),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000002d', 'Par tirage au sort', FALSE, 3);
 
--- R46 (de f2000000-...02e / NAT / CONNAISSANCE) - Date journee Europe
+-- R46 (de f2000000-...02e / NAT / CONNAISSANCE) - Date journée Europe
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-00000000002e', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'NAT', 'CONNAISSANCE',
- 'À quelle date est commemoree chaque année la Journee de l''Europe ?',
- 'La Journee de l''Europe est célébrée le 9 mai, date anniversaire de la déclaration Schuman (1950), qui a posé les fondations de la construction européenne.', FALSE);
+ 'À quelle date est commémorée chaque année la Journée de l''Europe ?',
+ 'La Journée de l''Europe est célébrée le 9 mai, date anniversaire de la déclaration Schuman (1950), qui a posé les fondations de la construction européenne.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000002e', 'Le 9 mai', TRUE, 0),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000002e', 'Le 14 juillet', FALSE, 1),
@@ -115,5 +115,5 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000002e', 'Le 1er mai', FALSE, 3);
 
 -- ============================================================================
--- Fin reformulations THÈME 2 : 46 questions inserees
+-- Fin reformulations THÈME 2 : 46 questions insérées
 -- ============================================================================

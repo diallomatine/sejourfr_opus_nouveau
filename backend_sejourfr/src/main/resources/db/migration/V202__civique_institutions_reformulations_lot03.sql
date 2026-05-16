@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Flyway : reformulations questions officielles - THÈME 2 INSTITUTIONS
--- Lot 3/4 : R25 à R36 (separation pouvoirs, lois, département, commune)
+-- Lot 3/4 : R25 à R36 (séparation pouvoirs, lois, département, commune)
 -- is_active = FALSE
 -- ============================================================================
 
@@ -8,25 +8,25 @@
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-000000000019', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Quelle est la fonction principale des députés à l''Assemblée nationale ?',
- 'Les députés votent les lois, examinent le budget de l''État et controlent l''action du gouvernement. Ils représentent la nation au Parlement.', FALSE);
+ 'Les députés votent les lois, examinent le budget de l''État et contrôlent l''action du gouvernement. Ils représentent la nation au Parlement.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000019', 'Voter les lois et contrôler le gouvernement', TRUE, 0),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000019', 'Nommer le président', FALSE, 1),
-(gen_random_uuid(), 'f2000001-0000-0000-0000-000000000019', 'Diriger l''armee', FALSE, 2),
+(gen_random_uuid(), 'f2000001-0000-0000-0000-000000000019', 'Diriger l''armée', FALSE, 2),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000019', 'Juger les criminels', FALSE, 3);
 
 -- R26 (de f2000000-...01a / CR / CONNAISSANCE) - Trois pouvoirs
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-00000000001a', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Quels sont les trois pouvoirs séparés dans un État démocratique selon Montesquieu ?',
- 'La separation des pouvoirs (théorie de Montesquieu, reprise par la République française) distingue le pouvoir exécutif, le pouvoir législatif et le pouvoir judiciaire, qui doivent être indépendants les uns des autres.', FALSE);
+ 'La séparation des pouvoirs (théorie de Montesquieu, reprise par la République française) distingue le pouvoir exécutif, le pouvoir législatif et le pouvoir judiciaire, qui doivent être indépendants les uns des autres.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000001a', 'Exécutif, législatif et judiciaire', TRUE, 0),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000001a', 'Civil, militaire et religieux', FALSE, 1),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000001a', 'National, régional et local', FALSE, 2),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000001a', 'Politique, économique et social', FALSE, 3);
 
--- R27 (de f2000000-...01b / CR / CONNAISSANCE) - Qui detient le législatif
+-- R27 (de f2000000-...01b / CR / CONNAISSANCE) - Qui détient le législatif
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-00000000001b', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Qui exerce le pouvoir législatif en France ?',
@@ -40,15 +40,15 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 -- R28 (de f2000000-...01c / CR / CONNAISSANCE) - Sanction d'un vol
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-00000000001c', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
- 'Quelle autorité prononcé la sanction contre l''auteur d''un vol ?',
- 'L''auteur d''un vol est jugé et sanctionne par un tribunal, qui releve de l''autorité judiciaire. La peine dépend de la gravite des faits.', FALSE);
+ 'Quelle autorité prononce la sanction contre l''auteur d''un vol ?',
+ 'L''auteur d''un vol est jugé et sanctionné par un tribunal, qui relève de l''autorité judiciaire. La peine dépend de la gravité des faits.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000001c', 'Un tribunal (autorité judiciaire)', TRUE, 0),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000001c', 'Le maire de la commune', FALSE, 1),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000001c', 'Le président directement', FALSE, 2),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000001c', 'Le voisin de la victime', FALSE, 3);
 
--- R29 (de f2000000-...01d / CSP / CONNAISSANCE) - Qui elit députés
+-- R29 (de f2000000-...01d / CSP / CONNAISSANCE) - Qui élit députés
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-00000000001d', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
  'Comment les députés français sont-ils choisis ?',
@@ -62,7 +62,7 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 -- R30 (de f2000000-...01e / CSP / CONNAISSANCE) - Qui vote les lois
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-00000000001e', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CSP', 'CONNAISSANCE',
- 'Quelle institution à la responsabilité de voter les lois en France ?',
+ 'Quelle institution a la responsabilité de voter les lois en France ?',
  'Les lois sont votées par le Parlement (Assemblée nationale et Sénat). C''est le pouvoir législatif.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-00000000001e', 'Le Parlement', TRUE, 0),
@@ -118,20 +118,20 @@ INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-000000000023', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
  'Le président de la République française dispose-t-il de pouvoirs sans limite ?',
- 'Non. Le président detient des pouvoirs importants mais limites par la Constitution, la separation des pouvoirs, le contrôle du Parlement et la justice. Il n''est pas un monarque absolu.', FALSE);
+ 'Non. Le président détient des pouvoirs importants mais limités par la Constitution, la séparation des pouvoirs, le contrôle du Parlement et la justice. Il n''est pas un monarque absolu.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000023', 'Non, ses pouvoirs sont limités par la Constitution', TRUE, 0),
-(gen_random_uuid(), 'f2000001-0000-0000-0000-000000000023', 'Oui, il à tous les pouvoirs', FALSE, 1),
+(gen_random_uuid(), 'f2000001-0000-0000-0000-000000000023', 'Oui, il a tous les pouvoirs', FALSE, 1),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000023', 'Oui, sauf en période de paix', FALSE, 2),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000023', 'Oui, jusqu''au prochain référendum', FALSE, 3);
 
 -- R36 (de f2000000-...024 / CR / CONNAISSANCE) - Qui est le préfet
 INSERT INTO questions (id, module, theme_id, difficulty, question_type, statement, explanation, is_active) VALUES
 ('f2000001-0000-0000-0000-000000000024', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', 'CR', 'CONNAISSANCE',
- 'Comment definir la fonction de préfet ?',
+ 'Comment définir la fonction de préfet ?',
  'Le préfet est un haut fonctionnaire de l''État nommé par le président en Conseil des ministres. Il représente l''État et le gouvernement dans le département, et veille à l''application des lois.', FALSE);
 INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000024', 'Le représentant de l''État dans un département', TRUE, 0),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000024', 'Un élu de la population', FALSE, 1),
 (gen_random_uuid(), 'f2000001-0000-0000-0000-000000000024', 'Un juge de la Cour de cassation', FALSE, 2),
-(gen_random_uuid(), 'f2000001-0000-0000-0000-000000000024', 'Le maire le plus âge du département', FALSE, 3);
+(gen_random_uuid(), 'f2000001-0000-0000-0000-000000000024', 'Le maire le plus âgé du département', FALSE, 3);
