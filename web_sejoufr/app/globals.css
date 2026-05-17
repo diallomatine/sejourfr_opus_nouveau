@@ -40,9 +40,13 @@
 html {
   scroll-behavior: smooth;
   /* Filet de sécurité global : aucun débordement horizontal ne doit créer
-     de scroll. `clip` (Safari 16+) ne casse pas la sticky position des
-     descendants, contrairement à `hidden`. */
-  overflow-x: clip;
+     de scroll. Fallback `hidden` pour les browsers sans support de `clip`
+     (iOS Safari ≤ 15). `clip` est préféré quand dispo car il ne crée pas
+     de scroll container parasite qui casserait la sticky position. */
+  overflow-x: hidden;
+}
+@supports (overflow-x: clip) {
+  html { overflow-x: clip; }
 }
 
 body {
@@ -51,7 +55,13 @@ body {
   background: var(--color-paper);
   line-height: 1.55;
   font-size: 16px;
-  overflow-x: clip;
+  overflow-x: hidden;
+  /* Limite dure : le body ne peut pas dépasser la largeur du viewport.
+     Empêche tout enfant débordant de pousser la mise en page horizontalement. */
+  max-width: 100vw;
+}
+@supports (overflow-x: clip) {
+  body { overflow-x: clip; }
 }
 
 a {
