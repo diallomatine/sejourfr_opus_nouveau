@@ -1070,7 +1070,7 @@ export function FinalCtaSection() {
                         Démarrez aujourd&apos;hui. Les premières questions sont gratuites,
                         sans inscription longue, sans carte bancaire.
                     </p>
-                    <Link href="/inscription" className="btn btn-lg cta-block-btn">
+                    <Link href="/entrainement" className="btn btn-lg cta-block-btn">
                         Commencer maintenant <span className="arrow">→</span>
                     </Link>
                 </div>

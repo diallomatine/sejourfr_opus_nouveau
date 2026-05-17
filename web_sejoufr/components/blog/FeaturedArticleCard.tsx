@@ -21,6 +21,8 @@ export function FeaturedArticleCard({ article }: { article: ArticleListItem }) {
           iconKey={article.coverIcon}
           variant="hero"
           fillHeight
+          imageUrl={article.coverImage}
+          imageAlt={article.title}
         />
       </div>
       <div className="featured-card-body">

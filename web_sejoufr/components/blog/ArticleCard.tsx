@@ -19,6 +19,8 @@ export function ArticleCard({ article }: { article: ArticleListItem }) {
         category={article.category}
         iconKey={article.coverIcon}
         variant="card"
+        imageUrl={article.coverImage}
+        imageAlt={article.title}
       />
       <div className="article-card-body">
         <div className="article-card-top">

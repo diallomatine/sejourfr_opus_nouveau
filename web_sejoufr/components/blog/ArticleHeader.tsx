@@ -33,6 +33,8 @@ export function ArticleHeader({ article }: { article: Article }) {
           iconKey={article.coverIcon}
           variant="hero"
           title={article.title}
+          imageUrl={article.coverImage}
+          imageAlt={article.title}
         />
       </div>
 
