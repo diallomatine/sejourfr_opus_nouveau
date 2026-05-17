@@ -394,7 +394,17 @@ const heroStyles = `
     .float-2 { bottom: -18px; left: 4px; }
   }
   @media (max-width: 560px) {
+    .hero { padding: 48px 0 64px; }
+    .hero-h1 { font-size: 30px; }
+    .hero-lede { font-size: 16px; }
+    .hero-ctas .btn-lg { width: 100%; padding: 13px 18px; font-size: 14.5px; }
     .hero-trust { flex-wrap: wrap; gap: 12px; }
     .hero-trust p { font-size: 12.5px; }
+    .qcard { padding: 20px; border-radius: 18px; }
+    .qcard-q { font-size: 17px; }
+    .float-1 { top: -14px; right: 0; padding: 8px 10px; }
+    .float-2 { bottom: -14px; left: 0; padding: 8px 10px; }
+    .chip-icon { width: 28px; height: 28px; }
+    .chip-value { font-size: 12.5px; }
   }
 `;

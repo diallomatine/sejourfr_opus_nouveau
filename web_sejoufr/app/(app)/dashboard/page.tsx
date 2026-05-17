@@ -626,7 +626,9 @@ function RecentSessions({ attempts }: { attempts: AttemptSummaryResponse[] }) {
           Voir l&apos;historique complet →
         </Link>
       </div>
-      <div className="table-wrap">
+
+      {/* Desktop : tableau classique */}
+      <div className="table-wrap recent-desktop">
         <table>
           <thead>
             <tr>
@@ -645,7 +647,59 @@ function RecentSessions({ attempts }: { attempts: AttemptSummaryResponse[] }) {
           </tbody>
         </table>
       </div>
+
+      {/* Mobile : cards empilées, tactile-friendly */}
+      <ul className="recent-list">
+        {attempts.map((a) => (
+          <RecentCardMobile key={a.id} a={a} />
+        ))}
+      </ul>
     </div>
+  );
+}
+
+function RecentCardMobile({ a }: { a: AttemptSummaryResponse }) {
+  const isTcf = a.module === "TCF";
+  const isExam = a.type === "MOCK_EXAM";
+  const minutes =
+    a.finishedAt && a.startedAt
+      ? Math.max(1, Math.round((Date.parse(a.finishedAt) - Date.parse(a.startedAt)) / 60000))
+      : null;
+  const passed =
+    isExam && a.passThreshold != null && a.score != null
+      ? a.score >= a.passThreshold
+      : null;
+  const finished = a.finishedAt && a.score != null;
+
+  return (
+    <li>
+      <Link href={`/sessions/${a.id}`} className="recent-card">
+        <div className="recent-card-row recent-card-top">
+          <span className={`tag tag-${isExam ? "exam" : "train"}`}>
+            {isExam ? "EXAMEN" : "ENTRAÎN."}
+          </span>
+          <span className="recent-card-date">{formatDate(a.startedAt)}</span>
+        </div>
+        <div className="recent-card-row recent-card-meta">
+          <span className="recent-card-module">{isTcf ? "TCF" : "Civique"}</span>
+          <span className="recent-card-dot" aria-hidden>·</span>
+          <span className="recent-card-time">
+            {minutes != null ? `${minutes} min` : "en cours"}
+          </span>
+        </div>
+        <div className="recent-card-row recent-card-bottom">
+          {finished ? (
+            <span className={`score-pill score-pill-${passed === false ? "fail" : "pass"}`}>
+              <span className="score-pill-ico">{passed === false ? "✕" : "✓"}</span>
+              {a.score} / {a.totalQuestions}
+            </span>
+          ) : (
+            <span className="score-pill score-pill-neutral">En cours</span>
+          )}
+          <span className="recent-card-chev" aria-hidden>›</span>
+        </div>
+      </Link>
+    </li>
   );
 }
 
@@ -1035,7 +1089,7 @@ const RefreshIcon = () => (
 // STYLES
 // ============================================================================
 const styles = `
-  .dash { padding: 24px 36px 60px; max-width: 1320px; }
+  .dash { padding: 24px 36px 60px; max-width: 1320px; margin: 0 auto; }
   @media (max-width: 760px) { .dash { padding: 20px 16px 56px; } }
 
   /* ========== TOPBAR ========== */
@@ -1292,7 +1346,10 @@ const styles = `
   /* ========== STATS GRID ========== */
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    /* minmax(0, 1fr) au lieu de 1fr : autorise les items à rétrécir sous
+       leur taille de contenu intrinsèque. Sans ça, le contenu d'un card
+       peut pousser la grille au-delà du viewport sur mobile. */
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 16px;
     margin-bottom: 26px;
   }
@@ -1301,6 +1358,7 @@ const styles = `
     border: 1px solid var(--color-line);
     border-radius: 16px;
     padding: 18px;
+    min-width: 0;
   }
   .stat-icon {
     width: 36px; height: 36px;
@@ -1341,7 +1399,7 @@ const styles = `
   /* ========== SHORTCUTS ========== */
   .shortcuts {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 14px;
     margin-bottom: 26px;
   }
@@ -1350,6 +1408,7 @@ const styles = `
     border: 1px solid var(--color-line);
     border-radius: 16px;
     padding: 18px;
+    min-width: 0;
     text-decoration: none;
     color: inherit;
     transition: all 0.15s;
@@ -1400,6 +1459,11 @@ const styles = `
     border: 1px solid var(--color-line);
     border-radius: 18px;
     padding: 22px;
+    /* En tant que grid item, .card doit pouvoir rétrécir sous la taille
+       intrinsèque de son contenu (notamment les <table min-width: 540px>
+       qui scrollent à l'intérieur via .table-wrap). Sans min-width: 0,
+       la card pousserait la grille au-delà du viewport. */
+    min-width: 0;
   }
   .card-head {
     display: flex; justify-content: space-between; align-items: flex-start;
@@ -1574,17 +1638,77 @@ const styles = `
   }
   .score-pill-fail .score-pill-ico { background: var(--color-red); }
 
+  /* ========== RECENT SESSIONS — cards mobile (cachées sur desktop) ========== */
+  .recent-list { display: none; }
+  .recent-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    border: 1px solid var(--color-line);
+    border-radius: 12px;
+    background: var(--color-paper);
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  }
+  .recent-card:active { transform: scale(0.99); }
+  .recent-card-row { display: flex; align-items: center; gap: 8px; }
+  .recent-card-top { justify-content: space-between; }
+  .recent-card-date {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--color-muted);
+  }
+  .recent-card-meta { color: var(--color-ink-2); font-size: 13.5px; }
+  .recent-card-module { font-weight: 600; color: var(--color-ink); }
+  .recent-card-dot { color: var(--color-muted-2); }
+  .recent-card-bottom { justify-content: space-between; margin-top: 2px; }
+  .recent-card-chev {
+    color: var(--color-muted-2);
+    font-size: 22px;
+    line-height: 1;
+  }
+
   /* ========== RESPONSIVE ========== */
   @media (max-width: 1100px) {
-    .stats-grid { grid-template-columns: repeat(2, 1fr); }
-    .shortcuts { grid-template-columns: repeat(2, 1fr); }
-    .row-2 { grid-template-columns: 1fr; }
-    .hero-banner { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .row-2 { grid-template-columns: minmax(0, 1fr); }
+    .hero-banner { grid-template-columns: minmax(0, 1fr); }
   }
   @media (max-width: 680px) {
-    .stats-grid { grid-template-columns: 1fr 1fr; }
-    .shortcuts { grid-template-columns: 1fr; }
-    .table-wrap { overflow-x: auto; }
-    table { min-width: 540px; }
+    .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .shortcuts { grid-template-columns: minmax(0, 1fr); }
+    /* Bascule table → cards empilées (plus de scroll horizontal) */
+    .recent-desktop { display: none; }
+    .recent-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+  }
+  @media (max-width: 480px) {
+    .hero-banner { padding: 22px 20px; border-radius: 18px; }
+    .hero-banner h2 { font-size: 22px; }
+    .hero-actions { flex-direction: column; align-items: stretch; }
+    .hero-actions .btn-primary,
+    .hero-actions .btn-outline-light { width: 100%; }
+    .stats-grid { grid-template-columns: 1fr; }
+    .topbar h1 { font-size: 22px; }
+    /* Card-head : titre + lien empilés verticalement pour ne pas déborder */
+    .card { padding: 16px; border-radius: 14px; }
+    .card-head {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+    }
+    .card-head-link { flex-shrink: 1; }
+    /* Table : padding cellules réduit pour gagner un peu sur la largeur scrollable */
+    th, td { padding: 11px 12px; }
   }
 `;

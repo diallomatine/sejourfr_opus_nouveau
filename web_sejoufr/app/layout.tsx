@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth-context";
 import { MobileAppBanner } from "./_components/MobileAppPromo";
@@ -28,6 +28,12 @@ const jetbrains = JetBrains_Mono({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export const metadata: Metadata = {
   title: "SejourFR — Préparez l'examen civique et le TCF en confiance",
   description:
@@ -47,6 +53,7 @@ export default function RootLayout({
       lang="fr"
       className={`${jakarta.variable} ${fraunces.variable} ${jetbrains.variable}`}
       suppressHydrationWarning
+      data-scroll-behavior="smooth"
     >
       <body suppressHydrationWarning>
         <AuthProvider>

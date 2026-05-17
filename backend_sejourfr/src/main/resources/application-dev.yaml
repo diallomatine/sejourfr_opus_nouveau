@@ -36,7 +36,7 @@ logging:
 sejourfr:
   cors:
     # Web Next.js (3000) + Admin Vite (5173)
-    allowed-origins: http://localhost:3000,http://localhost:5173
+    allowed-origins: http://localhost:3000,http://localhost:5173,http://192.168.1.13:3000
   stripe:
     # Clés test Stripe : à définir DANS l'environnement (~/.zshrc ou .env
     # ignoré par git), JAMAIS en clair dans ce fichier — sinon GitHub

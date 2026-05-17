@@ -165,7 +165,10 @@ export function Footer() {
         }
         .footer-inner {
           position: relative;
-          padding: 64px 0 0;
+          /* padding-top seul : on garde le padding horizontal de .container-x
+             (sinon la shorthand 'padding' écrase tout et le contenu colle
+             aux bords du viewport sur mobile). */
+          padding-top: 64px;
         }
 
         .footer-grid {
@@ -279,7 +282,9 @@ export function Footer() {
           align-items: center;
           justify-content: space-between;
           gap: 16px;
-          padding: 24px 0;
+          /* idem footer-inner : on préserve le padding horizontal de .container-x */
+          padding-top: 24px;
+          padding-bottom: 24px;
           font-size: 12px;
           color: #94A3B8;
         }
@@ -302,10 +307,22 @@ export function Footer() {
           }
           .footer-brand-col { grid-column: span 2; }
         }
-        @media (max-width: 560px) {
-          .footer-grid { grid-template-columns: 1fr; }
+        @media (max-width: 640px) {
+          .footer-inner { padding-top: 48px; }
+          .footer-grid { margin-top: 40px; gap: 28px; }
+          .footer-socials { margin-top: 40px; padding-bottom: 48px; gap: 10px; }
+          .footer-social { width: 38px; height: 38px; }
+          .footer-bar-inner {
+            justify-content: flex-start;
+            padding-top: 20px;
+            padding-bottom: 20px;
+            gap: 12px;
+          }
+        }
+        @media (max-width: 480px) {
+          .footer-grid { grid-template-columns: 1fr; gap: 24px; }
           .footer-brand-col { grid-column: auto; }
-          .footer-bar-inner { justify-content: flex-start; }
+          .footer-pitch { max-width: none; }
         }
       `}</style>
     </footer>
@@ -383,7 +400,14 @@ function NewsletterBlock() {
         </p>
       </div>
       <div className="newsletter-right">
-        <form onSubmit={onSubmit} className="newsletter-form">
+        {/* suppressHydrationWarning : neutralise les attributs injectés par les
+            extensions navigateur (Grammarly, etc.) sur form / input qui sinon
+            génèrent un hydration mismatch côté React. */}
+        <form
+          onSubmit={onSubmit}
+          className="newsletter-form"
+          suppressHydrationWarning
+        >
           <label className="newsletter-input-wrap">
             <span className="sr-only">Adresse email</span>
             <Mail className="newsletter-input-icon" aria-hidden />
@@ -394,6 +418,7 @@ function NewsletterBlock() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="vous@exemple.fr"
               className="newsletter-input"
+              suppressHydrationWarning
             />
           </label>
           <button type="submit" disabled={loading} className="newsletter-submit">
@@ -511,8 +536,13 @@ function NewsletterBlock() {
         }
 
         @media (max-width: 720px) {
-          .newsletter { grid-template-columns: 1fr; }
+          .newsletter { grid-template-columns: 1fr; gap: 24px; padding-bottom: 32px; }
           .newsletter-form { flex-direction: column; }
+        }
+        @media (max-width: 480px) {
+          .newsletter-title { font-size: 20px; line-height: 1.25; }
+          .newsletter-lede { font-size: 13.5px; }
+          .newsletter-submit { width: 100%; }
         }
       `}</style>
     </div>

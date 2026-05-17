@@ -39,6 +39,10 @@
 
 html {
   scroll-behavior: smooth;
+  /* Filet de sécurité global : aucun débordement horizontal ne doit créer
+     de scroll. `clip` (Safari 16+) ne casse pas la sticky position des
+     descendants, contrairement à `hidden`. */
+  overflow-x: clip;
 }
 
 body {
@@ -47,6 +51,7 @@ body {
   background: var(--color-paper);
   line-height: 1.55;
   font-size: 16px;
+  overflow-x: clip;
 }
 
 a {
@@ -434,4 +439,150 @@ a {
 }
 .mdx-prose .heading-anchor:hover {
   text-decoration: none;
+}
+
+/* ============================================================================
+   Mobile drawer (espace connecté) — voir MobileSidebarToggle.tsx
+   ============================================================================ */
+.ms-toggle {
+  display: none;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 70;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  color: var(--color-ink);
+  box-shadow: 0 10px 24px -12px rgba(15, 24, 57, 0.18);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ms-toggle:hover {
+  background: var(--color-blue-soft);
+  border-color: var(--color-blue);
+}
+
+.ms-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 24, 57, 0.5);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  z-index: 80;
+  animation: ms-overlay-in 0.18s ease-out;
+}
+@keyframes ms-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ms-drawer {
+  display: none;
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(86vw, 300px);
+  background: #fff;
+  z-index: 90;
+  transform: translateX(-100%);
+  transition: transform 0.22s ease-out;
+  box-shadow: 18px 0 40px -20px rgba(15, 24, 57, 0.35);
+  flex-direction: column;
+}
+.ms-drawer.is-open {
+  transform: translateX(0);
+}
+.ms-drawer-inner {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.ms-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  color: var(--color-ink);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.ms-close:hover {
+  background: var(--color-red-light);
+  color: var(--color-red);
+  border-color: var(--color-red);
+}
+
+/* Override de l'AppSidebar quand elle est rendue à l'intérieur du drawer
+   mobile : on veut retrouver l'affichage vertical complet (et pas la barre
+   horizontale scrollable que l'AppSidebar applique elle-même sous 900px). */
+.ms-drawer-inner .app-sidebar {
+  position: static;
+  height: 100%;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 22px 16px 16px;
+  border-right: none;
+  border-bottom: none;
+  gap: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.ms-drawer-inner .app-brand {
+  border-bottom: 1px solid var(--color-line-2);
+  padding: 6px 8px 22px;
+  margin: 0 0 20px;
+  flex-shrink: 0;
+}
+.ms-drawer-inner .app-nav {
+  flex-direction: column;
+  gap: 0;
+  overflow: visible;
+}
+.ms-drawer-inner .app-nav-section { display: block; }
+.ms-drawer-inner .nav-item {
+  padding: 10px 11px;
+  font-size: 14px;
+  white-space: normal;
+  margin-bottom: 2px;
+}
+.ms-drawer-inner .nav-label { display: block; }
+.ms-drawer-inner .app-sidebar-foot {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-line-2);
+  flex-shrink: 0;
+}
+.ms-drawer-inner .upgrade-card { display: block; }
+.ms-drawer-inner .user-mini { padding: 8px; }
+.ms-drawer-inner .user-info { display: flex; }
+.ms-drawer-inner .user-arrow { display: inline; }
+
+@media (max-width: 900px) {
+  .ms-toggle { display: inline-flex; }
+  .ms-overlay { display: block; }
+  .ms-drawer { display: flex; }
+
+  /* Masque la version "horizontale" de l'AppSidebar quand le shell utilise
+     le drawer mobile (classe ajoutée par AppGroupLayout / DualChromeShell). */
+  .app-shell--has-drawer > .app-sidebar { display: none; }
 }

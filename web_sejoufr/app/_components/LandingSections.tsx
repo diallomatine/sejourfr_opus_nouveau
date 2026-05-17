@@ -1124,7 +1124,14 @@ export function FinalCtaSection() {
         }
         @media (max-width: 720px) {
           .finalcta-wrap { padding: 40px 0 70px; }
-          .cta-block { padding: 40px 28px; }
+          .cta-block { padding: 40px 28px; border-radius: 22px; }
+        }
+        @media (max-width: 480px) {
+          .finalcta-wrap { padding: 32px 0 56px; }
+          .cta-block { padding: 32px 20px; border-radius: 18px; }
+          .cta-block h2 { font-size: 26px; }
+          .cta-block p { font-size: 14.5px; }
+          .cta-block-btn { width: 100%; }
         }
       `}</style>
         </section>
