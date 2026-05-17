@@ -7,12 +7,12 @@ import { LEGAL_INFO, isCompany } from "@/content/legal/legal-info";
 import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Mentions légales | SéjourFR",
+  title: "Mentions légales | SejourFR",
   description:
-    "Mentions légales du site SéjourFR : éditeur, hébergeur, propriété intellectuelle, responsabilité.",
+    "Mentions légales du site SejourFR : éditeur, hébergeur, propriété intellectuelle, responsabilité.",
   alternates: { canonical: "/mentions-legales" },
   openGraph: {
-    title: "Mentions légales — SéjourFR",
+    title: "Mentions légales — SejourFR",
     description:
       "Mentions légales conformes à la LCEN : éditeur, directeur de publication, hébergeur.",
     type: "website",
@@ -46,7 +46,7 @@ export default function MentionsLegalesPage() {
       <LegalSection id="article-1" number={1} title="Éditeur du site">
         {company ? (
           <p>
-            Le site SéjourFR, accessible à l'adresse{" "}
+            Le site SejourFR, accessible à l'adresse{" "}
             <a href={SITE.url}>{SITE.url.replace(/^https?:\/\//, "")}</a>{" "}
             (ci-après le « Site »), est édité par{" "}
             <strong>
@@ -59,7 +59,7 @@ export default function MentionsLegalesPage() {
           </p>
         ) : (
           <p>
-            Le site SéjourFR, accessible à l'adresse{" "}
+            Le site SejourFR, accessible à l'adresse{" "}
             <a href={SITE.url}>{SITE.url.replace(/^https?:\/\//, "")}</a>{" "}
             (ci-après le « Site »), est édité par{" "}
             <strong>
@@ -70,6 +70,16 @@ export default function MentionsLegalesPage() {
             <Placeholder value={editor.address} label="Adresse" />.
           </p>
         )}
+        <p>
+          SejourFR édite un service d'entraînement en ligne aux examens. La
+          Plateforme propose deux modules : un module <strong>Civique</strong>{" "}
+          (préparation à l'examen civique pour les parcours CSP, CR et NAT) et
+          un module <strong>TCF</strong> (préparation aux compétences
+          linguistiques évaluées par le Test de Connaissance du Français,
+          niveaux A2 à B2). SejourFR <strong>ne se substitue pas aux
+          organismes officiels habilités</strong> à faire passer ces épreuves
+          ou à délivrer les attestations correspondantes.
+        </p>
 
         <ul className="legal-list-plain">
           <li>
@@ -140,7 +150,7 @@ export default function MentionsLegalesPage() {
           L'ensemble des contenus présents sur le Site (textes, images, logos,
           vidéos, illustrations, icônes, sons, marques, charte graphique, code
           source, base de données, structure du site) est la propriété exclusive
-          de SéjourFR ou de ses partenaires, et est protégé par le droit d'auteur
+          de SejourFR ou de ses partenaires, et est protégé par le droit d'auteur
           et le droit des marques en vertu des articles L.111-1 et suivants du
           Code de la propriété intellectuelle.
         </p>
@@ -149,20 +159,25 @@ export default function MentionsLegalesPage() {
           transmission, dénaturation, totale ou partielle du Site ou de son
           contenu, par quelque procédé que ce soit, et sur quelque support que
           ce soit, est interdite sans l'autorisation écrite et préalable de
-          SéjourFR. Toute exploitation non autorisée du Site ou de son contenu
+          SejourFR. Toute exploitation non autorisée du Site ou de son contenu
           pourra faire l'objet de poursuites civiles ou pénales (article L.335-2
           du Code de la propriété intellectuelle).
         </p>
         <p>
-          Les questions de l'examen civique sont la propriété du Ministère de
-          l'Intérieur français et sont reproduites dans un cadre pédagogique
-          conforme.
+          Les questions, énoncés, corrections et passages de compréhension
+          écrite proposés sur le Site sont <strong>conçus par l'équipe
+          SejourFR à partir des référentiels et thématiques officiels
+          publiés</strong> par les organismes compétents (Ministère de
+          l'Intérieur pour l'examen civique, France Éducation International
+          pour le TCF), <strong>sans reproduction des questions officielles</strong>{" "}
+          de ces épreuves. Les questions officielles demeurent la propriété de
+          leurs ayants droit respectifs.
         </p>
       </LegalSection>
 
       <LegalSection id="article-5" number={5} title="Liens hypertextes">
         <p>
-          Le Site peut contenir des liens vers d'autres sites internet. SéjourFR
+          Le Site peut contenir des liens vers d'autres sites internet. SejourFR
           n'exerce aucun contrôle sur ces sites et n'assume aucune responsabilité
           quant à leur contenu, leurs politiques de confidentialité ou leurs
           pratiques.
@@ -177,30 +192,39 @@ export default function MentionsLegalesPage() {
           </li>
           <li>de mentionner explicitement la source,</li>
           <li>
-            de ne pas porter atteinte à l'image ni à la réputation de SéjourFR.
+            de ne pas porter atteinte à l'image ni à la réputation de SejourFR.
           </li>
         </ul>
       </LegalSection>
 
       <LegalSection id="article-6" number={6} title="Responsabilité">
         <p>
-          Les informations publiées sur le Site sont fournies à titre indicatif.
-          SéjourFR s'efforce d'assurer l'exactitude et la mise à jour des
-          informations diffusées, notamment celles relatives à l'examen civique
-          et aux procédures de naturalisation, mais ne peut garantir leur
-          exhaustivité ni leur conformité aux dernières évolutions légales.
+          Les informations publiées sur le Site sont fournies à titre indicatif
+          et à des fins d'entraînement. SejourFR s'efforce d'assurer
+          l'exactitude et la mise à jour des contenus diffusés, notamment ceux
+          relatifs à l'examen civique et au TCF, mais ne peut garantir leur
+          exhaustivité ni leur conformité aux dernières évolutions légales ou
+          aux référentiels officiels en vigueur.
         </p>
         <p>
-          <strong>SéjourFR est une plateforme de préparation indépendante.</strong>{" "}
-          Elle n'est pas affiliée au Ministère de l'Intérieur, à la CCI Paris
-          Île-de-France, à France Éducation International, ni à aucun autre
-          organisme officiel agréé pour faire passer l'examen civique.
+          <strong>SejourFR est une plateforme d'entraînement indépendante.</strong>{" "}
+          Elle n'est pas affiliée au Ministère de l'Intérieur, à France
+          Éducation International, ni à aucun autre organisme officiel agréé
+          pour faire passer l'examen civique ou le TCF. Concrètement : pour
+          l'<strong>examen civique</strong>, les épreuves sont organisées par
+          les centres agréés (notamment ceux opérés par France Éducation
+          International et la Chambre de commerce et d'industrie de Paris
+          Île-de-France) selon le titre demandé ; pour le <strong>TCF</strong>,
+          par France Éducation International et son réseau de centres agréés.
+          SejourFR ne se substitue à aucun de ces organismes.
         </p>
         <p>
-          L'utilisateur est invité à consulter les sources officielles
-          (service-public.fr, immigration.interieur.gouv.fr,
-          formation-civique.interieur.gouv.fr) pour toute démarche administrative
-          officielle.
+          L'utilisateur est invité à consulter les sources officielles{" "}
+          (<a href="https://www.service-public.fr" target="_blank" rel="noopener noreferrer">service-public.fr</a>,{" "}
+          <a href="https://www.immigration.interieur.gouv.fr" target="_blank" rel="noopener noreferrer">immigration.interieur.gouv.fr</a>,{" "}
+          <a href="https://www.france-education-international.fr" target="_blank" rel="noopener noreferrer">france-education-international.fr</a>)
+          pour toute démarche administrative officielle et pour l'inscription
+          aux épreuves.
         </p>
       </LegalSection>
 

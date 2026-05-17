@@ -2,19 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LegalPageLayout } from "@/components/legal/LegalPageLayout";
 import { LegalSection, LegalSubsection } from "@/components/legal/LegalSection";
-import { LegalCallout } from "@/components/legal/LegalCallout";
 import { LegalTable } from "@/components/legal/LegalTable";
 import { Placeholder } from "@/components/legal/Placeholder";
 import { LEGAL_INFO } from "@/content/legal/legal-info";
 import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Politique de confidentialité | SéjourFR",
+  title: "Politique de confidentialité | SejourFR",
   description:
-    "Comment SéjourFR collecte, utilise et protège vos données personnelles conformément au RGPD et à la loi Informatique et Libertés.",
+    "Comment SejourFR collecte, utilise et protège vos données personnelles conformément au RGPD et à la loi Informatique et Libertés.",
   alternates: { canonical: "/confidentialite" },
   openGraph: {
-    title: "Politique de confidentialité — SéjourFR",
+    title: "Politique de confidentialité — SejourFR",
     description:
       "Politique RGPD complète : données collectées, finalités, durées de conservation, sous-traitants, droits, CNIL.",
     type: "website",
@@ -65,9 +64,10 @@ export default function ConfidentialitePage() {
             <strong>
               <Placeholder value={editor.legalName} label="Raison sociale" />
             </strong>{" "}
-            (ci-après « <strong>SéjourFR</strong> » ou « nous ») collecte,
+            (ci-après « <strong>SejourFR</strong> » ou « nous ») collecte,
             utilise, conserve et protège vos données personnelles dans le cadre
-            de votre utilisation de la plateforme accessible à l'adresse{" "}
+            de votre utilisation de la plateforme d'entraînement aux examens
+            civique et TCF accessible à l'adresse{" "}
             <a href={SITE.url}>{SITE.url.replace(/^https?:\/\//, "")}</a>{" "}
             (ci-après la « <strong>Plateforme</strong> »).
           </p>
@@ -101,7 +101,7 @@ export default function ConfidentialitePage() {
           </li>
           <li>
             Email :{" "}
-            <a href="mailto:support@sejourfr.fr">support@sejourfr.fr</a>
+            <a href={`mailto:${editor.email}`}>{editor.email}</a>
           </li>
         </ul>
       </LegalSection>
@@ -163,6 +163,11 @@ export default function ConfidentialitePage() {
                 "Authentification",
               ],
               [
+                "Parcours visé (CSP / CR / NAT) et niveau TCF cible (A2 / B1 / B2)",
+                "Facultatif",
+                "Personnaliser l'entraînement et le gating des contenus",
+              ],
+              [
                 "Données de paiement",
                 "Obligatoire pour Premium",
                 "Traitement des paiements (via Stripe)",
@@ -188,13 +193,12 @@ export default function ConfidentialitePage() {
               horaire, dates et heures de connexion ;
             </li>
             <li>
-              <strong>Données de navigation</strong> : pages visitées, durée de
-              visite, parcours sur la Plateforme ;
-            </li>
-            <li>
-              <strong>Données d'utilisation des Services</strong> : questions
-              consultées, résultats aux examens blancs passés,
-              progression par catégorie, score moyen, historique d'activité.
+              <strong>Données d'utilisation des Services</strong> : sessions
+              d'entraînement et d'examens blancs (module, thématiques abordées,
+              réponses données, score, durée), progression par thématique pour
+              chaque module (civique et TCF), historique des tentatives,
+              questions marquées en favori et questions échouées consultées en
+              révision.
             </li>
           </ul>
         </LegalSubsection>
@@ -216,15 +220,21 @@ export default function ConfidentialitePage() {
           columns={["Finalité du traitement", "Base légale"]}
           rows={[
             ["Création et gestion de votre compte", "Exécution du contrat (art. 6.1.b)"],
-            ["Fourniture des services payants", "Exécution du contrat (art. 6.1.b)"],
-            ["Traitement des paiements", "Exécution du contrat (art. 6.1.b)"],
             [
-              "Envoi d'emails transactionnels (confirmation, accusé de réception)",
+              "Fourniture des services d'entraînement (modules civique et TCF) : sessions, examens blancs, favoris, révision des erreurs",
               "Exécution du contrat (art. 6.1.b)",
             ],
             [
-              "Suivi statistique anonymisé de la fréquentation",
-              "Intérêt légitime (art. 6.1.f)",
+              "Calcul et restitution de votre progression par module et par thématique",
+              "Exécution du contrat (art. 6.1.b)",
+            ],
+            [
+              "Gestion des abonnements Premium et traitement des paiements",
+              "Exécution du contrat (art. 6.1.b)",
+            ],
+            [
+              "Envoi d'emails transactionnels (confirmation d'inscription, réinitialisation de mot de passe, accusé de paiement)",
+              "Exécution du contrat (art. 6.1.b)",
             ],
             ["Envoi de newsletters et actualités", "Consentement (art. 6.1.a)"],
             [
@@ -232,7 +242,7 @@ export default function ConfidentialitePage() {
               "Intérêt légitime (art. 6.1.f)",
             ],
             ["Conservation des factures", "Obligation légale (art. 6.1.c)"],
-            ["Lutte contre la fraude et la sécurité", "Intérêt légitime (art. 6.1.f)"],
+            ["Lutte contre la fraude et la sécurité de la Plateforme", "Intérêt légitime (art. 6.1.f)"],
           ]}
         />
       </LegalSection>
@@ -273,12 +283,12 @@ export default function ConfidentialitePage() {
       <LegalSection id="article-6" number={6} title="Destinataires de vos données">
         <p>
           Vos données sont accessibles aux seules personnes habilitées de
-          SéjourFR ayant besoin d'y accéder dans le cadre de leurs missions.
+          SejourFR ayant besoin d'y accéder dans le cadre de leurs missions.
         </p>
         <p>
           Nous faisons appel à des <strong>sous-traitants</strong> au sens du
           RGPD pour certaines opérations. Ces sous-traitants sont liés à
-          SéjourFR par des accords de traitement (DPA) conformes à l'article 28
+          SejourFR par des accords de traitement (DPA) conformes à l'article 28
           du RGPD :
         </p>
         <LegalTable
@@ -334,57 +344,54 @@ export default function ConfidentialitePage() {
         </LegalSubsection>
 
         <LegalSubsection number="8.2" title="Cookies utilisés sur la Plateforme">
+          <p>
+            À ce jour, la Plateforme ne dépose qu'un <strong>unique cookie
+            strictement nécessaire</strong> au fonctionnement du service :
+          </p>
           <LegalTable
-            columns={["Type", "Finalité", "Consentement", "Durée"]}
+            columns={["Nom", "Finalité", "Consentement", "Durée"]}
             rows={[
               [
-                "Strictement nécessaires",
-                "Connexion, sécurité",
-                "Non (exempt)",
-                "Session ou 13 mois",
+                "sejourfr.accessToken",
+                "Maintien de la session authentifiée (lecture côté serveur pour le rendu des pages connectées)",
+                "Non requis (cookie strictement nécessaire)",
+                "Durée de la session de connexion",
               ],
-              [
-                "Préférences",
-                "Choix de langue, thème (clair/sombre)",
-                "Non (exempt)",
-                "13 mois",
-              ],
-              [
-                "Mesure d'audience",
-                "Statistiques anonymisées",
-                "Oui",
-                "13 mois",
-              ],
-              [
-                "Analyse comportementale",
-                "Compréhension du parcours utilisateur",
-                "Oui",
-                "13 mois",
-              ],
-              ["Publicité", "Aucun cookie publicitaire utilisé", "—", "—"],
             ]}
           />
+          <p>
+            <strong>Aucun cookie de mesure d'audience</strong> (Google
+            Analytics, Plausible, Matomo, etc.), aucun cookie publicitaire et
+            aucun traceur d'analyse comportementale ne sont déposés par
+            SejourFR. Aucune plateforme de gestion du consentement (CMP) n'est
+            requise tant que ce périmètre reste limité aux cookies strictement
+            nécessaires, conformément aux recommandations de la CNIL.
+          </p>
         </LegalSubsection>
 
         <LegalSubsection number="8.3" title="Gestion de vos préférences">
           <p>
-            Lors de votre première visite, un bandeau vous permet d'accepter ou
-            refuser les cookies non essentiels. Vous pouvez modifier vos
-            préférences à tout moment :
+            Le cookie de session étant strictement nécessaire à
+            l'authentification, son dépôt n'est pas soumis à votre
+            consentement préalable. Vous pouvez néanmoins :
           </p>
           <ul>
             <li>
-              Via le lien <em>« Gérer mes cookies »</em> en bas de chaque page ;
+              <strong>Vous déconnecter</strong> depuis votre espace personnel,
+              ce qui supprime le cookie de session ;
             </li>
-            <li>Via les paramètres de votre navigateur.</li>
+            <li>
+              Configurer votre navigateur pour bloquer ou supprimer les cookies
+              — auquel cas vous ne pourrez plus accéder aux pages réservées aux
+              utilisateurs connectés.
+            </li>
           </ul>
-          <LegalCallout tone="warning" title="Plateforme de gestion du consentement (CMP) en cours d'intégration">
-            Le bandeau et le module de gestion des cookies seront déployés
-            prochainement. En attendant, seuls les cookies strictement
-            nécessaires (authentification, sécurité, préférence d'interface)
-            sont déposés sur votre terminal — exempts de consentement préalable
-            au sens des recommandations CNIL 2026.
-          </LegalCallout>
+          <p>
+            Si, à l'avenir, SejourFR venait à intégrer des cookies non
+            essentiels (mesure d'audience, par exemple), un bandeau de
+            consentement serait alors mis en place et la présente section
+            mise à jour en conséquence.
+          </p>
         </LegalSubsection>
       </LegalSection>
 
@@ -439,8 +446,8 @@ export default function ConfidentialitePage() {
           <ul>
             <li>
               Par email à{" "}
-              <a href="mailto:support@sejourfr.fr?subject=Exercice%20des%20droits%20RGPD">
-                support@sejourfr.fr
+              <a href={`mailto:${editor.email}?subject=Exercice%20des%20droits%20RGPD`}>
+                {editor.email}
               </a>{" "}
               (objet : <em>« Exercice des droits RGPD »</em>) ;
             </li>
@@ -509,8 +516,8 @@ export default function ConfidentialitePage() {
             robuste (BCrypt) ;
           </li>
           <li>
-            <strong>Authentification</strong> sécurisée par token JWT avec
-            rotation automatique ;
+            <strong>Authentification</strong> sécurisée par token JWT
+            (access token court + refresh token avec rotation côté serveur) ;
           </li>
           <li><strong>Sauvegardes</strong> régulières et chiffrées ;</li>
           <li>
@@ -553,7 +560,7 @@ export default function ConfidentialitePage() {
           concernant des enfants de moins de 16 ans. Si vous pensez qu'un enfant
           nous a transmis ses données sans autorisation parentale, contactez-nous
           immédiatement à{" "}
-          <a href="mailto:support@sejourfr.fr">support@sejourfr.fr</a>
+          <a href={`mailto:${editor.email}`}>{editor.email}</a>
           {" "}— nous procéderons à la suppression dans les plus brefs délais.
         </p>
       </LegalSection>
@@ -572,7 +579,7 @@ export default function ConfidentialitePage() {
         <ul>
           <li>
             <strong>Email :</strong>{" "}
-            <a href="mailto:support@sejourfr.fr">support@sejourfr.fr</a>
+            <a href={`mailto:${editor.email}`}>{editor.email}</a>
           </li>
           <li>
             <strong>Courrier :</strong>{" "}

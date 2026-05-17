@@ -51,7 +51,12 @@ export interface LegalSubscription {
   annualPriceTTC: string;
   annualPriceHT: string | null;
   vatRate: string;
-  trialQuestionsPerCategory: number;
+  /**
+   * Nombre de questions d'entraînement offertes gratuitement par module
+   * (CIVIQUE et TCF sont gatés indépendamment).
+   */
+  trialQuestionsPerModule: number;
+  /** Nombre d'examens blancs offerts gratuitement par module. */
   trialSimulations: number;
 }
 
@@ -81,7 +86,7 @@ export interface LegalInfo {
 export const LEGAL_INFO: LegalInfo = {
   editor: {
     legalForm: "EI",
-    companyName: "SéjourFR",
+    companyName: "SejourFR",
     legalName: null, // TODO : prénom + nom de l'entrepreneur individuel
     capital: null, // EI : pas de capital social
     address: null, // TODO : adresse complète (numéro, rue, code postal, ville)
@@ -89,6 +94,12 @@ export const LEGAL_INFO: LegalInfo = {
     siren: null, // TODO : 9 chiffres
     rcs: null, // EI non commerçant : null. Sinon : "RCS [Ville] [Numéro]"
     vatNumber: null, // TODO : "FR..." ou null si franchise en base de TVA
+    // `editor.email` est l'adresse de contact officielle utilisée uniformément
+    // sur les 3 pages légales (mentions, CGU, confidentialité). On retient
+    // `contact@sejourfr.fr` pour TOUS les contacts publics (questions
+    // générales, RGPD, rétractation, etc.) afin de n'avoir qu'une seule
+    // adresse à publier — le routage interne (support produit vs RGPD) se
+    // fait ensuite côté boîte mail.
     email: "contact@sejourfr.fr",
     phone: null, // TODO : numéro de téléphone (facultatif si email suffit)
     publicationDirector: null, // TODO : pour un EI, c'est généralement vous
@@ -104,14 +115,17 @@ export const LEGAL_INFO: LegalInfo = {
   dpo: {
     designated: false,
     name: "",
-    email: "support@sejourfr.fr",
+    // On aligne sur `editor.email` (adresse de contact unique).
+    email: "contact@sejourfr.fr",
   } satisfies LegalDpo,
 
   subscription: {
     annualPriceTTC: "29,90 €",
     annualPriceHT: null, // À calculer si l'éditeur est assujetti à la TVA
     vatRate: "20 %",
-    trialQuestionsPerCategory: 5,
+    // Règle métier 2026-05 : 20 questions + 1 examen blanc gratuits PAR MODULE
+    // (civique ET TCF sont gatés indépendamment). Voir `canAccessModule`.
+    trialQuestionsPerModule: 20,
     trialSimulations: 1,
   } satisfies LegalSubscription,
 
@@ -126,7 +140,9 @@ export const LEGAL_INFO: LegalInfo = {
       purpose: "Traitement des paiements par carte bancaire",
       country: "Irlande (UE)",
     },
-    // TODO : ajouter le fournisseur d'envoi d'emails (Brevo / SendGrid / Resend / IONOS Mail) selon ce qui est branché en prod.
+    // TODO [À VÉRIFIER avec l'éditeur] : ajouter le fournisseur d'envoi
+    // d'emails transactionnels (Brevo / SendGrid / Resend / IONOS Mail…)
+    // une fois la stack mail réellement branchée en prod.
   ] satisfies LegalSubProcessor[],
 
   mediator: {
@@ -136,8 +152,8 @@ export const LEGAL_INFO: LegalInfo = {
   } satisfies LegalMediator,
 
   /** Date de dernière mise à jour des documents légaux (ISO YYYY-MM-DD). */
-  lastUpdated: "2026-05-09",
-  effectiveDate: "2026-05-09",
+  lastUpdated: "2026-05-17",
+  effectiveDate: "2026-05-17",
 };
 
 /* --------------------- Helpers ----------------------------------------- */
