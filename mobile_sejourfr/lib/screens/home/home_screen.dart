@@ -686,7 +686,11 @@ class _ModuleMeta extends StatelessWidget {
           );
         }
         // En cours : montre les stats
-        final percent = (s.successRate * 100).round();
+        // Score de maîtrise (questions distinctes réussies / total du pool) —
+        // cohérent avec l'onglet Progression et la carte SCORE GLOBAL.
+        final correct = s.byTheme.fold<int>(0, (sum, t) => sum + t.correct);
+        final total = s.byTheme.fold<int>(0, (sum, t) => sum + t.total);
+        final percent = total == 0 ? 0 : ((correct / total) * 100).round();
         return RichText(
           text: TextSpan(
             style: AppFonts.jakarta(
@@ -702,7 +706,7 @@ class _ModuleMeta extends StatelessWidget {
                   weight: FontWeight.w800,
                 ),
               ),
-              const TextSpan(text: 'de réussite · '),
+              const TextSpan(text: 'de maîtrise · '),
               TextSpan(
                 text: '${s.attemptsTotal}',
                 style: AppFonts.jakarta(

@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { PaywallSheet } from "@/app/_components/PaywallSheet";
-import { ApiException, attemptApi, statsApi } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
+import {useRouter} from "next/navigation";
+import {useEffect, useMemo, useState} from "react";
+import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import {ApiException, attemptApi, statsApi} from "@/lib/api";
+import {useAuth} from "@/lib/auth-context";
 import {
-  canAccessModule,
   type AttemptSummaryResponse,
+  canAccessModule,
   type Module as ModuleEnum,
   type ThemeStatsResponse,
   type UserStatsResponse,
@@ -17,660 +17,673 @@ import {
 const HEATMAP_DAYS = 30;
 
 export default function StatistiquesPage() {
-  const router = useRouter();
-  const { user, status } = useAuth();
-  const [module, setModule] = useState<ModuleEnum>("CIVIQUE");
+    const router = useRouter();
+    const {user, status} = useAuth();
+    const [module, setModule] = useState<ModuleEnum>("CIVIQUE");
 
-  const [stats, setStats] = useState<UserStatsResponse | null>(null);
-  const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+    const [stats, setStats] = useState<UserStatsResponse | null>(null);
+    const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-  const [starting, setStarting] = useState<string | null>(null);
-  const [paywallOpen, setPaywallOpen] = useState(false);
+    const [starting, setStarting] = useState<string | null>(null);
+    const [paywallOpen, setPaywallOpen] = useState(false);
 
-  const isPremiumForModule = user !== null && canAccessModule(user, module);
-  const upsellPlan = module === "TCF" ? "INTEGRAL_3MOIS" : "CIVIQUE_3MOIS";
+    const isPremiumForModule = user !== null && canAccessModule(user, module);
+    const upsellPlan = module === "TCF" ? "INTEGRAL_3MOIS" : "CIVIQUE_3MOIS";
 
-  useEffect(() => {
-    if (status !== "authenticated") return;
-    let cancelled = false;
-    setLoading(true);
-    Promise.all([
-      statsApi.get(module).catch((e: unknown) => {
-        if (e instanceof ApiException) throw e;
-        throw new Error("Statistiques indisponibles.");
-      }),
-      attemptApi
-        .listMine({ module, limit: 100 })
-        .catch((): AttemptSummaryResponse[] => []),
-    ])
-      .then(([s, atts]) => {
-        if (cancelled) return;
-        setStats(s);
-        setAttempts(atts);
-        setError(null);
-        setLoading(false);
-      })
-      .catch((e: Error) => {
-        if (cancelled) return;
-        setStats(null);
-        setError(e.message);
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [module, status]);
+    useEffect(() => {
+        if (status !== "authenticated") return;
+        let cancelled = false;
+        setLoading(true);
+        Promise.all([
+            statsApi.get(module).catch((e: unknown) => {
+                if (e instanceof ApiException) throw e;
+                throw new Error("Statistiques indisponibles.");
+            }),
+            attemptApi
+                .listMine({module, limit: 100})
+                .catch((): AttemptSummaryResponse[] => []),
+        ])
+            .then(([s, atts]) => {
+                if (cancelled) return;
+                setStats(s);
+                setAttempts(atts);
+                setError(null);
+                setLoading(false);
+            })
+            .catch((e: Error) => {
+                if (cancelled) return;
+                setStats(null);
+                setError(e.message);
+                setLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [module, status]);
 
-  // ========== KPIs ==========
-  const streak = useMemo(() => computeStreak(attempts), [attempts]);
-  const globalSuccessPct = stats ? Math.round(stats.successRate * 100) : 0;
+    // ========== KPIs ==========
+    const streak = useMemo(() => computeStreak(attempts), [attempts]);
+    // Score global = maîtrise sur tout le module : questions distinctes réussies
+    // / total des questions actives. Cohérent avec la maîtrise par thème ; un
+    // seul examen blanc à 90% ne donne plus 90% global mais la part réelle du
+    // pool qu'on a verrouillée.
+    const globalMastery = useMemo(() => {
+        if (!stats) return {pct: 0, correct: 0, total: 0};
+        const correct = stats.byTheme.reduce((s, t) => s + t.correct, 0);
+        const total = stats.byTheme.reduce((s, t) => s + t.total, 0);
+        return {
+            pct: total === 0 ? 0 : Math.round((correct / total) * 100),
+            correct,
+            total,
+        };
+    }, [stats]);
 
-  const totalWrong = useMemo(() => {
-    if (!stats) return 0;
-    return stats.byTheme.reduce(
-      (sum, t) => sum + Math.max(0, t.answered - t.correct),
-      0,
+    const totalWrong = useMemo(() => {
+        if (!stats) return 0;
+        return stats.byTheme.reduce(
+            (sum, t) => sum + Math.max(0, t.answered - t.correct),
+            0,
+        );
+    }, [stats]);
+
+    // ========== Heatmap data ==========
+    const heatmap = useMemo(() => buildHeatmap(attempts), [attempts]);
+
+    // ========== Themes sorted weak-first ==========
+    // On classe par score de maîtrise croissant : un thème jamais touché ou plein
+    // d'erreurs remonte en premier, c'est ce que l'utilisateur doit retravailler.
+    const sortedThemes = useMemo(() => {
+        if (!stats) return [];
+        const started = stats.byTheme.filter((t) => t.answered > 0);
+        const notStarted = stats.byTheme.filter((t) => t.answered === 0);
+        started.sort((a, b) => mastery(a) - mastery(b));
+        notStarted.sort((a, b) => b.total - a.total);
+        return [...started, ...notStarted];
+    }, [stats]);
+
+    const weakest = useMemo(
+        () =>
+            sortedThemes
+                .filter((t) => t.answered > 0)
+                .slice(0, 4),
+        [sortedThemes],
     );
-  }, [stats]);
 
-  // ========== Heatmap data ==========
-  const heatmap = useMemo(() => buildHeatmap(attempts), [attempts]);
+    const errorDistribution = useMemo(() => {
+        if (!stats || totalWrong === 0) return [];
+        const items = stats.byTheme
+            .map((t) => ({
+                themeId: t.themeId,
+                themeName: t.themeName,
+                wrong: Math.max(0, t.answered - t.correct),
+            }))
+            .filter((x) => x.wrong > 0)
+            .sort((a, b) => b.wrong - a.wrong);
+        const top = items.slice(0, 3);
+        const rest = items.slice(3);
+        const result = top.map((it) => ({
+            ...it,
+            pct: Math.round((it.wrong / totalWrong) * 100),
+        }));
+        if (rest.length > 0) {
+            const restWrong = rest.reduce((sum, r) => sum + r.wrong, 0);
+            result.push({
+                themeId: "__rest",
+                themeName: "Autres",
+                wrong: restWrong,
+                pct: Math.round((restWrong / totalWrong) * 100),
+            });
+        }
+        return result;
+    }, [stats, totalWrong]);
 
-  // ========== Themes sorted weak-first ==========
-  // On classe par score de maîtrise croissant : un thème jamais touché ou plein
-  // d'erreurs remonte en premier, c'est ce que l'utilisateur doit retravailler.
-  const sortedThemes = useMemo(() => {
-    if (!stats) return [];
-    const started = stats.byTheme.filter((t) => t.answered > 0);
-    const notStarted = stats.byTheme.filter((t) => t.answered === 0);
-    started.sort((a, b) => mastery(a) - mastery(b));
-    notStarted.sort((a, b) => b.total - a.total);
-    return [...started, ...notStarted];
-  }, [stats]);
-
-  const weakest = useMemo(
-    () =>
-      sortedThemes
-        .filter((t) => t.answered > 0)
-        .slice(0, 4),
-    [sortedThemes],
-  );
-
-  const errorDistribution = useMemo(() => {
-    if (!stats || totalWrong === 0) return [];
-    const items = stats.byTheme
-      .map((t) => ({
-        themeId: t.themeId,
-        themeName: t.themeName,
-        wrong: Math.max(0, t.answered - t.correct),
-      }))
-      .filter((x) => x.wrong > 0)
-      .sort((a, b) => b.wrong - a.wrong);
-    const top = items.slice(0, 3);
-    const rest = items.slice(3);
-    const result = top.map((it) => ({
-      ...it,
-      pct: Math.round((it.wrong / totalWrong) * 100),
-    }));
-    if (rest.length > 0) {
-      const restWrong = rest.reduce((sum, r) => sum + r.wrong, 0);
-      result.push({
-        themeId: "__rest",
-        themeName: "Autres",
-        wrong: restWrong,
-        pct: Math.round((restWrong / totalWrong) * 100),
-      });
+    async function startThemeTraining(themeId: string) {
+        if (!isPremiumForModule) {
+            setPaywallOpen(true);
+            return;
+        }
+        setStarting(themeId);
+        try {
+            const a = await attemptApi.start({
+                type: "TRAINING",
+                module,
+                themeId,
+                size: 30,
+            });
+            router.push(`/sessions/${a.id}`);
+        } catch {
+            setStarting(null);
+        }
     }
-    return result;
-  }, [stats, totalWrong]);
 
-  async function startThemeTraining(themeId: string) {
-    if (!isPremiumForModule) {
-      setPaywallOpen(true);
-      return;
+    if (status === "loading") return <StatsSkeleton/>;
+    if (!user) {
+        return (
+            <main className="st-gate">
+                <p>Connectez-vous pour voir vos statistiques.</p>
+                <Link href="/connexion?next=/statistiques" className="st-gate-cta">
+                    Se connecter →
+                </Link>
+                <style>{gateStyles}</style>
+            </main>
+        );
     }
-    setStarting(themeId);
-    try {
-      const a = await attemptApi.start({
-        type: "TRAINING",
-        module,
-        themeId,
-        size: 30,
-      });
-      router.push(`/sessions/${a.id}`);
-    } catch {
-      setStarting(null);
-    }
-  }
 
-  if (status === "loading") return <StatsSkeleton />;
-  if (!user) {
+    const isEmpty = !loading && stats !== null && stats.questionsAnswered === 0;
+
     return (
-      <main className="st-gate">
-        <p>Connectez-vous pour voir vos statistiques.</p>
-        <Link href="/connexion?next=/statistiques" className="st-gate-cta">
-          Se connecter →
-        </Link>
-        <style>{gateStyles}</style>
-      </main>
-    );
-  }
-
-  const isEmpty = !loading && stats !== null && stats.questionsAnswered === 0;
-
-  return (
-    <main className="st">
-      {/* ============ TOPBAR ============ */}
-      <header className="topbar">
-        <div>
-          <div className="breadcrumb">
-            ACCUEIL <span className="sep">/</span> STATISTIQUES
-          </div>
-          <h1>
-            Votre <em>progression</em> en détail.
-          </h1>
-        </div>
-        <div className="topbar-actions">
-          <Link href="/revision" className="btn-outline">
-            Mes erreurs →
-          </Link>
-        </div>
-      </header>
-
-      {/* ============ MODULE TABS ============ */}
-      <div className="filters">
-        <div className="filter-tabs" role="tablist" aria-label="Module">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={module === "CIVIQUE"}
-            className={`tab tab-blue ${module === "CIVIQUE" ? "is-active" : ""}`}
-            onClick={() => setModule("CIVIQUE")}
-          >
-            Civique
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={module === "TCF"}
-            className={`tab tab-red ${module === "TCF" ? "is-active" : ""}`}
-            onClick={() => setModule("TCF")}
-          >
-            TCF
-          </button>
-        </div>
-      </div>
-
-      {!isPremiumForModule && (
-        <button
-          type="button"
-          className="upsell"
-          onClick={() => setPaywallOpen(true)}
-        >
-          <div className="upsell-icon" aria-hidden>
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z" />
-            </svg>
-          </div>
-          <div className="upsell-content">
-            <div className="upsell-title">Statistiques en mode démo</div>
-            <div className="upsell-sub">
-              Activez l&apos;abonnement pour suivre toutes les thématiques sans
-              limite.
-            </div>
-          </div>
-          <div className="upsell-arrow">→</div>
-        </button>
-      )}
-
-      {error && <div className="form-error st-error">{error}</div>}
-
-      {/* ============ STATS GRID ============ */}
-      <section className="stats-grid">
-        <StatCard
-          tone="blue"
-          icon={<FlameIcon />}
-          label="JOURS D'AFFILÉE"
-          value={loading ? "—" : String(streak)}
-          trend={streak > 0 ? "Série en cours" : "Pas de série active"}
-        />
-        <StatCard
-          tone="red"
-          icon={<AlertIcon />}
-          label="ERREURS EN ATTENTE"
-          value={loading ? "—" : String(totalWrong)}
-          trend={totalWrong > 0 ? "À retravailler" : "Rien à corriger"}
-        />
-        <StatCard
-          tone="green"
-          icon={<TrendIcon />}
-          label="TAUX DE RÉUSSITE"
-          value={
-            loading || !stats || stats.questionsAnswered === 0
-              ? "—"
-              : `${globalSuccessPct}%`
-          }
-          trend={
-            stats
-              ? `${stats.questionsCorrect} bonnes sur ${stats.questionsAnswered}`
-              : "Tous modules"
-          }
-        />
-        <StatCard
-          tone="amber"
-          icon={<LayersIcon />}
-          label="SESSIONS"
-          value={loading ? "—" : String(stats?.attemptsTotal ?? 0)}
-          trend={
-            stats && stats.attemptsTotal > 0
-              ? `${stats.questionsAnswered} questions`
-              : "À jouer"
-          }
-        />
-      </section>
-
-      {isEmpty && (
-        <EmptyState
-          title="Aucune statistique pour l'instant"
-          body={
-            module === "TCF"
-              ? "Démarrez votre premier entraînement TCF pour commencer à mesurer votre progression."
-              : "Démarrez votre premier entraînement civique pour mesurer votre progression."
-          }
-          ctaHref="/entrainement"
-          ctaLabel="Lancer un entraînement →"
-        />
-      )}
-
-      {!loading && stats && stats.questionsAnswered > 0 && (
-        <>
-          {/* ============ HEATMAP ============ */}
-          <section className="card">
-            <div className="card-head">
-              <div>
-                <h3>Calendrier de pratique</h3>
-                <p>
-                  {HEATMAP_DAYS} derniers jours · plus une case est foncée, plus
-                  vous avez pratiqué.
-                </p>
-              </div>
-              <div className="heatmap-legend">
-                <span>MOINS</span>
-                {HEATMAP_TONES.map((t, i) => (
-                  <span
-                    key={i}
-                    className="heatmap-legend-cell"
-                    style={{ background: t }}
-                  />
-                ))}
-                <span>PLUS</span>
-              </div>
-            </div>
-            <div className="heatmap-grid">
-              {heatmap.cells.map((c, i) => (
-                <div
-                  key={i}
-                  className="heatmap-cell"
-                  style={{
-                    background: HEATMAP_TONES[c.intensity],
-                    ...(c.isToday
-                      ? { boxShadow: "0 0 0 2px var(--color-red)" }
-                      : {}),
-                  }}
-                  title={`${c.label} · ${c.count} session${c.count > 1 ? "s" : ""}`}
-                />
-              ))}
-            </div>
-            <div className="heatmap-footer">
-              <span>IL Y A {HEATMAP_DAYS} JOURS</span>
-              <span>AUJOURD&apos;HUI</span>
-            </div>
-          </section>
-
-          {/* ============ ROW 2 COLS ============ */}
-          <section className="row-2">
-            {/* Weakest themes */}
-            <div className="card">
-              <div className="card-head">
+        <main className="st">
+            {/* ============ TOPBAR ============ */}
+            <header className="topbar">
                 <div>
-                  <h3>Compétences les plus faibles</h3>
-                  <p>Concentrez-vous sur ces points pour progresser vite.</p>
+                    <div className="breadcrumb">
+                        ACCUEIL <span className="sep">/</span> STATISTIQUES
+                    </div>
+                    <h1>
+                        Votre <em>progression</em> en détail.
+                    </h1>
                 </div>
-              </div>
-              {weakest.length === 0 ? (
-                <p className="weakest-empty">
-                  Aucune zone faible détectée — continuez sur votre lancée.
-                </p>
-              ) : (
-                <div className="weak-list">
-                  {weakest.map((t) => {
-                    const pct = Math.round(mastery(t) * 100);
-                    const tone = toneFor(pct);
-                    return (
-                      <button
-                        key={t.themeId}
+                <div className="topbar-actions">
+                    <Link href="/revision" className="btn-outline">
+                        Mes erreurs →
+                    </Link>
+                </div>
+            </header>
+
+            {/* ============ MODULE TABS ============ */}
+            <div className="filters">
+                <div className="filter-tabs" role="tablist" aria-label="Module">
+                    <button
                         type="button"
-                        className="weak-row"
-                        onClick={() => startThemeTraining(t.themeId)}
-                        disabled={starting === t.themeId}
-                      >
+                        role="tab"
+                        aria-selected={module === "CIVIQUE"}
+                        className={`tab tab-blue ${module === "CIVIQUE" ? "is-active" : ""}`}
+                        onClick={() => setModule("CIVIQUE")}
+                    >
+                        Civique
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={module === "TCF"}
+                        className={`tab tab-red ${module === "TCF" ? "is-active" : ""}`}
+                        onClick={() => setModule("TCF")}
+                    >
+                        TCF
+                    </button>
+                </div>
+            </div>
+
+            {!isPremiumForModule && (
+                <button
+                    type="button"
+                    className="upsell"
+                    onClick={() => setPaywallOpen(true)}
+                >
+                    <div className="upsell-icon" aria-hidden>
+                        <svg
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        >
+                            <path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"/>
+                        </svg>
+                    </div>
+                    <div className="upsell-content">
+                        <div className="upsell-title">Statistiques en mode démo</div>
+                        <div className="upsell-sub">
+                            Activez l&apos;abonnement pour suivre toutes les thématiques sans
+                            limite.
+                        </div>
+                    </div>
+                    <div className="upsell-arrow">→</div>
+                </button>
+            )}
+
+            {error && <div className="form-error st-error">{error}</div>}
+
+            {/* ============ STATS GRID ============ */}
+            <section className="stats-grid">
+                <StatCard
+                    tone="blue"
+                    icon={<FlameIcon/>}
+                    label="JOURS D'AFFILÉE"
+                    value={loading ? "—" : String(streak)}
+                    trend={streak > 0 ? "Série en cours" : "Pas de série active"}
+                />
+                <StatCard
+                    tone="red"
+                    icon={<AlertIcon/>}
+                    label="ERREURS EN ATTENTE"
+                    value={loading ? "—" : String(totalWrong)}
+                    trend={totalWrong > 0 ? "À retravailler" : "Rien à corriger"}
+                />
+                <StatCard
+                    tone="green"
+                    icon={<TrendIcon/>}
+                    label="SCORE DE MAÎTRISE"
+                    value={
+                        loading || !stats || stats.questionsAnswered === 0
+                            ? "—"
+                            : `${globalMastery.pct}%`
+                    }
+                    trend={
+                        stats && stats.questionsAnswered > 0
+                            ? `${globalMastery.correct} / ${globalMastery.total} maîtrisées`
+                            : "À débloquer"
+                    }
+                />
+                <StatCard
+                    tone="amber"
+                    icon={<LayersIcon/>}
+                    label="SESSIONS"
+                    value={loading ? "—" : String(stats?.attemptsTotal ?? 0)}
+                    trend={
+                        stats && stats.attemptsTotal > 0
+                            ? `${stats.questionsAnswered} questions`
+                            : "À jouer"
+                    }
+                />
+            </section>
+
+            {isEmpty && (
+                <EmptyState
+                    title="Aucune statistique pour l'instant"
+                    body={
+                        module === "TCF"
+                            ? "Démarrez votre premier entraînement TCF pour commencer à mesurer votre progression."
+                            : "Démarrez votre premier entraînement civique pour mesurer votre progression."
+                    }
+                    ctaHref="/entrainement"
+                    ctaLabel="Lancer un entraînement →"
+                />
+            )}
+
+            {!loading && stats && stats.questionsAnswered > 0 && (
+                <>
+                    {/* ============ HEATMAP ============ */}
+                    <section className="card">
+                        <div className="card-head">
+                            <div>
+                                <h3>Calendrier de pratique</h3>
+                                <p>
+                                    {HEATMAP_DAYS} derniers jours · plus une case est foncée, plus
+                                    vous avez pratiqué.
+                                </p>
+                            </div>
+                            <div className="heatmap-legend">
+                                <span>MOINS</span>
+                                {HEATMAP_TONES.map((t, i) => (
+                                    <span
+                                        key={i}
+                                        className="heatmap-legend-cell"
+                                        style={{background: t}}
+                                    />
+                                ))}
+                                <span>PLUS</span>
+                            </div>
+                        </div>
+                        <div className="heatmap-grid">
+                            {heatmap.cells.map((c, i) => (
+                                <div
+                                    key={i}
+                                    className="heatmap-cell"
+                                    style={{
+                                        background: HEATMAP_TONES[c.intensity],
+                                        ...(c.isToday
+                                            ? {boxShadow: "0 0 0 2px var(--color-red)"}
+                                            : {}),
+                                    }}
+                                    title={`${c.label} · ${c.count} session${c.count > 1 ? "s" : ""}`}
+                                />
+                            ))}
+                        </div>
+                        <div className="heatmap-footer">
+                            <span>IL Y A {HEATMAP_DAYS} JOURS</span>
+                            <span>AUJOURD&apos;HUI</span>
+                        </div>
+                    </section>
+
+                    {/* ============ ROW 2 COLS ============ */}
+                    <section className="row-2">
+                        {/* Weakest themes */}
+                        <div className="card">
+                            <div className="card-head">
+                                <div>
+                                    <h3>Compétences les plus faibles</h3>
+                                    <p>Concentrez-vous sur ces points pour progresser vite.</p>
+                                </div>
+                            </div>
+                            {weakest.length === 0 ? (
+                                <p className="weakest-empty">
+                                    Aucune zone faible détectée — continuez sur votre lancée.
+                                </p>
+                            ) : (
+                                <div className="weak-list">
+                                    {weakest.map((t) => {
+                                        const pct = Math.round(mastery(t) * 100);
+                                        const tone = toneFor(pct);
+                                        return (
+                                            <button
+                                                key={t.themeId}
+                                                type="button"
+                                                className="weak-row"
+                                                onClick={() => startThemeTraining(t.themeId)}
+                                                disabled={starting === t.themeId}
+                                            >
                         <span className={`weak-marker weak-marker-${tone}`} aria-hidden>
                           !
                         </span>
-                        <div className="weak-body">
-                          <div className="weak-name">{t.themeName}</div>
-                          <div className="weak-bar">
-                            <div
-                              className={`weak-bar-fill weak-bar-${tone}`}
-                              style={{ width: `${Math.max(2, pct)}%` }}
-                            />
-                          </div>
-                        </div>
-                        <span className={`weak-pct weak-pct-${tone}`}>
+                                                <div className="weak-body">
+                                                    <div className="weak-name">{t.themeName}</div>
+                                                    <div className="weak-bar">
+                                                        <div
+                                                            className={`weak-bar-fill weak-bar-${tone}`}
+                                                            style={{width: `${Math.max(2, pct)}%`}}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <span className={`weak-pct weak-pct-${tone}`}>
                           {pct}<span className="weak-pct-suf">%</span>
                         </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
 
-            {/* Error distribution donut */}
-            <div className="card">
-              <div className="card-head">
-                <div>
-                  <h3>Répartition des erreurs</h3>
-                  <p>
-                    {totalWrong > 0
-                      ? `${totalWrong} erreurs réparties par thème`
-                      : "Pas d'erreur à analyser"}
-                  </p>
-                </div>
-              </div>
-              {errorDistribution.length === 0 ? (
-                <p className="weakest-empty">
-                  Aucune erreur enregistrée — bravo !
-                </p>
-              ) : (
-                <div className="donut-row">
-                  <DonutChart segments={errorDistribution} total={totalWrong} />
-                  <div className="donut-legend">
-                    {errorDistribution.map((it, i) => (
-                      <div key={it.themeId} className="donut-legend-item">
+                        {/* Error distribution donut */}
+                        <div className="card">
+                            <div className="card-head">
+                                <div>
+                                    <h3>Répartition des erreurs</h3>
+                                    <p>
+                                        {totalWrong > 0
+                                            ? `${totalWrong} erreurs réparties par thème`
+                                            : "Pas d'erreur à analyser"}
+                                    </p>
+                                </div>
+                            </div>
+                            {errorDistribution.length === 0 ? (
+                                <p className="weakest-empty">
+                                    Aucune erreur enregistrée — bravo !
+                                </p>
+                            ) : (
+                                <div className="donut-row">
+                                    <DonutChart segments={errorDistribution} total={totalWrong}/>
+                                    <div className="donut-legend">
+                                        {errorDistribution.map((it, i) => (
+                                            <div key={it.themeId} className="donut-legend-item">
                         <span
-                          className="donut-legend-dot"
-                          style={{ background: DONUT_COLORS[i] }}
+                            className="donut-legend-dot"
+                            style={{background: DONUT_COLORS[i]}}
                         />
-                        <span className="donut-legend-name">
+                                                <span className="donut-legend-name">
                           {it.themeName}
                         </span>
-                        <span className="donut-legend-pct">{it.pct}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
+                                                <span className="donut-legend-pct">{it.pct}%</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </section>
 
-          {/* ============ FULL THEME LIST ============ */}
-          <section>
-            <div className="themes-head">
-              <h3>Détail par thématique</h3>
-              <span className="themes-hint">
+                    {/* ============ FULL THEME LIST ============ */}
+                    <section>
+                        <div className="themes-head">
+                            <h3>Détail par thématique</h3>
+                            <span className="themes-hint">
                 Les plus faibles en haut, à retravailler en priorité
               </span>
-            </div>
-            <div className="theme-list">
-              {sortedThemes.map((t) => (
-                <ThemeStatCard
-                  key={t.themeId}
-                  theme={t}
-                  locked={!isPremiumForModule && t.answered === 0}
-                  starting={starting === t.themeId}
-                  onStart={() => startThemeTraining(t.themeId)}
-                  onLockedClick={() => setPaywallOpen(true)}
-                />
-              ))}
-            </div>
-          </section>
-        </>
-      )}
+                        </div>
+                        <div className="theme-list">
+                            {sortedThemes.map((t) => (
+                                <ThemeStatCard
+                                    key={t.themeId}
+                                    theme={t}
+                                    locked={!isPremiumForModule && t.answered === 0}
+                                    starting={starting === t.themeId}
+                                    onStart={() => startThemeTraining(t.themeId)}
+                                    onLockedClick={() => setPaywallOpen(true)}
+                                />
+                            ))}
+                        </div>
+                    </section>
+                </>
+            )}
 
-      <PaywallSheet
-        open={paywallOpen}
-        onClose={() => setPaywallOpen(false)}
-        title={
-          module === "TCF"
-            ? "Suivi détaillé TCF avec l'Intégral"
-            : "Suivi détaillé avec l'abonnement"
-        }
-        message="L'abonnement débloque l'entraînement illimité, le choix du thème et le suivi de toutes vos thématiques."
-        plan={upsellPlan}
-      />
+            <PaywallSheet
+                open={paywallOpen}
+                onClose={() => setPaywallOpen(false)}
+                title={
+                    module === "TCF"
+                        ? "Suivi détaillé TCF avec l'Intégral"
+                        : "Suivi détaillé avec l'abonnement"
+                }
+                message="L'abonnement débloque l'entraînement illimité, le choix du thème et le suivi de toutes vos thématiques."
+                plan={upsellPlan}
+            />
 
-      <style>{styles}</style>
-    </main>
-  );
+            <style>{styles}</style>
+        </main>
+    );
 }
 
 // ============================================================================
 // STAT CARD
 // ============================================================================
 function StatCard({
-  tone,
-  icon,
-  label,
-  value,
-  trend,
-}: {
-  tone: "blue" | "red" | "green" | "amber";
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  trend?: string;
+                      tone,
+                      icon,
+                      label,
+                      value,
+                      trend,
+                  }: {
+    tone: "blue" | "red" | "green" | "amber";
+    icon: React.ReactNode;
+    label: string;
+    value: string;
+    trend?: string;
 }) {
-  return (
-    <div className="stat-card">
-      <div className={`stat-icon stat-icon-${tone}`}>{icon}</div>
-      <div className="stat-label">{label}</div>
-      <div className="stat-value">{value}</div>
-      {trend && <div className="stat-trend">{trend}</div>}
-    </div>
-  );
+    return (
+        <div className="stat-card">
+            <div className={`stat-icon stat-icon-${tone}`}>{icon}</div>
+            <div className="stat-label">{label}</div>
+            <div className="stat-value">{value}</div>
+            {trend && <div className="stat-trend">{trend}</div>}
+        </div>
+    );
 }
 
 // ============================================================================
 // DONUT CHART
 // ============================================================================
 const DONUT_COLORS = [
-  "#E1372F", // red
-  "#E8A317", // amber
-  "#1E3A8C", // blue
-  "#9CA2BD", // muted-2 for "autres"
+    "#E1372F", // red
+    "#E8A317", // amber
+    "#1E3A8C", // blue
+    "#9CA2BD", // muted-2 for "autres"
 ];
 
 function DonutChart({
-  segments,
-  total,
-}: {
-  segments: { themeId: string; pct: number }[];
-  total: number;
+                        segments,
+                        total,
+                    }: {
+    segments: { themeId: string; pct: number }[];
+    total: number;
 }) {
-  const R = 40;
-  const CIRC = 2 * Math.PI * R;
-  let offset = 0;
-  return (
-    <svg viewBox="0 0 100 100" className="donut-svg">
-      <circle
-        cx="50"
-        cy="50"
-        r={R}
-        fill="none"
-        stroke="var(--color-line-2)"
-        strokeWidth="16"
-      />
-      {segments.map((s, i) => {
-        const len = (s.pct / 100) * CIRC;
-        const seg = (
-          <circle
-            key={s.themeId}
-            cx="50"
-            cy="50"
-            r={R}
-            fill="none"
-            stroke={DONUT_COLORS[i] ?? "#9CA2BD"}
-            strokeWidth="16"
-            strokeDasharray={`${len} ${CIRC}`}
-            strokeDashoffset={-offset}
-            transform="rotate(-90 50 50)"
-          />
-        );
-        offset += len;
-        return seg;
-      })}
-      <text
-        x="50"
-        y="48"
-        textAnchor="middle"
-        fontFamily="Fraunces"
-        fontSize="18"
-        fontWeight="600"
-        fill="var(--color-ink)"
-      >
-        {total}
-      </text>
-      <text
-        x="50"
-        y="62"
-        textAnchor="middle"
-        fontFamily="JetBrains Mono"
-        fontSize="6"
-        fill="var(--color-muted)"
-        letterSpacing="1"
-      >
-        ERREURS
-      </text>
-    </svg>
-  );
+    const R = 40;
+    const CIRC = 2 * Math.PI * R;
+    let offset = 0;
+    return (
+        <svg viewBox="0 0 100 100" className="donut-svg">
+            <circle
+                cx="50"
+                cy="50"
+                r={R}
+                fill="none"
+                stroke="var(--color-line-2)"
+                strokeWidth="16"
+            />
+            {segments.map((s, i) => {
+                const len = (s.pct / 100) * CIRC;
+                const seg = (
+                    <circle
+                        key={s.themeId}
+                        cx="50"
+                        cy="50"
+                        r={R}
+                        fill="none"
+                        stroke={DONUT_COLORS[i] ?? "#9CA2BD"}
+                        strokeWidth="16"
+                        strokeDasharray={`${len} ${CIRC}`}
+                        strokeDashoffset={-offset}
+                        transform="rotate(-90 50 50)"
+                    />
+                );
+                offset += len;
+                return seg;
+            })}
+            <text
+                x="50"
+                y="48"
+                textAnchor="middle"
+                fontFamily="Fraunces"
+                fontSize="18"
+                fontWeight="600"
+                fill="var(--color-ink)"
+            >
+                {total}
+            </text>
+            <text
+                x="50"
+                y="62"
+                textAnchor="middle"
+                fontFamily="JetBrains Mono"
+                fontSize="6"
+                fill="var(--color-muted)"
+                letterSpacing="1"
+            >
+                ERREURS
+            </text>
+        </svg>
+    );
 }
 
 // ============================================================================
 // THEME STAT CARD
 // ============================================================================
 function ThemeStatCard({
-  theme,
-  locked,
-  starting,
-  onStart,
-  onLockedClick,
-}: {
-  theme: ThemeStatsResponse;
-  locked: boolean;
-  starting: boolean;
-  onStart: () => void;
-  onLockedClick: () => void;
+                           theme,
+                           locked,
+                           starting,
+                           onStart,
+                           onLockedClick,
+                       }: {
+    theme: ThemeStatsResponse;
+    locked: boolean;
+    starting: boolean;
+    onStart: () => void;
+    onLockedClick: () => void;
 }) {
-  // Score de maîtrise : reflète à la fois la couverture du thème et la justesse.
-  // 2 bonnes sur 50 questions disponibles = 4%, pas 100%.
-  const rate = mastery(theme);
-  const pct = Math.round(rate * 100);
-  const tone = toneFor(pct);
-  const status = labelFor(pct, theme.answered);
+    // Score de maîtrise : reflète à la fois la couverture du thème et la justesse.
+    // 2 bonnes sur 50 questions disponibles = 4%, pas 100%.
+    const rate = mastery(theme);
+    const pct = Math.round(rate * 100);
+    const tone = toneFor(pct);
+    const status = labelFor(pct, theme.answered);
 
-  if (locked) {
-    return (
-      <button
-        type="button"
-        className="theme-card theme-card-locked"
-        onClick={onLockedClick}
-      >
-        <div className="theme-card-head">
-          <span className="theme-name">{theme.themeName}</span>
-          <span className="theme-locked-badge">
-            <svg
-              viewBox="0 0 24 24"
-              width="12"
-              height="12"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+    if (locked) {
+        return (
+            <button
+                type="button"
+                className="theme-card theme-card-locked"
+                onClick={onLockedClick}
             >
-              <rect x="3" y="11" width="18" height="11" rx="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                <div className="theme-card-head">
+                    <span className="theme-name">{theme.themeName}</span>
+                    <span className="theme-locked-badge">
+            <svg
+                viewBox="0 0 24 24"
+                width="12"
+                height="12"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
             Abonnés
           </span>
-        </div>
-        <div className="theme-meta">{theme.total} questions disponibles</div>
-      </button>
-    );
-  }
+                </div>
+                <div className="theme-meta">{theme.total} questions disponibles</div>
+            </button>
+        );
+    }
 
-  return (
-    <div className="theme-card">
-      <div className="theme-card-head">
-        <span className="theme-name">{theme.themeName}</span>
-        {theme.answered > 0 ? (
-          <span className={`theme-pct theme-pct-${tone}`}>{pct}%</span>
-        ) : (
-          <span className="theme-status">Pas commencé</span>
-        )}
-      </div>
+    return (
+        <div className="theme-card">
+            <div className="theme-card-head">
+                <span className="theme-name">{theme.themeName}</span>
+                {theme.answered > 0 ? (
+                    <span className={`theme-pct theme-pct-${tone}`}>{pct}%</span>
+                ) : (
+                    <span className="theme-status">Pas commencé</span>
+                )}
+            </div>
 
-      {theme.answered > 0 && (
-        <div className="theme-bar">
-          <div
-            className={`theme-bar-fill theme-bar-${tone}`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      )}
+            {theme.answered > 0 && (
+                <div className="theme-bar">
+                    <div
+                        className={`theme-bar-fill theme-bar-${tone}`}
+                        style={{width: `${pct}%`}}
+                    />
+                </div>
+            )}
 
-      <div className="theme-foot">
+            <div className="theme-foot">
         <span className="theme-meta">
           {theme.answered > 0 ? (
-            <>
-              <strong>{theme.correct}</strong> / {theme.total} maîtrisées ·{" "}
-              {theme.answered} tentée{theme.answered > 1 ? "s" : ""}
-            </>
+              <>
+                  <strong>{theme.correct}</strong> / {theme.total} maîtrisées ·{" "}
+                  {theme.answered} tentée{theme.answered > 1 ? "s" : ""}
+              </>
           ) : (
-            <>{theme.total} questions disponibles</>
+              <>{theme.total} questions disponibles</>
           )}
         </span>
-        <button
-          type="button"
-          className="theme-cta"
-          onClick={onStart}
-          disabled={starting}
-        >
-          {starting
-            ? "Préparation…"
-            : theme.answered > 0
-              ? "Continuer →"
-              : "Démarrer →"}
-        </button>
-      </div>
+                <button
+                    type="button"
+                    className="theme-cta"
+                    onClick={onStart}
+                    disabled={starting}
+                >
+                    {starting
+                        ? "Préparation…"
+                        : theme.answered > 0
+                            ? "Continuer →"
+                            : "Démarrer →"}
+                </button>
+            </div>
 
-      {theme.answered > 0 && status && (
-        <span className={`theme-tag theme-tag-${tone}`}>{status}</span>
-      )}
-    </div>
-  );
+            {theme.answered > 0 && status && (
+                <span className={`theme-tag theme-tag-${tone}`}>{status}</span>
+            )}
+        </div>
+    );
 }
 
 // ============================================================================
@@ -681,126 +694,126 @@ function ThemeStatCard({
 // indicateur cohérent d'une "progression" (taux de réussite brut sur 2/2
 // questions donne 100% à tort).
 function mastery(t: ThemeStatsResponse): number {
-  return t.total === 0 ? 0 : t.correct / t.total;
+    return t.total === 0 ? 0 : t.correct / t.total;
 }
 
 function toneFor(pct: number): "green" | "amber" | "red" | "blue" {
-  if (pct >= 80) return "green";
-  if (pct >= 65) return "blue";
-  if (pct >= 45) return "amber";
-  return "red";
+    if (pct >= 80) return "green";
+    if (pct >= 65) return "blue";
+    if (pct >= 45) return "amber";
+    return "red";
 }
 
 function labelFor(pct: number, answered: number): string {
-  if (answered === 0) return "";
-  if (pct >= 80) return "Bon niveau";
-  if (pct >= 65) return "Stable";
-  if (pct >= 45) return "À consolider";
-  return "À retravailler";
+    if (answered === 0) return "";
+    if (pct >= 80) return "Bon niveau";
+    if (pct >= 65) return "Stable";
+    if (pct >= 45) return "À consolider";
+    return "À retravailler";
 }
 
 function computeStreak(attempts: AttemptSummaryResponse[]): number {
-  if (attempts.length === 0) return 0;
-  const days = new Set<string>();
-  for (const a of attempts) {
-    days.add(new Date(a.startedAt).toISOString().slice(0, 10));
-  }
-  let streak = 0;
-  const cursor = new Date();
-  cursor.setHours(0, 0, 0, 0);
-  const today = cursor.toISOString().slice(0, 10);
-  if (!days.has(today)) cursor.setDate(cursor.getDate() - 1);
-  while (days.has(cursor.toISOString().slice(0, 10))) {
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return streak;
+    if (attempts.length === 0) return 0;
+    const days = new Set<string>();
+    for (const a of attempts) {
+        days.add(new Date(a.startedAt).toISOString().slice(0, 10));
+    }
+    let streak = 0;
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+    const today = cursor.toISOString().slice(0, 10);
+    if (!days.has(today)) cursor.setDate(cursor.getDate() - 1);
+    while (days.has(cursor.toISOString().slice(0, 10))) {
+        streak += 1;
+        cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
 }
 
 const HEATMAP_TONES = [
-  "#EEF0F8", // 0 sessions
-  "#D5DCEF", // 1
-  "#A8B5E0", // 2
-  "#1E3A8C", // 3
-  "#15296B", // 4+
+    "#EEF0F8", // 0 sessions
+    "#D5DCEF", // 1
+    "#A8B5E0", // 2
+    "#1E3A8C", // 3
+    "#15296B", // 4+
 ];
 
 function buildHeatmap(attempts: AttemptSummaryResponse[]): {
-  cells: { count: number; intensity: number; isToday: boolean; label: string }[];
+    cells: { count: number; intensity: number; isToday: boolean; label: string }[];
 } {
-  const map = new Map<string, number>();
-  for (const a of attempts) {
-    const k = new Date(a.startedAt).toISOString().slice(0, 10);
-    map.set(k, (map.get(k) ?? 0) + 1);
-  }
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const cells: { count: number; intensity: number; isToday: boolean; label: string }[] = [];
-  for (let i = HEATMAP_DAYS - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const k = d.toISOString().slice(0, 10);
-    const count = map.get(k) ?? 0;
-    const intensity = Math.min(4, count);
-    cells.push({
-      count,
-      intensity,
-      isToday: i === 0,
-      label: d.toLocaleDateString("fr-FR", {
-        day: "numeric",
-        month: "short",
-      }),
-    });
-  }
-  return { cells };
+    const map = new Map<string, number>();
+    for (const a of attempts) {
+        const k = new Date(a.startedAt).toISOString().slice(0, 10);
+        map.set(k, (map.get(k) ?? 0) + 1);
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const cells: { count: number; intensity: number; isToday: boolean; label: string }[] = [];
+    for (let i = HEATMAP_DAYS - 1; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const k = d.toISOString().slice(0, 10);
+        const count = map.get(k) ?? 0;
+        const intensity = Math.min(4, count);
+        cells.push({
+            count,
+            intensity,
+            isToday: i === 0,
+            label: d.toLocaleDateString("fr-FR", {
+                day: "numeric",
+                month: "short",
+            }),
+        });
+    }
+    return {cells};
 }
 
 // ============================================================================
 // EMPTY / SKELETON
 // ============================================================================
 function EmptyState({
-  title,
-  body,
-  ctaHref,
-  ctaLabel,
-}: {
-  title: string;
-  body: string;
-  ctaHref: string;
-  ctaLabel: string;
+                        title,
+                        body,
+                        ctaHref,
+                        ctaLabel,
+                    }: {
+    title: string;
+    body: string;
+    ctaHref: string;
+    ctaLabel: string;
 }) {
-  return (
-    <div className="st-empty">
-      <div className="st-empty-icon" aria-hidden>
-        <svg
-          viewBox="0 0 24 24"
-          width="28"
-          height="28"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M3 3v18h18" />
-          <path d="M7 15l4-4 4 4 5-7" />
-        </svg>
-      </div>
-      <h3>{title}</h3>
-      <p>{body}</p>
-      <Link href={ctaHref} className="btn-primary">
-        {ctaLabel}
-      </Link>
-    </div>
-  );
+    return (
+        <div className="st-empty">
+            <div className="st-empty-icon" aria-hidden>
+                <svg
+                    viewBox="0 0 24 24"
+                    width="28"
+                    height="28"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                >
+                    <path d="M3 3v18h18"/>
+                    <path d="M7 15l4-4 4 4 5-7"/>
+                </svg>
+            </div>
+            <h3>{title}</h3>
+            <p>{body}</p>
+            <Link href={ctaHref} className="btn-primary">
+                {ctaLabel}
+            </Link>
+        </div>
+    );
 }
 
 function StatsSkeleton() {
-  return (
-    <div className="st-loading">
-      <style>{`.st-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
-    </div>
-  );
+    return (
+        <div className="st-loading">
+            <style>{`.st-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
+        </div>
+    );
 }
 
 const gateStyles = `
@@ -818,42 +831,42 @@ const gateStyles = `
 // ICONS
 // ============================================================================
 const I = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  />
+    <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        {...props}
+    />
 );
 const FlameIcon = () => (
-  <I>
-    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-  </I>
+    <I>
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+    </I>
 );
 const AlertIcon = () => (
-  <I>
-    <circle cx="12" cy="12" r="10" />
-    <line x1="12" y1="8" x2="12" y2="12" />
-    <line x1="12" y1="16" x2="12.01" y2="16" />
-  </I>
+    <I>
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </I>
 );
 const TrendIcon = () => (
-  <I>
-    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-    <polyline points="17 6 23 6 23 12" />
-  </I>
+    <I>
+        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+        <polyline points="17 6 23 6 23 12"/>
+    </I>
 );
 const LayersIcon = () => (
-  <I>
-    <polygon points="12 2 2 7 12 12 22 7 12 2" />
-    <polyline points="2 17 12 22 22 17" />
-    <polyline points="2 12 12 17 22 12" />
-  </I>
+    <I>
+        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+        <polyline points="2 17 12 22 22 17"/>
+        <polyline points="2 12 12 17 22 12"/>
+    </I>
 );
 
 // ============================================================================

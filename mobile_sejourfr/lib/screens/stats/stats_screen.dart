@@ -42,8 +42,7 @@ class StatsScreen extends ConsumerWidget {
     // Premium pour CE module : règle identique aux écrans training/exam.
     // Sans accès payant, l'utilisateur voit quand même ses stats (issues de la
     // démo) et un upsell pour passer à la formule du module en question.
-    final isPremiumForModule = auth is AuthAuthenticated &&
-        auth.user.canAccessModule(module);
+    final isPremiumForModule = auth is AuthAuthenticated && auth.user.canAccessModule(module);
 
     return Scaffold(
       body: SafeArea(
@@ -160,8 +159,15 @@ class _GlobalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pct = (stats.successRate * 100).round();
-    final accent = _pctColor(stats.successRate);
+    // Score global = maîtrise sur l'ensemble du module : questions distinctes
+    // réussies / total des questions actives. Cohérent avec la maîtrise par
+    // thème — un seul examen blanc à 90% ne donne plus 90% global, mais la
+    // proportion réelle du pool qu'on a verrouillée.
+    final globalCorrect = stats.byTheme.fold<int>(0, (sum, t) => sum + t.correct);
+    final globalTotal = stats.byTheme.fold<int>(0, (sum, t) => sum + t.total);
+    final mastery = globalTotal == 0 ? 0.0 : globalCorrect / globalTotal;
+    final pct = (mastery * 100).round();
+    final accent = _pctColor(mastery);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -222,7 +228,7 @@ class _GlobalCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  _pctLabel(stats.successRate),
+                  _pctLabel(mastery),
                   style: AppFonts.mono(
                     size: 9,
                     color: AppColors.white,
@@ -241,7 +247,7 @@ class _GlobalCard extends StatelessWidget {
             ),
             child: FractionallySizedBox(
               alignment: Alignment.centerLeft,
-              widthFactor: stats.successRate.clamp(0.02, 1.0),
+              widthFactor: mastery.clamp(0.02, 1.0),
               child: Container(
                 decoration: BoxDecoration(
                   color: AppColors.white,
