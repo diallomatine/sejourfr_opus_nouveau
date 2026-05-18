@@ -57,10 +57,14 @@ public interface AnswerRepository extends JpaRepository<Answer, UUID> {
     // Erreurs récentes
     // ------------------------------------------------------------------------
 
+    /**
+     * IDs des questions auxquelles l'utilisateur a deja repondu incorrectement.
+     * Si {@code module} est null, agrege tous les modules (badge global sidebar web).
+     */
     @Query("""
         SELECT DISTINCT a.attemptQuestion.question.id FROM Answer a
         WHERE a.attemptQuestion.attempt.user.id = :userId
-          AND a.attemptQuestion.attempt.module = :module
+          AND (:module IS NULL OR a.attemptQuestion.attempt.module = :module)
           AND a.correct = false
         """)
     List<UUID> findWrongQuestionIds(@Param("userId") UUID userId, @Param("module") Module module);

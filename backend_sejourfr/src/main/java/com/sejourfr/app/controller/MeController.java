@@ -85,7 +85,7 @@ public class MeController {
     // ------------------------------------------------------------------------
 
     @GetMapping("/questions/favorites")
-    public List<QuestionPublicResponse> favorites(@RequestParam Module module) {
+    public List<QuestionPublicResponse> favorites(@RequestParam(required = false) Module module) {
         return service.favorites(currentUser.getId(), module);
     }
 
@@ -106,7 +106,7 @@ public class MeController {
     // ------------------------------------------------------------------------
 
     @GetMapping("/questions/wrong")
-    public List<QuestionPublicResponse> wrong(@RequestParam Module module) {
+    public List<QuestionPublicResponse> wrong(@RequestParam(required = false) Module module) {
         return service.wrongAnswered(currentUser.getId(), module);
     }
 

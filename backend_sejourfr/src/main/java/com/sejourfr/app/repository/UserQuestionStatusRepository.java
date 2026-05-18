@@ -17,13 +17,15 @@ public interface UserQuestionStatusRepository extends JpaRepository<UserQuestion
     Optional<UserQuestionStatus> findByUserIdAndQuestionId(UUID userId, UUID questionId);
 
     /**
-     * IDs des questions marquées en favori par l'utilisateur pour un module.
+     * IDs des questions marquées en favori par l'utilisateur.
+     * Si {@code module} est null, retourne les favoris de tous les modules
+     * (utilise par la sidebar web pour un badge global).
      */
     @Query("""
         SELECT s.question.id FROM UserQuestionStatus s
         WHERE s.user.id = :userId
           AND s.favorite = true
-          AND s.question.module = :module
+          AND (:module IS NULL OR s.question.module = :module)
         """)
     List<UUID> findFavoriteQuestionIds(@Param("userId") UUID userId, @Param("module") Module module);
 }
