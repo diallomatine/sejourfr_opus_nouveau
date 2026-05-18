@@ -6,6 +6,7 @@ import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
+import '../../core/models/attempt_summary.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/exam_models.dart';
 import '../../core/router/app_router.dart';
@@ -22,6 +23,15 @@ import '../home/widgets/module_switch.dart';
 final examsByModuleProvider =
     FutureProvider.autoDispose.family<List<ExamTemplateSummary>, AppModule>(
   (ref, module) => ref.watch(examsRepositoryProvider).list(module: module),
+);
+
+/// Attempts MOCK_EXAM finis de l'utilisateur sur le module actif. Sert à
+/// marquer un examen comme "déjà fait" + afficher le dernier score.
+final _examAttemptsByModuleProvider =
+    FutureProvider.autoDispose.family<List<AttemptSummary>, AppModule>(
+  (ref, module) => ref
+      .watch(attemptsRepositoryProvider)
+      .listMine(type: AttemptType.mockExam, module: module, limit: 100),
 );
 
 /// Écran "Examens blancs". Liste les 40 examens publiés, avec verrouillage
@@ -77,15 +87,19 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
     }
   }
 
-  void _onExamTap(ExamTemplateSummary exam, int number) {
+  void _onExamTap(ExamTemplateSummary exam, int number, AttemptSummary? lastAttempt) {
     if (!exam.free && !_isPremiumForCurrentModule()) {
       _showPaywall();
       return;
     }
-    _showBriefing(exam, number);
+    _showBriefing(exam, number, lastAttempt);
   }
 
-  void _showBriefing(ExamTemplateSummary exam, int number) {
+  void _showBriefing(
+    ExamTemplateSummary exam,
+    int number,
+    AttemptSummary? lastAttempt,
+  ) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -95,7 +109,19 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
         exam: exam,
         number: number,
         starting: _starting,
+        lastAttempt: lastAttempt,
         onStart: () => _startExam(exam),
+        onViewResults: lastAttempt == null
+            ? null
+            : () {
+                Navigator.of(context).pop();
+                context.push(
+                  AppRoutes.examResult.replaceFirst(
+                    ':attemptId',
+                    lastAttempt.id,
+                  ),
+                );
+              },
       ),
     );
   }
@@ -114,6 +140,7 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
   Widget build(BuildContext context) {
     final module = ref.watch(selectedModuleProvider);
     final examsAsync = ref.watch(examsByModuleProvider(module));
+    final attemptsAsync = ref.watch(_examAttemptsByModuleProvider(module));
     final auth = ref.watch(authControllerProvider);
     // Premium pour CE module (CIVIQUE_3MOIS = civique, INTEGRAL_3MOIS = les deux).
     // En non-premium pour ce module, l'utilisateur peut passer l'examen `free`
@@ -121,12 +148,29 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
     final isPremiumForModule = auth is AuthAuthenticated &&
         auth.user.canAccessModule(module);
 
+    // Dernier attempt fini par template — on garde le plus récent. Si la
+    // requête d'historique échoue (compte tout neuf, etc.), on retombe sur une
+    // map vide : l'écran reste fonctionnel sans badge "Fait".
+    final lastByTemplateId = <String, AttemptSummary>{};
+    final attempts = attemptsAsync.valueOrNull ?? const <AttemptSummary>[];
+    for (final a in attempts) {
+      final tplId = a.examTemplateId;
+      if (tplId == null || a.finishedAt == null) continue;
+      final current = lastByTemplateId[tplId];
+      if (current == null || a.finishedAt!.isAfter(current.finishedAt!)) {
+        lastByTemplateId[tplId] = a;
+      }
+    }
+
     return Scaffold(
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
           color: AppColors.blue,
-          onRefresh: () async => ref.invalidate(examsByModuleProvider(module)),
+          onRefresh: () async {
+            ref.invalidate(examsByModuleProvider(module));
+            ref.invalidate(_examAttemptsByModuleProvider(module));
+          },
           child: examsAsync.when(
             loading: () => const _LoadingList(),
             error: (e, _) => _ErrorList(
@@ -136,6 +180,7 @@ class _ExamSetupScreenState extends ConsumerState<ExamSetupScreen> {
             data: (exams) => _ExamListView(
               exams: exams,
               isPremium: isPremiumForModule,
+              lastByTemplateId: lastByTemplateId,
               onTap: _onExamTap,
               onUpgradeTap: _showPaywall,
             ),
@@ -154,13 +199,15 @@ class _ExamListView extends StatelessWidget {
   const _ExamListView({
     required this.exams,
     required this.isPremium,
+    required this.lastByTemplateId,
     required this.onTap,
     required this.onUpgradeTap,
   });
 
   final List<ExamTemplateSummary> exams;
   final bool isPremium;
-  final void Function(ExamTemplateSummary, int) onTap;
+  final Map<String, AttemptSummary> lastByTemplateId;
+  final void Function(ExamTemplateSummary, int, AttemptSummary?) onTap;
   final VoidCallback onUpgradeTap;
 
   @override
@@ -200,7 +247,8 @@ class _ExamListView extends StatelessWidget {
               child: _FreeExamCard(
                 exam: e,
                 number: numbers[e.id]!,
-                onTap: () => onTap(e, numbers[e.id]!),
+                lastAttempt: lastByTemplateId[e.id],
+                onTap: () => onTap(e, numbers[e.id]!, lastByTemplateId[e.id]),
               ),
             ),
           ),
@@ -229,7 +277,8 @@ class _ExamListView extends StatelessWidget {
                 exam: e,
                 number: numbers[e.id]!,
                 locked: !isPremium,
-                onTap: () => onTap(e, numbers[e.id]!),
+                lastAttempt: lastByTemplateId[e.id],
+                onTap: () => onTap(e, numbers[e.id]!, lastByTemplateId[e.id]),
               ),
             ),
           ),
@@ -426,17 +475,20 @@ class _FreeExamCard extends StatelessWidget {
   const _FreeExamCard({
     required this.exam,
     required this.number,
+    required this.lastAttempt,
     required this.onTap,
   });
 
   final ExamTemplateSummary exam;
   final int number;
+  final AttemptSummary? lastAttempt;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final isTcf = exam.module == AppModule.tcf;
     final accent = isTcf ? AppColors.red : AppColors.blue;
+    final done = lastAttempt;
 
     return Material(
       color: Colors.transparent,
@@ -465,12 +517,16 @@ class _FreeExamCard extends StatelessWidget {
                 height: 48,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: isTcf ? AppColors.redLight : AppColors.blueLight,
+                  color: done != null
+                      ? AppColors.green.withValues(alpha: 0.12)
+                      : (isTcf ? AppColors.redLight : AppColors.blueLight),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
-                  isTcf ? Icons.headphones_rounded : Icons.flag_rounded,
-                  color: accent,
+                  done != null
+                      ? Icons.check_rounded
+                      : (isTcf ? Icons.headphones_rounded : Icons.flag_rounded),
+                  color: done != null ? AppColors.green : accent,
                   size: 22,
                 ),
               ),
@@ -487,6 +543,10 @@ class _FreeExamCard extends StatelessWidget {
                           label: isTcf ? 'TCF IRN' : 'Civique',
                           tone: isTcf ? TagTone.red : TagTone.blue,
                         ),
+                        if (done != null) ...[
+                          const SizedBox(width: 6),
+                          _DoneBadge(attempt: done),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -545,12 +605,14 @@ class _PremiumExamCard extends StatelessWidget {
     required this.exam,
     required this.number,
     required this.locked,
+    required this.lastAttempt,
     required this.onTap,
   });
 
   final ExamTemplateSummary exam;
   final int number;
   final bool locked;
+  final AttemptSummary? lastAttempt;
   final VoidCallback onTap;
 
   @override
@@ -603,14 +665,22 @@ class _PremiumExamCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'EXAMEN BLANC ${number.toString().padLeft(2, '0')}',
-                        style: AppFonts.mono(
-                          size: 9.5,
-                          color: locked ? AppColors.muted2 : accent,
-                          letterSpacing: 1.6,
-                          weight: FontWeight.w700,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            'EXAMEN BLANC ${number.toString().padLeft(2, '0')}',
+                            style: AppFonts.mono(
+                              size: 9.5,
+                              color: locked ? AppColors.muted2 : accent,
+                              letterSpacing: 1.6,
+                              weight: FontWeight.w700,
+                            ),
+                          ),
+                          if (lastAttempt != null) ...[
+                            const SizedBox(width: 6),
+                            _DoneBadge(attempt: lastAttempt!, compact: true),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 3),
                       Text(
@@ -674,6 +744,53 @@ class _PremiumExamCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Badge "Fait" + score (sur les cartes d'examen quand l'utilisateur l'a passé)
+// ---------------------------------------------------------------------------
+
+class _DoneBadge extends StatelessWidget {
+  const _DoneBadge({required this.attempt, this.compact = false});
+
+  final AttemptSummary attempt;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = attempt.score;
+    final total = attempt.totalQuestions;
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 7,
+        vertical: compact ? 3 : 3,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.green,
+        borderRadius: BorderRadius.circular(100),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.check_rounded,
+            size: compact ? 10 : 12,
+            color: AppColors.white,
+          ),
+          const SizedBox(width: 3),
+          Text(
+            score != null ? '$score/$total' : 'FAIT',
+            style: AppFonts.mono(
+              size: compact ? 9 : 10,
+              color: AppColors.white,
+              letterSpacing: 0.8,
+              weight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -762,13 +879,18 @@ class _BriefingSheet extends StatelessWidget {
     required this.exam,
     required this.number,
     required this.starting,
+    required this.lastAttempt,
     required this.onStart,
+    required this.onViewResults,
   });
 
   final ExamTemplateSummary exam;
   final int number;
   final bool starting;
+  final AttemptSummary? lastAttempt;
   final VoidCallback onStart;
+  // Null si pas encore passé : on n'affiche pas le bouton "Voir mes résultats".
+  final VoidCallback? onViewResults;
 
   @override
   Widget build(BuildContext context) {
@@ -860,6 +982,10 @@ class _BriefingSheet extends StatelessWidget {
                   ),
                 ),
               ],
+              if (lastAttempt != null) ...[
+                const SizedBox(height: 18),
+                _PastAttemptBanner(attempt: lastAttempt!),
+              ],
               const SizedBox(height: 20),
               _BriefingStatsRow(exam: exam),
               const SizedBox(height: 18),
@@ -905,12 +1031,25 @@ class _BriefingSheet extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               AppButton(
-                label: starting ? 'Préparation…' : 'Démarrer l’examen',
+                label: starting
+                    ? 'Préparation…'
+                    : (lastAttempt != null
+                        ? 'Refaire l’examen'
+                        : 'Démarrer l’examen'),
                 icon: Icons.play_arrow_rounded,
                 variant: AppButtonVariant.danger,
                 isLoading: starting,
                 onPressed: starting ? null : onStart,
               ),
+              if (onViewResults != null) ...[
+                const SizedBox(height: 8),
+                AppButton(
+                  label: 'Voir mes résultats',
+                  icon: Icons.assignment_turned_in_outlined,
+                  variant: AppButtonVariant.secondary,
+                  onPressed: onViewResults,
+                ),
+              ],
               const SizedBox(height: 4),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -922,6 +1061,86 @@ class _BriefingSheet extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// Bandeau "Vous avez déjà passé cet examen" à l'intérieur du briefing.
+// Affiche le score final + l'indicateur réussi/échoué pour le civique (TCF
+// reste neutre car le résultat est un niveau, pas un seuil).
+class _PastAttemptBanner extends StatelessWidget {
+  const _PastAttemptBanner({required this.attempt});
+
+  final AttemptSummary attempt;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = attempt.score;
+    final total = attempt.totalQuestions;
+    final hasPass = attempt.passThreshold != null;
+    final passed = hasPass && attempt.isPassed;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: AppColors.green.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.green.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              color: AppColors.green,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check_rounded,
+              color: AppColors.white,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Déjà passé',
+                      style: AppFonts.jakarta(
+                        size: 13.5,
+                        weight: FontWeight.w800,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    if (hasPass) ...[
+                      const SizedBox(width: 6),
+                      AppTag(
+                        label: passed ? 'Réussi' : 'À retravailler',
+                        tone: passed ? TagTone.success : TagTone.red,
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  score != null
+                      ? 'Dernier score : $score/$total'
+                      : 'Tentative en cours',
+                  style: AppFonts.jakarta(
+                    size: 12,
+                    color: AppColors.muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

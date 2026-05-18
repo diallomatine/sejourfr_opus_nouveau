@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { ApiException, attemptApi, publicAttemptApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
   canAccessModule,
+  type AttemptSummaryResponse,
   type ExamTemplateSummary,
 } from "@/lib/types";
 
@@ -42,6 +43,7 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [pastAttempts, setPastAttempts] = useState<AttemptSummaryResponse[]>([]);
 
   const isTcf = exam.module === "TCF";
   const minutes = Math.round(exam.durationSeconds / 60);
@@ -49,6 +51,44 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
   const isPremiumForModule = user !== null && canAccessModule(user, exam.module);
   // Connecté : free OU premium pour ce module. Guest : seul un examen free est jouable.
   const accessGranted = isGuest ? exam.free : exam.free || isPremiumForModule;
+
+  // On charge les tentatives passées sur CET examen pour proposer "voir
+  // détails" + "refaire" si l'utilisateur l'a déjà passé. Aucun appel en mode
+  // guest (pas de compte → pas d'historique).
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    let cancelled = false;
+    attemptApi
+      .listMine({ type: "MOCK_EXAM", module: exam.module, limit: 100 })
+      .then((list) => {
+        if (cancelled) return;
+        setPastAttempts(
+          list.filter((a) => a.examTemplateId === exam.id && a.finishedAt),
+        );
+      })
+      .catch(() => {
+        /* silencieux : pas de blocage si l'historique échoue */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, exam.id, exam.module]);
+
+  const lastAttempt = pastAttempts.length > 0
+    ? [...pastAttempts].sort(
+        (a, b) =>
+          new Date(b.finishedAt ?? 0).getTime() -
+          new Date(a.finishedAt ?? 0).getTime(),
+      )[0]
+    : null;
+  const bestScore = pastAttempts.reduce(
+    (best, a) => Math.max(best, a.score ?? 0),
+    0,
+  );
+  const isPassed =
+    !isTcf && lastAttempt && exam.passingScore
+      ? (lastAttempt.score ?? 0) >= exam.passingScore
+      : null;
 
   async function startExam() {
     if (!accessGranted) {
@@ -133,6 +173,63 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
                 </div>
               </div>
             </div>
+
+            {lastAttempt && (
+              <div className="brf-past">
+                <div className="brf-past-icon" aria-hidden>
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="20"
+                    height="20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M9 11l3 3L22 4" />
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                  </svg>
+                </div>
+                <div className="brf-past-body">
+                  <div className="brf-past-title">
+                    Vous avez déjà passé cet examen
+                    {isPassed === true && (
+                      <span className="brf-past-tag tag-pass">RÉUSSI</span>
+                    )}
+                    {isPassed === false && (
+                      <span className="brf-past-tag tag-fail">À RETRAVAILLER</span>
+                    )}
+                  </div>
+                  <div className="brf-past-stats">
+                    <span>
+                      Dernier score :{" "}
+                      <strong>
+                        {lastAttempt.score}/{lastAttempt.totalQuestions}
+                      </strong>
+                    </span>
+                    {pastAttempts.length > 1 && (
+                      <>
+                        <span className="dot">·</span>
+                        <span>
+                          Meilleur : <strong>{bestScore}/{exam.totalQuestions}</strong>
+                        </span>
+                        <span className="dot">·</span>
+                        <span>
+                          {pastAttempts.length} tentatives
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <Link
+                  href={`/sessions/${lastAttempt.id}`}
+                  className="btn btn-ghost brf-past-cta"
+                >
+                  Voir détails →
+                </Link>
+              </div>
+            )}
 
             <div className="brf-rules">
               <h3>Règles de l&apos;examen</h3>
@@ -225,7 +322,9 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
                     ? "Préparation…"
                     : isGuest
                       ? "Démarrer la démo →"
-                      : "Démarrer l'examen →"}
+                      : lastAttempt
+                        ? "Refaire l'examen →"
+                        : "Démarrer l'examen →"}
                 </button>
                 <Link href="/examens-blancs" className="btn btn-ghost">
                   Choisir un autre
@@ -405,4 +504,59 @@ const styles = `
   .brf-cta-row {
     display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
   }
+
+  .brf-past {
+    display: flex; align-items: center; gap: 14px;
+    background: rgba(22, 143, 91, 0.06);
+    border: 1px solid rgba(22, 143, 91, 0.28);
+    border-left: 3px solid var(--color-green);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .brf-past-icon {
+    width: 38px; height: 38px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--color-green);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .brf-past-body { flex: 1; min-width: 0; }
+  .brf-past-title {
+    font-weight: 700; font-size: 14px;
+    color: var(--color-ink); margin-bottom: 4px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .brf-past-tag {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.12em;
+    padding: 3px 7px;
+    border-radius: 100px;
+    font-weight: 700;
+  }
+  .tag-pass { background: rgba(22, 143, 91, 0.12); color: var(--color-green); }
+  .tag-fail { background: var(--color-red-light); color: var(--color-red); }
+  .brf-past-stats {
+    font-size: 13px;
+    color: var(--color-muted);
+    display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+  }
+  .brf-past-stats strong { color: var(--color-ink); font-weight: 700; }
+  .brf-past-stats .dot { opacity: 0.5; }
+  .brf-past-cta {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    background: #fff;
+    border: 1px solid var(--color-line);
+    color: var(--color-green);
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 13px;
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+  .brf-past-cta:hover { background: var(--color-green); color: #fff; border-color: var(--color-green); }
 `;

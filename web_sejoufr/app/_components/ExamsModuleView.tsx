@@ -125,6 +125,21 @@ export function ExamsModuleView({ module }: { module: ModuleEnum }) {
     return { featured, others };
   }, [exams, user, isCivique]);
 
+  // ========== Dernier attempt fini par template ==========
+  // On ne garde qu'un attempt par template : le plus récent (basé sur finishedAt).
+  // Sert à afficher le badge "Fait" + score, et le lien vers le résultat.
+  const lastByTemplateId = useMemo(() => {
+    const map = new Map<string, AttemptSummaryResponse>();
+    for (const a of attempts) {
+      if (!a.examTemplateId || !a.finishedAt) continue;
+      const current = map.get(a.examTemplateId);
+      if (!current || new Date(a.finishedAt) > new Date(current.finishedAt ?? 0)) {
+        map.set(a.examTemplateId, a);
+      }
+    }
+    return map;
+  }, [attempts]);
+
   if (status === "loading" || status === "guest" || !user) return <ModuleSkeleton />;
 
   const isLocked = (e: ExamTemplateSummary) => {
@@ -201,6 +216,7 @@ export function ExamsModuleView({ module }: { module: ModuleEnum }) {
           exam={partitioned.featured}
           tone={tone}
           locked={isLocked(partitioned.featured)}
+          lastAttempt={lastByTemplateId.get(partitioned.featured.id) ?? null}
           onLockedClick={() => setPaywallOpen(true)}
         />
       ) : (
@@ -224,6 +240,7 @@ export function ExamsModuleView({ module }: { module: ModuleEnum }) {
                 index={i + 2}
                 tone={tone}
                 locked={isLocked(e)}
+                lastAttempt={lastByTemplateId.get(e.id) ?? null}
                 onLockedClick={() => setPaywallOpen(true)}
               />
             ))}
@@ -285,11 +302,13 @@ function FeaturedCard({
   exam,
   tone,
   locked,
+  lastAttempt,
   onLockedClick,
 }: {
   exam: ExamTemplateSummary;
   tone: "blue" | "red";
   locked: boolean;
+  lastAttempt: AttemptSummaryResponse | null;
   onLockedClick: () => void;
 }) {
   const isCivique = exam.module === "CIVIQUE";
@@ -297,12 +316,25 @@ function FeaturedCard({
   const targetLabel = isCivique
     ? procedureFullLabel(exam.targetProcedure)
     : levelFullLabel(exam.targetLevel);
+  const isDone = lastAttempt !== null;
 
   const Inner = (
     <>
       <div className="featured-head">
-        <span className={`featured-tag featured-tag-${tone}`}>RECOMMANDÉ POUR VOUS</span>
+        <span className={`featured-tag featured-tag-${tone}`}>
+          {isDone ? "DÉJÀ FAIT" : "RECOMMANDÉ POUR VOUS"}
+        </span>
         {exam.free && <span className="featured-free">GRATUIT</span>}
+        {isDone && (
+          <span className="featured-done">
+            <CheckBadgeIcon /> {lastAttempt.score}/{lastAttempt.totalQuestions}
+            {lastAttempt.finishedAt && (
+              <span className="featured-done-date">
+                · {formatShortDate(lastAttempt.finishedAt)}
+              </span>
+            )}
+          </span>
+        )}
       </div>
       <h3 className="featured-title">{targetLabel}</h3>
       <p className="featured-sub">
@@ -334,6 +366,8 @@ function FeaturedCard({
           <>
             <LockIcon /> Débloquer
           </>
+        ) : isDone ? (
+          <>Voir détails ou refaire →</>
         ) : (
           <>Démarrer l&apos;examen blanc →</>
         )}
@@ -370,12 +404,14 @@ function ExamRow({
   index,
   tone,
   locked,
+  lastAttempt,
   onLockedClick,
 }: {
   exam: ExamTemplateSummary;
   index: number;
   tone: "blue" | "red";
   locked: boolean;
+  lastAttempt: AttemptSummaryResponse | null;
   onLockedClick: () => void;
 }) {
   const isTcf = exam.module === "TCF";
@@ -386,6 +422,7 @@ function ExamRow({
   const seuilLabel = isTcf
     ? null
     : `${exam.passingScore}/${exam.totalQuestions}`;
+  const isDone = lastAttempt !== null;
 
   const Body = (
     <>
@@ -396,6 +433,11 @@ function ExamRow({
         <div className="row-head">
           <span className={`row-target row-target-${tone}`}>{targetLabel}</span>
           {exam.free && <span className="row-free">GRATUIT</span>}
+          {isDone && (
+            <span className="row-done">
+              <CheckBadgeIcon /> {lastAttempt.score}/{lastAttempt.totalQuestions}
+            </span>
+          )}
         </div>
         <h4 className="row-title">{exam.name}</h4>
         {exam.subtitle && <p className="row-sub">{exam.subtitle}</p>}
@@ -422,6 +464,8 @@ function ExamRow({
           <>
             <LockIcon /> Premium
           </>
+        ) : isDone ? (
+          <>Voir / refaire →</>
         ) : (
           <>Démarrer →</>
         )}
@@ -446,6 +490,12 @@ function ExamRow({
 // ============================================================================
 // HELPERS
 // ============================================================================
+const SHORT_MONTHS = ["janv", "févr", "mars", "avr", "mai", "juin", "juil", "août", "sept", "oct", "nov", "déc"];
+function formatShortDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]}`;
+}
+
 function procedureFullLabel(p: TargetProcedure | null): string {
   switch (p) {
     case "CSP": return "Mention pluriannuelle";
@@ -530,6 +580,12 @@ const LockIcon = () => (
   <I width="14" height="14">
     <rect x="3" y="11" width="18" height="11" rx="2" />
     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </I>
+);
+const CheckBadgeIcon = () => (
+  <I width="13" height="13">
+    <path d="M9 11l3 3L22 4" />
+    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
   </I>
 );
 
@@ -688,6 +744,21 @@ const styles = `
     border-radius: 5px;
     font-weight: 700;
   }
+  .featured-done {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    background: var(--color-green);
+    color: #fff;
+    padding: 4px 9px;
+    border-radius: 100px;
+    font-weight: 700;
+  }
+  .featured-done-date {
+    color: rgba(255, 255, 255, 0.78);
+    font-weight: 600;
+  }
   .featured-title {
     font-family: var(--font-display);
     font-weight: 600;
@@ -840,6 +911,17 @@ const styles = `
     color: var(--color-green);
     padding: 3px 7px;
     border-radius: 4px;
+    font-weight: 700;
+  }
+  .row-done {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.06em;
+    background: var(--color-green);
+    color: #fff;
+    padding: 3px 7px;
+    border-radius: 100px;
     font-weight: 700;
   }
   .row-title {

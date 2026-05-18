@@ -14,6 +14,9 @@ class AttemptSummary {
     this.score,
     this.passThreshold,
     this.difficulty,
+    this.examTemplateId,
+    this.examTemplateSlug,
+    this.examTemplateName,
   });
 
   final String id;
@@ -25,6 +28,11 @@ class AttemptSummary {
   final int? score;
   final int? passThreshold;
   final Difficulty? difficulty;
+  // Template d'examen lié (null si entraînement libre). Permet de marquer un
+  // examen comme "déjà fait" sur la liste, et de proposer voir détails / refaire.
+  final String? examTemplateId;
+  final String? examTemplateSlug;
+  final String? examTemplateName;
 
   bool get isFinished => finishedAt != null;
   bool get isPassed => score != null && passThreshold != null && score! >= passThreshold!;
@@ -50,5 +58,8 @@ class AttemptSummary {
         difficulty: json['difficulty'] == null
             ? null
             : Difficulty.fromWire(json['difficulty'] as String),
+        examTemplateId: json['examTemplateId'] as String?,
+        examTemplateSlug: json['examTemplateSlug'] as String?,
+        examTemplateName: json['examTemplateName'] as String?,
       );
 }

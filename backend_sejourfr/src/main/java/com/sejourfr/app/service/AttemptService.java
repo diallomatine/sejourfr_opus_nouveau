@@ -694,6 +694,8 @@ public class AttemptService {
             diff = a.getQuestions().getFirst().getQuestion().getDifficulty();
         }
 
+        var template = a.getExamTemplate();
+
         return new AttemptSummaryResponse(
                 a.getId(),
                 a.getType(),
@@ -703,7 +705,10 @@ public class AttemptService {
                 a.getPassThreshold(),
                 a.getStartedAt(),
                 a.getFinishedAt(),
-                a.getScore()
+                a.getScore(),
+                template != null ? template.getId() : null,
+                template != null ? template.getSlug() : null,
+                template != null ? template.getName() : null
         );
     }
 }

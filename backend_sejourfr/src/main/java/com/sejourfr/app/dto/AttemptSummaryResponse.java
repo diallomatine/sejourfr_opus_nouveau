@@ -9,6 +9,9 @@ import java.util.UUID;
 
 /**
  * Résumé d'une session pour l'historique — sans les questions imbriquées.
+ * Les trois champs {@code examTemplate*} permettent au front de marquer un
+ * examen comme "déjà fait" sur la liste des examens blancs et d'y revenir
+ * (voir détails / refaire) sans recharger les templates côté serveur.
  */
 public record AttemptSummaryResponse(
         UUID id,
@@ -19,6 +22,9 @@ public record AttemptSummaryResponse(
         Integer passThreshold,
         Instant startedAt,
         Instant finishedAt,
-        Integer score
+        Integer score,
+        UUID examTemplateId,
+        String examTemplateSlug,
+        String examTemplateName
 ) {
 }
