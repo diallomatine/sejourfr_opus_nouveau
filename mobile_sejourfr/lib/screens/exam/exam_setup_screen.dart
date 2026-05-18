@@ -543,21 +543,24 @@ class _FreeExamCard extends StatelessWidget {
                           label: isTcf ? 'TCF IRN' : 'Civique',
                           tone: isTcf ? TagTone.red : TagTone.blue,
                         ),
-                        if (done != null) ...[
-                          const SizedBox(width: 6),
-                          _DoneBadge(attempt: done),
-                        ],
                       ],
                     ),
                     const SizedBox(height: 10),
-                    Text(
-                      'EXAMEN BLANC ${number.toString().padLeft(2, '0')}',
-                      style: AppFonts.mono(
-                        size: 10,
-                        color: accent,
-                        letterSpacing: 1.8,
-                        weight: FontWeight.w700,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'EXAMEN BLANC ${number.toString().padLeft(2, '0')}',
+                            style: AppFonts.mono(
+                              size: 10,
+                              color: accent,
+                              letterSpacing: 1.8,
+                              weight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        if (done != null) _DoneBadge(attempt: done),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -667,19 +670,19 @@ class _PremiumExamCard extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Text(
-                            'EXAMEN BLANC ${number.toString().padLeft(2, '0')}',
-                            style: AppFonts.mono(
-                              size: 9.5,
-                              color: locked ? AppColors.muted2 : accent,
-                              letterSpacing: 1.6,
-                              weight: FontWeight.w700,
+                          Expanded(
+                            child: Text(
+                              'EXAMEN BLANC ${number.toString().padLeft(2, '0')}',
+                              style: AppFonts.mono(
+                                size: 9.5,
+                                color: locked ? AppColors.muted2 : accent,
+                                letterSpacing: 1.6,
+                                weight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                          if (lastAttempt != null) ...[
-                            const SizedBox(width: 6),
+                          if (lastAttempt != null)
                             _DoneBadge(attempt: lastAttempt!, compact: true),
-                          ],
                         ],
                       ),
                       const SizedBox(height: 3),
