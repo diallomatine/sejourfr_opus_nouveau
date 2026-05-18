@@ -149,13 +149,15 @@ export default function DashboardPage() {
   );
 
   // ============ Theme mastery (CIVIQUE) ============
+  // Score de maîtrise = correct / total. Pas correct / answered, sinon une seule
+  // session avec 2 bonnes réponses dans un thème de 50 donne 100% à tort.
   const themeRows = useMemo(() => {
     const civiqueThemes = stats.CIVIQUE?.byTheme ?? [];
     const sorted = [...civiqueThemes].sort(
       (a, b) => b.themeName.localeCompare(a.themeName), // stable for display
     );
     return sorted.slice(0, 5).map((t, i) => {
-      const pct = t.answered > 0 ? Math.round((t.correct / t.answered) * 100) : 0;
+      const pct = t.total > 0 ? Math.round((t.correct / t.total) * 100) : 0;
       const tone: "green" | "blue" | "amber" | "red" =
         pct >= 80 ? "green" : pct >= 65 ? "blue" : pct >= 45 ? "amber" : "red";
       return {

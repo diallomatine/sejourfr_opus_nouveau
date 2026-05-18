@@ -113,8 +113,13 @@ class ThemeStats {
   final int correct;
   final int total;
 
+  // Couverture : part du pool du thème déjà tentée (questions distinctes).
   double get progress => total == 0 ? 0 : answered / total;
+  // Précision sur les questions tentées (correct / answered distincts).
   double get successRate => answered == 0 ? 0 : correct / answered;
+  // Score de maîtrise : seul indicateur cohérent pour la progression par thème.
+  // Sur 1 examen blanc avec 2 questions du thème (50 disponibles) : 2/50 = 4%.
+  double get mastery => total == 0 ? 0 : correct / total;
 
   factory ThemeStats.fromJson(Map<String, dynamic> json) => ThemeStats(
         themeId: json['themeId'] as String,

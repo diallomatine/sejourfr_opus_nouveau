@@ -79,11 +79,13 @@ export default function StatistiquesPage() {
   const heatmap = useMemo(() => buildHeatmap(attempts), [attempts]);
 
   // ========== Themes sorted weak-first ==========
+  // On classe par score de maîtrise croissant : un thème jamais touché ou plein
+  // d'erreurs remonte en premier, c'est ce que l'utilisateur doit retravailler.
   const sortedThemes = useMemo(() => {
     if (!stats) return [];
     const started = stats.byTheme.filter((t) => t.answered > 0);
     const notStarted = stats.byTheme.filter((t) => t.answered === 0);
-    started.sort((a, b) => successRate(a) - successRate(b));
+    started.sort((a, b) => mastery(a) - mastery(b));
     notStarted.sort((a, b) => b.total - a.total);
     return [...started, ...notStarted];
   }, [stats]);
@@ -353,7 +355,7 @@ export default function StatistiquesPage() {
               ) : (
                 <div className="weak-list">
                   {weakest.map((t) => {
-                    const pct = Math.round(successRate(t) * 100);
+                    const pct = Math.round(mastery(t) * 100);
                     const tone = toneFor(pct);
                     return (
                       <button
@@ -581,9 +583,10 @@ function ThemeStatCard({
   onStart: () => void;
   onLockedClick: () => void;
 }) {
-  const rate = successRate(theme);
+  // Score de maîtrise : reflète à la fois la couverture du thème et la justesse.
+  // 2 bonnes sur 50 questions disponibles = 4%, pas 100%.
+  const rate = mastery(theme);
   const pct = Math.round(rate * 100);
-  const progressPct = theme.total > 0 ? (theme.answered / theme.total) * 100 : 0;
   const tone = toneFor(pct);
   const status = labelFor(pct, theme.answered);
 
@@ -642,8 +645,8 @@ function ThemeStatCard({
         <span className="theme-meta">
           {theme.answered > 0 ? (
             <>
-              <strong>{theme.correct}</strong> / {theme.answered} bonnes ·{" "}
-              <strong>{Math.round(progressPct)}%</strong> du pool exploré
+              <strong>{theme.correct}</strong> / {theme.total} maîtrisées ·{" "}
+              {theme.answered} tentée{theme.answered > 1 ? "s" : ""}
             </>
           ) : (
             <>{theme.total} questions disponibles</>
@@ -673,8 +676,12 @@ function ThemeStatCard({
 // ============================================================================
 // HELPERS
 // ============================================================================
-function successRate(t: ThemeStatsResponse): number {
-  return t.answered === 0 ? 0 : t.correct / t.answered;
+// Score de maîtrise par thème : questions distinctes réussies / questions
+// disponibles dans le thème. Borné par 0..1 quoi qu'il arrive, c'est le seul
+// indicateur cohérent d'une "progression" (taux de réussite brut sur 2/2
+// questions donne 100% à tort).
+function mastery(t: ThemeStatsResponse): number {
+  return t.total === 0 ? 0 : t.correct / t.total;
 }
 
 function toneFor(pct: number): "green" | "amber" | "red" | "blue" {

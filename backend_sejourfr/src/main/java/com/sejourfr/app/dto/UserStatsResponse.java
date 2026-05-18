@@ -11,6 +11,13 @@ public record UserStatsResponse(
         List<ThemeStatsResponse> byTheme
 ) {
 
+    /**
+     * Stats par thème pour un utilisateur.
+     * - {@code answered} : nombre de questions DISTINCTES du thème déjà tentées
+     * - {@code correct}  : nombre de questions DISTINCTES du thème réussies au moins une fois
+     * - {@code total}    : nombre total de questions actives dans le thème
+     * Le front calcule le score de maîtrise (= correct / total) pour la barre de progression.
+     */
     public record ThemeStatsResponse(
             UUID themeId,
             String themeName,

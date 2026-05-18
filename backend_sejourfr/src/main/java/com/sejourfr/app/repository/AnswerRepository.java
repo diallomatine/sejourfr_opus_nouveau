@@ -36,11 +36,16 @@ public interface AnswerRepository extends JpaRepository<Answer, UUID> {
     // Stats par thème
     // ------------------------------------------------------------------------
 
+    // On compte les questions DISTINCTES (et non les réponses brutes), pour que
+    // refaire 2× la même question ne gonfle pas artificiellement les compteurs
+    // et que le score de maîtrise (correct/total) reste plafonné par le pool du
+    // thème. Une question est considérée "correcte" si l'utilisateur l'a réussie
+    // au moins une fois dans le module.
     @Query("""
         SELECT a.attemptQuestion.question.theme.id,
                a.attemptQuestion.question.theme.name,
-               COUNT(a),
-               SUM(CASE WHEN a.correct = true THEN 1 ELSE 0 END)
+               COUNT(DISTINCT a.attemptQuestion.question.id),
+               COUNT(DISTINCT CASE WHEN a.correct = true THEN a.attemptQuestion.question.id END)
         FROM Answer a
         WHERE a.attemptQuestion.attempt.user.id = :userId
           AND a.attemptQuestion.attempt.module = :module

@@ -764,17 +764,17 @@ function ExamCard({
 // ============================================================================
 // HELPERS
 // ============================================================================
+// Score de maîtrise = correct / total (questions distinctes maîtrisées sur le
+// pool du thème). C'est l'indicateur cohérent : une session unique avec 2/2
+// dans un thème de 50 questions donne 4%, pas 100%.
 function buildMastery(stats: Partial<Record<ModuleEnum, UserStatsResponse | null>>) {
     const byTheme: Record<string, { pct: number; answered: number; total: number }> = {};
     (["CIVIQUE", "TCF"] as ModuleEnum[]).forEach((m) => {
         const list = stats[m]?.byTheme ?? [];
         for (const t of list) {
-            if (t.answered === 0) {
-                byTheme[t.themeId] = {pct: 0, answered: 0, total: t.total};
-                continue;
-            }
+            const pct = t.total > 0 ? Math.round((t.correct / t.total) * 100) : 0;
             byTheme[t.themeId] = {
-                pct: Math.round((t.correct / t.answered) * 100),
+                pct,
                 answered: t.answered,
                 total: t.total,
             };

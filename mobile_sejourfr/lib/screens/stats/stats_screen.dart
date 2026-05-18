@@ -140,11 +140,13 @@ class _StatsContent extends StatelessWidget {
     );
   }
 
-  /// Trie pour mettre en haut les thèmes les plus faibles (et déjà tentés),
-  /// puis les non commencés. C'est ce que l'utilisateur doit retravailler.
+  /// Trie pour mettre en haut les thèmes les moins maîtrisés (et déjà tentés),
+  /// puis les non commencés. C'est ce que l'utilisateur doit retravailler — un
+  /// thème jamais touché ou plein d'erreurs remonte avant un thème déjà bien
+  /// avancé.
   List<ThemeStats> _sortedByWeakest(List<ThemeStats> input) {
     final answered = input.where((t) => t.answered > 0).toList()
-      ..sort((a, b) => a.successRate.compareTo(b.successRate));
+      ..sort((a, b) => a.mastery.compareTo(b.mastery));
     final notStarted = input.where((t) => t.answered == 0).toList()
       ..sort((a, b) => b.total.compareTo(a.total));
     return [...answered, ...notStarted];
@@ -334,8 +336,11 @@ class _ThemeBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasAnswered = theme.answered > 0;
-    final pct = (theme.successRate * 100).round();
-    final accent = hasAnswered ? _pctColor(theme.successRate) : AppColors.muted2;
+    // Score de maîtrise : reflète à la fois la couverture (avoir vu les
+    // questions) et la justesse (les avoir réussies). Un seul examen blanc
+    // avec 2 questions du thème ne donne plus 100%, mais 2/total.
+    final pct = (theme.mastery * 100).round();
+    final accent = hasAnswered ? _pctColor(theme.mastery) : AppColors.muted2;
 
     return Material(
       color: AppColors.white,
@@ -401,7 +406,7 @@ class _ThemeBar extends ConsumerWidget {
                     ? null
                     : FractionallySizedBox(
                         alignment: Alignment.centerLeft,
-                        widthFactor: hasAnswered ? theme.successRate.clamp(0.02, 1.0) : 0,
+                        widthFactor: hasAnswered ? theme.mastery.clamp(0.02, 1.0) : 0,
                         child: Container(
                           decoration: BoxDecoration(
                             color: accent,
@@ -418,7 +423,7 @@ class _ThemeBar extends ConsumerWidget {
                       locked
                           ? '${theme.total} disponibles'
                           : hasAnswered
-                              ? '${theme.correct} / ${theme.answered} bonnes · ${theme.total} disponibles'
+                              ? '${theme.correct} / ${theme.total} maîtrisées · ${theme.answered} tentées'
                               : 'Pas encore abordé · ${theme.total} disponibles',
                       style: AppFonts.jakarta(
                         size: 11.5,
