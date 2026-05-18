@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/api/user_content_repository.dart';
 import '../../core/auth/auth_controller.dart';
@@ -37,7 +36,10 @@ class HomeScreen extends ConsumerWidget {
       context.go(route);
     }
 
+    final tcfIsDemo = user != null && !user.canAccessModule(AppModule.tcf);
+
     return Scaffold(
+      backgroundColor: AppColors.bg,
       body: SafeArea(
         child: RefreshIndicator(
           color: AppColors.blue,
@@ -50,37 +52,41 @@ class HomeScreen extends ConsumerWidget {
             ]);
           },
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
-              _Greeting(user: user),
-              const SizedBox(height: 18),
-              _TargetStrip(target: user?.targetProcedure),
-              const SizedBox(height: 18),
-              _CiviqueHero(
-                stats: civiqueStats,
-                onStart: () => selectAndGo(AppModule.civique, AppRoutes.trainingSetup),
-                onExam: () => selectAndGo(AppModule.civique, AppRoutes.examSetup),
-                onRetry: () => ref.invalidate(_civiqueStatsProvider),
+              _Header(user: user),
+              const SizedBox(height: 22),
+              _StreakAndTarget(
+                streakDays: 7, // TODO: brancher sur backend
+                target: user?.targetProcedure,
+                onEditTarget: () => context.push(
+                  '${AppRoutes.targetPath}?from=${Uri.encodeComponent(AppRoutes.home)}',
+                ),
+              ),
+              const SizedBox(height: 24),
+              _SectionTitle(
+                label: 'Vos modules',
+                trailing:
+                    user?.targetProcedure != null ? 'PARCOURS · ${user!.targetProcedure!.shortLabel}' : null,
               ),
               const SizedBox(height: 12),
-              _TcfCard(
+              _ModuleCard(
+                kind: _ModuleKind.civique,
+                stats: civiqueStats,
+                onTap: () => selectAndGo(AppModule.civique, AppRoutes.trainingSetup),
+                onExam: () => selectAndGo(AppModule.civique, AppRoutes.examSetup),
+              ),
+              const SizedBox(height: 10),
+              _ModuleCard(
+                kind: _ModuleKind.tcf,
                 stats: tcfStats,
-                // Démo TCF accessible à tous (20 Q + 1 examen blanc gratuits) ;
-                // l'upsell Intégral est affiché dans les écrans setup eux-mêmes.
-                isDemo: user != null && !user.canAccessModule(AppModule.tcf),
-                onTraining: () => selectAndGo(AppModule.tcf, AppRoutes.trainingSetup),
+                isDemo: tcfIsDemo,
+                onTap: () => selectAndGo(AppModule.tcf, AppRoutes.trainingSetup),
                 onExam: () => selectAndGo(AppModule.tcf, AppRoutes.examSetup),
               ),
               const SizedBox(height: 26),
-              Text(
-                '§ RACCOURCIS',
-                style: AppFonts.mono(
-                  size: 10,
-                  color: AppColors.muted,
-                  letterSpacing: 2.0,
-                ).copyWith(height: 1.0),
-              ),
-              const SizedBox(height: 10),
+              const _SectionTitle(label: 'Raccourcis'),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
@@ -117,156 +123,159 @@ class HomeScreen extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Greeting
+// HEADER
 // ---------------------------------------------------------------------------
 
-class _Greeting extends StatelessWidget {
-  const _Greeting({required this.user});
+class _Header extends StatelessWidget {
+  const _Header({required this.user});
 
   final AuthUser? user;
 
   @override
   Widget build(BuildContext context) {
     final firstName = user?.firstName?.trim() ?? '';
-    return Row(
+    final now = DateTime.now();
+    final day = _frenchDayLabel(now);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Cocarde(size: 40),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        Row(
+          children: [
+            const Cocarde(size: 32),
+            const SizedBox(width: 10),
+            Text(
+              'Sejour',
+              style: AppFonts.jakarta(
+                size: 17,
+                weight: FontWeight.w800,
+                color: AppColors.blue,
+              ).copyWith(letterSpacing: -0.3),
+            ),
+            Text(
+              'FR',
+              style: AppFonts.jakarta(
+                size: 17,
+                weight: FontWeight.w800,
+                color: AppColors.red,
+              ).copyWith(letterSpacing: -0.3),
+            ),
+            const Spacer(),
+            const _IconChip(icon: Icons.notifications_outlined),
+          ],
+        ),
+        const SizedBox(height: 22),
+        Text(
+          day.toUpperCase(),
+          style: AppFonts.mono(
+            size: 10,
+            color: AppColors.muted,
+            letterSpacing: 2.0,
+            weight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        RichText(
+          text: TextSpan(
+            style: AppFonts.jakarta(
+              size: 26,
+              weight: FontWeight.w700,
+              color: AppColors.ink,
+              height: 1.15,
+            ).copyWith(letterSpacing: -0.5),
             children: [
-              Text(
-                'BONJOUR${firstName.isNotEmpty ? ' · ${firstName.toUpperCase()}' : ''}',
-                style: AppFonts.mono(
-                  size: 10,
-                  color: AppColors.muted,
-                  letterSpacing: 1.8,
+              const TextSpan(text: 'Bonjour'),
+              if (firstName.isNotEmpty)
+                TextSpan(
+                  text: ' $firstName',
+                  style: AppFonts.jakarta(
+                    size: 26,
+                    weight: FontWeight.w800,
+                    color: AppColors.blue,
+                    height: 1.15,
+                  ).copyWith(letterSpacing: -0.5),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              const TextSpan(text: ',\ncontinuons votre '),
+              TextSpan(
+                text: 'préparation',
+                style: AppFonts.jakarta(
+                  size: 26,
+                  weight: FontWeight.w800,
+                  color: AppColors.blue,
+                  height: 1.15,
+                ).copyWith(letterSpacing: -0.5),
               ),
-              const SizedBox(height: 6),
-              Text(
-                'Préparons votre examen',
-                style: AppFonts.fraunces(
-                  size: 24,
-                  weight: FontWeight.w600,
-                  fontStyle: FontStyle.italic,
-                  height: 1.1,
-                ),
-              ),
+              const TextSpan(text: '.'),
             ],
           ),
         ),
       ],
     );
   }
+
+  String _frenchDayLabel(DateTime d) {
+    const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+    const months = [
+      'janvier',
+      'février',
+      'mars',
+      'avril',
+      'mai',
+      'juin',
+      'juillet',
+      'août',
+      'septembre',
+      'octobre',
+      'novembre',
+      'décembre',
+    ];
+    final dayName = days[d.weekday - 1];
+    final monthName = months[d.month - 1];
+    return '$dayName ${d.day} $monthName';
+  }
 }
 
-// ---------------------------------------------------------------------------
-// Bandeau objectif (clickable pour éditer / définir)
-// ---------------------------------------------------------------------------
+class _IconChip extends StatelessWidget {
+  const _IconChip({required this.icon});
 
-class _TargetStrip extends StatelessWidget {
-  const _TargetStrip({required this.target});
-
-  final TargetProcedure? target;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    final hasTarget = target != null;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => context.push(
-          '${AppRoutes.targetPath}?from=${Uri.encodeComponent(AppRoutes.home)}',
-        ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: AppColors.blueSoft,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.blue.withValues(alpha: 0.12)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  hasTarget ? Icons.flag_rounded : Icons.flag_outlined,
-                  size: 16,
-                  color: AppColors.blue,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      hasTarget ? 'MON OBJECTIF' : 'DÉFINIR MON OBJECTIF',
-                      style: AppFonts.mono(
-                        size: 9,
-                        color: AppColors.muted,
-                        letterSpacing: 1.6,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      hasTarget
-                          ? '${target!.shortLabel} · TCF ${target!.tcfLevel}'
-                          : 'Adaptez les questions à votre démarche',
-                      style: AppFonts.jakarta(
-                        size: 13,
-                        weight: FontWeight.w700,
-                        color: AppColors.ink,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                hasTarget ? Icons.edit_outlined : Icons.arrow_forward_rounded,
-                size: 16,
-                color: AppColors.blue,
-              ),
-            ],
-          ),
-        ),
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: AppColors.line),
       ),
+      alignment: Alignment.center,
+      child: Icon(icon, size: 16, color: AppColors.ink),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// Hero Civique (dominant)
+// STREAK + TARGET (inchangée)
 // ---------------------------------------------------------------------------
 
-class _CiviqueHero extends StatelessWidget {
-  const _CiviqueHero({
-    required this.stats,
-    required this.onStart,
-    required this.onExam,
-    required this.onRetry,
+class _StreakAndTarget extends StatelessWidget {
+  const _StreakAndTarget({
+    required this.streakDays,
+    required this.target,
+    required this.onEditTarget,
   });
 
-  final AsyncValue<UserStats> stats;
-  final VoidCallback onStart;
-  final VoidCallback onExam;
-  final VoidCallback onRetry;
+  final int streakDays;
+  final TargetProcedure? target;
+  final VoidCallback onEditTarget;
 
   @override
   Widget build(BuildContext context) {
+    final hasTarget = target != null;
+    final hasStreak = streakDays > 0;
+
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -274,99 +283,162 @@ class _CiviqueHero extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [AppColors.blue, AppColors.blueDark],
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: AppColors.blue.withValues(alpha: 0.28),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
+            color: AppColors.blue.withValues(alpha: 0.22),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         child: Stack(
           children: [
             Positioned(
-              top: -36,
-              right: -36,
+              top: -30,
+              right: -30,
               child: Container(
-                width: 160,
-                height: 160,
+                width: 120,
+                height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AppColors.white.withValues(alpha: 0.08),
-                    width: 18,
-                  ),
+                  color: AppColors.white.withValues(alpha: 0.05),
                 ),
               ),
             ),
             Positioned(
-              top: 38,
-              right: 22,
+              right: 18,
+              bottom: -18,
               child: Container(
-                width: 18,
-                height: 18,
-                decoration: const BoxDecoration(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.red,
+                  color: AppColors.red.withValues(alpha: 0.18),
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      _HeroBadge(
-                        label: 'EXAMEN OFFICIEL',
-                        bg: AppColors.white.withValues(alpha: 0.14),
-                        fg: AppColors.white,
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: AppColors.white.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        alignment: Alignment.center,
+                        child: hasStreak
+                            ? Text(
+                                '$streakDays',
+                                style: AppFonts.fraunces(
+                                  size: 20,
+                                  weight: FontWeight.w700,
+                                  color: AppColors.white,
+                                  height: 1.0,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.local_fire_department_rounded,
+                                size: 22,
+                                color: Colors.white,
+                              ),
                       ),
-                      const SizedBox(width: 6),
-                      const _HeroBadge(
-                        label: 'RECOMMANDÉ',
-                        bg: AppColors.red,
-                        fg: AppColors.white,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'SÉRIE EN COURS',
+                              style: AppFonts.mono(
+                                size: 9.5,
+                                color: AppColors.white.withValues(alpha: 0.65),
+                                letterSpacing: 1.8,
+                                weight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              hasStreak
+                                  ? '$streakDays ${streakDays == 1 ? "jour" : "jours"} d\'affilée'
+                                  : 'Commencez votre série',
+                              style: AppFonts.jakarta(
+                                size: 16,
+                                weight: FontWeight.w700,
+                                color: AppColors.white,
+                              ).copyWith(letterSpacing: -0.2),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Examen civique',
-                    style: AppFonts.fraunces(
-                      size: 30,
-                      weight: FontWeight.w600,
-                      color: AppColors.white,
-                      fontStyle: FontStyle.italic,
-                      height: 1.05,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Container(
+                      height: 1,
+                      color: AppColors.white.withValues(alpha: 0.12),
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Valeurs, institutions et histoire de la République française.',
-                    style: AppFonts.jakarta(
-                      size: 13,
-                      color: AppColors.white.withValues(alpha: 0.85),
-                      height: 1.4,
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: onEditTarget,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              hasTarget ? Icons.flag_rounded : Icons.flag_outlined,
+                              size: 15,
+                              color: AppColors.white.withValues(alpha: 0.85),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: AppFonts.jakarta(
+                                    size: 12.5,
+                                    color: AppColors.white.withValues(alpha: 0.85),
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text: hasTarget ? 'Objectif : ' : 'Définir mon objectif',
+                                    ),
+                                    if (hasTarget)
+                                      TextSpan(
+                                        text: '${target!.shortLabel} · TCF ${target!.tcfLevel}',
+                                        style: AppFonts.jakarta(
+                                          size: 12.5,
+                                          weight: FontWeight.w700,
+                                          color: AppColors.white,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Icon(
+                              hasTarget ? Icons.edit_outlined : Icons.arrow_forward_rounded,
+                              size: 14,
+                              color: AppColors.white.withValues(alpha: 0.7),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  stats.when(
-                    loading: () => const _HeroLoader(),
-                    error: (e, _) => _HeroError(
-                      message: ApiClient.toApiException(e).message,
-                      onRetry: onRetry,
-                    ),
-                    data: (s) => _HeroStats(stats: s),
-                  ),
-                  const SizedBox(height: 18),
-                  _HeroPrimaryCta(onTap: onStart),
-                  const SizedBox(height: 10),
-                  _HeroSecondaryCta(onTap: onExam),
                 ],
               ),
             ),
@@ -377,444 +449,283 @@ class _CiviqueHero extends StatelessWidget {
   }
 }
 
-class _HeroBadge extends StatelessWidget {
-  const _HeroBadge({required this.label, required this.bg, required this.fg});
+// ---------------------------------------------------------------------------
+// SECTION TITLE
+// ---------------------------------------------------------------------------
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.label, this.trailing});
 
   final String label;
-  final Color bg;
-  final Color fg;
+  final String? trailing;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        label,
-        style: AppFonts.mono(
-          size: 9,
-          color: fg,
-          letterSpacing: 1.6,
-          weight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _HeroStats extends StatelessWidget {
-  const _HeroStats({required this.stats});
-
-  final UserStats stats;
-
-  @override
-  Widget build(BuildContext context) {
-    final percent = (stats.successRate * 100).round();
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        _StatTile(value: '$percent%', label: 'Réussite'),
-        const SizedBox(width: 8),
-        _StatTile(value: '${stats.attemptsTotal}', label: 'Sessions'),
-        const SizedBox(width: 8),
-        _StatTile(value: '${stats.questionsAnswered}', label: 'Questions'),
+        Text(
+          label,
+          style: AppFonts.jakarta(
+            size: 17,
+            weight: FontWeight.w800,
+            color: AppColors.ink,
+          ).copyWith(letterSpacing: -0.3),
+        ),
+        const Spacer(),
+        if (trailing != null)
+          Flexible(
+            child: Text(
+              trailing!,
+              style: AppFonts.mono(
+                size: 9.5,
+                color: AppColors.muted,
+                letterSpacing: 1.8,
+                weight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+            ),
+          ),
       ],
     );
   }
 }
 
-class _StatTile extends StatelessWidget {
-  const _StatTile({required this.value, required this.label});
-
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(
-          color: AppColors.white.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.white.withValues(alpha: 0.14)),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: AppFonts.fraunces(
-                size: 22,
-                weight: FontWeight.w600,
-                color: AppColors.white,
-                height: 1.0,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label.toUpperCase(),
-              style: AppFonts.mono(
-                size: 9,
-                color: AppColors.white.withValues(alpha: 0.7),
-                letterSpacing: 1.4,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HeroPrimaryCta extends StatelessWidget {
-  const _HeroPrimaryCta({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.play_circle_fill_rounded,
-                color: AppColors.blue,
-                size: 22,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Commencer l\'entraînement',
-                  style: AppFonts.jakarta(
-                    size: 14.5,
-                    weight: FontWeight.w800,
-                    color: AppColors.blue,
-                  ),
-                ),
-              ),
-              const Icon(
-                Icons.arrow_forward_rounded,
-                color: AppColors.blue,
-                size: 18,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HeroSecondaryCta extends StatelessWidget {
-  const _HeroSecondaryCta({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: AppColors.white.withValues(alpha: 0.28),
-            ),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.timer_outlined, color: AppColors.white, size: 16),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Examen blanc · 40Q · 45 min',
-                  style: AppFonts.jakarta(
-                    size: 12.5,
-                    weight: FontWeight.w700,
-                    color: AppColors.white,
-                  ),
-                ),
-              ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.white.withValues(alpha: 0.75),
-                size: 20,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HeroLoader extends StatelessWidget {
-  const _HeroLoader();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 64,
-      child: Center(
-        child: SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: AppColors.white.withValues(alpha: 0.7),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HeroError extends StatelessWidget {
-  const _HeroError({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.cloud_off_outlined,
-            color: AppColors.white.withValues(alpha: 0.75),
-            size: 16,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: AppFonts.jakarta(
-                size: 11.5,
-                color: AppColors.white.withValues(alpha: 0.85),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: onRetry,
-            child: Text(
-              'RÉESSAYER',
-              style: AppFonts.mono(
-                size: 9,
-                color: AppColors.white,
-                letterSpacing: 1.6,
-                weight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ---------------------------------------------------------------------------
-// Carte TCF (secondaire mais distincte)
+// MODULE CARD COMPACTE — horizontale, ~88px de hauteur, accent latéral
 // ---------------------------------------------------------------------------
 
-class _TcfCard extends StatelessWidget {
-  const _TcfCard({
+enum _ModuleKind { civique, tcf }
+
+class _ModuleCard extends StatelessWidget {
+  const _ModuleCard({
+    required this.kind,
     required this.stats,
-    required this.onTraining,
+    required this.onTap,
     required this.onExam,
     this.isDemo = false,
   });
 
+  final _ModuleKind kind;
   final AsyncValue<UserStats> stats;
-  final VoidCallback onTraining;
+  final VoidCallback onTap;
   final VoidCallback onExam;
-
-  /// L'utilisateur n'a pas l'Intégral : il reste en mode démo (20 Q d'entraînement
-  /// + 1 examen blanc gratuits). On affiche un petit badge pour le signaler ;
-  /// les actions restent cliquables et redirigent vers leurs écrans setup qui
-  /// portent l'upsell détaillé.
   final bool isDemo;
+
+  bool get _isCivique => kind == _ModuleKind.civique;
+
+  Color get _accent => _isCivique ? AppColors.blue : AppColors.red;
+
+  Color get _accentLight => _isCivique ? AppColors.blueLight : AppColors.redLight;
+
+  IconData get _icon => _isCivique ? Icons.account_balance_rounded : Icons.translate_rounded;
+
+  String get _title => _isCivique ? 'Examen civique' : 'TCF · Test de français';
+
+  String get _subtitle => _isCivique ? 'CSP · CR · NAT' : 'A2 · B1 · B2';
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      onTap: onTraining,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.redLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.translate_rounded,
-                  size: 22,
-                  color: AppColors.red,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'TCF',
-                          style: AppFonts.jakarta(
-                            size: 15,
-                            weight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.redLight,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'A2 · B1 · B2',
-                            style: AppFonts.mono(
-                              size: 9,
-                              color: AppColors.red,
-                              letterSpacing: 1.2,
-                              weight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        if (isDemo) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.amber.withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              'DÉMO',
-                              style: AppFonts.mono(
-                                size: 9,
-                                color: AppColors.amber,
-                                letterSpacing: 1.2,
-                                weight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Compréhension orale, écrite, structure',
-                      style: AppFonts.jakarta(
-                        size: 12,
-                        color: AppColors.muted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              stats.maybeWhen(
-                data: (s) => s.attemptsTotal == 0
-                    ? const SizedBox.shrink()
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${(s.successRate * 100).round()}%',
-                            style: AppFonts.fraunces(
-                              size: 18,
-                              weight: FontWeight.w600,
-                              color: AppColors.red,
-                              height: 1.0,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${s.attemptsTotal} sessions',
-                            style: AppFonts.mono(
-                              size: 9,
-                              color: AppColors.muted,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                orElse: () => const SizedBox.shrink(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _TcfSubAction(
-                  icon: Icons.play_arrow_rounded,
-                  label: 'Entraînement',
-                  onTap: onTraining,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _TcfSubAction(
-                  icon: Icons.timer_outlined,
-                  label: 'Examen blanc',
-                  onTap: onExam,
-                ),
-              ),
-            ],
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.line),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.ink.withValues(alpha: 0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            child: Stack(
+              children: [
+                // Filet latéral coloré (4px)
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(width: 4, color: _accent),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
+                  child: Row(
+                    children: [
+                      // Icône
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: _accentLight,
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(_icon, size: 22, color: _accent),
+                      ),
+                      const SizedBox(width: 14),
+                      // Titre + meta + niveaux
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    _title,
+                                    style: AppFonts.jakarta(
+                                      size: 15.5,
+                                      weight: FontWeight.w800,
+                                      color: AppColors.ink,
+                                    ).copyWith(letterSpacing: -0.2),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isDemo) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.amber.withValues(alpha: 0.16),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'DÉMO',
+                                      style: AppFonts.mono(
+                                        size: 8.5,
+                                        color: AppColors.amber,
+                                        letterSpacing: 1.2,
+                                        weight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            _ModuleMeta(
+                              stats: stats,
+                              fallback: _subtitle,
+                              accent: _accent,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Bouton compact examen blanc + chevron
+                      _ExamPillButton(accent: _accent, onTap: onExam),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-class _TcfSubAction extends StatelessWidget {
-  const _TcfSubAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
+class _ModuleMeta extends StatelessWidget {
+  const _ModuleMeta({
+    required this.stats,
+    required this.fallback,
+    required this.accent,
   });
 
-  final IconData icon;
-  final String label;
+  final AsyncValue<UserStats> stats;
+  final String fallback;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return stats.when(
+      loading: () => Text(
+        fallback,
+        style: AppFonts.mono(
+          size: 10,
+          color: AppColors.muted,
+          letterSpacing: 1.4,
+          weight: FontWeight.w600,
+        ),
+      ),
+      error: (_, __) => Text(
+        fallback,
+        style: AppFonts.mono(
+          size: 10,
+          color: AppColors.muted,
+          letterSpacing: 1.4,
+          weight: FontWeight.w600,
+        ),
+      ),
+      data: (s) {
+        if (s.attemptsTotal == 0) {
+          // Pas encore commencé : montre les niveaux
+          return Text(
+            fallback,
+            style: AppFonts.mono(
+              size: 10,
+              color: AppColors.muted,
+              letterSpacing: 1.4,
+              weight: FontWeight.w600,
+            ),
+          );
+        }
+        // En cours : montre les stats
+        final percent = (s.successRate * 100).round();
+        return RichText(
+          text: TextSpan(
+            style: AppFonts.jakarta(
+              size: 12.5,
+              color: AppColors.muted,
+            ),
+            children: [
+              TextSpan(
+                text: '$percent% ',
+                style: AppFonts.jakarta(
+                  size: 12.5,
+                  color: accent,
+                  weight: FontWeight.w800,
+                ),
+              ),
+              const TextSpan(text: 'de réussite · '),
+              TextSpan(
+                text: '${s.attemptsTotal}',
+                style: AppFonts.jakarta(
+                  size: 12.5,
+                  color: AppColors.ink,
+                  weight: FontWeight.w700,
+                ),
+              ),
+              TextSpan(text: ' session${s.attemptsTotal > 1 ? "s" : ""}'),
+            ],
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        );
+      },
+    );
+  }
+}
+
+class _ExamPillButton extends StatelessWidget {
+  const _ExamPillButton({required this.accent, required this.onTap});
+
+  final Color accent;
   final VoidCallback onTap;
 
   @override
@@ -822,29 +733,20 @@ class _TcfSubAction extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(11),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 10),
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
-            color: AppColors.redLight.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.red.withValues(alpha: 0.18)),
+            color: accent,
+            borderRadius: BorderRadius.circular(11),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 15, color: AppColors.red),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: AppFonts.jakarta(
-                  size: 12,
-                  weight: FontWeight.w700,
-                  color: AppColors.red,
-                ),
-              ),
-            ],
+          alignment: Alignment.center,
+          child: const Icon(
+            Icons.arrow_forward_rounded,
+            color: Colors.white,
+            size: 18,
           ),
         ),
       ),
@@ -853,7 +755,7 @@ class _TcfSubAction extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Raccourci (carte verticale en duo)
+// SHORTCUT TILES
 // ---------------------------------------------------------------------------
 
 class _ShortcutTile extends StatelessWidget {
@@ -887,7 +789,7 @@ class _ShortcutTile extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: accentBg,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(11),
             ),
             child: Icon(icon, size: 18, color: accent),
           ),
@@ -912,7 +814,7 @@ class _ShortcutTile extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Astuce / Le saviez-vous
+// DAILY TIP
 // ---------------------------------------------------------------------------
 
 class _DailyTip extends StatelessWidget {
@@ -921,51 +823,58 @@ class _DailyTip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       decoration: BoxDecoration(
         color: AppColors.blueSoft,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.blue.withValues(alpha: 0.08)),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.auto_stories_outlined,
-                size: 14,
-                color: AppColors.blue,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'LE SAVIEZ-VOUS ?',
-                style: AppFonts.mono(
-                  size: 9,
-                  color: AppColors.blue,
-                  letterSpacing: 1.8,
-                  weight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            '« Liberté, Égalité, Fraternité »',
-            style: AppFonts.fraunces(
-              size: 16,
-              weight: FontWeight.w500,
-              fontStyle: FontStyle.italic,
-              height: 1.3,
+          Container(
+            width: 3,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.blue.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            'Devise inscrite à l\'article 2 de la Constitution du 4 octobre 1958.',
-            style: AppFonts.jakarta(
-              size: 12,
-              color: AppColors.muted,
-              height: 1.4,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'LE SAVIEZ-VOUS ?',
+                  style: AppFonts.mono(
+                    size: 9.5,
+                    color: AppColors.blue,
+                    letterSpacing: 1.8,
+                    weight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '« Liberté, Égalité, Fraternité »',
+                  style: AppFonts.fraunces(
+                    size: 17,
+                    weight: FontWeight.w500,
+                    fontStyle: FontStyle.italic,
+                    height: 1.3,
+                    color: AppColors.ink,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'Devise inscrite à l\'article 2 de la Constitution du 4 octobre 1958.',
+                  style: AppFonts.jakarta(
+                    size: 12,
+                    color: AppColors.muted,
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
