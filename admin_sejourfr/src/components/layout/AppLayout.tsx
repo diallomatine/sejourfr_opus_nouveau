@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../auth/AuthContext";
+import { audioDraftsApi } from "../../api/audioDraftsApi";
 import { conversationsApi } from "../../api/conversationsApi";
 import { dashboardApi } from "../../api/dashboardApi";
 import styles from "./AppLayout.module.css";
@@ -19,6 +20,13 @@ export function AppLayout() {
   const unreadQuery = useQuery({
     queryKey: ["conversations", "unread-count"],
     queryFn: () => conversationsApi.unreadCount(),
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
+
+  const draftsPendingQuery = useQuery({
+    queryKey: ["audioDrafts", "pendingReview", "count"],
+    queryFn: () => audioDraftsApi.pendingReviewCount(),
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
@@ -61,7 +69,13 @@ export function AppLayout() {
         <NavItem to="/exams">↳ Examens blancs</NavItem>
 
         <div className={styles.navSection}>Generation IA</div>
-        <NavItem to="/audio-questions/generate">↳ Audio CO (TCF)</NavItem>
+        <NavItem to="/audio-questions/generate">↳ Generer un audio</NavItem>
+        <NavItem
+          to="/audio-questions/review"
+          badge={draftsPendingQuery.data?.count}
+        >
+          ↳ Audio a valider
+        </NavItem>
         <NavItem to="/audio-questions/logs">↳ Audit generations</NavItem>
 
         <div className={styles.navSection}>Echanges</div>

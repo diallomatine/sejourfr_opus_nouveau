@@ -151,6 +151,15 @@ public class SsmlValidator {
     }
 
     /**
+     * Variante publique de {@link #stripOrphanBreaks} pour les pipelines qui
+     * n'executent pas la validation complete (drafts batch deja relus humainement)
+     * mais doivent quand meme nettoyer le SSML avant l'envoi a Azure.
+     */
+    public String cleanForAzure(String ssml) {
+        return stripOrphanBreaks(ssml);
+    }
+
+    /**
      * Retire les balises {@code <break/>} situees entre les blocs {@code <voice>}
      * (donc enfants directs de {@code <speak>}). Azure les refuse avec
      * "Node [speak] should not contain node [break]". Les breaks intra-voice sont conserves.

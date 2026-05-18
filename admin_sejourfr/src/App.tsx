@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import { AppLayout } from "./components/layout/AppLayout";
 import { ToastProvider } from "./components/ui/Toast";
+import { AudioDraftReviewPage } from "./features/audioQuestions/AudioDraftReviewPage";
 import { AudioQuestionGeneratePage } from "./features/audioQuestions/AudioQuestionGeneratePage";
 import { AudioQuestionLogsPage } from "./features/audioQuestions/AudioQuestionLogsPage";
 import { ConversationsPage } from "./features/conversations/ConversationsPage";
@@ -50,6 +51,10 @@ export function App() {
                 <Route
                   path="/audio-questions/generate"
                   element={<AudioQuestionGeneratePage />}
+                />
+                <Route
+                  path="/audio-questions/review"
+                  element={<AudioDraftReviewPage />}
                 />
                 <Route
                   path="/audio-questions/logs"

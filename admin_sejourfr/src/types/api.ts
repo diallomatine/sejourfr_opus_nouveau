@@ -466,3 +466,59 @@ export interface AudioApiError {
   path: string;
   details?: Record<string, unknown>;
 }
+
+// ---------------------------------------------------------------------------
+// Audio drafts (workflow batch parallele a la generation unitaire)
+// Voir backend : com.sejourfr.app.audioquestion.AudioDraftService
+// ---------------------------------------------------------------------------
+export type AudioDraftStatus =
+  | "TEXT_VALIDATED"
+  | "AUDIO_GENERATING"
+  | "AUDIO_PENDING_REVIEW"
+  | "PUBLISHED"
+  | "REJECTED";
+
+export interface AudioDraftChoiceDto {
+  label: string;
+  isCorrect: boolean;
+  displayOrder: number;
+}
+
+export interface AudioDraftDto {
+  id: string;
+  difficulty: AudioLevel | null;
+  competenceCode: string | null;
+  themeId: string | null;
+  themeName: string | null;
+  transcriptText: string;
+  statement: string;
+  explanation: string | null;
+  choices: AudioDraftChoiceDto[];
+  voiceRecommended: string | null;
+  status: AudioDraftStatus;
+  audioUrl: string | null;
+  audioDurationSec: number | null;
+  audioVoiceUsed: string | null;
+  audioGeneratedAt: string | null;
+  batchId: string | null;
+  createdAt: string;
+  rejectionReason: string | null;
+}
+
+export interface BatchGenerationOutcome {
+  draftId: string;
+  success: boolean;
+  errorMessage: string | null;
+}
+
+export interface BatchGenerationResultDto {
+  batchId: string | null;
+  requested: number;
+  succeeded: number;
+  failed: number;
+  outcomes: BatchGenerationOutcome[];
+}
+
+export interface PendingReviewCountDto {
+  count: number;
+}
