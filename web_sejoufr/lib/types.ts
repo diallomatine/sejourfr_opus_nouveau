@@ -5,12 +5,39 @@
 export type Module = "CIVIQUE" | "TCF";
 export type TargetProcedure = "CSP" | "CR" | "NAT";
 export type TargetLevel = "A2" | "B1" | "B2";
-export type Difficulty = "EASY" | "MEDIUM" | "HARD";
-export type QuestionType = "KNOWLEDGE" | "SITUATION";
+// Le back code la difficulté sous forme de niveau de cible (civique = CSP/CR/NAT, TCF = A2/B1/B2)
+// et pas via une echelle facile/moyen/difficile. La valeur affichee en tag vient directement de la.
+export type Difficulty = "CSP" | "CR" | "NAT" | "A2" | "B1" | "B2";
+// Aligne sur com.sejourfr.app.enums.QuestionType.
+export type QuestionType =
+  | "CONNAISSANCE"
+  | "MISE_SITUATION"
+  | "CO"
+  | "CE"
+  | "STRUCTURE";
 export type AttemptType = "TRAINING" | "MOCK_EXAM" | "REVIEW";
 export type MediaType = "AUDIO" | "IMAGE" | "VIDEO";
 export type Role = "USER" | "ADMIN";
 export type AudioMode = "WRITTEN_QUESTION" | "FULL_AUDIO";
+
+/**
+ * Libelle francais d'un type de question, miroir du `displayLabel` cote mobile
+ * (`mobile_sejourfr/lib/core/models/enums.dart`).
+ */
+export function questionTypeLabel(type: QuestionType): string {
+  switch (type) {
+    case "CONNAISSANCE":
+      return "Connaissance";
+    case "MISE_SITUATION":
+      return "Mise en situation";
+    case "CO":
+      return "Compréhension orale";
+    case "CE":
+      return "Compréhension écrite";
+    case "STRUCTURE":
+      return "Structure de la langue";
+  }
+}
 
 // ============ AUTH ============
 export interface LoginRequest {

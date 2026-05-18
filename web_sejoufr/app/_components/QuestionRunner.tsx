@@ -8,13 +8,14 @@ import {
   attemptApi,
   userContentApi,
 } from "@/lib/api";
-import type {
-  AnswerResultResponse,
-  AttemptQuestionResponse,
-  AttemptResponse,
-  Module as ModuleEnum,
-  StartAttemptRequest,
-  SubmitAnswerRequest,
+import {
+  questionTypeLabel,
+  type AnswerResultResponse,
+  type AttemptQuestionResponse,
+  type AttemptResponse,
+  type Module as ModuleEnum,
+  type StartAttemptRequest,
+  type SubmitAnswerRequest,
 } from "@/lib/types";
 
 export type RunnerMode = "training" | "exam";
@@ -453,7 +454,7 @@ export function QuestionRunner({
         {/* TAGS */}
         <div className="qr-tags">
           <span className="qr-tag qr-tag-red">{q.difficulty}</span>
-          <span className="qr-tag qr-tag-blue">{q.questionType === "KNOWLEDGE" ? "Connaissance" : "Situation"}</span>
+          <span className="qr-tag qr-tag-blue">{questionTypeLabel(q.questionType)}</span>
           <span className="qr-tag-theme">{q.themeName}</span>
         </div>
 

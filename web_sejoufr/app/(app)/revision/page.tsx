@@ -1,473 +1,521 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { ApiException, userContentApi } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
-import type {
-  Module as ModuleEnum,
-  QuestionReviewResponse,
-} from "@/lib/types";
+import {useSearchParams} from "next/navigation";
+import {Suspense, useCallback, useEffect, useMemo, useState} from "react";
+import {ApiException, userContentApi} from "@/lib/api";
+import {useAuth} from "@/lib/auth-context";
+import {type Module as ModuleEnum, type QuestionReviewResponse, questionTypeLabel,} from "@/lib/types";
+import {MediaView} from "@/app/_components/MediaView";
 
 type Tab = "erreurs" | "favoris";
 
 export default function RevisionPage() {
-  return (
-    <Suspense fallback={<RevisionSkeleton />}>
-      <RevisionInner />
-    </Suspense>
-  );
+    return (
+        <Suspense fallback={<RevisionSkeleton/>}>
+            <RevisionInner/>
+        </Suspense>
+    );
 }
 
 function RevisionInner() {
-  const searchParams = useSearchParams();
-  const { user, status } = useAuth();
+    const searchParams = useSearchParams();
+    const {user, status} = useAuth();
 
-  const urlTab: Tab = useMemo(() => {
-    const t = searchParams?.get("tab");
-    return t === "favoris" ? "favoris" : "erreurs";
-  }, [searchParams]);
+    const urlTab: Tab = useMemo(() => {
+        const t = searchParams?.get("tab");
+        return t === "favoris" ? "favoris" : "erreurs";
+    }, [searchParams]);
 
-  const urlModule: ModuleEnum = useMemo(() => {
-    const m = searchParams?.get("module");
-    return m === "TCF" ? "TCF" : "CIVIQUE";
-  }, [searchParams]);
+    const urlModule: ModuleEnum = useMemo(() => {
+        const m = searchParams?.get("module");
+        return m === "TCF" ? "TCF" : "CIVIQUE";
+    }, [searchParams]);
 
-  const [module, setModule] = useState<ModuleEnum>(urlModule);
-  const [tab, setTab] = useState<Tab>(urlTab);
+    const [module, setModule] = useState<ModuleEnum>(urlModule);
+    const [tab, setTab] = useState<Tab>(urlTab);
 
-  // Sync sur les changements d'URL : navigation depuis la sidebar
-  // (?tab=erreurs ↔ ?tab=favoris) doit basculer l'onglet visible sans
-  // remonter le composant.
-  useEffect(() => {
-    setTab(urlTab);
-  }, [urlTab]);
-  useEffect(() => {
-    setModule(urlModule);
-  }, [urlModule]);
+    // Sync sur les changements d'URL : navigation depuis la sidebar
+    // (?tab=erreurs ↔ ?tab=favoris) doit basculer l'onglet visible sans
+    // remonter le composant.
+    useEffect(() => {
+        setTab(urlTab);
+    }, [urlTab]);
+    useEffect(() => {
+        setModule(urlModule);
+    }, [urlModule]);
 
-  const [errors, setErrors] = useState<QuestionReviewResponse[]>([]);
-  const [favorites, setFavorites] = useState<QuestionReviewResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [selectedQuestion, setSelectedQuestion] = useState<QuestionReviewResponse | null>(null);
+    const [errors, setErrors] = useState<QuestionReviewResponse[]>([]);
+    const [favorites, setFavorites] = useState<QuestionReviewResponse[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [selectedQuestion, setSelectedQuestion] = useState<QuestionReviewResponse | null>(null);
 
-  const refresh = useCallback(async (m: ModuleEnum) => {
-    setLoading(true);
-    try {
-      const [wrongList, favList] = await Promise.all([
-        userContentApi.wrong(m),
-        userContentApi.favorites(m),
-      ]);
-      setErrors(wrongList);
-      setFavorites(favList);
-      setLoadError(null);
-    } catch (e) {
-      setLoadError(
-        e instanceof ApiException
-          ? e.message
-          : "Impossible de charger la révision.",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (status !== "authenticated") return;
-    let cancelled = false;
-    refresh(module).then(() => {
-      if (cancelled) return;
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [module, refresh, status]);
-
-  const onToggleFavorite = useCallback(
-    async (q: QuestionReviewResponse, wasFavorite: boolean) => {
-      // Optimiste : retire/ajoute, rollback en cas d'échec via refresh complet.
-      if (wasFavorite) {
-        setFavorites((prev) => prev.filter((x) => x.id !== q.id));
-      } else {
-        setFavorites((prev) => [q, ...prev.filter((x) => x.id !== q.id)]);
-      }
-      try {
-        if (wasFavorite) {
-          await userContentApi.removeFavorite(q.id);
-        } else {
-          await userContentApi.addFavorite(q.id);
+    const refresh = useCallback(async (m: ModuleEnum) => {
+        setLoading(true);
+        try {
+            const [wrongList, favList] = await Promise.all([
+                userContentApi.wrong(m),
+                userContentApi.favorites(m),
+            ]);
+            setErrors(wrongList);
+            setFavorites(favList);
+            setLoadError(null);
+        } catch (e) {
+            setLoadError(
+                e instanceof ApiException
+                    ? e.message
+                    : "Impossible de charger la révision.",
+            );
+        } finally {
+            setLoading(false);
         }
-      } catch {
-        await refresh(module);
-      }
-    },
-    [module, refresh],
-  );
+    }, []);
 
-  const list = tab === "erreurs" ? errors : favorites;
+    useEffect(() => {
+        if (status !== "authenticated") return;
+        let cancelled = false;
+        refresh(module).then(() => {
+            if (cancelled) return;
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [module, refresh, status]);
 
-  if (status === "loading") return <RevisionSkeleton />;
-  if (!user) {
-    return (
-      <main className="rv-gate">
-        <p>Connectez-vous pour réviser vos questions.</p>
-        <Link href="/connexion?next=/revision" className="rv-gate-cta">
-          Se connecter →
-        </Link>
-        <style>{gateStyles}</style>
-      </main>
+    const onToggleFavorite = useCallback(
+        async (q: QuestionReviewResponse, wasFavorite: boolean) => {
+            // Optimiste : retire/ajoute, rollback en cas d'échec via refresh complet.
+            if (wasFavorite) {
+                setFavorites((prev) => prev.filter((x) => x.id !== q.id));
+            } else {
+                setFavorites((prev) => [q, ...prev.filter((x) => x.id !== q.id)]);
+            }
+            try {
+                if (wasFavorite) {
+                    await userContentApi.removeFavorite(q.id);
+                } else {
+                    await userContentApi.addFavorite(q.id);
+                }
+            } catch {
+                await refresh(module);
+            }
+        },
+        [module, refresh],
     );
-  }
 
-  return (
-    <main className="rv">
-      {/* ============ TOPBAR ============ */}
-      <header className="topbar">
-        <div>
-          <div className="breadcrumb">
-            ACCUEIL <span className="sep">/</span> RÉVISION{" "}
-            <span className="sep">/</span>{" "}
-            {tab === "erreurs" ? "MES ERREURS" : "MES FAVORIS"}
-          </div>
-          <h1>
-            Retravaillez ce qui <em>résiste</em>.
-          </h1>
-        </div>
-        <div className="topbar-actions">
-          <Link href="/entrainement" className="btn-outline">
-            Entraînement →
-          </Link>
-        </div>
-      </header>
+    const list = tab === "erreurs" ? errors : favorites;
 
-      {/* ============ MODULE TABS ============ */}
-      <div className="filters">
-        <div className="filter-tabs" role="tablist" aria-label="Module">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={module === "CIVIQUE"}
-            className={`tab tab-blue ${module === "CIVIQUE" ? "is-active" : ""}`}
-            onClick={() => setModule("CIVIQUE")}
-          >
-            Civique
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={module === "TCF"}
-            className={`tab tab-red ${module === "TCF" ? "is-active" : ""}`}
-            onClick={() => setModule("TCF")}
-          >
-            TCF
-          </button>
-        </div>
-      </div>
+    if (status === "loading") return <RevisionSkeleton/>;
+    if (!user) {
+        return (
+            <main className="rv-gate">
+                <p>Connectez-vous pour réviser vos questions.</p>
+                <Link href="/connexion?next=/revision" className="rv-gate-cta">
+                    Se connecter →
+                </Link>
+                <style>{gateStyles}</style>
+            </main>
+        );
+    }
 
-      {/* ============ SECTION TABS (Erreurs / Favoris) ============ */}
-      <div className="section-tabs" role="tablist" aria-label="Section">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "erreurs"}
-          className={`section-tab ${tab === "erreurs" ? "is-active" : ""}`}
-          onClick={() => setTab("erreurs")}
-        >
+    return (
+        <main className="rv">
+            {/* ============ TOPBAR ============ */}
+            <header className="topbar">
+                <div>
+                    <div className="breadcrumb">
+                        ACCUEIL <span className="sep">/</span> RÉVISION{" "}
+                        <span className="sep">/</span>{" "}
+                        {tab === "erreurs" ? "MES ERREURS" : "MES FAVORIS"}
+                    </div>
+                    <h1>
+                        Retravaillez ce qui <em>résiste</em>.
+                    </h1>
+                </div>
+                <div className="topbar-actions">
+                    <Link href="/entrainement" className="btn-outline">
+                        Entraînement →
+                    </Link>
+                </div>
+            </header>
+
+            {/* ============ MODULE TABS ============ */}
+            <div className="filters">
+                <div className="filter-tabs" role="tablist" aria-label="Module">
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={module === "CIVIQUE"}
+                        className={`tab tab-blue ${module === "CIVIQUE" ? "is-active" : ""}`}
+                        onClick={() => setModule("CIVIQUE")}
+                    >
+                        Civique
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={module === "TCF"}
+                        className={`tab tab-red ${module === "TCF" ? "is-active" : ""}`}
+                        onClick={() => setModule("TCF")}
+                    >
+                        TCF
+                    </button>
+                </div>
+            </div>
+
+            {/* ============ SECTION TABS (Erreurs / Favoris) ============ */}
+            <div className="section-tabs" role="tablist" aria-label="Section">
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === "erreurs"}
+                    className={`section-tab ${tab === "erreurs" ? "is-active" : ""}`}
+                    onClick={() => setTab("erreurs")}
+                >
           <span className="section-tab-icon section-tab-icon-red">
-            <XCircleIcon />
+            <XCircleIcon/>
           </span>
-          <span className="section-tab-text">
+                    <span className="section-tab-text">
             <span className="section-tab-label">Mes erreurs</span>
             <span className="section-tab-desc">À retravailler en priorité</span>
           </span>
-          <span className="section-tab-count">{errors.length}</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "favoris"}
-          className={`section-tab ${tab === "favoris" ? "is-active" : ""}`}
-          onClick={() => setTab("favoris")}
-        >
+                    <span className="section-tab-count">{errors.length}</span>
+                </button>
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === "favoris"}
+                    className={`section-tab ${tab === "favoris" ? "is-active" : ""}`}
+                    onClick={() => setTab("favoris")}
+                >
           <span className="section-tab-icon section-tab-icon-blue">
-            <StarIcon />
+            <StarIcon/>
           </span>
-          <span className="section-tab-text">
+                    <span className="section-tab-text">
             <span className="section-tab-label">Favoris</span>
             <span className="section-tab-desc">Mises de côté pour plus tard</span>
           </span>
-          <span className="section-tab-count">{favorites.length}</span>
-        </button>
-      </div>
+                    <span className="section-tab-count">{favorites.length}</span>
+                </button>
+            </div>
 
-      {/* ============ LIST ============ */}
-      {loadError && <div className="form-error rv-error">{loadError}</div>}
+            {/* ============ LIST ============ */}
+            {loadError && <div className="form-error rv-error">{loadError}</div>}
 
-      {loading ? (
-        <ListSkeleton />
-      ) : list.length === 0 ? (
-        <EmptyState tab={tab} module={module} />
-      ) : (
-        <div className="rv-list">
-          {list.map((q) => (
-            <QuestionRow
-              key={q.id}
-              question={q}
-              tab={tab}
-              isFavorite={favorites.some((f) => f.id === q.id)}
-              onClick={() => setSelectedQuestion(q)}
-            />
-          ))}
-        </div>
-      )}
+            {loading ? (
+                <ListSkeleton/>
+            ) : list.length === 0 ? (
+                <EmptyState tab={tab} module={module}/>
+            ) : (
+                <div className="rv-list">
+                    {list.map((q) => (
+                        <QuestionRow
+                            key={q.id}
+                            question={q}
+                            tab={tab}
+                            isFavorite={favorites.some((f) => f.id === q.id)}
+                            onClick={() => setSelectedQuestion(q)}
+                        />
+                    ))}
+                </div>
+            )}
 
-      {selectedQuestion && (
-        <QuestionDetailModal
-          question={selectedQuestion}
-          isFavorite={favorites.some((f) => f.id === selectedQuestion.id)}
-          onClose={() => setSelectedQuestion(null)}
-          onToggleFavorite={(was) => onToggleFavorite(selectedQuestion, was)}
-        />
-      )}
+            {selectedQuestion && (
+                <QuestionDetailModal
+                    question={selectedQuestion}
+                    isFavorite={favorites.some((f) => f.id === selectedQuestion.id)}
+                    onClose={() => setSelectedQuestion(null)}
+                    onToggleFavorite={(was) => onToggleFavorite(selectedQuestion, was)}
+                />
+            )}
 
-      <style>{styles}</style>
-    </main>
-  );
+            <style>{styles}</style>
+        </main>
+    );
 }
 
 // ============================================================================
 // QUESTION ROW
 // ============================================================================
 function QuestionRow({
-  question,
-  tab,
-  isFavorite,
-  onClick,
-}: {
-  question: QuestionReviewResponse;
-  tab: Tab;
-  isFavorite: boolean;
-  onClick: () => void;
+                         question,
+                         tab,
+                         isFavorite,
+                         onClick,
+                     }: {
+    question: QuestionReviewResponse;
+    tab: Tab;
+    isFavorite: boolean;
+    onClick: () => void;
 }) {
-  const isErr = tab === "erreurs";
-  return (
-    <button type="button" className={`rv-row rv-row-${isErr ? "red" : "blue"}`} onClick={onClick}>
+    const isErr = tab === "erreurs";
+    return (
+        <button type="button" className={`rv-row rv-row-${isErr ? "red" : "blue"}`} onClick={onClick}>
       <span className={`rv-row-marker rv-row-marker-${isErr ? "red" : "blue"}`}>
-        {isErr ? <XCircleIcon /> : <StarIcon />}
+        {isErr ? <XCircleIcon/> : <StarIcon/>}
       </span>
-      <div className="rv-row-body">
-        <div className="rv-row-meta">
-          <span className="rv-tag rv-tag-blue">{question.themeName}</span>
-          <span className="rv-tag rv-tag-mono">{question.difficulty}</span>
-          {isFavorite && !isErr ? null : isFavorite ? (
-            <span className="rv-tag rv-tag-fav" aria-label="En favoris">
-              <StarIcon />
+            <div className="rv-row-body">
+                <div className="rv-row-meta">
+                    <span className="rv-tag rv-tag-blue">{question.themeName}</span>
+                    <span className="rv-tag rv-tag-mono">{question.difficulty}</span>
+                    {isFavorite && !isErr ? null : isFavorite ? (
+                        <span className="rv-tag rv-tag-fav" aria-label="En favoris">
+              <StarIcon/>
             </span>
-          ) : null}
-        </div>
-        <p className="rv-row-statement">{question.statement}</p>
-      </div>
-      <span className="rv-row-arrow" aria-hidden>
+                    ) : null}
+                </div>
+                <p className="rv-row-statement">{question.statement}</p>
+            </div>
+            <span className="rv-row-arrow" aria-hidden>
         ›
       </span>
-    </button>
-  );
+        </button>
+    );
 }
 
 // ============================================================================
 // QUESTION DETAIL MODAL
 // ============================================================================
 function QuestionDetailModal({
-  question,
-  isFavorite,
-  onClose,
-  onToggleFavorite,
-}: {
-  question: QuestionReviewResponse;
-  isFavorite: boolean;
-  onClose: () => void;
-  onToggleFavorite: (wasFavorite: boolean) => Promise<void>;
+                                 question: fallbackQuestion,
+                                 isFavorite,
+                                 onClose,
+                                 onToggleFavorite,
+                             }: {
+    question: QuestionReviewResponse;
+    isFavorite: boolean;
+    onClose: () => void;
+    onToggleFavorite: (wasFavorite: boolean) => Promise<void>;
 }) {
-  const [toggling, setToggling] = useState(false);
+    const [toggling, setToggling] = useState(false);
+    // Les endpoints /favorites et /wrong renvoient la version "publique" sans
+    // correct/explanation. On refetch /review pour avoir la bonne reponse + l'explication
+    // (meme strategie que le mobile dans review_screen.dart).
+    const [detail, setDetail] = useState<QuestionReviewResponse | null>(null);
+    const [detailLoading, setDetailLoading] = useState(true);
+    const [detailError, setDetailError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+    useEffect(() => {
+        let cancelled = false;
+        setDetailLoading(true);
+        setDetailError(null);
+        userContentApi
+            .reviewQuestion(fallbackQuestion.id)
+            .then((q) => {
+                if (cancelled) return;
+                setDetail(q);
+            })
+            .catch((e) => {
+                if (cancelled) return;
+                setDetailError(
+                    e instanceof ApiException ? e.message : "Impossible de charger la correction.",
+                );
+            })
+            .finally(() => {
+                if (cancelled) return;
+                setDetailLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [fallbackQuestion.id]);
+
+    const question = detail ?? fallbackQuestion;
+
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose();
+        };
+        window.addEventListener("keydown", onKey);
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        return () => {
+            window.removeEventListener("keydown", onKey);
+            document.body.style.overflow = prev;
+        };
+    }, [onClose]);
+
+    const handleToggle = async () => {
+        if (toggling) return;
+        setToggling(true);
+        try {
+            await onToggleFavorite(isFavorite);
+        } finally {
+            setToggling(false);
+        }
     };
-    window.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [onClose]);
 
-  const handleToggle = async () => {
-    if (toggling) return;
-    setToggling(true);
-    try {
-      await onToggleFavorite(isFavorite);
-    } finally {
-      setToggling(false);
-    }
-  };
+    return (
+        <div className="rvd" role="dialog" aria-modal="true" onClick={onClose}>
+            <div className="rvd-backdrop"/>
+            <div className="rvd-sheet" onClick={(e) => e.stopPropagation()}>
+                <button
+                    type="button"
+                    className="rvd-close"
+                    onClick={onClose}
+                    aria-label="Fermer"
+                >
+                    ✕
+                </button>
 
-  return (
-    <div className="rvd" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="rvd-backdrop" />
-      <div className="rvd-sheet" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          className="rvd-close"
-          onClick={onClose}
-          aria-label="Fermer"
-        >
-          ✕
-        </button>
-
-        <div className="rvd-head">
-          <div className="rvd-tags">
-            <span className="rv-tag rv-tag-blue">{question.themeName}</span>
-            <span className="rv-tag rv-tag-mono">{question.difficulty}</span>
-            <span className="rv-tag rv-tag-mono">
-              {question.questionType === "KNOWLEDGE" ? "Connaissance" : "Situation"}
+                <div className="rvd-head">
+                    <div className="rvd-tags">
+                        <span className="rv-tag rv-tag-blue">{question.themeName}</span>
+                        <span className="rv-tag rv-tag-mono">{question.difficulty}</span>
+                        <span className="rv-tag rv-tag-mono">
+              {questionTypeLabel(question.questionType)}
             </span>
-          </div>
-          <button
-            type="button"
-            className={`rvd-fav ${isFavorite ? "is-on" : ""}`}
-            onClick={handleToggle}
-            disabled={toggling}
-            aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
-          >
-            <StarIcon filled={isFavorite} />
-          </button>
-        </div>
+                    </div>
+                    <button
+                        type="button"
+                        className={`rvd-fav ${isFavorite ? "is-on" : ""}`}
+                        onClick={handleToggle}
+                        disabled={toggling}
+                        aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+                    >
+                        <StarIcon filled={isFavorite}/>
+                    </button>
+                </div>
 
-        {question.passageText && (
-          <div className="rvd-passage">
-            <div className="rvd-passage-label">Document à lire</div>
-            <div className="rvd-passage-body">{question.passageText}</div>
-          </div>
-        )}
+                {question.passageText && (
+                    <div className="rvd-passage">
+                        <div className="rvd-passage-label">Document à lire</div>
+                        <div className="rvd-passage-body">{question.passageText}</div>
+                    </div>
+                )}
 
-        <h2 className="rvd-statement">{question.statement}</h2>
+                {question.media && (
+                    <div className="rvd-media">
+                        <MediaView media={question.media}/>
+                    </div>
+                )}
 
-        <div className="rvd-choices">
-          {question.choices.map((c, i) => {
-            const letter = String.fromCharCode(65 + i);
-            return (
-              <div
-                key={c.id}
-                className={`rvd-choice ${c.correct ? "is-correct" : ""}`}
-              >
-                <span className="rvd-letter">{letter}</span>
-                <span className="rvd-choice-label">{c.label}</span>
-                {c.correct && (
-                  <span className="rvd-check" aria-label="Bonne réponse">
+                <h2 className="rvd-statement">{question.statement}</h2>
+
+                <div className="rvd-choices">
+                    {question.choices.map((c, i) => {
+                        const letter = String.fromCharCode(65 + i);
+                        return (
+                            <div
+                                key={c.id}
+                                className={`rvd-choice ${c.correct ? "is-correct" : ""}`}
+                            >
+                                <span className="rvd-letter">{letter}</span>
+                                <span className="rvd-choice-label">{c.label}</span>
+                                {c.correct && (
+                                    <span className="rvd-check" aria-label="Bonne réponse">
                     <svg viewBox="0 0 16 16" width="16" height="16">
-                      <circle cx="8" cy="8" r="8" fill="currentColor" />
+                      <circle cx="8" cy="8" r="8" fill="currentColor"/>
                       <path
-                        d="M4.5 8.5l2.4 2.2 4.6-5"
-                        stroke="#fff"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        fill="none"
+                          d="M4.5 8.5l2.4 2.2 4.6-5"
+                          stroke="#fff"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          fill="none"
                       />
                     </svg>
                   </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
 
-        {question.explanation && (
-          <div className="rvd-explain">
-            <div className="rvd-explain-head">
-              <BulbIcon />
-              <span>Explication</span>
+                {detailLoading && !detail && (
+                    <div className="rvd-loading">
+                        <span className="rvd-spinner" aria-hidden/>
+                        <span>Chargement de la correction…</span>
+                    </div>
+                )}
+
+                {detailError && (
+                    <div className="rvd-detail-error">{detailError}</div>
+                )}
+
+                {question.explanation && (
+                    <div className="rvd-explain">
+                        <div className="rvd-explain-head">
+                            <BulbIcon/>
+                            <span>Explication</span>
+                        </div>
+                        <p>{question.explanation}</p>
+                    </div>
+                )}
             </div>
-            <p>{question.explanation}</p>
-          </div>
-        )}
-      </div>
-      <style>{detailStyles}</style>
-    </div>
-  );
+            <style>{detailStyles}</style>
+        </div>
+    );
 }
 
 // ============================================================================
 // EMPTY STATES
 // ============================================================================
-function EmptyState({ tab, module }: { tab: Tab; module: ModuleEnum }) {
-  const moduleLabel = module === "TCF" ? "TCF" : "civique";
-  if (tab === "erreurs") {
+function EmptyState({tab, module}: { tab: Tab; module: ModuleEnum }) {
+    const moduleLabel = module === "TCF" ? "TCF" : "civique";
+    if (tab === "erreurs") {
+        return (
+            <div className="rv-empty">
+                <div className="rv-empty-icon rv-empty-icon-green">
+                    <svg
+                        viewBox="0 0 24 24"
+                        width="28"
+                        height="28"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    >
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                        <path d="m9 11 3 3L22 4"/>
+                    </svg>
+                </div>
+                <h3>Aucune erreur récente en {moduleLabel}</h3>
+                <p>
+                    Bravo ! Continuez à vous entraîner pour faire émerger les zones à
+                    retravailler.
+                </p>
+                <Link href="/entrainement" className="btn-primary">
+                    Lancer un entraînement →
+                </Link>
+            </div>
+        );
+    }
     return (
-      <div className="rv-empty">
-        <div className="rv-empty-icon rv-empty-icon-green">
-          <svg
-            viewBox="0 0 24 24"
-            width="28"
-            height="28"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-            <path d="m9 11 3 3L22 4" />
-          </svg>
+        <div className="rv-empty">
+            <div className="rv-empty-icon rv-empty-icon-blue">
+                <StarIcon/>
+            </div>
+            <h3>Aucun favori en {moduleLabel}</h3>
+            <p>
+                Pendant un entraînement, cliquez sur l&apos;icône étoile (ou la touche{" "}
+                <kbd>B</kbd>) pour mettre une question de côté.
+            </p>
+            <Link href="/entrainement" className="btn-primary">
+                Lancer un entraînement →
+            </Link>
         </div>
-        <h3>Aucune erreur récente en {moduleLabel}</h3>
-        <p>
-          Bravo ! Continuez à vous entraîner pour faire émerger les zones à
-          retravailler.
-        </p>
-        <Link href="/entrainement" className="btn-primary">
-          Lancer un entraînement →
-        </Link>
-      </div>
     );
-  }
-  return (
-    <div className="rv-empty">
-      <div className="rv-empty-icon rv-empty-icon-blue">
-        <StarIcon />
-      </div>
-      <h3>Aucun favori en {moduleLabel}</h3>
-      <p>
-        Pendant un entraînement, cliquez sur l&apos;icône étoile (ou la touche{" "}
-        <kbd>B</kbd>) pour mettre une question de côté.
-      </p>
-      <Link href="/entrainement" className="btn-primary">
-        Lancer un entraînement →
-      </Link>
-    </div>
-  );
 }
 
 function ListSkeleton() {
-  return (
-    <div className="rv-list">
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="rv-row rv-row-skeleton" />
-      ))}
-    </div>
-  );
+    return (
+        <div className="rv-list">
+            {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="rv-row rv-row-skeleton"/>
+            ))}
+        </div>
+    );
 }
 
 function RevisionSkeleton() {
-  return (
-    <div className="rv-loading">
-      <style>{`.rv-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
-    </div>
-  );
+    return (
+        <div className="rv-loading">
+            <style>{`.rv-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
+        </div>
+    );
 }
 
 const gateStyles = `
@@ -485,34 +533,35 @@ const gateStyles = `
 // ICONS
 // ============================================================================
 const I = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  />
+    <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        {...props}
+    />
 );
 const XCircleIcon = () => (
-  <I>
-    <circle cx="12" cy="12" r="10" />
-    <line x1="15" y1="9" x2="9" y2="15" />
-    <line x1="9" y1="9" x2="15" y2="15" />
-  </I>
+    <I>
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="15" y1="9" x2="9" y2="15"/>
+        <line x1="9" y1="9" x2="15" y2="15"/>
+    </I>
 );
-const StarIcon = ({ filled = false }: { filled?: boolean }) => (
-  <I fill={filled ? "currentColor" : "none"}>
-    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-  </I>
+const StarIcon = ({filled = false}: { filled?: boolean }) => (
+    <I fill={filled ? "currentColor" : "none"}>
+        <polygon
+            points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+    </I>
 );
 const BulbIcon = () => (
-  <I width="14" height="14">
-    <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 13l1 2h6l1-2a7 7 0 0 0-4-13z" />
-  </I>
+    <I width="14" height="14">
+        <path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 13l1 2h6l1-2a7 7 0 0 0-4-13z"/>
+    </I>
 );
 
 // ============================================================================
@@ -876,6 +925,8 @@ const detailStyles = `
     font-size: 13.5px; color: var(--color-ink-2); line-height: 1.55;
     white-space: pre-wrap;
   }
+  .rvd-media { margin: 0 0 16px; }
+  .rvd-media .mediaview { margin: 0; }
   .rvd-statement {
     font-family: var(--font-display); font-weight: 600;
     font-size: 21px; line-height: 1.3;
@@ -925,5 +976,29 @@ const detailStyles = `
   }
   .rvd-explain p {
     font-size: 13.5px; line-height: 1.55; color: var(--color-ink-2); margin: 0;
+  }
+  .rvd-loading {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-bottom: 12px;
+    font-size: 12.5px; color: var(--color-muted);
+    font-family: var(--font-mono);
+    letter-spacing: 0.06em;
+  }
+  .rvd-spinner {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--color-line);
+    border-top-color: var(--color-blue);
+    animation: rvd-spin 0.8s linear infinite;
+  }
+  @keyframes rvd-spin { to { transform: rotate(360deg); } }
+  .rvd-detail-error {
+    background: var(--color-red-light);
+    border: 1px solid rgba(225, 55, 47, 0.25);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--color-red);
+    font-size: 12.5px;
+    margin-bottom: 12px;
   }
 `;
