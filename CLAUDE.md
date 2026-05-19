@@ -21,9 +21,12 @@ Monorepo (4 dossiers indépendants, pas de workspace npm/Maven parent) de **Sejo
 - **TargetProcedure** (civique) : `CSP` (titre de séjour) / `CR` (résident) / `NAT` (naturalisation)
 - **TargetLevel** (TCF) : `A2` / `B1` / `B2`
 - **AttemptType** : `TRAINING` (correction immédiate après chaque réponse) / `MOCK_EXAM` (examen blanc, pas de correction live, chrono) / `REVIEW`
+- **Epreuve** (granularité fine de l'attempt, orthogonale à `mode`/`module`) : `CIVIQUE` / `TCF_CO` / `TCF_CE` / `TCF_STRUCTURE` / `TCF_EO` / `TCF_EE` / `TCF_COMPLET`. `TCF_COMPLET` est un conteneur d'examen blanc TCF complet ; les sous-attempts sont liés via `attempts.parent_attempt_id`.
 - **QuestionType** : `KNOWLEDGE` / `SITUATION`
 - **Difficulty** : `EASY` / `MEDIUM` / `HARD`
 - **MediaType** : `AUDIO` / `IMAGE` / `VIDEO` (TCF compréhension orale → audio surtout)
+- **NiveauCecrl** (évaluation IA EO/EE) : `A1_NON_ATTEINT` / `A1` / `A2` / `B1` / `B2` / `C1` / `C2`. Distinct de `TargetLevel` qui est le palier visé par l'utilisateur.
+- **SubmissionStatut** (EO/EE) : `SUBMITTED` → `TRANSCRIBING` (EO) → `EVALUATING` → `EVALUATED` | `FAILED`.
 - **Role** : `USER` / `ADMIN`
 
 Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leurs miroirs **à la main** :
@@ -65,7 +68,8 @@ Endpoints clés :
 - `GET /api/themes?module=CIVIQUE|TCF`
 - `POST /api/attempts` · `GET /api/attempts/{id}` · `POST /api/attempts/{id}/answers` · `POST /api/attempts/{id}/finish`
 - `GET /api/me/{questions/favorites,questions/wrong,stats}?module=...` · `POST|DELETE /api/me/questions/{id}/favorite`
-- Admin : `/api/admin/{dashboard,questions,themes,conversations,media,passages}`
+- **EO/EE TCF** : `GET /api/production-tasks?epreuve=TCF_EO&niveau=B1` · `GET /api/production-tasks/{id}` · `POST /api/production-submissions` (multipart audio **ou** JSON texte selon `Content-Type`) · `POST /api/production-submissions/{id}/retry` · `GET /api/production-submissions/{id}` · `GET /api/users/me/production-submissions?epreuve=...`
+- Admin : `/api/admin/{dashboard,questions,themes,conversations,media,passages,audio-questions,calibration/{submissions,stats}}`
 - **À implémenter** : `POST /api/billing/create-checkout-session` (Stripe)
 
 ## Démarrage local (rappels)
@@ -145,6 +149,27 @@ Toute question audio commence par l'amorce standardisée **« Écoutez le docume
 
 Prompts dans `backend_sejourfr/src/main/resources/prompts/` : `audio-question-system-v1.md` (legacy, gardé pour traçabilité) et `audio-question-system-v2.md` (actif par défaut). Bascule via `ANTHROPIC_PROMPT_VERSION` dans l'env. Schéma de l'outil Claude : `audio-question-tool-schema.json`.
 
+## Pipeline d'évaluation des productions TCF (Expression Orale + Écrite)
+
+Pendant du pipeline CO, mais pour **noter** une production utilisateur au lieu d'en générer une. Stack : **OpenAI Whisper** (transcription audio en mode "littéral" pour ne pas masquer les fautes des apprenants) → **Claude Sonnet 4.5** (évaluation via `tool_use submit_evaluation`, JSON garanti) → **Cloudflare R2 privé** pour les audios user (URL signée 15 min, distinct du bucket public utilisé pour les audios CO) → **Postgres**.
+
+Tables (cf. `V96__add_production_tasks.sql`) : `production_tasks` (catalogue de consignes EO/EE), `production_submissions` (rendus user, statuts dans `SubmissionStatut`), `transcriptions` (sortie Whisper, prompt utilisé conservé pour debug), `ai_evaluations` (note + feedback structuré + tokens), `human_calibration_notes` (notes humaines de référence pour calibrer l'IA). Seed `V130__seed_production_tasks.sql` : 18 tâches (A2/B1/B2 × tâches 1/2/3 × EO/EE).
+
+Services dans `backend_sejourfr/src/main/java/com/sejourfr/app/service/` (packages flat, pas un sous-module comme `audioquestion/`) :
+- `WhisperTranscriptionClient` + `WhisperTranscriptionService` (OpenAI multipart, retry Spring 3 tentatives)
+- `EvaluationAnthropicClient` + `EvaluationPromptBuilder` + `AiEvaluationService` (Claude + tool_use)
+- `ProductionAudioStorageService` (R2 privé + URL signée via `S3Presigner` ; le bean est ajouté à `audioquestion/config/CloudflareR2Config.java`)
+- `ProductionEvaluationService` (orchestration `submitAndEvaluate` / `retry`) — **pas `@Transactional` au niveau orchestration** : chaque étape a son propre tx, ce qui permet de tomber en `FAILED` proprement et de reprendre du bon point au retry (skip Whisper si la transcription est déjà en base).
+- `AdminCalibrationService` (dashboard écart IA vs humain).
+
+Prompts dans `src/main/resources/prompts/production-evaluation-{system-v1.md, user-template.md, tool-schema.json}`. Versionnés dans `ai_evaluations.prompt_version` (toute modif = nouvelle version).
+
+Config : `sejourfr.openai` (Whisper) + `sejourfr.production-evaluation` (paramètres généraux + sous-objet `anthropic` dédié). **Distinct** de `sejourfr.anthropic` qui sert au pipeline CO et tourne sur Opus. Variables d'env : `OPENAI_API_KEY`, `EVAL_ANTHROPIC_API_KEY` (fallback `ANTHROPIC_API_KEY`).
+
+Quota gratuit : 2 submissions à vie par épreuve (EO + EE) via `SubscriptionService.hasTcf(userId)` ; au-delà → 403. Premium TCF (plan INTEGRAL) = illimité. Retry manuel max 3 par submission.
+
+Pas encore d'UI côté admin / web / mobile — les types miroirs sur les fronts seront à ajouter quand les écrans seront codés.
+
 ## Architecture mentale par projet
 
 **Tous les fronts suivent l'organisation par feature** (miroir du backend Java) :
@@ -179,6 +204,8 @@ Le **runner de questions** (mobile `screens/question_runner/` et web `examen-bla
 - **Middleware Next** pour protéger les routes auth via cookie `sejourfr.accessToken`.
 - **Dashboard utilisateur, entraînement libre, révision, succès post-paiement** côté web.
 - **Clients / abonnements / stats par user** côté admin (entités existent, pas d'endpoints encore).
+- **EO/EE TCF côté fronts** : backend prêt (services + 9 endpoints + 18 tâches seed), aucune UI nulle part. Candidat naturel : enregistreur audio mobile pour les 3 tâches EO + éditeur texte EE ; côté admin, écran de calibration humaine consommant `/api/admin/calibration/*`.
+- **Rate limiting global EO/EE** : la spec demandait 10/h et 50/jour, pas branché (mériterait un filter Spring dédié type Bucket4j).
 - **Offline-first mobile** (SQLite/Drift dans `core/storage/`) — non commencé.
 - **In-app purchase** mobile : **volontairement reporté**, on pousse l'utilisateur à payer sur le web.
-- **Tests** : aucun sur les 4 projets. Cibles à venir : Vitest+RTL (admin/web), `flutter_test`+`mocktail` (mobile, prioriser les controllers Riverpod), JUnit (backend).
+- **Tests** : aucun sur les 4 projets. Cibles à venir : Vitest+RTL (admin/web), `flutter_test`+`mocktail` (mobile, prioriser les controllers Riverpod), JUnit (backend, prioriser l'orchestration EO/EE qui n'a que des mocks à brancher).
