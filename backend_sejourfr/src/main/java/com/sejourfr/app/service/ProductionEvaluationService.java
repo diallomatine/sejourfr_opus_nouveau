@@ -1,0 +1,286 @@
+package com.sejourfr.app.service;
+
+import com.sejourfr.app.config.ProductionEvaluationProperties;
+import com.sejourfr.app.entity.AiEvaluation;
+import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.entity.ProductionSubmission;
+import com.sejourfr.app.entity.ProductionTask;
+import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.SubmissionStatut;
+import com.sejourfr.app.exception.AiEvaluationException;
+import com.sejourfr.app.exception.BusinessException;
+import com.sejourfr.app.exception.NotFoundException;
+import com.sejourfr.app.exception.ProductionEvaluationException;
+import com.sejourfr.app.repository.AiEvaluationRepository;
+import com.sejourfr.app.repository.AttemptRepository;
+import com.sejourfr.app.repository.ProductionSubmissionRepository;
+import com.sejourfr.app.repository.ProductionTaskRepository;
+import com.sejourfr.app.repository.TranscriptionRepository;
+import com.sejourfr.app.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.text.Normalizer;
+import java.util.UUID;
+
+/**
+ * Orchestration end-to-end d'une submission EO ou EE :
+ * <ol>
+ *   <li>valide l'entree (taille audio / nombre de mots) ;</li>
+ *   <li>uploade l'audio sur R2 (EO) ;</li>
+ *   <li>cree la submission en {@code SUBMITTED} ;</li>
+ *   <li>appelle Whisper (si EO) puis Claude ;</li>
+ *   <li>passe la submission a {@code EVALUATED} ou {@code FAILED} avec un
+ *       {@code erreur_message} parlant.</li>
+ * </ol>
+ * Le mecanisme de retry est dans les clients HTTP (Spring Retry). Cette classe
+ * expose en plus {@link #retry(UUID, UUID)} pour relancer une submission
+ * marquee {@code FAILED}.
+ */
+@Service
+public class ProductionEvaluationService {
+
+    private static final Logger log = LoggerFactory.getLogger(ProductionEvaluationService.class);
+
+    private final ProductionTaskRepository taskRepository;
+    private final ProductionSubmissionRepository submissionRepository;
+    private final TranscriptionRepository transcriptionRepository;
+    private final AiEvaluationRepository aiEvaluationRepository;
+    private final AttemptRepository attemptRepository;
+    private final UserRepository userRepository;
+    private final ProductionAudioStorageService audioStorage;
+    private final WhisperTranscriptionService whisperService;
+    private final AiEvaluationService aiEvaluationService;
+    private final ProductionEvaluationProperties props;
+
+    public ProductionEvaluationService(
+            ProductionTaskRepository taskRepository,
+            ProductionSubmissionRepository submissionRepository,
+            TranscriptionRepository transcriptionRepository,
+            AiEvaluationRepository aiEvaluationRepository,
+            AttemptRepository attemptRepository,
+            UserRepository userRepository,
+            ProductionAudioStorageService audioStorage,
+            WhisperTranscriptionService whisperService,
+            AiEvaluationService aiEvaluationService,
+            ProductionEvaluationProperties props) {
+        this.taskRepository = taskRepository;
+        this.submissionRepository = submissionRepository;
+        this.transcriptionRepository = transcriptionRepository;
+        this.aiEvaluationRepository = aiEvaluationRepository;
+        this.attemptRepository = attemptRepository;
+        this.userRepository = userRepository;
+        this.audioStorage = audioStorage;
+        this.whisperService = whisperService;
+        this.aiEvaluationService = aiEvaluationService;
+        this.props = props;
+    }
+
+    /**
+     * Soumet une production EO (audio) ou EE (texte). Exactement un des deux
+     * parametres {@code audio} / {@code texte} doit etre non-null.
+     * <p>
+     * Pas de {@code @Transactional} : chaque etape (creation submission, upload R2,
+     * Whisper, Claude) a son propre tx. Une coupure reseau au milieu laisse la
+     * submission avec un statut intermediaire que l'utilisateur peut relancer via
+     * {@link #retry(UUID, UUID)}.
+     */
+    public ProductionSubmission submitAndEvaluate(
+            UUID userId, UUID taskId, UUID attemptId,
+            MultipartFile audio, String texte) {
+
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
+        ProductionTask task = taskRepository.findById(taskId)
+            .orElseThrow(() -> new NotFoundException("ProductionTask introuvable : " + taskId));
+        Attempt attempt = attemptRepository.findById(attemptId)
+            .orElseThrow(() -> new NotFoundException("Attempt introuvable : " + attemptId));
+
+        if (!task.isActive()) {
+            throw new BusinessException("La tache " + taskId + " n'est pas active.");
+        }
+
+        boolean estOral = task.getEpreuve() == EpreuveType.TCF_EO;
+        if (estOral && (audio == null || audio.isEmpty())) {
+            throw new BusinessException("Tache TCF_EO : fichier audio requis.");
+        }
+        if (!estOral && (texte == null || texte.isBlank())) {
+            throw new BusinessException("Tache TCF_EE : texte requis.");
+        }
+        if (estOral && texte != null && !texte.isBlank()) {
+            throw new BusinessException("Tache TCF_EO : ne pas envoyer un texte en plus de l'audio.");
+        }
+        if (!estOral && audio != null && !audio.isEmpty()) {
+            throw new BusinessException("Tache TCF_EE : ne pas envoyer un audio en plus du texte.");
+        }
+
+        ProductionSubmission submission = new ProductionSubmission();
+        submission.setUser(user);
+        submission.setAttempt(attempt);
+        submission.setProductionTask(task);
+        submission.setStatut(SubmissionStatut.SUBMITTED);
+
+        if (estOral) {
+            byte[] bytes = readBytes(audio);
+            validateAudio(bytes);
+            submission.setMediaDurationSec(null); // sera mis a jour apres Whisper
+            // On flush pour avoir un id avant l'upload R2 (cle = submissions/<id>.ext)
+            submission = submissionRepository.saveAndFlush(submission);
+            String extension = extractExtension(audio);
+            ProductionAudioStorageService.StoredAudio stored = audioStorage.upload(
+                submission.getId(), bytes, audio.getContentType(), extension
+            );
+            submission.setMediaUrl(stored.objectKey());
+            submission = submissionRepository.save(submission);
+        } else {
+            String clean = sanitize(texte);
+            int mots = compteMots(clean);
+            validateTextWordCount(mots, task);
+            submission.setTexteSoumis(clean);
+            submission.setMotsCount(mots);
+            submission = submissionRepository.save(submission);
+        }
+
+        try {
+            runPipeline(submission, estOral);
+        } catch (ProductionEvaluationException e) {
+            markFailed(submission, e);
+        }
+        return submission;
+    }
+
+    /**
+     * Relance le pipeline pour une submission {@code FAILED}. Verifie
+     * l'appartenance utilisateur et le plafond de retries.
+     */
+    public ProductionSubmission retry(UUID submissionId, UUID userId) {
+        ProductionSubmission sub = submissionRepository.findById(submissionId)
+            .orElseThrow(() -> new NotFoundException("Submission introuvable : " + submissionId));
+        if (sub.getUser() == null || !sub.getUser().getId().equals(userId)) {
+            throw new BusinessException("Cette submission ne vous appartient pas.");
+        }
+        if (sub.getStatut() != SubmissionStatut.FAILED) {
+            throw new BusinessException(
+                "Seules les submissions FAILED peuvent etre relancees (statut actuel : " + sub.getStatut() + ")."
+            );
+        }
+        int max = props.getMaxRetriesPerSubmission();
+        if (sub.getRetryCount() >= max) {
+            throw new BusinessException("Plafond de " + max + " retries atteint pour cette submission.");
+        }
+
+        sub.setRetryCount((short) (sub.getRetryCount() + 1));
+        sub.setErreurMessage(null);
+        sub.setStatut(SubmissionStatut.SUBMITTED);
+        submissionRepository.save(sub);
+
+        boolean estOral = sub.getProductionTask().getEpreuve() == EpreuveType.TCF_EO;
+        try {
+            runPipeline(sub, estOral);
+        } catch (ProductionEvaluationException e) {
+            markFailed(sub, e);
+        }
+        return sub;
+    }
+
+    /**
+     * Reprend le pipeline depuis le bon point :
+     * - EO sans transcription -> Whisper puis Claude.
+     * - EO avec transcription -> Claude direct (economie de cout au retry).
+     * - EE -> Claude direct.
+     */
+    private void runPipeline(ProductionSubmission submission, boolean estOral) {
+        if (estOral) {
+            boolean hasTranscription = transcriptionRepository
+                .findFirstBySubmissionIdOrderByCreatedAtDesc(submission.getId()).isPresent();
+            if (!hasTranscription) {
+                whisperService.transcribe(submission.getId());
+            } else {
+                submission.setStatut(SubmissionStatut.EVALUATING);
+                submissionRepository.save(submission);
+            }
+        } else {
+            submission.setStatut(SubmissionStatut.EVALUATING);
+            submissionRepository.save(submission);
+        }
+        AiEvaluation eval = aiEvaluationService.evaluate(submission.getId());
+        if (eval == null) {
+            throw new AiEvaluationException("Evaluation Claude n'a pas produit de resultat.");
+        }
+    }
+
+    private void markFailed(ProductionSubmission submission, Exception e) {
+        log.warn("Submission {} en FAILED : {}", submission.getId(), e.getMessage());
+        submission.setStatut(SubmissionStatut.FAILED);
+        submission.setErreurMessage(truncate(e.getMessage(), 1000));
+        submissionRepository.save(submission);
+    }
+
+    private byte[] readBytes(MultipartFile audio) {
+        try {
+            return audio.getBytes();
+        } catch (IOException e) {
+            throw new BusinessException("Lecture du fichier audio impossible : " + e.getMessage());
+        }
+    }
+
+    private void validateAudio(byte[] bytes) {
+        if (bytes.length > props.getMaxAudioSizeBytes()) {
+            throw new BusinessException(
+                "Audio trop volumineux (max " + (props.getMaxAudioSizeBytes() / (1024 * 1024)) + " Mo)."
+            );
+        }
+    }
+
+    private void validateTextWordCount(int mots, ProductionTask task) {
+        int plancher = Math.max(props.getMinTextWords(),
+            task.getMotsMin() != null ? task.getMotsMin() : 0);
+        int plafond = Math.min(props.getMaxTextWords(),
+            task.getMotsMax() != null ? task.getMotsMax() : Integer.MAX_VALUE);
+        if (mots < plancher) {
+            throw new BusinessException("Texte trop court : " + mots + " mots (minimum " + plancher + ").");
+        }
+        if (mots > plafond) {
+            throw new BusinessException("Texte trop long : " + mots + " mots (maximum " + plafond + ").");
+        }
+    }
+
+    private static String extractExtension(MultipartFile file) {
+        String name = file.getOriginalFilename();
+        if (name != null) {
+            int dot = name.lastIndexOf('.');
+            if (dot >= 0 && dot < name.length() - 1) return name.substring(dot + 1);
+        }
+        String ct = file.getContentType();
+        if (ct != null) {
+            return switch (ct) {
+                case "audio/webm" -> "webm";
+                case "audio/mpeg", "audio/mp3" -> "mp3";
+                case "audio/mp4", "audio/m4a", "audio/x-m4a" -> "m4a";
+                case "audio/ogg" -> "ogg";
+                case "audio/wav", "audio/x-wav" -> "wav";
+                default -> "bin";
+            };
+        }
+        return "bin";
+    }
+
+    private static String sanitize(String texte) {
+        String nfc = Normalizer.normalize(texte, Normalizer.Form.NFC);
+        return nfc.strip();
+    }
+
+    private static int compteMots(String texte) {
+        if (texte == null || texte.isBlank()) return 0;
+        return texte.trim().split("\\s+").length;
+    }
+
+    private static String truncate(String s, int max) {
+        if (s == null) return null;
+        return s.length() <= max ? s : s.substring(0, max);
+    }
+}

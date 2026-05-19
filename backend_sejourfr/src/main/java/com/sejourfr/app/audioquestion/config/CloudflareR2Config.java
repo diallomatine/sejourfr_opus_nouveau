@@ -7,6 +7,7 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 import java.net.URI;
 
@@ -35,6 +36,31 @@ public class CloudflareR2Config {
             .region(Region.of("auto"))
             .serviceConfiguration(S3Configuration.builder()
                 // R2 ne supporte que path-style addressing
+                .pathStyleAccessEnabled(true)
+                .build())
+            .build();
+    }
+
+    /**
+     * S3Presigner partage le meme endpoint et les memes credentials que le S3Client.
+     * Utilise par le pipeline d'evaluation pour generer des URL signees vers les
+     * audios soumis par les utilisateurs (RGPD : audio prive, URL ephemere).
+     */
+    @Bean
+    public S3Presigner r2S3Presigner(CloudflareR2Properties props) {
+        String key = blankOrDefault(props.getAccessKeyId(), "MISSING_R2_ACCESS_KEY");
+        String secret = blankOrDefault(props.getSecretAccessKey(), "MISSING_R2_SECRET");
+        String endpoint = props.getAccountId() == null || props.getAccountId().isBlank()
+            ? "https://placeholder.r2.cloudflarestorage.com"
+            : props.getEndpoint();
+
+        return S3Presigner.builder()
+            .endpointOverride(URI.create(endpoint))
+            .credentialsProvider(StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(key, secret)
+            ))
+            .region(Region.of("auto"))
+            .serviceConfiguration(S3Configuration.builder()
                 .pathStyleAccessEnabled(true)
                 .build())
             .build();

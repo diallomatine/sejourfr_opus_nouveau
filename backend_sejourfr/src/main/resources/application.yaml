@@ -120,3 +120,40 @@ sejourfr:
     global-timeout-sec: ${AUDIO_GENERATION_TIMEOUT_SEC:120}
     rate-limit-per-minute: 10
     duplicate-similarity-threshold: 0.85
+
+  # Pipeline d'evaluation des productions (EO/EE du TCF IRN).
+  # Distinct de sejourfr.anthropic (qui sert a generer des questions audio CO).
+  # Cles API exclusivement via variables d'environnement.
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    api-url: https://api.openai.com/v1/audio/transcriptions
+    whisper:
+      model: ${OPENAI_WHISPER_MODEL:whisper-1}
+      language: fr
+      timeout-sec: 60
+      max-retries: 2
+      retry-backoff-ms: 1000
+      # Force la transcription "verbatim" : Whisper tend a auto-corriger les
+      # fautes des apprenants ce qui rend l'evaluation trop indulgente.
+      literal-mode-prompt: >
+        Transcription litterale d'un apprenant de francais langue etrangere.
+        Conserver les hesitations, les repetitions, et les eventuelles fautes
+        grammaticales telles que prononcees.
+  production-evaluation:
+    max-audio-duration-seconds: 300
+    max-text-words: 300
+    min-text-words: 10
+    max-audio-size-bytes: 26214400
+    cost-tracking-enabled: true
+    max-retries-per-submission: 3
+    presigned-url-expiry-minutes: 15
+    anthropic:
+      api-key: ${EVAL_ANTHROPIC_API_KEY:${ANTHROPIC_API_KEY:}}
+      api-url: https://api.anthropic.com/v1/messages
+      anthropic-version: "2023-06-01"
+      model: ${EVAL_ANTHROPIC_MODEL:claude-sonnet-4-5}
+      max-tokens: 2000
+      timeout-sec: 60
+      max-retries: 2
+      retry-backoff-ms: 1000
+      prompt-version: ${EVAL_PROMPT_VERSION:v1.0}

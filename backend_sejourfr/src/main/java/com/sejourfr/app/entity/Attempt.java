@@ -3,6 +3,7 @@ package com.sejourfr.app.entity;
 import com.sejourfr.app.enums.AttemptMode;
 import com.sejourfr.app.enums.AttemptStatus;
 import com.sejourfr.app.enums.AttemptType;
+import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.TargetLevel;
 import org.hibernate.annotations.UuidGenerator;
@@ -45,6 +46,21 @@ public class Attempt {
     @Enumerated(EnumType.STRING)
     @Column(name = "module", length = 16)
     private Module module;
+
+    // Granularite fine de l'epreuve (ex: TCF_CO, TCF_EO). Orthogonal a `mode`
+    // et `module`. Backfill V100 : derive du module pour les attempts historiques.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "epreuve", nullable = false, length = 20)
+    private EpreuveType epreuve;
+
+    // Pour les examens blancs TCF complets : ce parent porte TCF_COMPLET et
+    // chaque sous-attempt porte sa propre epreuve. NULL pour un attempt isole.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_attempt_id")
+    private Attempt parentAttempt;
+
+    @OneToMany(mappedBy = "parentAttempt", fetch = FetchType.LAZY)
+    private List<Attempt> subAttempts = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
@@ -89,6 +105,9 @@ public class Attempt {
         // mode / status sont NOT NULL en base : on dérive du type si rien n'a été posé.
         if (mode == null) mode = deriveModeFromType(type);
         if (status == null) status = AttemptStatus.EN_COURS;
+        // epreuve devient NOT NULL en V100 : pour le code legacy qui ne pose pas
+        // encore la valeur, on retombe sur le module (CIVIQUE/TCF -> TCF_CO).
+        if (epreuve == null) epreuve = deriveEpreuveFromModule(module);
     }
 
     private static AttemptMode deriveModeFromType(AttemptType t) {
@@ -97,6 +116,14 @@ public class Attempt {
             case TRAINING -> AttemptMode.ENTRAINEMENT;
             case MOCK_EXAM -> AttemptMode.EXAMEN;
             case REVIEW -> AttemptMode.REVISION;
+        };
+    }
+
+    private static EpreuveType deriveEpreuveFromModule(Module m) {
+        if (m == null) return EpreuveType.CIVIQUE;
+        return switch (m) {
+            case CIVIQUE -> EpreuveType.CIVIQUE;
+            case TCF -> EpreuveType.TCF_CO;
         };
     }
 
@@ -117,6 +144,15 @@ public class Attempt {
 
     public Module getModule() { return module; }
     public void setModule(Module module) { this.module = module; }
+
+    public EpreuveType getEpreuve() { return epreuve; }
+    public void setEpreuve(EpreuveType epreuve) { this.epreuve = epreuve; }
+
+    public Attempt getParentAttempt() { return parentAttempt; }
+    public void setParentAttempt(Attempt parentAttempt) { this.parentAttempt = parentAttempt; }
+
+    public List<Attempt> getSubAttempts() { return subAttempts; }
+    public void setSubAttempts(List<Attempt> subAttempts) { this.subAttempts = subAttempts; }
 
     public AttemptMode getMode() { return mode; }
     public void setMode(AttemptMode mode) { this.mode = mode; }
