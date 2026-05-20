@@ -235,9 +235,13 @@ function DraftCard({ draft, onValidate, onReject, validating }: DraftCardProps) 
     <article className={styles.card}>
       <header className={styles.cardHeader}>
         <div className={styles.cardMeta}>
-          {draft.difficulty && <Tag>{draft.difficulty}</Tag>}
-          {draft.competenceCode && <Tag>{draft.competenceCode}</Tag>}
-          {draft.themeName && <Tag>{draft.themeName}</Tag>}
+          {draft.difficulty && (
+            <Tag tone={draft.difficulty.toLowerCase() as "a2" | "b1" | "b2"}>
+              {draft.difficulty}
+            </Tag>
+          )}
+          {draft.competenceCode && <Tag tone="co">{draft.competenceCode}</Tag>}
+          {draft.themeName && <Tag tone="muted">{draft.themeName}</Tag>}
           {draft.audioVoiceUsed && (
             <span className={styles.voiceTech}>{draft.audioVoiceUsed}</span>
           )}
@@ -277,7 +281,7 @@ function DraftCard({ draft, onValidate, onReject, validating }: DraftCardProps) 
                   {String.fromCharCode(65 + c.displayOrder)}
                 </span>
                 <span className={styles.choiceLabel}>{c.label}</span>
-                {c.isCorrect && <Tag>correct</Tag>}
+                {c.isCorrect && <Tag tone="active">correct</Tag>}
               </li>
             ))}
           </ol>
