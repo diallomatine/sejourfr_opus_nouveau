@@ -50,7 +50,7 @@ sejourfr:
   mail:
     from: ${MAIL_FROM:no-reply@sejourfr.fr}
   app:
-    base-url: ${APP_BASE_URL:https://app.sejourfr.fr}
+    base-url: ${APP_BASE_URL:https://sejourfr.fr}
   stripe:
     secret-key: ${STRIPE_SECRET_KEY}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET}

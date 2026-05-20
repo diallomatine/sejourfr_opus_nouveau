@@ -31,10 +31,14 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Env files
+# Env files — bloque TOUT par défaut, ré-autorise les templates .example.
+# Les fichiers .env.production / .env.local / .env.staging contiennent des
+# secrets (clés Stripe, JWT, mots de passe DB) et ne doivent JAMAIS être
+# versionnés. Utiliser .env.example comme template à committer.
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.*.example
 
 # =========================
 # Flutter / Dart

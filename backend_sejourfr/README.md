@@ -124,4 +124,4 @@ Tu veux que je commit/push, ou tu veux d'abord tester avec ta clé OpenAI ?
 
 /plugin install stripe@claude-plugins-official
 
-
+scp target/sejourfr-backend-0.1.0-SNAPSHOT.jar root@82.223.165.43:/tmp/sejourfr-backend.jar
