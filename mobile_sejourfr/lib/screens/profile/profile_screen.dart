@@ -65,10 +65,10 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             _SettingTile(
               icon: Icons.history_rounded,
-              title: 'Mes examens',
-              subtitle: 'Historique et progression',
+              title: 'Mes historiques',
+              subtitle: 'Examens QCM + TCF Expression orale et écrite',
               accent: AppColors.blue,
-              onTap: () => context.push(AppRoutes.history),
+              onTap: () => context.push(AppRoutes.historiques),
             ),
             const SizedBox(height: 8),
             _SettingTile(

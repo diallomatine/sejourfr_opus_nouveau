@@ -25,14 +25,19 @@ class EeResultsScreen extends ConsumerWidget {
     super.key,
     required this.submissionId,
     required this.taskIndex,
+    this.isHistory = false,
   });
 
   final String submissionId;
   final int taskIndex;
 
+  /// True quand on consulte les resultats depuis l'historique : on cache les
+  /// CTAs "Passer a la tache N+1" / "Voir mon bilan" au profit d'un simple "Retour".
+  final bool isHistory;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final session = ref.watch(eeSessionProvider).value;
+    final session = isHistory ? null : ref.watch(eeSessionProvider).value;
     final fromSession = session?.submissions[taskIndex];
 
     if (fromSession != null && fromSession.id == submissionId) {
@@ -41,6 +46,7 @@ class EeResultsScreen extends ConsumerWidget {
           submission: fromSession,
           taskIndex: taskIndex,
           session: session,
+          isHistory: isHistory,
         ),
       );
     }
@@ -63,6 +69,7 @@ class EeResultsScreen extends ConsumerWidget {
           submission: sub,
           taskIndex: taskIndex,
           session: session,
+          isHistory: isHistory,
         ),
       ),
     );
@@ -91,13 +98,16 @@ class _ResultsBody extends ConsumerWidget {
     required this.submission,
     required this.taskIndex,
     required this.session,
+    required this.isHistory,
   });
 
+  final bool isHistory;
   final ProductionSubmissionDto submission;
   final int taskIndex;
   final EeSessionState? session;
 
-  bool get _hasNext => session != null && taskIndex + 1 < session!.totalTasks;
+  bool get _hasNext =>
+      !isHistory && session != null && taskIndex + 1 < session!.totalTasks;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -162,50 +172,60 @@ class _ResultsBody extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
           child: SafeArea(
             top: false,
-            child: _hasNext
-                ? Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => context.pushReplacement(
-                            '/tcf/expression-ecrite/progression',
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(50),
-                            side: const BorderSide(color: AppColors.line),
-                            foregroundColor: AppColors.ink,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            'Voir les taches',
-                            style: AppFonts.jakarta(
-                              size: 15,
-                              weight: FontWeight.w700,
-                              color: AppColors.ink,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: AppButton(
-                          label: 'Passer a la tache ${taskIndex + 2}',
-                          onPressed: () => context.pushReplacement(
-                            '/tcf/expression-ecrite/t/${taskIndex + 1}',
-                          ),
-                        ),
-                      ),
-                    ],
+            child: isHistory
+                ? AppButton(
+                    label: 'Retour',
+                    icon: Icons.arrow_back_rounded,
+                    onPressed: () {
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      }
+                    },
                   )
-                : AppButton(
-                    label: 'Voir mon bilan',
-                    icon: Icons.bar_chart_rounded,
-                    onPressed: () => context.pushReplacement(
-                      '/tcf/expression-ecrite/bilan',
-                    ),
-                  ),
+                : _hasNext
+                    ? Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => context.pushReplacement(
+                                '/tcf/expression-ecrite/progression',
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(50),
+                                side: const BorderSide(color: AppColors.line),
+                                foregroundColor: AppColors.ink,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(
+                                'Voir les taches',
+                                style: AppFonts.jakarta(
+                                  size: 15,
+                                  weight: FontWeight.w700,
+                                  color: AppColors.ink,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: AppButton(
+                              label: 'Passer a la tache ${taskIndex + 2}',
+                              onPressed: () => context.pushReplacement(
+                                '/tcf/expression-ecrite/t/${taskIndex + 1}',
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : AppButton(
+                        label: 'Voir mon bilan',
+                        icon: Icons.bar_chart_rounded,
+                        onPressed: () => context.pushReplacement(
+                          '/tcf/expression-ecrite/bilan',
+                        ),
+                      ),
           ),
         ),
       ],
