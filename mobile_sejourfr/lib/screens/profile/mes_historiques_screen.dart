@@ -34,7 +34,7 @@ class MesHistoriquesScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
             Text(
-              'Consultez vos sessions passees par categorie.',
+              'Consultez vos sessions passées par catégorie.',
               style: AppFonts.jakarta(
                 size: 13.5,
                 color: AppColors.muted,
@@ -47,17 +47,17 @@ class MesHistoriquesScreen extends StatelessWidget {
               accent: AppColors.blue,
               title: 'Mes examens',
               subtitle:
-                  'QCM civique + TCF (CO / CE / Structure) — examens blancs et entrainements termines.',
+                  'QCM civique + TCF (CO / CE / Structure) — examens blancs et entraînements terminés.',
               onTap: () => context.push(AppRoutes.history),
             ),
             const SizedBox(height: 10),
             _HistoryCategoryCard(
               icon: Icons.edit_note_rounded,
               accent: AppColors.blue,
-              title: 'TCF Expression ecrite',
+              title: 'TCF Expression écrite',
               subtitle:
-                  'Sessions de redaction notees par IA, par tache et niveau atteint.',
-              onTap: () => context.push(AppRoutes.tcfExpressionEcrite),
+                  'Sessions de rédaction notées par IA, par tâche et niveau atteint.',
+              onTap: () => context.push('${AppRoutes.tcfExpressionEcrite}/historique'),
             ),
             const SizedBox(height: 10),
             _HistoryCategoryCard(
@@ -65,8 +65,8 @@ class MesHistoriquesScreen extends StatelessWidget {
               accent: AppColors.blue,
               title: 'TCF Expression orale',
               subtitle:
-                  'Enregistrements transcrits par Whisper et evalues par IA.',
-              onTap: () => context.push(AppRoutes.tcfExpressionOrale),
+                  'Enregistrements transcrits par Whisper et évalués par IA.',
+              onTap: () => context.push('${AppRoutes.tcfExpressionOrale}/historique'),
             ),
           ],
         ),
