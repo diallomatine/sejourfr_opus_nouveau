@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 
-/// Zone de redaction calquee sur `.writing-zone` du mockup HTML :
-///   - en-tete "Votre redaction" + compteur vert
-///   - textarea blanc avec border haut (la toolbar BIU du HTML est cosmetique,
-///     pas implementee pour Lot B -- le backend recoit du texte brut)
+/// Zone de rédaction calquée sur `.writing-zone` du mockup HTML :
+///   - en-tête "Votre rédaction" + compteur vert
+///   - textarea blanc avec bordure (bleue au focus)
 ///   - bottom row : "Mots : X", check "Dans la plage", bouton corbeille
-class WritingZone extends StatelessWidget {
+class WritingZone extends StatefulWidget {
   const WritingZone({
     super.key,
     required this.controller,
@@ -15,34 +14,76 @@ class WritingZone extends StatelessWidget {
     required this.wordCount,
     required this.minWords,
     required this.maxWords,
+    this.focusNode,
     this.onClear,
+    this.minLines = 10,
   });
 
   final TextEditingController controller;
+  final FocusNode? focusNode;
   final ValueChanged<String> onChanged;
   final int wordCount;
   final int minWords;
   final int maxWords;
   final VoidCallback? onClear;
+  final int minLines;
 
-  bool get _inRange => wordCount >= minWords && wordCount <= maxWords;
+  @override
+  State<WritingZone> createState() => _WritingZoneState();
+}
+
+class _WritingZoneState extends State<WritingZone> {
+  FocusNode? _internalFocusNode;
+
+  FocusNode get _focusNode => widget.focusNode ?? _internalFocusNode!;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.focusNode == null) {
+      _internalFocusNode = FocusNode();
+    }
+    _focusNode.addListener(_onFocusChanged);
+  }
+
+  void _onFocusChanged() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChanged);
+    _internalFocusNode?.dispose();
+    super.dispose();
+  }
+
+  bool get _inRange =>
+      widget.wordCount >= widget.minWords && widget.wordCount <= widget.maxWords;
 
   String get _statusLabel {
-    if (wordCount == 0) return 'Commencez a ecrire';
-    if (wordCount < minWords) return 'Encore ${minWords - wordCount} mots min.';
-    if (wordCount > maxWords) return '${wordCount - maxWords} mots de trop';
-    return 'Dans la plage recommandee';
+    if (widget.wordCount == 0) return 'Commencez à écrire';
+    if (widget.wordCount < widget.minWords) {
+      return 'Encore ${widget.minWords - widget.wordCount} mots min.';
+    }
+    if (widget.wordCount > widget.maxWords) {
+      return '${widget.wordCount - widget.maxWords} mots de trop';
+    }
+    return 'Dans la plage recommandée';
   }
 
   Color get _statusColor {
-    if (wordCount == 0) return AppColors.muted;
-    if (wordCount > maxWords) return AppColors.red;
-    if (wordCount < minWords) return AppColors.amber;
+    if (widget.wordCount == 0) return AppColors.muted;
+    if (widget.wordCount > widget.maxWords) return AppColors.red;
+    if (widget.wordCount < widget.minWords) return AppColors.amber;
     return AppColors.green;
   }
 
   @override
   Widget build(BuildContext context) {
+    final focused = _focusNode.hasFocus;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -54,16 +95,16 @@ class WritingZone extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Votre redaction',
+                    'Votre rédaction',
                     style: AppFonts.jakarta(
                       size: 14,
                       weight: FontWeight.w700,
-                      color: AppColors.ink,
+                      color: focused ? AppColors.blue : AppColors.ink,
                     ),
                   ),
                 ),
                 Text(
-                  '$wordCount mots',
+                  '${widget.wordCount} mots',
                   style: AppFonts.jakarta(
                     size: 13,
                     weight: FontWeight.w600,
@@ -73,32 +114,58 @@ class WritingZone extends StatelessWidget {
               ],
             ),
           ),
-          Container(
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
             decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.line),
+              color: focused ? AppColors.blueSoft : AppColors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: focused ? AppColors.blue : AppColors.line,
+                width: focused ? 1.5 : 1,
+              ),
+              boxShadow: focused
+                  ? [
+                      BoxShadow(
+                        color: AppColors.blue.withValues(alpha: 0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
             ),
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             child: TextField(
-              controller: controller,
-              onChanged: onChanged,
+              controller: widget.controller,
+              focusNode: _focusNode,
+              onChanged: widget.onChanged,
+              onTapOutside: (_) => _focusNode.unfocus(),
               keyboardType: TextInputType.multiline,
-              minLines: 10,
+              textInputAction: TextInputAction.newline,
+              minLines: widget.minLines,
               maxLines: null,
               textCapitalization: TextCapitalization.sentences,
+              cursorColor: AppColors.blue,
+              cursorWidth: 1.5,
+              cursorRadius: const Radius.circular(1),
               style: AppFonts.jakarta(
-                size: 14,
+                size: 15,
                 color: AppColors.ink,
                 height: 1.6,
               ),
               decoration: InputDecoration(
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
+                filled: false,
                 border: InputBorder.none,
-                hintText: 'Ecrivez votre redaction ici...',
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
+                hintText: 'Écrivez votre rédaction ici…',
                 hintStyle: AppFonts.jakarta(
-                  size: 14,
+                  size: 15,
                   color: AppColors.muted2,
                   height: 1.6,
                 ),
@@ -110,7 +177,7 @@ class WritingZone extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  'Mots : $wordCount',
+                  'Mots : ${widget.wordCount}',
                   style: AppFonts.jakarta(size: 12, color: AppColors.muted),
                 ),
                 const Spacer(),
@@ -128,14 +195,14 @@ class WritingZone extends StatelessWidget {
                     color: _statusColor,
                   ),
                 ),
-                if (onClear != null) ...[
+                if (widget.onClear != null) ...[
                   const SizedBox(width: 12),
                   Material(
                     color: AppColors.redLight,
                     borderRadius: BorderRadius.circular(8),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(8),
-                      onTap: onClear,
+                      onTap: widget.onClear,
                       child: const SizedBox(
                         width: 28,
                         height: 28,

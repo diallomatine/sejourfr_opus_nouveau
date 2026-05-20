@@ -17,6 +17,7 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -104,6 +105,7 @@ public class ProductionSubmissionController {
     }
 
     /** Detail d'une submission : reserve au proprietaire (l'admin a sa propre route). */
+    @Transactional(readOnly = true)
     @GetMapping("/api/production-submissions/{id}")
     public ProductionSubmissionDto detail(@PathVariable UUID id) {
         ProductionSubmission sub = submissionRepository.findById(id)
@@ -117,6 +119,7 @@ public class ProductionSubmissionController {
     }
 
     /** Historique de l'utilisateur, optionnellement filtre par epreuve. */
+    @Transactional(readOnly = true)
     @GetMapping("/api/users/me/production-submissions")
     public List<ProductionSubmissionDto> mine(
             @RequestParam(required = false) EpreuveType epreuve,
@@ -127,6 +130,27 @@ public class ProductionSubmissionController {
             ? submissionRepository.findByUserIdOrderBySubmittedAtDesc(userId, PageRequest.of(0, safeLimit))
             : submissionRepository.findByUserAndEpreuve(userId, epreuve, PageRequest.of(0, safeLimit));
         return list.stream().map(mapper::toDto).toList();
+    }
+
+    /**
+     * Derniere submission de l'utilisateur par numero de tache pour un
+     * (epreuve, niveau) donne. Renvoie 0 a 3 lignes. Sert au hub d'entrainement
+     * pour afficher la derniere note sur chaque card (T1, T2, T3).
+     */
+    @Transactional(readOnly = true)
+    @GetMapping("/api/users/me/production-submissions/last-per-task")
+    public List<ProductionSubmissionDto> lastPerTask(
+            @RequestParam EpreuveType epreuve,
+            @RequestParam String niveau) {
+        if (epreuve != EpreuveType.TCF_EO && epreuve != EpreuveType.TCF_EE) {
+            throw new BusinessException("epreuve doit etre TCF_EO ou TCF_EE.");
+        }
+        UUID userId = currentUser.getId();
+        List<ProductionSubmission> list = submissionRepository.findLatestPerTask(
+            userId, epreuve.name(), niveau.toUpperCase());
+        return list.stream()
+            .map(s -> s.getMediaUrl() != null ? mapper.toDtoWithSignedAudio(s) : mapper.toDto(s))
+            .toList();
     }
 
     private ProductionTask loadTask(UUID taskId) {

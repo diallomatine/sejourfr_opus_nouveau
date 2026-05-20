@@ -109,6 +109,10 @@ class _ResultsBody extends ConsumerWidget {
   bool get _hasNext =>
       !isHistory && session != null && taskIndex + 1 < session!.totalTasks;
 
+  /// Mode entrainement libre (single-task depuis le hub). Voir EoResultsScreen.
+  bool get _isSingleTask =>
+      !isHistory && session != null && session!.totalTasks == 1;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final eval = submission.evaluation;
@@ -219,13 +223,22 @@ class _ResultsBody extends ConsumerWidget {
                           ),
                         ],
                       )
-                    : AppButton(
-                        label: 'Voir mon bilan',
-                        icon: Icons.bar_chart_rounded,
-                        onPressed: () => context.pushReplacement(
-                          '/tcf/expression-ecrite/bilan',
-                        ),
-                      ),
+                    : _isSingleTask
+                        ? AppButton(
+                            label: 'Retour aux tâches',
+                            icon: Icons.grid_view_rounded,
+                            onPressed: () {
+                              ref.read(eeSessionProvider.notifier).reset();
+                              context.go('/tcf/expression-ecrite');
+                            },
+                          )
+                        : AppButton(
+                            label: 'Voir mon bilan',
+                            icon: Icons.bar_chart_rounded,
+                            onPressed: () => context.pushReplacement(
+                              '/tcf/expression-ecrite/bilan',
+                            ),
+                          ),
           ),
         ),
       ],

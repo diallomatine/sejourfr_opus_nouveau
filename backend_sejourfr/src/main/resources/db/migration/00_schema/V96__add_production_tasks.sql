@@ -1,5 +1,5 @@
 -- ============================================================================
--- V100 : Expression orale (EO) + Expression ecrite (EE) du TCF IRN
+-- V96 : Expression orale (EO) + Expression ecrite (EE) du TCF IRN
 -- ============================================================================
 -- Ajoute le support des epreuves productives evaluees par IA (Whisper + Claude).
 -- Cf. PRODUCTION_TASKS_SPEC_V2.md a la racine du repo pour le contexte fonctionnel.

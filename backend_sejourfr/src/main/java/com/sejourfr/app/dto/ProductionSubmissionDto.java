@@ -14,6 +14,9 @@ public record ProductionSubmissionDto(
         UUID id,
         UUID attemptId,
         UUID productionTaskId,
+        /** Numero de tache (1, 2 ou 3) de la production_task associee. Sert au hub
+         *  d'entrainement a regrouper la derniere submission par numero. */
+        Short tacheNumero,
         SubmissionStatut statut,
         String mediaUrl,
         String texteSoumis,

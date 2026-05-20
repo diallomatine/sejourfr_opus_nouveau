@@ -27,6 +27,7 @@ import '../../screens/tcf_production/eo_recording_screen.dart';
 import '../../screens/tcf_production/eo_results_screen.dart';
 import '../../screens/tcf_production/history_session_screen.dart';
 import '../../screens/tcf_production/production_history_screen.dart';
+import '../../screens/tcf_production/production_hub_screen.dart';
 import '../../screens/tcf_production/session_bilan_screen.dart';
 import '../../screens/tcf_production/session_progress_screen.dart';
 import '../../screens/training/training_setup_screen.dart';
@@ -215,21 +216,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // TCF Expression orale (Lot E : entry = historique des sessions passees)
-      //   /tcf/expression-orale                          -> historique
+      // TCF Expression orale (Lot G : entry = hub d'entrainement libre, 3 cards T1/T2/T3)
+      //   /tcf/expression-orale                          -> hub d'entrainement
+      //   /tcf/expression-orale/historique               -> historique des sessions passees
       //   /tcf/expression-orale/sessions/:attemptId      -> bilan d'une session passee (lecture seule)
-      //   /tcf/expression-orale/nouvelle                 -> briefing T1 (nouvelle session)
+      //   /tcf/expression-orale/nouvelle                 -> [legacy] briefing T1 d'une session 3-taches
       //   /tcf/expression-orale/t/:idx                   -> briefing T(idx+1)
       //   /tcf/expression-orale/t/:idx/enregistrement    -> capture audio
       //   /tcf/expression-orale/t/:idx/termine           -> ecoute + soumission
       //   /tcf/expression-orale/resultats/:id?taskIndex=N&history=1  -> resultats (live ou history)
-      //   /tcf/expression-orale/progression              -> entre les taches (live)
-      //   /tcf/expression-orale/bilan                    -> bilan session live
+      //   /tcf/expression-orale/progression              -> [legacy] entre les taches (session 3-taches)
+      //   /tcf/expression-orale/bilan                    -> [legacy] bilan session 3-taches
       GoRoute(
         path: AppRoutes.tcfExpressionOrale,
         builder: (_, __) =>
-            const ProductionHistoryScreen(epreuve: EpreuveType.tcfEo),
+            const ProductionHubScreen(epreuve: EpreuveType.tcfEo),
         routes: [
+          GoRoute(
+            path: 'historique',
+            builder: (_, __) =>
+                const ProductionHistoryScreen(epreuve: EpreuveType.tcfEo),
+          ),
           GoRoute(
             path: 'nouvelle',
             builder: (_, __) => const EoBriefingScreen(taskIndex: 0),
@@ -290,19 +297,25 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // TCF Expression ecrite (Lot E : entry = historique des sessions passees)
-      //   /tcf/expression-ecrite                          -> historique
+      // TCF Expression ecrite (Lot G : entry = hub d'entrainement libre, 3 cards T1/T2/T3)
+      //   /tcf/expression-ecrite                          -> hub d'entrainement
+      //   /tcf/expression-ecrite/historique               -> historique des sessions passees
       //   /tcf/expression-ecrite/sessions/:attemptId      -> bilan d'une session passee (lecture seule)
-      //   /tcf/expression-ecrite/nouvelle                 -> briefing+writing T1 (nouvelle session)
+      //   /tcf/expression-ecrite/nouvelle                 -> [legacy] briefing+writing T1 d'une session 3-taches
       //   /tcf/expression-ecrite/t/:idx                   -> briefing+writing pour cette tache
       //   /tcf/expression-ecrite/resultats/:id?taskIndex=N&history=1 -> resultats (live ou history)
-      //   /tcf/expression-ecrite/progression              -> entre taches (live)
-      //   /tcf/expression-ecrite/bilan                    -> bilan session live
+      //   /tcf/expression-ecrite/progression              -> [legacy] entre taches (session 3-taches)
+      //   /tcf/expression-ecrite/bilan                    -> [legacy] bilan session 3-taches
       GoRoute(
         path: AppRoutes.tcfExpressionEcrite,
         builder: (_, __) =>
-            const ProductionHistoryScreen(epreuve: EpreuveType.tcfEe),
+            const ProductionHubScreen(epreuve: EpreuveType.tcfEe),
         routes: [
+          GoRoute(
+            path: 'historique',
+            builder: (_, __) =>
+                const ProductionHistoryScreen(epreuve: EpreuveType.tcfEe),
+          ),
           GoRoute(
             path: 'nouvelle',
             builder: (_, __) => const EeBriefingWritingScreen(taskIndex: 0),

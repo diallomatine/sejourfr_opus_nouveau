@@ -46,6 +46,7 @@ public class ProductionSubmissionMapper {
             s.getId(),
             s.getAttempt() != null ? s.getAttempt().getId() : null,
             s.getProductionTask() != null ? s.getProductionTask().getId() : null,
+            s.getProductionTask() != null ? s.getProductionTask().getTacheNumero() : null,
             s.getStatut(),
             mediaUrl,
             s.getTexteSoumis(),
@@ -66,6 +67,7 @@ public class ProductionSubmissionMapper {
         String signed = audioStorage.presignGet(s.getMediaUrl());
         return new ProductionSubmissionDto(
             base.id(), base.attemptId(), base.productionTaskId(),
+            base.tacheNumero(),
             base.statut(), signed, base.texteSoumis(),
             base.motsCount(), base.mediaDurationSec(),
             base.retryCount(), base.erreurMessage(),

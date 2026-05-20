@@ -79,6 +79,24 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
     });
   }
 
+  /// Demarre une session "single-task" (mode entrainement libre depuis le hub).
+  /// La liste tasks ne contient qu'une seule entree → totalTasks = 1, pas de
+  /// chainage T+1, les ecrans existants (briefing/recording/finished/results)
+  /// fonctionnent en mode degrade et le results screen detecte totalTasks==1
+  /// pour proposer "Retour aux taches" au lieu de "Voir mon bilan".
+  Future<void> startSingle({required ProductionTaskDto task}) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final attempt = await _repo.startProductionAttempt(epreuve: EpreuveType.tcfEo);
+      return EoSessionState(
+        niveau: task.niveauCible,
+        attempt: attempt,
+        tasks: [task],
+        submissions: const {},
+      );
+    });
+  }
+
   /// Envoie l'audio enregistre au backend et stocke la submission dans le state.
   Future<ProductionSubmissionDto> submitTask({
     required int taskIndex,

@@ -35,16 +35,31 @@ public class ProductionTaskController {
     @GetMapping
     public List<ProductionTaskDto> list(
             @RequestParam EpreuveType epreuve,
-            @RequestParam(required = false) String niveau) {
+            @RequestParam(required = false) String niveau,
+            @RequestParam(required = false) Short tacheNumero) {
 
         if (epreuve != EpreuveType.TCF_EO && epreuve != EpreuveType.TCF_EE) {
             throw new BusinessException("epreuve doit etre TCF_EO ou TCF_EE.");
         }
+        if (tacheNumero != null && (tacheNumero < 1 || tacheNumero > 3)) {
+            throw new BusinessException("tacheNumero doit etre entre 1 et 3.");
+        }
 
-        List<ProductionTask> tasks = (niveau == null || niveau.isBlank())
-            ? taskRepository.findByEpreuveAndActiveTrueOrderByNiveauCibleAscTacheNumeroAsc(epreuve)
-            : taskRepository.findByEpreuveAndNiveauCibleAndActiveTrueOrderByTacheNumeroAsc(
-                epreuve, niveau.toUpperCase());
+        List<ProductionTask> tasks;
+        String niveauUpper = (niveau == null || niveau.isBlank()) ? null : niveau.toUpperCase();
+
+        if (niveauUpper != null && tacheNumero != null) {
+            tasks = taskRepository
+                .findByEpreuveAndNiveauCibleAndTacheNumeroAndActiveTrueOrderByCreatedAtAsc(
+                    epreuve, niveauUpper, tacheNumero);
+        } else if (niveauUpper != null) {
+            tasks = taskRepository
+                .findByEpreuveAndNiveauCibleAndActiveTrueOrderByTacheNumeroAsc(
+                    epreuve, niveauUpper);
+        } else {
+            tasks = taskRepository
+                .findByEpreuveAndActiveTrueOrderByNiveauCibleAscTacheNumeroAsc(epreuve);
+        }
 
         return tasks.stream().map(mapper::toDto).toList();
     }

@@ -110,6 +110,11 @@ class _Body extends ConsumerWidget {
   bool get _hasNext =>
       !isHistory && session != null && taskIndex + 1 < session!.totalTasks;
 
+  /// Mode entrainement libre (single-task depuis le hub). Le bilan de session
+  /// n'a pas de sens : on propose juste un retour au hub des taches.
+  bool get _isSingleTask =>
+      !isHistory && session != null && session!.totalTasks == 1;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final eval = submission.evaluation;
@@ -227,13 +232,22 @@ class _Body extends ConsumerWidget {
                           ),
                         ],
                       )
-                    : AppButton(
-                        label: 'Voir mon bilan',
-                        icon: Icons.bar_chart_rounded,
-                        onPressed: () => context.pushReplacement(
-                          '/tcf/expression-orale/bilan',
-                        ),
-                      ),
+                    : _isSingleTask
+                        ? AppButton(
+                            label: 'Retour aux tâches',
+                            icon: Icons.grid_view_rounded,
+                            onPressed: () {
+                              ref.read(eoSessionProvider.notifier).reset();
+                              context.go('/tcf/expression-orale');
+                            },
+                          )
+                        : AppButton(
+                            label: 'Voir mon bilan',
+                            icon: Icons.bar_chart_rounded,
+                            onPressed: () => context.pushReplacement(
+                              '/tcf/expression-orale/bilan',
+                            ),
+                          ),
           ),
         ),
       ],

@@ -8,7 +8,7 @@ class CriteresCard extends StatelessWidget {
   const CriteresCard({
     super.key,
     required this.criteres,
-    this.title = "Criteres d'evaluation",
+    this.title = "Critères d'évaluation",
   });
 
   final List<String> criteres;

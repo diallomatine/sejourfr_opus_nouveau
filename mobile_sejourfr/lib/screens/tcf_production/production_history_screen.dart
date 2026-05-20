@@ -26,15 +26,25 @@ class ProductionHistoryScreen extends ConsumerWidget {
   final EpreuveType epreuve;
 
   String get _moduleTitle =>
-      epreuve == EpreuveType.tcfEo ? 'Expression orale' : 'Expression ecrite';
+      epreuve == EpreuveType.tcfEo ? 'Expression orale' : 'Expression écrite';
 
-  String _newSessionRoute() => epreuve == EpreuveType.tcfEo
-      ? '/tcf/expression-orale/nouvelle'
-      : '/tcf/expression-ecrite/nouvelle';
+  /// Route vers le hub d'entrainement (parent de cet ecran d'historique).
+  String _hubRoute() => epreuve == EpreuveType.tcfEo
+      ? '/tcf/expression-orale'
+      : '/tcf/expression-ecrite';
 
   String _sessionRoute(String attemptId) => epreuve == EpreuveType.tcfEo
       ? '/tcf/expression-orale/sessions/$attemptId'
       : '/tcf/expression-ecrite/sessions/$attemptId';
+
+  /// "Nouvelle tache" : retour au hub pour choisir T1/T2/T3.
+  void _goToHub(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(_hubRoute());
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -48,7 +58,7 @@ class ProductionHistoryScreen extends ConsumerWidget {
           icon: const Icon(Icons.add_rounded, size: 24),
           color: AppColors.blue,
           tooltip: 'Nouvelle session',
-          onPressed: () => context.push(_newSessionRoute()),
+          onPressed: () => _goToHub(context),
         ),
       ),
       body: async.when(
@@ -62,7 +72,7 @@ class ProductionHistoryScreen extends ConsumerWidget {
           if (sessions.isEmpty) {
             return _EmptyState(
               epreuve: epreuve,
-              onStart: () => context.push(_newSessionRoute()),
+              onStart: () => _goToHub(context),
             );
           }
           return Column(
@@ -111,7 +121,7 @@ class ProductionHistoryScreen extends ConsumerWidget {
                   child: AppButton(
                     label: 'Commencer une nouvelle session',
                     icon: Icons.add_rounded,
-                    onPressed: () => context.push(_newSessionRoute()),
+                    onPressed: () => _goToHub(context),
                   ),
                 ),
               ),

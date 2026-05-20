@@ -68,7 +68,7 @@ Endpoints clés :
 - `GET /api/themes?module=CIVIQUE|TCF`
 - `POST /api/attempts` · `POST /api/attempts/production` (attempt vide pour EO/EE) · `GET /api/attempts/{id}` · `POST /api/attempts/{id}/answers` · `POST /api/attempts/{id}/finish`
 - `GET /api/me/{questions/favorites,questions/wrong,stats}?module=...` · `POST|DELETE /api/me/questions/{id}/favorite`
-- **EO/EE TCF** : `GET /api/production-tasks?epreuve=TCF_EO&niveau=B1` · `GET /api/production-tasks/{id}` · `POST /api/production-submissions` (multipart audio **ou** JSON texte selon `Content-Type`) · `POST /api/production-submissions/{id}/retry` · `GET /api/production-submissions/{id}` · `GET /api/users/me/production-submissions?epreuve=...`
+- **EO/EE TCF** : `GET /api/production-tasks?epreuve=TCF_EO&niveau=B1[&tacheNumero=1|2|3]` · `GET /api/production-tasks/{id}` · `POST /api/production-submissions` (multipart audio **ou** JSON texte selon `Content-Type`) · `POST /api/production-submissions/{id}/retry` · `GET /api/production-submissions/{id}` · `GET /api/users/me/production-submissions?epreuve=...` · `GET /api/users/me/production-submissions/last-per-task?epreuve=...&niveau=...` (sert au hub mobile : dernière submission de l'utilisateur par numéro de tâche, 0 à 3 lignes)
 - Admin : `/api/admin/{dashboard,questions,themes,conversations,media,passages,audio-questions,calibration/{submissions,stats}}`
 - **À implémenter** : `POST /api/billing/create-checkout-session` (Stripe)
 
@@ -168,11 +168,12 @@ Config : `sejourfr.openai` (Whisper) + `sejourfr.production-evaluation` (paramè
 
 Quota gratuit : 2 submissions à vie par épreuve (EO + EE) via `SubscriptionService.hasTcf(userId)` ; au-delà → 403. Premium TCF (plan INTEGRAL) = illimité. Retry manuel max 3 par submission.
 
-**Mobile (Flutter)** : flow complet livré dans `mobile_sejourfr/lib/screens/tcf_production/` (cf. CLAUDE.md du sous-projet). Web et admin n'ont pas encore d'UI EO/EE.
+**Mobile (Flutter)** : flow complet livré dans `mobile_sejourfr/lib/screens/tcf_production/`. **Entry par hub d'entraînement libre** (3 cards T1/T2/T3, l'utilisateur choisit une seule tâche à la fois) — la session 3-tâches chaînée est conservée pour le futur examen blanc. Cf. CLAUDE.md du sous-projet. Web et admin n'ont pas encore d'UI EO/EE.
 
 **Gotchas backend appris à la dure** :
 - `chk_prod_sub_audio_or_text` interdit qu'un INSERT ait `media_url=null ET texte_soumis=null` : `ProductionEvaluationService` uploade R2 AVANT l'insert (avec un UUID indépendant de `submission.id` — sinon Hibernate + `@UuidGenerator` rejette une entité avec id pré-assigné comme "detached").
 - `SubscriptionService` doit rester `@Transactional(readOnly = true)` au niveau classe : ses callers (ex: `ProductionSubmissionController.enforceQuota`) ne sont pas tous transactionnels, et avec `open-in-view: false` l'accès lazy à `Plan` plante sans session ouverte.
+- `ProductionSubmissionDto.tacheNumero` est lu via `s.getProductionTask().getTacheNumero()` dans `ProductionSubmissionMapper` — déclenche le lazy-load du proxy. Toutes les routes de lecture (`mine`, `detail`, `lastPerTask`) sont donc annotées `@Transactional(readOnly = true)`. Avant cet ajout, le mapper ne touchait que `.getId()` des relations (no-op sur un proxy) et les routes pouvaient se passer de transaction.
 
 ## Architecture mentale par projet
 
@@ -208,7 +209,8 @@ Le **runner de questions** (mobile `screens/question_runner/` et web `examen-bla
 - **Middleware Next** pour protéger les routes auth via cookie `sejourfr.accessToken`.
 - **Dashboard utilisateur, entraînement libre, révision, succès post-paiement** côté web.
 - **Clients / abonnements / stats par user** côté admin (entités existent, pas d'endpoints encore).
-- **EO/EE TCF côté web + admin** : mobile livré (sessions, recording WAV, écrans complets) ; reste à coder le miroir web (entraînement EO/EE en navigateur via `MediaRecorder` API) et l'écran admin de calibration humaine consommant `/api/admin/calibration/*`.
+- **EO/EE TCF côté web + admin** : mobile livré (hub d'entraînement single-task, recording WAV, écrans complets) ; reste à coder le miroir web (entraînement EO/EE en navigateur via `MediaRecorder` API) et l'écran admin de calibration humaine consommant `/api/admin/calibration/*`.
+- **Examen blanc EO/EE** : flow 3-tâches chaîné prévu (cf. mobile CLAUDE.md). Stratégie validée : Option 3 fire-and-forget — chaque submit part en async pendant que l'utilisateur attaque la tâche suivante, les résultats sont agrégés à la fin. Routes legacy `/tcf/expression-X/nouvelle`, `/progression`, `/bilan` + `EoSessionController.start()` / `EeSessionController.start()` (mode 3-tâches) déjà en place, à réactiver le moment venu.
 - **Rate limiting global EO/EE** : la spec demandait 10/h et 50/jour, pas branché (mériterait un filter Spring dédié type Bucket4j).
 - **AAC pour EO mobile** : `record_ios 1.2.0` produit un fichier vide sur iOS 26 en AAC-LC → workaround WAV (32 KB/s = ~6 Mo pour 3 min). Repasser à AAC dès qu'une version `record_ios` iOS 26-compatible sort, pour économiser ~5x sur l'upload.
 - **Offline-first mobile** (SQLite/Drift dans `core/storage/`) — non commencé.

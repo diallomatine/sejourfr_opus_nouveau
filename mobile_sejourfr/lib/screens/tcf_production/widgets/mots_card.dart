@@ -48,7 +48,7 @@ class MotsCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '$min a $max mots attendus',
+                  '$min à $max mots attendus',
                   style: AppFonts.jakarta(
                     size: 12,
                     color: AppColors.muted,

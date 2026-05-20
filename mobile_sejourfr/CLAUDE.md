@@ -265,11 +265,33 @@ contiennent que du texte, mais l'architecture est prête pour le TCF complet.
 Module distinct du runner QCM : l'utilisateur **produit** un audio (EO) ou un texte (EE), envoyé au backend
 qui le transcrit (Whisper) + le note (Claude) en 10-15 s. Cf. `CLAUDE.md` racine pour le pipeline backend.
 
-**Points d'entrée** : 2 tiles `ProductionEntryTile` ajoutées en bas de la liste des thèmes dans
-`training_setup_screen.dart` quand `selectedModule == AppModule.tcf`. Tap → push immédiat vers
-`/tcf/expression-orale` ou `/tcf/expression-ecrite`.
+**Entry par hub d'entraînement libre.** L'utilisateur n'est plus forcé d'enchaîner T1 → T2 → T3 : il
+arrive sur un hub avec 3 cards (T1, T2, T3), choisit la tâche qu'il veut travailler, fait son
+entraînement, revient au hub. La session 3-tâches chaînée existe toujours dans le code mais est mise au
+frigo en attendant l'examen blanc (cf. roadmap).
 
-**Flow EO (3 écrans + résultats)** :
+**Routes EO** (idem EE en remplaçant `expression-orale` par `expression-ecrite`) :
+- `/tcf/expression-orale` → **hub** d'entraînement (`ProductionHubScreen`)
+- `/tcf/expression-orale/historique` → liste des sessions passées (`ProductionHistoryScreen`)
+- `/tcf/expression-orale/sessions/:attemptId` → bilan d'une session passée (lecture seule)
+- `/tcf/expression-orale/t/:idx` → briefing T(idx+1) (single-task ou exam blanc selon `totalTasks` du SessionController)
+- `/tcf/expression-orale/t/:idx/enregistrement` → capture audio (EO uniquement)
+- `/tcf/expression-orale/t/:idx/termine` → écoute + soumission (EO uniquement)
+- `/tcf/expression-orale/resultats/:id?taskIndex=N&history=1` → résultats live ou history
+- `/tcf/expression-orale/nouvelle`, `/progression`, `/bilan` → **legacy session 3-tâches**, conservés pour le futur examen blanc
+
+**Hub** (`production_hub_screen.dart` + `production_hub_controller.dart`) :
+- `ProductionHubController` (family indexée par `EpreuveType`) charge en parallèle les 3 listes de tâches
+  via `/api/production-tasks?epreuve=...&niveau=...&tacheNumero=1|2|3` + la dernière submission par tâche
+  via `/api/users/me/production-submissions/last-per-task`.
+- **T1** = consigne fixe (présentation), pas de bouton "Changer". **T2 et T3** = pick aléatoire à chaque
+  visite, bouton "Changer de sujet" pour re-roll.
+- Tap "Commencer" sur une card → `EoSessionController.startSingle(task)` ou `EeSessionController.startSingle(task)`
+  (state contient `tasks=[singleTask]`, niveau = `task.niveauCible`) puis push `/t/0`.
+- `refreshLast()` est appelé au mount → la note fraîchement obtenue apparaît en badge sur la card.
+- L'entrée historique du hub remonte juste à `/historique` (sous-route du hub).
+
+**Flow EO (3 écrans + résultats)** — inchangé en single-task, le SessionController a juste 1 tâche :
 1. **Briefing** (`eo_briefing_screen.dart`) : consigne + conseils + CTA "Commencer" qui demande la permission
    micro via `_recorder.hasPermission()` du package `record` directement (✋ **ne pas utiliser
    `permission_handler` seul** : il court-circuite l'auth iOS dans certains cas et ne déclenche pas le dialog).
@@ -279,18 +301,36 @@ qui le transcrit (Whisper) + le note (Claude) en 10-15 s. Cf. `CLAUDE.md` racine
    CTA "Voir mon évaluation" → swap vers `EvaluationLoadingView(includeTranscription: true)` pendant
    l'upload R2 + Whisper + Claude (~15 s), puis push résultats.
 4. **Résultats** (`eo_results_screen.dart`) : score donut violet + critères + feedback + **transcription
-   Whisper** (depuis `submission.transcription` exposée par le backend).
+   Whisper**. En single-task (`session.totalTasks == 1`), bouton "Retour aux tâches" qui reset la session
+   et go vers le hub. En 3-tâches : "Passer à la tâche N+1" entre T1/T2 et "Voir mon bilan" sur T3.
 
 **Flow EE** : 1 seul écran combiné `ee_briefing_writing_screen.dart` (briefing + textarea + compteur live +
 `MotsCard` ambre + brouillon auto-save 3 s dans `SharedPreferences` via `EeDraftService`).
+- Textarea avec `FocusNode` partagé entre le screen state et `WritingZone` → quand le clavier ouvre,
+  `ConsigneCard`/`TipsCard`/`CriteresCard` se replient et les 2 boutons du bas (Valider / Brouillon)
+  disparaissent → le textarea grandit (`minLines: 12`). `keyboardDismissBehavior: onDrag` sur la
+  ListView. **Important** : ne pas conditionner les enfants de la ListView sur le focus avec
+  `if (!isWriting) ...[ConsigneCard, ...]` — ça change les indices et Flutter recrée le State de
+  `WritingZone` → focus perdu, clavier se ferme immédiatement. Garder tous les enfants présents +
+  ValueKey stable sur chacun.
+- `TextField.onTapOutside: (_) => focusNode.unfocus()` pour dismiss le clavier au tap hors champ (API
+  officielle Flutter 3.10+). **Ne pas** wrapper le body dans un `GestureDetector(onTap: unfocus)` : ça
+  rentre en compétition avec le tap de focus du TextField → "il faut 2 taps pour ouvrir le clavier".
+- Bordure bleue 1.5px + fond `blueSoft` + ombre douce au focus, `AnimatedContainer` 150ms.
+- Info button (`ProductionAppHeaderInfo`) du header ouvre une `showModalBottomSheet` avec le texte de
+  confidentialité (cf. `_ConfidentialitySheet` privé dans le screen).
 
-**Sessions** : `EeSessionController` / `EoSessionController` (StateNotifier **non-autoDispose**) portent les
-3 tasks + l'attempt parent + la map des submissions. Au 1er mount du briefing, `start(niveau:...)` charge
-les tasks + crée l'attempt via `POST /api/attempts/production`. Reset manuel après bilan ou abandon.
+**Sessions** : `EeSessionController` / `EoSessionController` (StateNotifier **non-autoDispose**) portent
+les tasks (1 en single-task, 3 en exam blanc) + l'attempt parent + la map des submissions. Deux points
+d'entrée :
+- `start(niveau:...)` → mode 3-tâches (chargé tasks + crée attempt). Réservé à l'examen blanc futur.
+- `startSingle(task:...)` → mode entraînement libre (1 tâche pickée par le hub + crée attempt).
+Reset manuel après "Retour aux tâches" ou abandon.
 
 **Écrans communs EE + EO** (`session_progress_screen.dart`, `session_bilan_screen.dart`) paramétrés par
 `EpreuveType`, lisent la session via `readSessionView(ref, epreuve)` (helper dans `session_view.dart` qui
-abstrait `EeSessionState` et `EoSessionState`).
+abstrait `EeSessionState` et `EoSessionState`). **Inutilisés en mode single-task**, vivent pour l'examen
+blanc futur.
 
 **Gotchas iOS** :
 - `record_ios 1.2.0` produit un fichier vide (28 B) sur **iOS 26 en AAC-LC**. Workaround : `AudioEncoder.wav`
@@ -305,6 +345,12 @@ type production. `core/models/attempt_models.dart` coerce `null → 0` pour ne p
 
 ## Roadmap (ce qui n'est pas encore fait)
 
+- **Examen blanc EO/EE** : flow 3-tâches chaîné avec chrono. Stratégie validée = **Option 3 fire-and-forget** :
+  chaque submit part en async pendant que l'utilisateur attaque la tâche suivante (gain de ~15 s × 3 d'attente
+  perçue), résultats agrégés dans un bilan unique à la fin. Les briques existent déjà : `EoSessionController.start(niveau)`
+  charge 3 tasks + crée l'attempt, les écrans `session_progress_screen.dart` / `session_bilan_screen.dart` sont
+  prêts. À faire : un orchestrateur qui `Future.wait` les 3 submissions en arrière-plan + un chrono global +
+  un nouveau point d'entrée distinct du hub (probablement un CTA "Mode examen blanc" en bas du hub).
 - **Offline-first** : pas de SQLite/Drift pour l'instant, tout passe par le réseau. À ajouter dans
   `core/storage/` quand on aura besoin (questions civiques stables, peuvent être cachées).
 - **Notifications push** (rappels d'entraînement) : à ajouter via `firebase_messaging` ou OneSignal.

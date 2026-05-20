@@ -43,21 +43,21 @@ class ProductionTaskDto {
   String get displayTitle {
     if (epreuve == EpreuveType.tcfEo) {
       return switch (tacheNumero) {
-        1 => 'Entretien dirige',
-        2 => 'Jeu de role',
+        1 => 'Entretien dirigé',
+        2 => 'Jeu de rôle',
         3 => 'Point de vue',
-        _ => 'Tache $tacheNumero',
+        _ => 'Tâche $tacheNumero',
       };
     }
     if (epreuve == EpreuveType.tcfEe) {
       return switch (tacheNumero) {
         1 => 'Message simple',
-        2 => 'Recit d\'experience',
-        3 => 'Point de vue argumente',
-        _ => 'Tache $tacheNumero',
+        2 => 'Récit d\'expérience',
+        3 => 'Point de vue argumenté',
+        _ => 'Tâche $tacheNumero',
       };
     }
-    return 'Tache $tacheNumero';
+    return 'Tâche $tacheNumero';
   }
 
   factory ProductionTaskDto.fromJson(Map<String, dynamic> json) => ProductionTaskDto(
@@ -81,6 +81,7 @@ class ProductionSubmissionDto {
     required this.statut,
     required this.submittedAt,
     required this.retryCount,
+    this.tacheNumero,
     this.mediaUrl,
     this.texteSoumis,
     this.motsCount,
@@ -93,6 +94,12 @@ class ProductionSubmissionDto {
   final String id;
   final String? attemptId;
   final String? productionTaskId;
+
+  /// Numero de tache (1, 2 ou 3) de la production_task associee. Renseigne
+  /// par le backend depuis Hibernate ; utilise par le hub d'entrainement
+  /// pour regrouper la derniere submission par tache.
+  final int? tacheNumero;
+
   final SubmissionStatut statut;
 
   /// URL pre-signee (TTL court) vers l'audio EO. NULL pour EE.
@@ -120,6 +127,7 @@ class ProductionSubmissionDto {
         id: json['id'] as String,
         attemptId: json['attemptId'] as String?,
         productionTaskId: json['productionTaskId'] as String?,
+        tacheNumero: (json['tacheNumero'] as num?)?.toInt(),
         statut: SubmissionStatut.fromWire(json['statut'] as String),
         mediaUrl: json['mediaUrl'] as String?,
         texteSoumis: json['texteSoumis'] as String?,

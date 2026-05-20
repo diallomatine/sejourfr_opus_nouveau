@@ -86,6 +86,21 @@ class EeSessionNotifier extends StateNotifier<AsyncValue<EeSessionState>> {
     });
   }
 
+  /// Demarre une session "single-task" (mode entrainement libre depuis le hub).
+  /// Voir EoSessionNotifier.startSingle pour le contrat detaille.
+  Future<void> startSingle({required ProductionTaskDto task}) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final attempt = await _repo.startProductionAttempt(epreuve: EpreuveType.tcfEe);
+      return EeSessionState(
+        niveau: task.niveauCible,
+        attempt: attempt,
+        tasks: [task],
+        submissions: const {},
+      );
+    });
+  }
+
   /// Soumet la tache courante et enregistre la submission dans le state.
   /// Retourne la submission (le caller peut naviguer vers les resultats avec son id).
   Future<ProductionSubmissionDto> submitTask({

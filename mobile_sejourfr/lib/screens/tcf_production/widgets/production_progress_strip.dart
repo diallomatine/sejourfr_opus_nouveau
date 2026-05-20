@@ -52,6 +52,7 @@ class ProductionProgressStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final fraction = total == 0 ? 0.0 : current / total;
     final pillNiveau = _parsedNiveau;
+    final singleTask = total <= 1;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
       child: Column(
@@ -67,36 +68,44 @@ class ProductionProgressStrip extends StatelessWidget {
                       weight: FontWeight.w600,
                       color: AppColors.ink,
                     ),
-                    children: [
-                      TextSpan(text: 'Tache $current sur $total'),
-                      if (subtitle != null && subtitle!.isNotEmpty)
-                        TextSpan(
-                          text: ' · $subtitle',
-                          style: AppFonts.jakarta(
-                            size: 14,
-                            weight: FontWeight.w500,
-                            color: AppColors.muted2,
-                          ),
-                        ),
-                    ],
+                    children: singleTask
+                        ? [
+                            // En single-task on supprime la mention "X sur N" qui
+                            // n'apporte rien -> on affiche juste le displayTitle.
+                            TextSpan(text: subtitle ?? 'Entraînement libre'),
+                          ]
+                        : [
+                            TextSpan(text: 'Tâche $current sur $total'),
+                            if (subtitle != null && subtitle!.isNotEmpty)
+                              TextSpan(
+                                text: ' · $subtitle',
+                                style: AppFonts.jakarta(
+                                  size: 14,
+                                  weight: FontWeight.w500,
+                                  color: AppColors.muted2,
+                                ),
+                              ),
+                          ],
                   ),
                 ),
               ),
               if (trailing != null) trailing!,
             ],
           ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: LinearProgressIndicator(
-              value: fraction,
-              minHeight: 4,
-              backgroundColor: AppColors.line2,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.blue),
+          if (!singleTask) ...[
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                value: fraction,
+                minHeight: 4,
+                backgroundColor: AppColors.line2,
+                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.blue),
+              ),
             ),
-          ),
+          ],
           if (pillNiveau != null) ...[
-            const SizedBox(height: 10),
+            SizedBox(height: singleTask ? 8 : 10),
             Align(
               alignment: Alignment.centerLeft,
               child: LevelPill(level: pillNiveau, small: true),

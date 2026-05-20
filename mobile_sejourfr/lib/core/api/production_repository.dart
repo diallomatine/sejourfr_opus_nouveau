@@ -36,20 +36,42 @@ class ProductionRepository {
     return Attempt.fromJson(res.data!);
   }
 
-  /// Catalogue des taches actives pour une epreuve + un niveau cible.
+  /// Catalogue des taches actives pour une epreuve + un niveau cible,
+  /// optionnellement filtre par numero de tache (1, 2 ou 3).
   Future<List<ProductionTaskDto>> listTasks({
     required EpreuveType epreuve,
     String? niveau,
+    int? tacheNumero,
   }) async {
     final res = await _client.dio.get<List<dynamic>>(
       '/api/production-tasks',
       queryParameters: {
         'epreuve': epreuve.wire,
         if (niveau != null && niveau.isNotEmpty) 'niveau': niveau,
+        if (tacheNumero != null) 'tacheNumero': tacheNumero,
       },
     );
     return (res.data ?? [])
         .map((e) => ProductionTaskDto.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Derniere submission de l'utilisateur pour chaque numero de tache (1..3),
+  /// pour un (epreuve, niveau) donne. Renvoie 0 a 3 elements. Utilise par
+  /// le hub d'entrainement pour afficher la derniere note sur chaque card.
+  Future<List<ProductionSubmissionDto>> listLastPerTask({
+    required EpreuveType epreuve,
+    required String niveau,
+  }) async {
+    final res = await _client.dio.get<List<dynamic>>(
+      '/api/users/me/production-submissions/last-per-task',
+      queryParameters: {
+        'epreuve': epreuve.wire,
+        'niveau': niveau,
+      },
+    );
+    return (res.data ?? [])
+        .map((e) => ProductionSubmissionDto.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 

@@ -44,4 +44,31 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
 
     /** Submissions non-finalisees (pour reprise / monitoring). */
     List<ProductionSubmission> findByStatutOrderBySubmittedAtAsc(SubmissionStatut statut);
+
+    /**
+     * Pour le hub d'entrainement : derniere submission par numero de tache
+     * (1..3) pour un (user, epreuve, niveau) donne. Renvoie 0 a 3 lignes
+     * tries par tacheNumero asc. Utilise DISTINCT ON (Postgres) pour ne garder
+     * que la plus recente de chaque groupe.
+     */
+    @Query(value = """
+            SELECT ps.*
+            FROM production_submissions ps
+            JOIN production_tasks pt ON pt.id = ps.production_task_id
+            WHERE ps.id IN (
+              SELECT DISTINCT ON (pt2.tache_numero) ps2.id
+              FROM production_submissions ps2
+              JOIN production_tasks pt2 ON pt2.id = ps2.production_task_id
+              WHERE ps2.user_id = :userId
+                AND pt2.epreuve = CAST(:epreuve AS varchar)
+                AND pt2.niveau_cible = :niveau
+              ORDER BY pt2.tache_numero, ps2.submitted_at DESC
+            )
+            ORDER BY pt.tache_numero ASC
+            """, nativeQuery = true)
+    List<ProductionSubmission> findLatestPerTask(
+            @Param("userId") UUID userId,
+            @Param("epreuve") String epreuve,
+            @Param("niveau") String niveau
+    );
 }

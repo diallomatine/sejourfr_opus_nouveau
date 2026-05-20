@@ -11,7 +11,6 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import 'draft_service.dart';
 import 'ee_session_controller.dart';
-import 'widgets/confidential_note.dart';
 import 'widgets/consigne_card.dart';
 import 'widgets/criteres_card.dart';
 import 'widgets/evaluation_loading_view.dart';
@@ -29,46 +28,47 @@ class EeBriefingWritingScreen extends ConsumerStatefulWidget {
   final int taskIndex;
 
   @override
-  ConsumerState<EeBriefingWritingScreen> createState() =>
-      _EeBriefingWritingScreenState();
+  ConsumerState<EeBriefingWritingScreen> createState() => _EeBriefingWritingScreenState();
 }
 
-class _EeBriefingWritingScreenState
-    extends ConsumerState<EeBriefingWritingScreen> {
+class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScreen> {
   final TextEditingController _controller = TextEditingController();
+  final FocusNode _writingFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
   Timer? _autoSaveTimer;
   bool _submitting = false;
   String? _submitError;
   bool _draftLoaded = false;
   String? _loadedForTaskId;
+  bool _wasFocused = false;
 
   /// Conseils generiques EE par numero de tache (texte calque sur le mockup).
   static const _tipsByTache = <int, List<String>>{
     1: [
       'Adresse-toi directement au destinataire',
-      'Sois clair sur les 2-3 informations a transmettre',
-      'Utilise un ton adapte (amical, formel)',
+      'Sois clair sur les 2-3 informations à transmettre',
+      'Utilise un ton adapté (amical, formel)',
       'Relis ton message avant de valider',
     ],
     2: [
-      'Raconte une experience reelle et interessante',
-      "Organise ton recit (debut, evenements, fin)",
+      'Raconte une expérience réelle et intéressante',
+      'Organise ton récit (début, événements, fin)',
       'Utilise des connecteurs temporels',
-      'Exprime tes sentiments et tes reactions',
+      'Exprime tes sentiments et tes réactions',
       'Relis ton texte avant de valider',
     ],
     3: [
-      'Donne une opinion claire des le debut',
+      'Donne une opinion claire dès le début',
       'Appuie ta position avec 2 arguments concrets',
-      'Illustre par un exemple personnel ou observe',
+      'Illustre par un exemple personnel ou observé',
       'Conclus en reformulant ton avis',
     ],
   };
 
   static const _criteresEE = [
-    'Pertinence et developpement du contenu',
-    'Organisation et coherence du texte',
-    'Richesse et precision du vocabulaire',
+    'Pertinence et développement du contenu',
+    'Organisation et cohérence du texte',
+    'Richesse et précision du vocabulaire',
     'Correction grammaticale',
     'Orthographe et ponctuation',
   ];
@@ -85,14 +85,45 @@ class _EeBriefingWritingScreenState
   @override
   void initState() {
     super.initState();
+    _writingFocusNode.addListener(_onFocusChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(eeSessionProvider.notifier).start(niveau: _niveauForUser());
     });
   }
 
+  void _onFocusChanged() {
+    if (!mounted) return;
+    final isNowFocused = _writingFocusNode.hasFocus;
+    final justBlurredWithText = _wasFocused &&
+        !isNowFocused &&
+        _controller.text.trim().isNotEmpty;
+    _wasFocused = isNowFocused;
+    // On differe le setState a la frame suivante pour ne pas casser la
+    // sequence de focus → keyboard (le reflow synchrone des cards qui
+    // disparaissent peut intercepter la requete clavier du TextField).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+    if (justBlurredWithText) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !_scrollController.hasClients) return;
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeOutCubic,
+          );
+        });
+      });
+    }
+  }
+
   @override
   void dispose() {
     _autoSaveTimer?.cancel();
+    _writingFocusNode.removeListener(_onFocusChanged);
+    _writingFocusNode.dispose();
+    _scrollController.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -147,8 +178,7 @@ class _EeBriefingWritingScreenState
     }
   }
 
-  Future<void> _saveDraftAndQuit(
-      BuildContext context, ProductionTaskDto task) async {
+  Future<void> _saveDraftAndQuit(BuildContext context, ProductionTaskDto task) async {
     if (_controller.text.trim().isNotEmpty) {
       await ref.read(eeDraftServiceProvider).save(task.id, _controller.text);
     }
@@ -162,6 +192,18 @@ class _EeBriefingWritingScreenState
     setState(() {});
   }
 
+  Future<void> _showConfidentialitySheet(BuildContext context) {
+    FocusScope.of(context).unfocus();
+    return showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const _ConfidentialitySheet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_submitting) {
@@ -173,17 +215,18 @@ class _EeBriefingWritingScreenState
     final sessionAsync = ref.watch(eeSessionProvider);
     return Scaffold(
       backgroundColor: AppColors.white,
+      resizeToAvoidBottomInset: true,
       appBar: ProductionAppHeader(
-        title: 'Expression ecrite',
-        rightAction: const ProductionAppHeaderInfo(),
+        title: 'Expression écrite',
+        rightAction: ProductionAppHeaderInfo(
+          onPressed: () => _showConfidentialitySheet(context),
+        ),
       ),
       body: sessionAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorBox(
           message: ApiClient.toApiException(e).message,
-          onRetry: () => ref
-              .read(eeSessionProvider.notifier)
-              .start(niveau: _niveauForUser()),
+          onRetry: () => ref.read(eeSessionProvider.notifier).start(niveau: _niveauForUser()),
         ),
         data: (session) {
           final task = session.taskAt(widget.taskIndex);
@@ -196,6 +239,9 @@ class _EeBriefingWritingScreenState
             session: session,
             taskIndex: widget.taskIndex,
             controller: _controller,
+            focusNode: _writingFocusNode,
+            scrollController: _scrollController,
+            isWriting: _writingFocusNode.hasFocus,
             wordCount: _countWords(_controller.text),
             onChanged: (v) => _onTextChanged(v, task),
             onSubmit: () => _submit(task),
@@ -217,6 +263,9 @@ class _Content extends StatelessWidget {
     required this.session,
     required this.taskIndex,
     required this.controller,
+    required this.focusNode,
+    required this.scrollController,
+    required this.isWriting,
     required this.onChanged,
     required this.onSubmit,
     required this.onSaveDraftAndQuit,
@@ -231,6 +280,9 @@ class _Content extends StatelessWidget {
   final EeSessionState session;
   final int taskIndex;
   final TextEditingController controller;
+  final FocusNode focusNode;
+  final ScrollController scrollController;
+  final bool isWriting;
   final ValueChanged<String> onChanged;
   final VoidCallback onSubmit;
   final VoidCallback onSaveDraftAndQuit;
@@ -258,29 +310,43 @@ class _Content extends StatelessWidget {
         ),
         Expanded(
           child: ListView(
+            controller: scrollController,
             padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             children: [
               ConsigneCard(
+                key: const ValueKey('ee-consigne'),
                 consigne: task.consigne,
                 subTitleHero: task.displayTitle,
-                subtitle:
-                    'Longueur attendue : ${task.motsMin ?? 0} a ${task.motsMax ?? 0} mots',
+                subtitle: 'Longueur attendue : ${task.motsMin ?? 0} à ${task.motsMax ?? 0} mots',
               ),
-              if (tips.isNotEmpty) TipsCard(tips: tips, title: 'Conseils pour reussir'),
+              if (tips.isNotEmpty)
+                TipsCard(
+                  key: const ValueKey('ee-tips'),
+                  tips: tips,
+                  title: 'Conseils pour réussir',
+                ),
               MotsCard(
+                key: const ValueKey('ee-mots'),
                 current: wordCount,
                 min: task.motsMin ?? 0,
                 max: task.motsMax ?? 0,
               ),
               WritingZone(
+                key: const ValueKey('ee-writing-zone'),
                 controller: controller,
+                focusNode: focusNode,
                 onChanged: onChanged,
                 wordCount: wordCount,
                 minWords: task.motsMin ?? 0,
                 maxWords: task.motsMax ?? 0,
                 onClear: wordCount > 0 ? onClear : null,
+                minLines: 12,
               ),
-              CriteresCard(criteres: criteres),
+              CriteresCard(
+                key: const ValueKey('ee-criteres'),
+                criteres: criteres,
+              ),
               if (submitError != null) ...[
                 const SizedBox(height: 4),
                 _InlineError(message: submitError!),
@@ -288,7 +354,7 @@ class _Content extends StatelessWidget {
             ],
           ),
         ),
-        Container(
+        if (!isWriting) Container(
           padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
           decoration: const BoxDecoration(
             color: AppColors.white,
@@ -301,7 +367,7 @@ class _Content extends StatelessWidget {
             child: Column(
               children: [
                 AppButton(
-                  label: 'Valider ma redaction',
+                  label: 'Valider ma rédaction',
                   icon: Icons.send_rounded,
                   onPressed: _inRange ? onSubmit : null,
                 ),
@@ -325,10 +391,6 @@ class _Content extends StatelessWidget {
                     ),
                   ),
                 ),
-                const ConfidentialNote(
-                  text:
-                      "Votre redaction est confidentielle et sera analysee par notre IA pour vous fournir un feedback detaille.",
-                ),
               ],
             ),
           ),
@@ -340,6 +402,7 @@ class _Content extends StatelessWidget {
 
 class _InlineError extends StatelessWidget {
   const _InlineError({required this.message});
+
   final String message;
 
   @override
@@ -371,6 +434,7 @@ class _InlineError extends StatelessWidget {
 
 class _ErrorBox extends StatelessWidget {
   const _ErrorBox({required this.message, required this.onRetry});
+
   final String message;
   final VoidCallback onRetry;
 
@@ -384,7 +448,7 @@ class _ErrorBox extends StatelessWidget {
           const Icon(Icons.error_outline_rounded, size: 32, color: AppColors.red),
           const SizedBox(height: 8),
           Text(
-            'Impossible de demarrer la session.',
+            'Impossible de démarrer la session.',
             style: AppFonts.jakarta(
               size: 14,
               weight: FontWeight.w700,
@@ -399,11 +463,88 @@ class _ErrorBox extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           AppButton(
-            label: 'Reessayer',
+            label: 'Réessayer',
             onPressed: onRetry,
             icon: Icons.refresh_rounded,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ConfidentialitySheet extends StatelessWidget {
+  const _ConfidentialitySheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.line,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.blueLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.lock_outline_rounded,
+                    size: 18,
+                    color: AppColors.blue,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Confidentialité de votre rédaction',
+                    style: AppFonts.fraunces(
+                      size: 18,
+                      weight: FontWeight.w600,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(
+              "Votre rédaction est confidentielle et sera analysée par notre IA "
+              "pour vous fournir un feedback détaillé. Le contenu n'est pas "
+              "partagé avec des tiers, n'est pas utilisé pour entraîner nos "
+              "modèles, et reste accessible uniquement depuis votre compte.",
+              style: AppFonts.jakarta(
+                size: 13.5,
+                color: AppColors.muted,
+                height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 18),
+            AppButton(
+              label: 'J\'ai compris',
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
       ),
     );
   }
