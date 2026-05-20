@@ -2,11 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { Mic, PenLine, Smartphone } from "lucide-react";
+import {
+  type ProductionKind,
+  ProductionMobileSheet,
+} from "@/app/_components/ProductionMobileSheet";
 import { ApiException, attemptApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import type { AttemptSummaryResponse } from "@/lib/types";
+import {
+  type AttemptSummaryResponse,
+  isProductionAttempt,
+} from "@/lib/types";
 
-type TypeFilter = "ALL" | "EXAM" | "TRAIN";
+type TypeFilter = "ALL" | "EXAM" | "TRAIN" | "PROD";
 type PeriodFilter = "7D" | "30D" | "ALL";
 
 export default function HistoriquePage() {
@@ -19,6 +27,7 @@ export default function HistoriquePage() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("30D");
   const [query, setQuery] = useState("");
+  const [productionSheet, setProductionSheet] = useState<ProductionKind | null>(null);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -60,17 +69,25 @@ export default function HistoriquePage() {
     return [...attempts]
       .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
       .filter((a) => {
+        const isProd = isProductionAttempt(a);
         // type
-        if (typeFilter === "EXAM" && a.type !== "MOCK_EXAM") return false;
-        if (typeFilter === "TRAIN" && a.type !== "TRAINING") return false;
+        // EXAM = MOCK_EXAM QCM uniquement (les productions EO/EE sont TRAINING).
+        // TRAIN = TRAINING QCM (hors productions).
+        // PROD = productions EO/EE.
+        if (typeFilter === "EXAM" && (a.type !== "MOCK_EXAM" || isProd)) return false;
+        if (typeFilter === "TRAIN" && (a.type !== "TRAINING" || isProd)) return false;
+        if (typeFilter === "PROD" && !isProd) return false;
         // période
         if (periodMs != null && now - Date.parse(a.startedAt) > periodMs)
           return false;
-        // recherche : module + type + difficulty
+        // recherche : module + type + difficulty + production
         if (q) {
           const moduleLabel = (a.module === "TCF" ? "tcf" : "civique").toLowerCase();
-          const typeLabel =
-            a.type === "MOCK_EXAM" ? "examen blanc exam" : "entraînement training";
+          const typeLabel = isProd
+            ? "production expression " + (a.epreuve === "TCF_EO" ? "orale eo" : a.epreuve === "TCF_EE" ? "écrite ecrite ee" : "")
+            : a.type === "MOCK_EXAM"
+              ? "examen blanc exam"
+              : "entraînement training";
           const diffLabel = a.difficulty ? String(a.difficulty).toLowerCase() : "";
           if (
             !moduleLabel.includes(q) &&
@@ -85,41 +102,57 @@ export default function HistoriquePage() {
   }, [attempts, typeFilter, periodFilter, query]);
 
   // ========== STATS GLOBALES ==========
+  // Les productions EO/EE n'ont ni totalQuestions ni score : elles sont
+  // exclues des metriques de pourcentage (passRate, bestScore) et comptees
+  // separement dans le total. On considere une production "finie" si elle a
+  // un finishedAt (le score IA est sur une autre route).
   const stats = useMemo(() => {
-    const finished = attempts.filter(
+    const qcm = attempts.filter((a) => !isProductionAttempt(a));
+    const productions = attempts.filter((a) => isProductionAttempt(a));
+    const finishedQcm = qcm.filter(
       (a) => a.finishedAt && a.score !== null && a.score !== undefined,
     );
-    const exams = finished.filter((a) => a.type === "MOCK_EXAM");
-    if (finished.length === 0) {
+    const exams = finishedQcm.filter((a) => a.type === "MOCK_EXAM");
+    const totalSessions = finishedQcm.length + productions.length;
+    if (totalSessions === 0) {
       return {
         total: 0,
+        examsCount: 0,
+        trainCount: 0,
+        prodCount: 0,
         passRate: null as number | null,
         bestLabel: null as string | null,
         bestDetail: null as string | null,
       };
     }
     const passed = exams.filter((a) => {
+      const total = a.totalQuestions ?? 0;
       if (a.module === "CIVIQUE" && a.passThreshold != null) {
         return (a.score ?? 0) >= a.passThreshold;
       }
-      return (a.score ?? 0) / a.totalQuestions >= 0.6;
+      return total > 0 && (a.score ?? 0) / total >= 0.6;
     }).length;
     const passRate = exams.length > 0 ? Math.round((passed / exams.length) * 100) : null;
     let bestPct = -1;
     let best: AttemptSummaryResponse | null = null;
     for (const a of exams) {
-      const pct = (a.score ?? 0) / a.totalQuestions;
+      const total = a.totalQuestions ?? 0;
+      if (total === 0) continue;
+      const pct = (a.score ?? 0) / total;
       if (pct > bestPct) {
         bestPct = pct;
         best = a;
       }
     }
-    const bestLabel = best ? `${best.score}/${best.totalQuestions}` : null;
+    const bestLabel = best ? `${best.score}/${best.totalQuestions ?? "—"}` : null;
     const bestDetail = best
       ? `${best.module === "TCF" ? "TCF" : "Civique"} · ${formatShortDate(best.startedAt)}`
       : null;
     return {
-      total: finished.length,
+      total: totalSessions,
+      examsCount: attempts.filter((a) => a.type === "MOCK_EXAM" && !isProductionAttempt(a)).length,
+      trainCount: attempts.filter((a) => a.type === "TRAINING" && !isProductionAttempt(a)).length,
+      prodCount: productions.length,
       passRate,
       bestLabel,
       bestDetail,
@@ -167,7 +200,17 @@ export default function HistoriquePage() {
           icon={<ListIcon />}
           label="SESSIONS TOTALES"
           value={String(stats.total)}
-          trend={stats.total > 0 ? `${attempts.filter((a) => a.type === "MOCK_EXAM").length} examens · ${attempts.filter((a) => a.type === "TRAINING").length} entraînements` : "Pas encore"}
+          trend={
+            stats.total > 0
+              ? [
+                  stats.examsCount > 0 ? `${stats.examsCount} examens` : null,
+                  stats.trainCount > 0 ? `${stats.trainCount} entraînements` : null,
+                  stats.prodCount > 0 ? `${stats.prodCount} productions` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              : "Pas encore"
+          }
         />
         <StatCard
           tone="green"
@@ -193,6 +236,7 @@ export default function HistoriquePage() {
               ["ALL", "Tout"],
               ["EXAM", "Examens"],
               ["TRAIN", "Entraînements"],
+              ["PROD", "Productions"],
             ] as const
           ).map(([k, lbl]) => (
             <button
@@ -285,9 +329,17 @@ export default function HistoriquePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((a) => (
-                    <AttemptRow key={a.id} a={a} />
-                  ))}
+                  {filtered.map((a) =>
+                    isProductionAttempt(a) ? (
+                      <ProductionRow
+                        key={a.id}
+                        a={a}
+                        onOpen={(kind) => setProductionSheet(kind)}
+                      />
+                    ) : (
+                      <AttemptRow key={a.id} a={a} />
+                    ),
+                  )}
                 </tbody>
               </table>
             </div>
@@ -300,6 +352,12 @@ export default function HistoriquePage() {
           </>
         )}
       </section>
+
+      <ProductionMobileSheet
+        open={productionSheet !== null}
+        kind={productionSheet}
+        onClose={() => setProductionSheet(null)}
+      />
 
       <style>{styles}</style>
     </main>
@@ -339,7 +397,7 @@ function AttemptRow({ a }: { a: AttemptSummaryResponse }) {
   const isTcf = a.module === "TCF";
   const isExam = a.type === "MOCK_EXAM";
   const score = a.score ?? 0;
-  const total = a.totalQuestions;
+  const total = a.totalQuestions ?? 0;
   const pct = total > 0 ? Math.round((score / total) * 100) : 0;
   const isFinished = !!a.finishedAt;
 
@@ -409,6 +467,63 @@ function AttemptRow({ a }: { a: AttemptSummaryResponse }) {
       </td>
       <td>
         <span className={`status-text status-text-${statusTone}`}>{statusLabel}</span>
+      </td>
+      <td className="row-chevron">›</td>
+    </tr>
+  );
+}
+
+// ============================================================================
+// PRODUCTION ROW (EO / EE) — pas de QCM, pas de score affiché ici, click ouvre
+// le sheet de redirection vers l'app mobile (l'evaluation IA vit cote mobile).
+// ============================================================================
+function ProductionRow({
+  a,
+  onOpen,
+}: {
+  a: AttemptSummaryResponse;
+  onOpen: (kind: ProductionKind) => void;
+}) {
+  const isOral = a.epreuve === "TCF_EO";
+  const isComplet = a.epreuve === "TCF_COMPLET";
+  const kind: ProductionKind = isOral ? "EO" : "EE";
+  const label = isComplet
+    ? "Examen blanc EO+EE"
+    : isOral
+      ? "Expression orale"
+      : "Expression écrite";
+  const Icon = isOral ? Mic : PenLine;
+
+  const isFinished = !!a.finishedAt;
+  const minutes =
+    isFinished && a.finishedAt
+      ? Math.max(
+          1,
+          Math.round((Date.parse(a.finishedAt) - Date.parse(a.startedAt)) / 60000),
+        )
+      : null;
+
+  return (
+    <tr className="prod-row" onClick={() => onOpen(kind)}>
+      <td>{formatRowDate(a.startedAt)}</td>
+      <td>
+        <span className="tag tag-prod">PRODUCTION</span>
+      </td>
+      <td>
+        <span className="module-pill module-pill-red">TCF</span>
+        <span className="prod-row-label">
+          <Icon size={12} strokeWidth={2.2} aria-hidden /> {label}
+        </span>
+      </td>
+      <td className="num">—</td>
+      <td className="num">{minutes != null ? `${minutes} min` : "—"}</td>
+      <td>
+        <span className="score-pill score-pill-neutral">
+          <Smartphone size={12} strokeWidth={2} aria-hidden /> Évaluation IA
+        </span>
+      </td>
+      <td>
+        <span className="status-text status-text-mobile">APP MOBILE</span>
       </td>
       <td className="row-chevron">›</td>
     </tr>
@@ -829,6 +944,7 @@ const styles = `
   }
   .tag-exam { background: rgba(232, 163, 23, 0.18); color: var(--color-amber); }
   .tag-train { background: var(--color-line-2); color: var(--color-ink-2); }
+  .tag-prod { background: var(--color-red-light); color: var(--color-red); }
 
   .module-pill {
     display: inline-block;
@@ -881,6 +997,27 @@ const styles = `
   .status-text-good { color: var(--color-green); }
   .status-text-warn { color: var(--color-red); }
   .status-text-neutral { color: var(--color-muted); }
+  .status-text-mobile { color: var(--color-blue); }
+
+  /* ===== production rows (EO/EE) ===== */
+  .prod-row td { color: var(--color-ink-2); }
+  .prod-row-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--color-red);
+    font-weight: 600;
+    margin-left: 2px;
+  }
+  .prod-row .score-pill-neutral {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-blue);
+  }
 
   /* ===== skeleton ===== */
   .skel-row td { padding: 16px; }

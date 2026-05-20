@@ -106,12 +106,12 @@ function ExamsConnectedHome() {
       if (a.module === "CIVIQUE" && a.passThreshold != null) {
         return (a.score ?? 0) >= a.passThreshold;
       }
-      return (a.score ?? 0) / a.totalQuestions >= 0.6;
+      return (a.score ?? 0) / (a.totalQuestions ?? 1) >= 0.6;
     }).length;
     let bestPct = -1;
     let best: AttemptSummaryResponse | null = null;
     for (const a of finished) {
-      const pct = (a.score ?? 0) / a.totalQuestions;
+      const pct = (a.score ?? 0) / (a.totalQuestions ?? 1);
       if (pct > bestPct) {
         bestPct = pct;
         best = a;

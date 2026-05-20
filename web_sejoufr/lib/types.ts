@@ -16,6 +16,19 @@ export type QuestionType =
   | "CE"
   | "STRUCTURE";
 export type AttemptType = "TRAINING" | "MOCK_EXAM" | "REVIEW";
+/**
+ * Granularite fine d'un attempt. CIVIQUE = examen civique. TCF_CO/CE/STRUCTURE
+ * = QCM TCF. TCF_EO/TCF_EE/TCF_COMPLET = productions evaluees par IA — pas
+ * disponibles cote web pour l'instant (mobile uniquement).
+ */
+export type EpreuveType =
+  | "CIVIQUE"
+  | "TCF_CO"
+  | "TCF_CE"
+  | "TCF_STRUCTURE"
+  | "TCF_EO"
+  | "TCF_EE"
+  | "TCF_COMPLET";
 export type MediaType = "AUDIO" | "IMAGE" | "VIDEO";
 export type Role = "USER" | "ADMIN";
 export type AudioMode = "WRITTEN_QUESTION" | "FULL_AUDIO";
@@ -242,10 +255,15 @@ export interface AttemptSummaryResponse {
   id: string;
   type: AttemptType;
   module: Module;
+  /** Granularite fine. Distingue les attempts QCM (CIVIQUE, TCF_CO/CE/STRUCTURE)
+   *  des productions EO/EE (TCF_EO/TCF_EE/TCF_COMPLET) qui n'ont ni
+   *  totalQuestions ni score. */
+  epreuve?: EpreuveType | null;
   /** Cohérence avec le backend Java : `difficulty` est utilisé indifféremment
    *  pour les niveaux TCF (A2/B1/B2) et les parcours civiques (CSP/CR/NAT). */
   difficulty?: Difficulty | TargetLevel | TargetProcedure | null;
-  totalQuestions: number;
+  /** Null pour les attempts de production EO/EE (pas de QCM). */
+  totalQuestions: number | null;
   passThreshold?: number | null;
   startedAt: string;
   finishedAt?: string | null;
@@ -255,6 +273,15 @@ export interface AttemptSummaryResponse {
   examTemplateId?: string | null;
   examTemplateSlug?: string | null;
   examTemplateName?: string | null;
+}
+
+/** True si l'attempt correspond a une production EO/EE (mobile uniquement). */
+export function isProductionAttempt(a: { epreuve?: EpreuveType | null }): boolean {
+  return (
+    a.epreuve === "TCF_EO" ||
+    a.epreuve === "TCF_EE" ||
+    a.epreuve === "TCF_COMPLET"
+  );
 }
 
 // ============ STATS ============

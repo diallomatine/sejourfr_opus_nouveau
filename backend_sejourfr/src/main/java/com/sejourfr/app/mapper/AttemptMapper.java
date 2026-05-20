@@ -63,6 +63,7 @@ public class AttemptMapper {
                 a.getId(),
                 a.getType(),
                 a.getModule(),
+                a.getEpreuve(),
                 diff,
                 a.getTotalQuestions(),
                 a.getPassThreshold(),

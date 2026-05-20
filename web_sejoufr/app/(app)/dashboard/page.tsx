@@ -2,13 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { Mic, PenLine, Smartphone } from "lucide-react";
+import {
+  type ProductionKind,
+  ProductionMobileSheet,
+} from "@/app/_components/ProductionMobileSheet";
 import { attemptApi, statsApi, userContentApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import type {
-  AttemptSummaryResponse,
-  Module as ModuleEnum,
-  TargetProcedure,
-  UserStatsResponse,
+import {
+  type AttemptSummaryResponse,
+  isProductionAttempt,
+  type Module as ModuleEnum,
+  type TargetProcedure,
+  type UserStatsResponse,
 } from "@/lib/types";
 
 type StatsByModule = Partial<Record<ModuleEnum, UserStatsResponse | null>>;
@@ -23,6 +29,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [examDate, setExamDate] = useState<string | null>(null);
   const [showExamPicker, setShowExamPicker] = useState(false);
+  const [productionSheet, setProductionSheet] = useState<ProductionKind | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -341,7 +348,18 @@ export default function DashboardPage() {
       </section>
 
       {/* ============ RECENT SESSIONS ============ */}
-      <RecentSessions attempts={attempts.slice(0, 5)} />
+      {/* Les productions EO/EE sont affichees avec un layout dedie + CTA app
+          mobile au click (leur runner d'evaluation n'existe pas cote web). */}
+      <RecentSessions
+        attempts={attempts.slice(0, 5)}
+        onOpenProduction={(kind) => setProductionSheet(kind)}
+      />
+
+      <ProductionMobileSheet
+        open={productionSheet !== null}
+        kind={productionSheet}
+        onClose={() => setProductionSheet(null)}
+      />
 
       <style>{styles}</style>
     </main>
@@ -615,7 +633,13 @@ function ThemeMastery({
   );
 }
 
-function RecentSessions({ attempts }: { attempts: AttemptSummaryResponse[] }) {
+function RecentSessions({
+  attempts,
+  onOpenProduction,
+}: {
+  attempts: AttemptSummaryResponse[];
+  onOpenProduction: (kind: ProductionKind) => void;
+}) {
   if (attempts.length === 0) return null;
   return (
     <div className="card">
@@ -643,20 +667,135 @@ function RecentSessions({ attempts }: { attempts: AttemptSummaryResponse[] }) {
             </tr>
           </thead>
           <tbody>
-            {attempts.map((a) => (
-              <RecentRow key={a.id} a={a} />
-            ))}
+            {attempts.map((a) =>
+              isProductionAttempt(a) ? (
+                <RecentProductionRow
+                  key={a.id}
+                  a={a}
+                  onOpen={onOpenProduction}
+                />
+              ) : (
+                <RecentRow key={a.id} a={a} />
+              ),
+            )}
           </tbody>
         </table>
       </div>
 
       {/* Mobile : cards empilées, tactile-friendly */}
       <ul className="recent-list">
-        {attempts.map((a) => (
-          <RecentCardMobile key={a.id} a={a} />
-        ))}
+        {attempts.map((a) =>
+          isProductionAttempt(a) ? (
+            <RecentProductionCardMobile
+              key={a.id}
+              a={a}
+              onOpen={onOpenProduction}
+            />
+          ) : (
+            <RecentCardMobile key={a.id} a={a} />
+          ),
+        )}
       </ul>
     </div>
+  );
+}
+
+function productionKindOf(a: AttemptSummaryResponse): ProductionKind {
+  return a.epreuve === "TCF_EO" ? "EO" : "EE";
+}
+
+function productionLabel(a: AttemptSummaryResponse): string {
+  if (a.epreuve === "TCF_COMPLET") return "Examen blanc EO+EE";
+  if (a.epreuve === "TCF_EO") return "Expression orale";
+  return "Expression écrite";
+}
+
+function RecentProductionRow({
+  a,
+  onOpen,
+}: {
+  a: AttemptSummaryResponse;
+  onOpen: (kind: ProductionKind) => void;
+}) {
+  const isOral = a.epreuve === "TCF_EO";
+  const Icon = isOral ? Mic : PenLine;
+  const minutes =
+    a.finishedAt && a.startedAt
+      ? Math.max(
+          1,
+          Math.round((Date.parse(a.finishedAt) - Date.parse(a.startedAt)) / 60000),
+        )
+      : null;
+
+  return (
+    <tr
+      className="recent-prod-row"
+      onClick={() => onOpen(productionKindOf(a))}
+    >
+      <td>{formatDate(a.startedAt)}</td>
+      <td>
+        <span className="tag tag-prod">PRODUCTION</span>
+      </td>
+      <td>
+        <span className="recent-prod-label">
+          <Icon size={12} strokeWidth={2.2} aria-hidden /> {productionLabel(a)}
+        </span>
+      </td>
+      <td>{minutes != null ? `${minutes} min` : "—"}</td>
+      <td>
+        <span className="score-pill score-pill-mobile">
+          <Smartphone size={12} strokeWidth={2} aria-hidden /> App mobile
+        </span>
+      </td>
+      <td className="recent-chevron">›</td>
+    </tr>
+  );
+}
+
+function RecentProductionCardMobile({
+  a,
+  onOpen,
+}: {
+  a: AttemptSummaryResponse;
+  onOpen: (kind: ProductionKind) => void;
+}) {
+  const isOral = a.epreuve === "TCF_EO";
+  const Icon = isOral ? Mic : PenLine;
+  const minutes =
+    a.finishedAt && a.startedAt
+      ? Math.max(
+          1,
+          Math.round((Date.parse(a.finishedAt) - Date.parse(a.startedAt)) / 60000),
+        )
+      : null;
+  return (
+    <li>
+      <button
+        type="button"
+        className="recent-card recent-card-prod"
+        onClick={() => onOpen(productionKindOf(a))}
+      >
+        <div className="recent-card-row recent-card-top">
+          <span className="tag tag-prod">PRODUCTION</span>
+          <span className="recent-card-date">{formatDate(a.startedAt)}</span>
+        </div>
+        <div className="recent-card-row recent-card-meta">
+          <span className="recent-prod-label">
+            <Icon size={12} strokeWidth={2.2} aria-hidden /> {productionLabel(a)}
+          </span>
+          <span className="recent-card-dot" aria-hidden>·</span>
+          <span className="recent-card-time">
+            {minutes != null ? `${minutes} min` : "en cours"}
+          </span>
+        </div>
+        <div className="recent-card-row recent-card-bottom">
+          <span className="score-pill score-pill-mobile">
+            <Smartphone size={12} strokeWidth={2} aria-hidden /> App mobile
+          </span>
+          <span className="recent-card-chev" aria-hidden>›</span>
+        </div>
+      </button>
+    </li>
   );
 }
 
@@ -991,7 +1130,10 @@ function buildChartData(attempts: AttemptSummaryResponse[]): ChartDatum[] {
 
   return finished.map((a, idx) => {
     const score = a.score ?? 0;
-    const tcfPct = a.module === "TCF" ? Math.round((score / a.totalQuestions) * 100) : null;
+    // Productions EO/EE (totalQuestions=null) sont deja filtrees en amont par
+    // le filter sur score != null ; le `?? 1` evite juste une div-by-zero TS.
+    const total = a.totalQuestions ?? 1;
+    const tcfPct = a.module === "TCF" ? Math.round((score / total) * 100) : null;
     const civique = a.module === "CIVIQUE" ? score : null;
     const d = new Date(a.startedAt);
     const label =
@@ -1618,6 +1760,7 @@ const styles = `
   }
   .tag-exam { background: rgba(232, 163, 23, 0.18); color: var(--color-amber); }
   .tag-train { background: var(--color-line-2); color: var(--color-ink-2); }
+  .tag-prod { background: var(--color-red-light); color: var(--color-red); }
 
   .score-pill {
     display: inline-flex;
@@ -1630,6 +1773,7 @@ const styles = `
   .score-pill-pass { color: var(--color-green); }
   .score-pill-fail { color: var(--color-red); }
   .score-pill-neutral { color: var(--color-muted); font-weight: 600; }
+  .score-pill-mobile { color: var(--color-blue); }
   .score-pill-ico {
     width: 14px; height: 14px;
     border-radius: 50%;
@@ -1639,6 +1783,27 @@ const styles = `
     background: var(--color-green);
   }
   .score-pill-fail .score-pill-ico { background: var(--color-red); }
+
+  /* ===== Production EO/EE rows (recent sessions) ===== */
+  .recent-prod-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--color-red);
+    font-weight: 600;
+  }
+  .recent-prod-row td { color: var(--color-ink-2); }
+  .recent-card-prod {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--color-line);
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+  }
 
   /* ========== RECENT SESSIONS — cards mobile (cachées sur desktop) ========== */
   .recent-list { display: none; }

@@ -3,9 +3,13 @@
 import Link from "next/link";
 import {useRouter, useSearchParams} from "next/navigation";
 import {Suspense, useEffect, useMemo, useState} from "react";
-import {Lock} from "lucide-react";
+import {Lock, Mic, PenLine} from "lucide-react";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import {
+  type ProductionKind,
+  ProductionMobileSheet,
+} from "@/app/_components/ProductionMobileSheet";
 import {TargetPathBanner} from "@/app/_components/TargetPathBanner";
 import {
   ApiException,
@@ -91,6 +95,7 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
     const [startingThemeId, setStartingThemeId] = useState<string | null>(null);
     const [startingExamId, setStartingExamId] = useState<string | null>(null);
     const [paywallModule, setPaywallModule] = useState<ModuleEnum | null>(null);
+    const [productionSheet, setProductionSheet] = useState<ProductionKind | null>(null);
 
     // ========== LOAD ==========
     useEffect(() => {
@@ -390,6 +395,32 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
                 </div>
             )}
 
+            {/* ============ PRODUCTIONS TCF (EO / EE) ============ */}
+            {/* Visible pour tout le monde (guest + connecté) quand filter = TCF.
+                Click ouvre un modal qui détaille la tâche + pousse vers l'app
+                mobile (EO/EE pas encore disponible côté web). */}
+            {filter === "TCF" && (
+                <section className="prod-section">
+                    <div className="prod-section-head">
+                        <h2>Expression TCF</h2>
+                        <p>
+                            Productions notées par IA : 3 tâches pour l&apos;oral, 3
+                            pour l&apos;écrit. Évaluation détaillée en ~15 secondes.
+                        </p>
+                    </div>
+                    <div className="prod-grid">
+                        <ProductionCard
+                            kind="EO"
+                            onClick={() => setProductionSheet("EO")}
+                        />
+                        <ProductionCard
+                            kind="EE"
+                            onClick={() => setProductionSheet("EE")}
+                        />
+                    </div>
+                </section>
+            )}
+
             {/* ============ EXAMENS BLANCS ============ */}
             {/* Section masquée pour les connectés : ils ont déjà /examens-blancs
                 dans la sidebar — éviter la redondance. */}
@@ -451,6 +482,12 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
                     <Link href="/inscription">créez votre compte gratuit</Link>.
                 </div>
             )}
+
+            <ProductionMobileSheet
+                open={productionSheet !== null}
+                kind={productionSheet}
+                onClose={() => setProductionSheet(null)}
+            />
 
             <PaywallSheet
                 open={paywallModule !== null}
@@ -681,6 +718,39 @@ function ThemeTile({
                 <span className="theme-card-start">
           {starting ? "…" : locked ? "Débloquer →" : "Démarrer →"}
         </span>
+            </div>
+        </button>
+    );
+}
+
+function ProductionCard({
+                            kind,
+                            onClick,
+                        }: {
+    kind: ProductionKind;
+    onClick: () => void;
+}) {
+    const isOral = kind === "EO";
+    const title = isOral ? "Expression orale" : "Expression écrite";
+    const tag = isOral ? "TCF · EO" : "TCF · EE";
+    const desc = isOral
+        ? "Parlez ~12 min sur 3 tâches enchaînées · note /20 + CECRL en 15 s."
+        : "Rédigez 3 productions courtes (~60 min) · feedback IA par critères.";
+    const Icon = isOral ? Mic : PenLine;
+
+    return (
+        <button type="button" className="prod-card" onClick={onClick}>
+            <div className="prod-card-head">
+        <span className="theme-tag tag-tcf">{tag}</span>
+                <span className="prod-card-icon" aria-hidden>
+          <Icon size={18} strokeWidth={2}/>
+        </span>
+            </div>
+            <h4 className="prod-card-title">{title}</h4>
+            <p className="prod-card-desc">{desc}</p>
+            <div className="prod-card-foot">
+                <span className="prod-card-pill">APP MOBILE</span>
+                <span className="prod-card-cta">En savoir plus →</span>
             </div>
         </button>
     );
@@ -1288,6 +1358,107 @@ const styles = `
     line-height: 1.45;
   }
 
+  /* ========== PRODUCTIONS TCF (EO/EE) ========== */
+  .prod-section {
+    margin-top: 32px;
+    padding-top: 28px;
+    border-top: 1px solid var(--color-line-2);
+  }
+  .prod-section-head { margin-bottom: 18px; }
+  .prod-section-head h2 {
+    font-family: var(--font-display);
+    font-size: clamp(20px, 2.4vw, 24px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0 0 6px;
+    color: var(--color-ink);
+  }
+  .prod-section-head p {
+    color: var(--color-muted);
+    font-size: 13.5px;
+    line-height: 1.55;
+    margin: 0;
+    max-width: 640px;
+  }
+  .prod-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .prod-card {
+    background:
+      radial-gradient(at 100% 0%, rgba(225, 55, 47, 0.06) 0px, transparent 50%),
+      #fff;
+    border: 1.5px solid var(--color-line);
+    border-radius: 16px;
+    padding: 18px;
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    min-height: 170px;
+  }
+  .prod-card:hover {
+    border-color: var(--color-red);
+    transform: translateY(-3px);
+    box-shadow: 0 14px 30px -16px rgba(15, 24, 57, 0.18);
+  }
+  .prod-card-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px;
+    gap: 10px;
+  }
+  .prod-card-icon {
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    background: var(--color-red-light);
+    color: var(--color-red);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .prod-card-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    margin: 0 0 6px;
+    color: var(--color-ink);
+  }
+  .prod-card-desc {
+    color: var(--color-muted);
+    font-size: 13px;
+    line-height: 1.45;
+    margin: 0 0 14px;
+    flex: 1;
+  }
+  .prod-card-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .prod-card-pill {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.14em;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-weight: 700;
+    background: var(--color-blue-soft);
+    color: var(--color-blue);
+  }
+  .prod-card-cta {
+    color: var(--color-red);
+    font-weight: 700;
+    font-size: 12px;
+  }
+  .prod-card:hover .prod-card-cta { text-decoration: underline; }
+
   /* ========== FOOT ========== */
   .train-foot {
     margin-top: 36px;
@@ -1310,6 +1481,7 @@ const styles = `
   @media (max-width: 680px) {
     .theme-grid { grid-template-columns: 1fr; }
     .exams-grid { grid-template-columns: 1fr; }
+    .prod-grid { grid-template-columns: 1fr; }
     .search-wrap { margin-left: 0; width: 100%; }
     .search-wrap input { width: 100%; }
   }
