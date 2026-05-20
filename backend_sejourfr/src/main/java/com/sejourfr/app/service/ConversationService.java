@@ -9,76 +9,69 @@ import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.MessageSender;
 import com.sejourfr.app.enums.MessageStatus;
 import com.sejourfr.app.exception.NotFoundException;
+import com.sejourfr.app.manager.ConversationManager;
+import com.sejourfr.app.manager.MessageManager;
+import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.mapper.MessageMapper;
-import com.sejourfr.app.repository.ConversationRepository;
-import com.sejourfr.app.repository.MessageRepository;
-import com.sejourfr.app.repository.UserRepository;
 import com.sejourfr.app.specification.ConversationSpecifications;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Boite de reception admin : recherche / detail / reponse / statut / suppression
+ * sur les conversations utilisateur.
+ */
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class ConversationService {
 
     private static final int PREVIEW_MAX = 140;
 
-    private final ConversationRepository conversationRepository;
-    private final MessageRepository messageRepository;
-    private final UserRepository userRepository;
+    private final ConversationManager conversationManager;
+    private final MessageManager messageManager;
+    private final UserManager userManager;
     private final MessageMapper mapper;
 
-    public ConversationService(ConversationRepository conversationRepository,
-                               MessageRepository messageRepository,
-                               UserRepository userRepository,
-                               MessageMapper mapper) {
-        this.conversationRepository = conversationRepository;
-        this.messageRepository = messageRepository;
-        this.userRepository = userRepository;
-        this.mapper = mapper;
-    }
-
     @Transactional(readOnly = true)
-    public Page<ConversationSummaryDto> search(MessageStatus status, Boolean unreadOnly,
-                                               UUID userId, String search, Pageable pageable) {
+    public Page<ConversationSummaryDto> search(
+            MessageStatus status, Boolean unreadOnly, UUID userId, String search, Pageable pageable) {
         Specification<Conversation> spec = Specification.allOf(
                 ConversationSpecifications.hasStatus(status),
                 ConversationSpecifications.unreadOnly(unreadOnly),
                 ConversationSpecifications.hasUser(userId),
                 ConversationSpecifications.subjectContains(search)
         );
-        return conversationRepository.findAll(spec, pageable).map(this::toSummary);
+        return conversationManager.search(spec, pageable).map(this::toSummary);
     }
 
     @Transactional(readOnly = true)
     public ConversationDetailDto getDetail(UUID id) {
-        Conversation c = conversationRepository.findById(id)
-                .orElseThrow(() -> NotFoundException.of("Conversation", id));
-        List<Message> messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(id);
+        Conversation c = loadOrThrow(id);
+        List<Message> messages = messageManager.findByConversationOrdered(id);
         return mapper.toDetail(c, messages);
     }
 
     public ConversationDetailDto markRead(UUID id) {
-        Conversation c = conversationRepository.findById(id)
-                .orElseThrow(() -> NotFoundException.of("Conversation", id));
+        Conversation c = loadOrThrow(id);
         c.setUnreadForAdmin(false);
         if (c.getStatus() == MessageStatus.NOUVEAU) {
             c.setStatus(MessageStatus.LU);
         }
-        List<Message> messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(id);
-        return mapper.toDetail(c, messages);
+        return mapper.toDetail(c, messageManager.findByConversationOrdered(id));
     }
 
     public MessageDto reply(UUID conversationId, String adminEmail, String body) {
-        Conversation c = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> NotFoundException.of("Conversation", conversationId));
-        User admin = userRepository.findByEmail(adminEmail)
+        Conversation c = loadOrThrow(conversationId);
+        User admin = userManager.findByEmail(adminEmail)
                 .orElseThrow(() -> NotFoundException.of("User", adminEmail));
 
         Message m = new Message();
@@ -86,7 +79,7 @@ public class ConversationService {
         m.setSenderType(MessageSender.ADMIN);
         m.setAuthor(admin);
         m.setBody(body);
-        Message saved = messageRepository.save(m);
+        Message saved = messageManager.save(m);
 
         c.setLastMessageAt(saved.getCreatedAt() != null ? saved.getCreatedAt() : Instant.now());
         c.setUnreadForAdmin(false);
@@ -97,28 +90,33 @@ public class ConversationService {
     }
 
     public ConversationDetailDto updateStatus(UUID id, MessageStatus newStatus) {
-        Conversation c = conversationRepository.findById(id)
-                .orElseThrow(() -> NotFoundException.of("Conversation", id));
+        Conversation c = loadOrThrow(id);
         c.setStatus(newStatus);
         if (newStatus != MessageStatus.NOUVEAU) {
             c.setUnreadForAdmin(false);
         }
-        List<Message> messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(id);
-        return mapper.toDetail(c, messages);
+        return mapper.toDetail(c, messageManager.findByConversationOrdered(id));
     }
 
     public void delete(UUID id) {
-        Conversation c = conversationRepository.findById(id)
-                .orElseThrow(() -> NotFoundException.of("Conversation", id));
-        conversationRepository.delete(c);
+        conversationManager.delete(loadOrThrow(id));
     }
 
     public long countUnread() {
-        return conversationRepository.countByUnreadForAdminTrue();
+        return conversationManager.countUnreadForAdmin();
+    }
+
+    // ------------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------------
+
+    private Conversation loadOrThrow(UUID id) {
+        return conversationManager.findById(id)
+                .orElseThrow(() -> NotFoundException.of("Conversation", id));
     }
 
     private ConversationSummaryDto toSummary(Conversation c) {
-        List<Message> messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(c.getId());
+        List<Message> messages = messageManager.findByConversationOrdered(c.getId());
         String preview = "";
         if (!messages.isEmpty()) {
             String body = messages.get(messages.size() - 1).getBody();

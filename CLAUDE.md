@@ -180,12 +180,21 @@ Quota gratuit : 2 submissions à vie par épreuve (EO + EE) via `SubscriptionSer
 ## Architecture mentale par projet
 
 **Tous les fronts suivent l'organisation par feature** (miroir du backend Java) :
-- Backend Java : `entity/`, `repository/`, `service/`, `controller/`, `dto/`, `mapper/`, `specification/`, `security/`, `config/`, `exception/`, `enums/`
+- Backend Java : `entity/`, `repository/`, `manager/`, `service/`, `controller/`, `dto/`, `mapper/`, `specification/`, `security/`, `config/`, `exception/`, `enums/` (+ sous-module historique `audioquestion/` à part)
 - Admin React : `features/{questions,themes,conversations,dashboard}/` + `api/`, `auth/`, `components/ui/`, `routes/`, `types/`
 - Web Next : `app/{inscription,connexion,examen-blanc,paiement}/` + `app/_components/` + `lib/{api,types}.ts`
 - Mobile Flutter : `screens/{auth,home,training,exam,question_runner,review,profile,…}/` + `core/{api,auth,models,router,theme,utils,widgets}/`
 
 Le **runner de questions** (mobile `screens/question_runner/` et web `examen-blanc/page.tsx`) est le composant le plus complexe — relire son CLAUDE.md local avant de toucher.
+
+### Convention backend Java : Controller → Service → Manager → Repository (strict)
+
+- **Controllers** : ultra-fins, délèguent tout au service. Pas de logique, pas de mapping inline, pas d'accès repo. `@RequiredArgsConstructor` Lombok.
+- **Services** : orchestrent un cas d'usage (validations, règles métier, transactions, mapping DTO). N'accèdent JAMAIS un `*Repository` directement — passent par les managers. Un service peut appeler plusieurs managers (y compris d'autres agrégats) et d'autres services.
+- **Managers** (`manager/`) : seule couche autorisée à appeler les `*Repository`. Wrappent JPA et exposent une API métier (ex: `findActiveById`, `countByPassage`). Un manager par agrégat, même pour du CRUD trivial — règle uniforme. Convention `int limit` au lieu de `Pageable` quand c'est suffisant ; `Specification + Pageable` quand la recherche est dynamique.
+- **Mappers** : `@Component`, purs. Reçoivent l'entité + éventuels compléments (ex: `count`) en paramètres, retournent un DTO. Ne touchent ni repo ni manager. Si un mapping a besoin d'une lookup, le service la fait avant.
+- **Lombok** : `@RequiredArgsConstructor` sur tous les controllers/services/managers/mappers. `@Slf4j` au lieu du `LoggerFactory.getLogger(...)`. Sur les entités JPA : `@Getter/@Setter` OK, **jamais `@Data`** ni `@EqualsAndHashCode` automatique (toString/equals + lazy loading = bugs).
+- **Exception** : `audioquestion/` est un sous-module isolé qui n'a pas été migré (mini-module historique, refacto reportée). Ses services peuvent encore appeler `MediaRepository` direct.
 
 ## Préférences de collaboration (durables)
 

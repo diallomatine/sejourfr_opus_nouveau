@@ -12,14 +12,13 @@ import com.sejourfr.app.exception.AiEvaluationException;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.exception.ProductionEvaluationException;
-import com.sejourfr.app.repository.AiEvaluationRepository;
-import com.sejourfr.app.repository.AttemptRepository;
-import com.sejourfr.app.repository.ProductionSubmissionRepository;
-import com.sejourfr.app.repository.ProductionTaskRepository;
-import com.sejourfr.app.repository.TranscriptionRepository;
-import com.sejourfr.app.repository.UserRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.ProductionSubmissionManager;
+import com.sejourfr.app.manager.ProductionTaskManager;
+import com.sejourfr.app.manager.TranscriptionManager;
+import com.sejourfr.app.manager.UserManager;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -42,43 +41,19 @@ import java.util.UUID;
  * marquee {@code FAILED}.
  */
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class ProductionEvaluationService {
 
-    private static final Logger log = LoggerFactory.getLogger(ProductionEvaluationService.class);
-
-    private final ProductionTaskRepository taskRepository;
-    private final ProductionSubmissionRepository submissionRepository;
-    private final TranscriptionRepository transcriptionRepository;
-    private final AiEvaluationRepository aiEvaluationRepository;
-    private final AttemptRepository attemptRepository;
-    private final UserRepository userRepository;
+    private final ProductionTaskManager taskManager;
+    private final ProductionSubmissionManager submissionManager;
+    private final TranscriptionManager transcriptionManager;
+    private final AttemptManager attemptManager;
+    private final UserManager userManager;
     private final ProductionAudioStorageService audioStorage;
     private final WhisperTranscriptionService whisperService;
     private final AiEvaluationService aiEvaluationService;
     private final ProductionEvaluationProperties props;
-
-    public ProductionEvaluationService(
-            ProductionTaskRepository taskRepository,
-            ProductionSubmissionRepository submissionRepository,
-            TranscriptionRepository transcriptionRepository,
-            AiEvaluationRepository aiEvaluationRepository,
-            AttemptRepository attemptRepository,
-            UserRepository userRepository,
-            ProductionAudioStorageService audioStorage,
-            WhisperTranscriptionService whisperService,
-            AiEvaluationService aiEvaluationService,
-            ProductionEvaluationProperties props) {
-        this.taskRepository = taskRepository;
-        this.submissionRepository = submissionRepository;
-        this.transcriptionRepository = transcriptionRepository;
-        this.aiEvaluationRepository = aiEvaluationRepository;
-        this.attemptRepository = attemptRepository;
-        this.userRepository = userRepository;
-        this.audioStorage = audioStorage;
-        this.whisperService = whisperService;
-        this.aiEvaluationService = aiEvaluationService;
-        this.props = props;
-    }
 
     /**
      * Soumet une production EO (audio) ou EE (texte). Exactement un des deux
@@ -93,11 +68,11 @@ public class ProductionEvaluationService {
             UUID userId, UUID taskId, UUID attemptId,
             MultipartFile audio, String texte) {
 
-        User user = userRepository.findById(userId)
+        User user = userManager.findById(userId)
             .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
-        ProductionTask task = taskRepository.findById(taskId)
+        ProductionTask task = taskManager.findById(taskId)
             .orElseThrow(() -> new NotFoundException("ProductionTask introuvable : " + taskId));
-        Attempt attempt = attemptRepository.findById(attemptId)
+        Attempt attempt = attemptManager.findById(attemptId)
             .orElseThrow(() -> new NotFoundException("Attempt introuvable : " + attemptId));
 
         if (!task.isActive()) {
@@ -105,18 +80,7 @@ public class ProductionEvaluationService {
         }
 
         boolean estOral = task.getEpreuve() == EpreuveType.TCF_EO;
-        if (estOral && (audio == null || audio.isEmpty())) {
-            throw new BusinessException("Tache TCF_EO : fichier audio requis.");
-        }
-        if (!estOral && (texte == null || texte.isBlank())) {
-            throw new BusinessException("Tache TCF_EE : texte requis.");
-        }
-        if (estOral && texte != null && !texte.isBlank()) {
-            throw new BusinessException("Tache TCF_EO : ne pas envoyer un texte en plus de l'audio.");
-        }
-        if (!estOral && audio != null && !audio.isEmpty()) {
-            throw new BusinessException("Tache TCF_EE : ne pas envoyer un audio en plus du texte.");
-        }
+        validatePayload(estOral, audio, texte);
 
         ProductionSubmission submission = new ProductionSubmission();
         submission.setUser(user);
@@ -139,14 +103,14 @@ public class ProductionEvaluationService {
             );
             submission.setMediaUrl(stored.objectKey());
             submission.setMediaDurationSec(null); // sera mis a jour apres Whisper
-            submission = submissionRepository.save(submission);
+            submission = submissionManager.save(submission);
         } else {
             String clean = sanitize(texte);
             int mots = compteMots(clean);
             validateTextWordCount(mots, task);
             submission.setTexteSoumis(clean);
             submission.setMotsCount(mots);
-            submission = submissionRepository.save(submission);
+            submission = submissionManager.save(submission);
         }
 
         try {
@@ -162,7 +126,7 @@ public class ProductionEvaluationService {
      * l'appartenance utilisateur et le plafond de retries.
      */
     public ProductionSubmission retry(UUID submissionId, UUID userId) {
-        ProductionSubmission sub = submissionRepository.findById(submissionId)
+        ProductionSubmission sub = submissionManager.findById(submissionId)
             .orElseThrow(() -> new NotFoundException("Submission introuvable : " + submissionId));
         if (sub.getUser() == null || !sub.getUser().getId().equals(userId)) {
             throw new BusinessException("Cette submission ne vous appartient pas.");
@@ -180,7 +144,7 @@ public class ProductionEvaluationService {
         sub.setRetryCount((short) (sub.getRetryCount() + 1));
         sub.setErreurMessage(null);
         sub.setStatut(SubmissionStatut.SUBMITTED);
-        submissionRepository.save(sub);
+        submissionManager.save(sub);
 
         boolean estOral = sub.getProductionTask().getEpreuve() == EpreuveType.TCF_EO;
         try {
@@ -193,23 +157,25 @@ public class ProductionEvaluationService {
 
     /**
      * Reprend le pipeline depuis le bon point :
-     * - EO sans transcription -> Whisper puis Claude.
-     * - EO avec transcription -> Claude direct (economie de cout au retry).
-     * - EE -> Claude direct.
+     * <ul>
+     *   <li>EO sans transcription -> Whisper puis Claude.</li>
+     *   <li>EO avec transcription -> Claude direct (economie de cout au retry).</li>
+     *   <li>EE -> Claude direct.</li>
+     * </ul>
      */
     private void runPipeline(ProductionSubmission submission, boolean estOral) {
         if (estOral) {
-            boolean hasTranscription = transcriptionRepository
-                .findFirstBySubmissionIdOrderByCreatedAtDesc(submission.getId()).isPresent();
+            boolean hasTranscription = transcriptionManager
+                .findLatestBySubmissionId(submission.getId()).isPresent();
             if (!hasTranscription) {
                 whisperService.transcribe(submission.getId());
             } else {
                 submission.setStatut(SubmissionStatut.EVALUATING);
-                submissionRepository.save(submission);
+                submissionManager.save(submission);
             }
         } else {
             submission.setStatut(SubmissionStatut.EVALUATING);
-            submissionRepository.save(submission);
+            submissionManager.save(submission);
         }
         AiEvaluation eval = aiEvaluationService.evaluate(submission.getId());
         if (eval == null) {
@@ -221,7 +187,22 @@ public class ProductionEvaluationService {
         log.warn("Submission {} en FAILED : {}", submission.getId(), e.getMessage());
         submission.setStatut(SubmissionStatut.FAILED);
         submission.setErreurMessage(truncate(e.getMessage(), 1000));
-        submissionRepository.save(submission);
+        submissionManager.save(submission);
+    }
+
+    private void validatePayload(boolean estOral, MultipartFile audio, String texte) {
+        if (estOral && (audio == null || audio.isEmpty())) {
+            throw new BusinessException("Tache TCF_EO : fichier audio requis.");
+        }
+        if (!estOral && (texte == null || texte.isBlank())) {
+            throw new BusinessException("Tache TCF_EE : texte requis.");
+        }
+        if (estOral && texte != null && !texte.isBlank()) {
+            throw new BusinessException("Tache TCF_EO : ne pas envoyer un texte en plus de l'audio.");
+        }
+        if (!estOral && audio != null && !audio.isEmpty()) {
+            throw new BusinessException("Tache TCF_EE : ne pas envoyer un audio en plus du texte.");
+        }
     }
 
     private byte[] readBytes(MultipartFile audio) {

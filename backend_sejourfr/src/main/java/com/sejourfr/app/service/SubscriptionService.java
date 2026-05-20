@@ -4,7 +4,8 @@ import com.sejourfr.app.entity.Plan;
 import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.SubscriptionStatus;
-import com.sejourfr.app.repository.UserSubscriptionRepository;
+import com.sejourfr.app.manager.UserSubscriptionManager;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,12 +16,13 @@ import java.util.UUID;
  * Toutes les methodes publiques lisent des relations lazy (Plan via
  * UserSubscription). Avec {@code open-in-view: false}, il faut une session
  * Hibernate ouverte pendant l'execution. On annote au niveau classe pour que
- * chaque entry point ouvre sa propre transaction read-only -- l'annotation sur
+ * chaque entry point ouvre sa propre transaction read-only — l'annotation sur
  * une seule methode interne (currentAccess) etait court-circuitee par Spring
  * AOP qui n'intercepte pas les appels intra-bean.
  */
 @Service
 @Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class SubscriptionService {
 
     // Code en base du plan gratuit (cf. 10_reference/V100__seed_reference.sql). Toute
@@ -28,53 +30,47 @@ public class SubscriptionService {
     // même si son statut est ACTIVE.
     private static final String FREE_PLAN_CODE = "FREE";
 
-    private final UserSubscriptionRepository userSubscriptionRepository;
-
-    public SubscriptionService(UserSubscriptionRepository userSubscriptionRepository) {
-        this.userSubscriptionRepository = userSubscriptionRepository;
-    }
+    private final UserSubscriptionManager userSubscriptionManager;
 
     /**
      * Renvoie true si l'utilisateur a au moins un abonnement payant ACTIVE
-     * non expiré, quel que soit le module. Conservé pour compat : équivaut à
+     * non expire, quel que soit le module. Conserve pour compat : equivaut a
      * hasCivique(userId) || hasTcf(userId).
      */
     public boolean isPremium(UUID userId) {
         return effectiveModuleAccess(userId) != ModuleAccess.NONE;
     }
 
-    /** Accès au module Civique (CIVIQUE_3MOIS ou INTEGRAL_3MOIS actif). */
+    /** Acces au module Civique (CIVIQUE_3MOIS ou INTEGRAL_3MOIS actif). */
     public boolean hasCivique(UUID userId) {
         return effectiveModuleAccess(userId).hasCivique();
     }
 
-    /** Accès au module TCF (INTEGRAL_3MOIS actif uniquement). */
+    /** Acces au module TCF (INTEGRAL_3MOIS actif uniquement). */
     public boolean hasTcf(UUID userId) {
         return effectiveModuleAccess(userId).hasTcf();
     }
 
     /**
-     * Calcule le niveau d'accès effectif d'un utilisateur : on prend le plus
-     * permissif parmi les souscriptions ACTIVE non expirées. INTEGRAL gagne
-     * sur CIVIQUE.
+     * Calcule le niveau d'acces effectif : on prend le plus permissif parmi
+     * les souscriptions ACTIVE non expirees. INTEGRAL gagne sur CIVIQUE.
      */
     public ModuleAccess effectiveModuleAccess(UUID userId) {
         return currentAccess(userId).module();
     }
 
     /**
-     * Renvoie l'accès courant : (module le plus permissif, date de fin la
+     * Renvoie l'acces courant : (module le plus permissif, date de fin la
      * plus tardive parmi les souscriptions actives le couvrant). endsAt est
-     * null si l'utilisateur n'a aucun accès payant.
+     * null si l'utilisateur n'a aucun acces payant.
      */
     public CurrentAccess currentAccess(UUID userId) {
         Instant now = Instant.now();
         ModuleAccess best = ModuleAccess.NONE;
         Instant latestEnd = null;
-        for (UserSubscription s : userSubscriptionRepository.findByUserId(userId)) {
-            if (!isCovering(s, now)) {
-                continue;
-            }
+        for (UserSubscription s : userSubscriptionManager.findByUserId(userId)) {
+            if (!isCovering(s, now)) continue;
+
             ModuleAccess access = s.getPlan().getModuleAccess();
             // INTEGRAL gagne toujours, CIVIQUE remplace NONE.
             if (access == ModuleAccess.INTEGRAL

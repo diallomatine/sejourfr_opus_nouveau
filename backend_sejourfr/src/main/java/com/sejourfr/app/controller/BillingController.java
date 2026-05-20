@@ -5,27 +5,31 @@ import com.sejourfr.app.dto.PlanPublicResponse;
 import com.sejourfr.app.enums.BillingPlan;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.BillingService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/billing")
+@RequiredArgsConstructor
 public class BillingController {
 
     private final BillingService billingService;
     private final CurrentUser currentUser;
 
-    public BillingController(BillingService billingService, CurrentUser currentUser) {
-        this.billingService = billingService;
-        this.currentUser = currentUser;
-    }
-
     /**
      * Liste publique des plans actifs : prix, prix original (offre de lancement),
-     * durée, module débloqué. Consommé par la section Tarifs de la landing.
-     * Pas d'auth requise — donc à whitelister dans SecurityConfig.
+     * duree, module debloque. Consomme par la section Tarifs de la landing.
+     * Pas d'auth requise — donc a whitelister dans SecurityConfig.
      */
     @GetMapping("/plans")
     public List<PlanPublicResponse> listPlans() {
@@ -33,10 +37,9 @@ public class BillingController {
     }
 
     /**
-     * Renvoie l'URL du Stripe Payment Link correspondant au plan demandé,
-     * enrichie d'un client_reference_id (= user_id) pour retrouver
-     * l'utilisateur lors du webhook checkout.session.completed.
-     * Le front redirige ensuite directement vers cette URL.
+     * Renvoie l'URL du paiement Stripe (Checkout Session ou Payment Link selon
+     * config) pour le plan demande, enrichie d'un client_reference_id (= user_id)
+     * pour retrouver l'utilisateur lors du webhook checkout.session.completed.
      */
     @GetMapping("/payment-link")
     public BillingCheckoutResponse getPaymentLink(@RequestParam("plan") BillingPlan plan) {
@@ -44,15 +47,14 @@ public class BillingController {
     }
 
     /**
-     * Endpoint signé par Stripe (vérification HMAC via Stripe-Signature).
-     * Pas d'auth utilisateur : Stripe est l'appelant, identifié par signature.
+     * Endpoint signe par Stripe (verification HMAC via Stripe-Signature).
+     * Pas d'auth utilisateur : Stripe est l'appelant, identifie par signature.
      */
     @PostMapping("/webhook")
-    public ResponseEntity<Void> handleWebhook(
+    @ResponseStatus(HttpStatus.OK)
+    public void handleWebhook(
             @RequestBody String payload,
-            @RequestHeader("Stripe-Signature") String signature
-    ) {
+            @RequestHeader("Stripe-Signature") String signature) {
         billingService.handleWebhook(payload, signature);
-        return ResponseEntity.ok().build();
     }
 }

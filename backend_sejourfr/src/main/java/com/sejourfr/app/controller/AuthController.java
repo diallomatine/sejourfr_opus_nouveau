@@ -7,33 +7,25 @@ import com.sejourfr.app.dto.RefreshRequest;
 import com.sejourfr.app.dto.RegisterRequest;
 import com.sejourfr.app.dto.ResetPasswordRequest;
 import com.sejourfr.app.dto.TokenResponse;
-import com.sejourfr.app.entity.User;
 import com.sejourfr.app.service.AuthService;
-import com.sejourfr.app.service.PasswordResetService;
-import com.sejourfr.app.service.UserRegistrationService;
 import jakarta.validation.Valid;
-import org.springframework.http.ResponseEntity;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
+@RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
-    private final UserRegistrationService registrationService;
-    private final PasswordResetService passwordResetService;
-
-    public AuthController(
-            AuthService authService,
-            UserRegistrationService registrationService,
-            PasswordResetService passwordResetService
-    ) {
-        this.authService = authService;
-        this.registrationService = registrationService;
-        this.passwordResetService = passwordResetService;
-    }
 
     @PostMapping("/login")
     public TokenResponse login(@Valid @RequestBody LoginRequest req) {
@@ -50,24 +42,21 @@ public class AuthController {
         return authService.me(principal.getUsername());
     }
 
-    /**
-     * Crée un compte USER et délègue ensuite à login() pour récupérer les tokens.
-     */
+    /** Cree un compte USER + retourne directement les tokens (auto-login). */
     @PostMapping("/register")
     public TokenResponse register(@Valid @RequestBody RegisterRequest req) {
-        User user = registrationService.register(req);
-        return authService.login(new LoginRequest(user.getEmail(), req.password()));
+        return authService.register(req);
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) {
-        passwordResetService.requestReset(req.email());
-        return ResponseEntity.ok().build();
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) {
+        authService.requestPasswordReset(req.email());
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
-        passwordResetService.resetPassword(req.token(), req.newPassword());
-        return ResponseEntity.ok().build();
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
+        authService.resetPassword(req.token(), req.newPassword());
     }
 }

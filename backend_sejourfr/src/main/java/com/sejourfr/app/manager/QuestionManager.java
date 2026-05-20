@@ -1,0 +1,127 @@
+package com.sejourfr.app.manager;
+
+import com.sejourfr.app.entity.Question;
+import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.repository.QuestionRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Component;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Couche d'acces aux donnees pour {@link Question}.
+ * N'expose que les operations utilisees par les services deja migres
+ * (tirage runner / examen blanc).
+ */
+@Component
+@RequiredArgsConstructor
+public class QuestionManager {
+
+    private final QuestionRepository repository;
+
+    public Optional<Question> findById(UUID id) {
+        return repository.findById(id);
+    }
+
+    public List<Question> findAllById(Collection<UUID> ids) {
+        return repository.findAllById(ids);
+    }
+
+    public long countActiveByTheme(UUID themeId) {
+        return repository.countByThemeIdAndActiveTrue(themeId);
+    }
+
+    /** Compteur total (inclut les questions inactives) — vue admin. */
+    public long countByTheme(UUID themeId) {
+        return repository.countByThemeId(themeId);
+    }
+
+    public long countByPassage(UUID passageId) {
+        return repository.countByPassageId(passageId);
+    }
+
+    public long countByModule(Module module) {
+        return repository.countByModule(module);
+    }
+
+    public long countByModuleAndActive(Module module, boolean active) {
+        return repository.countByModuleAndActive(module, active);
+    }
+
+    /**
+     * Compte des questions actives matchant un (module, theme?, difficulty?).
+     * Utilise par le suggesteur de composition d'examen blanc.
+     */
+    public long countActiveMatching(Module module, UUID themeId, Difficulty difficulty) {
+        return repository.countActiveMatching(module, themeId, difficulty);
+    }
+
+    /** Pool demo fixe (ordre stable, meme serie a chaque rejouage). */
+    public List<Question> findDemoPool(Module module, int size) {
+        return repository.findDemoPool(module, PageRequest.of(0, size));
+    }
+
+    /** Tirage aleatoire (entrainement / examen blanc premium). */
+    public List<Question> findRandom(
+            Module module,
+            UUID themeId,
+            Difficulty difficulty,
+            QuestionType questionType,
+            int size) {
+        return repository.findRandom(module, themeId, difficulty, questionType, PageRequest.of(0, size));
+    }
+
+    /** Tirage aleatoire en excluant des ids deja tires (composition examen blanc). */
+    public List<Question> findRandomExcluding(
+            Module module,
+            UUID themeId,
+            Difficulty difficulty,
+            QuestionType questionType,
+            Collection<UUID> excludeIds,
+            int size) {
+        return repository.findRandomExcluding(
+                module, themeId, difficulty, questionType, excludeIds, PageRequest.of(0, size));
+    }
+
+    /** Tirage ordonne (deterministe) en excluant des ids deja tires (demo template). */
+    public List<Question> findOrderedExcluding(
+            Module module,
+            UUID themeId,
+            Difficulty difficulty,
+            QuestionType questionType,
+            Collection<UUID> excludeIds,
+            int size) {
+        return repository.findOrderedExcluding(
+                module, themeId, difficulty, questionType, excludeIds, PageRequest.of(0, size));
+    }
+
+    // ------------------------------------------------------------------------
+    // CRUD admin
+    // ------------------------------------------------------------------------
+
+    /** Recherche paginee avec specifications dynamiques (filtres admin). */
+    public Page<Question> search(Specification<Question> spec, Pageable pageable) {
+        return repository.findAll(spec, pageable);
+    }
+
+    public Question save(Question question) {
+        return repository.save(question);
+    }
+
+    public boolean existsById(UUID id) {
+        return repository.existsById(id);
+    }
+
+    public void deleteById(UUID id) {
+        repository.deleteById(id);
+    }
+}

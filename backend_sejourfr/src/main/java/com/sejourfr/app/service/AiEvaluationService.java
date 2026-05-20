@@ -10,11 +10,11 @@ import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.exception.AiEvaluationException;
 import com.sejourfr.app.exception.NotFoundException;
-import com.sejourfr.app.repository.AiEvaluationRepository;
-import com.sejourfr.app.repository.ProductionSubmissionRepository;
-import com.sejourfr.app.repository.TranscriptionRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.sejourfr.app.manager.AiEvaluationManager;
+import com.sejourfr.app.manager.ProductionSubmissionManager;
+import com.sejourfr.app.manager.TranscriptionManager;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,36 +30,23 @@ import java.util.UUID;
  * {@link AiEvaluation} et passe la submission a EVALUATED.
  */
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class AiEvaluationService {
 
-    private static final Logger log = LoggerFactory.getLogger(AiEvaluationService.class);
+    private static final BigDecimal NOTE_MAX = new BigDecimal("20");
 
-    private final ProductionSubmissionRepository submissionRepository;
-    private final TranscriptionRepository transcriptionRepository;
-    private final AiEvaluationRepository aiEvaluationRepository;
+    private final ProductionSubmissionManager submissionManager;
+    private final TranscriptionManager transcriptionManager;
+    private final AiEvaluationManager aiEvaluationManager;
     private final EvaluationLlmClient llmClient;
     private final EvaluationPromptBuilder promptBuilder;
     @SuppressWarnings("unused")
     private final ProductionEvaluationProperties props;
 
-    public AiEvaluationService(
-            ProductionSubmissionRepository submissionRepository,
-            TranscriptionRepository transcriptionRepository,
-            AiEvaluationRepository aiEvaluationRepository,
-            EvaluationLlmClient llmClient,
-            EvaluationPromptBuilder promptBuilder,
-            ProductionEvaluationProperties props) {
-        this.submissionRepository = submissionRepository;
-        this.transcriptionRepository = transcriptionRepository;
-        this.aiEvaluationRepository = aiEvaluationRepository;
-        this.llmClient = llmClient;
-        this.promptBuilder = promptBuilder;
-        this.props = props;
-    }
-
     @Transactional
     public AiEvaluation evaluate(UUID submissionId) {
-        ProductionSubmission sub = submissionRepository.findById(submissionId)
+        ProductionSubmission sub = submissionManager.findById(submissionId)
             .orElseThrow(() -> new NotFoundException("Submission introuvable : " + submissionId));
         ProductionTask task = sub.getProductionTask();
         if (task == null) {
@@ -86,11 +73,11 @@ public class AiEvaluationService {
         eval.setTokensInput(outcome.inputTokens());
         eval.setTokensOutput(outcome.outputTokens());
         eval.setCoutEstimeCentimes(outcome.costEstimateCents());
-        aiEvaluationRepository.save(eval);
+        aiEvaluationManager.save(eval);
 
         sub.setStatut(SubmissionStatut.EVALUATED);
         sub.setErreurMessage(null);
-        submissionRepository.save(sub);
+        submissionManager.save(sub);
 
         log.info("AiEvaluation persistee submission={} note={} niveau={} model={}",
             submissionId, noteSur20, niveau, llmClient.getModelName());
@@ -99,8 +86,8 @@ public class AiEvaluationService {
 
     private ProductionInput loadInput(ProductionSubmission sub, ProductionTask task) {
         if (task.getEpreuve() == EpreuveType.TCF_EO) {
-            Transcription t = transcriptionRepository
-                .findFirstBySubmissionIdOrderByCreatedAtDesc(sub.getId())
+            Transcription t = transcriptionManager
+                .findLatestBySubmissionId(sub.getId())
                 .orElseThrow(() -> new AiEvaluationException(
                     "Submission EO " + sub.getId() + " sans transcription : Whisper a echoue ou n'a pas tourne."
                 ));
@@ -118,7 +105,7 @@ public class AiEvaluationService {
         if (raw == null) return null;
         try {
             BigDecimal v = new BigDecimal(raw.toString()).setScale(1, RoundingMode.HALF_UP);
-            if (v.compareTo(BigDecimal.ZERO) < 0 || v.compareTo(new BigDecimal("20")) > 0) {
+            if (v.compareTo(BigDecimal.ZERO) < 0 || v.compareTo(NOTE_MAX) > 0) {
                 log.warn("note_globale hors borne [0,20] : {}", v);
                 return null;
             }

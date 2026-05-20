@@ -3,13 +3,10 @@ package com.sejourfr.app.controller;
 import com.sejourfr.app.dto.CalibrationStatsDto;
 import com.sejourfr.app.dto.HumanCalibrationNoteDto;
 import com.sejourfr.app.dto.ProductionSubmissionDto;
-import com.sejourfr.app.entity.HumanCalibrationNote;
-import com.sejourfr.app.entity.ProductionSubmission;
-import com.sejourfr.app.exception.BusinessException;
-import com.sejourfr.app.mapper.ProductionSubmissionMapper;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.AdminCalibrationService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,20 +27,11 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/admin/calibration")
+@RequiredArgsConstructor
 public class AdminCalibrationController {
 
-    private final AdminCalibrationService calibrationService;
-    private final ProductionSubmissionMapper mapper;
+    private final AdminCalibrationService adminCalibrationService;
     private final CurrentUser currentUser;
-
-    public AdminCalibrationController(
-            AdminCalibrationService calibrationService,
-            ProductionSubmissionMapper mapper,
-            CurrentUser currentUser) {
-        this.calibrationService = calibrationService;
-        this.mapper = mapper;
-        this.currentUser = currentUser;
-    }
 
     /**
      * Liste les submissions a annoter (statut EVALUATED, sans note humaine).
@@ -54,33 +42,21 @@ public class AdminCalibrationController {
             @RequestParam(required = false, defaultValue = "evaluated") String status,
             @RequestParam(required = false) Boolean hasHumanNote,
             @RequestParam(defaultValue = "50") int limit) {
-        if (!"evaluated".equalsIgnoreCase(status)) {
-            throw new BusinessException("status=evaluated est le seul filtre supporte pour l'instant.");
-        }
-        List<ProductionSubmission> list = Boolean.TRUE.equals(hasHumanNote)
-            ? calibrationService.listEvaluated(limit)
-            : calibrationService.listAToAnnoter(limit);
-        return list.stream().map(mapper::toDtoWithSignedAudio).toList();
+        return adminCalibrationService.listSubmissions(status, hasHumanNote, limit);
     }
 
     @PostMapping("/submissions/{id}/human-note")
     public ResponseEntity<HumanCalibrationNoteDto> annoter(
             @PathVariable UUID id,
             @Valid @RequestBody HumanCalibrationNoteDto body) {
-        UUID adminId = currentUser.getId();
-        HumanCalibrationNote saved = calibrationService.enregistrer(id, adminId, body);
-        HumanCalibrationNoteDto echo = new HumanCalibrationNoteDto(
-            saved.getSubmission().getId(),
-            saved.getNoteHumaineSur20(),
-            saved.getNiveauCecrlHumain(),
-            saved.getCommentaires()
-        );
-        return ResponseEntity.created(URI.create("/api/admin/calibration/submissions/" + id + "/human-note"))
-            .body(echo);
+        HumanCalibrationNoteDto saved = adminCalibrationService.annoter(id, currentUser.getId(), body);
+        return ResponseEntity
+                .created(URI.create("/api/admin/calibration/submissions/" + id + "/human-note"))
+                .body(saved);
     }
 
     @GetMapping("/stats")
     public CalibrationStatsDto stats() {
-        return calibrationService.stats();
+        return adminCalibrationService.stats();
     }
 }

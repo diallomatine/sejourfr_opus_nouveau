@@ -7,6 +7,7 @@ import com.sejourfr.app.dto.SubmitAnswerRequest;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.exception.BusinessException;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,13 +32,10 @@ import java.util.UUID;
  * la logique métier.
  */
 @Service
+@RequiredArgsConstructor
 public class PublicAttemptService {
 
     private final AttemptService attemptService;
-
-    public PublicAttemptService(AttemptService attemptService) {
-        this.attemptService = attemptService;
-    }
 
     @Transactional
     public AttemptResponse startDemo(StartAttemptRequest req, String clientIp) {

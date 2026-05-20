@@ -8,26 +8,34 @@ import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.service.QuestionService;
-import org.springframework.data.domain.Page;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
 import java.net.URI;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/questions")
+@RequiredArgsConstructor
 public class AdminQuestionController {
 
-    private final QuestionService service;
-
-    public AdminQuestionController(QuestionService service) {
-        this.service = service;
-    }
+    private final QuestionService questionService;
 
     @GetMapping
     public PageResponse<QuestionDto> search(
@@ -37,20 +45,18 @@ public class AdminQuestionController {
             @RequestParam(required = false) QuestionType type,
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) String search,
-            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
-    ) {
-        Page<QuestionDto> page = service.search(module, themeId, difficulty, type, active, search, pageable);
-        return PageResponse.from(page);
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return PageResponse.from(questionService.search(module, themeId, difficulty, type, active, search, pageable));
     }
 
     @GetMapping("/{id}")
     public QuestionDto getById(@PathVariable UUID id) {
-        return service.getById(id);
+        return questionService.getById(id);
     }
 
     @PostMapping
     public ResponseEntity<QuestionDto> create(@Valid @RequestBody QuestionWriteRequest req) {
-        QuestionDto created = service.create(req);
+        QuestionDto created = questionService.create(req);
         return ResponseEntity
                 .created(URI.create("/api/admin/questions/" + created.id()))
                 .body(created);
@@ -58,17 +64,17 @@ public class AdminQuestionController {
 
     @PutMapping("/{id}")
     public QuestionDto update(@PathVariable UUID id, @Valid @RequestBody QuestionWriteRequest req) {
-        return service.update(id, req);
+        return questionService.update(id, req);
     }
 
     @PatchMapping("/{id}/status")
     public QuestionDto setStatus(@PathVariable UUID id, @Valid @RequestBody QuestionStatusUpdate req) {
-        return service.setActive(id, req.active());
+        return questionService.setActive(id, req.active());
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID id) {
-        service.delete(id);
+        questionService.delete(id);
     }
 }

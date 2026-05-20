@@ -4,36 +4,29 @@ import com.sejourfr.app.dto.EvaluationResultDto;
 import com.sejourfr.app.dto.ProductionSubmissionDto;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.ProductionSubmission;
-import com.sejourfr.app.repository.AiEvaluationRepository;
-import com.sejourfr.app.repository.TranscriptionRepository;
+import com.sejourfr.app.manager.AiEvaluationManager;
+import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.service.ProductionAudioStorageService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class ProductionSubmissionMapper {
 
-    private final AiEvaluationRepository aiEvaluationRepository;
-    private final TranscriptionRepository transcriptionRepository;
+    private final AiEvaluationManager aiEvaluationManager;
+    private final TranscriptionManager transcriptionManager;
     private final ProductionAudioStorageService audioStorage;
 
-    public ProductionSubmissionMapper(
-            AiEvaluationRepository aiEvaluationRepository,
-            TranscriptionRepository transcriptionRepository,
-            ProductionAudioStorageService audioStorage) {
-        this.aiEvaluationRepository = aiEvaluationRepository;
-        this.transcriptionRepository = transcriptionRepository;
-        this.audioStorage = audioStorage;
-    }
-
     public ProductionSubmissionDto toDto(ProductionSubmission s) {
-        EvaluationResultDto eval = aiEvaluationRepository
-            .findFirstBySubmissionIdOrderByEvaluatedAtDesc(s.getId())
+        EvaluationResultDto eval = aiEvaluationManager
+            .findLatestBySubmissionId(s.getId())
             .map(this::toEvaluationDto)
             .orElse(null);
 
         // Transcription Whisper (EO uniquement, null sinon).
-        String transcription = transcriptionRepository
-            .findFirstBySubmissionIdOrderByCreatedAtDesc(s.getId())
+        String transcription = transcriptionManager
+            .findLatestBySubmissionId(s.getId())
             .map(t -> t.getTexte())
             .orElse(null);
 

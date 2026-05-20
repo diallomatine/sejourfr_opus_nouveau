@@ -1,7 +1,19 @@
 package com.sejourfr.app.service;
 
-import com.sejourfr.app.dto.*;
-import com.sejourfr.app.entity.*;
+import com.sejourfr.app.dto.AnswerResultResponse;
+import com.sejourfr.app.dto.AttemptResponse;
+import com.sejourfr.app.dto.AttemptSummaryResponse;
+import com.sejourfr.app.dto.ProductionAttemptStartRequest;
+import com.sejourfr.app.dto.StartAttemptRequest;
+import com.sejourfr.app.dto.SubmitAnswerRequest;
+import com.sejourfr.app.entity.Answer;
+import com.sejourfr.app.entity.Attempt;
+import com.sejourfr.app.entity.AttemptQuestion;
+import com.sejourfr.app.entity.Choice;
+import com.sejourfr.app.entity.ExamTemplate;
+import com.sejourfr.app.entity.ExamTemplateRule;
+import com.sejourfr.app.entity.Question;
+import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.EpreuveType;
@@ -10,24 +22,34 @@ import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
-import com.sejourfr.app.repository.*;
+import com.sejourfr.app.manager.AnswerManager;
+import com.sejourfr.app.manager.AttemptManager;
+import com.sejourfr.app.manager.AttemptQuestionManager;
+import com.sejourfr.app.manager.ExamTemplateManager;
+import com.sejourfr.app.manager.QuestionManager;
+import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.mapper.AttemptMapper;
 import jakarta.persistence.EntityNotFoundException;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class AttemptService {
 
-    // Configuration par défaut MOCK_EXAM sans ExamTemplate (fallback historique).
-    // Pour les examens blancs branchés sur un template, ces valeurs sont lues
-    // depuis ExamTemplate (durationSeconds, totalQuestions, passingScore).
+    // Fallback historique pour MOCK_EXAM sans ExamTemplate. Quand un template
+    // est branche, ces valeurs viennent du template (durationSeconds, totalQuestions, passingScore).
     private static final int CIVIQUE_EXAM_SIZE = 40;
     private static final int CIVIQUE_EXAM_TIME = 45 * 60;
     private static final int CIVIQUE_EXAM_THRESHOLD = 32;
@@ -35,63 +57,162 @@ public class AttemptService {
     private static final int TCF_EXAM_SIZE = 60;
     private static final int TCF_EXAM_TIME = 90 * 60;
 
-    // Seuil de réussite par strate pour le calcul du niveau CECRL en TCF.
-    // L'utilisateur "atteint" un niveau si son taux de bonnes réponses sur les
+    // Seuil de reussite par strate pour le calcul du niveau CECRL en TCF.
+    // L'utilisateur "atteint" un niveau si son taux de bonnes reponses sur les
     // questions de ce niveau est >= 60 %.
     private static final double TCF_LEVEL_PASS_RATIO = 0.6;
 
-    // Plafond d'entraînement TRAINING pour les comptes gratuits : au-delà,
-    // on pousse l'utilisateur à passer Premium (et à utiliser l'app mobile).
+    // Plafond d'entrainement TRAINING pour les comptes gratuits.
     private static final int FREE_TRAINING_MAX_SIZE = 20;
+    private static final int PREMIUM_TRAINING_MAX_SIZE = 50;
+    private static final int DEFAULT_TRAINING_SIZE = 10;
 
-    private final AttemptRepository attemptRepository;
-    private final AttemptQuestionRepository attemptQuestionRepository;
-    private final AnswerRepository answerRepository;
-    private final QuestionRepository questionRepository;
-    private final UserRepository userRepository;
-    private final ExamTemplateRepository examTemplateRepository;
+    private static final int LIST_LIMIT_MIN = 1;
+    private static final int LIST_LIMIT_MAX = 100;
+
+    private final AttemptManager attemptManager;
+    private final AttemptQuestionManager attemptQuestionManager;
+    private final AnswerManager answerManager;
+    private final QuestionManager questionManager;
+    private final UserManager userManager;
+    private final ExamTemplateManager examTemplateManager;
     private final SubscriptionService subscriptionService;
+    private final AttemptMapper mapper;
 
-    public AttemptService(
-            AttemptRepository attemptRepository,
-            AttemptQuestionRepository attemptQuestionRepository,
-            AnswerRepository answerRepository,
-            QuestionRepository questionRepository,
-            UserRepository userRepository,
-            ExamTemplateRepository examTemplateRepository,
-            SubscriptionService subscriptionService
-    ) {
-        this.attemptRepository = attemptRepository;
-        this.attemptQuestionRepository = attemptQuestionRepository;
-        this.answerRepository = answerRepository;
-        this.questionRepository = questionRepository;
-        this.userRepository = userRepository;
-        this.examTemplateRepository = examTemplateRepository;
-        this.subscriptionService = subscriptionService;
+    // ------------------------------------------------------------------------
+    // Creation : utilisateur connecte
+    // ------------------------------------------------------------------------
+
+    @Transactional
+    public AttemptResponse start(UUID userId, StartAttemptRequest req) {
+        User user = userManager.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User introuvable"));
+
+        // Branche template : si un examTemplateId est fourni, c'est lui qui pilote
+        // la config (duree, taille, seuil) et la composition (rules).
+        if (req.examTemplateId() != null) {
+            ExamTemplate template = examTemplateManager.findById(req.examTemplateId())
+                    .orElseThrow(() -> new EntityNotFoundException("Examen blanc introuvable"));
+            return startFromTemplate(user, template);
+        }
+
+        // Branche legacy : MOCK_EXAM sans template, TRAINING, REVIEW.
+        boolean demoMode = req.type() == AttemptType.TRAINING && !subscriptionService.isPremium(userId);
+
+        int size;
+        Integer timeLimit = null;
+        Integer threshold = null;
+
+        if (req.type() == AttemptType.MOCK_EXAM) {
+            if (req.module() == Module.CIVIQUE) {
+                size = CIVIQUE_EXAM_SIZE;
+                timeLimit = CIVIQUE_EXAM_TIME;
+                threshold = CIVIQUE_EXAM_THRESHOLD;
+            } else {
+                size = TCF_EXAM_SIZE;
+                timeLimit = TCF_EXAM_TIME;
+            }
+        } else {
+            int requested = req.size() != null ? req.size() : DEFAULT_TRAINING_SIZE;
+            int hardMax = demoMode ? FREE_TRAINING_MAX_SIZE : PREMIUM_TRAINING_MAX_SIZE;
+            size = Math.clamp(requested, 1, hardMax);
+        }
+
+        List<Question> questions;
+        if (demoMode) {
+            // Pool fixe par module : meme serie a chaque rejouage (cf. retrait
+            // du quota guest 2026-05-17).
+            questions = questionManager.findDemoPool(req.module(), size);
+        } else {
+            UUID themeId = req.type() == AttemptType.MOCK_EXAM ? null : req.themeId();
+            var qType = req.type() == AttemptType.MOCK_EXAM ? null : req.questionType();
+            Difficulty effectiveDifficulty = resolveDifficulty(user, req.module(), req.difficulty());
+            questions = questionManager.findRandom(req.module(), themeId, effectiveDifficulty, qType, size);
+        }
+
+        if (questions.isEmpty()) {
+            throw new IllegalStateException("Aucune question disponible pour ces critères");
+        }
+
+        Attempt attempt = new Attempt();
+        attempt.setUser(user);
+        attempt.setType(req.type());
+        attempt.setModule(req.module());
+        attempt.setTotalQuestions(questions.size());
+        attempt.setTimeLimitSeconds(timeLimit);
+        attempt.setPassThreshold(threshold);
+        attempt.setStartedAt(Instant.now());
+        attempt = attemptManager.save(attempt);
+
+        List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
+        return mapper.toResponse(attempt, aqList, false);
+    }
+
+    /**
+     * Cree un attempt vide pour une epreuve productive (TCF_EO / TCF_EE / TCF_COMPLET).
+     * Pas de questions piochees : les productions sont rattachees ensuite via
+     * {@code production_submissions.attempt_id}.
+     *
+     * <p>Pour un entrainement isole, {@code parentAttemptId} est null. Pour les
+     * sous-attempts d'un examen blanc TCF complet, on vise le parent existant
+     * (qui doit lui-meme porter {@code epreuve = TCF_COMPLET}).
+     */
+    @Transactional
+    public AttemptResponse startProductionAttempt(UUID userId, ProductionAttemptStartRequest req) {
+        if (!isProductionEpreuve(req.epreuve())) {
+            throw new BusinessException("epreuve doit etre TCF_EO, TCF_EE ou TCF_COMPLET.");
+        }
+        if (req.module() != Module.TCF) {
+            throw new BusinessException("Les epreuves productives sont reservees au module TCF.");
+        }
+
+        User user = userManager.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
+
+        Attempt parent = resolveParentAttempt(userId, req.parentAttemptId());
+
+        Attempt attempt = new Attempt();
+        attempt.setUser(user);
+        attempt.setType(AttemptType.TRAINING);
+        attempt.setModule(req.module());
+        attempt.setEpreuve(req.epreuve());
+        attempt.setParentAttempt(parent);
+        attempt.setStartedAt(Instant.now());
+        // Pas de QCM -> totalQuestions / timeLimit / threshold restent null.
+        attempt = attemptManager.save(attempt);
+        return mapper.toResponse(attempt, List.of(), false);
+    }
+
+    private Attempt resolveParentAttempt(UUID userId, UUID parentAttemptId) {
+        if (parentAttemptId == null) return null;
+
+        Attempt parent = attemptManager.findById(parentAttemptId)
+                .orElseThrow(() -> new NotFoundException("Parent attempt introuvable : " + parentAttemptId));
+        if (parent.getUser() == null || !parent.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("Parent attempt n'appartient pas a l'utilisateur courant.");
+        }
+        if (parent.getEpreuve() != EpreuveType.TCF_COMPLET) {
+            throw new BusinessException(
+                    "parent_attempt_id doit pointer sur un attempt TCF_COMPLET (recu : " + parent.getEpreuve() + ").");
+        }
+        return parent;
     }
 
     // ------------------------------------------------------------------------
-    // Création
+    // Creation : visiteur guest (demo non authentifiee)
     // ------------------------------------------------------------------------
 
     /**
-     * Démarre un attempt "démo guest" (visiteur non authentifié, cf.
-     * PublicAttemptService). La taille / durée sont fixées comme pour le mode
-     * démo des comptes gratuits :
-     * - TRAINING : {@link #FREE_TRAINING_MAX_SIZE} questions tirées du pool démo
-     *   déterministe (toujours la même série).
-     * - MOCK_EXAM : si un examTemplateId est fourni, utilise les règles du
-     *   template (ordonnées, déterministes via findExcluding sans ORDER BY
-     *   random côté template — voir pickQuestionsForTemplate). Sinon fallback
-     *   sur le pool démo déterministe limité à la taille du module.
+     * Demarre un attempt "demo guest" (visiteur non authentifie, cf.
+     * PublicAttemptService). La taille / duree sont fixees comme pour le mode
+     * demo des comptes gratuits.
      * <p>
-     * La démo étant désormais illimitée, l'objectif est de présenter toujours
-     * les mêmes questions au visiteur — pour conversion, pas entraînement.
+     * La demo etant desormais illimitee, on presente toujours la meme serie
+     * deterministe — pour conversion, pas entrainement.
      */
     @Transactional
     public AttemptResponse startGuestDemo(StartAttemptRequest req, String clientIp) {
-        // La validation du type (TRAINING / MOCK_EXAM uniquement) est faite
-        // côté PublicAttemptService — ici on suppose l'invariant respecté.
+        // Validation du type (TRAINING / MOCK_EXAM) faite cote PublicAttemptService.
         int size;
         Integer timeLimit = null;
         Integer threshold = null;
@@ -100,7 +221,7 @@ public class AttemptService {
 
         if (req.type() == AttemptType.MOCK_EXAM) {
             if (req.examTemplateId() != null) {
-                template = examTemplateRepository.findById(req.examTemplateId())
+                template = examTemplateManager.findById(req.examTemplateId())
                         .orElseThrow(() -> new EntityNotFoundException("Examen blanc introuvable"));
                 if (!template.isPublished() || !template.isFree()) {
                     throw new AccessDeniedException("Examen blanc non disponible en démo");
@@ -108,8 +229,7 @@ public class AttemptService {
                 size = template.getTotalQuestions();
                 timeLimit = template.getDurationSeconds();
                 threshold = template.getPassingScore();
-                // deterministic = true : guest sur template free → mêmes
-                // questions à chaque rejouage.
+                // Guest sur template free : tirage deterministe.
                 questions = pickQuestionsForTemplate(template, true);
             } else {
                 if (req.module() == Module.CIVIQUE) {
@@ -120,13 +240,11 @@ public class AttemptService {
                     size = TCF_EXAM_SIZE;
                     timeLimit = TCF_EXAM_TIME;
                 }
-                // Fallback (pas de template fourni) : on tire la même série
-                // déterministe que la démo TRAINING, juste plus longue.
-                questions = pickDemoQuestions(req.module(), size);
+                questions = questionManager.findDemoPool(req.module(), size);
             }
         } else {
             size = FREE_TRAINING_MAX_SIZE;
-            questions = pickDemoQuestions(req.module(), size);
+            questions = questionManager.findDemoPool(req.module(), size);
         }
 
         if (questions.isEmpty()) {
@@ -143,146 +261,17 @@ public class AttemptService {
         attempt.setTimeLimitSeconds(timeLimit);
         attempt.setPassThreshold(threshold);
         attempt.setStartedAt(Instant.now());
-        attempt = attemptRepository.save(attempt);
+        attempt = attemptManager.save(attempt);
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
-        return toAttemptResponse(attempt, aqList, false);
+        return mapper.toResponse(attempt, aqList, false);
     }
 
     /**
-     * Sélection déterministe pour le mode démo (guest OU connecté non-premium).
-     * Toujours la même série pour un module donné — l'ordre stable garanti par
-     * {@code findDemoPool} (ORDER BY createdAt ASC, id ASC) rend l'expérience
-     * reproductible entre deux lancements.
-     */
-    private List<Question> pickDemoQuestions(Module module, int size) {
-        return questionRepository.findDemoPool(module, PageRequest.of(0, size));
-    }
-
-    /**
-     * Lookup d'un attempt guest pour la branche publique. Renvoie l'attempt
-     * SEULEMENT si user IS NULL ET client_ip matche. Toute non-correspondance
-     * (id inexistant, attempt d'un user, autre IP) est traitée en 404 par
-     * l'appelant pour ne pas révéler l'existence.
-     */
-    @Transactional(readOnly = true)
-    public Attempt loadGuestAttempt(UUID attemptId, String clientIp) {
-        return attemptRepository.findByIdAndClientIpAndUserIsNull(attemptId, clientIp)
-                .orElseThrow(() -> new EntityNotFoundException("Session introuvable"));
-    }
-
-    /**
-     * Variante de {@link #getById(UUID, UUID)} sans contrôle user (l'appelant
-     * a déjà validé l'IP via {@link #loadGuestAttempt}).
-     */
-    @Transactional(readOnly = true)
-    public AttemptResponse readAttempt(Attempt attempt) {
-        List<AttemptQuestion> aqs =
-                attemptQuestionRepository.findByAttemptIdOrderByPositionAsc(attempt.getId());
-        boolean revealCorrect = attempt.getFinishedAt() != null;
-        return toAttemptResponse(attempt, aqs, revealCorrect);
-    }
-
-    /**
-     * Variante de {@link #submitAnswer(UUID, UUID, SubmitAnswerRequest)} qui
-     * skip le contrôle user (déjà fait via IP côté guest).
-     */
-    @Transactional
-    public AnswerResultResponse submitAnswerForAttempt(Attempt attempt, SubmitAnswerRequest req) {
-        if (attempt.getFinishedAt() != null) {
-            throw new IllegalStateException("Session déjà terminée");
-        }
-        return doSubmitAnswer(attempt, req);
-    }
-
-    /**
-     * Variante de {@link #finish(UUID, UUID)} qui skip le contrôle user.
-     */
-    @Transactional
-    public AttemptResponse finishAttempt(Attempt attempt) {
-        return doFinish(attempt);
-    }
-
-    @Transactional
-    public AttemptResponse start(UUID userId, StartAttemptRequest req) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User introuvable"));
-
-        // Branche template : si un examTemplateId est fourni, c'est lui qui
-        // pilote la config (durée, taille, seuil) et la composition (rules).
-        if (req.examTemplateId() != null) {
-            ExamTemplate template = examTemplateRepository.findById(req.examTemplateId())
-                    .orElseThrow(() -> new EntityNotFoundException("Examen blanc introuvable"));
-            return startFromTemplate(user, template);
-        }
-
-        // Branche legacy : MOCK_EXAM sans template, TRAINING, REVIEW.
-        int size;
-        Integer timeLimit = null;
-        Integer threshold = null;
-        boolean demoMode = req.type() == AttemptType.TRAINING
-                && !subscriptionService.isPremium(userId);
-
-        if (req.type() == AttemptType.MOCK_EXAM) {
-            if (req.module() == Module.CIVIQUE) {
-                size = CIVIQUE_EXAM_SIZE;
-                timeLimit = CIVIQUE_EXAM_TIME;
-                threshold = CIVIQUE_EXAM_THRESHOLD;
-            } else {
-                size = TCF_EXAM_SIZE;
-                timeLimit = TCF_EXAM_TIME;
-            }
-        } else {
-            int requested = req.size() != null ? req.size() : 10;
-            int hardMax = demoMode ? FREE_TRAINING_MAX_SIZE : 50;
-            size = Math.clamp(requested, 1, hardMax);
-        }
-
-        List<Question> questions;
-        if (demoMode) {
-            // Mode démo : pool fixe par module (thème / difficulté / type ignorés)
-            // pour garantir une expérience reproductible avant l'abonnement.
-            // Démo illimitée (cf. retrait du quota guest 2026-05-17) — on
-            // assume que rejouer redonne la même série.
-            questions = pickDemoQuestions(req.module(), size);
-        } else {
-            UUID themeId = req.type() == AttemptType.MOCK_EXAM ? null : req.themeId();
-            var qType = req.type() == AttemptType.MOCK_EXAM ? null : req.questionType();
-            Difficulty effectiveDifficulty = resolveDifficulty(user, req.module(), req.difficulty());
-
-            questions = questionRepository.findRandom(
-                    req.module(),
-                    themeId,
-                    effectiveDifficulty,
-                    qType,
-                    PageRequest.of(0, size)
-            );
-        }
-
-        if (questions.isEmpty()) {
-            throw new IllegalStateException("Aucune question disponible pour ces critères");
-        }
-
-        Attempt attempt = new Attempt();
-        attempt.setUser(user);
-        attempt.setType(req.type());
-        attempt.setModule(req.module());
-        attempt.setTotalQuestions(questions.size());
-        attempt.setTimeLimitSeconds(timeLimit);
-        attempt.setPassThreshold(threshold);
-        attempt.setStartedAt(Instant.now());
-        attempt = attemptRepository.save(attempt);
-
-        List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
-        return toAttemptResponse(attempt, aqList, false);
-    }
-
-    /**
-     * Démarre un examen blanc à partir d'un ExamTemplate publié. La composition
-     * est dérivée des ExamTemplateRule (thème + difficulté + type + count). Si
-     * les règles ne suffisent pas à remplir totalQuestions, on complète par un
-     * tirage libre dans le module (jamais de doublon intra-attempt grâce à un
-     * suivi des ids déjà tirés).
+     * Demarre un examen blanc a partir d'un ExamTemplate publie. La composition
+     * derive des ExamTemplateRule (theme + difficulte + type + count). Si les
+     * regles ne suffisent pas a remplir totalQuestions, on complete par un
+     * tirage libre dans le module (jamais de doublon intra-attempt).
      */
     private AttemptResponse startFromTemplate(User user, ExamTemplate template) {
         if (!template.isPublished()) {
@@ -292,9 +281,8 @@ public class AttemptService {
             throw new AccessDeniedException("Examen blanc réservé aux abonnés");
         }
 
-        // Pour un premium : tirage aléatoire à chaque session (variété). Pour
-        // un non-premium qui rejoue un template free : tirage déterministe
-        // (cf. règle démo "mêmes questions à chaque lancement").
+        // Premium : tirage aleatoire (variete). Non-premium sur template free :
+        // tirage deterministe (regle demo "memes questions a chaque lancement").
         boolean deterministic = template.isFree() && !subscriptionService.isPremium(user.getId());
         List<Question> picked = pickQuestionsForTemplate(template, deterministic);
         if (picked.isEmpty()) {
@@ -308,83 +296,59 @@ public class AttemptService {
         attempt.setModule(template.getModule());
         attempt.setTotalQuestions(picked.size());
         attempt.setTimeLimitSeconds(template.getDurationSeconds());
-        // Pour le TCF on conserve passingScore en base (0 par convention), mais
-        // l'évaluation côté front s'appuie sur levelAchieved, pas sur ce seuil.
+        // En TCF on garde passingScore en base (0 par convention) : l'evaluation
+        // cote front s'appuie sur levelAchieved, pas sur ce seuil.
         attempt.setPassThreshold(template.getPassingScore());
         attempt.setStartedAt(Instant.now());
-        attempt = attemptRepository.save(attempt);
+        attempt = attemptManager.save(attempt);
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, picked);
-        return toAttemptResponse(attempt, aqList, false);
+        return mapper.toResponse(attempt, aqList, false);
     }
 
     /**
-     * Pioche les questions d'un ExamTemplate en suivant ses règles.
+     * Pioche les questions d'un ExamTemplate en suivant ses regles.
      *
      * @param deterministic si vrai, ordre stable {@code created_at ASC, id ASC}
-     *                      au lieu de {@code random()} — utilisé pour la démo
+     *                      au lieu de {@code random()} — utilise pour la demo
      *                      (guest ou non-premium sur template free) afin que
-     *                      rejouer redonne toujours la même série.
+     *                      rejouer redonne toujours la meme serie.
      */
     private List<Question> pickQuestionsForTemplate(ExamTemplate template, boolean deterministic) {
         LinkedHashSet<Question> picked = new LinkedHashSet<>();
         List<UUID> exclude = new ArrayList<>();
 
-        // Règles ordonnées par position (l'ordre est porté par @OrderBy sur l'entité).
+        // Regles ordonnees par position (@OrderBy porte par l'entite).
         for (ExamTemplateRule rule : template.getRules()) {
             int needed = rule.getQuestionCount();
             if (needed <= 0) continue;
 
             UUID themeId = rule.getTheme() != null ? rule.getTheme().getId() : null;
             List<Question> drawn = deterministic
-                    ? questionRepository.findOrderedExcluding(
-                            template.getModule(),
-                            themeId,
-                            rule.getDifficulty(),
-                            rule.getQuestionType(),
-                            exclude,
-                            PageRequest.of(0, needed)
-                    )
-                    : questionRepository.findRandomExcluding(
-                            template.getModule(),
-                            themeId,
-                            rule.getDifficulty(),
-                            rule.getQuestionType(),
-                            exclude,
-                            PageRequest.of(0, needed)
-                    );
+                    ? questionManager.findOrderedExcluding(
+                            template.getModule(), themeId, rule.getDifficulty(),
+                            rule.getQuestionType(), exclude, needed)
+                    : questionManager.findRandomExcluding(
+                            template.getModule(), themeId, rule.getDifficulty(),
+                            rule.getQuestionType(), exclude, needed);
             for (Question q : drawn) {
                 if (picked.add(q)) exclude.add(q.getId());
             }
         }
 
-        // Fallback : si les règles n'ont pas comblé totalQuestions (stock faible),
-        // on complète sans contrainte autre que le module, en évitant les doublons.
-        int target = template.getTotalQuestions();
-        int missing = target - picked.size();
+        // Fallback : si les regles n'ont pas comble totalQuestions (stock faible),
+        // on complete sans contrainte autre que le module, en evitant les doublons.
+        int missing = template.getTotalQuestions() - picked.size();
         if (missing > 0) {
             List<Question> extra = deterministic
-                    ? questionRepository.findOrderedExcluding(
-                            template.getModule(),
-                            null,
-                            null,
-                            null,
-                            exclude,
-                            PageRequest.of(0, missing)
-                    )
-                    : questionRepository.findRandomExcluding(
-                            template.getModule(),
-                            null,
-                            null,
-                            null,
-                            exclude,
-                            PageRequest.of(0, missing)
-                    );
+                    ? questionManager.findOrderedExcluding(
+                            template.getModule(), null, null, null, exclude, missing)
+                    : questionManager.findRandomExcluding(
+                            template.getModule(), null, null, null, exclude, missing);
             for (Question q : extra) {
                 if (picked.add(q)) exclude.add(q.getId());
             }
         }
-
         return new ArrayList<>(picked);
     }
 
@@ -395,28 +359,9 @@ public class AttemptService {
             aq.setAttempt(attempt);
             aq.setQuestion(questions.get(i));
             aq.setPosition(i);
-            aqList.add(attemptQuestionRepository.save(aq));
+            aqList.add(attemptQuestionManager.save(aq));
         }
         return aqList;
-    }
-
-    @Transactional(readOnly = true)
-    public List<AttemptSummaryResponse> listMine(
-            UUID userId,
-            AttemptType type,
-            Module module,
-            int limit
-    ) {
-        int safeLimit = Math.max(1, Math.min(100, limit));
-        Pageable pageable = PageRequest.of(0, safeLimit);
-
-        List<Attempt> attempts = attemptRepository.findByUserFiltered(
-                userId, type, module, pageable
-        );
-
-        return attempts.stream()
-                .map(this::toSummary)
-                .toList();
     }
 
     // ------------------------------------------------------------------------
@@ -426,14 +371,43 @@ public class AttemptService {
     @Transactional(readOnly = true)
     public AttemptResponse getById(UUID userId, UUID attemptId) {
         Attempt attempt = loadAndCheck(userId, attemptId);
-        List<AttemptQuestion> aqs =
-                attemptQuestionRepository.findByAttemptIdOrderByPositionAsc(attemptId);
+        List<AttemptQuestion> aqs = attemptQuestionManager.findByAttemptOrderedByPosition(attemptId);
         boolean revealCorrect = attempt.getFinishedAt() != null;
-        return toAttemptResponse(attempt, aqs, revealCorrect);
+        return mapper.toResponse(attempt, aqs, revealCorrect);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AttemptSummaryResponse> listMine(UUID userId, AttemptType type, Module module, int limit) {
+        int safeLimit = Math.max(LIST_LIMIT_MIN, Math.min(LIST_LIMIT_MAX, limit));
+        List<Attempt> attempts = attemptManager.findByUserFiltered(userId, type, module, safeLimit);
+        return attempts.stream().map(mapper::toSummary).toList();
+    }
+
+    /**
+     * Lookup d'un attempt guest pour la branche publique. Renvoie l'attempt
+     * SEULEMENT si user IS NULL ET client_ip matche. Toute non-correspondance
+     * (id inexistant, attempt d'un user, autre IP) est traitee en 404 par
+     * l'appelant pour ne pas reveler l'existence.
+     */
+    @Transactional(readOnly = true)
+    public Attempt loadGuestAttempt(UUID attemptId, String clientIp) {
+        return attemptManager.findGuestByIdAndIp(attemptId, clientIp)
+                .orElseThrow(() -> new EntityNotFoundException("Session introuvable"));
+    }
+
+    /**
+     * Variante de {@link #getById(UUID, UUID)} sans controle user (l'appelant
+     * a deja valide l'IP via {@link #loadGuestAttempt}).
+     */
+    @Transactional(readOnly = true)
+    public AttemptResponse readAttempt(Attempt attempt) {
+        List<AttemptQuestion> aqs = attemptQuestionManager.findByAttemptOrderedByPosition(attempt.getId());
+        boolean revealCorrect = attempt.getFinishedAt() != null;
+        return mapper.toResponse(attempt, aqs, revealCorrect);
     }
 
     // ------------------------------------------------------------------------
-    // Soumission d'une réponse
+    // Soumission d'une reponse
     // ------------------------------------------------------------------------
 
     @Transactional
@@ -445,8 +419,20 @@ public class AttemptService {
         return doSubmitAnswer(attempt, req);
     }
 
+    /**
+     * Variante de {@link #submitAnswer(UUID, UUID, SubmitAnswerRequest)} qui
+     * skip le controle user (deja fait via IP cote guest).
+     */
+    @Transactional
+    public AnswerResultResponse submitAnswerForAttempt(Attempt attempt, SubmitAnswerRequest req) {
+        if (attempt.getFinishedAt() != null) {
+            throw new IllegalStateException("Session déjà terminée");
+        }
+        return doSubmitAnswer(attempt, req);
+    }
+
     private AnswerResultResponse doSubmitAnswer(Attempt attempt, SubmitAnswerRequest req) {
-        AttemptQuestion aq = attemptQuestionRepository.findById(req.attemptQuestionId())
+        AttemptQuestion aq = attemptQuestionManager.findById(req.attemptQuestionId())
                 .orElseThrow(() -> new EntityNotFoundException("Question introuvable dans la session"));
 
         if (!aq.getAttempt().getId().equals(attempt.getId())) {
@@ -461,27 +447,22 @@ public class AttemptService {
         Set<UUID> submitted = new HashSet<>(req.choiceIds());
         boolean correct = submitted.equals(correctIds);
 
-        // Sauvegarde/MAJ de la réponse (une seule par attempt_question)
+        // Sauvegarde/MAJ de la reponse (une seule par attempt_question)
         Answer existing = aq.getAnswer();
         Answer answer = existing != null ? existing : new Answer();
         answer.setAttemptQuestion(aq);
         answer.setSelectedChoiceIds(new ArrayList<>(submitted));
         answer.setCorrect(correct);
         answer.setAnsweredAt(Instant.now());
-        answerRepository.save(answer);
+        answerManager.save(answer);
 
         aq.setAnswer(answer);
-        attemptQuestionRepository.save(aq);
+        attemptQuestionManager.save(aq);
 
-        // En entraînement : on renvoie la correction.
-        // En examen blanc : on confirme juste l'enregistrement.
+        // En entrainement : on renvoie la correction. En examen blanc : on
+        // confirme juste l'enregistrement.
         if (attempt.getType() == AttemptType.TRAINING) {
-            return new AnswerResultResponse(
-                    true,
-                    correct,
-                    new ArrayList<>(correctIds),
-                    question.getExplanation()
-            );
+            return new AnswerResultResponse(true, correct, new ArrayList<>(correctIds), question.getExplanation());
         }
         return new AnswerResultResponse(true, null, null, null);
     }
@@ -496,17 +477,20 @@ public class AttemptService {
         return doFinish(attempt);
     }
 
+    /** Variante de {@link #finish(UUID, UUID)} qui skip le controle user. */
+    @Transactional
+    public AttemptResponse finishAttempt(Attempt attempt) {
+        return doFinish(attempt);
+    }
+
     private AttemptResponse doFinish(Attempt attempt) {
         UUID attemptId = attempt.getId();
-        if (attempt.getFinishedAt() != null) {
-            // Idempotent : on renvoie l'état actuel
-            List<AttemptQuestion> aqs =
-                    attemptQuestionRepository.findByAttemptIdOrderByPositionAsc(attemptId);
-            return toAttemptResponse(attempt, aqs, true);
-        }
+        List<AttemptQuestion> aqs = attemptQuestionManager.findByAttemptOrderedByPosition(attemptId);
 
-        List<AttemptQuestion> aqs =
-                attemptQuestionRepository.findByAttemptIdOrderByPositionAsc(attemptId);
+        if (attempt.getFinishedAt() != null) {
+            // Idempotent : on renvoie l'etat actuel.
+            return mapper.toResponse(attempt, aqs, true);
+        }
 
         int score = (int) aqs.stream()
                 .filter(aq -> aq.getAnswer() != null && Boolean.TRUE.equals(aq.getAnswer().getCorrect()))
@@ -515,21 +499,20 @@ public class AttemptService {
         attempt.setFinishedAt(Instant.now());
         attempt.setScore(score);
 
-        // Pour le TCF, on calcule en plus le niveau CECRL atteint à partir du
-        // taux de réussite par strate A2/B1/B2. Civique : levelAchieved reste null.
+        // Pour le TCF on calcule en plus le niveau CECRL atteint a partir du
+        // taux de reussite par strate A2/B1/B2. Civique : levelAchieved reste null.
         if (attempt.getModule() == Module.TCF) {
             attempt.setLevelAchieved(computeLevelAchieved(aqs));
         }
 
-        attemptRepository.save(attempt);
-
-        return toAttemptResponse(attempt, aqs, true);
+        attemptManager.save(attempt);
+        return mapper.toResponse(attempt, aqs, true);
     }
 
     /**
-     * Niveau CECRL atteint : on retient le plus haut niveau A2/B1/B2 où le
-     * taux de bonnes réponses sur les questions de cette strate dépasse le
-     * seuil {@link #TCF_LEVEL_PASS_RATIO}. Si même A2 n'est pas atteint, on
+     * Niveau CECRL atteint : on retient le plus haut niveau A2/B1/B2 ou le
+     * taux de bonnes reponses sur les questions de cette strate depasse le
+     * seuil {@link #TCF_LEVEL_PASS_RATIO}. Si meme A2 n'est pas atteint,
      * renvoie null.
      */
     private TargetLevel computeLevelAchieved(List<AttemptQuestion> aqs) {
@@ -562,15 +545,15 @@ public class AttemptService {
     }
 
     // ------------------------------------------------------------------------
-    // Helpers privés
+    // Helpers
     // ------------------------------------------------------------------------
 
     /**
-     * Détermine la difficulté à appliquer pour un attempt : la valeur explicite
-     * si présente, sinon dérivée du parcours visé par l'utilisateur (CIVIQUE
-     * uniquement). Le TCF n'est jamais filtré par niveau : le test est unique
-     * pour tous, le niveau CECRL est calculé à la finalisation à partir des
-     * bonnes réponses par strate A2/B1/B2 dans les questions tirées.
+     * Determine la difficulte a appliquer pour un attempt : la valeur explicite
+     * si presente, sinon derivee du parcours vise par l'utilisateur (CIVIQUE
+     * uniquement). Le TCF n'est jamais filtre par niveau : le test est unique
+     * pour tous, le niveau CECRL est calcule a la finalisation a partir des
+     * bonnes reponses par strate A2/B1/B2 dans les questions tirees.
      */
     private Difficulty resolveDifficulty(User user, Module module, Difficulty requested) {
         if (requested != null) return requested;
@@ -587,182 +570,17 @@ public class AttemptService {
     }
 
     private Attempt loadAndCheck(UUID userId, UUID attemptId) {
-        Attempt attempt = attemptRepository.findById(attemptId)
+        Attempt attempt = attemptManager.findById(attemptId)
                 .orElseThrow(() -> new EntityNotFoundException("Session introuvable"));
-        // Un attempt sans user (démo guest, cf. PublicAttemptService) ne peut
-        // pas appartenir à un user connecté.
+        // Un attempt sans user (demo guest, cf. PublicAttemptService) ne peut
+        // pas appartenir a un user connecte.
         if (attempt.getUser() == null || !attempt.getUser().getId().equals(userId)) {
             throw new AccessDeniedException("Cette session ne vous appartient pas");
         }
         return attempt;
     }
 
-    /**
-     * Cree un attempt vide pour une epreuve productive (TCF_EO / TCF_EE /
-     * TCF_COMPLET). Pas de questions piochees : les productions sont
-     * rattachees ensuite via {@code production_submissions.attempt_id}.
-     *
-     * <p>Pour un entrainement isole, {@code parentAttemptId} est null. Pour les
-     * sous-attempts d'un examen blanc TCF complet, on vise le parent existant
-     * (qui doit lui-meme porter {@code epreuve = TCF_COMPLET}).
-     */
-    @Transactional
-    public AttemptResponse startProductionAttempt(UUID userId, ProductionAttemptStartRequest req) {
-        if (!isProductionEpreuve(req.epreuve())) {
-            throw new BusinessException("epreuve doit etre TCF_EO, TCF_EE ou TCF_COMPLET.");
-        }
-        if (req.module() != Module.TCF) {
-            throw new BusinessException("Les epreuves productives sont reservees au module TCF.");
-        }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
-
-        Attempt parent = null;
-        if (req.parentAttemptId() != null) {
-            parent = attemptRepository.findById(req.parentAttemptId())
-                    .orElseThrow(() -> new NotFoundException(
-                            "Parent attempt introuvable : " + req.parentAttemptId()));
-            if (parent.getUser() == null || !parent.getUser().getId().equals(userId)) {
-                throw new AccessDeniedException("Parent attempt n'appartient pas a l'utilisateur courant.");
-            }
-            if (parent.getEpreuve() != EpreuveType.TCF_COMPLET) {
-                throw new BusinessException(
-                    "parent_attempt_id doit pointer sur un attempt TCF_COMPLET (recu : " + parent.getEpreuve() + ").");
-            }
-        }
-
-        Attempt attempt = new Attempt();
-        attempt.setUser(user);
-        attempt.setType(AttemptType.TRAINING);
-        attempt.setModule(req.module());
-        attempt.setEpreuve(req.epreuve());
-        attempt.setParentAttempt(parent);
-        attempt.setStartedAt(Instant.now());
-        // Pas de questions QCM -> totalQuestions / timeLimit / threshold restent null.
-        attempt = attemptRepository.save(attempt);
-        return toAttemptResponse(attempt, List.of(), false);
-    }
-
     private static boolean isProductionEpreuve(EpreuveType e) {
         return e == EpreuveType.TCF_EO || e == EpreuveType.TCF_EE || e == EpreuveType.TCF_COMPLET;
-    }
-
-    private AttemptResponse toAttemptResponse(
-            Attempt attempt,
-            List<AttemptQuestion> aqs,
-            boolean revealCorrect
-    ) {
-        List<AttemptQuestionResponse> aqResponses = aqs.stream()
-                .map(aq -> toAttemptQuestionResponse(aq, revealCorrect))
-                .toList();
-
-        ExamTemplate template = attempt.getExamTemplate();
-        UUID templateId = template != null ? template.getId() : null;
-        String templateSlug = template != null ? template.getSlug() : null;
-        String templateName = template != null ? template.getName() : null;
-
-        return new AttemptResponse(
-                attempt.getId(),
-                attempt.getType(),
-                attempt.getModule(),
-                templateId,
-                templateSlug,
-                templateName,
-                attempt.getTotalQuestions(),
-                attempt.getTimeLimitSeconds(),
-                attempt.getPassThreshold(),
-                attempt.getStartedAt(),
-                attempt.getFinishedAt(),
-                attempt.getScore(),
-                attempt.getLevelAchieved(),
-                aqResponses
-        );
-    }
-
-    private AttemptQuestionResponse toAttemptQuestionResponse(
-            AttemptQuestion aq,
-            boolean revealCorrect
-    ) {
-        Answer answer = aq.getAnswer();
-        List<UUID> selectedIds = answer != null
-                ? new ArrayList<>(answer.getSelectedChoiceIds())
-                : List.of();
-        Boolean correct = answer != null && revealCorrect ? answer.getCorrect() : null;
-
-        // Seed déterministe par AttemptQuestion : l'ordre est stable d'une lecture
-        // à l'autre (reprise, refresh) mais différent à chaque nouvelle session,
-        // ce qui empêche l'utilisateur de mémoriser des positions.
-        long seed = aq.getId().getMostSignificantBits() ^ aq.getId().getLeastSignificantBits();
-        return new AttemptQuestionResponse(
-                aq.getId(),
-                aq.getPosition(),
-                toQuestionPublic(aq.getQuestion(), revealCorrect, seed),
-                answer != null,
-                selectedIds,
-                correct
-        );
-    }
-
-    private QuestionPublicResponse toQuestionPublic(Question q, boolean revealCorrect, long shuffleSeed) {
-        List<Choice> ordered = q.getChoices().stream()
-                .sorted(Comparator.comparingInt(Choice::getDisplayOrder))
-                .collect(Collectors.toCollection(ArrayList::new));
-        Collections.shuffle(ordered, new Random(shuffleSeed));
-        List<ChoicePublicResponse> choices = new ArrayList<>(ordered.size());
-        for (int i = 0; i < ordered.size(); i++) {
-            Choice c = ordered.get(i);
-            choices.add(new ChoicePublicResponse(c.getId(), c.getLabel(), i, revealCorrect ? c.isCorrect() : null));
-        }
-
-        MediaResponse media = q.getMedia() == null ? null : new MediaResponse(
-                q.getMedia().getId(),
-                q.getMedia().getType(),
-                q.getMedia().getUrl(),
-                q.getMedia().getDurationSeconds(),
-                q.getMedia().getTranscript(),
-                q.getMedia().getInlineSvg()
-        );
-
-        return new QuestionPublicResponse(
-                q.getId(),
-                q.getModule(),
-                q.getTheme().getId(),
-                q.getTheme().getName(),
-                q.getDifficulty(),
-                q.getQuestionType(),
-                q.getStatement(),
-                revealCorrect ? q.getExplanation() : null,
-                q.getPassage() != null ? q.getPassage().getContent() : null,
-                media,
-                choices
-        );
-    }
-
-    private AttemptSummaryResponse toSummary(Attempt a) {
-        // Pour récupérer la difficulté représentative d'un attempt : on prend
-        // la difficulté de la première question. On pourrait stocker une
-        // difficulté au niveau de l'Attempt à terme.
-        Difficulty diff = null;
-        if (!a.getQuestions().isEmpty()) {
-            diff = a.getQuestions().getFirst().getQuestion().getDifficulty();
-        }
-
-        var template = a.getExamTemplate();
-
-        return new AttemptSummaryResponse(
-                a.getId(),
-                a.getType(),
-                a.getModule(),
-                diff,
-                a.getTotalQuestions(),
-                a.getPassThreshold(),
-                a.getStartedAt(),
-                a.getFinishedAt(),
-                a.getScore(),
-                template != null ? template.getId() : null,
-                template != null ? template.getSlug() : null,
-                template != null ? template.getName() : null
-        );
     }
 }

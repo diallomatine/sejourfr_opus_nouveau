@@ -1,17 +1,33 @@
 package com.sejourfr.app.mapper;
 
 import com.sejourfr.app.dto.ChoiceDto;
+import com.sejourfr.app.dto.ChoicePublicResponse;
+import com.sejourfr.app.dto.ChoiceReviewResponse;
+import com.sejourfr.app.dto.MediaResponse;
 import com.sejourfr.app.dto.QuestionDto;
+import com.sejourfr.app.dto.QuestionPublicResponse;
+import com.sejourfr.app.dto.QuestionReviewResponse;
 import com.sejourfr.app.entity.Choice;
 import com.sejourfr.app.entity.Passage;
 import com.sejourfr.app.entity.Question;
 import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Random;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
 public class QuestionMapper {
 
     private static final int PASSAGE_PREVIEW_LENGTH = 140;
+
+    // ------------------------------------------------------------------------
+    // Vue admin (full info : correct, active, etc.)
+    // ------------------------------------------------------------------------
 
     public ChoiceDto toDto(Choice c) {
         return new ChoiceDto(c.getId(), c.getLabel(), c.isCorrect(), c.getDisplayOrder());
@@ -52,5 +68,88 @@ public class QuestionMapper {
         String oneLine = s.replaceAll("\\s+", " ").trim();
         if (oneLine.length() <= PASSAGE_PREVIEW_LENGTH) return oneLine;
         return oneLine.substring(0, PASSAGE_PREVIEW_LENGTH).trim() + "…";
+    }
+
+    // ------------------------------------------------------------------------
+    // Vue publique (runner / me-routes) : pas de bonne reponse exposee tant
+    // que l'attempt n'est pas finalise ; choix shuffles deterministe.
+    // ------------------------------------------------------------------------
+
+    /**
+     * @param revealCorrect si true, expose Choice.correct + Question.explanation.
+     *                      Sinon (cas runner avant finalisation), ces champs valent null.
+     * @param shuffleSeedId UUID utilise comme seed du shuffle. Cas usuels :
+     *                      AttemptQuestion.id (ordre stable intra-session)
+     *                      ou Question.id (ordre stable pour la revue / favoris).
+     */
+    public QuestionPublicResponse toPublic(Question q, boolean revealCorrect, UUID shuffleSeedId) {
+        long seed = uuidSeed(shuffleSeedId);
+        List<Choice> ordered = q.getChoices().stream()
+                .sorted(Comparator.comparingInt(Choice::getDisplayOrder))
+                .collect(Collectors.toCollection(ArrayList::new));
+        Collections.shuffle(ordered, new Random(seed));
+
+        List<ChoicePublicResponse> choices = new ArrayList<>(ordered.size());
+        for (int i = 0; i < ordered.size(); i++) {
+            Choice c = ordered.get(i);
+            choices.add(new ChoicePublicResponse(
+                    c.getId(),
+                    c.getLabel(),
+                    i,
+                    revealCorrect ? c.isCorrect() : null
+            ));
+        }
+
+        return new QuestionPublicResponse(
+                q.getId(),
+                q.getModule(),
+                q.getTheme().getId(),
+                q.getTheme().getName(),
+                q.getDifficulty(),
+                q.getQuestionType(),
+                q.getStatement(),
+                revealCorrect ? q.getExplanation() : null,
+                q.getPassage() != null ? q.getPassage().getContent() : null,
+                toMedia(q),
+                choices
+        );
+    }
+
+    /** Vue revue (apres reponse) : tous les choix dans leur displayOrder, isCorrect expose. */
+    public QuestionReviewResponse toReview(Question q) {
+        List<ChoiceReviewResponse> choices = q.getChoices().stream()
+                .sorted(Comparator.comparingInt(Choice::getDisplayOrder))
+                .map(c -> new ChoiceReviewResponse(c.getId(), c.getLabel(), c.getDisplayOrder(), c.isCorrect()))
+                .toList();
+
+        return new QuestionReviewResponse(
+                q.getId(),
+                q.getModule(),
+                q.getTheme().getId(),
+                q.getTheme().getName(),
+                q.getDifficulty(),
+                q.getQuestionType(),
+                q.getStatement(),
+                q.getPassage() != null ? q.getPassage().getContent() : null,
+                q.getExplanation(),
+                toMedia(q),
+                choices
+        );
+    }
+
+    private MediaResponse toMedia(Question q) {
+        if (q.getMedia() == null) return null;
+        return new MediaResponse(
+                q.getMedia().getId(),
+                q.getMedia().getType(),
+                q.getMedia().getUrl(),
+                q.getMedia().getDurationSeconds(),
+                q.getMedia().getTranscript(),
+                q.getMedia().getInlineSvg()
+        );
+    }
+
+    private static long uuidSeed(UUID id) {
+        return id.getMostSignificantBits() ^ id.getLeastSignificantBits();
     }
 }

@@ -7,23 +7,28 @@ import com.sejourfr.app.entity.Media;
 import com.sejourfr.app.enums.MediaType;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
-import com.sejourfr.app.repository.MediaRepository;
+import com.sejourfr.app.manager.MediaManager;
+import com.sejourfr.app.mapper.MediaMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
 import java.util.UUID;
 
+/**
+ * Gestion des medias admin (upload binaire ou enregistrement par URL externe).
+ * {@link MediaStorageService} est appele directement : c'est un client externe
+ * (R2 / disque local), pas un repo JPA.
+ */
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class MediaService {
 
-    private final MediaRepository mediaRepository;
+    private final MediaManager mediaManager;
     private final MediaStorageService storage;
-
-    public MediaService(MediaRepository mediaRepository, MediaStorageService storage) {
-        this.mediaRepository = mediaRepository;
-        this.storage = storage;
-    }
+    private final MediaMapper mapper;
 
     public MediaDto upload(MultipartFile file, MediaType type, Integer durationSec, String altText) {
         if (type == null) throw new BusinessException("Le type de media est requis");
@@ -38,7 +43,7 @@ public class MediaService {
         m.setSizeBytes(stored.sizeBytes());
         m.setDurationSec(durationSec);
         m.setAltText(altText);
-        return MediaDto.from(mediaRepository.save(m));
+        return mapper.toDto(mediaManager.save(m));
     }
 
     public MediaDto createFromUrl(MediaCreateFromUrlRequest req) {
@@ -48,12 +53,12 @@ public class MediaService {
         m.setStorageKey(null); // url externe : pas de cle de stockage
         m.setDurationSec(req.durationSec());
         m.setAltText(req.altText());
-        return MediaDto.from(mediaRepository.save(m));
+        return mapper.toDto(mediaManager.save(m));
     }
 
     @Transactional(readOnly = true)
     public MediaDto getById(UUID id) {
-        return MediaDto.from(loadOrThrow(id));
+        return mapper.toDto(loadOrThrow(id));
     }
 
     public void delete(UUID id) {
@@ -61,11 +66,11 @@ public class MediaService {
         if (m.getStorageKey() != null) {
             storage.delete(m.getStorageKey());
         }
-        mediaRepository.delete(m);
+        mediaManager.delete(m);
     }
 
     private Media loadOrThrow(UUID id) {
-        return mediaRepository.findById(id)
+        return mediaManager.findById(id)
                 .orElseThrow(() -> NotFoundException.of("Media", id));
     }
 }
