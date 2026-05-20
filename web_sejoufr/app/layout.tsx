@@ -39,7 +39,7 @@ export const metadata: Metadata = {
   description:
     "Plateforme d'entraînement aux examens civique (CSP, CR, naturalisation) et TCF IRN. QCM, examens blancs en conditions réelles, suivi de progression sur l'app mobile.",
   icons: {
-    icon: "/favicon.svg",
+    icon: "/logo_sejourFR.png",
   },
 };
 
