@@ -202,6 +202,7 @@ Le **runner de questions** (mobile `screens/question_runner/` et web `examen-bla
 - **Code direct + brèves explications.** Pas de récap de fin de message ni de narration d'étapes triviales.
 - **Pour les décisions structurantes : proposer des options avec leurs tradeoffs, pas imposer.**
 - **Pas de Tailwind utility-first dans le markup web** — Tailwind v4 sert uniquement aux tokens via `@theme`. Styles dans `globals.css` ou `<style>` JSX scoped.
+- **Responsive obligatoire (web + admin)** : tout écran doit fonctionner du mobile (~360 px) au desktop. Tester mentalement chaque modif sur 360 / 768 / 1280 minimum. Pas de largeur fixe en px sans `max-width: 100%`, pas de grilles à colonnes fixes sans `@media` de repli, pas de tableaux sans alternative carte sur petit écran. Si une modif touche un layout existant, vérifier que les breakpoints en place tiennent toujours.
 - **Admin & runner** : pas d'UI kit, pas de CSS-in-JS, pas de `clsx`. CSS Modules vanilla.
 - **Mobile** : Riverpod uniquement (pas de Bloc/Provider/GetX), `context.go/push` (jamais `Navigator.push`), `withValues(alpha:)` (pas `withOpacity`).
 - **Tous** : TypeScript/Dart strict, pas de `any`/`dynamic`, imports relatifs, pas de commentaire qui paraphrase le code.
