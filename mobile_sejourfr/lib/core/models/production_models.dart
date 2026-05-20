@@ -150,16 +150,24 @@ class EvaluationResult {
     required this.feedback,
     this.noteSurVingt,
     this.niveauCecrl,
+    this.justificationNiveau,
   });
 
   /// Note 0..20, peut etre nulle si l'IA n'a pas pu noter (ex: production vide).
   final double? noteSurVingt;
   final NiveauCecrl? niveauCecrl;
+
+  /// Justification du niveau CECRL attribue : 2-3 phrases citant des marqueurs
+  /// concrets de la production. Null pour les evaluations en prompt-version
+  /// v1.0 (champ ajoute en v1.1) ou si le LLM ne l'a pas renvoye.
+  final String? justificationNiveau;
+
   final EvaluationFeedback feedback;
 
   factory EvaluationResult.fromJson(Map<String, dynamic> json) => EvaluationResult(
         noteSurVingt: (json['noteSurVingt'] as num?)?.toDouble(),
         niveauCecrl: NiveauCecrl.fromWireNullable(json['niveauCecrl'] as String?),
+        justificationNiveau: json['justificationNiveau'] as String?,
         feedback: EvaluationFeedback.fromJson(
           (json['feedback'] as Map<String, dynamic>?) ?? const {},
         ),

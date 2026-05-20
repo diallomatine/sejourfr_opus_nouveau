@@ -77,9 +77,14 @@ public class ProductionSubmissionMapper {
     }
 
     private EvaluationResultDto toEvaluationDto(AiEvaluation e) {
+        Object justifRaw = e.getFeedbackJson() != null
+            ? e.getFeedbackJson().get("justification_niveau")
+            : null;
+        String justification = justifRaw == null ? null : justifRaw.toString();
         return new EvaluationResultDto(
             e.getNoteSur20(),
             e.getNiveauCecrl(),
+            justification,
             e.getFeedbackJson()
         );
     }

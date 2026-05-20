@@ -42,7 +42,7 @@ public class EvaluationAnthropicClient implements EvaluationLlmClient {
 
     private static final Logger log = LoggerFactory.getLogger(EvaluationAnthropicClient.class);
     private static final String TOOL_NAME = "submit_evaluation";
-    private static final String TOOL_SCHEMA_PATH = "prompts/production-evaluation-tool-schema.json";
+    private static final String TOOL_SCHEMA_PATH_FORMAT = "prompts/production-evaluation-tool-schema-%s.json";
 
     private final ProductionEvaluationProperties props;
     private final ObjectMapper objectMapper;
@@ -60,11 +60,14 @@ public class EvaluationAnthropicClient implements EvaluationLlmClient {
 
     @PostConstruct
     void loadToolSchema() throws Exception {
-        try (InputStream is = new ClassPathResource(TOOL_SCHEMA_PATH).getInputStream()) {
+        String version = props.getAnthropic().getPromptVersion();
+        String path = String.format(TOOL_SCHEMA_PATH_FORMAT, version);
+        try (InputStream is = new ClassPathResource(path).getInputStream()) {
             String json = StreamUtils.copyToString(is, StandardCharsets.UTF_8);
             this.toolSchema = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
         }
-        log.info("Tool schema submit_evaluation charge ({} cles)", toolSchema.size());
+        log.info("Anthropic eval : tool schema {} charge ({}, {} cles)",
+            TOOL_NAME, version, toolSchema.size());
     }
 
     @Override

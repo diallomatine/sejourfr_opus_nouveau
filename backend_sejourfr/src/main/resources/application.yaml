@@ -162,7 +162,7 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v1.0}
+      prompt-version: ${EVAL_PROMPT_VERSION:v1.1}
       # Tarification gpt-4o-mini (USD / 1M tokens, mai 2026). A surcharger si
       # on bascule sur gpt-4o ou gpt-5 (cout estime persiste dans ai_evaluations).
       cost-per-million-input-tokens: 0.15
@@ -176,6 +176,6 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v1.0}
+      prompt-version: ${EVAL_PROMPT_VERSION:v1.1}
       cost-per-million-input-tokens: 3.0
       cost-per-million-output-tokens: 15.0

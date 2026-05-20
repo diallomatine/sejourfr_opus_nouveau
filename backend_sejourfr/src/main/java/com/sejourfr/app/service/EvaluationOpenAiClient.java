@@ -49,7 +49,7 @@ public class EvaluationOpenAiClient implements EvaluationLlmClient {
 
     private static final Logger log = LoggerFactory.getLogger(EvaluationOpenAiClient.class);
     private static final String TOOL_NAME = "submit_evaluation";
-    private static final String TOOL_SCHEMA_PATH = "prompts/production-evaluation-tool-schema.json";
+    private static final String TOOL_SCHEMA_PATH_FORMAT = "prompts/production-evaluation-tool-schema-%s.json";
 
     private final ProductionEvaluationProperties props;
     private final ObjectMapper objectMapper;
@@ -67,11 +67,13 @@ public class EvaluationOpenAiClient implements EvaluationLlmClient {
 
     @PostConstruct
     void loadToolSchema() throws Exception {
-        try (InputStream is = new ClassPathResource(TOOL_SCHEMA_PATH).getInputStream()) {
+        String version = props.getOpenai().getPromptVersion();
+        String path = String.format(TOOL_SCHEMA_PATH_FORMAT, version);
+        try (InputStream is = new ClassPathResource(path).getInputStream()) {
             String json = StreamUtils.copyToString(is, StandardCharsets.UTF_8);
             this.toolSchema = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
         }
-        log.info("OpenAI eval : tool schema {} charge", TOOL_NAME);
+        log.info("OpenAI eval : tool schema {} charge ({})", TOOL_NAME, version);
     }
 
     @Override
