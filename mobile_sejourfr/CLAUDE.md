@@ -68,6 +68,7 @@ lib/
     ├── shell/
     │   └── main_shell.dart        Bottom nav 5 onglets
     ├── training/                  Entraînement libre (thème + niveau + nb questions)
+    │   └── widgets/production_entry_tile.dart  Tiles EO/EE en bas de la liste TCF
     ├── exam/                      Examen blanc (CSP/CR/NAT ou A2/B1/B2)
     ├── question_runner/           Le runner partagé (le cœur de l'app)
     │   ├── runner_controller.dart Riverpod controller avec state d'attempt
@@ -78,6 +79,19 @@ lib/
     │       ├── choice_tile.dart   4 états visuels
     │       ├── exam_timer.dart    Chrono décompte
     │       └── explanation_box.dart Bloc correction post-réponse
+    ├── tcf_production/            EO + EE (productions évaluées par IA)
+    │   ├── audio_recorder_service.dart  record 6 + permission_handler + audio_session
+    │   ├── draft_service.dart           Brouillon EE en SharedPreferences
+    │   ├── ee_session_controller.dart   Session EE (3 tâches, attempt parent partagé)
+    │   ├── eo_session_controller.dart   Session EO (idem)
+    │   ├── session_view.dart            Vue abstraite EE+EO pour écrans communs
+    │   ├── ee_briefing_writing_screen.dart  Briefing + zone d'écriture combinés
+    │   ├── eo_briefing_screen.dart      + recording + finished + results screens
+    │   ├── session_progress_screen.dart Entre les tâches (X/3 + liste)
+    │   ├── session_bilan_screen.dart    Après T3 : hero bleu CECRL + détail
+    │   └── widgets/                     production_app_header, donut_chart_score,
+    │                                    mots_card, writing_zone, criterion_row,
+    │                                    feedback_block, transcription_section, etc.
     ├── review/                    Favoris + erreurs récentes (tabs)
     └── profile/                   Compte + paramètres + logout
 ```
@@ -245,6 +259,49 @@ répondue, sinon dernière.
 **Médias** : le `QuestionDto.media` est un `MediaDto` optionnel avec un `type` (AUDIO/IMAGE/VIDEO) + une
 `url`. Le `QuestionMediaView` dispatche vers le bon widget. Pour l'instant, les questions du seed ne
 contiennent que du texte, mais l'architecture est prête pour le TCF complet.
+
+## TCF Expression orale + écrite (`screens/tcf_production/`)
+
+Module distinct du runner QCM : l'utilisateur **produit** un audio (EO) ou un texte (EE), envoyé au backend
+qui le transcrit (Whisper) + le note (Claude) en 10-15 s. Cf. `CLAUDE.md` racine pour le pipeline backend.
+
+**Points d'entrée** : 2 tiles `ProductionEntryTile` ajoutées en bas de la liste des thèmes dans
+`training_setup_screen.dart` quand `selectedModule == AppModule.tcf`. Tap → push immédiat vers
+`/tcf/expression-orale` ou `/tcf/expression-ecrite`.
+
+**Flow EO (3 écrans + résultats)** :
+1. **Briefing** (`eo_briefing_screen.dart`) : consigne + conseils + CTA "Commencer" qui demande la permission
+   micro via `_recorder.hasPermission()` du package `record` directement (✋ **ne pas utiliser
+   `permission_handler` seul** : il court-circuite l'auth iOS dans certains cas et ne déclenche pas le dialog).
+2. **Recording** (`eo_recording_screen.dart`) : timer big + waveform animée (33 barres calées sur
+   l'amplitude réelle + sinusoïde) + bouton stop rond rouge. Auto-stop à `dureeMaxSec`.
+3. **Finished** (`eo_finished_screen.dart`) : check vert + mini-player just_audio sur le fichier local +
+   CTA "Voir mon évaluation" → swap vers `EvaluationLoadingView(includeTranscription: true)` pendant
+   l'upload R2 + Whisper + Claude (~15 s), puis push résultats.
+4. **Résultats** (`eo_results_screen.dart`) : score donut violet + critères + feedback + **transcription
+   Whisper** (depuis `submission.transcription` exposée par le backend).
+
+**Flow EE** : 1 seul écran combiné `ee_briefing_writing_screen.dart` (briefing + textarea + compteur live +
+`MotsCard` ambre + brouillon auto-save 3 s dans `SharedPreferences` via `EeDraftService`).
+
+**Sessions** : `EeSessionController` / `EoSessionController` (StateNotifier **non-autoDispose**) portent les
+3 tasks + l'attempt parent + la map des submissions. Au 1er mount du briefing, `start(niveau:...)` charge
+les tasks + crée l'attempt via `POST /api/attempts/production`. Reset manuel après bilan ou abandon.
+
+**Écrans communs EE + EO** (`session_progress_screen.dart`, `session_bilan_screen.dart`) paramétrés par
+`EpreuveType`, lisent la session via `readSessionView(ref, epreuve)` (helper dans `session_view.dart` qui
+abstrait `EeSessionState` et `EoSessionState`).
+
+**Gotchas iOS** :
+- `record_ios 1.2.0` produit un fichier vide (28 B) sur **iOS 26 en AAC-LC**. Workaround : `AudioEncoder.wav`
+  (PCM 16 kHz mono, ~32 KB/s). Repasser à AAC dès qu'une version récente sort.
+- **AVAudioSession** doit être configurée explicitement en `playAndRecord` avant chaque
+  `_recorder.start()`, sinon le micro est muet si `just_audio` a précédemment saisi la session en
+  `.playback`. `AudioRecorderService.start()` le fait via le package `audio_session`.
+- `NSMicrophoneUsageDescription` dans `ios/Runner/Info.plist` + `RECORD_AUDIO` dans le manifest Android.
+
+**Backend gotcha relayé** : le DTO `Attempt` du backend renvoie `totalQuestions=null` pour les attempts de
+type production. `core/models/attempt_models.dart` coerce `null → 0` pour ne pas casser le parsing existant.
 
 ## Roadmap (ce qui n'est pas encore fait)
 

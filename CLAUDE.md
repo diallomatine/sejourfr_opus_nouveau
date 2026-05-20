@@ -66,7 +66,7 @@ Base : `http://localhost:8080`. CORS dev autorise `localhost:3000` (web Next.js)
 Endpoints clés :
 - `POST /api/auth/{login,register,refresh,forgot-password,reset-password}` · `GET /api/auth/me`
 - `GET /api/themes?module=CIVIQUE|TCF`
-- `POST /api/attempts` · `GET /api/attempts/{id}` · `POST /api/attempts/{id}/answers` · `POST /api/attempts/{id}/finish`
+- `POST /api/attempts` · `POST /api/attempts/production` (attempt vide pour EO/EE) · `GET /api/attempts/{id}` · `POST /api/attempts/{id}/answers` · `POST /api/attempts/{id}/finish`
 - `GET /api/me/{questions/favorites,questions/wrong,stats}?module=...` · `POST|DELETE /api/me/questions/{id}/favorite`
 - **EO/EE TCF** : `GET /api/production-tasks?epreuve=TCF_EO&niveau=B1` · `GET /api/production-tasks/{id}` · `POST /api/production-submissions` (multipart audio **ou** JSON texte selon `Content-Type`) · `POST /api/production-submissions/{id}/retry` · `GET /api/production-submissions/{id}` · `GET /api/users/me/production-submissions?epreuve=...`
 - Admin : `/api/admin/{dashboard,questions,themes,conversations,media,passages,audio-questions,calibration/{submissions,stats}}`
@@ -168,7 +168,11 @@ Config : `sejourfr.openai` (Whisper) + `sejourfr.production-evaluation` (paramè
 
 Quota gratuit : 2 submissions à vie par épreuve (EO + EE) via `SubscriptionService.hasTcf(userId)` ; au-delà → 403. Premium TCF (plan INTEGRAL) = illimité. Retry manuel max 3 par submission.
 
-Pas encore d'UI côté admin / web / mobile — les types miroirs sur les fronts seront à ajouter quand les écrans seront codés.
+**Mobile (Flutter)** : flow complet livré dans `mobile_sejourfr/lib/screens/tcf_production/` (cf. CLAUDE.md du sous-projet). Web et admin n'ont pas encore d'UI EO/EE.
+
+**Gotchas backend appris à la dure** :
+- `chk_prod_sub_audio_or_text` interdit qu'un INSERT ait `media_url=null ET texte_soumis=null` : `ProductionEvaluationService` uploade R2 AVANT l'insert (avec un UUID indépendant de `submission.id` — sinon Hibernate + `@UuidGenerator` rejette une entité avec id pré-assigné comme "detached").
+- `SubscriptionService` doit rester `@Transactional(readOnly = true)` au niveau classe : ses callers (ex: `ProductionSubmissionController.enforceQuota`) ne sont pas tous transactionnels, et avec `open-in-view: false` l'accès lazy à `Plan` plante sans session ouverte.
 
 ## Architecture mentale par projet
 
@@ -204,8 +208,9 @@ Le **runner de questions** (mobile `screens/question_runner/` et web `examen-bla
 - **Middleware Next** pour protéger les routes auth via cookie `sejourfr.accessToken`.
 - **Dashboard utilisateur, entraînement libre, révision, succès post-paiement** côté web.
 - **Clients / abonnements / stats par user** côté admin (entités existent, pas d'endpoints encore).
-- **EO/EE TCF côté fronts** : backend prêt (services + 9 endpoints + 18 tâches seed), aucune UI nulle part. Candidat naturel : enregistreur audio mobile pour les 3 tâches EO + éditeur texte EE ; côté admin, écran de calibration humaine consommant `/api/admin/calibration/*`.
+- **EO/EE TCF côté web + admin** : mobile livré (sessions, recording WAV, écrans complets) ; reste à coder le miroir web (entraînement EO/EE en navigateur via `MediaRecorder` API) et l'écran admin de calibration humaine consommant `/api/admin/calibration/*`.
 - **Rate limiting global EO/EE** : la spec demandait 10/h et 50/jour, pas branché (mériterait un filter Spring dédié type Bucket4j).
+- **AAC pour EO mobile** : `record_ios 1.2.0` produit un fichier vide sur iOS 26 en AAC-LC → workaround WAV (32 KB/s = ~6 Mo pour 3 min). Repasser à AAC dès qu'une version `record_ios` iOS 26-compatible sort, pour économiser ~5x sur l'upload.
 - **Offline-first mobile** (SQLite/Drift dans `core/storage/`) — non commencé.
 - **In-app purchase** mobile : **volontairement reporté**, on pousse l'utilisateur à payer sur le web.
 - **Tests** : aucun sur les 4 projets. Cibles à venir : Vitest+RTL (admin/web), `flutter_test`+`mocktail` (mobile, prioriser les controllers Riverpod), JUnit (backend, prioriser l'orchestration EO/EE qui n'a que des mocks à brancher).
