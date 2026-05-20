@@ -157,14 +157,16 @@ Tables (cf. `V96__add_production_tasks.sql`) : `production_tasks` (catalogue de 
 
 Services dans `backend_sejourfr/src/main/java/com/sejourfr/app/service/` (packages flat, pas un sous-module comme `audioquestion/`) :
 - `WhisperTranscriptionClient` + `WhisperTranscriptionService` (OpenAI multipart, retry Spring 3 tentatives)
-- `EvaluationAnthropicClient` + `EvaluationPromptBuilder` + `AiEvaluationService` (Claude + tool_use)
+- **Interface `EvaluationLlmClient`** avec deux impls : `EvaluationAnthropicClient` (Claude + tool_use) et `EvaluationOpenAiClient` (Chat Completions + function calling). Le bean primary est sélectionné dans `config/EvaluationLlmConfig` selon `sejourfr.production-evaluation.provider` (`openai` par défaut, `anthropic` possible). Le tool schema JSON est strictement identique entre providers — seule l'enveloppe HTTP change. Pour ajouter un 3e provider : implémenter l'interface (4 méthodes : `evaluate`, `getModelName`, `getPromptVersion`, calcul de coût dans `Outcome`), enregistrer le bean avec un `@Service("evaluationXxxClient")`, ajouter le case dans `EvaluationLlmConfig`.
+- `EvaluationPromptBuilder` (charge `system-v1.md` + `user-template.md` au startup, substitution `{CONSIGNE}`, `{NIVEAU}`, etc.)
+- `AiEvaluationService` (orchestration : prompt + LLM + persistance `AiEvaluation`)
 - `ProductionAudioStorageService` (R2 privé + URL signée via `S3Presigner` ; le bean est ajouté à `audioquestion/config/CloudflareR2Config.java`)
 - `ProductionEvaluationService` (orchestration `submitAndEvaluate` / `retry`) — **pas `@Transactional` au niveau orchestration** : chaque étape a son propre tx, ce qui permet de tomber en `FAILED` proprement et de reprendre du bon point au retry (skip Whisper si la transcription est déjà en base).
 - `AdminCalibrationService` (dashboard écart IA vs humain).
 
 Prompts dans `src/main/resources/prompts/production-evaluation-{system-v1.md, user-template.md, tool-schema.json}`. Versionnés dans `ai_evaluations.prompt_version` (toute modif = nouvelle version).
 
-Config : `sejourfr.openai` (Whisper) + `sejourfr.production-evaluation` (paramètres généraux + sous-objet `anthropic` dédié). **Distinct** de `sejourfr.anthropic` qui sert au pipeline CO et tourne sur Opus. Variables d'env : `OPENAI_API_KEY`, `EVAL_ANTHROPIC_API_KEY` (fallback `ANTHROPIC_API_KEY`).
+Config : `sejourfr.openai` (Whisper) + `sejourfr.production-evaluation` (paramètres généraux + `provider` + sous-objets `openai` et `anthropic` dédiés à l'évaluation). **Distinct** de `sejourfr.anthropic` qui sert au pipeline CO et tourne sur Opus. Variables d'env : `OPENAI_API_KEY` (mutualisé Whisper + eval OpenAI), `EVAL_OPENAI_API_KEY` (dédié si besoin), `EVAL_ANTHROPIC_API_KEY` (fallback `ANTHROPIC_API_KEY`), `EVAL_LLM_PROVIDER` (`openai` | `anthropic`), `EVAL_OPENAI_MODEL`, `EVAL_ANTHROPIC_MODEL`. Le coût estimé en centimes est calculé par le client lui-même (tarif `cost-per-million-{input,output}-tokens` dans la config par provider) et persiste dans `ai_evaluations.cout_estime_centimes`.
 
 Quota gratuit : 2 submissions à vie par épreuve (EO + EE) via `SubscriptionService.hasTcf(userId)` ; au-delà → 403. Premium TCF (plan INTEGRAL) = illimité. Retry manuel max 3 par submission.
 

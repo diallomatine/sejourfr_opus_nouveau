@@ -25,35 +25,34 @@ import java.util.UUID;
 
 /**
  * Orchestre l'evaluation IA d'une {@link ProductionSubmission} :
- * construit les prompts, appelle Claude via {@link EvaluationAnthropicClient},
- * persiste {@link AiEvaluation} et passe la submission a EVALUATED.
+ * construit les prompts, appelle le LLM via {@link EvaluationLlmClient}
+ * (provider selectionne par config : Anthropic, OpenAI, ...), persiste
+ * {@link AiEvaluation} et passe la submission a EVALUATED.
  */
 @Service
 public class AiEvaluationService {
 
     private static final Logger log = LoggerFactory.getLogger(AiEvaluationService.class);
-    /** Cout indicatif Sonnet 4-5 : ~3 USD / 1M input + 15 USD / 1M output (mai 2026). */
-    private static final double COUT_USD_PAR_INPUT_TOKEN = 3.0 / 1_000_000.0;
-    private static final double COUT_USD_PAR_OUTPUT_TOKEN = 15.0 / 1_000_000.0;
 
     private final ProductionSubmissionRepository submissionRepository;
     private final TranscriptionRepository transcriptionRepository;
     private final AiEvaluationRepository aiEvaluationRepository;
-    private final EvaluationAnthropicClient anthropicClient;
+    private final EvaluationLlmClient llmClient;
     private final EvaluationPromptBuilder promptBuilder;
+    @SuppressWarnings("unused")
     private final ProductionEvaluationProperties props;
 
     public AiEvaluationService(
             ProductionSubmissionRepository submissionRepository,
             TranscriptionRepository transcriptionRepository,
             AiEvaluationRepository aiEvaluationRepository,
-            EvaluationAnthropicClient anthropicClient,
+            EvaluationLlmClient llmClient,
             EvaluationPromptBuilder promptBuilder,
             ProductionEvaluationProperties props) {
         this.submissionRepository = submissionRepository;
         this.transcriptionRepository = transcriptionRepository;
         this.aiEvaluationRepository = aiEvaluationRepository;
-        this.anthropicClient = anthropicClient;
+        this.llmClient = llmClient;
         this.promptBuilder = promptBuilder;
         this.props = props;
     }
@@ -71,7 +70,7 @@ public class AiEvaluationService {
         String systemPrompt = promptBuilder.buildSystemPrompt(task.getEpreuve());
         String userPrompt = promptBuilder.buildUserPrompt(task, input.production(), input.litteral());
 
-        EvaluationAnthropicClient.Outcome outcome = anthropicClient.evaluate(systemPrompt, userPrompt);
+        EvaluationLlmClient.Outcome outcome = llmClient.evaluate(systemPrompt, userPrompt);
 
         Map<String, Object> feedback = outcome.feedback();
         BigDecimal noteSur20 = extractNote(feedback);
@@ -79,14 +78,14 @@ public class AiEvaluationService {
 
         AiEvaluation eval = new AiEvaluation();
         eval.setSubmission(sub);
-        eval.setModeleUtilise(props.getAnthropic().getModel());
-        eval.setPromptVersion(props.getAnthropic().getPromptVersion());
+        eval.setModeleUtilise(llmClient.getModelName());
+        eval.setPromptVersion(llmClient.getPromptVersion());
         eval.setNoteSur20(noteSur20);
         eval.setNiveauCecrl(niveau);
         eval.setFeedbackJson(feedback);
         eval.setTokensInput(outcome.inputTokens());
         eval.setTokensOutput(outcome.outputTokens());
-        eval.setCoutEstimeCentimes(estimerCout(outcome.inputTokens(), outcome.outputTokens()));
+        eval.setCoutEstimeCentimes(outcome.costEstimateCents());
         aiEvaluationRepository.save(eval);
 
         sub.setStatut(SubmissionStatut.EVALUATED);
@@ -94,7 +93,7 @@ public class AiEvaluationService {
         submissionRepository.save(sub);
 
         log.info("AiEvaluation persistee submission={} note={} niveau={} model={}",
-            submissionId, noteSur20, niveau, props.getAnthropic().getModel());
+            submissionId, noteSur20, niveau, llmClient.getModelName());
         return eval;
     }
 
@@ -139,15 +138,6 @@ public class AiEvaluationService {
             log.warn("niveau_cecrl inconnu : {}", raw);
             return null;
         }
-    }
-
-    private Integer estimerCout(Integer tokensInput, Integer tokensOutput) {
-        if (!props.isCostTrackingEnabled()) return null;
-        double usd = 0;
-        if (tokensInput != null) usd += tokensInput * COUT_USD_PAR_INPUT_TOKEN;
-        if (tokensOutput != null) usd += tokensOutput * COUT_USD_PAR_OUTPUT_TOKEN;
-        if (usd <= 0) return null;
-        return (int) Math.ceil(usd * 100.0);
     }
 
     private record ProductionInput(String production, boolean litteral) {}

@@ -37,8 +37,8 @@ import java.util.Map;
  * un JSON valide. Distinct de {@code AnthropicClient} (audioquestion/) qui sert
  * a generer des questions audio CO.
  */
-@Service
-public class EvaluationAnthropicClient {
+@Service("evaluationAnthropicClient")
+public class EvaluationAnthropicClient implements EvaluationLlmClient {
 
     private static final Logger log = LoggerFactory.getLogger(EvaluationAnthropicClient.class);
     private static final String TOOL_NAME = "submit_evaluation";
@@ -67,8 +67,19 @@ public class EvaluationAnthropicClient {
         log.info("Tool schema submit_evaluation charge ({} cles)", toolSchema.size());
     }
 
+    @Override
+    public String getModelName() {
+        return props.getAnthropic().getModel();
+    }
+
+    @Override
+    public String getPromptVersion() {
+        return props.getAnthropic().getPromptVersion();
+    }
+
     // Retry strategie : 3 tentatives totales (1 initiale + 2 retries) avec
     // backoff exponentiel + jitter, conforme spec section 2.3.a.
+    @Override
     @Retryable(
         retryFor = AiEvaluationTransientException.class,
         maxAttempts = 3,
@@ -194,8 +205,18 @@ public class EvaluationAnthropicClient {
         JsonNode usage = response.path("usage");
         Integer inputTokens = usage.hasNonNull("input_tokens") ? usage.get("input_tokens").asInt() : null;
         Integer outputTokens = usage.hasNonNull("output_tokens") ? usage.get("output_tokens").asInt() : null;
+        Integer cost = estimateCostCents(inputTokens, outputTokens);
 
-        return new Outcome(parsed, inputTokens, outputTokens);
+        return new Outcome(parsed, inputTokens, outputTokens, cost);
+    }
+
+    private Integer estimateCostCents(Integer in, Integer out) {
+        ProductionEvaluationProperties.Anthropic a = props.getAnthropic();
+        double usd = 0;
+        if (in != null)  usd += in  * (a.getCostPerMillionInputTokens()  / 1_000_000.0);
+        if (out != null) usd += out * (a.getCostPerMillionOutputTokens() / 1_000_000.0);
+        if (usd <= 0) return null;
+        return (int) Math.ceil(usd * 100.0);
     }
 
     private static ClientHttpRequestFactory buildRequestFactory(int timeoutSec) {
@@ -211,6 +232,4 @@ public class EvaluationAnthropicClient {
         if (s == null) return "";
         return s.length() > 200 ? s.substring(0, 200) + "..." : s;
     }
-
-    public record Outcome(Map<String, Object> feedback, Integer inputTokens, Integer outputTokens) {}
 }

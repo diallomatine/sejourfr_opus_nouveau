@@ -140,6 +140,11 @@ sejourfr:
         Conserver les hesitations, les repetitions, et les eventuelles fautes
         grammaticales telles que prononcees.
   production-evaluation:
+    # Provider LLM actif : openai (defaut) ou anthropic. Pour switcher, changer
+    # cette valeur (ou EVAL_LLM_PROVIDER) et redemarrer le backend. Aucune
+    # migration ni changement cote mobile : le DTO + le tool schema sont
+    # identiques, seule la maniere d'appeler le LLM change.
+    provider: ${EVAL_LLM_PROVIDER:openai}
     max-audio-duration-seconds: 300
     max-text-words: 300
     min-text-words: 10
@@ -147,6 +152,21 @@ sejourfr:
     cost-tracking-enabled: true
     max-retries-per-submission: 3
     presigned-url-expiry-minutes: 15
+    openai:
+      # Defaut : reutilise OPENAI_API_KEY (deja config pour Whisper). Surcharge
+      # via EVAL_OPENAI_API_KEY si on veut une cle dediee.
+      api-key: ${EVAL_OPENAI_API_KEY:${OPENAI_API_KEY:}}
+      api-url: https://api.openai.com/v1/chat/completions
+      model: ${EVAL_OPENAI_MODEL:gpt-4o-mini}
+      max-tokens: 2000
+      timeout-sec: 60
+      max-retries: 2
+      retry-backoff-ms: 1000
+      prompt-version: ${EVAL_PROMPT_VERSION:v1.0}
+      # Tarification gpt-4o-mini (USD / 1M tokens, mai 2026). A surcharger si
+      # on bascule sur gpt-4o ou gpt-5 (cout estime persiste dans ai_evaluations).
+      cost-per-million-input-tokens: 0.15
+      cost-per-million-output-tokens: 0.60
     anthropic:
       api-key: ${EVAL_ANTHROPIC_API_KEY:${ANTHROPIC_API_KEY:}}
       api-url: https://api.anthropic.com/v1/messages
@@ -157,3 +177,5 @@ sejourfr:
       max-retries: 2
       retry-backoff-ms: 1000
       prompt-version: ${EVAL_PROMPT_VERSION:v1.0}
+      cost-per-million-input-tokens: 3.0
+      cost-per-million-output-tokens: 15.0
