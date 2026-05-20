@@ -44,10 +44,37 @@ public class AiEvaluationService {
     @SuppressWarnings("unused")
     private final ProductionEvaluationProperties props;
 
+    private static BigDecimal extractNote(Map<String, Object> feedback) {
+        Object raw = feedback.get("note_globale");
+        if (raw == null) return null;
+        try {
+            BigDecimal v = new BigDecimal(raw.toString()).setScale(1, RoundingMode.HALF_UP);
+            if (v.compareTo(BigDecimal.ZERO) < 0 || v.compareTo(NOTE_MAX) > 0) {
+                log.warn("note_globale hors borne [0,20] : {}", v);
+                return null;
+            }
+            return v;
+        } catch (NumberFormatException e) {
+            log.warn("note_globale non-numerique : {}", raw);
+            return null;
+        }
+    }
+
+    private static NiveauCecrl extractNiveau(Map<String, Object> feedback) {
+        Object raw = feedback.get("niveau_cecrl");
+        if (raw == null) return null;
+        try {
+            return NiveauCecrl.valueOf(raw.toString());
+        } catch (IllegalArgumentException e) {
+            log.warn("niveau_cecrl inconnu : {}", raw);
+            return null;
+        }
+    }
+
     @Transactional
     public AiEvaluation evaluate(UUID submissionId) {
         ProductionSubmission sub = submissionManager.findById(submissionId)
-            .orElseThrow(() -> new NotFoundException("Submission introuvable : " + submissionId));
+                .orElseThrow(() -> new NotFoundException("Submission introuvable : " + submissionId));
         ProductionTask task = sub.getProductionTask();
         if (task == null) {
             throw new AiEvaluationException("Submission " + submissionId + " sans production_task.");
@@ -80,17 +107,17 @@ public class AiEvaluationService {
         submissionManager.save(sub);
 
         log.info("AiEvaluation persistee submission={} note={} niveau={} model={}",
-            submissionId, noteSur20, niveau, llmClient.getModelName());
+                submissionId, noteSur20, niveau, llmClient.getModelName());
         return eval;
     }
 
     private ProductionInput loadInput(ProductionSubmission sub, ProductionTask task) {
         if (task.getEpreuve() == EpreuveType.TCF_EO) {
             Transcription t = transcriptionManager
-                .findLatestBySubmissionId(sub.getId())
-                .orElseThrow(() -> new AiEvaluationException(
-                    "Submission EO " + sub.getId() + " sans transcription : Whisper a echoue ou n'a pas tourne."
-                ));
+                    .findLatestBySubmissionId(sub.getId())
+                    .orElseThrow(() -> new AiEvaluationException(
+                            "Submission EO " + sub.getId() + " sans transcription : Whisper a echoue ou n'a pas tourne."
+                    ));
             return new ProductionInput(t.getTexte(), true);
         }
         // EE : texte rendu directement par l'utilisateur.
@@ -100,32 +127,6 @@ public class AiEvaluationService {
         return new ProductionInput(sub.getTexteSoumis(), false);
     }
 
-    private static BigDecimal extractNote(Map<String, Object> feedback) {
-        Object raw = feedback.get("note_globale");
-        if (raw == null) return null;
-        try {
-            BigDecimal v = new BigDecimal(raw.toString()).setScale(1, RoundingMode.HALF_UP);
-            if (v.compareTo(BigDecimal.ZERO) < 0 || v.compareTo(NOTE_MAX) > 0) {
-                log.warn("note_globale hors borne [0,20] : {}", v);
-                return null;
-            }
-            return v;
-        } catch (NumberFormatException e) {
-            log.warn("note_globale non-numerique : {}", raw);
-            return null;
-        }
+    private record ProductionInput(String production, boolean litteral) {
     }
-
-    private static NiveauCecrl extractNiveau(Map<String, Object> feedback) {
-        Object raw = feedback.get("niveau_cecrl");
-        if (raw == null) return null;
-        try {
-            return NiveauCecrl.valueOf(raw.toString());
-        } catch (IllegalArgumentException e) {
-            log.warn("niveau_cecrl inconnu : {}", raw);
-            return null;
-        }
-    }
-
-    private record ProductionInput(String production, boolean litteral) {}
 }

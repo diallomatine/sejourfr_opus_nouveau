@@ -28,7 +28,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ProductionSubmissionService {
 
-    /** Plafond de submissions par epreuve pour les comptes non-Premium (a vie). */
+    /**
+     * Plafond de submissions par epreuve pour les comptes non-Premium (a vie).
+     */
     private static final int FREE_QUOTA_PER_EPREUVE = 2;
 
     private static final int MIN_LIMIT = 1;

@@ -39,7 +39,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AdminCalibrationService {
 
-    /** Seuil au-dela duquel un ecart est considere "hors cible" (spec section 3.2). */
+    /**
+     * Seuil au-dela duquel un ecart est considere "hors cible" (spec section 3.2).
+     */
     private static final BigDecimal SEUIL_HORS_CIBLE = new BigDecimal("3.0");
     private static final BigDecimal CIBLE_ECART_MOYEN_ABS = new BigDecimal("1.5");
     private static final BigDecimal CIBLE_POURCENTAGE_HORS = new BigDecimal("5");
@@ -79,9 +81,9 @@ public class AdminCalibrationService {
         List<ProductionSubmission> filtered = Boolean.TRUE.equals(hasHumanNote)
                 ? base.stream().limit(safe).toList()
                 : base.stream()
-                        .filter(s -> humanNoteManager.findBySubmissionOrderedByCreatedAtDesc(s.getId()).isEmpty())
-                        .limit(safe)
-                        .toList();
+                  .filter(s -> humanNoteManager.findBySubmissionOrderedByCreatedAtDesc(s.getId()).isEmpty())
+                  .limit(safe)
+                  .toList();
 
         return filtered.stream().map(submissionMapper::toDtoWithSignedAudio).toList();
     }

@@ -25,8 +25,7 @@ class ProductionHubScreen extends ConsumerStatefulWidget {
   final EpreuveType epreuve;
 
   @override
-  ConsumerState<ProductionHubScreen> createState() =>
-      _ProductionHubScreenState();
+  ConsumerState<ProductionHubScreen> createState() => _ProductionHubScreenState();
 }
 
 class _ProductionHubScreenState extends ConsumerState<ProductionHubScreen> {
@@ -55,13 +54,10 @@ class _ProductionHubScreenState extends ConsumerState<ProductionHubScreen> {
     });
   }
 
-  String get _epreuveLabel =>
-      widget.epreuve == EpreuveType.tcfEo ? 'Expression orale' : 'Expression écrite';
+  String get _epreuveLabel => widget.epreuve == EpreuveType.tcfEo ? 'Expression orale' : 'Expression écrite';
 
   String get _epreuveRoot =>
-      widget.epreuve == EpreuveType.tcfEo
-          ? '/tcf/expression-orale'
-          : '/tcf/expression-ecrite';
+      widget.epreuve == EpreuveType.tcfEo ? '/tcf/expression-orale' : '/tcf/expression-ecrite';
 
   Future<void> _startTask(ProductionTaskDto task) async {
     if (widget.epreuve == EpreuveType.tcfEo) {
@@ -83,18 +79,16 @@ class _ProductionHubScreenState extends ConsumerState<ProductionHubScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorBox(
           message: ApiClient.toApiException(e).message,
-          onRetry: () => ref
-              .read(productionHubProvider(widget.epreuve).notifier)
-              .load(niveau: _niveauForUser()),
+          onRetry: () =>
+              ref.read(productionHubProvider(widget.epreuve).notifier).load(niveau: _niveauForUser()),
         ),
         data: (state) {
           if (!state.isReady) {
             return _EmptyState(epreuveLabel: _epreuveLabel, niveau: state.niveau);
           }
           return RefreshIndicator(
-            onRefresh: () => ref
-                .read(productionHubProvider(widget.epreuve).notifier)
-                .load(niveau: _niveauForUser()),
+            onRefresh: () =>
+                ref.read(productionHubProvider(widget.epreuve).notifier).load(niveau: _niveauForUser()),
             child: ListView(
               padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
               children: [
@@ -105,12 +99,11 @@ class _ProductionHubScreenState extends ConsumerState<ProductionHubScreen> {
                     _TaskCard(
                       task: state.picked[entry]!,
                       lastSubmission: state.lastByNumero[entry],
-                      canChange: (state.tasksByNumero[entry]?.length ?? 0) > 1
-                          && entry != 1, // T1 = consigne fixe (presentation)
+                      canChange: (state.tasksByNumero[entry]?.length ?? 0) > 1 && entry != 1,
+                      // T1 = consigne fixe (presentation)
                       onStart: () => _startTask(state.picked[entry]!),
-                      onReroll: () => ref
-                          .read(productionHubProvider(widget.epreuve).notifier)
-                          .rerollTask(entry),
+                      onReroll: () =>
+                          ref.read(productionHubProvider(widget.epreuve).notifier).rerollTask(entry),
                     ),
                     const SizedBox(height: 12),
                   ],
@@ -127,6 +120,7 @@ class _ProductionHubScreenState extends ConsumerState<ProductionHubScreen> {
 
 class _Intro extends StatelessWidget {
   const _Intro({required this.niveau});
+
   final String niveau;
 
   @override
@@ -286,6 +280,7 @@ class _TaskCard extends StatelessWidget {
 
 class _NoteBadge extends StatelessWidget {
   const _NoteBadge({required this.note, required this.niveau});
+
   final double note;
   final NiveauCecrl niveau;
 
@@ -296,9 +291,7 @@ class _NoteBadge extends StatelessWidget {
         : note >= 10
             ? AppColors.amber
             : AppColors.red;
-    final formatted = note == note.roundToDouble()
-        ? note.toInt().toString()
-        : note.toStringAsFixed(1);
+    final formatted = note == note.roundToDouble() ? note.toInt().toString() : note.toStringAsFixed(1);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -326,6 +319,7 @@ class _NoteBadge extends StatelessWidget {
 
 class _HistoryLink extends StatelessWidget {
   const _HistoryLink({required this.epreuveRoot});
+
   final String epreuveRoot;
 
   @override
@@ -349,6 +343,7 @@ class _HistoryLink extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.epreuveLabel, required this.niveau});
+
   final String epreuveLabel;
   final String niveau;
 
@@ -385,6 +380,7 @@ class _EmptyState extends StatelessWidget {
 
 class _ErrorBox extends StatelessWidget {
   const _ErrorBox({required this.message, required this.onRetry});
+
   final String message;
   final VoidCallback onRetry;
 

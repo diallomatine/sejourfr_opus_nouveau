@@ -89,3 +89,39 @@ Fichiers uploades servis sur `/files/{key}`.
 # Stripe
 
 stripe listen --forward-to http://localhost:8080/api/billing/webhook
+
+Nouveaux fichiers :
+
+- service/EvaluationLlmClient.java — interface (4 méthodes : evaluate, getModelName, getPromptVersion, +
+  record Outcome enrichi du costEstimateCents)
+- service/EvaluationOpenAiClient.java — impl Chat Completions + function calling, utilise le même tool schema
+  JSON que l'impl Anthropic                                   
+  (prompts/production-evaluation-tool-schema.json)
+- config/EvaluationLlmConfig.java — @Bean @Primary EvaluationLlmClient qui dispatche entre les deux beans
+  @Qualifier-és selon provider
+
+Modifs :
+
+- EvaluationAnthropicClient : implémente l'interface, @Service("evaluationAnthropicClient"), calcul du coût
+  déplacé dedans
+- AiEvaluationService : dépend de EvaluationLlmClient (l'interface), pas de l'impl Anthropic. modeleUtilise et
+  promptVersion viennent du client actif, coutEstimeCentimes
+  vient de Outcome.costEstimateCents()
+- ProductionEvaluationProperties : ajout provider (default openai) + sous-objet OpenAi (avec
+  cost-per-million-*-tokens côté chaque provider)
+- application.yaml : nouvelle section openai: sous production-evaluation:, provider: ${EVAL_LLM_PROVIDER:
+  openai} (OpenAI activé par défaut)
+
+Comment switcher :
+
+- Par défaut : OPENAI_API_KEY suffit (mutualisé avec Whisper) → gpt-4o-mini
+- Pour revenir à Claude : export EVAL_LLM_PROVIDER=anthropic + EVAL_ANTHROPIC_API_KEY configurée + restart
+- Pour ajouter un 3e provider plus tard (Mistral, Gemini, etc.) : implémenter EvaluationLlmClient,
+  l'enregistrer en @Service("xxx"), ajouter le case dans                 
+  EvaluationLlmConfig. Aucun changement à AiEvaluationService ni au mobile.
+
+Tu veux que je commit/push, ou tu veux d'abord tester avec ta clé OpenAI ?
+
+/plugin install stripe@claude-plugins-official
+
+
