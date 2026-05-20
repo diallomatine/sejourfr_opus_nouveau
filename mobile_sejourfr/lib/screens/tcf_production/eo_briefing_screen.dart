@@ -84,8 +84,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
   }
 
   void _showPermissionDeniedSheet(BuildContext context, PermissionStatus status) {
-    final canOpenSettings =
-        status.isPermanentlyDenied || status.isDenied || status.isRestricted;
+    final canOpenSettings = status.isPermanentlyDenied || status.isDenied || status.isRestricted;
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -115,6 +114,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     );
   }
 
+  /// Diallo
   @override
   Widget build(BuildContext context) {
     final sessionAsync = ref.watch(eoSessionProvider);
@@ -122,19 +122,12 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
       backgroundColor: AppColors.white,
       appBar: ProductionAppHeader(
         title: 'Expression orale',
-        rightAction: ProductionAppHeaderQuit(
-          onPressed: () {
-            ref.read(eoSessionProvider.notifier).reset();
-            if (context.canPop()) context.pop();
-          },
-        ),
       ),
       body: sessionAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorBox(
           message: ApiClient.toApiException(e).message,
-          onRetry: () =>
-              ref.read(eoSessionProvider.notifier).start(niveau: _niveauForUser()),
+          onRetry: () => ref.read(eoSessionProvider.notifier).start(niveau: _niveauForUser()),
         ),
         data: (session) {
           final task = session.taskAt(widget.taskIndex);
@@ -189,16 +182,17 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
   }
 
   static String _durationLabel(int? sec) {
-    if (sec == null || sec <= 0) return 'Duree libre';
+    if (sec == null || sec <= 0) return 'Durée libre';
     final mins = sec ~/ 60;
     final remain = sec % 60;
-    if (remain == 0) return 'Duree attendue : $mins minutes';
-    return 'Duree attendue : $mins min $remain s';
+    if (remain == 0) return 'Durée attendue : $mins minutes';
+    return 'Durée attendue : $mins min $remain s';
   }
 }
 
 class _ErrorBox extends StatelessWidget {
   const _ErrorBox({required this.message, required this.onRetry});
+
   final String message;
   final VoidCallback onRetry;
 

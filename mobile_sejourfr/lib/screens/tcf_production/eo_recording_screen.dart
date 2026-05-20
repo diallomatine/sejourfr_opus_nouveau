@@ -38,9 +38,7 @@ class _EoRecordingScreenState extends ConsumerState<EoRecordingScreen> {
     final task = session?.taskAt(widget.taskIndex);
     if (task == null) return;
     final maxSec = task.dureeMaxSec ?? 180;
-    await ref
-        .read(recordingControllerProvider.notifier)
-        .start(maxDuration: Duration(seconds: maxSec));
+    await ref.read(recordingControllerProvider.notifier).start(maxDuration: Duration(seconds: maxSec));
   }
 
   Future<void> _stopAndContinue(BuildContext context) async {
@@ -159,8 +157,7 @@ class _EoRecordingScreenState extends ConsumerState<EoRecordingScreen> {
                       const _RecStatusPill(),
                       const SizedBox(height: 18),
                       const _ConseilCallout(
-                        text:
-                            'Prenez votre temps, respirez et parlez naturellement.',
+                        text: 'Prenez votre temps, respirez et parlez naturellement.',
                       ),
                       const Spacer(),
                       _StopButton(onPressed: () => _stopAndContinue(context)),
@@ -230,8 +227,7 @@ class _RecStatusPill extends StatefulWidget {
   State<_RecStatusPill> createState() => _RecStatusPillState();
 }
 
-class _RecStatusPillState extends State<_RecStatusPill>
-    with SingleTickerProviderStateMixin {
+class _RecStatusPillState extends State<_RecStatusPill> with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
 
   @override
@@ -291,6 +287,7 @@ class _RecStatusPillState extends State<_RecStatusPill>
 
 class _ConseilCallout extends StatelessWidget {
   const _ConseilCallout({required this.text});
+
   final String text;
 
   @override
@@ -339,6 +336,7 @@ class _ConseilCallout extends StatelessWidget {
 
 class _StopButton extends StatelessWidget {
   const _StopButton({required this.onPressed});
+
   final VoidCallback onPressed;
 
   @override

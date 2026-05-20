@@ -121,6 +121,7 @@ class ProductionSubmissionDto {
   final String? transcription;
 
   bool get isAudio => mediaUrl != null;
+
   bool get isText => texteSoumis != null;
 
   factory ProductionSubmissionDto.fromJson(Map<String, dynamic> json) => ProductionSubmissionDto(
@@ -201,15 +202,9 @@ class EvaluationFeedback {
       scoresCriteres: ((json['scores_criteres'] as List?) ?? const [])
           .map((e) => CriterionScore.fromJson(e as Map<String, dynamic>))
           .toList(),
-      pointsForts: ((json['points_forts'] as List?) ?? const [])
-          .map((e) => e.toString())
-          .toList(),
-      pointsAAmeliorer: ((json['points_a_ameliorer'] as List?) ?? const [])
-          .map((e) => e.toString())
-          .toList(),
-      suggestions: ((json['suggestions'] as List?) ?? const [])
-          .map((e) => e.toString())
-          .toList(),
+      pointsForts: ((json['points_forts'] as List?) ?? const []).map((e) => e.toString()).toList(),
+      pointsAAmeliorer: ((json['points_a_ameliorer'] as List?) ?? const []).map((e) => e.toString()).toList(),
+      suggestions: ((json['suggestions'] as List?) ?? const []).map((e) => e.toString()).toList(),
       exemplesCorriges: ((json['exemples_corriges'] as List?) ?? const [])
           .map((e) => CorrectionExample.fromJson(e as Map<String, dynamic>))
           .toList(),
