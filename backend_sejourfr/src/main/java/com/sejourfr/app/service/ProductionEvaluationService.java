@@ -127,14 +127,18 @@ public class ProductionEvaluationService {
         if (estOral) {
             byte[] bytes = readBytes(audio);
             validateAudio(bytes);
-            submission.setMediaDurationSec(null); // sera mis a jour apres Whisper
-            // On flush pour avoir un id avant l'upload R2 (cle = submissions/<id>.ext)
-            submission = submissionRepository.saveAndFlush(submission);
+            // On uploade R2 AVANT de creer la row pour respecter le CHECK
+            // `chk_prod_sub_audio_or_text` (media_url DOIT etre non-null pour
+            // une submission EO). La cle R2 utilise un UUID independant : on
+            // ne pre-assigne pas l'id de la submission (Hibernate refuse
+            // "Detached entity" avec @UuidGenerator + id pre-set).
+            UUID storageKeyId = UUID.randomUUID();
             String extension = extractExtension(audio);
             ProductionAudioStorageService.StoredAudio stored = audioStorage.upload(
-                submission.getId(), bytes, audio.getContentType(), extension
+                storageKeyId, bytes, audio.getContentType(), extension
             );
             submission.setMediaUrl(stored.objectKey());
+            submission.setMediaDurationSec(null); // sera mis a jour apres Whisper
             submission = submissionRepository.save(submission);
         } else {
             String clean = sanitize(texte);

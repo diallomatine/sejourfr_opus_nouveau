@@ -4,9 +4,12 @@ import com.sejourfr.app.dto.*;
 import com.sejourfr.app.entity.*;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
+import com.sejourfr.app.exception.BusinessException;
+import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.repository.*;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.PageRequest;
@@ -592,6 +595,57 @@ public class AttemptService {
             throw new AccessDeniedException("Cette session ne vous appartient pas");
         }
         return attempt;
+    }
+
+    /**
+     * Cree un attempt vide pour une epreuve productive (TCF_EO / TCF_EE /
+     * TCF_COMPLET). Pas de questions piochees : les productions sont
+     * rattachees ensuite via {@code production_submissions.attempt_id}.
+     *
+     * <p>Pour un entrainement isole, {@code parentAttemptId} est null. Pour les
+     * sous-attempts d'un examen blanc TCF complet, on vise le parent existant
+     * (qui doit lui-meme porter {@code epreuve = TCF_COMPLET}).
+     */
+    @Transactional
+    public AttemptResponse startProductionAttempt(UUID userId, ProductionAttemptStartRequest req) {
+        if (!isProductionEpreuve(req.epreuve())) {
+            throw new BusinessException("epreuve doit etre TCF_EO, TCF_EE ou TCF_COMPLET.");
+        }
+        if (req.module() != Module.TCF) {
+            throw new BusinessException("Les epreuves productives sont reservees au module TCF.");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
+
+        Attempt parent = null;
+        if (req.parentAttemptId() != null) {
+            parent = attemptRepository.findById(req.parentAttemptId())
+                    .orElseThrow(() -> new NotFoundException(
+                            "Parent attempt introuvable : " + req.parentAttemptId()));
+            if (parent.getUser() == null || !parent.getUser().getId().equals(userId)) {
+                throw new AccessDeniedException("Parent attempt n'appartient pas a l'utilisateur courant.");
+            }
+            if (parent.getEpreuve() != EpreuveType.TCF_COMPLET) {
+                throw new BusinessException(
+                    "parent_attempt_id doit pointer sur un attempt TCF_COMPLET (recu : " + parent.getEpreuve() + ").");
+            }
+        }
+
+        Attempt attempt = new Attempt();
+        attempt.setUser(user);
+        attempt.setType(AttemptType.TRAINING);
+        attempt.setModule(req.module());
+        attempt.setEpreuve(req.epreuve());
+        attempt.setParentAttempt(parent);
+        attempt.setStartedAt(Instant.now());
+        // Pas de questions QCM -> totalQuestions / timeLimit / threshold restent null.
+        attempt = attemptRepository.save(attempt);
+        return toAttemptResponse(attempt, List.of(), false);
+    }
+
+    private static boolean isProductionEpreuve(EpreuveType e) {
+        return e == EpreuveType.TCF_EO || e == EpreuveType.TCF_EE || e == EpreuveType.TCF_COMPLET;
     }
 
     private AttemptResponse toAttemptResponse(

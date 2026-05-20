@@ -5,6 +5,7 @@ import com.sejourfr.app.dto.ProductionSubmissionDto;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.repository.AiEvaluationRepository;
+import com.sejourfr.app.repository.TranscriptionRepository;
 import com.sejourfr.app.service.ProductionAudioStorageService;
 import org.springframework.stereotype.Component;
 
@@ -12,12 +13,15 @@ import org.springframework.stereotype.Component;
 public class ProductionSubmissionMapper {
 
     private final AiEvaluationRepository aiEvaluationRepository;
+    private final TranscriptionRepository transcriptionRepository;
     private final ProductionAudioStorageService audioStorage;
 
     public ProductionSubmissionMapper(
             AiEvaluationRepository aiEvaluationRepository,
+            TranscriptionRepository transcriptionRepository,
             ProductionAudioStorageService audioStorage) {
         this.aiEvaluationRepository = aiEvaluationRepository;
+        this.transcriptionRepository = transcriptionRepository;
         this.audioStorage = audioStorage;
     }
 
@@ -25,6 +29,12 @@ public class ProductionSubmissionMapper {
         EvaluationResultDto eval = aiEvaluationRepository
             .findFirstBySubmissionIdOrderByEvaluatedAtDesc(s.getId())
             .map(this::toEvaluationDto)
+            .orElse(null);
+
+        // Transcription Whisper (EO uniquement, null sinon).
+        String transcription = transcriptionRepository
+            .findFirstBySubmissionIdOrderByCreatedAtDesc(s.getId())
+            .map(t -> t.getTexte())
             .orElse(null);
 
         // L'URL signee n'est generee qu'a la demande : on s'epargne un round-trip
@@ -44,7 +54,8 @@ public class ProductionSubmissionMapper {
             s.getRetryCount(),
             s.getErreurMessage(),
             s.getSubmittedAt(),
-            eval
+            eval,
+            transcription
         );
     }
 
@@ -58,7 +69,8 @@ public class ProductionSubmissionMapper {
             base.statut(), signed, base.texteSoumis(),
             base.motsCount(), base.mediaDurationSec(),
             base.retryCount(), base.erreurMessage(),
-            base.submittedAt(), base.evaluation()
+            base.submittedAt(), base.evaluation(),
+            base.transcription()
         );
     }
 

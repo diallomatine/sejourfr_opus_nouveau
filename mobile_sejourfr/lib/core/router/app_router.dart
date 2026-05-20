@@ -18,8 +18,17 @@ import '../../screens/shell/main_shell.dart';
 import '../../screens/splash/splash_screen.dart';
 import '../../screens/stats/stats_screen.dart';
 import '../../screens/target_path/target_path_screen.dart';
+import '../../screens/tcf_production/ee_briefing_writing_screen.dart';
+import '../../screens/tcf_production/ee_results_screen.dart';
+import '../../screens/tcf_production/eo_briefing_screen.dart';
+import '../../screens/tcf_production/eo_finished_screen.dart';
+import '../../screens/tcf_production/eo_recording_screen.dart';
+import '../../screens/tcf_production/eo_results_screen.dart';
+import '../../screens/tcf_production/session_bilan_screen.dart';
+import '../../screens/tcf_production/session_progress_screen.dart';
 import '../../screens/training/training_setup_screen.dart';
 import '../auth/auth_controller.dart';
+import '../models/enums.dart';
 
 /// Routes nommées centralisées (utilisées par les écrans).
 class AppRoutes {
@@ -39,6 +48,10 @@ class AppRoutes {
   static const examResult = '/exam-result/:attemptId';
   static const history = '/history';
   static const examReport = '/exam-report/:attemptId';
+
+  // TCF Expression orale / ecrite (Lot A : briefing seul, soumission a venir).
+  static const tcfExpressionOrale = '/tcf/expression-orale';
+  static const tcfExpressionEcrite = '/tcf/expression-ecrite';
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -190,6 +203,96 @@ final routerProvider = Provider<GoRouter>((ref) {
           final attemptId = state.pathParameters['attemptId']!;
           return RunnerScreen(attemptId: attemptId);
         },
+      ),
+
+      // TCF Expression orale (Lot C : briefing + recording + finished + resultats)
+      //   /tcf/expression-orale                                   -> briefing T1
+      //   /tcf/expression-orale/t/:idx                            -> briefing T(idx+1)
+      //   /tcf/expression-orale/t/:idx/enregistrement             -> capture audio
+      //   /tcf/expression-orale/t/:idx/termine                    -> ecoute + soumission
+      //   /tcf/expression-orale/resultats/:id?taskIndex=N         -> resultats
+      GoRoute(
+        path: AppRoutes.tcfExpressionOrale,
+        builder: (_, __) => const EoBriefingScreen(taskIndex: 0),
+        routes: [
+          GoRoute(
+            path: 't/:taskIndex',
+            builder: (_, state) {
+              final idx = int.tryParse(state.pathParameters['taskIndex'] ?? '0') ?? 0;
+              return EoBriefingScreen(taskIndex: idx);
+            },
+            routes: [
+              GoRoute(
+                path: 'enregistrement',
+                builder: (_, state) {
+                  final idx = int.tryParse(state.pathParameters['taskIndex'] ?? '0') ?? 0;
+                  return EoRecordingScreen(taskIndex: idx);
+                },
+              ),
+              GoRoute(
+                path: 'termine',
+                builder: (_, state) {
+                  final idx = int.tryParse(state.pathParameters['taskIndex'] ?? '0') ?? 0;
+                  return EoFinishedScreen(taskIndex: idx);
+                },
+              ),
+            ],
+          ),
+          GoRoute(
+            path: 'resultats/:submissionId',
+            builder: (_, state) {
+              final id = state.pathParameters['submissionId']!;
+              final idx = int.tryParse(state.uri.queryParameters['taskIndex'] ?? '0') ?? 0;
+              return EoResultsScreen(submissionId: id, taskIndex: idx);
+            },
+          ),
+          GoRoute(
+            path: 'progression',
+            builder: (_, __) =>
+                const SessionProgressScreen(epreuve: EpreuveType.tcfEo),
+          ),
+          GoRoute(
+            path: 'bilan',
+            builder: (_, __) =>
+                const SessionBilanScreen(epreuve: EpreuveType.tcfEo),
+          ),
+        ],
+      ),
+
+      // TCF Expression ecrite (Lot B : briefing+writing+resultats end-to-end)
+      //   /tcf/expression-ecrite          -> briefing+writing T1 (taskIndex=0)
+      //   /tcf/expression-ecrite/t/0|1|2  -> briefing+writing pour cette tache
+      //   /tcf/expression-ecrite/resultats/:id -> resultats apres soumission
+      GoRoute(
+        path: AppRoutes.tcfExpressionEcrite,
+        builder: (_, __) => const EeBriefingWritingScreen(taskIndex: 0),
+        routes: [
+          GoRoute(
+            path: 't/:taskIndex',
+            builder: (_, state) {
+              final idx = int.tryParse(state.pathParameters['taskIndex'] ?? '0') ?? 0;
+              return EeBriefingWritingScreen(taskIndex: idx);
+            },
+          ),
+          GoRoute(
+            path: 'resultats/:submissionId',
+            builder: (_, state) {
+              final id = state.pathParameters['submissionId']!;
+              final idx = int.tryParse(state.uri.queryParameters['taskIndex'] ?? '0') ?? 0;
+              return EeResultsScreen(submissionId: id, taskIndex: idx);
+            },
+          ),
+          GoRoute(
+            path: 'progression',
+            builder: (_, __) =>
+                const SessionProgressScreen(epreuve: EpreuveType.tcfEe),
+          ),
+          GoRoute(
+            path: 'bilan',
+            builder: (_, __) =>
+                const SessionBilanScreen(epreuve: EpreuveType.tcfEe),
+          ),
+        ],
       ),
     ],
   );

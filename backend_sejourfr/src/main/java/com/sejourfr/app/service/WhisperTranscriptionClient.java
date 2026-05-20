@@ -73,6 +73,8 @@ public class WhisperTranscriptionClient {
         }
         body.add("response_format", "verbose_json");
 
+        log.info("Whisper request -> fileName={} size={}B model={} lang={}",
+            safeFileName, audioBytes.length, w.getModel(), w.getLanguage());
         long start = System.currentTimeMillis();
         JsonNode response;
         try {

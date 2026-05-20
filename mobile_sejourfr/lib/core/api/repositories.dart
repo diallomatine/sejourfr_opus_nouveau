@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/auth_controller.dart';
 import 'attempts_repository.dart';
 import 'exams_repository.dart';
+import 'production_repository.dart';
 import 'themes_repository.dart';
 import 'user_content_repository.dart';
 
@@ -20,4 +21,8 @@ final examsRepositoryProvider = Provider<ExamsRepository>(
 
 final userContentRepositoryProvider = Provider<UserContentRepository>(
   (ref) => UserContentRepository(ref.watch(apiClientProvider)),
+);
+
+final productionRepositoryProvider = Provider<ProductionRepository>(
+  (ref) => ProductionRepository(ref.watch(apiClientProvider)),
 );

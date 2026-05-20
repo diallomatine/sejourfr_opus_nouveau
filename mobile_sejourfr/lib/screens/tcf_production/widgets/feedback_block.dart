@@ -1,0 +1,109 @@
+import 'package:flutter/material.dart';
+
+import '../../../core/theme/app_theme.dart';
+
+enum FeedbackKind { positive, improve, suggest }
+
+/// Bloc colore avec une liste a puces. Trois variantes : positif (vert),
+/// a ameliorer (ambre), suggestions (violet).
+class FeedbackBlock extends StatelessWidget {
+  const FeedbackBlock({
+    super.key,
+    required this.kind,
+    required this.title,
+    required this.items,
+  });
+
+  final FeedbackKind kind;
+  final String title;
+  final List<String> items;
+
+  ({Color bg, Color accent, IconData icon}) get _palette {
+    switch (kind) {
+      case FeedbackKind.positive:
+        return (
+          bg: AppColors.green.withValues(alpha: 0.08),
+          accent: AppColors.green,
+          icon: Icons.check_circle_outline_rounded,
+        );
+      case FeedbackKind.improve:
+        return (
+          bg: AppColors.amber.withValues(alpha: 0.10),
+          accent: AppColors.amber,
+          icon: Icons.priority_high_rounded,
+        );
+      case FeedbackKind.suggest:
+        return (
+          bg: const Color(0xFFF3EEFE),
+          accent: const Color(0xFF6D28D9),
+          icon: Icons.lightbulb_outline_rounded,
+        );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    final p = _palette;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: p.bg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: p.accent.withValues(alpha: 0.28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(p.icon, size: 18, color: p.accent),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: AppFonts.jakarta(
+                  size: 13,
+                  weight: FontWeight.w800,
+                  color: AppColors.ink,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...items.map(
+            (e) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6, right: 8),
+                    child: Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: p.accent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      e,
+                      style: AppFonts.jakarta(
+                        size: 13,
+                        color: AppColors.ink,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

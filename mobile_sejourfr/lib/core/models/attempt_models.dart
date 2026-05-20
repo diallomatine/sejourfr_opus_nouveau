@@ -122,7 +122,9 @@ class Attempt {
         examTemplateId: json['examTemplateId'] as String?,
         examTemplateSlug: json['examTemplateSlug'] as String?,
         examTemplateName: json['examTemplateName'] as String?,
-        totalQuestions: (json['totalQuestions'] as num).toInt(),
+        // Nullable cote backend depuis l'ajout des production attempts (EO/EE) :
+        // un attempt productif n'a pas de questions QCM, le champ vaut alors null.
+        totalQuestions: (json['totalQuestions'] as num?)?.toInt() ?? 0,
         timeLimitSeconds: (json['timeLimitSeconds'] as num?)?.toInt(),
         passThreshold: (json['passThreshold'] as num?)?.toInt(),
         startedAt: DateTime.parse(json['startedAt'] as String),

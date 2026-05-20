@@ -35,6 +35,21 @@ dependencies:
   # Ouverture de liens externes (page d'activation de l'accès sur le web)
   url_launcher: ^6.3.1
 
+  # Expression orale TCF : capture audio + permissions micro + cache local.
+  # Ajoutees au Lot A des fondations EO/EE mais consommees seulement au Lot B
+  # (l'enregistrement audio user n'est pas encore branche).
+  # record 6.x : record_linux 0.7.2 (livre avec 5.2.1) casse la compilation
+  # Dart pour iOS car incompatible avec record_platform_interface 1.5.0.
+  # La 6.x re-aligne tous les sous-packages (cf. issue record#475).
+  record: ^6.0.0
+  permission_handler: ^11.3.1
+  path_provider: ^2.1.5
+  # audio_session : indispensable sur iOS pour configurer AVAudioSession en
+  # mode playAndRecord avant l'enregistrement (sinon `record` produit un
+  # fichier silencieux quand just_audio a deja saisi la session en mode
+  # playback). Deja transitif via just_audio, on l'expose explicitement.
+  audio_session: ^0.1.21
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

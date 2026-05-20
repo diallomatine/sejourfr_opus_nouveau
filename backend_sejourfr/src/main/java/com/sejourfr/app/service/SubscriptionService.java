@@ -6,11 +6,21 @@ import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.repository.UserSubscriptionRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Toutes les methodes publiques lisent des relations lazy (Plan via
+ * UserSubscription). Avec {@code open-in-view: false}, il faut une session
+ * Hibernate ouverte pendant l'execution. On annote au niveau classe pour que
+ * chaque entry point ouvre sa propre transaction read-only -- l'annotation sur
+ * une seule methode interne (currentAccess) etait court-circuitee par Spring
+ * AOP qui n'intercepte pas les appels intra-bean.
+ */
 @Service
+@Transactional(readOnly = true)
 public class SubscriptionService {
 
     // Code en base du plan gratuit (cf. 10_reference/V100__seed_reference.sql). Toute

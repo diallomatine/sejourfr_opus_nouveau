@@ -6,22 +6,22 @@ import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
+import '../../core/models/enums.dart';
 import '../../core/models/question_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/models/enums.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/eyebrow.dart';
 import '../../core/widgets/tcf_paywall.dart';
 import '../home/widgets/module_switch.dart';
 import '../shared/target_path_banner.dart';
+import 'widgets/production_entry_tile.dart';
 
 const _kInitialBatchSize = 30;
 const _kDemoBatchSize = 20;
 
-final _themesProvider =
-    FutureProvider.autoDispose<List<ThemeDto>>((ref) async {
+final _themesProvider = FutureProvider.autoDispose<List<ThemeDto>>((ref) async {
   final module = ref.watch(selectedModuleProvider);
   return ref.watch(themesRepositoryProvider).list(module: module);
 });
@@ -30,8 +30,7 @@ class TrainingSetupScreen extends ConsumerStatefulWidget {
   const TrainingSetupScreen({super.key});
 
   @override
-  ConsumerState<TrainingSetupScreen> createState() =>
-      _TrainingSetupScreenState();
+  ConsumerState<TrainingSetupScreen> createState() => _TrainingSetupScreenState();
 }
 
 class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
@@ -92,13 +91,11 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
   Widget build(BuildContext context) {
     final themes = ref.watch(_themesProvider);
     final auth = ref.watch(authControllerProvider);
-    final targetProcedure =
-        auth is AuthAuthenticated ? auth.user.targetProcedure : null;
+    final targetProcedure = auth is AuthAuthenticated ? auth.user.targetProcedure : null;
     final selectedModule = ref.watch(selectedModuleProvider);
     // Premium pour CE module spécifiquement (pas le flag global isPremium) :
     // un utilisateur CIVIQUE_3MOIS reste en démo sur TCF, et inversement.
-    final isPremiumForModule = auth is AuthAuthenticated &&
-        auth.user.canAccessModule(selectedModule);
+    final isPremiumForModule = auth is AuthAuthenticated && auth.user.canAccessModule(selectedModule);
 
     ref.listen(selectedModuleProvider, (_, __) {
       setState(() => _selectedTheme = null);
@@ -158,6 +155,29 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
                 onLockedTap: _showPaywall,
               ),
             ),
+            // EO / EE : nouvelles epreuves productives, accessibles uniquement
+            // pour le module TCF. Pas de selection radio : tap = navigation.
+            if (selectedModule == AppModule.tcf) ...[
+              const SizedBox(height: 6),
+              ProductionEntryTile(
+                title: 'Expression orale',
+                description: '3 taches orales · ~10 minutes',
+                icon: Icons.mic_rounded,
+                badge: 'NOUVEAU',
+                locked: !isPremiumForModule,
+                onTap: () => context.push(AppRoutes.tcfExpressionOrale),
+                onLockedTap: _showPaywall,
+              ),
+              ProductionEntryTile(
+                title: 'Expression ecrite',
+                description: '3 redactions · 30 minutes',
+                icon: Icons.edit_note_rounded,
+                badge: 'NOUVEAU',
+                locked: !isPremiumForModule,
+                onTap: () => context.push(AppRoutes.tcfExpressionEcrite),
+                onLockedTap: _showPaywall,
+              ),
+            ],
             if (_error != null) ...[
               const SizedBox(height: 16),
               _InlineError(message: _error!),
@@ -169,9 +189,7 @@ class _TrainingSetupScreenState extends ConsumerState<TrainingSetupScreen> {
       bottomNavigationBar: _StickyAction(
         helper: helper,
         button: AppButton(
-          label: isPremiumForModule
-              ? 'Commencer l\'entraînement'
-              : 'Commencer la démo',
+          label: isPremiumForModule ? 'Commencer l\'entraînement' : 'Commencer la démo',
           icon: Icons.play_arrow_rounded,
           onPressed: _starting ? null : _start,
           isLoading: _starting,
@@ -513,14 +531,10 @@ class _ThemeTile extends StatelessWidget {
             curve: Curves.easeOut,
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
             decoration: BoxDecoration(
-              color: locked
-                  ? AppColors.blueSoft
-                  : (showSelected ? AppColors.blueSoft : AppColors.white),
+              color: locked ? AppColors.blueSoft : (showSelected ? AppColors.blueSoft : AppColors.white),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: showSelected
-                    ? AppColors.blue
-                    : (locked ? AppColors.line : AppColors.line),
+                color: showSelected ? AppColors.blue : (locked ? AppColors.line : AppColors.line),
                 width: showSelected ? 1.4 : 1,
               ),
               boxShadow: showSelected
@@ -550,19 +564,14 @@ class _ThemeTile extends StatelessWidget {
                     height: 22,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: showSelected || (locked && isAll)
-                          ? AppColors.blue
-                          : Colors.transparent,
+                      color: showSelected || (locked && isAll) ? AppColors.blue : Colors.transparent,
                       border: Border.all(
-                        color: showSelected || (locked && isAll)
-                            ? AppColors.blue
-                            : AppColors.line,
+                        color: showSelected || (locked && isAll) ? AppColors.blue : AppColors.line,
                         width: 2,
                       ),
                     ),
                     child: (showSelected || (locked && isAll))
-                        ? const Icon(Icons.check,
-                            size: 14, color: AppColors.white)
+                        ? const Icon(Icons.check, size: 14, color: AppColors.white)
                         : null,
                   ),
                   const SizedBox(width: 12),
@@ -575,9 +584,7 @@ class _ThemeTile extends StatelessWidget {
                           style: AppFonts.jakarta(
                             size: 14,
                             weight: FontWeight.w700,
-                            color: showSelected
-                                ? AppColors.blueDark
-                                : AppColors.ink,
+                            color: showSelected ? AppColors.blueDark : AppColors.ink,
                           ),
                         ),
                         if ((isAll
@@ -587,9 +594,7 @@ class _ThemeTile extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(top: 3),
                             child: Text(
-                              isAll
-                                  ? 'Un mélange varié de toutes les thématiques'
-                                  : theme!.description!,
+                              isAll ? 'Un mélange varié de toutes les thématiques' : theme!.description!,
                               style: AppFonts.jakarta(
                                 size: 12,
                                 color: AppColors.muted,
@@ -612,21 +617,16 @@ class _ThemeTile extends StatelessWidget {
                   ] else if (!isAll) ...[
                     const SizedBox(width: 10),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: showSelected
-                            ? AppColors.white
-                            : AppColors.line2,
+                        color: showSelected ? AppColors.white : AppColors.line2,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         '${theme!.questionCount} Q',
                         style: AppFonts.mono(
                           size: 10,
-                          color: showSelected
-                              ? AppColors.blue
-                              : AppColors.muted,
+                          color: showSelected ? AppColors.blue : AppColors.muted,
                           letterSpacing: 1.2,
                         ),
                       ),
@@ -666,6 +666,7 @@ class _ThemesSkeleton extends StatelessWidget {
 
 class _InlineError extends StatelessWidget {
   const _InlineError({required this.message});
+
   final String message;
 
   @override
@@ -696,6 +697,7 @@ class _InlineError extends StatelessWidget {
 
 class _ErrorBox extends StatelessWidget {
   const _ErrorBox({required this.message, required this.onRetry});
+
   final String message;
   final VoidCallback onRetry;
 
@@ -710,8 +712,7 @@ class _ErrorBox extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Icon(Icons.cloud_off_outlined,
-              color: AppColors.red, size: 28),
+          const Icon(Icons.cloud_off_outlined, color: AppColors.red, size: 28),
           const SizedBox(height: 10),
           Text(
             message,
@@ -745,8 +746,7 @@ class _StickyAction extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.info_outline,
-                  size: 14, color: AppColors.muted2),
+              const Icon(Icons.info_outline, size: 14, color: AppColors.muted2),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(

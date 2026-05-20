@@ -22,6 +22,12 @@ public record ProductionSubmissionDto(
         short retryCount,
         String erreurMessage,
         Instant submittedAt,
-        EvaluationResultDto evaluation
+        EvaluationResultDto evaluation,
+        /**
+         * Transcription Whisper de l'audio (EO uniquement). Null pour EE et tant
+         * que Whisper n'a pas tourne. Exposee pour afficher dans l'ecran detail
+         * de l'evaluation cote mobile.
+         */
+        String transcription
 ) {
 }

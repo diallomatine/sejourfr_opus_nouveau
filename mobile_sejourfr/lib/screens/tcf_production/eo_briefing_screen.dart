@@ -1,0 +1,238 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+import '../../core/api/api_client.dart';
+import '../../core/auth/auth_controller.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/widgets/app_button.dart';
+import 'audio_recorder_service.dart';
+import 'eo_session_controller.dart';
+import 'widgets/consigne_card.dart';
+import 'widgets/production_app_header.dart';
+import 'widgets/production_progress_strip.dart';
+import 'widgets/tips_card.dart';
+
+/// Briefing EO (Ecran 01 du mockup). Charge la session, affiche la consigne
+/// de la tache courante + conseils, et lance l'enregistrement au tap "Commencer".
+class EoBriefingScreen extends ConsumerStatefulWidget {
+  const EoBriefingScreen({super.key, required this.taskIndex});
+
+  final int taskIndex;
+
+  @override
+  ConsumerState<EoBriefingScreen> createState() => _EoBriefingScreenState();
+}
+
+class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
+  bool _requestingPerm = false;
+
+  static const _tipsByTache = <int, List<String>>{
+    1: [
+      'Repondez de maniere naturelle',
+      'Developpez vos reponses',
+      'Parlez clairement et a votre rythme',
+    ],
+    2: [
+      "Mettez-vous dans la situation",
+      'Posez 3 a 4 questions claires',
+      'Utilisez des formules de politesse',
+      'Restez concentre sur l\'objectif',
+    ],
+    3: [
+      'Donnez votre opinion des le debut',
+      'Appuyez votre avis avec 2 arguments',
+      'Illustrez par un exemple concret',
+      'Conclus en quelques mots',
+    ],
+  };
+
+  String _niveauForUser() {
+    final auth = ref.read(authControllerProvider);
+    if (auth is AuthAuthenticated) {
+      final tp = auth.user.targetProcedure;
+      if (tp != null) return tp.tcfLevel;
+    }
+    return 'B1';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(eoSessionProvider.notifier).start(niveau: _niveauForUser());
+    });
+  }
+
+  Future<void> _start(BuildContext context) async {
+    final recorder = ref.read(recordingControllerProvider.notifier);
+    setState(() => _requestingPerm = true);
+    final status = await recorder.requestPermission();
+    if (!context.mounted) return;
+    setState(() => _requestingPerm = false);
+    if (status.isGranted) {
+      context.push(
+        '/tcf/expression-orale/t/${widget.taskIndex}/enregistrement',
+      );
+      return;
+    }
+    // Refus -- 1re fois OU deja "permanently denied" : dans les deux cas on
+    // propose un detour par les Reglages systeme (sur iOS, request() ne re-pop
+    // jamais le dialog apres un premier refus).
+    _showPermissionDeniedSheet(context, status);
+  }
+
+  void _showPermissionDeniedSheet(BuildContext context, PermissionStatus status) {
+    final canOpenSettings =
+        status.isPermanentlyDenied || status.isDenied || status.isRestricted;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Acces au microphone requis'),
+        content: Text(
+          status.isPermanentlyDenied
+              ? "Vous avez refuse l'acces au microphone. "
+                  'Activez-le dans les Reglages > Confidentialite > Microphone > SejourFR.'
+              : "SejourFR a besoin d'acceder au microphone pour vous entrainer "
+                  "a l'expression orale.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Plus tard'),
+          ),
+          if (canOpenSettings)
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await ref.read(recordingControllerProvider.notifier).openSystemSettings();
+              },
+              child: const Text('Ouvrir les Reglages'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sessionAsync = ref.watch(eoSessionProvider);
+    return Scaffold(
+      backgroundColor: AppColors.white,
+      appBar: ProductionAppHeader(
+        title: 'Expression orale',
+        rightAction: ProductionAppHeaderQuit(
+          onPressed: () {
+            ref.read(eoSessionProvider.notifier).reset();
+            if (context.canPop()) context.pop();
+          },
+        ),
+      ),
+      body: sessionAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => _ErrorBox(
+          message: ApiClient.toApiException(e).message,
+          onRetry: () =>
+              ref.read(eoSessionProvider.notifier).start(niveau: _niveauForUser()),
+        ),
+        data: (session) {
+          final task = session.taskAt(widget.taskIndex);
+          if (!session.isStarted || task == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return Column(
+            children: [
+              ProductionProgressStrip(
+                current: widget.taskIndex + 1,
+                total: session.totalTasks,
+                niveau: task.niveauCible,
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(18, 4, 18, 20),
+                  children: [
+                    ConsigneCard(
+                      consigne: task.consigne,
+                      subTitleHero: task.displayTitle,
+                      subtitle: _durationLabel(task.dureeMaxSec),
+                    ),
+                    TipsCard(
+                      tips: _tipsByTache[task.tacheNumero] ?? const <String>[],
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                decoration: const BoxDecoration(
+                  color: AppColors.white,
+                  border: Border(
+                    top: BorderSide(color: AppColors.line2, width: 1),
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+                child: SafeArea(
+                  top: false,
+                  child: AppButton(
+                    label: 'Commencer',
+                    icon: Icons.mic_rounded,
+                    isLoading: _requestingPerm,
+                    onPressed: _requestingPerm ? null : () => _start(context),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  static String _durationLabel(int? sec) {
+    if (sec == null || sec <= 0) return 'Duree libre';
+    final mins = sec ~/ 60;
+    final remain = sec % 60;
+    if (remain == 0) return 'Duree attendue : $mins minutes';
+    return 'Duree attendue : $mins min $remain s';
+  }
+}
+
+class _ErrorBox extends StatelessWidget {
+  const _ErrorBox({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error_outline_rounded, size: 32, color: AppColors.red),
+          const SizedBox(height: 8),
+          Text(
+            'Impossible de demarrer la session.',
+            style: AppFonts.jakarta(
+              size: 14,
+              weight: FontWeight.w700,
+              color: AppColors.ink,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: AppFonts.jakarta(size: 12, color: AppColors.muted),
+          ),
+          const SizedBox(height: 12),
+          AppButton(
+            label: 'Reessayer',
+            onPressed: onRetry,
+            icon: Icons.refresh_rounded,
+          ),
+        ],
+      ),
+    );
+  }
+}
