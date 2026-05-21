@@ -98,7 +98,7 @@ public class Attempt {
     private Instant finishedAt;
 
     // Lien vers le lot d'origine (TCF QCM). NULL pour les attempts libres,
-    // les examens blancs, ou les productions. Cf. `LotService` + migration V100.
+    // les examens blancs, ou les productions. Cf. `LotService` + migration V097.
     @Column(name = "lot_numero")
     private Integer lotNumero;
 
@@ -109,6 +109,22 @@ public class Attempt {
     @Enumerated(EnumType.STRING)
     @Column(name = "lot_difficulty", length = 8)
     private Difficulty lotDifficulty;
+
+    // Examen blanc scopé à une épreuve TCF QCM (CO ou CE). NULL pour les
+    // examens blancs complets et les attempts non-MOCK_EXAM. Cf. migration V098
+    // et `AttemptService.startModuleExam`.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "module_exam_question_type", length = 24)
+    private QuestionType moduleExamQuestionType;
+
+    // Score pondéré par niveau (A2=1, B1=2, B2=3) — calculé à la finalisation
+    // des examens module pour éviter de re-joindre questions à chaque lecture.
+    // Reste NULL pour les autres attempts (training, examens complets, lots).
+    @Column(name = "weighted_score")
+    private Integer weightedScore;
+
+    @Column(name = "max_weighted_score")
+    private Integer maxWeightedScore;
 
     @OneToMany(mappedBy = "attempt", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
@@ -210,4 +226,13 @@ public class Attempt {
 
     public Difficulty getLotDifficulty() { return lotDifficulty; }
     public void setLotDifficulty(Difficulty lotDifficulty) { this.lotDifficulty = lotDifficulty; }
+
+    public QuestionType getModuleExamQuestionType() { return moduleExamQuestionType; }
+    public void setModuleExamQuestionType(QuestionType moduleExamQuestionType) { this.moduleExamQuestionType = moduleExamQuestionType; }
+
+    public Integer getWeightedScore() { return weightedScore; }
+    public void setWeightedScore(Integer weightedScore) { this.weightedScore = weightedScore; }
+
+    public Integer getMaxWeightedScore() { return maxWeightedScore; }
+    public void setMaxWeightedScore(Integer maxWeightedScore) { this.maxWeightedScore = maxWeightedScore; }
 }

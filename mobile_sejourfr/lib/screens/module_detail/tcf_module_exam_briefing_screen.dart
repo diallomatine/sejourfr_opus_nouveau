@@ -1,0 +1,432 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/api/api_client.dart';
+import '../../core/api/repositories.dart';
+import '../../core/auth/auth_controller.dart';
+import '../../core/models/attempt_models.dart';
+import '../../core/models/enums.dart';
+import '../../core/router/app_router.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/selected_module.dart';
+import '../../core/widgets/app_button.dart';
+import '../../core/widgets/paywall_sheet.dart';
+import 'tcf_qcm_detail_screen.dart' show TcfQcmModule;
+
+/// Briefing avant le démarrage d'un examen module TCF (CO ou CE). Présenté
+/// en bottomsheet modal — plus léger qu'un push de route, garde le détail
+/// module visible en arrière-plan. Reproduit le pattern du design HTML
+/// (écran 4 du parcours TCF) en restant strictement dans la palette
+/// bleu / blanc / rouge de SejourFR.
+///
+/// Au tap "Commencer maintenant" : ferme le sheet, POST /api/attempts,
+/// puis push runner. Réservé premium TCF — 403 → showPaywallSheet.
+class ModuleExamBriefingSheet extends ConsumerStatefulWidget {
+  const ModuleExamBriefingSheet({super.key, required this.module});
+
+  final TcfQcmModule module;
+
+  @override
+  ConsumerState<ModuleExamBriefingSheet> createState() =>
+      _ModuleExamBriefingSheetState();
+}
+
+class _ModuleExamBriefingSheetState
+    extends ConsumerState<ModuleExamBriefingSheet> {
+  bool _starting = false;
+
+  Future<void> _start() async {
+    if (_starting) return;
+    final auth = ref.read(authControllerProvider);
+    final isPremium =
+        auth is AuthAuthenticated && auth.user.canAccessModule(AppModule.tcf);
+    if (!isPremium) {
+      // On ferme le briefing avant de montrer le paywall pour éviter
+      // l'empilement de deux sheets.
+      Navigator.of(context).pop();
+      showPaywallSheet(context);
+      return;
+    }
+
+    setState(() => _starting = true);
+    ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
+
+    try {
+      final attempt = await ref.read(attemptsRepositoryProvider).start(
+            StartAttemptRequest(
+              type: AttemptType.mockExam,
+              module: AppModule.tcf,
+              moduleExamQuestionType: widget.module.questionType,
+            ),
+          );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      // Le push runner se fait depuis le caller (le BuildContext du sheet
+      // est en train d'être disposé après le pop) — on utilise le router
+      // au niveau racine pour pousser.
+      GoRouter.of(context).push(
+        AppRoutes.runner.replaceFirst(':attemptId', attempt.id),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final apiErr = ApiClient.toApiException(e);
+      if (apiErr.isForbidden) {
+        Navigator.of(context).pop();
+        showPaywallSheet(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(apiErr.message), backgroundColor: AppColors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _starting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mod = widget.module;
+    final isCo = mod.questionType == QuestionType.co;
+    final durationLabel = isCo ? '20 min' : '35 min';
+
+    final heroIcon = isCo ? Icons.headphones_rounded : Icons.menu_book_rounded;
+    final heroTitle = isCo ? 'Prêt à écouter ?' : 'Prêt à lire ?';
+    final heroDescription = isCo
+        ? 'Tu vas répondre à 25 questions audio. Chaque document peut être écouté une seule fois, comme en condition d\'examen.'
+        : 'Tu vas répondre à 25 questions sur textes courts. Lis attentivement avant de choisir, comme en condition d\'examen.';
+
+    final consignes = <_ConsigneLine>[
+      _ConsigneLine(
+        label: isCo ? '1 audio par question' : '1 texte par question',
+        icon: isCo ? '🎧' : '📖',
+      ),
+      const _ConsigneLine(label: '4 réponses possibles', icon: 'ABCD'),
+      const _ConsigneLine(label: 'Pas de retour en arrière', icon: '⏭'),
+      const _ConsigneLine(label: 'Correction à la fin', icon: '✅'),
+    ];
+
+    final conseil = isCo
+        ? 'Lis rapidement les réponses avant d\'écouter. Concentre-toi sur l\'idée principale, pas chaque mot.'
+        : 'Repère les mots-clés de la question avant de lire le texte. Une seule réponse est correcte.';
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.6,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, controller) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            Center(
+              child: Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.line,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'EXAMEN ${mod.title.toUpperCase()}',
+                        style: AppFonts.mono(
+                          size: 9.5,
+                          color: AppColors.muted,
+                          letterSpacing: 1.8,
+                          weight: FontWeight.w700,
+                        ),
+                      ),
+                      const Spacer(),
+                      _DurationBadge(label: durationLabel),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _BriefingHero(
+                    icon: heroIcon,
+                    title: heroTitle,
+                    description: heroDescription,
+                  ),
+                  const SizedBox(height: 16),
+                  _ConsignesCard(items: consignes),
+                  const SizedBox(height: 12),
+                  _ConseilCard(text: conseil),
+                  const SizedBox(height: 22),
+                  AppButton(
+                    label: 'Commencer maintenant',
+                    icon: Icons.play_arrow_rounded,
+                    isLoading: _starting,
+                    onPressed: _starting ? null : _start,
+                  ),
+                  const SizedBox(height: 8),
+                  AppButton(
+                    label: 'Annuler',
+                    variant: AppButtonVariant.ghost,
+                    onPressed: _starting
+                        ? null
+                        : () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Helper : ouvre le briefing en bottomsheet modal.
+void showModuleExamBriefingSheet(BuildContext context, TcfQcmModule module) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => ModuleExamBriefingSheet(module: module),
+  );
+}
+
+class _ConsigneLine {
+  const _ConsigneLine({required this.label, required this.icon});
+
+  final String label;
+  final String icon;
+}
+
+class _BriefingHero extends StatelessWidget {
+  const _BriefingHero({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.blue, AppColors.blueDark],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.blue.withValues(alpha: 0.22),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(icon, size: 30, color: AppColors.white),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: AppFonts.jakarta(
+              size: 22,
+              weight: FontWeight.w800,
+              color: AppColors.white,
+              height: 1.15,
+            ).copyWith(letterSpacing: -0.3),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            description,
+            style: AppFonts.jakarta(
+              size: 13.5,
+              color: AppColors.white.withValues(alpha: 0.92),
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DurationBadge extends StatelessWidget {
+  const _DurationBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.blueLight,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.timer_outlined, size: 13, color: AppColors.blue),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: AppFonts.jakarta(
+              size: 12,
+              weight: FontWeight.w800,
+              color: AppColors.blue,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConsignesCard extends StatelessWidget {
+  const _ConsignesCard({required this.items});
+
+  final List<_ConsigneLine> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'CONSIGNES',
+            style: AppFonts.mono(
+              size: 9.5,
+              color: AppColors.muted,
+              letterSpacing: 1.8,
+              weight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (int i = 0; i < items.length; i++) ...[
+            _ConsigneRow(line: items[i]),
+            if (i != items.length - 1) const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ConsigneRow extends StatelessWidget {
+  const _ConsigneRow({required this.line});
+
+  final _ConsigneLine line;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              line.label,
+              style: AppFonts.jakarta(
+                size: 13.5,
+                color: AppColors.ink2,
+                weight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            line.icon,
+            style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConseilCard extends StatelessWidget {
+  const _ConseilCard({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      decoration: BoxDecoration(
+        // Rouge léger en accent secondaire (palette française : on évite
+        // d'empiler du bleu partout sur ce sheet).
+        color: AppColors.redLight,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.red.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.lightbulb_outline,
+                size: 14,
+                color: AppColors.red,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'CONSEIL',
+                style: AppFonts.mono(
+                  size: 9.5,
+                  color: AppColors.red,
+                  letterSpacing: 1.8,
+                  weight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            text,
+            style: AppFonts.jakarta(
+              size: 13,
+              color: AppColors.ink2,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -18,6 +18,7 @@ import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.exception.BusinessException;
@@ -70,6 +71,23 @@ public class AttemptService {
     private static final int LIST_LIMIT_MIN = 1;
     private static final int LIST_LIMIT_MAX = 100;
 
+    // Composition d'un examen module TCF QCM : 8 A2 + 9 B1 + 8 B2 = 25 questions
+    // progressives. Cf. StartAttemptRequest doc + AttemptService.startModuleExam.
+    private static final int MODULE_EXAM_A2 = 8;
+    private static final int MODULE_EXAM_B1 = 9;
+    private static final int MODULE_EXAM_B2 = 8;
+    private static final int MODULE_EXAM_TOTAL = MODULE_EXAM_A2 + MODULE_EXAM_B1 + MODULE_EXAM_B2;
+
+    // Durée des examens module — Compréhension orale 20 min, écrite 35 min.
+    private static final int MODULE_EXAM_CO_SECONDS = 20 * 60;
+    private static final int MODULE_EXAM_CE_SECONDS = 35 * 60;
+
+    // Pondération du score par niveau (A2=1, B1=2, B2=3) — applique à la finalisation
+    // d'un examen module. Max score = 8*1 + 9*2 + 8*3 = 50.
+    private static final int WEIGHT_A2 = 1;
+    private static final int WEIGHT_B1 = 2;
+    private static final int WEIGHT_B2 = 3;
+
     private final AttemptManager attemptManager;
     private final AttemptQuestionManager attemptQuestionManager;
     private final AnswerManager answerManager;
@@ -101,6 +119,12 @@ public class AttemptService {
         // pool filtre (module + difficulty + questionType) en tri stable. Cf. LotService.
         if (req.lotNumero() != null) {
             return startFromLot(user, req);
+        }
+
+        // Branche examen module : si moduleExamQuestionType est fourni, on tire
+        // 8 A2 + 9 B1 + 8 B2 progressif dans l'epreuve concernee (CO ou CE).
+        if (req.moduleExamQuestionType() != null) {
+            return startModuleExam(user, req);
         }
 
         // Branche legacy : MOCK_EXAM sans template, TRAINING, REVIEW.
@@ -366,6 +390,88 @@ public class AttemptService {
     }
 
     /**
+     * Demarre un examen blanc scope a une epreuve TCF QCM (CO ou CE).
+     * Composition : 8 A2 + 9 B1 + 8 B2 progressifs (constantes MODULE_EXAM_*),
+     * tire aleatoirement dans le pool filtre par module + questionType. Si
+     * une strate est trop petite, on complete avec les niveaux voisins pour
+     * atteindre 25 questions au total (fallback).
+     *
+     * <p>Reserve aux comptes premium TCF. Sur 403 le front affiche le paywall.
+     */
+    private AttemptResponse startModuleExam(User user, StartAttemptRequest req) {
+        if (req.type() != AttemptType.MOCK_EXAM) {
+            throw new BusinessException("moduleExamQuestionType implique type=MOCK_EXAM.");
+        }
+        if (req.module() != Module.TCF) {
+            throw new BusinessException("Les examens module sont reserves au module TCF.");
+        }
+        QuestionType qType = req.moduleExamQuestionType();
+        if (qType != QuestionType.CO && qType != QuestionType.CE) {
+            throw new BusinessException("moduleExamQuestionType doit etre CO ou CE.");
+        }
+        if (!subscriptionService.isPremium(user.getId())) {
+            throw new AccessDeniedException("Les examens module sont reserves aux abonnes.");
+        }
+
+        List<Question> picked = composeModuleExam(req.module(), qType);
+        if (picked.isEmpty()) {
+            throw new BusinessException("Aucune question disponible pour cet examen module.");
+        }
+
+        int timeLimit = qType == QuestionType.CO ? MODULE_EXAM_CO_SECONDS : MODULE_EXAM_CE_SECONDS;
+
+        Attempt attempt = new Attempt();
+        attempt.setUser(user);
+        attempt.setType(AttemptType.MOCK_EXAM);
+        attempt.setModule(req.module());
+        attempt.setModuleExamQuestionType(qType);
+        attempt.setTotalQuestions(picked.size());
+        attempt.setTimeLimitSeconds(timeLimit);
+        attempt.setStartedAt(Instant.now());
+        attempt = attemptManager.save(attempt);
+
+        List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, picked);
+        return mapper.toResponse(attempt, aqList, false);
+    }
+
+    /**
+     * Compose la liste des 25 questions d'un examen module en suivant les
+     * proportions A2/B1/B2 et en evitant les doublons. Tire aleatoirement
+     * dans chaque strate, puis complete par un tirage libre si une strate
+     * est sous-dotee (fallback).
+     */
+    private List<Question> composeModuleExam(Module module, QuestionType questionType) {
+        LinkedHashSet<Question> picked = new LinkedHashSet<>();
+        List<UUID> exclude = new ArrayList<>();
+        addStrata(picked, exclude, module, questionType, Difficulty.A2, MODULE_EXAM_A2);
+        addStrata(picked, exclude, module, questionType, Difficulty.B1, MODULE_EXAM_B1);
+        addStrata(picked, exclude, module, questionType, Difficulty.B2, MODULE_EXAM_B2);
+
+        int missing = MODULE_EXAM_TOTAL - picked.size();
+        if (missing > 0) {
+            // Fallback : on complete sans contrainte de niveau si une strate
+            // etait sous-dotee. Garantit qu'on serve quand meme un examen
+            // utile plutot que d'en refuser le demarrage.
+            List<Question> extra = questionManager.findRandomExcluding(
+                    module, null, null, questionType, exclude, missing);
+            for (Question q : extra) {
+                if (picked.add(q)) exclude.add(q.getId());
+            }
+        }
+        return new ArrayList<>(picked);
+    }
+
+    private void addStrata(
+            LinkedHashSet<Question> picked, List<UUID> exclude,
+            Module module, QuestionType questionType, Difficulty difficulty, int count) {
+        List<Question> drawn = questionManager.findRandomExcluding(
+                module, null, difficulty, questionType, exclude, count);
+        for (Question q : drawn) {
+            if (picked.add(q)) exclude.add(q.getId());
+        }
+    }
+
+    /**
      * Pioche les questions d'un ExamTemplate en suivant ses regles.
      *
      * @param deterministic si vrai, ordre stable {@code created_at ASC, id ASC}
@@ -436,9 +542,15 @@ public class AttemptService {
     }
 
     @Transactional(readOnly = true)
-    public List<AttemptSummaryResponse> listMine(UUID userId, AttemptType type, Module module, int limit) {
+    public List<AttemptSummaryResponse> listMine(
+            UUID userId,
+            AttemptType type,
+            Module module,
+            QuestionType moduleExamQuestionType,
+            int limit) {
         int safeLimit = Math.max(LIST_LIMIT_MIN, Math.min(LIST_LIMIT_MAX, limit));
-        List<Attempt> attempts = attemptManager.findByUserFiltered(userId, type, module, safeLimit);
+        List<Attempt> attempts = attemptManager.findByUserFiltered(
+                userId, type, module, moduleExamQuestionType, safeLimit);
         return attempts.stream().map(mapper::toSummary).toList();
     }
 
@@ -564,6 +676,14 @@ public class AttemptService {
             attempt.setLevelAchieved(computeLevelAchieved(aqs));
         }
 
+        // Examen module TCF : on persiste aussi le score pondere par niveau
+        // (A2=1, B1=2, B2=3) pour permettre un affichage X/50 cote front sans
+        // re-joindre attempt_questions a chaque lecture de l'historique.
+        if (attempt.getModuleExamQuestionType() != null) {
+            attempt.setWeightedScore(computeWeightedScore(aqs, true));
+            attempt.setMaxWeightedScore(computeWeightedScore(aqs, false));
+        }
+
         attemptManager.save(attempt);
         return mapper.toResponse(attempt, aqs, true);
     }
@@ -601,6 +721,30 @@ public class AttemptService {
             case B1 -> Difficulty.B1;
             case B2 -> Difficulty.B2;
         };
+    }
+
+    /**
+     * Calcule le score pondéré d'un examen module en sommant les poids par
+     * niveau des questions correctes (si {@code onlyCorrect}) ou de toutes
+     * les questions (= max score atteignable). Poids : A2=1, B1=2, B2=3.
+     * Les questions sans niveau (rare) sont ignorées.
+     */
+    private int computeWeightedScore(List<AttemptQuestion> aqs, boolean onlyCorrect) {
+        int total = 0;
+        for (AttemptQuestion aq : aqs) {
+            Difficulty d = aq.getQuestion().getDifficulty();
+            if (d == null) continue;
+            if (onlyCorrect && (aq.getAnswer() == null || !Boolean.TRUE.equals(aq.getAnswer().getCorrect()))) {
+                continue;
+            }
+            total += switch (d) {
+                case A2 -> WEIGHT_A2;
+                case B1 -> WEIGHT_B1;
+                case B2 -> WEIGHT_B2;
+                default -> 0;
+            };
+        }
+        return total;
     }
 
     // ------------------------------------------------------------------------

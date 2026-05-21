@@ -4,6 +4,7 @@ import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionType;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -32,6 +33,11 @@ public record AttemptSummaryResponse(
         Integer score,
         UUID examTemplateId,
         String examTemplateSlug,
-        String examTemplateName
+        String examTemplateName,
+        // Champs spécifiques aux examens module TCF (cf. migration V098).
+        // Renseignés uniquement quand l'attempt est un examen scopé à une épreuve.
+        QuestionType moduleExamQuestionType,
+        Integer weightedScore,
+        Integer maxWeightedScore
 ) {
 }

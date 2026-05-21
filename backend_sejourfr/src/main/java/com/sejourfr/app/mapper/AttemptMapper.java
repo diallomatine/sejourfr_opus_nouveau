@@ -45,6 +45,7 @@ public class AttemptMapper {
                 attempt.getFinishedAt(),
                 attempt.getScore(),
                 attempt.getLevelAchieved(),
+                attempt.getModuleExamQuestionType(),
                 aqResponses
         );
     }
@@ -72,7 +73,10 @@ public class AttemptMapper {
                 a.getScore(),
                 template != null ? template.getId() : null,
                 template != null ? template.getSlug() : null,
-                template != null ? template.getName() : null
+                template != null ? template.getName() : null,
+                a.getModuleExamQuestionType(),
+                a.getWeightedScore(),
+                a.getMaxWeightedScore()
         );
     }
 

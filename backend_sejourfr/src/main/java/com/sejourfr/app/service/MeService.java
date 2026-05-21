@@ -7,6 +7,7 @@ import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserQuestionStatus;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.TargetProcedure;
 import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
@@ -121,10 +122,14 @@ public class MeService {
     // ------------------------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public List<QuestionPublicResponse> wrongAnswered(UUID userId, Module module) {
+    public List<QuestionPublicResponse> wrongAnswered(UUID userId, Module module, QuestionType questionType) {
         List<UUID> ids = answerManager.findWrongQuestionIds(userId, module);
         if (ids.isEmpty()) return List.of();
+        // Le filtre questionType est appliqué côté Java après chargement —
+        // le manager renvoie déjà la liste filtrée par module via un join
+        // sur questions, on raffine ici sans toucher à la query SQL.
         return questionManager.findAllById(ids).stream()
+                .filter(q -> questionType == null || q.getQuestionType() == questionType)
                 .map(this::toPublic)
                 .toList();
     }
@@ -147,7 +152,13 @@ public class MeService {
                     "Vous devez tenter ou marquer en favori cette question pour la consulter en révision.");
         }
 
-        return questionMapper.toReview(q);
+        // Récupère la sélection de la dernière tentative pour pouvoir marquer
+        // en rouge la réponse incorrecte côté mobile. Vide si jamais tentée
+        // (cas d'une question favorite non répondue).
+        var lastSelection = answered
+                ? answerManager.findLatestSelectedChoiceIds(userId, questionId)
+                : java.util.List.<UUID>of();
+        return questionMapper.toReview(q, lastSelection);
     }
 
     // ------------------------------------------------------------------------

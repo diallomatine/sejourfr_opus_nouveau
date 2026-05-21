@@ -16,9 +16,22 @@ import 'audio_player.dart';
 ///      migration Flyway).
 ///   2. `media.url` + `type` ∈ {AUDIO, IMAGE, VIDEO} → contenu distant.
 class QuestionMediaView extends StatelessWidget {
-  const QuestionMediaView({super.key, required this.media});
+  const QuestionMediaView({
+    super.key,
+    required this.media,
+    this.examMode = false,
+    this.maxPlays,
+  });
 
   final MediaDto media;
+
+  /// Active les conditions strictes d'un examen module sur le player audio
+  /// (auto-play 2s, pas de pause). Ignoré pour image / vidéo.
+  final bool examMode;
+
+  /// Nombre maximum d'écoutes pour les audios (typiquement 1 en examen).
+  /// Null = lectures illimitées.
+  final int? maxPlays;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +41,11 @@ class QuestionMediaView extends StatelessWidget {
     final url = ApiConfig.resolveMediaUrl(media.url);
     switch (media.type) {
       case MediaType.audio:
-        return SejourAudioPlayer(url: url);
+        return SejourAudioPlayer(
+          url: url,
+          examMode: examMode,
+          maxPlays: maxPlays,
+        );
       case MediaType.image:
         return _ImageMedia(url: url);
       case MediaType.video:

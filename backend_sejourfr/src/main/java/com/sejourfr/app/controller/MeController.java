@@ -7,6 +7,7 @@ import com.sejourfr.app.dto.UpdateTargetProcedureRequest;
 import com.sejourfr.app.dto.UserStatsResponse;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.AttemptService;
 import com.sejourfr.app.service.MeService;
@@ -55,8 +56,10 @@ public class MeController {
     public List<AttemptSummaryResponse> attempts(
             @RequestParam(required = false) AttemptType type,
             @RequestParam(required = false) Module module,
+            @RequestParam(required = false) QuestionType moduleExamQuestionType,
             @RequestParam(defaultValue = "20") int limit) {
-        return attemptService.listMine(currentUser.getId(), type, module, limit);
+        return attemptService.listMine(
+                currentUser.getId(), type, module, moduleExamQuestionType, limit);
     }
 
     // ------------------------------------------------------------------------
@@ -94,8 +97,10 @@ public class MeController {
     // ------------------------------------------------------------------------
 
     @GetMapping("/questions/wrong")
-    public List<QuestionPublicResponse> wrong(@RequestParam(required = false) Module module) {
-        return meService.wrongAnswered(currentUser.getId(), module);
+    public List<QuestionPublicResponse> wrong(
+            @RequestParam(required = false) Module module,
+            @RequestParam(required = false) QuestionType questionType) {
+        return meService.wrongAnswered(currentUser.getId(), module, questionType);
     }
 
     // ------------------------------------------------------------------------

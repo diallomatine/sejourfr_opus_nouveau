@@ -34,12 +34,14 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
             WHERE a.user.id = :userId
               AND (:type IS NULL OR a.type = :type)
               AND (:module IS NULL OR a.module = :module)
+              AND (:moduleExamQuestionType IS NULL OR a.moduleExamQuestionType = :moduleExamQuestionType)
             ORDER BY a.startedAt DESC
             """)
     List<Attempt> findByUserFiltered(
             @Param("userId") UUID userId,
             @Param("type") AttemptType type,
             @Param("module") Module module,
+            @Param("moduleExamQuestionType") QuestionType moduleExamQuestionType,
             Pageable pageable
     );
 

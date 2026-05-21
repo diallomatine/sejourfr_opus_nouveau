@@ -116,7 +116,7 @@ public class QuestionMapper {
     }
 
     /** Vue revue (apres reponse) : tous les choix dans leur displayOrder, isCorrect expose. */
-    public QuestionReviewResponse toReview(Question q) {
+    public QuestionReviewResponse toReview(Question q, List<UUID> userSelectedChoiceIds) {
         List<ChoiceReviewResponse> choices = q.getChoices().stream()
                 .sorted(Comparator.comparingInt(Choice::getDisplayOrder))
                 .map(c -> new ChoiceReviewResponse(c.getId(), c.getLabel(), c.getDisplayOrder(), c.isCorrect()))
@@ -133,7 +133,8 @@ public class QuestionMapper {
                 q.getPassage() != null ? q.getPassage().getContent() : null,
                 q.getExplanation(),
                 toMedia(q),
-                choices
+                choices,
+                userSelectedChoiceIds != null ? userSelectedChoiceIds : List.of()
         );
     }
 

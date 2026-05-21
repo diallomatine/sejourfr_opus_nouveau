@@ -4,6 +4,7 @@ import com.sejourfr.app.entity.Answer;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.repository.AnswerRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -46,5 +47,17 @@ public class AnswerManager {
 
     public boolean hasUserAnsweredQuestion(UUID userId, UUID questionId) {
         return repository.hasUserAnsweredQuestion(userId, questionId);
+    }
+
+    /**
+     * Choix sélectionnés par l'utilisateur lors de sa <b>dernière</b> tentative
+     * sur cette question. Liste vide si jamais tentée. Sert au sheet review
+     * pour marquer en rouge le choix incorrect choisi.
+     */
+    public List<UUID> findLatestSelectedChoiceIds(UUID userId, UUID questionId) {
+        List<Answer> last = repository.findLatestByUserAndQuestion(
+                userId, questionId, PageRequest.of(0, 1));
+        if (last.isEmpty()) return List.of();
+        return last.get(0).getSelectedChoiceIds();
     }
 }

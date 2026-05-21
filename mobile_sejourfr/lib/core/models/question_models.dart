@@ -99,6 +99,7 @@ class QuestionDto {
     required this.choices,
     this.passageText,
     this.media,
+    this.userSelectedChoiceIds = const [],
   });
 
   final String id;
@@ -112,6 +113,12 @@ class QuestionDto {
   final List<ChoiceDto> choices;
   final String? passageText;
   final MediaDto? media;
+
+  /// Choix sélectionnés par l'utilisateur lors de sa dernière tentative —
+  /// renseigné uniquement dans la version "review" (`GET /api/me/questions/:id/review`).
+  /// Liste vide pour les autres endpoints. Permet au sheet de marquer en
+  /// rouge le choix incorrect choisi.
+  final List<String> userSelectedChoiceIds;
 
   bool get hasMedia => media != null;
   bool get hasAudio => media?.type == MediaType.audio;
@@ -143,6 +150,10 @@ class QuestionDto {
                 ?.map((c) => ChoiceDto.fromJson(c as Map<String, dynamic>))
                 .toList() ??
             [],
+        userSelectedChoiceIds: (json['userSelectedChoiceIds'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList() ??
+            const [],
       );
 }
 

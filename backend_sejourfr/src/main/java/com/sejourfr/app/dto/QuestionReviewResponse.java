@@ -23,5 +23,9 @@ public record QuestionReviewResponse(
         String passageText,
         String explanation,
         MediaResponse media,
-        List<ChoiceReviewResponse> choices
+        List<ChoiceReviewResponse> choices,
+        // Choix sélectionnés par l'utilisateur lors de sa dernière tentative.
+        // Liste vide s'il n'a jamais répondu (cas d'une question favori non
+        // tentée). Permet au mobile de marquer en rouge la réponse erronée.
+        List<UUID> userSelectedChoiceIds
 ) {}

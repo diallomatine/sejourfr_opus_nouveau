@@ -7,8 +7,8 @@ import '../../core/api/repositories.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
-import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/eyebrow.dart';
+import '../../core/widgets/question_detail_sheet.dart';
 
 /// Provider qui charge l'attempt finalisé pour le rapport.
 final examReportProvider = FutureProvider.autoDispose.family<Attempt, String>((ref, id) {
@@ -123,12 +123,7 @@ class _ExamReportScreenState extends ConsumerState<ExamReportScreen> {
           )
         else
           for (final aq in filtered) ...[
-            // Clé unique pour que Flutter garde l'état d'ouverture par question
-            // même quand on change de filtre
-            _QuestionAccordion(
-              key: ValueKey('q-${aq.id}'),
-              attemptQuestion: aq,
-            ),
+            _QuestionReviewCard(attemptQuestion: aq),
             const SizedBox(height: 10),
           ],
       ],
@@ -268,346 +263,140 @@ class _FilterChip extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Accordéon par question (le truc principal)
+// Card review-style par question — tap → ouvre QuestionDetailSheet
 // ---------------------------------------------------------------------------
 
-class _QuestionAccordion extends StatefulWidget {
-  const _QuestionAccordion({super.key, required this.attemptQuestion});
+class _QuestionReviewCard extends StatelessWidget {
+  const _QuestionReviewCard({required this.attemptQuestion});
 
   final AttemptQuestion attemptQuestion;
 
   @override
-  State<_QuestionAccordion> createState() => _QuestionAccordionState();
-}
-
-class _QuestionAccordionState extends State<_QuestionAccordion> with SingleTickerProviderStateMixin {
-  late bool _open;
-
-  @override
-  void initState() {
-    super.initState();
-    // Toujours fermé par défaut : l'utilisateur ouvre uniquement les questions
-    // qui l'intéressent.
-    _open = false;
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final aq = widget.attemptQuestion;
+    final aq = attemptQuestion;
     final q = aq.question;
     final isCorrect = aq.correct == true;
     final isAnswered = aq.answered;
-    final isWrong = isAnswered && !isCorrect;
 
-    // Tonalité de couleur globale de l'encart
     final Color accent;
     final Color bg;
     final Color borderColor;
+    final IconData statusIcon;
+    final String statusLabel;
     if (!isAnswered) {
       accent = AppColors.muted;
       bg = AppColors.line2.withValues(alpha: 0.5);
       borderColor = AppColors.line;
+      statusIcon = Icons.help_outline;
+      statusLabel = 'Non répondu';
     } else if (isCorrect) {
       accent = AppColors.green;
       bg = AppColors.green.withValues(alpha: 0.05);
       borderColor = AppColors.green.withValues(alpha: 0.35);
+      statusIcon = Icons.check_circle;
+      statusLabel = 'Correct';
     } else {
       accent = AppColors.red;
       bg = AppColors.redLight;
       borderColor = AppColors.red.withValues(alpha: 0.35);
+      statusIcon = Icons.cancel;
+      statusLabel = 'Incorrect';
     }
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
       child: Material(
         color: bg,
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: borderColor, width: 1),
-            borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: () => showQuestionDetailSheet(
+            context,
+            question: q,
+            // La sélection vient de l'AttemptQuestion (review déjà chargée).
+            userSelectedChoiceIdsOverride: aq.selectedChoiceIds,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ──────── Header cliquable ────────
-              InkWell(
-                onTap: () => setState(() => _open = !_open),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
-                  child: Row(
-                    children: [
-                      // Pastille numérotée
-                      Container(
-                        width: 30,
-                        height: 30,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: accent,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          '${aq.position + 1}',
-                          style: AppFonts.jakarta(
-                            size: 12,
-                            weight: FontWeight.w800,
-                            color: AppColors.white,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Statut + énoncé tronqué
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  !isAnswered
-                                      ? Icons.help_outline
-                                      : isCorrect
-                                          ? Icons.check_circle
-                                          : Icons.cancel,
-                                  color: accent,
-                                  size: 14,
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  !isAnswered
-                                      ? 'Non répondu'
-                                      : isCorrect
-                                          ? 'Correct'
-                                          : 'Incorrect',
-                                  style: AppFonts.mono(
-                                    size: 9,
-                                    color: accent,
-                                    letterSpacing: 1.2,
-                                  ).copyWith(fontWeight: FontWeight.w700),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              q.statement,
-                              maxLines: _open ? 10 : 2,
-                              overflow: _open ? TextOverflow.visible : TextOverflow.ellipsis,
-                              style: AppFonts.jakarta(
-                                size: 13.5,
-                                weight: FontWeight.w600,
-                                color: AppColors.ink,
-                                height: 1.35,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      AnimatedRotation(
-                        turns: _open ? 0.5 : 0,
-                        duration: const Duration(milliseconds: 200),
-                        child: Icon(
-                          Icons.keyboard_arrow_down,
-                          color: accent,
-                          size: 22,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // ──────── Contenu déplié ────────
-              AnimatedCrossFade(
-                duration: const Duration(milliseconds: 220),
-                crossFadeState: _open ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-                firstChild: const SizedBox(width: double.infinity),
-                secondChild: _ExpandedContent(
-                  attemptQuestion: aq,
-                  accentColor: borderColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Contenu déplié de l'accordéon : choix + explication
-// ---------------------------------------------------------------------------
-
-class _ExpandedContent extends StatelessWidget {
-  const _ExpandedContent({
-    required this.attemptQuestion,
-    required this.accentColor,
-  });
-
-  final AttemptQuestion attemptQuestion;
-  final Color accentColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final q = attemptQuestion.question;
-    final selectedIds = attemptQuestion.selectedChoiceIds;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Séparateur visuel entre header et contenu
-          Container(
-            height: 1,
-            color: accentColor.withValues(alpha: 0.4),
-            margin: const EdgeInsets.only(bottom: 14),
-          ),
-
-          // Thème + difficulté en petite ligne discrète
-          Row(
-            children: [
-              AppTag(label: q.difficulty.wire, tone: TagTone.red),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  q.themeName,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppFonts.mono(
-                    size: 9,
-                    color: AppColors.muted2,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Choix avec annotations
-          for (final c in q.choices) ...[
-            _ChoiceLine(
-              label: c.label,
-              isCorrect: c.correct,
-              isSelected: selectedIds.contains(c.id),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: borderColor, width: 1),
+              borderRadius: BorderRadius.circular(14),
             ),
-            const SizedBox(height: 6),
-          ],
-
-          // Bloc explication
-          if (q.explanation != null && q.explanation!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.blueSoft,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: AppColors.blue.withValues(alpha: 0.18),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.lightbulb_outline, color: AppColors.blue, size: 14),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Explication',
-                        style: AppFonts.mono(
-                          size: 9,
-                          color: AppColors.blue,
-                          letterSpacing: 1.5,
-                        ).copyWith(fontWeight: FontWeight.w700),
-                      ),
-                    ],
+            padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: accent,
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    q.explanation!,
+                  child: Text(
+                    '${aq.position + 1}',
                     style: AppFonts.jakarta(
-                      size: 13,
-                      color: AppColors.ink2,
-                      height: 1.5,
+                      size: 12,
+                      weight: FontWeight.w800,
+                      color: AppColors.white,
                     ),
                   ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Ligne de choix (verte bonne réponse, rouge sélectionné incorrect, neutre sinon)
-// ---------------------------------------------------------------------------
-
-class _ChoiceLine extends StatelessWidget {
-  const _ChoiceLine({
-    required this.label,
-    required this.isCorrect,
-    required this.isSelected,
-  });
-
-  final String label;
-  final bool isCorrect;
-  final bool isSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    Color bg = AppColors.white;
-    Color border = AppColors.line;
-    Color iconColor = AppColors.muted2;
-    IconData icon = Icons.radio_button_unchecked;
-
-    if (isCorrect) {
-      bg = AppColors.green.withValues(alpha: 0.1);
-      border = AppColors.green.withValues(alpha: 0.5);
-      iconColor = AppColors.green;
-      icon = Icons.check_circle;
-    } else if (isSelected) {
-      bg = AppColors.white;
-      border = AppColors.red.withValues(alpha: 0.5);
-      iconColor = AppColors.red;
-      icon = Icons.cancel;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: bg,
-        border: Border.all(color: border),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: iconColor),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              label,
-              style: AppFonts.jakarta(
-                size: 13,
-                weight: isCorrect || isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: AppColors.ink,
-                height: 1.35,
-              ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(statusIcon, color: accent, size: 14),
+                          const SizedBox(width: 5),
+                          Text(
+                            statusLabel,
+                            style: AppFonts.mono(
+                              size: 9,
+                              color: accent,
+                              letterSpacing: 1.2,
+                            ).copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(width: 8),
+                          if (q.hasAudio)
+                            Icon(
+                              Icons.headphones,
+                              size: 12,
+                              color: accent.withValues(alpha: 0.7),
+                            )
+                          else if (q.passageText != null &&
+                              q.passageText!.isNotEmpty)
+                            Icon(
+                              Icons.menu_book_rounded,
+                              size: 12,
+                              color: accent.withValues(alpha: 0.7),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        q.statement,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppFonts.jakarta(
+                          size: 13.5,
+                          weight: FontWeight.w600,
+                          color: AppColors.ink,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: accent,
+                  size: 22,
+                ),
+              ],
             ),
           ),
-          if (isSelected && !isCorrect)
-            Text(
-              'Votre réponse',
-              style: AppFonts.mono(
-                size: 9,
-                color: AppColors.red,
-                letterSpacing: 1.0,
-              ).copyWith(fontWeight: FontWeight.w700),
-            ),
-        ],
+        ),
       ),
     );
   }

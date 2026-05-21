@@ -338,8 +338,19 @@ Layout uniforme (`widgets/module_detail_widgets.dart`) :
      (ex: `8/15`) à la place du chevron. Le rafraîchissement est porté par l'autoDispose du
      `lotsProvider` : revenir depuis `TcfLotResultScreen` via `context.go` recrée le widget et
      refetch les lots.
-   - **Examens / Erreurs** = `ModuleDetailTabPlaceholder` "Bientôt". Lot 4b reprendra
-     `examsByModuleProvider` (sortait de `exam_setup_screen.dart` supprimé) et `wrongAnswered`.
+   - **Examens** = `_ExamsTab` qui affiche une intro (25 Q · 20 min CO ou 35 min CE · difficulté
+     progressive A2 → B1 → B2) + l'historique des examens module passés du user via
+     `_moduleExamsHistoryProvider(QuestionType)` (`GET /api/me/attempts?moduleExamQuestionType=CO|CE`).
+     Chaque ligne d'historique montre la date, le nombre de bonnes réponses, la durée et un badge
+     score pondéré X/50 coloré (vert / ambre / rouge). Le bouton primary du bas devient
+     "Lancer un examen" qui appelle `_startModuleExam` → `POST /api/attempts {type:MOCK_EXAM,
+     moduleExamQuestionType}` → push runner (chrono auto via `attempt.timeLimitSeconds`).
+   - **Erreurs** = `_ErrorsTab` branché sur `_wrongQuestionsProvider(QuestionType)`
+     (`GET /api/me/questions/wrong?module=TCF&questionType=CO|CE`). Liste plate des questions
+     ratées avec chip niveau et preview du statement. Empty state propre si zéro erreur.
+
+   L'entrée "Mes questions" du profil a été retirée — l'accès aux erreurs se fait désormais par
+   l'onglet Erreurs du module concerné, plus contextuel.
 7. `AppButton` primary :
    - QCM / onglet Séries : "Commencer l'entraînement" → entraînement standard 25 Q (POST sans
      filtre difficulté), à côté des séries filtrées qui partent depuis les cards.

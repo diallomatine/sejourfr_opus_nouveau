@@ -152,7 +152,13 @@ class _RunnerView extends ConsumerWidget {
                   if (question.hasMedia)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
-                      child: QuestionMediaView(media: question.media!),
+                      // En examen module TCF : audio auto-play 2s, lecture
+                      // unique, pas de pause possible — conditions du TCF réel.
+                      child: QuestionMediaView(
+                        media: question.media!,
+                        examMode: state.activeAttempt.isModuleExam,
+                        maxPlays: state.activeAttempt.isModuleExam ? 1 : null,
+                      ),
                     ),
                   if (question.passageText != null) ...[
                     _PassageBlock(text: question.passageText!),
@@ -474,6 +480,10 @@ class _BottomBar extends ConsumerWidget {
     final showValidate = isTraining && !state.hasResult;
     final isLast = state.isLast;
     final waiting = state.submitting || state.extending;
+    // Pas de "Précédent" en mode examen blanc (MOCK_EXAM) — conditions du
+    // TCF réel : on ne revient pas en arrière. Idem en entraînement infini
+    // (avancement linéaire). Seul un training borné (lot) garde l'option.
+    final canGoBack = isTraining && !isInfinite && state.currentIndex > 0;
 
     return Container(
       padding: EdgeInsets.fromLTRB(
@@ -488,9 +498,7 @@ class _BottomBar extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          // En entraînement infini : pas de "Précédent" (session orientée
-          // avancement). En examen ou training borné, on garde l'option.
-          if (!isInfinite && state.currentIndex > 0) ...[
+          if (canGoBack) ...[
             Expanded(
               child: AppButton(
                 label: 'Précédent',
@@ -501,7 +509,7 @@ class _BottomBar extends ConsumerWidget {
             const SizedBox(width: 12),
           ],
           Expanded(
-            flex: (!isInfinite && state.currentIndex > 0) ? 2 : 1,
+            flex: canGoBack ? 2 : 1,
             child: showValidate
                 ? AppButton(
                     label: 'Valider',

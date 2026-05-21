@@ -49,9 +49,19 @@ public class AttemptManager {
         return repository.findByIdAndClientIpAndUserIsNull(id, clientIp);
     }
 
-    /** Historique utilisateur filtre, plafonne par {@code limit}. */
-    public List<Attempt> findByUserFiltered(UUID userId, AttemptType type, Module module, int limit) {
-        return repository.findByUserFiltered(userId, type, module, PageRequest.of(0, limit));
+    /**
+     * Historique utilisateur filtre, plafonne par {@code limit}. Le filtre
+     * {@code moduleExamQuestionType} permet d'isoler les examens module TCF
+     * (CO ou CE) ; null pour la requete generale.
+     */
+    public List<Attempt> findByUserFiltered(
+            UUID userId,
+            AttemptType type,
+            Module module,
+            QuestionType moduleExamQuestionType,
+            int limit) {
+        return repository.findByUserFiltered(
+                userId, type, module, moduleExamQuestionType, PageRequest.of(0, limit));
     }
 
     /**

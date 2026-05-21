@@ -75,4 +75,22 @@ public interface AnswerRepository extends JpaRepository<Answer, UUID> {
           AND a.attemptQuestion.question.id = :questionId
         """)
     boolean hasUserAnsweredQuestion(@Param("userId") UUID userId, @Param("questionId") UUID questionId);
+
+    /**
+     * Dernière réponse de l'utilisateur sur une question, triée par
+     * {@code answeredAt DESC}. Le caller prend {@code List.first()} (vide
+     * si jamais répondu). Sert au sheet de révision pour afficher en rouge
+     * le choix incorrect que l'utilisateur avait sélectionné.
+     */
+    @Query("""
+        SELECT a FROM Answer a
+        WHERE a.attemptQuestion.attempt.user.id = :userId
+          AND a.attemptQuestion.question.id = :questionId
+        ORDER BY a.answeredAt DESC
+        """)
+    List<Answer> findLatestByUserAndQuestion(
+            @Param("userId") UUID userId,
+            @Param("questionId") UUID questionId,
+            org.springframework.data.domain.Pageable pageable
+    );
 }

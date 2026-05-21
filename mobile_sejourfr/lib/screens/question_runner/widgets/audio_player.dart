@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -7,26 +9,36 @@ import '../../../core/widgets/app_card.dart';
 /// Player audio pour les questions de compréhension orale (TCF).
 /// Compte le nombre de lectures pour pouvoir limiter à 2 écoutes côté UI
 /// si on veut imiter les conditions réelles.
+///
+/// `examMode` active les conditions strictes de l'examen réel :
+///   - démarrage automatique 2s après chargement
+///   - le bouton play ne peut pas être utilisé pour mettre en pause
+///   - les rejouages manuels restent bloqués par `maxPlays`
 class SejourAudioPlayer extends StatefulWidget {
   const SejourAudioPlayer({
     super.key,
     required this.url,
     this.maxPlays,
+    this.examMode = false,
   });
 
   final String url;
   final int? maxPlays;
+  final bool examMode;
 
   @override
   State<SejourAudioPlayer> createState() => _SejourAudioPlayerState();
 }
 
 class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
+  static const _examAutoStartDelay = Duration(seconds: 2);
+
   final _player = AudioPlayer();
   bool _ready = false;
   String? _error;
   int _playCount = 0;
   bool _started = false;
+  Timer? _autoStartTimer;
 
   @override
   void initState() {
@@ -45,6 +57,7 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
   }
 
   Future<void> _resetForNewSource() async {
+    _autoStartTimer?.cancel();
     try {
       await _player.stop();
     } catch (_) {
@@ -65,14 +78,34 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
       await _player.setUrl(widget.url);
       if (!mounted) return;
       setState(() => _ready = true);
+      // Examen module : on déclenche la lecture automatique 2s après le
+      // chargement, pour reproduire les conditions du TCF officiel.
+      if (widget.examMode) {
+        _autoStartTimer?.cancel();
+        _autoStartTimer = Timer(_examAutoStartDelay, _autoStart);
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() => _error = 'Impossible de charger l\'audio.');
     }
   }
 
+  Future<void> _autoStart() async {
+    if (!mounted || !_ready || _started) return;
+    if (widget.maxPlays != null && _playCount >= widget.maxPlays!) return;
+    _started = true;
+    setState(() => _playCount++);
+    try {
+      await _player.play();
+    } catch (_) {
+      // L'auto-play peut être refusé sur certaines plateformes — fallback
+      // sur le bouton manuel (qui reste utilisable pour démarrer).
+    }
+  }
+
   @override
   void dispose() {
+    _autoStartTimer?.cancel();
     _player.dispose();
     super.dispose();
   }
@@ -80,6 +113,9 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
   Future<void> _togglePlay() async {
     if (!_ready) return;
     if (_player.playing) {
+      // Examen module : pas de pause possible — on ignore les tap pendant
+      // la lecture. La sortie naturelle est la fin du document audio.
+      if (widget.examMode) return;
       await _player.pause();
     } else {
       if (widget.maxPlays != null && _playCount >= widget.maxPlays!) return;
@@ -162,10 +198,15 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
                     return _PlayButton(
                       playing: playing,
                       loading: showLoading,
+                      // En examen module : impossible de mettre en pause
+                      // (le bouton reste affiché mais désactivé pendant la
+                      // lecture). Le bouton reste désactivé aussi quand la
+                      // limite d'écoutes est atteinte.
                       disabled: !_ready ||
                           (remaining != null &&
                               remaining == 0 &&
-                              !playing),
+                              !playing) ||
+                          (widget.examMode && playing),
                       onTap: _togglePlay,
                     );
                   },

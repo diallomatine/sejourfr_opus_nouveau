@@ -211,6 +211,44 @@ enrichit chaque `LotDto` avec `lastScore` + `lastAttemptedAt` du user pour
 que le mobile différencie visuellement les lots déjà faits (carte teintée +
 badge score `X/Y`).
 
+## Examens module TCF (CO ou CE, sous-set de MOCK_EXAM)
+
+Distinct de l'examen blanc complet (toutes épreuves) : un **examen module**
+est un MOCK_EXAM scopé à une seule épreuve TCF QCM (CO ou CE), pour
+permettre de simuler la passation d'une épreuve unique.
+
+Migration `V098__attempts_module_exam_columns.sql` ajoute :
+- `module_exam_question_type` (varchar 24) : `CO` ou `CE` quand scopé, NULL sinon
+- `weighted_score` + `max_weighted_score` (int) : score pondéré persisté à la
+  finalisation pour éviter de re-joindre `attempt_questions` à chaque lecture
+- Index partiel `idx_attempts_module_exam` sur
+  `(user_id, module, module_exam_question_type, finished_at DESC)`
+
+**Composition** (`AttemptService.composeModuleExam`) :
+- 8 A2 + 9 B1 + 8 B2 = 25 questions progressives, tirage aléatoire dans chaque
+  strate (`module=TCF`, `questionType=CO|CE`)
+- Fallback si une strate est sous-dotée : on complète sans contrainte de niveau
+
+**Chrono** : 20 min CO / 35 min CE (constantes `MODULE_EXAM_CO_SECONDS` /
+`MODULE_EXAM_CE_SECONDS`).
+
+**Score pondéré** : A2=1, B1=2, B2=3 → max 50 pts pour la répartition 8/9/8.
+Calculé à la finalisation par `computeWeightedScore`.
+
+**Endpoints** :
+- `POST /api/attempts {type:MOCK_EXAM, module:TCF, moduleExamQuestionType:CO|CE}`
+  → `AttemptService.startModuleExam` (premium TCF requis)
+- `GET /api/me/attempts?type=MOCK_EXAM&module=TCF&moduleExamQuestionType=CO|CE`
+  → historique des examens passés/en cours du user
+- `GET /api/me/questions/wrong?module=TCF&questionType=CO|CE`
+  → questions ratées filtrées par épreuve (utilisé par l'onglet Erreurs)
+
+`AttemptSummaryResponse` (et son miroir Dart `AttemptSummary`) exposent
+`moduleExamQuestionType`, `weightedScore`, `maxWeightedScore` (null pour les
+autres attempts). Côté mobile : `_ExamsTab` dans `TcfQcmDetailScreen` affiche
+l'intro + l'historique avec badge score coloré, `_ErrorsTab` liste les
+questions ratées avec leur niveau.
+
 **Côté backend** (`backend_sejourfr/src/main/java/com/sejourfr/app/`) :
 
 - `dto/LotDto.java` (record `numero / difficulty / totalQuestions`)

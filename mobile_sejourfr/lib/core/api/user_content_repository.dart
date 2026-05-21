@@ -33,10 +33,16 @@ class UserContentRepository {
     await _client.dio.delete('/api/me/questions/$questionId/favorite');
   }
 
-  Future<List<QuestionDto>> wrongAnswered({AppModule? module}) async {
+  Future<List<QuestionDto>> wrongAnswered({
+    AppModule? module,
+    QuestionType? questionType,
+  }) async {
     final res = await _client.dio.get<List<dynamic>>(
       '/api/me/questions/wrong',
-      queryParameters: module != null ? {'module': module.wire} : null,
+      queryParameters: {
+        if (module != null) 'module': module.wire,
+        if (questionType != null) 'questionType': questionType.wire,
+      },
     );
     return (res.data ?? [])
         .map((e) => QuestionDto.fromJson(e as Map<String, dynamic>))

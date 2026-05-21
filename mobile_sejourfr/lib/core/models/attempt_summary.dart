@@ -17,6 +17,9 @@ class AttemptSummary {
     this.examTemplateId,
     this.examTemplateSlug,
     this.examTemplateName,
+    this.moduleExamQuestionType,
+    this.weightedScore,
+    this.maxWeightedScore,
   });
 
   final String id;
@@ -33,6 +36,15 @@ class AttemptSummary {
   final String? examTemplateId;
   final String? examTemplateSlug;
   final String? examTemplateName;
+
+  // Examen module TCF (CO ou CE) : type renseigné quand l'attempt est un
+  // examen scopé à une épreuve. Score pondéré calculé à la finalisation
+  // (A2=1, B1=2, B2=3) — max attendu = 50 pour une répartition 8/9/8.
+  final QuestionType? moduleExamQuestionType;
+  final int? weightedScore;
+  final int? maxWeightedScore;
+
+  bool get isModuleExam => moduleExamQuestionType != null;
 
   bool get isFinished => finishedAt != null;
   bool get isPassed => score != null && passThreshold != null && score! >= passThreshold!;
@@ -61,5 +73,10 @@ class AttemptSummary {
         examTemplateId: json['examTemplateId'] as String?,
         examTemplateSlug: json['examTemplateSlug'] as String?,
         examTemplateName: json['examTemplateName'] as String?,
+        moduleExamQuestionType: json['moduleExamQuestionType'] == null
+            ? null
+            : QuestionType.fromWire(json['moduleExamQuestionType'] as String),
+        weightedScore: (json['weightedScore'] as num?)?.toInt(),
+        maxWeightedScore: (json['maxWeightedScore'] as num?)?.toInt(),
       );
 }

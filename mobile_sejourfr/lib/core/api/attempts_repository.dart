@@ -37,12 +37,15 @@ class AttemptsRepository {
   /// Paramètres :
   ///  - [type]   : filtrer par TRAINING / MOCK_EXAM (null = toutes)
   ///  - [module] : filtrer par module CIVIQUE / TCF (null = tous)
+  ///  - [moduleExamQuestionType] : isole les examens module TCF (CO ou CE),
+  ///    null pour ne pas filtrer sur ce critère
   ///  - [limit]  : nombre max de résultats (par défaut 20)
   ///
-  /// Backend : GET /api/me/attempts?type=...&module=...&limit=...
+  /// Backend : GET /api/me/attempts?type=...&module=...&moduleExamQuestionType=...&limit=...
   Future<List<AttemptSummary>> listMine({
     AttemptType? type,
     AppModule? module,
+    QuestionType? moduleExamQuestionType,
     int limit = 20,
   }) async {
     final res = await _client.dio.get<List<dynamic>>(
@@ -50,6 +53,8 @@ class AttemptsRepository {
       queryParameters: {
         if (type != null) 'type': type.wire,
         if (module != null) 'module': module.wire,
+        if (moduleExamQuestionType != null)
+          'moduleExamQuestionType': moduleExamQuestionType.wire,
         'limit': limit,
       },
     );

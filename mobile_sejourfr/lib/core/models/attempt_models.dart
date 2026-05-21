@@ -25,6 +25,7 @@ class StartAttemptRequest {
     this.questionType,
     this.size,
     this.lotNumero,
+    this.moduleExamQuestionType,
   });
 
   final AttemptType type;
@@ -40,6 +41,12 @@ class StartAttemptRequest {
   /// questionType doivent matcher l'appel `/api/lots` qui a listé ce lot.
   final int? lotNumero;
 
+  /// Si renseigné, déclenche un examen blanc scopé à une épreuve TCF QCM
+  /// (CO ou CE). type doit être MOCK_EXAM. Le backend tire 8 A2 + 9 B1 +
+  /// 8 B2 progressifs et applique un chrono (20 min CO / 35 min CE).
+  /// Cf. `AttemptService.startModuleExam` côté Java.
+  final QuestionType? moduleExamQuestionType;
+
   Map<String, dynamic> toJson() => {
         'type': type.wire,
         'module': module.wire,
@@ -49,6 +56,8 @@ class StartAttemptRequest {
         if (questionType != null) 'questionType': questionType!.wire,
         if (size != null) 'size': size,
         if (lotNumero != null) 'lotNumero': lotNumero,
+        if (moduleExamQuestionType != null)
+          'moduleExamQuestionType': moduleExamQuestionType!.wire,
       };
 }
 
@@ -100,6 +109,7 @@ class Attempt {
     this.finishedAt,
     this.score,
     this.levelAchieved,
+    this.moduleExamQuestionType,
   });
 
   final String id;
@@ -117,9 +127,15 @@ class Attempt {
   final int? score;
   final TargetLevel? levelAchieved;
 
+  /// Non-null quand l'attempt est un examen module TCF (CO ou CE). Active
+  /// le mode strict côté runner : audio auto-play 2s, lecture unique, pas
+  /// de pause, soumission auto à la fin du temps.
+  final QuestionType? moduleExamQuestionType;
+
   bool get isMockExam => type == AttemptType.mockExam;
   bool get isFinished => finishedAt != null;
   bool get isTcf => module == AppModule.tcf;
+  bool get isModuleExam => moduleExamQuestionType != null;
 
   factory Attempt.fromJson(Map<String, dynamic> json) => Attempt(
         id: json['id'] as String,
@@ -140,6 +156,9 @@ class Attempt {
             : DateTime.parse(json['finishedAt'] as String),
         score: (json['score'] as num?)?.toInt(),
         levelAchieved: TargetLevel.fromWireNullable(json['levelAchieved'] as String?),
+        moduleExamQuestionType: json['moduleExamQuestionType'] == null
+            ? null
+            : QuestionType.fromWire(json['moduleExamQuestionType'] as String),
         questions: (json['questions'] as List<dynamic>?)
                 ?.map((q) =>
                     AttemptQuestion.fromJson(q as Map<String, dynamic>))
