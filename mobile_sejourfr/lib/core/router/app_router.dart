@@ -14,6 +14,7 @@ import '../../screens/module_detail/civique_theme_detail_screen.dart';
 import '../../screens/module_detail/tcf_level_lots_screen.dart';
 import '../../screens/module_detail/tcf_lot_result_screen.dart';
 import '../../screens/module_detail/tcf_production_detail_screen.dart';
+import '../../screens/module_detail/tcf_production_task_subjects_screen.dart';
 import '../../screens/module_detail/tcf_qcm_detail_screen.dart';
 import '../../screens/onboarding/onboarding_screen.dart';
 import '../../screens/profile/mes_historiques_screen.dart';
@@ -53,6 +54,11 @@ class AppRoutes {
   static const tcfCeDetail = '/tcf/ce';
   static const tcfEoDetail = '/tcf/eo';
   static const tcfEeDetail = '/tcf/ee';
+  // Sujets d'une tâche EE ou EO (route hors shell). tacheNumero ∈ {1,2,3}.
+  // Cf. `TcfProductionTaskSubjectsScreen` — affichage groupé par lots de 5
+  // si > 15 sujets, sinon liste plate. Bypass pour EO T1 (consigne fixe).
+  static const tcfEoTaskSubjects = '/tcf/eo/tache/:tacheNumero';
+  static const tcfEeTaskSubjects = '/tcf/ee/tache/:tacheNumero';
   // Liste des lots pour un niveau d'un module TCF QCM.
   // moduleKey ∈ {co, ce}, level ∈ {a2, b1, b2}.
   static const tcfLevelLots = '/tcf/:moduleKey/niveau/:level';
@@ -260,6 +266,28 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.tcfEeDetail,
         builder: (_, __) =>
             const TcfProductionDetailScreen(module: TcfProductionModule.ee),
+      ),
+      // Sujets d'une tâche EE / EO. Pushé depuis l'onglet Tâches du détail
+      // production quand l'utilisateur tape une card tâche.
+      GoRoute(
+        path: AppRoutes.tcfEoTaskSubjects,
+        builder: (_, state) {
+          final n = int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1;
+          return TcfProductionTaskSubjectsScreen(
+            epreuve: EpreuveType.tcfEo,
+            tacheNumero: n.clamp(1, 3),
+          );
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.tcfEeTaskSubjects,
+        builder: (_, state) {
+          final n = int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1;
+          return TcfProductionTaskSubjectsScreen(
+            epreuve: EpreuveType.tcfEe,
+            tacheNumero: n.clamp(1, 3),
+          );
+        },
       ),
       // Lots d'un niveau pour un module TCF QCM. Pushé depuis l'onglet
       // Séries du détail module quand l'utilisateur tape une carte niveau.
