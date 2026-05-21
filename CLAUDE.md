@@ -273,6 +273,80 @@ Pour ajouter un 4ᵉ niveau (jamais prévu vu que TCF s'arrête à B2) ou change
 la taille d'un lot : modifier les constantes dans `LotService` + ajouter le
 niveau dans `_seriesLevels` côté mobile. Pas de migration.
 
+## Examen blanc TCF complet (les 4 épreuves enchaînées)
+
+Distinct des examens module (CO ou CE seul) : un **examen blanc complet**
+enchaîne **CO + CE + EE + EO** sous un seul parent `epreuve = TCF_COMPLET`.
+Chrono global 90 min (CO 20 + CE 30 + EE 30 + EO 10). Le niveau final est
+le **plancher CECRL des 4 sous-épreuves** (règle officielle TCF IRN).
+
+**Modèle de données** :
+- Parent `attempts` avec `epreuve = TCF_COMPLET`, sans questions propres,
+  `time_limit_seconds = 5400` (90 min), `final_cecrl_level` rempli à la
+  finalisation quand toutes les évaluations IA EE/EO sont prêtes.
+- 4 sous-attempts liés via `attempts.parent_attempt_id` (cf. migration V96) :
+  - `TCF_CO` : 25 QCM (8 A2 + 9 B1 + 8 B2), chrono 20 min, score pondéré /50
+  - `TCF_CE` : idem CE, chrono **30 min** (raccourci du 35 min standalone via
+    constante `FULL_EXAM_CE_SECONDS`)
+  - `TCF_EE` : attempt vide, 3 submissions liées via `production_submissions.attempt_id`
+  - `TCF_EO` : idem EO
+- Migration `V099__attempts_final_cecrl_level.sql` : colonne `final_cecrl_level
+  VARCHAR(24)` nullable sur `attempts`.
+
+**Création atomique** (`FullTcfExamService.start`) : un seul POST crée parent
++ 4 sous-attempts en transaction. Réservé aux abonnés TCF (`hasTcf(userId)`).
+Réutilise `AttemptService.startModuleExamSubAttempt` pour CO/CE (skip le
+check premium puisque le parent porte l'accès) et
+`AttemptService.startProductionAttempt` pour EE/EO (déjà capable de gérer
+`parentAttemptId` avec validation `TCF_COMPLET`).
+
+**Statut global** (`FullTcfExamResponse.FullTcfExamStatus`) :
+- `IN_PROGRESS` : ≥1 sous-attempt n'a pas `finished_at`
+- `PENDING_EVALUATIONS` : tous finis mais ≥1 eval IA EE/EO pas EVALUATED
+- `COMPLETED` : tout fini + tout évalué + `final_cecrl_level` posé
+
+**Calcul du CECRL plancher** (`FullTcfExamService.weightedScoreToCecrl`
++ `floorOfCecrls`) :
+- CO/CE : ratio = weightedScore/maxWeightedScore →
+  ≥80% B2 · ≥60% B1 · ≥40% A2 · ≥20% A1 · sinon A1_NON_ATTEINT
+- EE/EO : plancher des `niveauCecrl` des 3 `AiEvaluation` liées aux 3 submissions
+- Final = min ordinal des 4 (A1_NON_ATTEINT(0) < A1 < A2 < B1 < B2 < C1 < C2)
+
+**Endpoints** :
+- `POST /api/full-tcf-exams` → `start(userId)` (premium TCF requis)
+- `GET /api/full-tcf-exams/{id}` → état complet (parent + 4 sous-attempts +
+  calcul CECRL lazy si non encore persisté)
+- `POST /api/full-tcf-exams/{id}/finish` → marque finished_at + persiste
+  `final_cecrl_level` quand prêt
+- `GET /api/me/full-tcf-exams?limit=N` → historique compact (sans détail des
+  sous-attempts)
+
+**Côté backend** (`backend_sejourfr/src/main/java/com/sejourfr/app/`) :
+- `service/FullTcfExamService.java` — orchestration
+- `controller/FullTcfExamController.java` — REST
+- `dto/FullTcfExamResponse.java` + `FullTcfExamSummaryResponse.java`
+- `service/AttemptService.startModuleExamSubAttempt(...)` — variante sans
+  check premium pour sous-attempts
+- `manager/AttemptManager.findSubAttempts(...)` + `findByUserAndEpreuve(...)`
+- `manager/ProductionSubmissionManager.findByAttemptId(...)` — submissions
+  d'un sous-attempt EE/EO
+
+**Côté mobile** (à brancher dans un lot suivant) : Riverpod orchestrator qui
+enchaîne CO → CE → EE 3T → EO 3T, écran progression "Étape X/4", écran
+bilan final agrégé CECRL plancher. L'UI des 20 slots
+(`TcfFullExamsScreen`) + briefing modal sont déjà en place.
+
+**Gotchas** :
+- `FullTcfExamService.start` n'a PAS de quota anti-spam : un user premium
+  peut créer autant d'examens blancs qu'il veut. Si besoin, ajouter un
+  filter Bucket4j sur le controller.
+- Pour l'orchestration mobile, **chaque sous-attempt vit indépendamment** :
+  le runner QCM existant (avec `_isModuleExam` strict) fonctionne sans
+  modification sur les sous-attempts CO/CE, et le flow production aussi
+  pour EE/EO (juste passer `attemptId` du sous-attempt aux 3 submissions).
+- L'agrégation CECRL est **idempotente** : tant que `final_cecrl_level` est
+  NULL et que `status == COMPLETED`, un appel `get` ou `finish` la persiste.
+
 ## Pipeline de génération audio TCF (Compréhension Orale)
 
 Le backend a un pipeline **Claude (Anthropic) → Azure Speech → Cloudflare R2 → Postgres** dans
@@ -470,11 +544,12 @@ Tap module → **écran détail** (`screens/module_detail/`) avec hero, stats et
   et `/exam`. Sheet paywall réutilisable dans `core/widgets/paywall_sheet.dart`. Carte "Examen blanc
   complet" présente mais inactive.
 
-**Reste à faire mobile (lots suivants)** : lot 4b — brancher les onglets Examens (réutiliser
-`examsByModuleProvider` qui partait avec `exam_setup_screen.dart` supprimé) et Erreurs (utiliser
-`userContentRepository.wrongAnswered`) ; branchement de l'examen blanc complet sur la carte
-sombre des hubs ; score par épreuve TCF côté backend (pour remplacer l'agrégat global affiché
-actuellement sur CO/CE).
+**Reste à faire mobile (lots suivants)** : orchestrateur Riverpod de l'examen blanc complet
+(enchaînement CO → CE → EE 3T → EO 3T en utilisant les sub-attemptIds renvoyés par
+`POST /api/full-tcf-exams`) + écran progression "Étape X/4" + bilan final agrégé CECRL plancher
+(`GET /api/full-tcf-exams/{id}`). Le backend est prêt — UI 20 slots + briefing sheet aussi.
+Score par épreuve TCF côté backend (pour remplacer l'agrégat global affiché actuellement sur
+CO/CE) reste à faire.
 
 **À reproduire côté web** (`web_sejoufr/`) une fois le mobile stabilisé : même découpe Civique/TCF
 dans la nav principale, mêmes hubs, même paywall. La parité front mobile↔web est un axe produit.
@@ -494,11 +569,14 @@ Cf. `mobile_sejourfr/CLAUDE.md` section "Bottom nav et hubs Civique / TCF" pour 
 - **EO/EE TCF côté web + admin** : mobile livré (hub d'entraînement single-task, recording WAV, écrans
   complets) ; reste à coder le miroir web (entraînement EO/EE en navigateur via `MediaRecorder` API) et
   l'écran admin de calibration humaine consommant `/api/admin/calibration/*`.
-- **Examen blanc EO/EE** : flow 3-tâches chaîné prévu (cf. mobile CLAUDE.md). Stratégie validée : Option 3
-  fire-and-forget — chaque submit part en async pendant que l'utilisateur attaque la tâche suivante, les
-  résultats sont agrégés à la fin. Routes legacy `/tcf/expression-X/nouvelle`, `/progression`, `/bilan` +
-  `EoSessionController.start()` / `EeSessionController.start()` (mode 3-tâches) déjà en place, à réactiver le
-  moment venu.
+- **Examen blanc TCF complet — orchestration mobile** : backend livré (cf. section « Examen blanc TCF
+  complet » plus haut, `POST /api/full-tcf-exams` atomique + 4 sous-attempts + CECRL plancher). Reste à
+  brancher le mobile : orchestrateur Riverpod qui enchaîne les sub-attemptIds CO/CE (runner QCM existant en
+  mode strict examen module) puis EE/EO (réutiliser `EeSessionController.start()` / `EoSessionController.start()`
+  qui sont déjà en mode 3-tâches mais à passer le `subAttemptId` du parent au lieu de créer un attempt
+  isolé). Stratégie validée : fire-and-forget pour les évaluations IA EE/EO — chaque submit part en async
+  pendant que l'utilisateur enchaîne. Écran progression "Étape X/4" + écran bilan agrégé CECRL plancher
+  reposant sur `GET /api/full-tcf-exams/{id}`.
 - **Rate limiting global EO/EE** : la spec demandait 10/h et 50/jour, pas branché (mériterait un filter Spring
   dédié type Bucket4j).
 - **AAC pour EO mobile** : `record_ios 1.2.0` produit un fichier vide sur iOS 26 en AAC-LC → workaround WAV (

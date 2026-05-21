@@ -78,9 +78,12 @@ public class AttemptService {
     private static final int MODULE_EXAM_B2 = 8;
     private static final int MODULE_EXAM_TOTAL = MODULE_EXAM_A2 + MODULE_EXAM_B1 + MODULE_EXAM_B2;
 
-    // Durée des examens module — Compréhension orale 20 min, écrite 35 min.
+    // Durée des examens module — Compréhension orale 20 min, écrite 35 min en
+    // standalone. En examen blanc complet (TCF_COMPLET), CE est raccourci à
+    // 30 min pour tenir dans l'enveloppe globale de 90 min.
     private static final int MODULE_EXAM_CO_SECONDS = 20 * 60;
     private static final int MODULE_EXAM_CE_SECONDS = 35 * 60;
+    private static final int FULL_EXAM_CE_SECONDS = 30 * 60;
 
     // Pondération du score par niveau (A2=1, B1=2, B2=3) — applique à la finalisation
     // d'un examen module. Max score = 8*1 + 9*2 + 8*3 = 50.
@@ -424,6 +427,46 @@ public class AttemptService {
         attempt.setUser(user);
         attempt.setType(AttemptType.MOCK_EXAM);
         attempt.setModule(req.module());
+        attempt.setModuleExamQuestionType(qType);
+        attempt.setTotalQuestions(picked.size());
+        attempt.setTimeLimitSeconds(timeLimit);
+        attempt.setStartedAt(Instant.now());
+        attempt = attemptManager.save(attempt);
+
+        List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, picked);
+        return mapper.toResponse(attempt, aqList, false);
+    }
+
+    /**
+     * Variante de {@link #startModuleExam} pour les sous-attempts d'un examen
+     * blanc TCF complet (parent TCF_COMPLET). Skip le check premium (l'accès
+     * est porté par le parent), pose {@code parent_attempt_id} et applique la
+     * durée full-exam pour CE (30 min au lieu de 35).
+     *
+     * <p>Réservé à {@link FullTcfExamService} qui valide l'access avant l'appel.
+     */
+    @Transactional
+    public AttemptResponse startModuleExamSubAttempt(User user, QuestionType qType, Attempt parent) {
+        if (qType != QuestionType.CO && qType != QuestionType.CE) {
+            throw new BusinessException("qType doit être CO ou CE pour un sous-attempt examen module.");
+        }
+        if (parent == null || parent.getEpreuve() != EpreuveType.TCF_COMPLET) {
+            throw new BusinessException("parent doit être un attempt TCF_COMPLET.");
+        }
+
+        List<Question> picked = composeModuleExam(Module.TCF, qType);
+        if (picked.isEmpty()) {
+            throw new BusinessException("Aucune question disponible pour le sous-attempt " + qType + ".");
+        }
+
+        int timeLimit = qType == QuestionType.CO ? MODULE_EXAM_CO_SECONDS : FULL_EXAM_CE_SECONDS;
+
+        Attempt attempt = new Attempt();
+        attempt.setUser(user);
+        attempt.setType(AttemptType.MOCK_EXAM);
+        attempt.setModule(Module.TCF);
+        attempt.setEpreuve(qType == QuestionType.CO ? EpreuveType.TCF_CO : EpreuveType.TCF_CE);
+        attempt.setParentAttempt(parent);
         attempt.setModuleExamQuestionType(qType);
         attempt.setTotalQuestions(picked.size());
         attempt.setTimeLimitSeconds(timeLimit);

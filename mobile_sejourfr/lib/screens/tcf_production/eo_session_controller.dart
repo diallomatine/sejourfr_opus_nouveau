@@ -97,6 +97,44 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
     });
   }
 
+  /// Démarre une session EO 3-tâches **dans le cadre d'un examen blanc TCF
+  /// complet** : on reprend le sous-attempt `TCF_EO` déjà créé par
+  /// `FullTcfExamService.start` au lieu de POST un nouvel attempt.
+  Future<void> startInFullExam({
+    required String subAttemptId,
+    required String niveau,
+  }) async {
+    final current = state.value;
+    if (current != null &&
+        current.attempt?.id == subAttemptId &&
+        current.isStarted &&
+        !current.isCompleted) {
+      return;
+    }
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final tasks =
+          await _repo.listTasks(epreuve: EpreuveType.tcfEo, niveau: niveau);
+      if (tasks.isEmpty) {
+        throw StateError('Aucune tâche EO disponible pour le niveau $niveau.');
+      }
+      final attempt = Attempt(
+        id: subAttemptId,
+        type: AttemptType.training,
+        module: AppModule.tcf,
+        totalQuestions: 0,
+        startedAt: DateTime.now(),
+        questions: const [],
+      );
+      return EoSessionState(
+        niveau: niveau,
+        attempt: attempt,
+        tasks: tasks,
+        submissions: const {},
+      );
+    });
+  }
+
   /// Envoie l'audio enregistre au backend et stocke la submission dans le state.
   Future<ProductionSubmissionDto> submitTask({
     required int taskIndex,

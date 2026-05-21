@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/auth_controller.dart';
 import 'attempts_repository.dart';
 import 'exams_repository.dart';
+import 'full_tcf_exam_repository.dart';
 import 'lots_repository.dart';
 import 'production_repository.dart';
 import 'themes_repository.dart';
@@ -30,4 +31,8 @@ final productionRepositoryProvider = Provider<ProductionRepository>(
 
 final lotsRepositoryProvider = Provider<LotsRepository>(
   (ref) => LotsRepository(ref.watch(apiClientProvider)),
+);
+
+final fullTcfExamRepositoryProvider = Provider<FullTcfExamRepository>(
+  (ref) => FullTcfExamRepository(ref.watch(apiClientProvider)),
 );

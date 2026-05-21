@@ -3,6 +3,7 @@ package com.sejourfr.app.repository;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
 import org.springframework.data.domain.Pageable;
@@ -82,5 +83,37 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
             @Param("module") Module module,
             @Param("questionType") QuestionType questionType,
             @Param("difficulty") Difficulty difficulty
+    );
+
+    /**
+     * Liste les sous-attempts d'un examen blanc TCF complet (parent
+     * {@code TCF_COMPLET}). Ordonnés par {@code startedAt asc} — l'ordre de
+     * création correspond à l'ordre des épreuves (CO, CE, EE, EO).
+     */
+    List<Attempt> findByParentAttemptIdOrderByStartedAtAsc(UUID parentAttemptId);
+
+    /**
+     * Lookup d'un attempt avec son parent eager-loaded (LEFT JOIN FETCH).
+     * Utilisé hors transaction longue (ex: {@code ProductionEvaluationService})
+     * pour pouvoir lire {@code parentAttempt.epreuve} sans déclencher de
+     * {@code LazyInitializationException}.
+     */
+    @Query("SELECT a FROM Attempt a LEFT JOIN FETCH a.parentAttempt WHERE a.id = :id")
+    Optional<Attempt> findByIdWithParent(@Param("id") UUID id);
+
+    /**
+     * Historique des examens blancs TCF complets d'un utilisateur (parent
+     * uniquement, tri descendant). Utilisé par {@code GET /api/me/full-tcf-exams}.
+     */
+    @Query("""
+            SELECT a FROM Attempt a
+            WHERE a.user.id = :userId
+              AND a.epreuve = :epreuve
+            ORDER BY a.startedAt DESC
+            """)
+    List<Attempt> findByUserAndEpreuve(
+            @Param("userId") UUID userId,
+            @Param("epreuve") EpreuveType epreuve,
+            Pageable pageable
     );
 }

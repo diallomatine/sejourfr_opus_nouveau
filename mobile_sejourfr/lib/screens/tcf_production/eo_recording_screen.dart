@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/query_propagation.dart';
 import 'audio_recorder_service.dart';
 import 'eo_session_controller.dart';
 import 'widgets/production_app_header.dart';
@@ -45,7 +46,10 @@ class _EoRecordingScreenState extends ConsumerState<EoRecordingScreen> {
     await ref.read(recordingControllerProvider.notifier).stop();
     if (!context.mounted) return;
     context.pushReplacement(
-      '/tcf/expression-orale/t/${widget.taskIndex}/termine',
+      withCurrentQuery(
+        context,
+        '/tcf/expression-orale/t/${widget.taskIndex}/termine',
+      ),
     );
   }
 
@@ -90,7 +94,10 @@ class _EoRecordingScreenState extends ConsumerState<EoRecordingScreen> {
         _autoFinishedNavigated = true;
         if (context.mounted) {
           context.pushReplacement(
-            '/tcf/expression-orale/t/${widget.taskIndex}/termine',
+            withCurrentQuery(
+              context,
+              '/tcf/expression-orale/t/${widget.taskIndex}/termine',
+            ),
           );
         }
       }

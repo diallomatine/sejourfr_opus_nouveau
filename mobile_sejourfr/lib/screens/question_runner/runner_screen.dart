@@ -13,6 +13,7 @@ import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/eyebrow.dart';
 import '../../core/widgets/rich_paragraph_text.dart';
 import '../../core/widgets/tcf_paywall.dart';
+import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'runner_controller.dart';
 import 'widgets/choice_tile.dart';
 import 'widgets/exam_timer.dart';
@@ -556,6 +557,23 @@ class _BottomBar extends ConsumerWidget {
 }
 
 void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
+  // Contexte examen blanc complet TCF (CO ou CE en sous-attempt) — le runner
+  // doit revenir au hub de progression pour que l'utilisateur enchaîne la
+  // prochaine épreuve, jamais au dialog d'examen standard.
+  final goState = GoRouterState.of(context);
+  final from = goState.uri.queryParameters['from'];
+  final fullExamId = goState.uri.queryParameters['fullExamId'];
+  if (from == 'fullTcf' && fullExamId != null) {
+    // Force le re-fetch côté hub : sans ça `context.go` peut réutiliser
+    // l'instance existante du progress screen avec un state périmé, et
+    // l'épreuve qu'on vient de terminer n'apparaît pas comme Done.
+    ref.invalidate(fullTcfExamProvider(fullExamId));
+    context.go(
+      AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', fullExamId),
+    );
+    return;
+  }
+
   if (attempt.isMockExam) {
     context.go(
       AppRoutes.examResult.replaceFirst(':attemptId', attempt.id),
@@ -566,8 +584,6 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
   // Contexte de lot TCF QCM (cf. `TcfLevelLotsScreen._startLot`) — si la
   // route du runner porte `from=tcfLot`, on push le bilan dédié plutôt que
   // d'afficher le dialog d'entraînement standard.
-  final goState = GoRouterState.of(context);
-  final from = goState.uri.queryParameters['from'];
   final moduleKey = goState.uri.queryParameters['moduleKey'];
   final level = goState.uri.queryParameters['level'];
   if (from == 'tcfLot' && moduleKey != null && level != null) {

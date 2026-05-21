@@ -1,21 +1,17 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.config.ProductionEvaluationProperties;
-import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.SubmissionStatut;
-import com.sejourfr.app.exception.AiEvaluationException;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
-import com.sejourfr.app.exception.ProductionEvaluationException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
-import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.manager.UserManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.text.Normalizer;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -47,12 +44,10 @@ public class ProductionEvaluationService {
 
     private final ProductionTaskManager taskManager;
     private final ProductionSubmissionManager submissionManager;
-    private final TranscriptionManager transcriptionManager;
     private final AttemptManager attemptManager;
     private final UserManager userManager;
     private final ProductionAudioStorageService audioStorage;
-    private final WhisperTranscriptionService whisperService;
-    private final AiEvaluationService aiEvaluationService;
+    private final ProductionPipelineAsyncRunner pipelineRunner;
     private final ProductionEvaluationProperties props;
 
     /**
@@ -113,12 +108,41 @@ public class ProductionEvaluationService {
             submission = submissionManager.save(submission);
         }
 
-        try {
-            runPipeline(submission, estOral);
-        } catch (ProductionEvaluationException e) {
-            markFailed(submission, e);
-        }
+        // Sous-attempt EE/EO d'un examen blanc complet TCF : dès qu'on
+        // atteint 3 submissions, on auto-finalise pour que le hub de
+        // progression côté mobile détecte l'étape comme terminée. Aucune
+        // route /finish n'est appelée par le mobile pour les productions.
+        finishSubAttemptIfFullExam(attempt.getId());
+
+        // Pipeline IA déclenché en arrière-plan : le caller HTTP reçoit la
+        // submission en SUBMITTED immédiatement et n'attend pas Whisper +
+        // Claude (~15 s). Le mobile poll ensuite l'état via /api/full-tcf-exams
+        // ou /api/production-submissions/{id}. Si l'eval échoue, le runner
+        // pose la submission en FAILED, l'utilisateur peut relancer via
+        // /retry. Cf. ProductionPipelineAsyncRunner.
+        pipelineRunner.runPipelineAsync(submission.getId(), estOral);
         return submission;
+    }
+
+    /**
+     * Re-fetch l'attempt avec parent eager-loaded (impossible d'accéder à
+     * {@code attempt.parentAttempt} ici sinon LazyInitializationException :
+     * {@code submitAndEvaluate} n'est pas {@code @Transactional} et la session
+     * Hibernate est déjà fermée quand on arrive ici).
+     */
+    private void finishSubAttemptIfFullExam(UUID attemptId) {
+        Attempt attempt = attemptManager.findByIdWithParent(attemptId).orElse(null);
+        if (attempt == null || attempt.getFinishedAt() != null) return;
+        Attempt parent = attempt.getParentAttempt();
+        if (parent == null || parent.getEpreuve() != EpreuveType.TCF_COMPLET) return;
+        int count = submissionManager.findByAttemptId(attempt.getId()).size();
+        if (count >= 3) {
+            attempt.setFinishedAt(Instant.now());
+            attempt.setStatus(com.sejourfr.app.enums.AttemptStatus.TERMINE);
+            attemptManager.save(attempt);
+            log.info("Sub-attempt {} auto-finished (3 submissions reached, parent TCF_COMPLET={})",
+                    attempt.getId(), parent.getId());
+        }
     }
 
     /**
@@ -147,47 +171,10 @@ public class ProductionEvaluationService {
         submissionManager.save(sub);
 
         boolean estOral = sub.getProductionTask().getEpreuve() == EpreuveType.TCF_EO;
-        try {
-            runPipeline(sub, estOral);
-        } catch (ProductionEvaluationException e) {
-            markFailed(sub, e);
-        }
+        // Pipeline en arrière-plan, idem submitAndEvaluate — le mobile reçoit
+        // immédiatement la submission en SUBMITTED et poll pour l'état EVALUATED.
+        pipelineRunner.runPipelineAsync(sub.getId(), estOral);
         return sub;
-    }
-
-    /**
-     * Reprend le pipeline depuis le bon point :
-     * <ul>
-     *   <li>EO sans transcription -> Whisper puis Claude.</li>
-     *   <li>EO avec transcription -> Claude direct (economie de cout au retry).</li>
-     *   <li>EE -> Claude direct.</li>
-     * </ul>
-     */
-    private void runPipeline(ProductionSubmission submission, boolean estOral) {
-        if (estOral) {
-            boolean hasTranscription = transcriptionManager
-                .findLatestBySubmissionId(submission.getId()).isPresent();
-            if (!hasTranscription) {
-                whisperService.transcribe(submission.getId());
-            } else {
-                submission.setStatut(SubmissionStatut.EVALUATING);
-                submissionManager.save(submission);
-            }
-        } else {
-            submission.setStatut(SubmissionStatut.EVALUATING);
-            submissionManager.save(submission);
-        }
-        AiEvaluation eval = aiEvaluationService.evaluate(submission.getId());
-        if (eval == null) {
-            throw new AiEvaluationException("Evaluation Claude n'a pas produit de resultat.");
-        }
-    }
-
-    private void markFailed(ProductionSubmission submission, Exception e) {
-        log.warn("Submission {} en FAILED : {}", submission.getId(), e.getMessage());
-        submission.setStatut(SubmissionStatut.FAILED);
-        submission.setErreurMessage(truncate(e.getMessage(), 1000));
-        submissionManager.save(submission);
     }
 
     private void validatePayload(boolean estOral, MultipartFile audio, String texte) {
@@ -262,10 +249,5 @@ public class ProductionEvaluationService {
     private static int compteMots(String texte) {
         if (texte == null || texte.isBlank()) return 0;
         return texte.trim().split("\\s+").length;
-    }
-
-    private static String truncate(String s, int max) {
-        if (s == null) return null;
-        return s.length() <= max ? s : s.substring(0, max);
     }
 }

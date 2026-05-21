@@ -30,6 +30,11 @@ public class ProductionSubmissionManager {
         return repository.save(submission);
     }
 
+    /** Toutes les submissions liées à un attempt EE/EO (utile pour assembler un examen blanc complet). */
+    public List<ProductionSubmission> findByAttemptId(UUID attemptId) {
+        return repository.findByAttemptIdOrderBySubmittedAtAsc(attemptId);
+    }
+
     public long countByUserAndEpreuve(UUID userId, EpreuveType epreuve) {
         return repository.countByUserAndEpreuve(userId, epreuve);
     }

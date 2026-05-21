@@ -5,10 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/query_propagation.dart';
 import '../../core/widgets/app_button.dart';
+import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'draft_service.dart';
 import 'ee_session_controller.dart';
 import 'widgets/consigne_card.dart';
@@ -87,16 +90,27 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
     super.initState();
     _writingFocusNode.addListener(_onFocusChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(eeSessionProvider.notifier).start(niveau: _niveauForUser());
+      // Contexte examen blanc complet : sous-attempt EE déjà créé par le
+      // backend, on le reprend au lieu d'en créer un nouveau. Sinon flow
+      // standard 3-tâches autonome.
+      final goState = GoRouterState.of(context);
+      final fullExamId = goState.uri.queryParameters['fullExamId'];
+      final subAttemptId = goState.uri.queryParameters['subAttemptId'];
+      if (fullExamId != null && subAttemptId != null) {
+        ref.read(eeSessionProvider.notifier).startInFullExam(
+              subAttemptId: subAttemptId,
+              niveau: _niveauForUser(),
+            );
+      } else {
+        ref.read(eeSessionProvider.notifier).start(niveau: _niveauForUser());
+      }
     });
   }
 
   void _onFocusChanged() {
     if (!mounted) return;
     final isNowFocused = _writingFocusNode.hasFocus;
-    final justBlurredWithText = _wasFocused &&
-        !isNowFocused &&
-        _controller.text.trim().isNotEmpty;
+    final justBlurredWithText = _wasFocused && !isNowFocused && _controller.text.trim().isNotEmpty;
     _wasFocused = isNowFocused;
     // On differe le setState a la frame suivante pour ne pas casser la
     // sequence de focus → keyboard (le reflow synchrone des cards qui
@@ -155,6 +169,62 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
 
   Future<void> _submit(ProductionTaskDto task) async {
     final text = _controller.text;
+    final goState = GoRouterState.of(context);
+    final fullExamId = goState.uri.queryParameters['fullExamId'];
+
+    // Mode examen blanc complet : on attend la confirmation de PERSISTANCE
+    // backend (response du POST ~500 ms), pas l'évaluation IA Claude qui
+    // tourne désormais en arrière-plan côté serveur (cf.
+    // ProductionPipelineAsyncRunner). Garanti à 100 % : si le POST renvoie
+    // une erreur (texte trop court, quota, etc.), on l'affiche au lieu de
+    // la swallow silencieusement.
+    if (fullExamId != null) {
+      setState(() {
+        _submitting = true;
+        _submitError = null;
+      });
+      try {
+        await ref.read(eeSessionProvider.notifier).submitTask(
+              taskIndex: widget.taskIndex,
+              texte: text,
+            );
+        await ref.read(eeDraftServiceProvider).clear(task.id);
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _submitting = false;
+          _submitError = ApiClient.toApiException(e).message;
+        });
+        return;
+      }
+      if (!mounted) return;
+      final session = ref.read(eeSessionProvider).value;
+      final hasNext = session != null && widget.taskIndex + 1 < session.totalTasks;
+      if (hasNext) {
+        context.pushReplacement(
+          withCurrentQuery(
+            context,
+            '/tcf/expression-ecrite/t/${widget.taskIndex + 1}',
+          ),
+        );
+      } else {
+        // Dernière tâche EE : marquer le sous-attempt EE comme terminé
+        // côté backend (les 3 submissions sont persistées, mais leurs
+        // évaluations IA tournent encore en async). Le hub débloque EO.
+        try {
+          await ref.read(fullTcfExamRepositoryProvider).markSubDone(
+                parentAttemptId: fullExamId,
+                epreuveWire: 'TCF_EE',
+              );
+        } catch (_) {/* fallback : hook auto backend finira par poser finishedAt */}
+        if (!mounted) return;
+        ref.read(eeSessionProvider.notifier).reset();
+        ref.invalidate(fullTcfExamProvider(fullExamId));
+        context.go('/tcf/examen-blanc/$fullExamId');
+      }
+      return;
+    }
+
     setState(() {
       _submitting = true;
       _submitError = null;
@@ -167,7 +237,10 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
       await ref.read(eeDraftServiceProvider).clear(task.id);
       if (!mounted) return;
       context.pushReplacement(
-        '/tcf/expression-ecrite/resultats/${submission.id}?taskIndex=${widget.taskIndex}',
+        withCurrentQuery(
+          context,
+          '/tcf/expression-ecrite/resultats/${submission.id}?taskIndex=${widget.taskIndex}',
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -226,7 +299,19 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorBox(
           message: ApiClient.toApiException(e).message,
-          onRetry: () => ref.read(eeSessionProvider.notifier).start(niveau: _niveauForUser()),
+          onRetry: () {
+            final goState = GoRouterState.of(context);
+            final fullExamId = goState.uri.queryParameters['fullExamId'];
+            final subAttemptId = goState.uri.queryParameters['subAttemptId'];
+            if (fullExamId != null && subAttemptId != null) {
+              ref.read(eeSessionProvider.notifier).startInFullExam(
+                    subAttemptId: subAttemptId,
+                    niveau: _niveauForUser(),
+                  );
+            } else {
+              ref.read(eeSessionProvider.notifier).start(niveau: _niveauForUser());
+            }
+          },
         ),
         data: (session) {
           final task = session.taskAt(widget.taskIndex);
@@ -354,47 +439,48 @@ class _Content extends StatelessWidget {
             ],
           ),
         ),
-        if (!isWriting) Container(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
-          decoration: const BoxDecoration(
-            color: AppColors.white,
-            border: Border(
-              top: BorderSide(color: AppColors.line2, width: 1),
+        if (!isWriting)
+          Container(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+            decoration: const BoxDecoration(
+              color: AppColors.white,
+              border: Border(
+                top: BorderSide(color: AppColors.line2, width: 1),
+              ),
             ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              children: [
-                AppButton(
-                  label: 'Valider ma rédaction',
-                  icon: Icons.send_rounded,
-                  onPressed: _inRange ? onSubmit : null,
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: onSaveDraftAndQuit,
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(50),
-                    side: const BorderSide(color: AppColors.blue),
-                    foregroundColor: AppColors.blue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+            child: SafeArea(
+              top: false,
+              child: Column(
+                children: [
+                  AppButton(
+                    label: 'Valider ma rédaction',
+                    icon: Icons.send_rounded,
+                    onPressed: _inRange ? onSubmit : null,
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: onSaveDraftAndQuit,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                      side: const BorderSide(color: AppColors.blue),
+                      foregroundColor: AppColors.blue,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'Enregistrer le brouillon',
+                      style: AppFonts.jakarta(
+                        size: 15,
+                        weight: FontWeight.w700,
+                        color: AppColors.blue,
+                      ),
                     ),
                   ),
-                  child: Text(
-                    'Enregistrer le brouillon',
-                    style: AppFonts.jakarta(
-                      size: 15,
-                      weight: FontWeight.w700,
-                      color: AppColors.blue,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
       ],
     );
   }

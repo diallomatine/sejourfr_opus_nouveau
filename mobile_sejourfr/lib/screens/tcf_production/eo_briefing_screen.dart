@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../core/api/api_client.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/query_propagation.dart';
 import '../../core/widgets/app_button.dart';
 import 'audio_recorder_service.dart';
 import 'eo_session_controller.dart';
@@ -61,7 +62,19 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(eoSessionProvider.notifier).start(niveau: _niveauForUser());
+      // Contexte examen blanc complet : sous-attempt EO déjà créé par le
+      // backend, on le reprend au lieu d'en créer un nouveau.
+      final goState = GoRouterState.of(context);
+      final fullExamId = goState.uri.queryParameters['fullExamId'];
+      final subAttemptId = goState.uri.queryParameters['subAttemptId'];
+      if (fullExamId != null && subAttemptId != null) {
+        ref.read(eoSessionProvider.notifier).startInFullExam(
+              subAttemptId: subAttemptId,
+              niveau: _niveauForUser(),
+            );
+      } else {
+        ref.read(eoSessionProvider.notifier).start(niveau: _niveauForUser());
+      }
     });
   }
 
@@ -73,7 +86,10 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     setState(() => _requestingPerm = false);
     if (status.isGranted) {
       context.push(
-        '/tcf/expression-orale/t/${widget.taskIndex}/enregistrement',
+        withCurrentQuery(
+          context,
+          '/tcf/expression-orale/t/${widget.taskIndex}/enregistrement',
+        ),
       );
       return;
     }
@@ -127,7 +143,19 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorBox(
           message: ApiClient.toApiException(e).message,
-          onRetry: () => ref.read(eoSessionProvider.notifier).start(niveau: _niveauForUser()),
+          onRetry: () {
+            final goState = GoRouterState.of(context);
+            final fullExamId = goState.uri.queryParameters['fullExamId'];
+            final subAttemptId = goState.uri.queryParameters['subAttemptId'];
+            if (fullExamId != null && subAttemptId != null) {
+              ref.read(eoSessionProvider.notifier).startInFullExam(
+                    subAttemptId: subAttemptId,
+                    niveau: _niveauForUser(),
+                  );
+            } else {
+              ref.read(eoSessionProvider.notifier).start(niveau: _niveauForUser());
+            }
+          },
         ),
         data: (session) {
           final task = session.taskAt(widget.taskIndex);

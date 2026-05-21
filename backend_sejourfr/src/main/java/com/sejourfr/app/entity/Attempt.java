@@ -6,6 +6,7 @@ import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.TargetLevel;
 import org.hibernate.annotations.UuidGenerator;
@@ -126,6 +127,13 @@ public class Attempt {
     @Column(name = "max_weighted_score")
     private Integer maxWeightedScore;
 
+    // Niveau CECRL plancher (TCF_COMPLET uniquement) — règle officielle TCF IRN
+    // où le niveau final = min des 4 sous-épreuves. Posé à la finalisation. NULL
+    // tant que toutes les évaluations IA (EE/EO) ne sont pas EVALUATED.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "final_cecrl_level", length = 24)
+    private NiveauCecrl finalCecrlLevel;
+
     @OneToMany(mappedBy = "attempt", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
     private List<AttemptQuestion> questions = new ArrayList<>();
@@ -235,4 +243,7 @@ public class Attempt {
 
     public Integer getMaxWeightedScore() { return maxWeightedScore; }
     public void setMaxWeightedScore(Integer maxWeightedScore) { this.maxWeightedScore = maxWeightedScore; }
+
+    public NiveauCecrl getFinalCecrlLevel() { return finalCecrlLevel; }
+    public void setFinalCecrlLevel(NiveauCecrl finalCecrlLevel) { this.finalCecrlLevel = finalCecrlLevel; }
 }

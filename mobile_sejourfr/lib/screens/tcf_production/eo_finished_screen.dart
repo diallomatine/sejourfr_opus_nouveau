@@ -6,8 +6,11 @@ import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/api/repositories.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/query_propagation.dart';
 import '../../core/widgets/app_button.dart';
+import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'audio_recorder_service.dart';
 import 'eo_session_controller.dart';
 import 'widgets/evaluation_loading_view.dart';
@@ -36,6 +39,57 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
       setState(() => _submitError = 'Audio introuvable, veuillez recommencer.');
       return;
     }
+    final goState = GoRouterState.of(context);
+    final fullExamId = goState.uri.queryParameters['fullExamId'];
+
+    // Mode examen blanc complet : on attend la persist + upload R2 (~1-3 s
+    // selon la taille audio), pas l'éval IA qui tourne en async côté
+    // serveur. Garanti : si l'upload échoue, l'utilisateur voit l'erreur et
+    // peut retenter sans perdre son enregistrement local.
+    if (fullExamId != null) {
+      setState(() {
+        _submitting = true;
+        _submitError = null;
+      });
+      try {
+        await ref.read(eoSessionProvider.notifier).submitTask(
+              taskIndex: widget.taskIndex,
+              audioFile: File(path),
+              mimeType: rec.fileMime ?? 'audio/mp4',
+            );
+      } catch (e) {
+        if (!context.mounted) return;
+        setState(() {
+          _submitting = false;
+          _submitError = ApiClient.toApiException(e).message;
+        });
+        return;
+      }
+      if (!context.mounted) return;
+      final session = ref.read(eoSessionProvider).value;
+      final hasNext = session != null && widget.taskIndex + 1 < session.totalTasks;
+      if (hasNext) {
+        context.pushReplacement(
+          withCurrentQuery(
+            context,
+            '/tcf/expression-orale/t/${widget.taskIndex + 1}',
+          ),
+        );
+      } else {
+        try {
+          await ref.read(fullTcfExamRepositoryProvider).markSubDone(
+                parentAttemptId: fullExamId,
+                epreuveWire: 'TCF_EO',
+              );
+        } catch (_) {/* hook auto backend fallback */}
+        if (!context.mounted) return;
+        ref.read(eoSessionProvider.notifier).reset();
+        ref.invalidate(fullTcfExamProvider(fullExamId));
+        context.go('/tcf/examen-blanc/$fullExamId');
+      }
+      return;
+    }
+
     setState(() {
       _submitting = true;
       _submitError = null;
@@ -48,7 +102,10 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
           );
       if (!context.mounted) return;
       context.pushReplacement(
-        '/tcf/expression-orale/resultats/${submission.id}?taskIndex=${widget.taskIndex}',
+        withCurrentQuery(
+          context,
+          '/tcf/expression-orale/resultats/${submission.id}?taskIndex=${widget.taskIndex}',
+        ),
       );
     } catch (e) {
       if (!context.mounted) return;

@@ -282,8 +282,10 @@ structure visuelle identique implémentée dans `screens/hub/widgets/hub_widgets
   stats `byTheme` (correct / total).
 - `HubModuleCard` : icône colorée + titre + description + meta + chevron. Flag `aiTag: true` pour
   EE/EO. Flag `locked: true` réservé aux modules premium futurs.
-- `HubExamCard` : carte sombre "Examen blanc" en bas. CTA visible mais inactif (`onTap` omis) — le
-  branchement viendra dans un lot ultérieur.
+- `HubExamCard` : carte sombre "Examen blanc" en bas. Côté TCF → push
+  `/tcf/examens-blancs` (liste 20 slots) → briefing modal → POST
+  `/api/full-tcf-exams` → push `/tcf/examen-blanc/:parentId` (hub
+  progression). Côté civique : pas encore branché.
 
 **Modules affichés :**
 - **Civique** = les 5 thèmes officiels chargés via `/api/themes?module=CIVIQUE` (Principes &
@@ -474,14 +476,62 @@ blanc futur.
 **Backend gotcha relayé** : le DTO `Attempt` du backend renvoie `totalQuestions=null` pour les attempts de
 type production. `core/models/attempt_models.dart` coerce `null → 0` pour ne pas casser le parsing existant.
 
+## Examen blanc TCF complet (orchestration des 4 épreuves)
+
+Backend : cf. `CLAUDE.md` racine section « Examen blanc TCF complet ». Côté mobile, l'orchestration vit
+dans `screens/tcf_full_exam/` :
+
+- **`TcfFullExamProgressScreen`** (route `/tcf/examen-blanc/:parentId`) — hub de progression. Charge le
+  parent + ses 4 sous-attempts via `fullTcfExamProvider` (FutureProvider.autoDispose.family), affiche 4
+  cards d'étape (CO/CE/EE/EO) avec leur état Done/Current/Locked, CTA « Commencer · [épreuve courante] »
+  qui push :
+  - **CO/CE** → runner QCM standard `/runner/$subAttemptId?from=fullTcf&fullExamId=$parentId`. Le runner
+    détecte la query (`runner_screen.dart::_navigateToResult`) et redirige vers ce hub au finish au lieu
+    du dialog d'examen.
+  - **EE/EO** → briefing existant `/tcf/expression-X/t/0?fullExamId=$parentId&subAttemptId=$subId`. Le
+    briefing détecte la query et appelle `EeSessionController.startInFullExam(...)` /
+    `EoSessionController.startInFullExam(...)` au lieu de `start(niveau)` — ces variantes REPRENNENT
+    l'attempt existant côté backend au lieu d'en créer un nouveau.
+- **`TcfFullExamBilanScreen`** (route `/tcf/examen-blanc/:parentId/bilan`) — bilan agrégé. À l'init,
+  appelle `POST /api/full-tcf-exams/{id}/finish` (idempotent) puis poll toutes les 4 s jusqu'à
+  `status == COMPLETED`. Affiche le niveau CECRL plancher en gros + 4 cards par épreuve avec leur niveau
+  individuel.
+
+**Propagation des query params** : utilitaire `core/utils/query_propagation.dart::withCurrentQuery(context, path)`
+appelé partout dans le flow EE/EO (briefing → enregistrement → termine → résultats → tâche suivante)
+pour que `fullExamId` + `subAttemptId` survivent à toutes les transitions. Sans ça les sous-attempts du
+parent seraient perdus.
+
+**Auto-finalisation des sous-attempts EE/EO** : le mobile n'appelle PAS `POST /api/attempts/{id}/finish`
+sur les sous-attempts EE/EO. Le backend pose `finishedAt` automatiquement quand la 3ème submission
+arrive (`ProductionEvaluationService.finishSubAttemptIfFullExam`). Les sous-attempts CO/CE sont
+finalisés normalement par le runner via `/finish`.
+
+**Niveau CECRL** : le mobile lit l'utilisateur dans `auth.user.targetProcedure.tcfLevel` (A2/B1/B2)
+pour choisir le niveau des tâches EE/EO du full exam — fallback `B1` si absent. Les pools de tâches
+côté backend ne sont pas mixés par niveau ; tout le full exam utilise donc un seul niveau cible.
+
+**Flow utilisateur typique** :
+1. Hub TCF → carte sombre "Examen blanc complet" → push `/tcf/examens-blancs` (20 slots)
+2. Tap slot → briefing modal → bouton "Lancer" → `POST /api/full-tcf-exams` → push
+   `/tcf/examen-blanc/:parentId`
+3. CTA "Commencer · Compréhension orale" → runner CO → finish → retour progress
+4. CTA "Commencer · Compréhension écrite" → runner CE → finish → retour progress
+5. CTA "Commencer · Expression écrite" → EE T1 → T2 → T3 → "Continuer l'examen blanc" → retour progress
+6. CTA "Commencer · Expression orale" → EO T1 → T2 → T3 → "Continuer l'examen blanc" → retour progress
+7. CTA "Voir mon résultat" → push `/tcf/examen-blanc/:parentId/bilan` (avec polling sur évals IA)
+
+**Reprise** : `fullTcfExamProvider` est autoDispose, mais le state des sous-controllers Riverpod
+EE/EO survit entre les écrans du même flow. Si l'utilisateur quitte et revient via la liste des
+attempts, l'écran progression repart de l'état serveur — pas de "session" client à reprendre, l'état
+canonique vit côté backend.
+
 ## Roadmap (ce qui n'est pas encore fait)
 
-- **Examen blanc EO/EE** : flow 3-tâches chaîné avec chrono. Stratégie validée = **Option 3 fire-and-forget** :
-  chaque submit part en async pendant que l'utilisateur attaque la tâche suivante (gain de ~15 s × 3 d'attente
-  perçue), résultats agrégés dans un bilan unique à la fin. Les briques existent déjà : `EoSessionController.start(niveau)`
-  charge 3 tasks + crée l'attempt, les écrans `session_progress_screen.dart` / `session_bilan_screen.dart` sont
-  prêts. À faire : un orchestrateur qui `Future.wait` les 3 submissions en arrière-plan + un chrono global +
-  un nouveau point d'entrée distinct du hub (probablement un CTA "Mode examen blanc" en bas du hub).
+- **Chrono global examen blanc** : `time_limit_seconds = 5400` (90 min) est posé sur le parent backend
+  mais le mobile ne l'affiche pas encore. Idéalement chrono visible en haut du progress screen + chaque
+  étape consomme du quota. Pour l'instant, chaque sous-attempt a son propre chrono (CO 20 min, CE 30 min
+  via les `time_limit_seconds` des sous-attempts).
 - **Offline-first** : pas de SQLite/Drift pour l'instant, tout passe par le réseau. À ajouter dans
   `core/storage/` quand on aura besoin (questions civiques stables, peuvent être cachées).
 - **Notifications push** (rappels d'entraînement) : à ajouter via `firebase_messaging` ou OneSignal.

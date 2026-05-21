@@ -14,6 +14,8 @@ import '../../screens/module_detail/civique_theme_detail_screen.dart';
 import '../../screens/module_detail/tcf_level_lots_screen.dart';
 import '../../screens/module_detail/tcf_lot_result_screen.dart';
 import '../../screens/module_detail/tcf_full_exams_screen.dart';
+import '../../screens/tcf_full_exam/tcf_full_exam_bilan_screen.dart';
+import '../../screens/tcf_full_exam/tcf_full_exam_progress_screen.dart';
 import '../../screens/module_detail/tcf_production_detail_screen.dart';
 import '../../screens/module_detail/tcf_production_task_subjects_screen.dart';
 import '../../screens/module_detail/tcf_qcm_detail_screen.dart';
@@ -64,6 +66,11 @@ class AppRoutes {
   // la liste. Distinct des module exams (CO/CE seul) côté backend via
   // attempts.epreuve = TCF_COMPLET vs attempts.module_exam_question_type.
   static const tcfFullExams = '/tcf/examens-blancs';
+  // Hub de progression d'un examen blanc complet en cours (4 étapes).
+  // Push après création du parent via POST /api/full-tcf-exams.
+  static const tcfFullExamProgress = '/tcf/examen-blanc/:parentId';
+  // Bilan final agrégé (niveau CECRL plancher + détail des 4 épreuves).
+  static const tcfFullExamBilan = '/tcf/examen-blanc/:parentId/bilan';
   // Liste des lots pour un niveau d'un module TCF QCM.
   // moduleKey ∈ {co, ce}, level ∈ {a2, b1, b2}.
   static const tcfLevelLots = '/tcf/:moduleKey/niveau/:level';
@@ -300,6 +307,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.tcfFullExams,
         builder: (_, __) => const TcfFullExamsScreen(),
+      ),
+      // Hub de progression : 4 étapes (CO → CE → EE → EO) avec leur état.
+      GoRoute(
+        path: AppRoutes.tcfFullExamProgress,
+        builder: (_, state) => TcfFullExamProgressScreen(
+          parentAttemptId: state.pathParameters['parentId']!,
+        ),
+      ),
+      // Bilan final (CECRL plancher + détail par épreuve).
+      GoRoute(
+        path: AppRoutes.tcfFullExamBilan,
+        builder: (_, state) => TcfFullExamBilanScreen(
+          parentAttemptId: state.pathParameters['parentId']!,
+        ),
       ),
       // Lots d'un niveau pour un module TCF QCM. Pushé depuis l'onglet
       // Séries du détail module quand l'utilisateur tape une carte niveau.

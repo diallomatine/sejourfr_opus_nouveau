@@ -3,6 +3,7 @@ package com.sejourfr.app.manager;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.repository.AttemptRepository;
@@ -82,5 +83,24 @@ public class AttemptManager {
             }
         }
         return latest;
+    }
+
+    /** Sous-attempts d'un examen blanc complet, ordre de création (= ordre des épreuves). */
+    public List<Attempt> findSubAttempts(UUID parentAttemptId) {
+        return repository.findByParentAttemptIdOrderByStartedAtAsc(parentAttemptId);
+    }
+
+    /**
+     * Lookup avec parent eager-loaded. Utilisé hors transaction longue pour
+     * pouvoir lire {@code parentAttempt.epreuve} sans LazyInitializationException
+     * (cf. {@code ProductionEvaluationService.finishSubAttemptIfFullExam}).
+     */
+    public Optional<Attempt> findByIdWithParent(UUID id) {
+        return repository.findByIdWithParent(id);
+    }
+
+    /** Historique des examens blancs TCF complets d'un user (parent TCF_COMPLET uniquement). */
+    public List<Attempt> findByUserAndEpreuve(UUID userId, EpreuveType epreuve, int limit) {
+        return repository.findByUserAndEpreuve(userId, epreuve, PageRequest.of(0, limit));
     }
 }

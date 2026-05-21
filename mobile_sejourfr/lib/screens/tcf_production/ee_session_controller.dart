@@ -101,6 +101,51 @@ class EeSessionNotifier extends StateNotifier<AsyncValue<EeSessionState>> {
     });
   }
 
+  /// Démarre une session EE 3-tâches **dans le cadre d'un examen blanc TCF
+  /// complet** : l'attempt parent est le sous-attempt `TCF_EE` déjà créé par
+  /// `FullTcfExamService.start`. On ne POST pas un nouvel attempt, on reprend
+  /// l'id fourni en paramètre.
+  ///
+  /// Si la session est déjà en cours pour ce même sous-attempt, on la garde
+  /// pour ne pas perdre la progression entre T1/T2/T3.
+  Future<void> startInFullExam({
+    required String subAttemptId,
+    required String niveau,
+  }) async {
+    final current = state.value;
+    if (current != null &&
+        current.attempt?.id == subAttemptId &&
+        current.isStarted &&
+        !current.isCompleted) {
+      return;
+    }
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final tasks =
+          await _repo.listTasks(epreuve: EpreuveType.tcfEe, niveau: niveau);
+      if (tasks.isEmpty) {
+        throw StateError('Aucune tâche EE disponible pour le niveau $niveau.');
+      }
+      // On a juste besoin d'un container avec l'id du sous-attempt — le
+      // submit utilise attempt.id uniquement. Les autres champs sont des
+      // placeholders cohérents avec un attempt productif.
+      final attempt = Attempt(
+        id: subAttemptId,
+        type: AttemptType.training,
+        module: AppModule.tcf,
+        totalQuestions: 0,
+        startedAt: DateTime.now(),
+        questions: const [],
+      );
+      return EeSessionState(
+        niveau: niveau,
+        attempt: attempt,
+        tasks: tasks,
+        submissions: const {},
+      );
+    });
+  }
+
   /// Soumet la tache courante et enregistre la submission dans le state.
   /// Retourne la submission (le caller peut naviguer vers les resultats avec son id).
   Future<ProductionSubmissionDto> submitTask({

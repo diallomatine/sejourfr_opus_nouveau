@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,12 +7,15 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/production_models.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
+import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'eo_session_controller.dart';
 import 'widgets/correction_example.dart';
 import 'widgets/criterion_row.dart';
 import 'widgets/donut_chart_score.dart';
+import 'widgets/evaluation_loading_view.dart';
 import 'widgets/feedback_block.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/results_eval_banner.dart';
@@ -21,7 +26,10 @@ final _eoSubmissionFetcher = FutureProvider.autoDispose
   return ref.watch(productionRepositoryProvider).getSubmission(id);
 });
 
-class EoResultsScreen extends ConsumerWidget {
+/// Écran résultats EO : poll la submission tant que le pipeline async backend
+/// (Whisper + Claude) n'a pas produit EVALUATED ou FAILED. Affiche
+/// `EvaluationLoadingView(includeTranscription: true)` pendant l'attente.
+class EoResultsScreen extends ConsumerStatefulWidget {
   const EoResultsScreen({
     super.key,
     required this.submissionId,
@@ -37,22 +45,53 @@ class EoResultsScreen extends ConsumerWidget {
   final bool isHistory;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final session = isHistory ? null : ref.watch(eoSessionProvider).value;
-    final fromSession = session?.submissions[taskIndex];
+  ConsumerState<EoResultsScreen> createState() => _EoResultsScreenState();
+}
 
-    if (fromSession != null && fromSession.id == submissionId) {
-      return _Wrapper(
-        body: _Body(
-          submission: fromSession,
-          taskIndex: taskIndex,
-          session: session,
-          isHistory: isHistory,
-        ),
-      );
-    }
+class _EoResultsScreenState extends ConsumerState<EoResultsScreen> {
+  Timer? _poll;
+  static const Duration _pollMaxDuration = Duration(seconds: 90);
+  late final DateTime _pollStartedAt;
 
-    final async = ref.watch(_eoSubmissionFetcher(submissionId));
+  @override
+  void initState() {
+    super.initState();
+    _pollStartedAt = DateTime.now();
+    _poll = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final value = ref.read(_eoSubmissionFetcher(widget.submissionId)).valueOrNull;
+      if (value != null && value.statut.isFinal) {
+        timer.cancel();
+        return;
+      }
+      if (DateTime.now().difference(_pollStartedAt) > _pollMaxDuration) {
+        timer.cancel();
+        return;
+      }
+      ref.invalidate(_eoSubmissionFetcher(widget.submissionId));
+    });
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = widget.isHistory ? null : ref.watch(eoSessionProvider).value;
+    final async = ref.watch(_eoSubmissionFetcher(widget.submissionId));
+
+    // Lecture des query params au niveau du screen (accès garanti au
+    // GoRouterState) puis propagation aux sous-widgets — voir
+    // ee_results_screen.dart pour le motif (crash "no GoRouterState above").
+    final qp = GoRouterState.of(context).uri.queryParameters;
+    final fullExamId = qp['fullExamId'];
+
     return _Wrapper(
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -66,12 +105,21 @@ class EoResultsScreen extends ConsumerWidget {
             ),
           ),
         ),
-        data: (sub) => _Body(
-          submission: sub,
-          taskIndex: taskIndex,
-          session: session,
-          isHistory: isHistory,
-        ),
+        data: (sub) {
+          if (sub.statut.isInProgress) {
+            return const Center(
+              child: EvaluationLoadingView(includeTranscription: true),
+            );
+          }
+          return _Body(
+            submission: sub,
+            taskIndex: widget.taskIndex,
+            session: session,
+            isHistory: widget.isHistory,
+            fullExamId: fullExamId,
+            queryParameters: qp,
+          );
+        },
       ),
     );
   }
@@ -100,12 +148,18 @@ class _Body extends ConsumerWidget {
     required this.taskIndex,
     required this.session,
     required this.isHistory,
+    required this.fullExamId,
+    required this.queryParameters,
   });
 
   final ProductionSubmissionDto submission;
   final int taskIndex;
   final EoSessionState? session;
   final bool isHistory;
+
+  /// Reçu du screen parent (qui a accès garanti à GoRouterState).
+  final String? fullExamId;
+  final Map<String, String> queryParameters;
 
   bool get _hasNext =>
       !isHistory && session != null && taskIndex + 1 < session!.totalTasks;
@@ -114,6 +168,31 @@ class _Body extends ConsumerWidget {
   /// n'a pas de sens : on propose juste un retour au hub des taches.
   bool get _isSingleTask =>
       !isHistory && session != null && session!.totalTasks == 1;
+
+  /// Route de la prochaine tâche en propageant les query params capturés au
+  /// niveau du screen parent. Pas d'appel à `GoRouterState.of` ici — cf.
+  /// commentaire ee_results_screen.dart.
+  String _nextTaskRoute(int nextIndex) {
+    final base = '/tcf/expression-orale/t/$nextIndex';
+    if (queryParameters.isEmpty) return base;
+    final qs = queryParameters.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+    return '$base?$qs';
+  }
+
+  String get _bilanCtaLabel =>
+      fullExamId != null ? 'Continuer l\'examen blanc' : 'Voir mon bilan';
+
+  void _navigateToBilan(BuildContext context, WidgetRef ref) {
+    if (fullExamId != null) {
+      ref.read(eoSessionProvider.notifier).reset();
+      ref.invalidate(fullTcfExamProvider(fullExamId!));
+      context.go('/tcf/examen-blanc/$fullExamId');
+      return;
+    }
+    context.pushReplacement('/tcf/expression-orale/bilan');
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -226,7 +305,7 @@ class _Body extends ConsumerWidget {
                             child: AppButton(
                               label: 'Passer a la tache ${taskIndex + 2}',
                               onPressed: () => context.pushReplacement(
-                                '/tcf/expression-orale/t/${taskIndex + 1}',
+                                _nextTaskRoute(taskIndex + 1),
                               ),
                             ),
                           ),
@@ -234,19 +313,26 @@ class _Body extends ConsumerWidget {
                       )
                     : _isSingleTask
                         ? AppButton(
-                            label: 'Retour aux tâches',
+                            label: 'Retour aux sujets',
                             icon: Icons.grid_view_rounded,
                             onPressed: () {
+                              // Retour à la liste des sujets de la tâche
+                              // qu'on vient de faire (TcfProductionTaskSubjectsScreen).
+                              final tacheNumero = submission.tacheNumero ??
+                                  session?.taskAt(taskIndex)?.tacheNumero ??
+                                  1;
                               ref.read(eoSessionProvider.notifier).reset();
-                              context.go('/tcf/expression-orale');
+                              context.go(
+                                AppRoutes.tcfEoTaskSubjects
+                                    .replaceFirst(':tacheNumero', '$tacheNumero'),
+                              );
                             },
                           )
                         : AppButton(
-                            label: 'Voir mon bilan',
+                            label: _bilanCtaLabel,
                             icon: Icons.bar_chart_rounded,
-                            onPressed: () => context.pushReplacement(
-                              '/tcf/expression-orale/bilan',
-                            ),
+                            onPressed: () =>
+                                _navigateToBilan(context, ref),
                           ),
           ),
         ),
