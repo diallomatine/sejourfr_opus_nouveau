@@ -77,6 +77,7 @@ public class AttemptService {
     private final UserManager userManager;
     private final ExamTemplateManager examTemplateManager;
     private final SubscriptionService subscriptionService;
+    private final LotService lotService;
     private final AttemptMapper mapper;
 
     // ------------------------------------------------------------------------
@@ -94,6 +95,12 @@ public class AttemptService {
             ExamTemplate template = examTemplateManager.findById(req.examTemplateId())
                     .orElseThrow(() -> new EntityNotFoundException("Examen blanc introuvable"));
             return startFromTemplate(user, template);
+        }
+
+        // Branche lot : si lotNumero est fourni, on retire la fenetre exacte du
+        // pool filtre (module + difficulty + questionType) en tri stable. Cf. LotService.
+        if (req.lotNumero() != null) {
+            return startFromLot(user, req);
         }
 
         // Branche legacy : MOCK_EXAM sans template, TRAINING, REVIEW.
@@ -303,6 +310,58 @@ public class AttemptService {
         attempt = attemptManager.save(attempt);
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, picked);
+        return mapper.toResponse(attempt, aqList, false);
+    }
+
+    /**
+     * Demarre un attempt TRAINING sur un lot precis. La taille de la fenetre
+     * est resolue par {@link LotService#resolveLotSize} pour rester aligne
+     * avec ce que `/api/lots` expose au front (y compris le cas d'un lot
+     * partiel quand le pool est sous la taille standard).
+     *
+     * <p>Reserve aux comptes premium pour le module concerne — le filtre n'a
+     * pas de sens en demo (le backend ignore les filtres en demo).
+     */
+    private AttemptResponse startFromLot(User user, StartAttemptRequest req) {
+        if (req.type() != AttemptType.TRAINING) {
+            throw new BusinessException("Les lots sont reserves au type TRAINING.");
+        }
+        if (req.module() != Module.TCF) {
+            throw new BusinessException("Les lots sont reserves au module TCF.");
+        }
+        if (req.difficulty() == null) {
+            throw new BusinessException("difficulty est obligatoire pour un attempt par lot (A2/B1/B2).");
+        }
+        if (!subscriptionService.isPremium(user.getId())) {
+            throw new AccessDeniedException("Les lots cibles sont reserves aux abonnes.");
+        }
+
+        int effectiveSize = lotService.resolveLotSize(
+                req.module(), req.questionType(), req.difficulty(), req.lotNumero());
+
+        List<Question> questions = questionManager.findLotQuestions(
+                req.module(), req.questionType(), req.difficulty(), req.lotNumero(), effectiveSize);
+
+        if (questions.isEmpty()) {
+            // Cas defensif : LotService a valide la fenetre, mais aucune question
+            // ne ressort — peut arriver si le pool change entre les deux appels.
+            throw new BusinessException("Lot " + req.lotNumero() + " indisponible pour ces criteres.");
+        }
+
+        Attempt attempt = new Attempt();
+        attempt.setUser(user);
+        attempt.setType(AttemptType.TRAINING);
+        attempt.setModule(req.module());
+        attempt.setTotalQuestions(questions.size());
+        attempt.setStartedAt(Instant.now());
+        // Trace du lot d'origine : permet a `GET /api/lots` d'enrichir chaque
+        // lot avec le dernier score de l'utilisateur (cf. AttemptManager.findLastFinishedByLots).
+        attempt.setLotNumero(req.lotNumero());
+        attempt.setLotQuestionType(req.questionType());
+        attempt.setLotDifficulty(req.difficulty());
+        attempt = attemptManager.save(attempt);
+
+        List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
         return mapper.toResponse(attempt, aqList, false);
     }
 

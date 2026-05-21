@@ -2,13 +2,17 @@ package com.sejourfr.app.manager;
 
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.enums.AttemptType;
+import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.repository.AttemptRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -48,5 +52,25 @@ public class AttemptManager {
     /** Historique utilisateur filtre, plafonne par {@code limit}. */
     public List<Attempt> findByUserFiltered(UUID userId, AttemptType type, Module module, int limit) {
         return repository.findByUserFiltered(userId, type, module, PageRequest.of(0, limit));
+    }
+
+    /**
+     * Pour un user + (module, questionType, difficulty), renvoie le dernier
+     * attempt fini par numero de lot (cle = lot_numero, valeur = attempt le
+     * plus recent). Renvoie une map vide si aucun lot n'a ete fini.
+     */
+    public Map<Integer, Attempt> findLastFinishedByLots(
+            UUID userId, Module module, QuestionType questionType, Difficulty difficulty) {
+        List<Attempt> attempts = repository.findFinishedByUserAndLot(
+                userId, module, questionType, difficulty);
+        // Repository trie par finishedAt DESC → premier rencontre pour chaque
+        // lot_numero = le plus recent. putIfAbsent garantit qu'on ne l'ecrase pas.
+        Map<Integer, Attempt> latest = new HashMap<>();
+        for (Attempt a : attempts) {
+            if (a.getLotNumero() != null) {
+                latest.putIfAbsent(a.getLotNumero(), a);
+            }
+        }
+        return latest;
     }
 }

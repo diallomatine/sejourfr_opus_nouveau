@@ -75,7 +75,9 @@ lib/
     │   └── tcf_screen.dart        Hub TCF : hero rouge + progress + 4 modules (CO/CE/EE IA/EO IA) + exam card inactive
     ├── module_detail/             Écran détail intermédiaire entre hub et runner / production hub
     │   ├── civique_theme_detail_screen.dart   Détail d'un thème civique (par themeId)
-    │   ├── tcf_qcm_detail_screen.dart         Détail TCF CO/CE (enum TcfQcmModule) → runner
+    │   ├── tcf_qcm_detail_screen.dart         Détail TCF CO/CE (enum TcfQcmModule) — onglet Séries = cards niveau
+    │   ├── tcf_level_lots_screen.dart         Liste des lots pour un (module CO/CE, niveau A2/B1/B2)
+    │   ├── tcf_lot_result_screen.dart         Bilan affiché à la fin d'un lot (score circle + résumé + CTAs)
     │   ├── tcf_production_detail_screen.dart  Détail TCF EE/EO (enum TcfProductionModule) → ProductionHubScreen
     │   └── widgets/module_detail_widgets.dart Layout partagé (topbar, hero, stats, score card)
     ├── exam/                      Écrans de résultat et rapport d'examen blanc (le setup a été supprimé,
@@ -312,14 +314,30 @@ Layout uniforme (`widgets/module_detail_widgets.dart`) :
    **EE/EO** : carte "Comment ça marche" en 3 étapes (rédige/enregistre → IA évalue → niveau CECRL)
    — pas de score % parce que les productions renvoient un niveau CECRL par submission, donnée trop
    fine pour une % de maîtrise globale.
-6. **TCF QCM uniquement (CO/CE) — Lot 4** : `ModuleDetailTabs` segmentés (Séries / Examens / Erreurs)
-   pilotés par un `_DetailTab` local. Le contenu sous les tabs est dispatché par `_TabContent` :
-   - **Séries** = 3 `ModuleDetailSeriesCard` filtrées par `Difficulty` (A2 / B1 / B2 → 10 / 15 / 15
-     questions). Tap → `POST /api/attempts` avec `questionType=CO|CE` + `difficulty=...` + `size=...`.
-     L'utilisateur démo voit l'icône lock et reçoit `showPaywallSheet` au tap (filtre difficulté =
-     premium ; sans premium, le backend ignorerait le filtre et l'utilisateur ne verrait pas la
-     différence entre les 3 séries). La constante `_tcfSeries` dans `tcf_qcm_detail_screen.dart`
-     tient la liste — à toucher si on veut ajouter une 4ᵉ série ou changer la difficulté.
+6. **TCF QCM uniquement (CO/CE) — Lot 4 + 5** : `ModuleDetailTabs` segmentés (Séries / Examens /
+   Erreurs) pilotés par un `_DetailTab` local. Le contenu sous les tabs est dispatché par
+   `_TabContent` :
+   - **Séries** (lot 5 + 6) = 3 cards niveau (`_seriesLevels` dans `tcf_qcm_detail_screen.dart`,
+     A2 vert / B1 ambre / B2 rouge) — gros chip de niveau à gauche, sous-titre "X questions par lot".
+     Tap niveau → push `/tcf/{co|ce}/niveau/{a2|b1|b2}` qui ouvre `TcfLevelLotsScreen`. Ce nouvel
+     écran a son propre topbar + hero coloré par niveau + stats (nb de lots, taille, niveau) +
+     liste des lots chargés via le provider partagé `lotsProvider` (family `LotsKey`, dans
+     `core/providers/lots_provider.dart`). Tap d'un lot → `POST /api/attempts` avec `lotNumero`
+     puis push runner avec `?from=tcfLot&moduleKey=co&level=a2` en query. Le runner détecte ce
+     contexte dans `initState` et appelle `setFixedBatch(true)` sur son controller : passe en
+     **mode batch fixe** (pas d'extension auto, "Question X / N" affichée, bouton Terminer à la
+     dernière question du lot). À la fin, `_navigateToResult` lit à nouveau le query et push
+     **`TcfLotResultScreen`** (`/tcf/lot-result/:attemptId?moduleKey&level`) au lieu du dialog
+     d'entraînement standard. L'écran de bilan affiche le score donut, un résumé (bonnes / erreurs
+     / temps / niveau), un conseil dynamique, et un CTA "Retour aux lots" qui ramène à
+     `/tcf/:moduleKey/niveau/:level`. Non-premium → `showPaywallSheet` direct sur tap d'un lot
+     (le backend renvoie 403 sinon).
+     Chaque `LotDto` porte aussi `lastScore` + `lastAttemptedAt` (dernier attempt fini du user sur
+     ce lot — backend `AttemptManager.findLastFinishedByLots`). Quand `lastScore != null`, la card
+     est rendue avec un fond légèrement teinté de la couleur de niveau + un badge **`scoreBadge`**
+     (ex: `8/15`) à la place du chevron. Le rafraîchissement est porté par l'autoDispose du
+     `lotsProvider` : revenir depuis `TcfLotResultScreen` via `context.go` recrée le widget et
+     refetch les lots.
    - **Examens / Erreurs** = `ModuleDetailTabPlaceholder` "Bientôt". Lot 4b reprendra
      `examsByModuleProvider` (sortait de `exam_setup_screen.dart` supprimé) et `wrongAnswered`.
 7. `AppButton` primary :

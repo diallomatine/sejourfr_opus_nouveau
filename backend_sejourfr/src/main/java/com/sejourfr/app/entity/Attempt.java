@@ -3,8 +3,10 @@ package com.sejourfr.app.entity;
 import com.sejourfr.app.enums.AttemptMode;
 import com.sejourfr.app.enums.AttemptStatus;
 import com.sejourfr.app.enums.AttemptType;
+import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.TargetLevel;
 import org.hibernate.annotations.UuidGenerator;
 import jakarta.persistence.*;
@@ -94,6 +96,19 @@ public class Attempt {
 
     @Column(name = "finished_at")
     private Instant finishedAt;
+
+    // Lien vers le lot d'origine (TCF QCM). NULL pour les attempts libres,
+    // les examens blancs, ou les productions. Cf. `LotService` + migration V100.
+    @Column(name = "lot_numero")
+    private Integer lotNumero;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "lot_question_type", length = 24)
+    private QuestionType lotQuestionType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "lot_difficulty", length = 8)
+    private Difficulty lotDifficulty;
 
     @OneToMany(mappedBy = "attempt", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
@@ -186,4 +201,13 @@ public class Attempt {
 
     public List<AttemptQuestion> getQuestions() { return questions; }
     public void setQuestions(List<AttemptQuestion> questions) { this.questions = questions; }
+
+    public Integer getLotNumero() { return lotNumero; }
+    public void setLotNumero(Integer lotNumero) { this.lotNumero = lotNumero; }
+
+    public QuestionType getLotQuestionType() { return lotQuestionType; }
+    public void setLotQuestionType(QuestionType lotQuestionType) { this.lotQuestionType = lotQuestionType; }
+
+    public Difficulty getLotDifficulty() { return lotDifficulty; }
+    public void setLotDifficulty(Difficulty lotDifficulty) { this.lotDifficulty = lotDifficulty; }
 }

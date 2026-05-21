@@ -24,6 +24,7 @@ class StartAttemptRequest {
     this.difficulty,
     this.questionType,
     this.size,
+    this.lotNumero,
   });
 
   final AttemptType type;
@@ -34,6 +35,11 @@ class StartAttemptRequest {
   final QuestionType? questionType;
   final int? size;
 
+  /// Si renseigné, le backend renvoie l'attempt construit sur la fenêtre
+  /// exacte du lot (cf. `LotService` côté Java). module + difficulty +
+  /// questionType doivent matcher l'appel `/api/lots` qui a listé ce lot.
+  final int? lotNumero;
+
   Map<String, dynamic> toJson() => {
         'type': type.wire,
         'module': module.wire,
@@ -42,6 +48,7 @@ class StartAttemptRequest {
         if (difficulty != null) 'difficulty': difficulty!.wire,
         if (questionType != null) 'questionType': questionType!.wire,
         if (size != null) 'size': size,
+        if (lotNumero != null) 'lotNumero': lotNumero,
       };
 }
 

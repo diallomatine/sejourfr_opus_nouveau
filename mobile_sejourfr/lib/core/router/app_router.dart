@@ -11,6 +11,8 @@ import '../../screens/auth/register_screen.dart';
 import '../../screens/civique/civique_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/module_detail/civique_theme_detail_screen.dart';
+import '../../screens/module_detail/tcf_level_lots_screen.dart';
+import '../../screens/module_detail/tcf_lot_result_screen.dart';
 import '../../screens/module_detail/tcf_production_detail_screen.dart';
 import '../../screens/module_detail/tcf_qcm_detail_screen.dart';
 import '../../screens/onboarding/onboarding_screen.dart';
@@ -51,6 +53,12 @@ class AppRoutes {
   static const tcfCeDetail = '/tcf/ce';
   static const tcfEoDetail = '/tcf/eo';
   static const tcfEeDetail = '/tcf/ee';
+  // Liste des lots pour un niveau d'un module TCF QCM.
+  // moduleKey ∈ {co, ce}, level ∈ {a2, b1, b2}.
+  static const tcfLevelLots = '/tcf/:moduleKey/niveau/:level';
+  // Bilan affiché à la fin d'un lot TCF QCM. Push par le runner avec
+  // moduleKey + level en query pour reconstruire le retour.
+  static const tcfLotResult = '/tcf/lot-result/:attemptId';
   static const runner = '/runner/:attemptId';
   static const progress = '/progress';
   static const review = '/review';
@@ -252,6 +260,36 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.tcfEeDetail,
         builder: (_, __) =>
             const TcfProductionDetailScreen(module: TcfProductionModule.ee),
+      ),
+      // Lots d'un niveau pour un module TCF QCM. Pushé depuis l'onglet
+      // Séries du détail module quand l'utilisateur tape une carte niveau.
+      GoRoute(
+        path: AppRoutes.tcfLevelLots,
+        builder: (_, state) {
+          final moduleKey = state.pathParameters['moduleKey']!;
+          final levelKey = state.pathParameters['level']!.toUpperCase();
+          final module = moduleKey == 'ce' ? TcfQcmModule.ce : TcfQcmModule.co;
+          final level = Difficulty.values.firstWhere(
+            (d) => d.wire == levelKey,
+            orElse: () => Difficulty.a2,
+          );
+          return TcfLevelLotsScreen(module: module, level: level);
+        },
+      ),
+      // Bilan d'un lot terminé. moduleKey + level passés en query par le
+      // runner pour permettre au CTA "Retour aux lots" de revenir au bon écran.
+      GoRoute(
+        path: AppRoutes.tcfLotResult,
+        builder: (_, state) {
+          final attemptId = state.pathParameters['attemptId']!;
+          final moduleKey = state.uri.queryParameters['moduleKey'] ?? 'co';
+          final level = state.uri.queryParameters['level'] ?? 'a2';
+          return TcfLotResultScreen(
+            attemptId: attemptId,
+            moduleKey: moduleKey,
+            level: level,
+          );
+        },
       ),
 
       // TCF Expression orale (Lot G : entry = hub d'entrainement libre, 3 cards T1/T2/T3)

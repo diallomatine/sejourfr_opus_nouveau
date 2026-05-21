@@ -118,7 +118,7 @@ public class AdminExamTemplateService {
         int target = totalQuestions != null
                 ? totalQuestions
                 : (module == Module.CIVIQUE ? CIVIQUE_DEFAULT_TARGET : TCF_DEFAULT_TARGET);
-        long poolSize = questionManager.countActiveMatching(module, null, null);
+        long poolSize = questionManager.countActiveMatching(module, null, null, null);
 
         return module == Module.TCF
                 ? suggestForTcf(target, poolSize, targetLevel)
@@ -144,7 +144,7 @@ public class AdminExamTemplateService {
         for (int i = 0; i < themes.size(); i++) {
             Theme th = themes.get(i);
             int count = base + (i < remainder ? 1 : 0);
-            long avail = questionManager.countActiveMatching(Module.CIVIQUE, th.getId(), diff);
+            long avail = questionManager.countActiveMatching(Module.CIVIQUE, th.getId(), diff, null);
             rules.add(new ExamCompositionSuggestionDto.SuggestedRule(
                     th.getId(), th.getName(), diff, count, avail));
         }
@@ -158,7 +158,7 @@ public class AdminExamTemplateService {
         // finalisation a partir des bonnes reponses par strate dans les
         // questions tirees. Le parametre `level` est conserve en signature
         // pour retro-compat mais ignore.
-        long avail = questionManager.countActiveMatching(Module.TCF, null, null);
+        long avail = questionManager.countActiveMatching(Module.TCF, null, null, null);
         List<ExamCompositionSuggestionDto.SuggestedRule> rules = List.of(
                 new ExamCompositionSuggestionDto.SuggestedRule(null, null, null, target, avail));
 

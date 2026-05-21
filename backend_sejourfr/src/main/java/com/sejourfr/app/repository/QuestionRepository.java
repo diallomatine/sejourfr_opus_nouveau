@@ -189,7 +189,8 @@ public interface QuestionRepository
     /**
      * Compte les questions actives matchant les contraintes (les paramètres
      * null sont ignorés). Utilisé par le suggesteur de composition côté admin
-     * pour exposer le stock réellement disponible avant de proposer une règle.
+     * pour exposer le stock réellement disponible avant de proposer une règle,
+     * et par LotService pour déterminer combien de lots peuvent être formés.
      */
     @Query("""
             SELECT COUNT(q) FROM Question q
@@ -197,10 +198,12 @@ public interface QuestionRepository
               AND q.module = :module
               AND (:themeId IS NULL OR q.theme.id = :themeId)
               AND (:difficulty IS NULL OR q.difficulty = :difficulty)
+              AND (:questionType IS NULL OR q.questionType = :questionType)
             """)
     long countActiveMatching(
             @Param("module") Module module,
             @Param("themeId") UUID themeId,
-            @Param("difficulty") Difficulty difficulty
+            @Param("difficulty") Difficulty difficulty,
+            @Param("questionType") QuestionType questionType
     );
 }

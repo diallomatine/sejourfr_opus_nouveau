@@ -62,54 +62,57 @@ enum TcfQcmModule {
   final String durationLabel;
 }
 
-/// Une série d'entraînement TCF QCM = un sous-ensemble du pool de questions
-/// filtré par niveau de difficulté. Permet de scaffolder l'apprentissage
-/// alors qu'à l'examen réel toutes les questions sont mélangées.
-class _TcfSeries {
-  const _TcfSeries({
-    required this.index,
-    required this.title,
-    required this.description,
-    required this.difficulty,
-    required this.size,
-  });
-
-  final int index;
-  final String title;
-  final String description;
-  final Difficulty difficulty;
-  final int size;
-}
-
-const _tcfSeries = <_TcfSeries>[
-  _TcfSeries(
-    index: 1,
-    title: 'Série découverte',
-    description: '10 questions · niveau A2 · ≈ 8 min',
-    difficulty: Difficulty.a2,
-    size: 10,
-  ),
-  _TcfSeries(
-    index: 2,
-    title: 'Série intermédiaire',
-    description: '15 questions · niveau B1 · ≈ 12 min',
-    difficulty: Difficulty.b1,
-    size: 15,
-  ),
-  _TcfSeries(
-    index: 3,
-    title: 'Questions difficiles',
-    description: '15 questions · niveau B2 · ≈ 15 min',
-    difficulty: Difficulty.b2,
-    size: 15,
-  ),
-];
-
 final _tcfStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
   return ref.watch(userContentRepositoryProvider).stats(module: AppModule.tcf);
 });
 
 enum _DetailTab { series, exams, errors }
+
+/// Carte de niveau exposée dans l'onglet Séries. Tap → push l'écran lots.
+class _SeriesLevel {
+  const _SeriesLevel({
+    required this.difficulty,
+    required this.label,
+    required this.subtitle,
+    required this.lotSize,
+    required this.accent,
+    required this.accentBg,
+  });
+
+  final Difficulty difficulty;
+  final String label;
+  final String subtitle;
+  final int lotSize;
+  final Color accent;
+  final Color accentBg;
+}
+
+const _seriesLevels = <_SeriesLevel>[
+  _SeriesLevel(
+    difficulty: Difficulty.a2,
+    label: 'Niveau A2',
+    subtitle: 'Bases — 15 questions par lot',
+    lotSize: 15,
+    accent: AppColors.green,
+    accentBg: Color(0xFFE6F4EC),
+  ),
+  _SeriesLevel(
+    difficulty: Difficulty.b1,
+    label: 'Niveau B1',
+    subtitle: 'Intermédiaire — 20 questions par lot',
+    lotSize: 20,
+    accent: AppColors.amber,
+    accentBg: Color(0xFFFEF3DD),
+  ),
+  _SeriesLevel(
+    difficulty: Difficulty.b2,
+    label: 'Niveau B2',
+    subtitle: 'Challenge — 25 questions par lot',
+    lotSize: 25,
+    accent: AppColors.red,
+    accentBg: AppColors.redLight,
+  ),
+];
 
 class TcfQcmDetailScreen extends ConsumerStatefulWidget {
   const TcfQcmDetailScreen({super.key, required this.module});
@@ -130,18 +133,12 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
     return auth is AuthAuthenticated && auth.user.canAccessModule(AppModule.tcf);
   }
 
-  /// Démarre un attempt TCF QCM. Si `series` est fourni, l'attempt est
-  /// filtré par sa difficulté ; sinon c'est un attempt 25 Q standard.
-  /// En démo (non premium) : seul le démarrage standard est autorisé, les
-  /// séries déclenchent un paywall (le backend ignorerait le filtre).
-  Future<void> _start({_TcfSeries? series}) async {
+  /// Démarre un entraînement standard 25 Q sur le module (sans filtre niveau)
+  /// — accroché au bouton du bas. Le tap niveau, lui, push vers l'écran lots
+  /// (cf. `_LevelCard.onTap`).
+  Future<void> _startStandard() async {
     if (_starting) return;
     final isPremium = _isPremium();
-
-    if (series != null && !isPremium) {
-      showPaywallSheet(context);
-      return;
-    }
 
     setState(() => _starting = true);
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
@@ -152,8 +149,7 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
               type: AttemptType.training,
               module: AppModule.tcf,
               questionType: isPremium ? widget.module.questionType : null,
-              difficulty: isPremium ? series?.difficulty : null,
-              size: isPremium ? (series?.size ?? kInitialBatchSize) : kDemoBatchSize,
+              size: isPremium ? kInitialBatchSize : null,
             ),
           );
       if (!mounted) return;
@@ -173,14 +169,19 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
     }
   }
 
+  void _openLevel(_SeriesLevel level) {
+    ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
+    final route = AppRoutes.tcfLevelLots
+        .replaceFirst(':moduleKey', widget.module.routeKey)
+        .replaceFirst(':level', level.difficulty.wire.toLowerCase());
+    context.push(route);
+  }
+
   @override
   Widget build(BuildContext context) {
     final mod = widget.module;
     final statsAsync = ref.watch(_tcfStatsProvider);
-    final isPremium = _isPremium();
 
-    // Maîtrise globale TCF (somme byTheme) en attendant un découpage par
-    // épreuve côté backend.
     final tcfStats = statsAsync.maybeWhen(
       data: (s) {
         final correct = s.byTheme.fold<int>(0, (sum, t) => sum + t.correct);
@@ -247,8 +248,7 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
                 const SizedBox(height: 14),
                 _TabContent(
                   tab: _tab,
-                  isPremium: isPremium,
-                  onStartSeries: (s) => _start(series: s),
+                  onLevelTap: _openLevel,
                 ),
                 if (_tab == _DetailTab.series) ...[
                   const SizedBox(height: 18),
@@ -256,7 +256,7 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
                     label: 'Commencer l\'entraînement',
                     icon: Icons.play_arrow_rounded,
                     isLoading: _starting,
-                    onPressed: _starting ? null : () => _start(),
+                    onPressed: _starting ? null : _startStandard,
                   ),
                 ],
               ],
@@ -273,15 +273,10 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
 }
 
 class _TabContent extends StatelessWidget {
-  const _TabContent({
-    required this.tab,
-    required this.isPremium,
-    required this.onStartSeries,
-  });
+  const _TabContent({required this.tab, required this.onLevelTap});
 
   final _DetailTab tab;
-  final bool isPremium;
-  final ValueChanged<_TcfSeries> onStartSeries;
+  final ValueChanged<_SeriesLevel> onLevelTap;
 
   @override
   Widget build(BuildContext context) {
@@ -289,15 +284,8 @@ class _TabContent extends StatelessWidget {
       case _DetailTab.series:
         return Column(
           children: [
-            for (final s in _tcfSeries)
-              ModuleDetailSeriesCard(
-                index: s.index,
-                title: s.title,
-                description: s.description,
-                accent: AppColors.red,
-                locked: !isPremium,
-                onTap: () => onStartSeries(s),
-              ),
+            for (final level in _seriesLevels)
+              _LevelCard(level: level, onTap: () => onLevelTap(level)),
           ],
         );
       case _DetailTab.exams:
@@ -315,5 +303,107 @@ class _TabContent extends StatelessWidget {
               'La revue de tes questions ratées (avec création de série ciblée) arrive bientôt.',
         );
     }
+  }
+}
+
+/// Une carte de niveau dans l'onglet Séries : chip niveau coloré + libellé +
+/// sous-titre + chevron. Tap → push l'écran de la liste des lots de ce niveau.
+class _LevelCard extends StatelessWidget {
+  const _LevelCard({required this.level, required this.onTap});
+
+  final _SeriesLevel level;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.line),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.ink.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: level.accent,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      level.difficulty.wire,
+                      style: AppFonts.jakarta(
+                        size: 16,
+                        weight: FontWeight.w800,
+                        color: AppColors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          level.label,
+                          style: AppFonts.jakarta(
+                            size: 16,
+                            weight: FontWeight.w800,
+                            color: AppColors.ink,
+                          ).copyWith(letterSpacing: -0.2),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          level.subtitle,
+                          style: AppFonts.jakarta(
+                            size: 12.5,
+                            color: AppColors.muted,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: level.accentBg,
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      color: level.accent,
+                      size: 20,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

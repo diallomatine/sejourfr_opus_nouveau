@@ -435,7 +435,12 @@ class ModuleDetailTabs extends StatelessWidget {
 }
 
 /// Carte d'une série d'entraînement : numéro + titre + description + chevron
-/// (ou icône lock si réservé premium).
+/// (ou icône lock si réservé premium). `scoreBadge` est un texte facultatif
+/// (ex: "8/15") affiché à droite à la place du chevron quand le lot a déjà
+/// été fait — sert à signaler visuellement les lots terminés. `scoreColor`
+/// override `accent` pour le tint de la card + le badge (sert à coder le
+/// niveau de réussite : rouge / ambre / vert). Le chip du numéro reste en
+/// `accent` (couleur du niveau du lot).
 class ModuleDetailSeriesCard extends StatelessWidget {
   const ModuleDetailSeriesCard({
     super.key,
@@ -445,6 +450,8 @@ class ModuleDetailSeriesCard extends StatelessWidget {
     required this.accent,
     required this.onTap,
     this.locked = false,
+    this.scoreBadge,
+    this.scoreColor,
   });
 
   final int index;
@@ -452,16 +459,31 @@ class ModuleDetailSeriesCard extends StatelessWidget {
   final String description;
   final Color accent;
   final bool locked;
+  final String? scoreBadge;
+  final Color? scoreColor;
   final VoidCallback onTap;
+
+  /// Couleur utilisée pour teinter la card et le badge quand un score est
+  /// présent. Fallback sur l'accent du niveau quand aucun score-color
+  /// override n'a été fourni.
+  Color get _doneAccent => scoreColor ?? accent;
 
   @override
   Widget build(BuildContext context) {
+    final isDone = scoreBadge != null;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        // Lot déjà fait : fond très légèrement teinté avec la couleur du
+        // score (rouge / ambre / vert) pour signaler la maîtrise d'un coup
+        // d'œil. Sans score override, on retombe sur la couleur du niveau.
+        color: isDone
+            ? _doneAccent.withValues(alpha: 0.06)
+            : AppColors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.line),
+        border: Border.all(
+          color: isDone ? _doneAccent.withValues(alpha: 0.4) : AppColors.line,
+        ),
         boxShadow: [
           BoxShadow(
             color: AppColors.ink.withValues(alpha: 0.04),
@@ -537,6 +559,22 @@ class ModuleDetailSeriesCard extends StatelessWidget {
                         Icons.lock_outline_rounded,
                         size: 15,
                         color: AppColors.muted,
+                      ),
+                    )
+                  else if (scoreBadge != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _doneAccent,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        scoreBadge!,
+                        style: AppFonts.jakarta(
+                          size: 12.5,
+                          weight: FontWeight.w800,
+                          color: AppColors.white,
+                        ),
                       ),
                     )
                   else

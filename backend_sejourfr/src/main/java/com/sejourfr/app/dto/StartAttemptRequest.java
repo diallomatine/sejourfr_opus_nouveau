@@ -11,11 +11,14 @@ import java.util.UUID;
 /**
  * Payload pour POST /api/attempts.
  *
- * Deux modes de démarrage :
+ * Trois modes de démarrage (ordre de priorité) :
  *   1. examTemplateId fourni → MOCK_EXAM piloté par un ExamTemplate.
- *      Les autres filtres (themeId, difficulty, questionType, size) sont
- *      ignorés au profit des ExamTemplateRule du template.
- *   2. examTemplateId null → comportement historique :
+ *      Les autres filtres (themeId, difficulty, questionType, size, lotNumero)
+ *      sont ignorés au profit des ExamTemplateRule du template.
+ *   2. lotNumero fourni → TRAINING sur un lot précis (voir {@link com.sejourfr.app.service.LotService}).
+ *      module + difficulty (A2/B1/B2) + questionType (CO/CE) déterminent le pool ;
+ *      la fenêtre est ((lotNumero - 1) * lotSize, lotNumero * lotSize). size est ignoré.
+ *   3. ni l'un ni l'autre → comportement historique :
  *      - TRAINING / REVIEW : tirage filtré (themeId/difficulty/questionType/size)
  *      - MOCK_EXAM         : tirage aléatoire dans le module avec config par
  *                            défaut (40 questions CIVIQUE, 60 questions TCF).
@@ -27,5 +30,6 @@ public record StartAttemptRequest(
         UUID themeId,
         Difficulty difficulty,
         QuestionType questionType,
-        Integer size
+        Integer size,
+        Integer lotNumero
 ) {}

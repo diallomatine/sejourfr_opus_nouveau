@@ -34,6 +34,7 @@ class RunnerState {
     this.extending = false,
     this.noMoreQuestions = false,
     this.errorMessage,
+    this.fixedBatch = false,
   });
 
   /// IDs des Questions (et non des AttemptQuestion) marquées en favori.
@@ -65,10 +66,18 @@ class RunnerState {
 
   final String? errorMessage;
 
+  /// Vrai quand le runner doit traiter le training comme un batch fixe
+  /// (lot TCF avec taille déterminée par le backend) : pas d'auto-extend,
+  /// "Question X / N" affiché, bouton "Terminer" à la dernière question.
+  final bool fixedBatch;
+
   AttemptQuestion get current => questions[currentIndex];
 
   /// Mode entraînement infini : on continue à charger des batches.
-  bool get isInfiniteTraining => activeAttempt.type == AttemptType.training;
+  /// Désactivé quand `fixedBatch` est true (cas des lots TCF qui ont une
+  /// taille fixe ; on s'arrête à la dernière question, on ne rallonge pas).
+  bool get isInfiniteTraining =>
+      !fixedBatch && activeAttempt.type == AttemptType.training;
 
   /// En examen, `isLast` signale la dernière question du batch.
   /// En entraînement infini, n'est vrai que si on a épuisé la base.
@@ -105,6 +114,7 @@ class RunnerState {
     bool? noMoreQuestions,
     String? errorMessage,
     bool clearError = false,
+    bool? fixedBatch,
   }) =>
       RunnerState(
         activeAttempt: activeAttempt ?? this.activeAttempt,
@@ -119,6 +129,7 @@ class RunnerState {
         extending: extending ?? this.extending,
         noMoreQuestions: noMoreQuestions ?? this.noMoreQuestions,
         errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+        fixedBatch: fixedBatch ?? this.fixedBatch,
       );
 }
 
@@ -157,6 +168,23 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
   /// d'entraînement avec les mêmes critères.
   AppModule? _trainingModule;
   String? _trainingThemeId;
+
+  /// Demandé par l'écran (cf. `RunnerScreen.initState`) quand le runner doit
+  /// se comporter comme un batch fixe (lot TCF). On garde la valeur en local
+  /// pour qu'elle soit appliquée même si `setFixedBatch` est appelée pendant
+  /// que `_load` est encore en `loading`.
+  bool _pendingFixedBatch = false;
+
+  /// Bascule le runner en mode "batch fixe" (pas d'extension auto, affichage
+  /// "Question X / N"). Idempotent. Appelée par `RunnerScreen` après lecture
+  /// du query `from=tcfLot` dans l'URL.
+  void setFixedBatch(bool value) {
+    _pendingFixedBatch = value;
+    final s = state.valueOrNull;
+    if (s != null && s.fixedBatch != value) {
+      state = AsyncValue.data(s.copyWith(fixedBatch: value));
+    }
+  }
 
   Future<void> _load() async {
     state = const AsyncValue.loading();
@@ -208,6 +236,7 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
         answersByQuestion: answers,
         favoriteQuestionIds: favorites,
         noMoreQuestions: demoCap,
+        fixedBatch: _pendingFixedBatch,
       ));
     } catch (e, st) {
       state = AsyncValue.error(ApiClient.toApiException(e), st);

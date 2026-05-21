@@ -19,13 +19,36 @@ import 'widgets/exam_timer.dart';
 import 'widgets/explanation_box.dart';
 import 'widgets/question_media_view.dart';
 
-class RunnerScreen extends ConsumerWidget {
+class RunnerScreen extends ConsumerStatefulWidget {
   const RunnerScreen({super.key, required this.attemptId});
 
   final String attemptId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RunnerScreen> createState() => _RunnerScreenState();
+}
+
+class _RunnerScreenState extends ConsumerState<RunnerScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Si l'écran a été poussé depuis un tap de lot TCF (cf. TcfLevelLotsScreen),
+    // on bascule le runner en mode "batch fixe" : pas d'extension auto, le
+    // bouton Terminer apparaît à la dernière question du lot.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final from = GoRouterState.of(context).uri.queryParameters['from'];
+      if (from == 'tcfLot') {
+        ref
+            .read(runnerControllerProvider(widget.attemptId).notifier)
+            .setFixedBatch(true);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final attemptId = widget.attemptId;
     final state = ref.watch(runnerControllerProvider(attemptId));
 
     return state.when(
@@ -529,11 +552,27 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
     context.go(
       AppRoutes.examResult.replaceFirst(':attemptId', attempt.id),
     );
-  } else {
-    final auth = ref.read(authControllerProvider);
-    final isPremium = auth is AuthAuthenticated && auth.user.isPremium;
-    _showTrainingResultDialog(context, attempt, isPremium: isPremium);
+    return;
   }
+
+  // Contexte de lot TCF QCM (cf. `TcfLevelLotsScreen._startLot`) — si la
+  // route du runner porte `from=tcfLot`, on push le bilan dédié plutôt que
+  // d'afficher le dialog d'entraînement standard.
+  final goState = GoRouterState.of(context);
+  final from = goState.uri.queryParameters['from'];
+  final moduleKey = goState.uri.queryParameters['moduleKey'];
+  final level = goState.uri.queryParameters['level'];
+  if (from == 'tcfLot' && moduleKey != null && level != null) {
+    context.go(
+      '${AppRoutes.tcfLotResult.replaceFirst(':attemptId', attempt.id)}'
+      '?moduleKey=$moduleKey&level=$level',
+    );
+    return;
+  }
+
+  final auth = ref.read(authControllerProvider);
+  final isPremium = auth is AuthAuthenticated && auth.user.isPremium;
+  _showTrainingResultDialog(context, attempt, isPremium: isPremium);
 }
 
 void _showTrainingResultDialog(

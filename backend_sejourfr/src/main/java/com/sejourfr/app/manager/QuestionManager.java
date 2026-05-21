@@ -58,11 +58,12 @@ public class QuestionManager {
     }
 
     /**
-     * Compte des questions actives matchant un (module, theme?, difficulty?).
-     * Utilise par le suggesteur de composition d'examen blanc.
+     * Compte des questions actives matchant un (module, theme?, difficulty?, questionType?).
+     * Les parametres null sont ignores. Utilise par le suggesteur de composition
+     * d'examen blanc et par LotService pour le decompte des lots disponibles.
      */
-    public long countActiveMatching(Module module, UUID themeId, Difficulty difficulty) {
-        return repository.countActiveMatching(module, themeId, difficulty);
+    public long countActiveMatching(Module module, UUID themeId, Difficulty difficulty, QuestionType questionType) {
+        return repository.countActiveMatching(module, themeId, difficulty, questionType);
     }
 
     /** Pool demo fixe (ordre stable, meme serie a chaque rejouage). */
@@ -102,6 +103,22 @@ public class QuestionManager {
             int size) {
         return repository.findOrderedExcluding(
                 module, themeId, difficulty, questionType, excludeIds, PageRequest.of(0, size));
+    }
+
+    /**
+     * Recupere la fenetre de questions correspondant a un lot. Tri stable
+     * {@code created_at ASC, id ASC} (memes critères que {@link LotService}),
+     * pagination par {@code lotNumero - 1} comme index 0-based. Le pool est
+     * filtre par {@code module + difficulty + questionType} (theme = null).
+     */
+    public List<Question> findLotQuestions(
+            Module module,
+            QuestionType questionType,
+            Difficulty difficulty,
+            int lotNumero,
+            int lotSize) {
+        return repository.findOrdered(
+                module, null, difficulty, questionType, PageRequest.of(lotNumero - 1, lotSize));
     }
 
     // ------------------------------------------------------------------------
