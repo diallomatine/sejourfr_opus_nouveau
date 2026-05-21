@@ -66,10 +66,15 @@ lib/
     ├── home/
     │   └── widgets/               module_switch.dart
     ├── shell/
-    │   └── main_shell.dart        Bottom nav 5 onglets
-    ├── training/                  Entraînement libre (thème + niveau + nb questions)
-    │   └── widgets/production_entry_tile.dart  Tiles EO/EE en bas de la liste TCF
-    ├── exam/                      Examen blanc (CSP/CR/NAT ou A2/B1/B2)
+    │   └── main_shell.dart        Bottom nav 5 onglets : Accueil · Civique · TCF · Progression · Profil
+    ├── hub/
+    │   └── widgets/hub_widgets.dart  Widgets partagés des 2 hubs (topbar, hero, progress, module card, exam card)
+    ├── civique/
+    │   └── civique_screen.dart    Hub Civique : hero bleu + progress + 5 thèmes officiels + exam card inactive
+    ├── tcf/
+    │   └── tcf_screen.dart        Hub TCF : hero rouge + progress + 4 modules (CO/CE/EE IA/EO IA) + exam card inactive
+    ├── exam/                      Écrans de résultat et rapport d'examen blanc (le setup a été supprimé,
+    │                              le tirage d'examen blanc se fera depuis la carte sombre des hubs)
     ├── question_runner/           Le runner partagé (le cœur de l'app)
     │   ├── runner_controller.dart Riverpod controller avec state d'attempt
     │   ├── runner_screen.dart
@@ -235,6 +240,42 @@ Compte de test en dev (créé par le seed Flyway du backend) :
 Pour avoir des permissions natives (audio en arrière-plan, par exemple), penser à éditer
 `ios/Runner/Info.plist` et `android/app/src/main/AndroidManifest.xml` selon les besoins. Pour l'instant, juste
 internet suffit, c'est l'autorisation par défaut.
+
+## Bottom nav et hubs Civique / TCF
+
+La bottom nav a 5 onglets : **Accueil · Civique · TCF · Progression · Profil**. Les onglets Civique et
+TCF remplacent les anciens "Entraîner" et "Examen". Les écrans `TrainingSetupScreen` et `ExamSetupScreen`
+ont été **supprimés** : un tap module dans un hub démarre directement un attempt et push le runner
+(plus d'écran setup intermédiaire). Le quota démo (`kDemoBatchSize = 20`) et premium (`kInitialBatchSize = 30`)
+vivent désormais dans `core/widgets/paywall_sheet.dart` avec le bottom sheet `PaywallSheet` réutilisable.
+
+Les 2 hubs (`screens/civique/civique_screen.dart` et `screens/tcf/tcf_screen.dart`) partagent une
+structure visuelle identique implémentée dans `screens/hub/widgets/hub_widgets.dart` :
+
+- `HubTopBar` : icône notifications à gauche, pastille de niveau/parcours à droite (bleue sur Civique
+  affiche CSP/CR/NAT, rouge sur TCF affiche A2/B1/B2 d'après `user.targetProcedure`).
+- `HubHero` : bandeau gradient (bleu sur Civique, rouge sur TCF) avec eyebrow mono, titre Jakarta gras
+  sur 2 lignes, description.
+- `HubProgressCard` : objectif (libellé du parcours / niveau visé) + % de maîtrise calculé sur les
+  stats `byTheme` (correct / total).
+- `HubModuleCard` : icône colorée + titre + description + meta + chevron. Flag `aiTag: true` pour
+  EE/EO. Flag `locked: true` réservé aux modules premium futurs.
+- `HubExamCard` : carte sombre "Examen blanc" en bas. CTA visible mais inactif (`onTap` omis) — le
+  branchement viendra dans un lot ultérieur.
+
+**Modules affichés :**
+- **Civique** = les 5 thèmes officiels chargés via `/api/themes?module=CIVIQUE` (Principes &
+  symboles, Institutions, Droits & devoirs, Histoire-Géo, Société). Tap → `POST /api/attempts` avec
+  `themeId` + `size=30` (premium) ou `size=20` sans themeId (démo, le backend ignore alors le filtre)
+  → push `/runner/:attemptId`. Sur 403 → `showPaywallSheet`.
+- **TCF** = 4 modules : Compréhension orale, Compréhension écrite, Expression écrite IA, Expression
+  orale IA. CO/CE → `POST /api/attempts` avec `questionType=CO|CE` (premium) ou sans filtre (démo).
+  EE/EO → `push(/tcf/expression-{ecrite,orale})` si premium, sinon `showPaywallSheet`.
+
+**Prochaine étape pressentie** (cf. design `tcf_entrainement_mobile_design.html` racine, écrans 2-7) :
+écran détail par module avec onglets *Séries / Examens / Erreurs* puis briefing → questions →
+feedback → fin de série. L'archi actuelle est délibérément minimale : le tap module redirige vers
+les écrans `/training` et `/tcf/expression-*` existants en attendant.
 
 ## Le runner — le cœur de l'app
 

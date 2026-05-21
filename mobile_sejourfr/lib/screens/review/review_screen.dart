@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
+import '../../core/models/enums.dart';
 import '../../core/models/question_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
@@ -814,13 +815,16 @@ class _ReviewChoiceTile extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
+class _EmptyState extends ConsumerWidget {
   const _EmptyState({required this.mode});
 
   final _Tab mode;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final module = ref.watch(selectedModuleProvider);
+    final hubRoute =
+        module == AppModule.civique ? AppRoutes.civique : AppRoutes.tcf;
     final isErrors = mode == _Tab.errors;
     final icon = isErrors
         ? Icons.verified_rounded
@@ -878,7 +882,7 @@ class _EmptyState extends StatelessWidget {
             icon: Icons.play_arrow_rounded,
             variant: AppButtonVariant.secondary,
             fullWidth: false,
-            onPressed: () => context.go(AppRoutes.trainingSetup),
+            onPressed: () => context.go(hubRoute),
           ),
         ),
       ],

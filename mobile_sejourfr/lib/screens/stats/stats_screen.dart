@@ -554,11 +554,14 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
+class _EmptyState extends ConsumerWidget {
   const _EmptyState();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final module = ref.watch(selectedModuleProvider);
+    final hubRoute =
+        module == AppModule.civique ? AppRoutes.civique : AppRoutes.tcf;
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
@@ -606,7 +609,7 @@ class _EmptyState extends StatelessWidget {
           AppButton(
             label: 'Lancer un entraînement',
             icon: Icons.play_arrow_rounded,
-            onPressed: () => context.go(AppRoutes.trainingSetup),
+            onPressed: () => context.go(hubRoute),
             fullWidth: false,
           ),
         ],

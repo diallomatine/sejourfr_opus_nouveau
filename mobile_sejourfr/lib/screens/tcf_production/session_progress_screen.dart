@@ -46,7 +46,7 @@ class SessionProgressScreen extends ConsumerWidget {
         rightAction: ProductionAppHeaderQuit(
           onPressed: () {
             resetSession(ref, epreuve);
-            context.go(AppRoutes.trainingSetup);
+            context.go(AppRoutes.tcf);
           },
         ),
       ),

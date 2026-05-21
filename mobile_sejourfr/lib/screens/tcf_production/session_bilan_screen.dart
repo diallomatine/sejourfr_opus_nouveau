@@ -94,7 +94,7 @@ class SessionBilanScreen extends ConsumerWidget {
                   icon: Icons.check_rounded,
                   onPressed: () {
                     resetSession(ref, epreuve);
-                    context.go(AppRoutes.trainingSetup);
+                    context.go(AppRoutes.tcf);
                   },
                 ),
               ),

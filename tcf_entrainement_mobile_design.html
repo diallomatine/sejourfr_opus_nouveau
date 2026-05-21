@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Parcours entraînement TCF</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif
+        }
+
+        body {
+            background: #eef2f7;
+            min-height: 100vh;
+            display: flex;
+            gap: 28px;
+            justify-content: center;
+            flex-wrap: wrap;
+            padding: 24px 12px;
+            color: #101828
+        }
+
+        .phone {
+            width: 390px;
+            min-height: 844px;
+            background: #f8fafc;
+            border-radius: 36px;
+            overflow: hidden;
+            box-shadow: 0 25px 70px rgba(15, 23, 42, .18);
+            border: 8px solid #111827
+        }
+
+        .screen {
+            padding: 22px 18px 28px
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 22px
+        }
+
+        .icon-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 16px;
+            border: 0;
+            background: white;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .08);
+            font-size: 18px
+        }
+
+        .avatar, .round-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 900
+        }
+
+        .hint {
+            font-size: 13px;
+            color: #667085
+        }
+
+        .hero, .audio-hero {
+            background: linear-gradient(135deg, #1d4ed8, #7c3aed);
+            border-radius: 28px;
+            padding: 22px;
+            color: white;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden
+        }
+
+        .hero:after {
+            content: "";
+            position: absolute;
+            right: -35px;
+            top: -35px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, .14);
+            border-radius: 50%
+        }
+
+        .hero small {
+            opacity: .85;
+            font-weight: 700
+        }
+
+        .hero h1, .page-title h1 {
+            font-size: 28px;
+            line-height: 1.1;
+            margin: 8px 0
+        }
+
+        .hero p, .audio-hero p {
+            font-size: 14px;
+            opacity: .9;
+            line-height: 1.45
+        }
+
+        .card, .progress-card, .white-card {
+            background: white;
+            border-radius: 24px;
+            padding: 18px;
+            margin-bottom: 18px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, .06)
+        }
+
+        .row {
+            display: flex;
+            align-items: center
+        }
+
+        .row-between {
+            display: flex;
+            align-items: center;
+            justify-content: space-between
+        }
+
+        .level {
+            font-weight: 900;
+            font-size: 18px
+        }
+
+        .badge {
+            background: #ecfdf3;
+            color: #039855;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 900
+        }
+
+        .badge-blue {
+            background: #eff6ff;
+            color: #1d4ed8
+        }
+
+        .badge-red {
+            background: #fef3f2;
+            color: #d92d20
+        }
+
+        .bar {
+            height: 10px;
+            background: #e5e7eb;
+            border-radius: 999px;
+            overflow: hidden;
+            margin: 12px 0 10px
+        }
+
+        .bar span {
+            display: block;
+            height: 100%;
+            background: linear-gradient(90deg, #2563eb, #7c3aed);
+            border-radius: 999px
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 900;
+            margin: 18px 0 14px
+        }
+
+        .module, .practice-item, .answer {
+            background: white;
+            border-radius: 24px;
+            padding: 16px;
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            margin-bottom: 12px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, .05);
+            border: 1px solid #eef2f7
+        }
+
+        .module-icon {
+            width: 54px;
+            height: 54px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 25px;
+            flex-shrink: 0
+        }
+
+        .blue {
+            background: #eff6ff
+        }
+
+        .orange {
+            background: #fff7ed
+        }
+
+        .green {
+            background: #ecfdf3
+        }
+
+        .purple {
+            background: #f5f3ff
+        }
+
+        .module-content, .practice-text {
+            flex: 1
+        }
+
+        .module-title {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 15px;
+            font-weight: 900;
+            margin-bottom: 4px
+        }
+
+        .module-desc, .practice-text p {
+            font-size: 12px;
+            color: #667085;
+            margin-bottom: 6px
+        }
+
+        .module-meta {
+            font-size: 12px;
+            font-weight: 900;
+            color: #475467
+        }
+
+        .ai {
+            background: #eef4ff;
+            color: #3538cd;
+            font-size: 10px;
+            padding: 3px 7px;
+            border-radius: 999px;
+            font-weight: 900
+        }
+
+        .chevron {
+            color: #98a2b3;
+            font-size: 24px
+        }
+
+        .exam-card {
+            margin-top: 18px;
+            background: #111827;
+            color: white;
+            border-radius: 26px;
+            padding: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px
+        }
+
+        .exam-card h3 {
+            font-size: 17px;
+            margin-bottom: 5px
+        }
+
+        .exam-card p {
+            font-size: 12px;
+            color: #d1d5db
+        }
+
+        .btn, .start-btn, .primary-btn {
+            border: 0;
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            color: white;
+            padding: 15px 16px;
+            border-radius: 17px;
+            font-weight: 900;
+            width: 100%;
+            font-size: 15px
+        }
+
+        .start-btn {
+            background: white;
+            color: #111827;
+            width: auto;
+            padding: 11px 14px
+        }
+
+        .ghost-btn {
+            background: #eef2ff;
+            color: #2563eb
+        }
+
+        .nav {
+            margin-top: 20px;
+            background: white;
+            border-radius: 24px;
+            padding: 12px 18px;
+            display: flex;
+            justify-content: space-between;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, .08);
+            color: #98a2b3;
+            font-size: 20px
+        }
+
+        .nav .active {
+            color: #2563eb
+        }
+
+        .big-icon {
+            width: 68px;
+            height: 68px;
+            border-radius: 24px;
+            background: rgba(255, 255, 255, .15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 34px;
+            margin-bottom: 18px
+        }
+
+        .audio-hero {
+            background: linear-gradient(135deg, #0f172a, #2563eb)
+        }
+
+        .audio-hero h2 {
+            font-size: 25px;
+            margin-bottom: 8px
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns:repeat(3, 1fr);
+            gap: 10px;
+            margin: 16px 0 20px
+        }
+
+        .stat {
+            background: white;
+            border-radius: 20px;
+            padding: 14px 8px;
+            text-align: center;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, .05)
+        }
+
+        .stat strong {
+            display: block;
+            font-size: 17px;
+            margin-bottom: 4px
+        }
+
+        .stat span {
+            font-size: 11px;
+            color: #667085;
+            font-weight: 800
+        }
+
+        .tabs {
+            display: flex;
+            background: #e5e7eb;
+            border-radius: 18px;
+            padding: 4px;
+            margin-bottom: 16px
+        }
+
+        .tab {
+            flex: 1;
+            border: 0;
+            border-radius: 14px;
+            padding: 10px;
+            font-weight: 900;
+            color: #667085;
+            background: transparent
+        }
+
+        .tab.active {
+            background: white;
+            color: #2563eb;
+            box-shadow: 0 6px 14px rgba(15, 23, 42, .08)
+        }
+
+        .play {
+            width: 44px;
+            height: 44px;
+            border-radius: 16px;
+            background: #eff6ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #2563eb;
+            font-weight: 900
+        }
+
+        .lock {
+            width: 30px;
+            height: 30px;
+            border-radius: 12px;
+            background: #f2f4f7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px
+        }
+
+        .pill-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px
+        }
+
+        .pill {
+            background: #f2f4f7;
+            color: #475467;
+            border-radius: 999px;
+            padding: 8px 11px;
+            font-size: 12px;
+            font-weight: 800
+        }
+
+        .timeline {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 20px
+        }
+
+        .step {
+            height: 6px;
+            flex: 1;
+            border-radius: 99px;
+            background: #e5e7eb
+        }
+
+        .step.active {
+            background: #2563eb
+        }
+
+        .audio-player {
+            background: #111827;
+            border-radius: 26px;
+            padding: 22px;
+            color: white;
+            text-align: center;
+            margin: 20px 0
+        }
+
+        .wave {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            height: 64px;
+            margin: 18px 0
+        }
+
+        .wave span {
+            width: 5px;
+            background: #93c5fd;
+            border-radius: 99px
+        }
+
+        .wave span:nth-child(1) {
+            height: 18px
+        }
+
+        .wave span:nth-child(2) {
+            height: 34px
+        }
+
+        .wave span:nth-child(3) {
+            height: 50px
+        }
+
+        .wave span:nth-child(4) {
+            height: 28px
+        }
+
+        .wave span:nth-child(5) {
+            height: 42px
+        }
+
+        .wave span:nth-child(6) {
+            height: 22px
+        }
+
+        .play-big {
+            width: 62px;
+            height: 62px;
+            border-radius: 50%;
+            border: 0;
+            background: white;
+            color: #2563eb;
+            font-size: 24px;
+            font-weight: 900
+        }
+
+        .answer {
+            align-items: flex-start;
+            border: 2px solid transparent
+        }
+
+        .answer .letter {
+            width: 32px;
+            height: 32px;
+            border-radius: 12px;
+            background: #f2f4f7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            flex-shrink: 0
+        }
+
+        .answer.selected {
+            border-color: #2563eb;
+            background: #eff6ff
+        }
+
+        .answer.correct {
+            border-color: #12b76a;
+            background: #ecfdf3
+        }
+
+        .answer.wrong {
+            border-color: #f04438;
+            background: #fef3f2
+        }
+
+        .bottom-actions {
+            margin-top: 18px;
+            display: flex;
+            gap: 10px
+        }
+
+        .bottom-actions .btn {
+            flex: 1
+        }
+
+        .score-circle {
+            width: 132px;
+            height: 132px;
+            border-radius: 50%;
+            background: conic-gradient(#2563eb 0 72%, #e5e7eb 72% 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 22px auto
+        }
+
+        .score-inner {
+            width: 102px;
+            height: 102px;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column
+        }
+
+        .score-inner strong {
+            font-size: 28px
+        }
+
+        .result-list {
+            display: grid;
+            gap: 10px
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 13px;
+            font-size: 14px;
+            font-weight: 800
+        }
+
+        .small-title {
+            font-size: 15px;
+            font-weight: 900;
+            margin-bottom: 8px
+        }
+
+        .caption {
+            text-align: center;
+            color: #667085;
+            font-size: 13px;
+            margin-top: -10px;
+            margin-bottom: 18px
+        }
+    </style>
+</head>
+<body>
+
+<!-- 1. Page entraînement -->
+<main class="phone">
+    <section class="screen">
+        <div class="topbar">
+            <button class="icon-btn">☰</button>
+            <div class="avatar">B1</div>
+        </div>
+        <section class="hero"><small>Entraînement officiel</small>
+            <h1>Prépare ton<br>TCF IRN</h1>
+            <p>Compréhension, expression orale et écrite avec correction IA.</p></section>
+        <section class="progress-card">
+            <div class="row-between">
+                <div><p class="hint">Objectif actuel</p>
+                    <p class="level">B1 → B2</p></div>
+                <span class="badge">62%</span></div>
+            <div class="bar"><span style="width:62%"></span></div>
+            <p class="hint">Continue 15 min aujourd’hui.</p></section>
+        <h2 class="section-title">Modules d’entraînement</h2>
+        <article class="module">
+            <div class="module-icon blue">🎧</div>
+            <div class="module-content">
+                <div class="module-title">Compréhension orale</div>
+                <p class="module-desc">25 questions audio type examen</p>
+                <p class="module-meta">≈ 20 min</p></div>
+            <div class="chevron">›</div>
+        </article>
+        <article class="module">
+            <div class="module-icon orange">📖</div>
+            <div class="module-content">
+                <div class="module-title">Compréhension écrite</div>
+                <p class="module-desc">25 questions avec textes courts</p>
+                <p class="module-meta">≈ 35 min</p></div>
+            <div class="chevron">›</div>
+        </article>
+        <article class="module">
+            <div class="module-icon green">✍️</div>
+            <div class="module-content">
+                <div class="module-title">Expression écrite <span class="ai">IA</span></div>
+                <p class="module-desc">3 tâches corrigées avec feedback</p>
+                <p class="module-meta">≈ 30 min</p></div>
+            <div class="chevron">›</div>
+        </article>
+        <article class="module">
+            <div class="module-icon purple">🎙️</div>
+            <div class="module-content">
+                <div class="module-title">Expression orale <span class="ai">IA</span></div>
+                <p class="module-desc">Parle, enregistre, reçois ton niveau</p>
+                <p class="module-meta">≈ 10 min</p></div>
+            <div class="chevron">›</div>
+        </article>
+        <section class="exam-card">
+            <div><h3>Examen blanc complet</h3>
+                <p>CO + CE + EE + EO</p></div>
+            <button class="start-btn">Lancer</button>
+        </section>
+        <nav class="nav"><span class="active">🏠</span><span>📚</span><span>📈</span><span>👤</span></nav>
+    </section>
+</main>
+
+<!-- 2. Détail compréhension orale -->
+<main class="phone">
+    <section class="screen">
+        <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <div class="round-icon">🎧</div>
+        </div>
+        <div class="page-title"><p class="hint">Module TCF</p>
+            <h1>Compréhension<br>orale</h1></div>
+        <section class="audio-hero">
+            <div class="big-icon">🎧</div>
+            <h2>25 questions audio</h2>
+            <p>Écoute des dialogues courts, annonces ou messages, puis choisis la bonne réponse.</p></section>
+        <section class="stats">
+            <div class="stat"><strong>25</strong><span>Questions</span></div>
+            <div class="stat"><strong>20</strong><span>Minutes</span></div>
+            <div class="stat"><strong>A1-B1</strong><span>Niveaux</span></div>
+        </section>
+        <section class="white-card">
+            <div class="row-between">
+                <div><p class="hint">Dernier score</p>
+                    <p class="level">18 / 25</p></div>
+                <span class="badge badge-blue">Bon niveau</span></div>
+            <div class="bar"><span style="width:72%"></span></div>
+            <p class="hint">Objectif conseillé : atteindre 21 bonnes réponses.</p></section>
+        <div class="tabs">
+            <button class="tab active">Séries</button>
+            <button class="tab">Examens</button>
+            <button class="tab">Erreurs</button>
+        </div>
+        <article class="practice-item">
+            <div class="play">▶</div>
+            <div class="practice-text"><h4>Série rapide 1</h4>
+                <p>10 questions · 8 min · dialogues courts</p></div>
+            <div class="chevron">›</div>
+        </article>
+        <article class="practice-item">
+            <div class="play">▶</div>
+            <div class="practice-text"><h4>Simulation complète</h4>
+                <p>25 questions · 20 min · conditions réelles</p></div>
+            <div class="chevron">›</div>
+        </article>
+        <article class="practice-item">
+            <div class="play">▶</div>
+            <div class="practice-text"><h4>Questions difficiles</h4>
+                <p>15 questions · annonces et messages</p></div>
+            <div class="lock">🔒</div>
+        </article>
+        <button class="primary-btn">Commencer l’entraînement</button>
+    </section>
+</main>
+
+<!-- 3. Liste exercices série 1 -->
+<main class="phone">
+    <section class="screen">
+        <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="badge badge-blue">Série 1</span></div>
+        <div class="page-title"><p class="hint">Compréhension orale</p>
+            <h1>Série rapide 1</h1></div>
+        <section class="card">
+            <div class="row-between">
+                <div><p class="level">10 questions</p>
+                    <p class="hint">Dialogues courts du quotidien</p></div>
+                <div class="round-icon">▶</div>
+            </div>
+            <div class="pill-row"><span class="pill">8 min</span><span class="pill">A1-A2</span><span
+                    class="pill">Correction immédiate</span></div>
+        </section>
+        <h2 class="section-title">Exercices</h2>
+        <article class="practice-item">
+            <div class="play">1</div>
+            <div class="practice-text"><h4>À la gare</h4>
+                <p>Annonce courte · Facile</p></div>
+            <span class="badge">Fait</span></article>
+        <article class="practice-item">
+            <div class="play">2</div>
+            <div class="practice-text"><h4>Chez le médecin</h4>
+                <p>Dialogue simple · Facile</p></div>
+            <div class="chevron">›</div>
+        </article>
+        <article class="practice-item">
+            <div class="play">3</div>
+            <div class="practice-text"><h4>Au supermarché</h4>
+                <p>Message court · Moyen</p></div>
+            <div class="chevron">›</div>
+        </article>
+        <article class="practice-item">
+            <div class="play">4</div>
+            <div class="practice-text"><h4>À la mairie</h4>
+                <p>Information administrative · Moyen</p></div>
+            <div class="chevron">›</div>
+        </article>
+        <article class="practice-item">
+            <div class="play">5</div>
+            <div class="practice-text"><h4>Transport</h4>
+                <p>Annonce publique · Moyen</p></div>
+            <div class="chevron">›</div>
+        </article>
+        <button class="primary-btn">Démarrer la série</button>
+    </section>
+</main>
+
+<!-- 4. Intro avant entraînement -->
+<main class="phone">
+    <section class="screen">
+        <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="badge badge-blue">8 min</span></div>
+        <section class="audio-hero">
+            <div class="big-icon">🎧</div>
+            <h2>Prêt à écouter ?</h2>
+            <p>Tu vas répondre à 10 questions. Chaque audio peut être écouté une fois, comme en condition
+                d’examen.</p></section>
+        <section class="card"><h3 class="small-title">Consignes</h3>
+            <div class="result-list">
+                <div class="result-row"><span>1 audio par question</span><span>🎧</span></div>
+                <div class="result-row"><span>4 réponses possibles</span><span>ABCD</span></div>
+                <div class="result-row"><span>Correction à la fin</span><span>✅</span></div>
+            </div>
+        </section>
+        <section class="card"><h3 class="small-title">Conseil</h3>
+            <p class="hint">Lis rapidement les réponses avant d’écouter. Concentre-toi sur l’idée principale,
+                pas chaque mot.</p></section>
+        <button class="primary-btn">Commencer maintenant</button>
+        <button class="btn ghost-btn" style="margin-top:10px">Réviser mes erreurs</button>
+    </section>
+</main>
+
+<!-- 5. Question audio -->
+<main class="phone">
+    <section class="screen">
+        <div class="topbar">
+            <button class="icon-btn">×</button>
+            <span class="badge badge-blue">Question 2/10</span></div>
+        <div class="timeline"><span class="step active"></span><span class="step active"></span><span
+                class="step"></span><span class="step"></span><span class="step"></span></div>
+        <p class="hint">Compréhension orale</p>
+        <h1 style="font-size:25px;margin:8px 0 10px">Écoute puis réponds</h1>
+        <section class="audio-player">
+            <button class="play-big">▶</button>
+            <div class="wave"><span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <p>Audio 00:18</p></section>
+        <h2 class="section-title">Où la personne veut-elle aller ?</h2>
+        <article class="answer">
+            <div class="letter">A</div>
+            <div><strong>À la pharmacie</strong>
+                <p class="hint">Pour acheter un médicament</p></div>
+        </article>
+        <article class="answer selected">
+            <div class="letter">B</div>
+            <div><strong>À la gare</strong>
+                <p class="hint">Pour prendre un train</p></div>
+        </article>
+        <article class="answer">
+            <div class="letter">C</div>
+            <div><strong>À la mairie</strong>
+                <p class="hint">Pour faire un document</p></div>
+        </article>
+        <article class="answer">
+            <div class="letter">D</div>
+            <div><strong>Au restaurant</strong>
+                <p class="hint">Pour réserver une table</p></div>
+        </article>
+        <button class="primary-btn">Valider ma réponse</button>
+    </section>
+</main>
+
+<!-- 6. Feedback question -->
+<main class="phone">
+    <section class="screen">
+        <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="badge">Bonne réponse</span></div>
+        <div class="timeline"><span class="step active"></span><span class="step active"></span><span
+                class="step"></span><span class="step"></span><span class="step"></span></div>
+        <section class="card" style="text-align:center">
+            <div style="font-size:60px">✅</div>
+            <h1 style="font-size:26px;margin:8px 0">Très bien !</h1>
+            <p class="hint">La réponse correcte est B : À la gare.</p></section>
+        <article class="answer correct">
+            <div class="letter">B</div>
+            <div><strong>À la gare</strong>
+                <p class="hint">La personne parle d’un train et d’un quai.</p></div>
+        </article>
+        <section class="card"><h3 class="small-title">Explication</h3>
+            <p class="hint">Le mot important à repérer était “train”. Même si tous les mots ne sont pas
+                compris, l’idée principale suffit.</p></section>
+        <div class="bottom-actions">
+            <button class="btn ghost-btn">Réécouter</button>
+            <button class="btn">Question suivante</button>
+        </div>
+    </section>
+</main>
+
+<!-- 7. Fin de série -->
+<main class="phone">
+    <section class="screen">
+        <div class="topbar">
+            <button class="icon-btn">×</button>
+            <div class="round-icon">🏆</div>
+        </div>
+        <div class="page-title" style="text-align:center"><p class="hint">Série terminée</p>
+            <h1>Bravo !</h1></div>
+        <div class="score-circle">
+            <div class="score-inner"><strong>8/10</strong><span class="hint">score</span></div>
+        </div>
+        <p class="caption">Tu es sur une bonne progression pour la compréhension orale.</p>
+        <section class="card"><h3 class="small-title">Résumé</h3>
+            <div class="result-list">
+                <div class="result-row"><span>Bonnes réponses</span><span>8</span></div>
+                <div class="result-row"><span>Erreurs</span><span>2</span></div>
+                <div class="result-row"><span>Temps</span><span>7 min 42</span></div>
+                <div class="result-row"><span>Niveau estimé</span><span>A2+</span></div>
+            </div>
+        </section>
+        <section class="card"><h3 class="small-title">À travailler</h3>
+            <p class="hint">Les annonces publiques et les informations administratives.</p></section>
+        <button class="primary-btn">Voir mes erreurs</button>
+        <button class="btn ghost-btn" style="margin-top:10px">Retour aux séries</button>
+    </section>
+</main>
+
+
+<!-- 8. Liste des examens blancs -->
+<main class="phone">
+    <section class="screen">
+        <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="badge badge-blue">TCF IRN</span></div>
+
+        <section class="hero" style="background:linear-gradient(135deg,#111827,#2563eb)">
+            <small>Examens blancs</small>
+            <h1>Simule le vrai<br>TCF IRN</h1>
+            <p>Choisis un examen guidé ou lance un examen aléatoire intelligent.</p>
+        </section>
+
+        <section class="stats">
+            <div class="stat"><strong>12</strong><span>Examens</span></div>
+            <div class="stat"><strong>95</strong><span>Minutes</span></div>
+            <div class="stat"><strong>B2</strong><span>Objectif</span></div>
+        </section>
+
+        <section class="card" style="background:linear-gradient(135deg,#7c3aed,#2563eb);color:white">
+            <div class="row-between">
+                <div>
+                    <p style="font-size:13px;opacity:.85;font-weight:800">Recommandé</p>
+                    <h3 style="font-size:20px;margin:5px 0">Examen aléatoire intelligent</h3>
+                    <p style="font-size:13px;opacity:.9">Questions tirées selon ton niveau et tes erreurs.</p>
+                </div>
+                <div style="font-size:34px">✨</div>
+            </div>
+            <button class="start-btn" style="margin-top:16px;width:100%">Lancer</button>
+        </section>
+
+        <h2 class="section-title">Examens guidés</h2>
+
+        <article class="card">
+            <div class="row-between">
+                <div>
+                    <p class="level">Examen blanc 1</p>
+                    <p class="hint">Découverte · niveau A1-A2</p>
+                </div>
+                <span class="badge">Fait</span>
+            </div>
+            <div class="pill-row"><span class="pill">95 min</span><span class="pill">4 épreuves</span><span
+                    class="pill">Score 68%</span></div>
+            <div class="bar"><span style="width:68%"></span></div>
+            <button class="btn ghost-btn">Revoir le résultat</button>
+        </article>
+
+        <article class="card">
+            <div class="row-between">
+                <div>
+                    <p class="level">Examen blanc 2</p>
+                    <p class="hint">Progression · niveau A2-B1</p>
+                </div>
+                <span class="badge badge-blue">Nouveau</span>
+            </div>
+            <div class="pill-row"><span class="pill">95 min</span><span class="pill">4 épreuves</span><span
+                    class="pill">IA incluse</span></div>
+            <button class="primary-btn">Commencer</button>
+        </article>
+
+        <article class="card">
+            <div class="row-between">
+                <div>
+                    <p class="level">Examen blanc 3</p>
+                    <p class="hint">Mixte réaliste · niveau B1</p>
+                </div>
+                <span class="badge badge-blue">En cours</span>
+            </div>
+            <div class="pill-row"><span class="pill">42 min restantes</span><span
+                    class="pill">CE en cours</span></div>
+            <div class="bar"><span style="width:46%"></span></div>
+            <button class="primary-btn">Continuer</button>
+        </article>
+    </section>
+</main>
+
+<!-- 9. Examen blanc complet - lancement -->
+<main class="phone">
+    <section class="screen">
+        <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="badge badge-blue">Examen blanc</span></div>
+        <section class="hero" style="background:linear-gradient(135deg,#111827,#7c3aed)">
+            <small>Simulation complète</small>
+            <h1>TCF IRN<br>en conditions réelles</h1>
+            <p>Enchaîne les 4 épreuves : compréhension orale, écrite, expression écrite et orale.</p>
+        </section>
+
+        <section class="stats">
+            <div class="stat"><strong>4</strong><span>Épreuves</span></div>
+            <div class="stat"><strong>95</strong><span>Minutes</span></div>
+            <div class="stat"><strong>CECRL</strong><span>Score final</span></div>
+        </section>
+
+        <section class="card">
+            <h3 class="small-title">Déroulé de l’examen</h3>
+            <div class="result-list">
+                <div class="result-row"><span>🎧 Compréhension orale</span><span>20 min</span></div>
+                <div class="result-row"><span>📖 Compréhension écrite</span><span>35 min</span></div>
+                <div class="result-row"><span>✍️ Expression écrite</span><span>30 min</span></div>
+                <div class="result-row"><span>🎙️ Expression orale</span><span>10 min</span></div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h3 class="small-title">Avant de commencer</h3>
+            <p class="hint">Installe-toi au calme. Pour l’oral, autorise le micro. Tu peux reprendre plus tard
+                si tu quittes l’examen.</p>
+        </section>
+
+        <button class="primary-btn">Lancer l’examen blanc</button>
+        <button class="btn ghost-btn" style="margin-top:10px">Voir mes anciens examens</button>
+    </section>
+</main>
+
+<!-- 9. Examen blanc - consignes -->
+<main class="phone">
+    <section class="screen">
+        <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="badge badge-blue">Prêt ?</span></div>
+        <div class="page-title"><p class="hint">Examen blanc complet</p>
+            <h1>Consignes<br>importantes</h1></div>
+
+        <section class="card">
+            <div class="result-list">
+                <div class="result-row"><span>Ne ferme pas l’application</span><span>📱</span></div>
+                <div class="result-row"><span>Les audios se lancent une fois</span><span>🎧</span></div>
+                <div class="result-row"><span>Respecte le temps indiqué</span><span>⏱️</span></div>
+                <div class="result-row"><span>Correction IA pour écrit/oral</span><span>✨</span></div>
+            </div>
+        </section>
+
+        <section class="audio-hero">
+            <div class="big-icon">🎯</div>
+            <h2>Objectif : niveau réaliste</h2>
+            <p>À la fin, tu obtiens un score par épreuve, un niveau estimé et des conseils personnalisés.</p>
+        </section>
+
+        <button class="primary-btn">Je commence</button>
+    </section>
+</main>
+
+<!-- 10. Examen blanc - progression globale -->
+<main class="phone">
+    <section class="screen">
+        <div class="topbar">
+            <button class="icon-btn">×</button>
+            <span class="badge badge-blue">Examen en cours</span></div>
+        <p class="hint">Étape 1 sur 4</p>
+        <h1 style="font-size:27px;margin:8px 0 16px">Compréhension orale</h1>
+
+        <section class="card">
+            <div class="row-between">
+                <div><p class="level">25 questions</p>
+                    <p class="hint">Temps conseillé : 20 min</p></div>
+                <div class="round-icon">🎧</div>
+            </div>
+            <div class="bar"><span style="width:25%"></span></div>
+            <p class="hint">Progression globale de l’examen : 25%</p>
+        </section>
+
+        <h2 class="section-title">Épreuves</h2>
+        <article class="practice-item">
+            <div class="play">1</div>
+            <div class="practice-text"><h4>Compréhension orale</h4>
+                <p>En cours · 25 questions</p></div>
+            <span class="badge badge-blue">Actuel</span></article>
+        <article class="practice-item">
+            <div class="play">2</div>
+            <div class="practice-text"><h4>Compréhension écrite</h4>
+                <p>À venir · 25 questions</p></div>
+            <div class="lock">🔒</div>
+        </article>
+        <article class="practice-item">
+            <div class="play">3</div>
+            <div class="practice-text"><h4>Expression écrite</h4>
+                <p>À venir · 3 tâches</p></div>
+            <div class="lock">🔒</div>
+        </article>
+        <article class="practice-item">
+            <div class="play">4</div>
+            <div class="practice-text"><h4>Expression orale</h4>
+                <p>À venir · 3 tâches</p></div>
+            <div class="lock">🔒</div>
+        </article>
+
+        <button class="primary-btn">Commencer l’épreuve</button>
+    </section>
+</main>
+
+<!-- 11. Transition entre épreuves -->
+<main class="phone">
+    <section class="screen">
+        <div class="topbar">
+            <button class="icon-btn">×</button>
+            <span class="badge">CO terminée</span></div>
+        <section class="card" style="text-align:center">
+            <div style="font-size:62px">✅</div>
+            <h1 style="font-size:26px;margin:8px 0">Compréhension orale terminée</h1>
+            <p class="hint">Tes réponses sont enregistrées. Tu peux passer à l’épreuve suivante.</p>
+        </section>
+
+        <section class="card">
+            <h3 class="small-title">Prochaine épreuve</h3>
+            <div class="row-between">
+                <div><p class="level">Compréhension écrite</p>
+                    <p class="hint">25 questions · 35 min</p></div>
+                <div class="round-icon">📖</div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h3 class="small-title">Petite pause</h3>
+            <p class="hint">Respire quelques secondes, puis continue. L’examen reste sauvegardé.</p>
+        </section>
+
+        <button class="primary-btn">Continuer</button>
+    </section>
+</main>
+
+<!-- 12. Expression écrite examen blanc -->
+<main class="phone">
+    <section class="screen">
+        <div class="topbar">
+            <button class="icon-btn">×</button>
+            <span class="badge badge-blue">Étape 3/4</span></div>
+        <p class="hint">Expression écrite</p>
+        <h1 style="font-size:27px;margin:8px 0 16px">Tâche 1</h1>
+
+        <section class="card">
+            <h3 class="small-title">Sujet</h3>
+            <p class="hint">Vous écrivez un message à un ami pour l’inviter à dîner chez vous samedi soir.
+                Donnez l’heure et expliquez ce que vous allez préparer.</p>
+            <div class="pill-row"><span class="pill">60-120 mots</span><span class="pill">A1-A2</span><span
+                    class="pill">10 min</span></div>
+        </section>
+
+        <section class="card">
+            <div class="row-between"><h3 class="small-title">Votre réponse</h3><span class="hint">0 mot</span>
+            </div>
+            <div style="height:220px;border:1px solid #e5e7eb;border-radius:18px;padding:14px;color:#98a2b3;font-size:14px;line-height:1.5">
+                Écrivez votre texte ici...
+            </div>
+        </section>
+
+        <button class="primary-btn">Valider la tâche</button>
+    </section>
+</main>
+
+<!-- 13. Expression orale examen blanc -->
+<main class="phone">
+    <section class="screen">
+        <div class="topbar">
+            <button class="icon-btn">×</button>
+            <span class="badge badge-blue">Étape 4/4</span></div>
+        <p class="hint">Expression orale</p>
+        <h1 style="font-size:27px;margin:8px 0 16px">Tâche 2</h1>
+
+        <section class="audio-hero">
+            <div class="big-icon">🎙️</div>
+            <h2>Jeu de rôle</h2>
+            <p>Vous voulez louer un appartement. Posez des questions sur le prix, la surface, le quartier et
+                les documents nécessaires.</p>
+        </section>
+
+        <section class="card">
+            <div class="result-list">
+                <div class="result-row"><span>Préparation</span><span>1 min</span></div>
+                <div class="result-row"><span>Réponse orale</span><span>3 min</span></div>
+                <div class="result-row"><span>Correction IA</span><span>Après l’examen</span></div>
+            </div>
+        </section>
+
+        <section class="audio-player">
+            <button class="play-big">●</button>
+            <div class="wave"><span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <p>Appuie pour enregistrer</p>
+        </section>
+
+        <button class="primary-btn">Terminer l’épreuve</button>
+    </section>
+</main>
+
+<!-- 14. Résultat examen blanc complet -->
+<main class="phone">
+    <section class="screen">
+        <div class="topbar">
+            <button class="icon-btn">×</button>
+            <div class="round-icon">🏆</div>
+        </div>
+        <div class="page-title" style="text-align:center"><p class="hint">Examen blanc terminé</p>
+            <h1>Résultat global</h1></div>
+
+        <div class="score-circle">
+            <div class="score-inner"><strong>B1+</strong><span class="hint">niveau estimé</span></div>
+        </div>
+        <p class="caption">Très proche du niveau B2. Continue surtout l’oral et l’argumentation écrite.</p>
+
+        <section class="card">
+            <h3 class="small-title">Scores par épreuve</h3>
+            <div class="result-list">
+                <div class="result-row"><span>🎧 Compréhension orale</span><span>21/25</span></div>
+                <div class="result-row"><span>📖 Compréhension écrite</span><span>19/25</span></div>
+                <div class="result-row"><span>✍️ Expression écrite</span><span>B1</span></div>
+                <div class="result-row"><span>🎙️ Expression orale</span><span>B1+</span></div>
+            </div>
+        </section>
+
+        <section class="card">
+            <h3 class="small-title">Conseils IA</h3>
+            <p class="hint">Travaille les connecteurs logiques, les phrases plus longues et les réponses
+                orales avec exemples concrets.</p>
+        </section>
+
+        <button class="primary-btn">Voir le détail complet</button>
+        <button class="btn ghost-btn" style="margin-top:10px">Recommencer un examen</button>
+    </section>
+</main>
+
+</body>
+</html>

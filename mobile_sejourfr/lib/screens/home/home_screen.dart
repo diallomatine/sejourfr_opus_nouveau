@@ -73,16 +73,14 @@ class HomeScreen extends ConsumerWidget {
               _ModuleCard(
                 kind: _ModuleKind.civique,
                 stats: civiqueStats,
-                onTap: () => selectAndGo(AppModule.civique, AppRoutes.trainingSetup),
-                onExam: () => selectAndGo(AppModule.civique, AppRoutes.examSetup),
+                onTap: () => selectAndGo(AppModule.civique, AppRoutes.civique),
               ),
               const SizedBox(height: 10),
               _ModuleCard(
                 kind: _ModuleKind.tcf,
                 stats: tcfStats,
                 isDemo: tcfIsDemo,
-                onTap: () => selectAndGo(AppModule.tcf, AppRoutes.trainingSetup),
-                onExam: () => selectAndGo(AppModule.tcf, AppRoutes.examSetup),
+                onTap: () => selectAndGo(AppModule.tcf, AppRoutes.tcf),
               ),
               const SizedBox(height: 26),
               const _SectionTitle(label: 'Raccourcis'),
@@ -504,14 +502,12 @@ class _ModuleCard extends StatelessWidget {
     required this.kind,
     required this.stats,
     required this.onTap,
-    required this.onExam,
     this.isDemo = false,
   });
 
   final _ModuleKind kind;
   final AsyncValue<UserStats> stats;
   final VoidCallback onTap;
-  final VoidCallback onExam;
   final bool isDemo;
 
   bool get _isCivique => kind == _ModuleKind.civique;
@@ -626,8 +622,11 @@ class _ModuleCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Bouton compact examen blanc + chevron
-                      _ExamPillButton(accent: _accent, onTap: onExam),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: _accent,
+                        size: 22,
+                      ),
                     ],
                   ),
                 ),
@@ -722,38 +721,6 @@ class _ModuleMeta extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         );
       },
-    );
-  }
-}
-
-class _ExamPillButton extends StatelessWidget {
-  const _ExamPillButton({required this.accent, required this.onTap});
-
-  final Color accent;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(11),
-        onTap: onTap,
-        child: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: accent,
-            borderRadius: BorderRadius.circular(11),
-          ),
-          alignment: Alignment.center,
-          child: const Icon(
-            Icons.arrow_forward_rounded,
-            color: Colors.white,
-            size: 18,
-          ),
-        ),
-      ),
     );
   }
 }

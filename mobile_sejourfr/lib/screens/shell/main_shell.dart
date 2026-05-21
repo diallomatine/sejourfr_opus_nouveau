@@ -15,8 +15,8 @@ class MainShell extends StatelessWidget {
 
     final currentIndex = switch (loc) {
       AppRoutes.home => 0,
-      AppRoutes.trainingSetup => 1,
-      AppRoutes.examSetup => 2,
+      AppRoutes.civique => 1,
+      AppRoutes.tcf => 2,
       AppRoutes.progress => 3,
       AppRoutes.profile => 4,
       _ => -1,
@@ -36,8 +36,13 @@ class _BottomNav extends StatelessWidget {
 
   static const _items = [
     (icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Accueil', route: AppRoutes.home),
-    (icon: Icons.school_outlined, activeIcon: Icons.school, label: 'Entraîner', route: AppRoutes.trainingSetup),
-    (icon: Icons.timer_outlined, activeIcon: Icons.timer, label: 'Examen', route: AppRoutes.examSetup),
+    (
+      icon: Icons.account_balance_outlined,
+      activeIcon: Icons.account_balance,
+      label: 'Civique',
+      route: AppRoutes.civique,
+    ),
+    (icon: Icons.language_outlined, activeIcon: Icons.language, label: 'TCF', route: AppRoutes.tcf),
     (icon: Icons.insights_outlined, activeIcon: Icons.insights, label: 'Progression', route: AppRoutes.progress),
     (icon: Icons.person_outline, activeIcon: Icons.person, label: 'Profil', route: AppRoutes.profile),
   ];

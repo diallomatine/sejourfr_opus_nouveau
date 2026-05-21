@@ -214,6 +214,29 @@ Le **runner de questions** (mobile `screens/question_runner/` et web `examen-bla
 - Branche par défaut : `develop` (PRs vers `main`)
 - Le repo racine est **un seul git** qui couvre les 4 dossiers — un commit peut toucher plusieurs surfaces (utile quand on aligne un DTO backend avec ses miroirs front).
 
+## Refonte entraînement (en cours)
+
+Bascule progressive d'une nav "Entraîner / Examen" générique vers **2 hubs métier dédiés Civique et
+TCF**, calqués sur le design `tcf_entrainement_mobile_design.html` à la racine (14 écrans, archi
+hub → détail module → série → questions → feedback → fin de série).
+
+**Statut mobile (lots 1 & 2 faits)** : bottom nav `Accueil · Civique · TCF · Progression · Profil`.
+Hubs Civique (5 thèmes officiels) et TCF (CO/CE/EE IA/EO IA) dans `mobile_sejourfr/lib/screens/{civique,tcf}/`,
+widgets partagés dans `screens/hub/widgets/hub_widgets.dart`. **Tap module = direct-start** d'un
+attempt via `POST /api/attempts` puis push runner (plus d'écran setup intermédiaire). Les anciens
+écrans `TrainingSetupScreen` et `ExamSetupScreen` ont été **supprimés**, ainsi que les routes
+`/training` et `/exam`. Le sheet paywall vit maintenant dans `core/widgets/paywall_sheet.dart`
+(réutilisable). Carte "Examen blanc complet" présente mais inactive.
+
+**Reste à faire mobile (lots suivants)** : écran détail par module (tabs Séries/Examens/Erreurs)
+si on veut le pattern complet du design, branchement de l'examen blanc complet sur la carte sombre
+(reprendre la logique de `examsByModuleProvider` qui partait avec `exam_setup_screen.dart`).
+
+**À reproduire côté web** (`web_sejoufr/`) une fois le mobile stabilisé : même découpe Civique/TCF
+dans la nav principale, mêmes hubs, même paywall. La parité front mobile↔web est un axe produit.
+
+Cf. `mobile_sejourfr/CLAUDE.md` section "Bottom nav et hubs Civique / TCF" pour le détail technique.
+
 ## Roadmap commune (qui n'existe pas encore)
 
 - **Paiement Stripe** : front prêt (web `paiement/page.tsx`), endpoint `POST /api/billing/create-checkout-session` **à créer côté Java** (dep `com.stripe:stripe-java`, Price IDs en `application.yaml`).

@@ -8,7 +8,7 @@ import 'package:sejourfr_mobile/screens/history/history_screen.dart';
 import '../../screens/auth/forgot_password_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
-import '../../screens/exam/exam_setup_screen.dart';
+import '../../screens/civique/civique_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/onboarding/onboarding_screen.dart';
 import '../../screens/profile/mes_historiques_screen.dart';
@@ -19,6 +19,7 @@ import '../../screens/shell/main_shell.dart';
 import '../../screens/splash/splash_screen.dart';
 import '../../screens/stats/stats_screen.dart';
 import '../../screens/target_path/target_path_screen.dart';
+import '../../screens/tcf/tcf_screen.dart';
 import '../../screens/tcf_production/ee_briefing_writing_screen.dart';
 import '../../screens/tcf_production/ee_results_screen.dart';
 import '../../screens/tcf_production/eo_briefing_screen.dart';
@@ -30,7 +31,6 @@ import '../../screens/tcf_production/production_history_screen.dart';
 import '../../screens/tcf_production/production_hub_screen.dart';
 import '../../screens/tcf_production/session_bilan_screen.dart';
 import '../../screens/tcf_production/session_progress_screen.dart';
-import '../../screens/training/training_setup_screen.dart';
 import '../auth/auth_controller.dart';
 import '../models/enums.dart';
 
@@ -41,8 +41,8 @@ class AppRoutes {
   static const register = '/register';
   static const forgotPassword = '/forgot-password';
   static const home = '/';
-  static const trainingSetup = '/training';
-  static const examSetup = '/exam';
+  static const civique = '/civique';
+  static const tcf = '/tcf';
   static const runner = '/runner/:attemptId';
   static const progress = '/progress';
   static const review = '/review';
@@ -185,12 +185,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const HomeScreen(),
           ),
           GoRoute(
-            path: AppRoutes.trainingSetup,
-            builder: (_, __) => const TrainingSetupScreen(),
+            path: AppRoutes.civique,
+            builder: (_, __) => const CiviqueScreen(),
           ),
           GoRoute(
-            path: AppRoutes.examSetup,
-            builder: (_, __) => const ExamSetupScreen(),
+            path: AppRoutes.tcf,
+            builder: (_, __) => const TcfScreen(),
           ),
           GoRoute(
             path: AppRoutes.progress,
