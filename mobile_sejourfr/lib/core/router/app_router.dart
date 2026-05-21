@@ -13,6 +13,7 @@ import '../../screens/home/home_screen.dart';
 import '../../screens/module_detail/civique_theme_detail_screen.dart';
 import '../../screens/module_detail/tcf_level_lots_screen.dart';
 import '../../screens/module_detail/tcf_lot_result_screen.dart';
+import '../../screens/module_detail/tcf_full_exams_screen.dart';
 import '../../screens/module_detail/tcf_production_detail_screen.dart';
 import '../../screens/module_detail/tcf_production_task_subjects_screen.dart';
 import '../../screens/module_detail/tcf_qcm_detail_screen.dart';
@@ -59,6 +60,10 @@ class AppRoutes {
   // si > 15 sujets, sinon liste plate. Bypass pour EO T1 (consigne fixe).
   static const tcfEoTaskSubjects = '/tcf/eo/tache/:tacheNumero';
   static const tcfEeTaskSubjects = '/tcf/ee/tache/:tacheNumero';
+  // Examen blanc complet TCF (les 4 épreuves enchaînées). 20 slots dans
+  // la liste. Distinct des module exams (CO/CE seul) côté backend via
+  // attempts.epreuve = TCF_COMPLET vs attempts.module_exam_question_type.
+  static const tcfFullExams = '/tcf/examens-blancs';
   // Liste des lots pour un niveau d'un module TCF QCM.
   // moduleKey ∈ {co, ce}, level ∈ {a2, b1, b2}.
   static const tcfLevelLots = '/tcf/:moduleKey/niveau/:level';
@@ -288,6 +293,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             tacheNumero: n.clamp(1, 3),
           );
         },
+      ),
+      // Examen blanc TCF complet (CO + CE + EE + EO en 90 min). Pushé
+      // depuis la carte sombre du hub TCF. Orchestration des 4 épreuves
+      // enchaînées à finaliser en lot dédié.
+      GoRoute(
+        path: AppRoutes.tcfFullExams,
+        builder: (_, __) => const TcfFullExamsScreen(),
       ),
       // Lots d'un niveau pour un module TCF QCM. Pushé depuis l'onglet
       // Séries du détail module quand l'utilisateur tape une carte niveau.

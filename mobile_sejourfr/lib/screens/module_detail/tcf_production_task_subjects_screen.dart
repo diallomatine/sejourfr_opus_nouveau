@@ -204,7 +204,7 @@ class _TcfProductionTaskSubjectsScreenState
                           : '${tasks.length} sujet${tasks.length > 1 ? "s" : ""} disponible${tasks.length > 1 ? "s" : ""}',
                       description:
                           'Choisis un sujet pour démarrer ton ${isEo ? "enregistrement" : "écrit"}. Tu recevras une évaluation CECRL à la fin.',
-                      gradient: const [AppColors.blue, AppColors.blueDark],
+                      gradient: const [AppColors.red, AppColors.redDark],
                     ),
                     const SizedBox(height: 18),
                     _SubjectsList(

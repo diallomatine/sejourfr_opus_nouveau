@@ -124,11 +124,11 @@ class TcfScreen extends ConsumerWidget {
                 onTap: () => openDetail(AppRoutes.tcfEoDetail),
               ),
               const SizedBox(height: 8),
-              const HubExamCard(
+              HubExamCard(
                 title: 'Examen blanc complet',
-                subtitle: 'CO + CE + EE + EO en conditions réelles',
-                ctaLabel: 'Bientôt',
-                // onTap volontairement omis — branchement à venir.
+                subtitle: 'CO + CE + EE + EO en conditions réelles · 90 min',
+                ctaLabel: 'Lancer',
+                onTap: () => context.push(AppRoutes.tcfFullExams),
               ),
               const SizedBox(height: 12),
             ],

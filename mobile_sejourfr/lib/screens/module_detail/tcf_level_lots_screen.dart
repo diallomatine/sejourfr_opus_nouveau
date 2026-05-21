@@ -176,7 +176,10 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
                   icon: mod.icon,
                   headline: _heroHeadline(lotsAsync, meta.indicativeLotSize),
                   description: meta.subtitle,
-                  gradient: [meta.accent, meta.accentDark],
+                  // Hero rouge — convention SejourFR : tous les hero TCF en
+                  // rouge. La couleur de niveau (`meta.accent`) reste utilisée
+                  // pour les pastilles de lot et le score ring.
+                  gradient: const [AppColors.red, AppColors.redDark],
                 ),
                 const SizedBox(height: 16),
                 ModuleDetailStats(

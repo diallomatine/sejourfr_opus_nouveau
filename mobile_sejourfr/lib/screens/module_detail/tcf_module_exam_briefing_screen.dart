@@ -224,12 +224,12 @@ class _BriefingHero extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.blue, AppColors.blueDark],
+          colors: [AppColors.red, AppColors.redDark],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.blue.withValues(alpha: 0.22),
+            color: AppColors.red.withValues(alpha: 0.22),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
