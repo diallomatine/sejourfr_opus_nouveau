@@ -216,6 +216,21 @@ change un DTO, mettre à jour le model Dart correspondant.
   cards), 16 (cards), 20 (modals).
 - `withValues(alpha: 0.x)` pour la transparence (Flutter 3.27+) — pas `withOpacity` qui est déprécié.
 
+**Hygiène (rappel transverse, cf. CLAUDE.md racine)**
+
+- Si un widget apparaît 2 fois dans 2 écrans, **l'extraire** dans `core/widgets/` (générique) ou
+  `screens/<area>/widgets/` (local à un domaine). Ex: `screens/hub/widgets/hub_widgets.dart` et
+  `core/widgets/paywall_sheet.dart` ont été extraits dès qu'une 2ᵉ surface en avait besoin.
+- Quand un écran est remplacé par une nouvelle archi, supprimer dans la foulée : le fichier, les
+  routes (`AppRoutes`), les imports, et tous les CTA `context.go(...)` qui pointaient dessus. Pas
+  de dead code "au cas où". Faire `grep` sur le nom du screen et du route avant de fermer le lot.
+- Pas de nouveau fichier `.md` à côté du CLAUDE.md mobile : tout ce qui mérite d'être noté pour le
+  futur va **dans ce CLAUDE.md**. Si une section devient trop longue, la restructurer plutôt que
+  d'éclater l'info.
+- Mettre à jour ce fichier en même temps que les modifs structurantes (nouveau dossier `screens/*`,
+  nouveau pipeline réseau, changement de convention Riverpod/router…). Pas de PR qui modifie
+  l'archi sans synchroniser la doc.
+
 ## Démarrage local
 
 ```bash

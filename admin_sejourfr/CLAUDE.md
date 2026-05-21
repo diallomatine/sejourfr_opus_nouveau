@@ -98,6 +98,13 @@ Endpoints utilisés actuellement :
 - Polices fixées : `Fraunces` pour les titres (`.page-title`, `.panel-title`), `Inter` partout ailleurs, `JetBrains Mono` pour les labels techniques (eyebrows, badges, tags).
 - Le style général s'inspire du template `admin__1_.html` fourni en début de projet — typographique, fait main, sans framework UI.
 
+**Hygiène (rappel transverse, cf. CLAUDE.md racine)**
+- Toute nouvelle feature prend son dossier dans `features/` (jamais à côté d'une feature voisine). Si un sous-composant n'a de sens que dans une feature, il vit dans `features/<feature>/components/`, pas dans `components/ui/`.
+- Composant ou hook dupliqué dans 2 features ? Le **remonter** dans `components/ui/` ou `lib/`. À la 2ᵉ duplication, pas à la 3ᵉ.
+- Quand un écran est remplacé : supprimer le `.tsx` + le `.module.css` + la route dans `routes/` + tous les `Link to=` et `navigate(...)` qui le ciblaient. Pas de cohabitation. Faire un grep sur le nom du composant et du path avant de fermer le lot.
+- `queryKey` cohérents avec la convention `["resource", ...]` documentée — toute nouvelle ressource passe par le même schéma. Pas d'invention locale qui complique les `invalidateQueries`.
+- Mettre à jour ce CLAUDE.md en même temps que les modifs structurantes (nouvelle feature, nouveau provider, nouvelle convention). Pas de PR qui change l'archi sans synchroniser la doc.
+
 ## Démarrage en local
 
 ```bash

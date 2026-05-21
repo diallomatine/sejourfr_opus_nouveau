@@ -206,6 +206,11 @@ Le **runner de questions** (mobile `screens/question_runner/` et web `examen-bla
 - **Admin & runner** : pas d'UI kit, pas de CSS-in-JS, pas de `clsx`. CSS Modules vanilla.
 - **Mobile** : Riverpod uniquement (pas de Bloc/Provider/GetX), `context.go/push` (jamais `Navigator.push`), `withValues(alpha:)` (pas `withOpacity`).
 - **Tous** : TypeScript/Dart strict, pas de `any`/`dynamic`, imports relatifs, pas de commentaire qui paraphrase le code.
+- **Hygiène d'architecture (non négociable)** : la plateforme est faite pour durer, chaque ajout doit préserver une archi propre et lisible — pas de patch rapide qui s'accumule en désordre.
+   - Tout nouveau fichier prend sa place dans l'arbo `feature/` existante (cf. CLAUDE.md local). Si une feature grossit, créer un dossier dédié plutôt que d'empiler des fichiers à la racine d'un voisin.
+   - Duplication = signal : à la 2ᵉ occurrence, **extraire** un widget/util/service partagé (ex: `hub_widgets.dart`, `paywall_sheet.dart` factorisés au moment où ils sont apparus 2× dans les hubs Civique/TCF). À 3 occurrences, c'est de la dette.
+   - Refonte = suppression immédiate de l'ancien. Quand un écran/route/composant est remplacé, supprimer le fichier + tous les imports + toutes les références CTA dans la foulée. Pas de cohabitation "au cas où" qui pourrit ensuite.
+   - Respecter la convention de couches du backend Java (Controller → Service → Manager → Repository, mappers purs) et les conventions par sous-projet documentées dans chaque `CLAUDE.md` local. Pas d'exception "juste pour cette fois".
 - **Maintenir les `CLAUDE.md` à jour** : après une modif structurante (nouvelle feature, nouveau pipeline, changement de convention, nouvelle migration importante, nouveau dossier `features/*`), mettre à jour le CLAUDE.md local concerné et celui de la racine si la modif est transverse. Pas de changelog exhaustif — juste de quoi qu'un futur Claude se repère vite. Inutile d'y consigner les bugfixes ou les micro-ajustements.
 
 ## Git

@@ -163,6 +163,20 @@ standard 36px, variante `.cocarde.lg` à 56px.
 - **Pas de fichier .module.css** pour l'instant. Si le CSS scoped des composants devient lourd, c'est l'option
   de refactor à privilégier.
 
+**Hygiène (rappel transverse, cf. CLAUDE.md racine)**
+- Toute nouvelle page App Router prend sa place dans `app/<segment>/`. Les composants partagés à 2+ pages
+  remontent dans `app/_components/`. Si un helper apparaît dans 2 pages, le mettre dans `lib/`. À la 2ᵉ
+  duplication, pas plus tard.
+- Quand un parcours est remplacé : supprimer dans la foulée la route (`page.tsx`), ses sous-composants
+  morts, les `Link href=` et `router.push(...)` qui le ciblaient, et les types/fetchers devenus
+  inutilisés. `grep` sur le path avant de fermer le lot.
+- Classes globales `.btn`, `.field`, etc. : ne pas en redéfinir une variante locale juste pour gagner du
+  temps — si une nouvelle variante est utile, l'ajouter proprement dans `globals.css` avec un nom cohérent.
+- Le miroir des DTOs backend vit dans `lib/types.ts` : quand un DTO Java change, mettre à jour ce fichier
+  en même temps que la page qui le consomme. Pas de duplication ad-hoc d'un type côté page.
+- Mettre à jour ce CLAUDE.md à chaque modif structurante (nouvelle vague de parité mobile, nouvelle
+  route, nouvelle convention). Pas de PR qui change l'archi sans synchroniser la doc.
+
 ## Gestion des erreurs API
 
 Le client `apiFetch` lève une `ApiException` avec `{ status, message, payload }`. Le `payload` peut contenir
