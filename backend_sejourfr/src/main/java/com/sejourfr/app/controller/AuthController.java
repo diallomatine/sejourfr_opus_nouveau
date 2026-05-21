@@ -1,24 +1,13 @@
 package com.sejourfr.app.controller;
 
-import com.sejourfr.app.dto.AuthenticatedUser;
-import com.sejourfr.app.dto.ForgotPasswordRequest;
-import com.sejourfr.app.dto.LoginRequest;
-import com.sejourfr.app.dto.RefreshRequest;
-import com.sejourfr.app.dto.RegisterRequest;
-import com.sejourfr.app.dto.ResetPasswordRequest;
-import com.sejourfr.app.dto.TokenResponse;
+import com.sejourfr.app.dto.*;
 import com.sejourfr.app.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -42,10 +31,13 @@ public class AuthController {
         return authService.me(principal.getUsername());
     }
 
-    /** Cree un compte USER + retourne directement les tokens (auto-login). */
+    /**
+     * Cree un compte USER + retourne directement les tokens (auto-login).
+     */
     @PostMapping("/register")
     public TokenResponse register(@Valid @RequestBody RegisterRequest req) {
-        return authService.register(req);
+        throw new IllegalArgumentException("Les inscriptions sont temporairement desactivées");
+        //return authService.register(req);
     }
 
     @PostMapping("/forgot-password")

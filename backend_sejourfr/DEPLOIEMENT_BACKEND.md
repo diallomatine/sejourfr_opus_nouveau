@@ -25,18 +25,18 @@
 
 ## 2. Cartographie des fichiers
 
-| Quoi | Chemin | Propriétaire |
-|---|---|---|
-| Jar de l'application | `/opt/sejourfr/backend/app.jar` | `sejourfr:sejourfr` |
-| Config Spring (yaml) | `/opt/sejourfr/backend/application-prod.yaml` | `sejourfr:sejourfr` |
-| Variables d'env / secrets | `/etc/sejourfr/backend.env` | `sejourfr:sejourfr` (chmod 600) |
-| Service systemd | `/etc/systemd/system/sejourfr-backend.service` | `root:root` |
-| Logs stdout | `/opt/sejourfr/logs/backend-stdout.log` | `sejourfr:sejourfr` |
-| Logs stderr | `/opt/sejourfr/logs/backend-stderr.log` | `sejourfr:sejourfr` |
-| Logs applicatifs (logback) | `/opt/sejourfr/logs/backend.log` | `sejourfr:sejourfr` |
-| Config Nginx | `/etc/nginx/sites-available/sejourfr.fr` | `root:root` |
-| Sauvegardes Postgres | `/var/backups/sejourfr/*.sql.gz` | `root:root` |
-| Script backup cron | `/etc/cron.daily/sejourfr-pg-backup` | `root:root` |
+| Quoi                       | Chemin                                         | Propriétaire                    |
+|----------------------------|------------------------------------------------|---------------------------------|
+| Jar de l'application       | `/opt/sejourfr/backend/app.jar`                | `sejourfr:sejourfr`             |
+| Config Spring (yaml)       | `/opt/sejourfr/backend/application-prod.yaml`  | `sejourfr:sejourfr`             |
+| Variables d'env / secrets  | `/etc/sejourfr/backend.env`                    | `sejourfr:sejourfr` (chmod 600) |
+| Service systemd            | `/etc/systemd/system/sejourfr-backend.service` | `root:root`                     |
+| Logs stdout                | `/opt/sejourfr/logs/backend-stdout.log`        | `sejourfr:sejourfr`             |
+| Logs stderr                | `/opt/sejourfr/logs/backend-stderr.log`        | `sejourfr:sejourfr`             |
+| Logs applicatifs (logback) | `/opt/sejourfr/logs/backend.log`               | `sejourfr:sejourfr`             |
+| Config Nginx               | `/etc/nginx/sites-available/sejourfr.fr`       | `root:root`                     |
+| Sauvegardes Postgres       | `/var/backups/sejourfr/*.sql.gz`               | `root:root`                     |
+| Script backup cron         | `/etc/cron.daily/sejourfr-pg-backup`           | `root:root`                     |
 
 ---
 
@@ -51,7 +51,7 @@ Le binaire de l'application. C'est ce qu'on remplace à chaque déploiement.
 ls -lh /opt/sejourfr/backend/app.jar
 
 # Remplacer (depuis ta machine de dev)
-scp target/sejourfr-backend-*.jar user@sejourfr.fr:/tmp/sejourfr-backend.jar
+scp target/sejourfr-backend-*.jar root@82.223.165.43:/tmp/sejourfr-backend.jar
 ssh user@sejourfr.fr
 sudo systemctl stop sejourfr-backend
 sudo mv /tmp/sejourfr-backend.jar /opt/sejourfr/backend/app.jar
@@ -273,12 +273,12 @@ sudo systemctl status sejourfr-backend | grep Memory
 
 ## 5. Base de données PostgreSQL
 
-| Quoi | Valeur |
-|---|---|
-| Hôte | `localhost` |
-| Port | `5432` |
-| Base | `sejourfr` |
-| User | `sejourfr` |
+| Quoi         | Valeur                                           |
+|--------------|--------------------------------------------------|
+| Hôte         | `localhost`                                      |
+| Port         | `5432`                                           |
+| Base         | `sejourfr`                                       |
+| User         | `sejourfr`                                       |
 | Mot de passe | dans `/etc/sejourfr/backend.env` (`DB_PASSWORD`) |
 
 ### 5.1. Se connecter
@@ -295,9 +295,12 @@ sudo -u postgres psql sejourfr
 
 ```sql
 \dt                       -- liste les tables
-\d questions              -- structure d'une table
+\
+d questions              -- structure d'une table
 \dn                       -- liste les schémas
-SELECT * FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 10;
+SELECT *
+FROM flyway_schema_history
+ORDER BY installed_rank DESC LIMIT 10;
 \q                        -- quitter
 ```
 
@@ -325,7 +328,7 @@ sudo run-parts --test /etc/cron.daily
 # === Sur ta machine de dev ===
 cd /chemin/vers/sejourfr-backend
 ./mvnw clean package -DskipTests
-scp target/sejourfr-backend-*.jar user@sejourfr.fr:/tmp/sejourfr-backend.jar
+scp target/sejourfr-backend-*.jar root@82.223.165.43:/tmp/sejourfr-backend.jar
 
 # === Sur le serveur ===
 ssh user@sejourfr.fr
