@@ -10,6 +10,9 @@ import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
 import '../../screens/civique/civique_screen.dart';
 import '../../screens/home/home_screen.dart';
+import '../../screens/module_detail/civique_theme_detail_screen.dart';
+import '../../screens/module_detail/tcf_production_detail_screen.dart';
+import '../../screens/module_detail/tcf_qcm_detail_screen.dart';
 import '../../screens/onboarding/onboarding_screen.dart';
 import '../../screens/profile/mes_historiques_screen.dart';
 import '../../screens/profile/profile_screen.dart';
@@ -42,7 +45,12 @@ class AppRoutes {
   static const forgotPassword = '/forgot-password';
   static const home = '/';
   static const civique = '/civique';
+  static const civiqueThemeDetail = '/civique/theme/:themeId';
   static const tcf = '/tcf';
+  static const tcfCoDetail = '/tcf/co';
+  static const tcfCeDetail = '/tcf/ce';
+  static const tcfEoDetail = '/tcf/eo';
+  static const tcfEeDetail = '/tcf/ee';
   static const runner = '/runner/:attemptId';
   static const progress = '/progress';
   static const review = '/review';
@@ -214,6 +222,36 @@ final routerProvider = Provider<GoRouter>((ref) {
           final attemptId = state.pathParameters['attemptId']!;
           return RunnerScreen(attemptId: attemptId);
         },
+      ),
+
+      // Écrans détail module (hors shell — pas de bottom nav).
+      // Civique : un détail par thème (5 thèmes officiels chargés depuis l'API).
+      GoRoute(
+        path: AppRoutes.civiqueThemeDetail,
+        builder: (_, state) => CiviqueThemeDetailScreen(
+          themeId: state.pathParameters['themeId']!,
+        ),
+      ),
+      // TCF QCM : un détail par épreuve (CO, CE) → push runner après attempt.
+      GoRoute(
+        path: AppRoutes.tcfCoDetail,
+        builder: (_, __) => const TcfQcmDetailScreen(module: TcfQcmModule.co),
+      ),
+      GoRoute(
+        path: AppRoutes.tcfCeDetail,
+        builder: (_, __) => const TcfQcmDetailScreen(module: TcfQcmModule.ce),
+      ),
+      // TCF productions : un détail par épreuve (EO, EE) → push
+      // `ProductionHubScreen` (sélection T1/T2/T3) via le CTA.
+      GoRoute(
+        path: AppRoutes.tcfEoDetail,
+        builder: (_, __) =>
+            const TcfProductionDetailScreen(module: TcfProductionModule.eo),
+      ),
+      GoRoute(
+        path: AppRoutes.tcfEeDetail,
+        builder: (_, __) =>
+            const TcfProductionDetailScreen(module: TcfProductionModule.ee),
       ),
 
       // TCF Expression orale (Lot G : entry = hub d'entrainement libre, 3 cards T1/T2/T3)

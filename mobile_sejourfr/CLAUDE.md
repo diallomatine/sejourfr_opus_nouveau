@@ -73,6 +73,11 @@ lib/
     │   └── civique_screen.dart    Hub Civique : hero bleu + progress + 5 thèmes officiels + exam card inactive
     ├── tcf/
     │   └── tcf_screen.dart        Hub TCF : hero rouge + progress + 4 modules (CO/CE/EE IA/EO IA) + exam card inactive
+    ├── module_detail/             Écran détail intermédiaire entre hub et runner / production hub
+    │   ├── civique_theme_detail_screen.dart   Détail d'un thème civique (par themeId)
+    │   ├── tcf_qcm_detail_screen.dart         Détail TCF CO/CE (enum TcfQcmModule) → runner
+    │   ├── tcf_production_detail_screen.dart  Détail TCF EE/EO (enum TcfProductionModule) → ProductionHubScreen
+    │   └── widgets/module_detail_widgets.dart Layout partagé (topbar, hero, stats, score card)
     ├── exam/                      Écrans de résultat et rapport d'examen blanc (le setup a été supprimé,
     │                              le tirage d'examen blanc se fera depuis la carte sombre des hubs)
     ├── question_runner/           Le runner partagé (le cœur de l'app)
@@ -280,12 +285,53 @@ structure visuelle identique implémentée dans `screens/hub/widgets/hub_widgets
 
 **Modules affichés :**
 - **Civique** = les 5 thèmes officiels chargés via `/api/themes?module=CIVIQUE` (Principes &
-  symboles, Institutions, Droits & devoirs, Histoire-Géo, Société). Tap → `POST /api/attempts` avec
-  `themeId` + `size=30` (premium) ou `size=20` sans themeId (démo, le backend ignore alors le filtre)
-  → push `/runner/:attemptId`. Sur 403 → `showPaywallSheet`.
-- **TCF** = 4 modules : Compréhension orale, Compréhension écrite, Expression écrite IA, Expression
-  orale IA. CO/CE → `POST /api/attempts` avec `questionType=CO|CE` (premium) ou sans filtre (démo).
-  EE/EO → `push(/tcf/expression-{ecrite,orale})` si premium, sinon `showPaywallSheet`.
+  symboles, Institutions, Droits & devoirs, Histoire-Géo, Société). Tap → push
+  `/civique/theme/:themeId` (écran détail).
+- **TCF** = 4 modules, **tous** avec un écran détail :
+  - CO → `/tcf/co`, CE → `/tcf/ce` → `TcfQcmDetailScreen` → CTA "Commencer l'entraînement"
+    → `POST /api/attempts` + push runner.
+  - EE → `/tcf/ee`, EO → `/tcf/eo` → `TcfProductionDetailScreen` → CTA "Voir les tâches"
+    → push `ProductionHubScreen` (sélection T1/T2/T3) après paywall check si non-premium.
+
+**Écran détail (lot 3 + 3 bis)** — vit dans `screens/module_detail/`. Routes hors shell (pas de
+bottom nav) :
+- `/civique/theme/:themeId` → `CiviqueThemeDetailScreen` (fetch theme via `themesRepository`,
+  cherche les stats du thème dans `byTheme[themeId]`).
+- `/tcf/co` et `/tcf/ce` → `TcfQcmDetailScreen` avec l'enum `TcfQcmModule.{co,ce}` qui porte
+  l'intitulé, l'icône, le `QuestionType` et le label de durée.
+- `/tcf/eo` et `/tcf/ee` → `TcfProductionDetailScreen` avec l'enum `TcfProductionModule.{eo,ee}`
+  qui porte en plus la route du `ProductionHubScreen` cible.
+
+Layout uniforme (`widgets/module_detail_widgets.dart`) :
+1. `ModuleDetailTopBar` (back + icône décorative).
+2. `ModuleDetailTitle` (eyebrow "Module civique" / "Module TCF" + titre Jakarta gras).
+3. `ModuleDetailHero` (gradient — bleu pour civique, rouge pour TCF QCM, vert/rouge pour EE/EO).
+4. `ModuleDetailStats` (3 cellules : Questions ou Tâches / Durée / Parcours-Niveau).
+5. **QCM uniquement** : `ModuleDetailScoreCard` (% de maîtrise + badge "Bon niveau" / "En progression" /
+   "À renforcer" / "À démarrer" + barre + nb de sessions).
+   **EE/EO** : carte "Comment ça marche" en 3 étapes (rédige/enregistre → IA évalue → niveau CECRL)
+   — pas de score % parce que les productions renvoient un niveau CECRL par submission, donnée trop
+   fine pour une % de maîtrise globale.
+6. **TCF QCM uniquement (CO/CE) — Lot 4** : `ModuleDetailTabs` segmentés (Séries / Examens / Erreurs)
+   pilotés par un `_DetailTab` local. Le contenu sous les tabs est dispatché par `_TabContent` :
+   - **Séries** = 3 `ModuleDetailSeriesCard` filtrées par `Difficulty` (A2 / B1 / B2 → 10 / 15 / 15
+     questions). Tap → `POST /api/attempts` avec `questionType=CO|CE` + `difficulty=...` + `size=...`.
+     L'utilisateur démo voit l'icône lock et reçoit `showPaywallSheet` au tap (filtre difficulté =
+     premium ; sans premium, le backend ignorerait le filtre et l'utilisateur ne verrait pas la
+     différence entre les 3 séries). La constante `_tcfSeries` dans `tcf_qcm_detail_screen.dart`
+     tient la liste — à toucher si on veut ajouter une 4ᵉ série ou changer la difficulté.
+   - **Examens / Erreurs** = `ModuleDetailTabPlaceholder` "Bientôt". Lot 4b reprendra
+     `examsByModuleProvider` (sortait de `exam_setup_screen.dart` supprimé) et `wrongAnswered`.
+7. `AppButton` primary :
+   - QCM / onglet Séries : "Commencer l'entraînement" → entraînement standard 25 Q (POST sans
+     filtre difficulté), à côté des séries filtrées qui partent depuis les cards.
+   - EE/EO : "Voir les tâches" → push `ProductionHubScreen` (paywall si non-premium).
+   Le bouton du bas n'apparaît PAS sur les onglets Examens / Erreurs (les CTAs viendront avec leur
+   contenu propre en lot 4b).
+
+**Limite assumée** : la maîtrise affichée pour TCF CO et CE est l'agrégat TCF global
+(somme `byTheme` côté `/api/me/stats`), pas un score par épreuve — le backend n'expose pas encore
+de découpage par `QuestionType`. À raffiner quand on aura le besoin.
 
 **Prochaine étape pressentie** (cf. design `tcf_entrainement_mobile_design.html` racine, écrans 2-7) :
 écran détail par module avec onglets *Séries / Examens / Erreurs* puis briefing → questions →

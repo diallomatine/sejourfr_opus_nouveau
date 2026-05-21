@@ -225,17 +225,26 @@ Bascule progressive d'une nav "Entraîner / Examen" générique vers **2 hubs m�
 TCF**, calqués sur le design `tcf_entrainement_mobile_design.html` à la racine (14 écrans, archi
 hub → détail module → série → questions → feedback → fin de série).
 
-**Statut mobile (lots 1 & 2 faits)** : bottom nav `Accueil · Civique · TCF · Progression · Profil`.
+**Statut mobile (lots 1 → 4 faits)** : bottom nav `Accueil · Civique · TCF · Progression · Profil`.
 Hubs Civique (5 thèmes officiels) et TCF (CO/CE/EE IA/EO IA) dans `mobile_sejourfr/lib/screens/{civique,tcf}/`,
-widgets partagés dans `screens/hub/widgets/hub_widgets.dart`. **Tap module = direct-start** d'un
-attempt via `POST /api/attempts` puis push runner (plus d'écran setup intermédiaire). Les anciens
-écrans `TrainingSetupScreen` et `ExamSetupScreen` ont été **supprimés**, ainsi que les routes
-`/training` et `/exam`. Le sheet paywall vit maintenant dans `core/widgets/paywall_sheet.dart`
-(réutilisable). Carte "Examen blanc complet" présente mais inactive.
+widgets de hub partagés dans `screens/hub/widgets/hub_widgets.dart`.
+Tap module → **écran détail** (`screens/module_detail/`) avec hero, stats et CTA :
+- Thèmes civique + TCF CO/CE : score de maîtrise + bouton "Commencer l'entraînement" → POST attempts
+  → runner. **Le détail TCF CO/CE a en plus 3 onglets Séries / Examens / Erreurs**. L'onglet Séries
+  expose 3 séries filtrées par difficulté (A2/B1/B2 → 10/15/15 questions) qui scaffoldent le pool TCF
+  par niveau — l'examen final mélange tout, ces séries servent à progresser en montée. Examens et
+  Erreurs sont en placeholder "Bientôt" pour l'instant.
+- TCF EE/EO : carte "Comment ça marche" + "Voir les tâches" qui push `ProductionHubScreen`
+  (sélection T1/T2/T3). Les anciens écrans
+`TrainingSetupScreen` et `ExamSetupScreen` ont été **supprimés**, ainsi que les routes `/training`
+et `/exam`. Sheet paywall réutilisable dans `core/widgets/paywall_sheet.dart`. Carte "Examen blanc
+complet" présente mais inactive.
 
-**Reste à faire mobile (lots suivants)** : écran détail par module (tabs Séries/Examens/Erreurs)
-si on veut le pattern complet du design, branchement de l'examen blanc complet sur la carte sombre
-(reprendre la logique de `examsByModuleProvider` qui partait avec `exam_setup_screen.dart`).
+**Reste à faire mobile (lots suivants)** : lot 4b — brancher les onglets Examens (réutiliser
+`examsByModuleProvider` qui partait avec `exam_setup_screen.dart` supprimé) et Erreurs (utiliser
+`userContentRepository.wrongAnswered`) ; branchement de l'examen blanc complet sur la carte
+sombre des hubs ; score par épreuve TCF côté backend (pour remplacer l'agrégat global affiché
+actuellement sur CO/CE).
 
 **À reproduire côté web** (`web_sejoufr/`) une fois le mobile stabilisé : même découpe Civique/TCF
 dans la nav principale, mêmes hubs, même paywall. La parité front mobile↔web est un axe produit.
