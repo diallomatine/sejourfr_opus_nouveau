@@ -40,14 +40,42 @@ class CiviqueScreen extends ConsumerWidget {
     };
     final objectiveValue = target?.shortLabel ?? 'Définis ton parcours';
 
+    // Couverture du programme = % des questions actives déjà tentées au
+    // moins une fois. Aligné avec la barre par thème de l'écran Progression
+    // qui distingue couverture (vues/total) et précision (justes/vues).
+    // Une mastery agrégée correct/total mélangeait les deux et démotivait
+    // les débuts (cf. discussion 2026-05-22).
     final percent = stats.maybeWhen(
       data: (s) {
         if (s.byTheme.isEmpty) return 0;
-        final correct = s.byTheme.fold<int>(0, (sum, t) => sum + t.correct);
+        final answered = s.byTheme.fold<int>(0, (sum, t) => sum + t.answered);
         final total = s.byTheme.fold<int>(0, (sum, t) => sum + t.total);
-        return total == 0 ? 0 : ((correct / total) * 100).round();
+        return total == 0 ? 0 : ((answered / total) * 100).round();
       },
       orElse: () => 0,
+    );
+
+    // Compteurs absolus + précision globale. Le hint affiche les chiffres
+    // bruts ("71/263 questions vues") plutôt qu'un second % — le pool
+    // d'environ 250-300 questions de l'app fait que la barre couverture
+    // monte vite en %, et un user prudent peut trouver "27 %" exagéré.
+    // Les chiffres absolus collent mieux au ressenti.
+    final coverageSummary = stats.maybeWhen(
+      data: (s) {
+        final answered = s.byTheme.fold<int>(0, (sum, t) => sum + t.answered);
+        final correct = s.byTheme.fold<int>(0, (sum, t) => sum + t.correct);
+        final total = s.byTheme.fold<int>(0, (sum, t) => sum + t.total);
+        if (total == 0) return null;
+        if (answered == 0) {
+          return (answered: 0, total: total, precision: null as int?);
+        }
+        return (
+          answered: answered,
+          total: total,
+          precision: (correct / answered * 100).round() as int?,
+        );
+      },
+      orElse: () => null,
     );
 
     void openThemeDetail(ThemeDto theme) {
@@ -92,9 +120,12 @@ class CiviqueScreen extends ConsumerWidget {
                 objectiveValue: objectiveValue,
                 percent: percent,
                 accent: AppColors.blue,
-                hint: percent == 0
+                hint: coverageSummary == null || coverageSummary.answered == 0
                     ? 'Commence par un thème pour voir ta progression.'
-                    : 'Continue 15 min aujourd\'hui pour garder ton avance.',
+                    : coverageSummary.precision == null
+                        ? '${coverageSummary.answered}/${coverageSummary.total} questions vues.'
+                        : '${coverageSummary.answered}/${coverageSummary.total} questions vues · '
+                            '${coverageSummary.precision} % de bonnes réponses.',
               ),
               const SizedBox(height: 22),
               const HubSectionTitle('Modules d\'entraînement'),

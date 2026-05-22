@@ -40,9 +40,7 @@ class _RunnerScreenState extends ConsumerState<RunnerScreen> {
       if (!mounted) return;
       final from = GoRouterState.of(context).uri.queryParameters['from'];
       if (from == 'tcfLot' || from == 'civiqueLot') {
-        ref
-            .read(runnerControllerProvider(widget.attemptId).notifier)
-            .setFixedBatch(true);
+        ref.read(runnerControllerProvider(widget.attemptId).notifier).setFixedBatch(true);
       }
     });
   }
@@ -64,8 +62,7 @@ class _RunnerScreenState extends ConsumerState<RunnerScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.cloud_off_outlined,
-                    color: AppColors.red, size: 40),
+                const Icon(Icons.cloud_off_outlined, color: AppColors.red, size: 40),
                 const SizedBox(height: 12),
                 Text(
                   e.toString(),
@@ -77,9 +74,7 @@ class _RunnerScreenState extends ConsumerState<RunnerScreen> {
                   label: 'Réessayer',
                   variant: AppButtonVariant.secondary,
                   fullWidth: false,
-                  onPressed: () => ref
-                      .read(runnerControllerProvider(attemptId).notifier)
-                      .retry(),
+                  onPressed: () => ref.read(runnerControllerProvider(attemptId).notifier).retry(),
                 ),
               ],
             ),
@@ -104,8 +99,7 @@ class _RunnerView extends ConsumerWidget {
     final isTraining = state.activeAttempt.type == AttemptType.training;
     final selected = state.answersByQuestion[state.current.id] ?? const [];
 
-    final isFavorite =
-        state.favoriteQuestionIds.contains(state.current.question.id);
+    final isFavorite = state.favoriteQuestionIds.contains(state.current.question.id);
 
     return Scaffold(
       appBar: AppBar(
@@ -123,9 +117,7 @@ class _RunnerView extends ConsumerWidget {
               size: 22,
               color: isFavorite ? AppColors.red : AppColors.ink,
             ),
-            onPressed: () => ref
-                .read(runnerControllerProvider(attemptId).notifier)
-                .toggleFavoriteCurrent(),
+            onPressed: () => ref.read(runnerControllerProvider(attemptId).notifier).toggleFavoriteCurrent(),
           ),
           if (isExam && state.activeAttempt.timeLimitSeconds != null)
             Padding(
@@ -171,20 +163,17 @@ class _RunnerView extends ConsumerWidget {
                     final c = question.choices[i];
                     final isSelected = selected.contains(c.id);
                     final showCorr = state.hasResult && isTraining;
-                    final isCorrect =
-                        state.lastResult?.correctChoiceIds.contains(c.id);
+                    final isCorrect = state.lastResult?.correctChoiceIds.contains(c.id);
                     return Padding(
-                      padding: EdgeInsets.only(
-                          bottom: i == question.choices.length - 1 ? 0 : 10),
+                      padding: EdgeInsets.only(bottom: i == question.choices.length - 1 ? 0 : 10),
                       child: ChoiceTile(
                         choice: c,
                         index: i,
                         selected: isSelected,
                         showCorrection: showCorr,
                         isCorrect: isCorrect,
-                        onTap: () => ref
-                            .read(runnerControllerProvider(attemptId).notifier)
-                            .toggleChoice(c.id),
+                        onTap: () =>
+                            ref.read(runnerControllerProvider(attemptId).notifier).toggleChoice(c.id),
                       ),
                     );
                   }),
@@ -192,8 +181,7 @@ class _RunnerView extends ConsumerWidget {
                     const SizedBox(height: 20),
                     ExplanationBox(
                       correct: state.lastResult!.correct,
-                      explanation:
-                          state.lastResult!.explanation ?? question.explanation,
+                      explanation: state.lastResult!.explanation ?? question.explanation,
                     ),
                   ],
                   if (state.errorMessage != null) ...[
@@ -202,8 +190,7 @@ class _RunnerView extends ConsumerWidget {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: AppColors.redLight,
-                        border: Border.all(
-                            color: AppColors.red.withValues(alpha: 0.3)),
+                        border: Border.all(color: AppColors.red.withValues(alpha: 0.3)),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -274,8 +261,7 @@ class _RunnerView extends ConsumerWidget {
   }
 
   Future<void> _autoFinish(BuildContext context, WidgetRef ref) async {
-    final attempt =
-        await ref.read(runnerControllerProvider(attemptId).notifier).finish();
+    final attempt = await ref.read(runnerControllerProvider(attemptId).notifier).finish();
     if (attempt != null && context.mounted) {
       _navigateToResult(context, ref, attempt);
     }
@@ -332,8 +318,7 @@ class _ProgressBar extends StatelessWidget {
             : null,
       );
     }
-    final value =
-        (state.currentIndex + 1) / state.activeAttempt.totalQuestions;
+    final value = (state.currentIndex + 1) / state.activeAttempt.totalQuestions;
     return LinearProgressIndicator(
       value: value,
       minHeight: 3,
@@ -393,8 +378,7 @@ class _PassageBlock extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.menu_book_outlined,
-                  size: 14, color: AppColors.blue),
+              const Icon(Icons.menu_book_outlined, size: 14, color: AppColors.blue),
               const SizedBox(width: 6),
               Text(
                 'Document à lire',
@@ -515,16 +499,12 @@ class _BottomBar extends ConsumerWidget {
                 ? AppButton(
                     label: 'Valider',
                     variant: AppButtonVariant.primary,
-                    onPressed: (!hasSelection || waiting)
-                        ? null
-                        : ctrl.submitCurrent,
+                    onPressed: (!hasSelection || waiting) ? null : ctrl.submitCurrent,
                     isLoading: state.submitting,
                   )
                 : isLast
                     ? AppButton(
-                        label: isInfinite
-                            ? 'Terminer la session'
-                            : 'Terminer',
+                        label: isInfinite ? 'Terminer la session' : 'Terminer',
                         variant: AppButtonVariant.danger,
                         onPressed: waiting
                             ? null
@@ -618,9 +598,7 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
   if (from == 'civiqueLot') {
     final themeId = goState.uri.queryParameters['themeId'];
     final base = AppRoutes.examReport.replaceFirst(':attemptId', attempt.id);
-    final qs = themeId == null
-        ? '?from=civiqueLot'
-        : '?from=civiqueLot&themeId=$themeId';
+    final qs = themeId == null ? '?from=civiqueLot' : '?from=civiqueLot&themeId=$themeId';
     context.pushReplacement('$base$qs');
     return;
   }
@@ -656,13 +634,10 @@ void _showTrainingResultDialog(
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isPremium ? AppColors.blueLight : AppColors.amber
-                    .withValues(alpha: 0.16),
+                color: isPremium ? AppColors.blueLight : AppColors.amber.withValues(alpha: 0.16),
               ),
               child: Icon(
-                isPremium
-                    ? Icons.check_circle
-                    : Icons.workspace_premium_rounded,
+                isPremium ? Icons.check_circle : Icons.workspace_premium_rounded,
                 size: 36,
                 color: isPremium ? AppColors.blue : AppColors.amber,
               ),
@@ -695,7 +670,7 @@ void _showTrainingResultDialog(
               ),
               const SizedBox(height: 22),
               AppButton(
-                label: 'Gérer mon accès sur le web',
+                label: 'Gérer mon accès sur le site',
                 icon: Icons.open_in_new_rounded,
                 variant: AppButtonVariant.primary,
                 onPressed: () async {

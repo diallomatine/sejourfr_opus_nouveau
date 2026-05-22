@@ -31,14 +31,40 @@ class TcfScreen extends ConsumerWidget {
     final objectiveValue =
         level == null ? 'Définis ton niveau cible' : 'Niveau $level visé';
 
+    // Couverture du programme = % des questions actives TCF déjà tentées au
+    // moins une fois (CO + CE + Structure agrégés). Aligné avec la barre par
+    // thème de l'écran Progression. Une mastery agrégée correct/total
+    // mélangeait couverture et précision (cf. discussion 2026-05-22).
     final percent = stats.maybeWhen(
       data: (s) {
         if (s.byTheme.isEmpty) return 0;
-        final correct = s.byTheme.fold<int>(0, (sum, t) => sum + t.correct);
+        final answered = s.byTheme.fold<int>(0, (sum, t) => sum + t.answered);
         final total = s.byTheme.fold<int>(0, (sum, t) => sum + t.total);
-        return total == 0 ? 0 : ((correct / total) * 100).round();
+        return total == 0 ? 0 : ((answered / total) * 100).round();
       },
       orElse: () => 0,
+    );
+
+    // Compteurs absolus + précision (cf. note côté civique_screen) : le
+    // pool ~260 questions du module fait monter la barre couverture en
+    // % rapidement, on affiche le chiffre brut dans le hint pour ne pas
+    // donner une impression d'avancement exagérée.
+    final coverageSummary = stats.maybeWhen(
+      data: (s) {
+        final answered = s.byTheme.fold<int>(0, (sum, t) => sum + t.answered);
+        final correct = s.byTheme.fold<int>(0, (sum, t) => sum + t.correct);
+        final total = s.byTheme.fold<int>(0, (sum, t) => sum + t.total);
+        if (total == 0) return null;
+        if (answered == 0) {
+          return (answered: 0, total: total, precision: null as int?);
+        }
+        return (
+          answered: answered,
+          total: total,
+          precision: (correct / answered * 100).round() as int?,
+        );
+      },
+      orElse: () => null,
     );
 
     void openDetail(String route) {
@@ -77,9 +103,12 @@ class TcfScreen extends ConsumerWidget {
                 objectiveValue: objectiveValue,
                 percent: percent,
                 accent: AppColors.red,
-                hint: percent == 0
+                hint: coverageSummary == null || coverageSummary.answered == 0
                     ? 'Commence par une épreuve pour voir ta progression.'
-                    : 'Continue 15 min aujourd\'hui pour garder ton avance.',
+                    : coverageSummary.precision == null
+                        ? '${coverageSummary.answered}/${coverageSummary.total} questions vues.'
+                        : '${coverageSummary.answered}/${coverageSummary.total} questions vues · '
+                            '${coverageSummary.precision} % de bonnes réponses.',
               ),
               const SizedBox(height: 22),
               const HubSectionTitle('Modules d\'entraînement'),

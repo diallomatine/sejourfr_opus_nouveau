@@ -63,8 +63,7 @@ class TcfPaywallCard extends StatelessWidget {
                   color: AppColors.blueLight,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.lock_outline,
-                    color: AppColors.blue, size: 22),
+                child: const Icon(Icons.lock_outline, color: AppColors.blue, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -149,8 +148,7 @@ Future<void> showTcfPaywallSheet(BuildContext context) {
                   color: AppColors.blueLight,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.lock_outline,
-                    color: AppColors.blue, size: 22),
+                child: const Icon(Icons.lock_outline, color: AppColors.blue, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -220,7 +218,7 @@ class _OpenSubscriptionButton extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Gérer mon accès sur le web',
+            'Gérer mon accès sur le site',
             style: AppFonts.jakarta(
               size: 15,
               weight: FontWeight.w700,

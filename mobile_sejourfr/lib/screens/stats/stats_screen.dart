@@ -2518,7 +2518,7 @@ class _ProgressPaywallSheet extends StatelessWidget {
               ),
               const SizedBox(height: 22),
               AppButton(
-                label: 'Gérer mon accès sur le web',
+                label: 'Gérer mon accès sur le site',
                 icon: Icons.open_in_new_rounded,
                 variant: AppButtonVariant.primary,
                 onPressed: () async {
