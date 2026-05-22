@@ -72,6 +72,7 @@ class HomeScreen extends ConsumerWidget {
       context.go(route);
     }
 
+    final civiqueIsDemo = user != null && !user.canAccessModule(AppModule.civique);
     final tcfIsDemo = user != null && !user.canAccessModule(AppModule.tcf);
 
     // Compteur global "X vues" rendu en chip top-right du card bleu. Somme
@@ -116,6 +117,7 @@ class HomeScreen extends ConsumerWidget {
               _ModuleCard(
                 kind: _ModuleKind.civique,
                 stats: civiqueStats,
+                isDemo: civiqueIsDemo,
                 onTap: () => selectAndGo(AppModule.civique, AppRoutes.civique),
               ),
               const SizedBox(height: 10),

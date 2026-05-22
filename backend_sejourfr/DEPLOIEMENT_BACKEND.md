@@ -58,6 +58,7 @@ ssh root@82.223.165.43
 sudo systemctl stop sejourfr-backend
 sudo mv /tmp/sejourfr-backend.jar /opt/sejourfr/backend/app.jar
 sudo chown sejourfr:sejourfr /opt/sejourfr/backend/app.jar
+sudo systemctl daemon-reload
 sudo systemctl start sejourfr-backend
 sudo tail -f /opt/sejourfr/logs/backend-stdout.log
 ```
