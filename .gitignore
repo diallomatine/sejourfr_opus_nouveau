@@ -81,3 +81,5 @@ build/
 tmp/
 temp/
 .cache/
+
+/opt/homebrew/share/flutter/*

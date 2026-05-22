@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/eyebrow.dart';
 import 'login_screen.dart';
+import 'widgets/social_auth_buttons.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -106,7 +107,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       color: AppColors.muted,
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 24),
+                  SocialAuthButtons(
+                    onError: (msg) => setState(() => _error = msg),
+                  ),
                   Row(
                     children: [
                       Expanded(

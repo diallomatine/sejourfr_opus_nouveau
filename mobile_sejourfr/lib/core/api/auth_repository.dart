@@ -39,6 +39,37 @@ class AuthRepository {
     return TokenResponse.fromJson(res.data!);
   }
 
+  /// Echange un ID token Google (obtenu via `google_sign_in`) contre une
+  /// session SejourFR. Cree le compte automatiquement s'il n'existe pas.
+  Future<TokenResponse> loginWithGoogle({required String idToken}) async {
+    final res = await _client.dio.post<Map<String, dynamic>>(
+      '/api/auth/google',
+      data: {'idToken': idToken},
+      options: _publicOptions(),
+    );
+    return TokenResponse.fromJson(res.data!);
+  }
+
+  /// Echange un identityToken Apple (obtenu via `sign_in_with_apple`) contre
+  /// une session SejourFR. Le nom n'est renvoye par Apple qu'au premier
+  /// consent — on le passe au backend pour peupler le profil a la creation.
+  Future<TokenResponse> loginWithApple({
+    required String identityToken,
+    String? firstName,
+    String? lastName,
+  }) async {
+    final res = await _client.dio.post<Map<String, dynamic>>(
+      '/api/auth/apple',
+      data: {
+        'identityToken': identityToken,
+        if (firstName != null && firstName.isNotEmpty) 'firstName': firstName,
+        if (lastName != null && lastName.isNotEmpty) 'lastName': lastName,
+      },
+      options: _publicOptions(),
+    );
+    return TokenResponse.fromJson(res.data!);
+  }
+
   Future<AuthUser> me() async {
     final res = await _client.dio.get<Map<String, dynamic>>('/api/auth/me');
     return AuthUser.fromJson(res.data!);

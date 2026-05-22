@@ -12,6 +12,23 @@ enum AppModule {
       AppModule.values.firstWhere((e) => e.wire == value);
 }
 
+/// Moyen par lequel un compte a ete cree cote backend. Renvoye par
+/// `/api/auth/me` et present dans le user retourne au login.
+enum AuthProvider {
+  local('LOCAL'),
+  google('GOOGLE'),
+  apple('APPLE');
+
+  const AuthProvider(this.wire);
+  final String wire;
+
+  static AuthProvider fromWire(String value) =>
+      AuthProvider.values.firstWhere(
+        (e) => e.wire == value,
+        orElse: () => AuthProvider.local,
+      );
+}
+
 enum Difficulty {
   csp('CSP'),
   cr('CR'),

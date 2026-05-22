@@ -12,6 +12,7 @@ class AuthUser {
     this.hasCivique = false,
     this.hasTcf = false,
     this.premiumEndsAt,
+    this.authProvider = AuthProvider.local,
   });
 
   final String id;
@@ -32,6 +33,9 @@ class AuthUser {
 
   /// Date d'expiration de l'accès payant, null si pas de plan actif.
   final DateTime? premiumEndsAt;
+
+  /// Moyen par lequel le compte a ete cree (mot de passe local vs social).
+  final AuthProvider authProvider;
 
   /// L'utilisateur a-t-il choisi son parcours administratif ?
   /// Les comptes ADMIN n'ont pas besoin de cette étape : on les considère
@@ -65,6 +69,7 @@ class AuthUser {
     bool? hasCivique,
     bool? hasTcf,
     DateTime? premiumEndsAt,
+    AuthProvider? authProvider,
   }) =>
       AuthUser(
         id: id,
@@ -77,6 +82,7 @@ class AuthUser {
         hasCivique: hasCivique ?? this.hasCivique,
         hasTcf: hasTcf ?? this.hasTcf,
         premiumEndsAt: premiumEndsAt ?? this.premiumEndsAt,
+        authProvider: authProvider ?? this.authProvider,
       );
 
   factory AuthUser.fromJson(Map<String, dynamic> json) => AuthUser(
@@ -94,6 +100,9 @@ class AuthUser {
         premiumEndsAt: json['premiumEndsAt'] != null
             ? DateTime.tryParse(json['premiumEndsAt'] as String)
             : null,
+        authProvider: json['authProvider'] == null
+            ? AuthProvider.local
+            : AuthProvider.fromWire(json['authProvider'] as String),
       );
 
   Map<String, dynamic> toJson() => {
@@ -108,6 +117,7 @@ class AuthUser {
         'hasTcf': hasTcf,
         if (premiumEndsAt != null)
           'premiumEndsAt': premiumEndsAt!.toIso8601String(),
+        'authProvider': authProvider.wire,
       };
 }
 

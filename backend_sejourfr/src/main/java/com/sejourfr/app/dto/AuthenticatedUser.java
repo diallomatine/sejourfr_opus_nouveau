@@ -1,6 +1,7 @@
 package com.sejourfr.app.dto;
 
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.AuthProvider;
 import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.enums.TargetProcedure;
@@ -17,7 +18,8 @@ public record AuthenticatedUser(
         boolean isPremium,
         boolean hasCivique,
         boolean hasTcf,
-        Instant premiumEndsAt
+        Instant premiumEndsAt,
+        AuthProvider authProvider
 ) {
     public static AuthenticatedUser from(User u, ModuleAccess access, Instant premiumEndsAt) {
         return new AuthenticatedUser(
@@ -30,7 +32,8 @@ public record AuthenticatedUser(
                 access != ModuleAccess.NONE,
                 access.hasCivique(),
                 access.hasTcf(),
-                premiumEndsAt
+                premiumEndsAt,
+                u.getAuthProvider()
         );
     }
 }

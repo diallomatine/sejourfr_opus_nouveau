@@ -9,6 +9,7 @@ import type {
   AttemptType,
   AuthenticatedUser,
   ExamTemplateSummary,
+  GoogleSignInRequest,
   LoginRequest,
   Module as ModuleEnum,
   PlanPublicResponse,
@@ -226,6 +227,20 @@ export const authApi = {
 
     async register(body: RegisterRequest): Promise<TokenResponse> {
         const tokens = await apiFetch<TokenResponse>("/api/auth/register", {
+            method: "POST",
+            json: body,
+        });
+        tokenStorage.set(tokens);
+        return tokens;
+    },
+
+    /**
+     * Echange un ID token Google (obtenu via Google Identity Services dans le
+     * navigateur) contre une session SejourFR. Cree le compte automatiquement
+     * si l'email n'existe pas encore.
+     */
+    async google(body: GoogleSignInRequest): Promise<TokenResponse> {
+        const tokens = await apiFetch<TokenResponse>("/api/auth/google", {
             method: "POST",
             json: body,
         });

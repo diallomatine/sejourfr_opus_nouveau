@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import GoogleSignInButton from "@/app/_components/GoogleSignInButton";
 import { ApiException } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type { TargetProcedure } from "@/lib/types";
@@ -84,6 +85,12 @@ export default function InscriptionPage() {
             Pas de carte bancaire. 20 QCM offerts par module et un examen blanc
             complet pour chaque module.
           </p>
+
+          <GoogleSignInButton
+            variant="signup"
+            onSuccess={() => router.push("/dashboard")}
+            onError={setError}
+          />
 
           <form onSubmit={handleSubmit} className="form" noValidate>
             {error && (

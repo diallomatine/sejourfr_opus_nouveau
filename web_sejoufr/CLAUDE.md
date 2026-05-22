@@ -31,6 +31,7 @@ Backend Spring Boot Java 21 séparé, qui tourne sur `http://localhost:8080`.
 |---------|----------------------------------------|--------------------------------------|------|
 | POST    | `/api/auth/register`                   | inscription                          | non  |
 | POST    | `/api/auth/login`                      | connexion                            | non  |
+| POST    | `/api/auth/google`                     | sign-in Google (cree compte si besoin) | non  |
 | GET     | `/api/auth/me`                         | user courant                         | oui  |
 | GET     | `/api/themes?module=CIVIQUE\|TCF`      | liste des thèmes                     | oui  |
 | POST    | `/api/attempts`                        | démarrer une tentative               | oui  |
@@ -277,6 +278,24 @@ des stubs/fallbacks côté web :
    géré côté client par `useAuth` mais flash possible au SSR.
 3. **Mode sombre** — non prévu pour l'instant, mais le design system est
    compatible (variables CSS centralisées).
+
+## Social sign-in Google
+
+Bouton "Continuer avec Google" sur `/connexion` et `/inscription`, implémenté dans
+`app/_components/GoogleSignInButton.tsx`. Charge le script `https://accounts.google.com/gsi/client`
+une seule fois, puis appelle `google.accounts.id.initialize` + `renderButton`. Le callback POST
+`/api/auth/google` (helper `authApi.google` dans `lib/api.ts`) avec le credential JWT, refresh
+le user via `loginWithGoogle` exposé par `AuthContext`, puis redirige.
+
+Configuration : variable `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (le **Web client ID** Google, format
+`xxx-xxx.apps.googleusercontent.com`). Tant que vide, le composant ne rend rien (silencieux en
+dev sans clés). Le même client ID doit aussi être listé dans `sejourfr.oauth.google.audiences`
+côté backend pour que la validation passe.
+
+Pas d'Apple sur le web — Apple est réservé à iOS (cf. `CLAUDE.md` racine). Le bouton Google
+mène à un compte créé avec `authProvider = GOOGLE` côté backend, exposé dans `AuthenticatedUser`.
+L'absence de `targetProcedure` après login Google déclenche le bandeau onboarding sur le
+dashboard (cf. Vague 4).
 
 ## Préférences utilisateur
 

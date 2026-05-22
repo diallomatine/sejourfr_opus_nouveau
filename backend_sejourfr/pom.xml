@@ -18,6 +18,7 @@
     <properties>
         <java.version>21</java.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <nimbus-jose-jwt.version>10.0.2</nimbus-jose-jwt.version>
         <stripe.version>28.0.0</stripe.version>
         <aws-sdk.version>2.30.18</aws-sdk.version>
         <spring-retry.version>2.0.12</spring-retry.version>
@@ -102,6 +103,13 @@
             <groupId>com.stripe</groupId>
             <artifactId>stripe-java</artifactId>
             <version>${stripe.version}</version>
+        </dependency>
+
+        <!-- Validation des ID tokens Google / Apple (JWKS + signature RS256) pour social sign-in -->
+        <dependency>
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>${nimbus-jose-jwt.version}</version>
         </dependency>
 
         <!-- AWS S3 SDK (compatible Cloudflare R2) -->

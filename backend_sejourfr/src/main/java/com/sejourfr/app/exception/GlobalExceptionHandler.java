@@ -1,5 +1,6 @@
 package com.sejourfr.app.exception;
 
+import com.sejourfr.app.service.social.InvalidSocialTokenException;
 import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +52,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException e, WebRequest req) {
         return build(HttpStatus.UNAUTHORIZED, "Identifiants invalides", req, null);
+    }
+
+    @ExceptionHandler(InvalidSocialTokenException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidSocialToken(InvalidSocialTokenException e, WebRequest req) {
+        log.warn("Social sign-in refuse : {}", e.getMessage());
+        return build(HttpStatus.UNAUTHORIZED, e.getMessage(), req, null);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

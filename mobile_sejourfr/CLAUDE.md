@@ -32,7 +32,7 @@ lib/
 ├── core/                          Transverse à toutes les features
 │   ├── api/                       HTTP + repositories
 │   │   ├── api_client.dart        Client Dio (intercepteurs JWT, refresh auto)
-│   │   ├── api_config.dart        Base URL via dart-define
+│   │   ├── api_config.dart        Base URL via .env (Env.read)
 │   │   ├── api_exception.dart     ApiException typée
 │   │   ├── auth_repository.dart
 │   │   ├── themes_repository.dart
@@ -42,6 +42,8 @@ lib/
 │   ├── auth/
 │   │   ├── token_storage.dart     Persistance sécurisée des tokens
 │   │   └── auth_controller.dart   AuthState + StateNotifier
+│   ├── config/
+│   │   └── env.dart               Wrapper flutter_dotenv (Env.init / Env.read)
 │   ├── models/                    DTOs miroirs des DTOs backend
 │   │   ├── enums.dart             AppModule, Difficulty, QuestionType, MediaType, UserRole
 │   │   ├── auth_models.dart
@@ -240,19 +242,31 @@ change un DTO, mettre à jour le model Dart correspondant.
 
 ## Démarrage local
 
+La config runtime (URL backend + Client IDs Google) vit dans `mobile_sejourfr/.env`
+(non commité, gitignoré au niveau racine). Charge via `flutter_dotenv` au boot dans
+`main.dart` → `Env.init()`, puis lue par `ApiConfig.baseUrl` et `SocialAuthConfig.*`
+via le helper `core/config/env.dart`. `.env.example` est commité comme template :
+`cp .env.example .env` puis remplir.
+
+Cles attendues :
+
+| Cle                       | Usage                                                                                    |
+|---------------------------|------------------------------------------------------------------------------------------|
+| `API_BASE_URL`            | Backend Spring. iOS sim = `http://localhost:8080`, Android emu = `http://10.0.2.2:8080`. |
+| `GOOGLE_SERVER_CLIENT_ID` | Web client Google (passe en `serverClientId` au plugin). Vide → bouton Google masque.    |
+| `GOOGLE_IOS_CLIENT_ID`    | iOS client Google (scheme natif inverse declare dans `Info.plist`).                      |
+
 ```bash
-# Installer les dépendances
+# Installer les dépendances + créer le .env local
 flutter pub get
+cp .env.example .env   # puis remplir les valeurs
 
-# Lancer sur iOS simulator (backend sur localhost)
-flutter run --dart-define=API_BASE_URL=http://localhost:8080
-
-# Lancer sur Android emulator (10.0.2.2 = host depuis l'émulateur)
-flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080
-
-# Sur device physique avec backend sur la même WiFi
-flutter run --dart-define=API_BASE_URL=http://192.168.1.42:8080
+# Lancer (les valeurs viennent de .env, plus besoin de --dart-define)
+flutter run
 ```
+
+Anciennement la conf passait par `--dart-define=API_BASE_URL=...` ; ces flags
+sont desormais ignores (les getters ne lisent plus `String.fromEnvironment`).
 
 Compte de test en dev (créé par le seed Flyway du backend) :
 
@@ -262,6 +276,47 @@ Compte de test en dev (créé par le seed Flyway du backend) :
 Pour avoir des permissions natives (audio en arrière-plan, par exemple), penser à éditer
 `ios/Runner/Info.plist` et `android/app/src/main/AndroidManifest.xml` selon les besoins. Pour l'instant, juste
 internet suffit, c'est l'autorisation par défaut.
+
+## Social sign-in (Google + Apple)
+
+Activation : Google partout, Apple uniquement iOS. Cf. `CLAUDE.md` racine section
+« Social sign-in » pour la vue d'ensemble + la sémantique de la colonne `auth_provider` côté
+backend.
+
+**Code mobile** :
+- `core/auth/social_auth_config.dart` lit les Client IDs via `Env.read(...)`
+  (cf. `core/config/env.dart` qui wrappe `flutter_dotenv`) :
+  `GOOGLE_SERVER_CLIENT_ID` (le **Web client ID**, à passer en `serverClientId` à
+  `google_sign_in` pour avoir un id_token consommable cote backend) et `GOOGLE_IOS_CLIENT_ID`
+  (le iOS client, pour le URL scheme natif). Tant que vide dans `.env`, les boutons ne s'affichent pas.
+- `core/auth/social_sign_in_service.dart` (provider `socialSignInServiceProvider`) encapsule
+  `google_sign_in` + `sign_in_with_apple` et retourne un `SocialSignInResult { provider,
+  idToken, firstName?, lastName? }`. Lève `SocialSignInException` (avec `cancelled: true` quand
+  c'est une annulation user — à ne PAS afficher comme erreur dans le formulaire).
+- `core/auth/auth_controller.dart::loginWithGoogle() / loginWithApple()` orchestre :
+  service natif → `AuthRepository.loginWithGoogle/Apple` → store tokens via `TokenStorage` →
+  passe en `AuthAuthenticated`. Le `logout()` appelle aussi `signOutAll()` Google pour vider la
+  session native (sinon le prochain `signIn()` réutilise silencieusement le dernier compte).
+- `screens/auth/widgets/social_auth_buttons.dart` : widget réutilisable rendu en haut des écrans
+  `login_screen.dart` et `register_screen.dart`, avec un divider `OU` au-dessus du formulaire
+  email/mdp.
+
+**Config native iOS** (à compléter avec les vraies valeurs) :
+- `ios/Runner/Info.plist` contient un `CFBundleURLTypes` avec
+  `com.googleusercontent.apps.REVERSED_GOOGLE_IOS_CLIENT_ID` — remplacer par le scheme inverse
+  du iOS Client ID Google.
+- `ios/Runner/Runner.entitlements` contient `com.apple.developer.applesignin`. Ouvrir Xcode →
+  cible Runner → Signing & Capabilities → "+ Capability" → "Sign in with Apple" pour que Xcode
+  référence ce fichier. Activer aussi la capability sur l'App ID dans Apple Developer Portal.
+
+**Config native Android** : rien à modifier dans le code. La config se fait dans Google Cloud
+Console : ajouter un OAuth Client Android avec le package name + SHA-1 du keystore (debug et
+release). Le package `google_sign_in` détecte tout via le `serverClientId` qu'on lui passe.
+
+**Activer le social sign-in** : remplir `GOOGLE_SERVER_CLIENT_ID` (et `GOOGLE_IOS_CLIENT_ID`
+sur iOS) dans `mobile_sejourfr/.env` (cf. § Démarrage local). Sans valeurs, les boutons
+Google ne sont pas affichés. Apple s'affiche toujours sur iOS dès que l'entitlement est
+activé (pas de clé à fournir).
 
 ## Bottom nav et hubs Civique / TCF
 

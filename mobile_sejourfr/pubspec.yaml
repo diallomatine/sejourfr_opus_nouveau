@@ -35,6 +35,15 @@ dependencies:
   # Ouverture de liens externes (page d'activation de l'accès sur le web)
   url_launcher: ^6.3.1
 
+  # Social sign-in.
+  # google_sign_in 6.x : API v2 (signIn() retourne un GoogleSignInAccount).
+  # Pour avoir un idToken consommable cote backend, passer le Web client ID
+  # en `serverClientId` au constructeur (cf. core/api/social_auth_repository.dart).
+  google_sign_in: ^6.2.1
+  # sign_in_with_apple 6.x : iOS uniquement (Android renvoie un identityToken
+  # via le flow web Apple — non utilise ici).
+  sign_in_with_apple: ^6.1.2
+
   # Expression orale TCF : capture audio + permissions micro + cache local.
   # Ajoutees au Lot A des fondations EO/EE mais consommees seulement au Lot B
   # (l'enregistrement audio user n'est pas encore branche).
@@ -50,6 +59,10 @@ dependencies:
   # playback). Deja transitif via just_audio, on l'expose explicitement.
   audio_session: ^0.1.21
 
+  # Variables d'env runtime via fichier .env (style backend / web).
+  # Cf. core/config/env.dart pour les accesseurs typés.
+  flutter_dotenv: ^5.2.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -59,6 +72,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icones/
+    - .env
 
 flutter_launcher_icons:
   android: true

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_client.dart';
 import '../api/auth_repository.dart';
 import '../models/auth_models.dart';
+import 'social_sign_in_service.dart';
 import 'token_storage.dart';
 
 // ---------------------------------------------------------------------------
@@ -23,6 +24,10 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 
 final authRepositoryProvider = Provider<AuthRepository>(
   (ref) => AuthRepository(ref.watch(apiClientProvider)),
+);
+
+final socialSignInServiceProvider = Provider<SocialSignInService>(
+  (ref) => SocialSignInService(),
 );
 
 // ---------------------------------------------------------------------------
@@ -55,6 +60,8 @@ class AuthController extends StateNotifier<AuthState> {
 
   TokenStorage get _storage => _ref.read(tokenStorageProvider);
   AuthRepository get _repo => _ref.read(authRepositoryProvider);
+  SocialSignInService get _socialService =>
+      _ref.read(socialSignInServiceProvider);
 
   /// Durée minimale d'affichage du splash, pour éviter un flash quand le
   /// bootstrap est très rapide (typiquement quand il n'y a pas de token).
@@ -114,7 +121,38 @@ class AuthController extends StateNotifier<AuthState> {
     state = AuthAuthenticated(tokens.user);
   }
 
+  /// Sign-in via Google. Levee `SocialSignInException` si l'utilisateur
+  /// annule ou si le provider est mal configure — a attraper dans l'ecran
+  /// appelant pour distinguer annulation et erreur.
+  Future<void> loginWithGoogle() async {
+    final result = await _socialService.signInWithGoogle();
+    final tokens = await _repo.loginWithGoogle(idToken: result.idToken);
+    await _storage.save(
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: tokens.user,
+    );
+    state = AuthAuthenticated(tokens.user);
+  }
+
+  /// Sign-in via Apple (iOS uniquement). Idem Google cote levees.
+  Future<void> loginWithApple() async {
+    final result = await _socialService.signInWithApple();
+    final tokens = await _repo.loginWithApple(
+      identityToken: result.idToken,
+      firstName: result.firstName,
+      lastName: result.lastName,
+    );
+    await _storage.save(
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: tokens.user,
+    );
+    state = AuthAuthenticated(tokens.user);
+  }
+
   Future<void> logout() async {
+    await _socialService.signOutAll();
     await _storage.clear();
     state = const AuthUnauthenticated();
   }

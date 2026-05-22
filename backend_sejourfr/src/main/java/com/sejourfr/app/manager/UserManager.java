@@ -1,6 +1,7 @@
 package com.sejourfr.app.manager;
 
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.AuthProvider;
 import com.sejourfr.app.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,10 @@ public class UserManager {
 
     public boolean existsByEmail(String email) {
         return repository.existsByEmail(email);
+    }
+
+    public Optional<User> findByProvider(AuthProvider provider, String providerUserId) {
+        return repository.findByAuthProviderAndProviderUserId(provider, providerUserId);
     }
 
     public User save(User user) {

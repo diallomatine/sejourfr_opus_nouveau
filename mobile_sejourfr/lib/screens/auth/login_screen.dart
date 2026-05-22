@@ -9,6 +9,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/eyebrow.dart';
 import '../../core/widgets/sejourfr_logo.dart';
+import 'widgets/social_auth_buttons.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -89,7 +90,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       color: AppColors.muted,
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
+                  SocialAuthButtons(
+                    onError: (msg) => setState(() => _error = msg),
+                  ),
                   _Field(
                     label: 'Email',
                     controller: _email,

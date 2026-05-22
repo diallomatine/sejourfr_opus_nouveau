@@ -1,5 +1,6 @@
 package com.sejourfr.app.entity;
 
+import com.sejourfr.app.enums.AuthProvider;
 import com.sejourfr.app.enums.Role;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
@@ -22,8 +23,15 @@ public class User {
     @Column(nullable = false, unique = true, length = 255)
     private String email;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_provider", nullable = false, length = 16)
+    private AuthProvider authProvider = AuthProvider.LOCAL;
+
+    @Column(name = "provider_user_id", length = 255)
+    private String providerUserId;
 
     @Column(name = "first_name", length = 120)
     private String firstName;
@@ -89,4 +97,10 @@ public class User {
 
     public Instant getLastLoginAt() { return lastLoginAt; }
     public void setLastLoginAt(Instant lastLoginAt) { this.lastLoginAt = lastLoginAt; }
+
+    public AuthProvider getAuthProvider() { return authProvider; }
+    public void setAuthProvider(AuthProvider authProvider) { this.authProvider = authProvider; }
+
+    public String getProviderUserId() { return providerUserId; }
+    public void setProviderUserId(String providerUserId) { this.providerUserId = providerUserId; }
 }

@@ -28,6 +28,19 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>SejourFR utilise le microphone pour vous permettre de vous entraîner à l'expression orale du TCF.</string>
+	<!-- Google Sign-In : scheme inverse du iOS Client ID Google
+		 (CLIENT_ID = 292033071315-k0p86tnnqb89ib5pnaobodjdckipolja.apps.googleusercontent.com). -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.292033071315-k0p86tnnqb89ib5pnaobodjdckipolja</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

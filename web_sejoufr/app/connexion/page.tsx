@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import GoogleSignInButton from "@/app/_components/GoogleSignInButton";
 import { ApiException } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
@@ -81,6 +82,12 @@ function ConnexionInner() {
             Connectez-vous pour reprendre votre préparation là où vous
             l&apos;avez laissée.
           </p>
+
+          <GoogleSignInButton
+            variant="signin"
+            onSuccess={() => router.push(nextHref)}
+            onError={setError}
+          />
 
           <form onSubmit={handleSubmit} className="form" noValidate>
             {error && (

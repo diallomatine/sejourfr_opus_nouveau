@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Active la capability "Sign in with Apple" pour le bouton Apple sur iOS.
+		 IMPORTANT : il faut aussi que ce fichier soit reference dans la
+		 cible Runner via Xcode :
+		   1. Ouvrir ios/Runner.xcworkspace
+		   2. Selectionner la cible Runner > Signing & Capabilities
+		   3. Cliquer "+ Capability" > "Sign in with Apple"
+		   4. Xcode ajoutera automatiquement Runner.entitlements (ce fichier)
+			  comme reference dans le projet.
+		 ET il faut activer la capability "Sign in with Apple" sur l'App ID
+		 dans le portail Apple Developer (developer.apple.com > Certificates,
+		 Identifiers & Profiles > Identifiers > <Bundle ID> > Edit). -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+</dict>
+</plist>

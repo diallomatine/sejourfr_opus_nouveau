@@ -53,6 +53,8 @@ export function questionTypeLabel(type: QuestionType): string {
 }
 
 // ============ AUTH ============
+export type AuthProvider = "LOCAL" | "GOOGLE" | "APPLE";
+
 export interface LoginRequest {
   email: string;
   password: string;
@@ -65,6 +67,14 @@ export interface RegisterRequest {
   lastName: string;
   targetProcedure?: TargetProcedure;
   targetLevel?: TargetLevel;
+}
+
+/**
+ * Payload envoye a POST /api/auth/google. Le `idToken` est obtenu via
+ * Google Identity Services dans le navigateur (credential.credential).
+ */
+export interface GoogleSignInRequest {
+  idToken: string;
 }
 
 export interface TokenResponse {
@@ -90,6 +100,8 @@ export interface AuthenticatedUser {
   hasTcf?: boolean;
   /** Date d'expiration de l'accès payant (ISO 8601), null si pas de plan actif. */
   premiumEndsAt?: string | null;
+  /** Moyen par lequel le compte a ete cree (mot de passe local vs social). */
+  authProvider?: AuthProvider;
 }
 
 // ============ THEME ============

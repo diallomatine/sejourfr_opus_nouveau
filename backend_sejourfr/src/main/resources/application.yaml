@@ -79,6 +79,29 @@ sejourfr:
       issuer: sejourfr-backend
       access-token-ttl-minutes: 60
       refresh-token-ttl-days: 30
+  # --------------------------------------------------------------------------
+  # OAuth / OIDC providers externes (Google web + Android, Apple iOS).
+  # --------------------------------------------------------------------------
+  # Tant qu'aucune audience n'est configuree, l'endpoint correspondant renvoie 503.
+  # Configurer via .env (dev) ou variables d'env (prod) :
+  #   GOOGLE_OAUTH_AUDIENCES=client-web.apps.googleusercontent.com,client-ios.apps.googleusercontent.com,client-android.apps.googleusercontent.com
+  #   APPLE_OAUTH_AUDIENCES=com.sejourfr.app
+  #   APPLE_TEAM_ID=ABCDE12345
+  #
+  # Google : l'audience presente dans le token est le client ID qui a demande
+  # l'auth (web GIS, iOS google_sign_in, Android google_sign_in). Sur Android,
+  # google_sign_in doit recevoir le "Web client ID" (server client id) en
+  # `serverClientId` pour produire un id_token consommable cote backend —
+  # c'est donc le client web qui finit dans l'audience.
+  #
+  # Apple : sur iOS natif, l'audience = Bundle ID. Si on ajoute le web plus
+  # tard, ajouter le Services ID configure dans Apple Developer.
+  oauth:
+    google:
+      audiences: ${GOOGLE_OAUTH_AUDIENCES:}
+    apple:
+      audiences: ${APPLE_OAUTH_AUDIENCES:}
+      team-id: ${APPLE_TEAM_ID:}
   storage:
     # Implementation par defaut : disque local
     provider: local
