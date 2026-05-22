@@ -20,6 +20,7 @@ class AttemptSummary {
     this.moduleExamQuestionType,
     this.weightedScore,
     this.maxWeightedScore,
+    this.lotThemeId,
   });
 
   final String id;
@@ -31,6 +32,7 @@ class AttemptSummary {
   final int? score;
   final int? passThreshold;
   final Difficulty? difficulty;
+
   // Template d'examen lié (null si entraînement libre). Permet de marquer un
   // examen comme "déjà fait" sur la liste, et de proposer voir détails / refaire.
   final String? examTemplateId;
@@ -44,32 +46,36 @@ class AttemptSummary {
   final int? weightedScore;
   final int? maxWeightedScore;
 
+  // Thème ciblé par l'attempt (CIVIQUE) : non null pour un lot ou un examen
+  // thème-scopé (20 Q d'un seul thème), null pour un examen blanc complet
+  // civique (40 Q tous thèmes). Permet de distinguer les deux dans les listes.
+  final String? lotThemeId;
+
   bool get isModuleExam => moduleExamQuestionType != null;
 
+  /// True quand l'attempt est un examen / lot scopé à un thème civique
+  /// (vs. un examen blanc complet qui couvre tous les thèmes).
+  bool get isThemeScoped => lotThemeId != null;
+
   bool get isFinished => finishedAt != null;
+
   bool get isPassed => score != null && passThreshold != null && score! >= passThreshold!;
+
   bool get isFailed => isFinished && passThreshold != null && score! < passThreshold!;
 
   /// Durée en secondes entre le démarrage et la finalisation (null si pas fini).
-  int? get durationSeconds => finishedAt == null
-      ? null
-      : finishedAt!.difference(startedAt).inSeconds;
+  int? get durationSeconds => finishedAt == null ? null : finishedAt!.difference(startedAt).inSeconds;
 
   factory AttemptSummary.fromJson(Map<String, dynamic> json) => AttemptSummary(
         id: json['id'] as String,
-        type: AttemptType.values
-            .firstWhere((e) => e.wire == json['type'] as String),
+        type: AttemptType.values.firstWhere((e) => e.wire == json['type'] as String),
         module: AppModule.fromWire(json['module'] as String),
         totalQuestions: (json['totalQuestions'] as num).toInt(),
         startedAt: DateTime.parse(json['startedAt'] as String),
-        finishedAt: json['finishedAt'] == null
-            ? null
-            : DateTime.parse(json['finishedAt'] as String),
+        finishedAt: json['finishedAt'] == null ? null : DateTime.parse(json['finishedAt'] as String),
         score: (json['score'] as num?)?.toInt(),
         passThreshold: (json['passThreshold'] as num?)?.toInt(),
-        difficulty: json['difficulty'] == null
-            ? null
-            : Difficulty.fromWire(json['difficulty'] as String),
+        difficulty: json['difficulty'] == null ? null : Difficulty.fromWire(json['difficulty'] as String),
         examTemplateId: json['examTemplateId'] as String?,
         examTemplateSlug: json['examTemplateSlug'] as String?,
         examTemplateName: json['examTemplateName'] as String?,
@@ -78,5 +84,6 @@ class AttemptSummary {
             : QuestionType.fromWire(json['moduleExamQuestionType'] as String),
         weightedScore: (json['weightedScore'] as num?)?.toInt(),
         maxWeightedScore: (json['maxWeightedScore'] as num?)?.toInt(),
+        lotThemeId: json['lotThemeId'] as String?,
       );
 }

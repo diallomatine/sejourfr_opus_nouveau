@@ -529,6 +529,16 @@ class _BottomBar extends ConsumerWidget {
                         onPressed: waiting
                             ? null
                             : () async {
+                                // En examen, soumettre la dernière réponse
+                                // avant le finish — sans ça, le backend
+                                // marque la question comme non répondue.
+                                // En entraînement, l'utilisateur a déjà
+                                // cliqué "Valider" pour voir la correction,
+                                // donc la réponse est déjà soumise (mirror
+                                // de la logique du bouton "Suivant").
+                                if (!isTraining && hasSelection) {
+                                  await ctrl.submitCurrent();
+                                }
                                 final attempt = await ctrl.finish();
                                 if (attempt != null && context.mounted) {
                                   _navigateToResult(context, ref, attempt);

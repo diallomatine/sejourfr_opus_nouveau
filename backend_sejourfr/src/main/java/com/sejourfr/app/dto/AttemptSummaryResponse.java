@@ -38,6 +38,11 @@ public record AttemptSummaryResponse(
         // Renseignés uniquement quand l'attempt est un examen scopé à une épreuve.
         QuestionType moduleExamQuestionType,
         Integer weightedScore,
-        Integer maxWeightedScore
+        Integer maxWeightedScore,
+        // Thème ciblé par cet attempt (CIVIQUE) — non null pour un lot ou
+        // un examen thème-scopé (20 Q d'un seul thème), null pour un examen
+        // blanc complet civique (40 Q tous thèmes). Permet au front de
+        // distinguer les deux variantes dans les listes d'historique.
+        UUID lotThemeId
 ) {
 }

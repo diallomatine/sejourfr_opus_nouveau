@@ -20,12 +20,18 @@ import '../module_detail/civique_exam_briefing_sheet.dart';
 const int _civiqueExamSlotsCount = 20;
 
 final _civiqueExamsProvider =
-    FutureProvider.autoDispose<List<AttemptSummary>>((ref) {
-  return ref.watch(attemptsRepositoryProvider).listMine(
+    FutureProvider.autoDispose<List<AttemptSummary>>((ref) async {
+  // Les examens thème-scopés (20 Q d'un thème, `lot_theme_id` non null) vivent
+  // sur l'onglet Examens du détail thème et ne doivent pas polluer la liste
+  // des examens blancs complets (40 Q tous thèmes). On filtre donc côté
+  // client par `lotThemeId == null` — la limite à 50 inclut l'ensemble
+  // des MOCK_EXAM civique du user, suffisant pour les 20 slots affichés.
+  final all = await ref.watch(attemptsRepositoryProvider).listMine(
         type: AttemptType.mockExam,
         module: AppModule.civique,
         limit: 50,
       );
+  return all.where((a) => !a.isThemeScoped).toList();
 });
 
 class CiviqueExamBlancScreen extends ConsumerStatefulWidget {

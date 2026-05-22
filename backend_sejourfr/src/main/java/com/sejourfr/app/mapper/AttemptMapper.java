@@ -76,7 +76,8 @@ public class AttemptMapper {
                 template != null ? template.getName() : null,
                 a.getModuleExamQuestionType(),
                 a.getWeightedScore(),
-                a.getMaxWeightedScore()
+                a.getMaxWeightedScore(),
+                a.getLotThemeId()
         );
     }
 
