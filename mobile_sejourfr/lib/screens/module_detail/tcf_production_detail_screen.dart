@@ -19,8 +19,8 @@ import 'widgets/module_detail_widgets.dart';
 
 /// Historique des submissions IA du user, par épreuve. Family indexée par
 /// EpreuveType (TCF_EO ou TCF_EE).
-final _submissionsHistoryProvider = FutureProvider.autoDispose
-    .family<List<ProductionSubmissionDto>, EpreuveType>((ref, epreuve) {
+final _submissionsHistoryProvider =
+    FutureProvider.autoDispose.family<List<ProductionSubmissionDto>, EpreuveType>((ref, epreuve) {
   return ref.watch(productionRepositoryProvider).listMine(
         epreuve: epreuve,
         limit: 30,
@@ -31,8 +31,7 @@ final _submissionsHistoryProvider = FutureProvider.autoDispose
 /// cette épreuve (tous niveaux confondus). Sert au verrou freemium :
 /// non-abonné = 1 seule passage de T1 puis verrouillée (correction visible
 /// dans l'onglet Corrections).
-final _hasT1SubmittedProvider = FutureProvider.autoDispose
-    .family<bool, EpreuveType>((ref, epreuve) async {
+final _hasT1SubmittedProvider = FutureProvider.autoDispose.family<bool, EpreuveType>((ref, epreuve) async {
   final subs = await ref.watch(_submissionsHistoryProvider(epreuve).future);
   return subs.any((s) => s.tacheNumero == 1);
 });
@@ -43,8 +42,8 @@ final _hasT1SubmittedProvider = FutureProvider.autoDispose
 /// single-task (entraînement libre) n'a qu'une submission et n'est pas un
 /// examen. Trié ASC par date de première submission pour que le slot 1
 /// corresponde au plus ancien examen passé (même logique que TCF QCM).
-final _productionExamsHistoryProvider = FutureProvider.autoDispose
-    .family<List<_ProductionExamSession>, EpreuveType>((ref, epreuve) async {
+final _productionExamsHistoryProvider =
+    FutureProvider.autoDispose.family<List<_ProductionExamSession>, EpreuveType>((ref, epreuve) async {
   final all = await ref.watch(productionRepositoryProvider).listMine(
         epreuve: epreuve,
         limit: 200,
@@ -85,8 +84,7 @@ class _ProductionExamSession {
   DateTime get lastSubmittedAt =>
       submissions.map((s) => s.submittedAt).reduce((a, b) => a.isAfter(b) ? a : b);
 
-  int get evaluatedCount =>
-      submissions.where((s) => s.evaluation != null).length;
+  int get evaluatedCount => submissions.where((s) => s.evaluation != null).length;
 
   /// Niveau CECRL plancher des évaluations disponibles (règle TCF IRN).
   /// Null tant qu'aucune submission n'a été évaluée.
@@ -101,10 +99,7 @@ class _ProductionExamSession {
   }
 
   double? get noteMoyenne {
-    final notes = submissions
-        .map((s) => s.evaluation?.noteSurVingt)
-        .whereType<double>()
-        .toList();
+    final notes = submissions.map((s) => s.evaluation?.noteSurVingt).whereType<double>().toList();
     if (notes.isEmpty) return null;
     return notes.reduce((a, b) => a + b) / notes.length;
   }
@@ -130,7 +125,6 @@ enum TcfProductionModule {
     icon: Icons.edit_note_rounded,
     durationLabel: '30',
     historyTabLabel: 'Corrections',
-    ctaLabel: 'Commencer à écrire',
   ),
   eo(
     routeKey: 'eo',
@@ -138,12 +132,10 @@ enum TcfProductionModule {
     eyebrow: 'Production orale',
     title: 'Expression orale',
     headline: 'Parle comme au vrai examen',
-    description:
-        'Enregistre tes réponses et reçois une analyse IA avec transcription et niveau CECRL.',
+    description: 'Enregistre tes réponses et reçois une analyse IA avec transcription et niveau CECRL.',
     icon: Icons.mic_rounded,
     durationLabel: '10',
     historyTabLabel: 'Analyses',
-    ctaLabel: 'Commencer à parler',
   );
 
   const TcfProductionModule({
@@ -156,7 +148,6 @@ enum TcfProductionModule {
     required this.icon,
     required this.durationLabel,
     required this.historyTabLabel,
-    required this.ctaLabel,
   });
 
   final String routeKey;
@@ -168,7 +159,6 @@ enum TcfProductionModule {
   final IconData icon;
   final String durationLabel;
   final String historyTabLabel;
-  final String ctaLabel;
 }
 
 /// Définition d'une tâche affichée dans l'onglet Tâches. Pour l'instant
@@ -238,12 +228,10 @@ class TcfProductionDetailScreen extends ConsumerStatefulWidget {
   final TcfProductionModule module;
 
   @override
-  ConsumerState<TcfProductionDetailScreen> createState() =>
-      _TcfProductionDetailScreenState();
+  ConsumerState<TcfProductionDetailScreen> createState() => _TcfProductionDetailScreenState();
 }
 
-class _TcfProductionDetailScreenState
-    extends ConsumerState<TcfProductionDetailScreen> {
+class _TcfProductionDetailScreenState extends ConsumerState<TcfProductionDetailScreen> {
   _ProductionTab _tab = _ProductionTab.tasks;
 
   bool _isPremium() {
@@ -279,9 +267,7 @@ class _TcfProductionDetailScreenState
 
   /// Bouton primary du bas — démarrage rapide sur la Tâche 1.
   void _startFirstTask() {
-    final cards = widget.module.epreuve == EpreuveType.tcfEo
-        ? _eoTaskCards
-        : _eeTaskCards;
+    final cards = widget.module.epreuve == EpreuveType.tcfEo ? _eoTaskCards : _eeTaskCards;
     _openTask(cards.first);
   }
 
@@ -297,9 +283,7 @@ class _TcfProductionDetailScreenState
       return;
     }
     final auth = ref.read(authControllerProvider);
-    final niveau = auth is AuthAuthenticated
-        ? (auth.user.targetProcedure?.tcfLevel ?? 'B1')
-        : 'B1';
+    final niveau = auth is AuthAuthenticated ? (auth.user.targetProcedure?.tcfLevel ?? 'B1') : 'B1';
 
     setState(() => _startingExam = true);
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
@@ -394,14 +378,6 @@ class _TcfProductionDetailScreenState
               onStartFullExam: _startFullExam,
               startingExam: _startingExam,
             ),
-            if (_tab == _ProductionTab.tasks) ...[
-              const SizedBox(height: 18),
-              AppButton(
-                label: mod.ctaLabel,
-                icon: Icons.play_arrow_rounded,
-                onPressed: _startFirstTask,
-              ),
-            ],
           ],
         ),
       ),
@@ -430,13 +406,11 @@ class _TabContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     switch (tab) {
       case _ProductionTab.tasks:
-        final cards =
-            module.epreuve == EpreuveType.tcfEo ? _eoTaskCards : _eeTaskCards;
+        final cards = module.epreuve == EpreuveType.tcfEo ? _eoTaskCards : _eeTaskCards;
         // Verrou freemium : T2/T3 réservés aux abonnés, T1 = 1 passage
         // gratuit puis locked (cf. `_hasT1SubmittedProvider`).
-        final hasT1Submitted = isPremium
-            ? false
-            : ref.watch(_hasT1SubmittedProvider(module.epreuve)).valueOrNull ?? false;
+        final hasT1Submitted =
+            isPremium ? false : ref.watch(_hasT1SubmittedProvider(module.epreuve)).valueOrNull ?? false;
         return Column(
           children: [
             for (final task in cards)
@@ -594,11 +568,11 @@ class _ExamsTab extends ConsumerWidget {
                       : !isPremium
                           ? () => showPaywallSheet(context)
                           : () => showProductionExamBriefingSheet(
-                            context,
-                            module: module,
-                            starting: starting,
-                            onStart: onStart,
-                          ),
+                                context,
+                                module: module,
+                                starting: starting,
+                                onStart: onStart,
+                              ),
                   onTapDone: (session) => _showSessionSheet(
                     context,
                     session,
@@ -620,9 +594,8 @@ class _ExamsTab extends ConsumerWidget {
         session: session,
         onViewDetails: () {
           Navigator.of(sheetCtx).pop();
-          final base = module.epreuve == EpreuveType.tcfEo
-              ? '/tcf/expression-orale'
-              : '/tcf/expression-ecrite';
+          final base =
+              module.epreuve == EpreuveType.tcfEo ? '/tcf/expression-orale' : '/tcf/expression-ecrite';
           context.push('$base/sessions/${session.attemptId}');
         },
         onRetake: () {
@@ -808,9 +781,7 @@ class _ProductionExamSlotCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          done
-                              ? _formatDoneSubtitle(session!)
-                              : 'Disponible · 3 tâches enchaînées',
+                          done ? _formatDoneSubtitle(session!) : 'Disponible · 3 tâches enchaînées',
                           style: AppFonts.jakarta(
                             size: 12,
                             color: AppColors.muted,
@@ -895,8 +866,18 @@ class _ProductionExamSlotCard extends StatelessWidget {
 
   String _formatDoneSubtitle(_ProductionExamSession s) {
     const months = [
-      'janv.', 'févr.', 'mars', 'avril', 'mai', 'juin',
-      'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+      'janv.',
+      'févr.',
+      'mars',
+      'avril',
+      'mai',
+      'juin',
+      'juil.',
+      'août',
+      'sept.',
+      'oct.',
+      'nov.',
+      'déc.',
     ];
     final d = s.lastSubmittedAt;
     final date = '${d.day} ${months[d.month - 1]} ${d.year}';
@@ -974,8 +955,7 @@ class _AnalysisTab extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 12),
-            for (final s in finished)
-              _SubmissionRow(module: module, submission: s),
+            for (final s in finished) _SubmissionRow(module: module, submission: s),
           ],
         );
       },
@@ -1107,8 +1087,18 @@ class _SubmissionRow extends StatelessWidget {
 
   String _formatDate(DateTime d) {
     const months = [
-      'janv.', 'févr.', 'mars', 'avril', 'mai', 'juin',
-      'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+      'janv.',
+      'févr.',
+      'mars',
+      'avril',
+      'mai',
+      'juin',
+      'juil.',
+      'août',
+      'sept.',
+      'oct.',
+      'nov.',
+      'déc.',
     ];
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }

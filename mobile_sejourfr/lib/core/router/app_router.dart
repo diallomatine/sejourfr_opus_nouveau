@@ -400,8 +400,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         // navigue en fait vers `/tcf/expression-orale/t/0` ou similaire. On
         // teste donc `state.uri.path` (URL réelle de destination) pour ne
         // rediriger QUE quand l'utilisateur cible l'ancien path racine du hub.
-        redirect: (_, state) =>
-            state.uri.path == AppRoutes.tcfExpressionOrale ? AppRoutes.tcfEoDetail : null,
+        redirect: (_, state) => state.uri.path == AppRoutes.tcfExpressionOrale ? AppRoutes.tcfEoDetail : null,
         routes: [
           GoRoute(
             path: 'historique',

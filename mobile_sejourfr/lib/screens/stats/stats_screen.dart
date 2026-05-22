@@ -1723,11 +1723,15 @@ class _ThemeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasAnswered = theme.answered > 0;
-    final pct = theme.mastery.clamp(0.0, 1.0);
+    // Couverture du pool = X questions distinctes vues sur le total actif.
+    final coverage = theme.progress.clamp(0.0, 1.0);
+    // Précision = % de bonnes réponses sur ce que le user a tenté.
+    final successRate = theme.successRate.clamp(0.0, 1.0);
 
     final (barColor, tagColor, tagBg, tagLabel) = _statusFor(
       hasAnswered: hasAnswered,
-      mastery: pct,
+      coverage: coverage,
+      successRate: successRate,
     );
 
     return InkWell(
@@ -1774,11 +1778,16 @@ class _ThemeRow extends StatelessWidget {
                 if (locked)
                   const Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.muted2)
                 else
+                  // Compteur "vues / total" du pool (couverture chiffrée).
+                  // Le suffixe "vues" est explicite — sans ça le user pense
+                  // que "8 / 32" = "8 bonnes réponses sur 32" (confondu avec
+                  // un score), alors que c'est "8 questions distinctes
+                  // touchées sur les 32 actives du thème".
                   RichText(
                     text: TextSpan(
                       children: [
                         TextSpan(
-                          text: hasAnswered ? '${theme.correct}' : '0',
+                          text: '${theme.answered}',
                           style: AppFonts.mono(
                             size: 12,
                             weight: FontWeight.w700,
@@ -1786,7 +1795,7 @@ class _ThemeRow extends StatelessWidget {
                           ),
                         ),
                         TextSpan(
-                          text: ' / ${theme.total}',
+                          text: ' / ${theme.total} vues',
                           style: AppFonts.mono(
                             size: 12,
                             color: AppColors.muted2,
@@ -1799,7 +1808,10 @@ class _ThemeRow extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            // Barre + marqueur de seuil à 80%.
+            // Barre = COUVERTURE (% du pool de questions déjà vu). On a
+            // séparé la qualité (badge ci-dessous) pour qu'un user qui a
+            // 100 % de justesse sur 10 questions ne se voie pas afficher
+            // une barre quasi vide qui le démotive.
             Stack(
               children: [
                 Container(
@@ -1812,7 +1824,7 @@ class _ThemeRow extends StatelessWidget {
                 if (!locked && hasAnswered)
                   FractionallySizedBox(
                     alignment: Alignment.centerLeft,
-                    widthFactor: pct.clamp(0.02, 1.0),
+                    widthFactor: coverage.clamp(0.02, 1.0),
                     child: Container(
                       height: 6,
                       decoration: BoxDecoration(
@@ -1821,45 +1833,48 @@ class _ThemeRow extends StatelessWidget {
                       ),
                     ),
                   ),
-                // Marqueur seuil à 80%.
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: -2,
-                  bottom: -2,
-                  child: FractionallySizedBox(
-                    alignment: Alignment.centerLeft,
-                    widthFactor: 0.8,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Container(
-                        width: 2,
-                        decoration: BoxDecoration(
-                          color: AppColors.ink.withValues(alpha: 0.45),
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: tagBg,
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: Text(
-                '● $tagLabel',
-                style: AppFonts.mono(
-                  size: 9.5,
-                  color: tagColor,
-                  letterSpacing: 1.2,
-                  weight: FontWeight.w600,
+            Row(
+              children: [
+                // Tag status — couleur synchronisée sur la précision.
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: tagBg,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    '● $tagLabel',
+                    style: AppFonts.mono(
+                      size: 9.5,
+                      color: tagColor,
+                      letterSpacing: 1.2,
+                      weight: FontWeight.w600,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 6),
+                // Badge précision : % de bonnes réponses parmi les vues.
+                if (!locked && hasAnswered)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.line2,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(
+                      '✓ ${(successRate * 100).round()}% justes',
+                      style: AppFonts.mono(
+                        size: 9.5,
+                        color: AppColors.ink2,
+                        letterSpacing: 1.2,
+                        weight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             if (!isLast) ...[
               const SizedBox(height: 12),
@@ -1871,11 +1886,19 @@ class _ThemeRow extends StatelessWidget {
     );
   }
 
-  /// Couleurs + label de status selon le ratio de maîtrise. Pas démarré
-  /// → "À démarrer" en muted.
+  /// Couleurs + label de status combinant couverture (% du pool vu) et
+  /// précision (% de bonnes réponses sur ce que le user a tenté).
+  ///
+  /// "Maîtrisé" exige les DEUX : couverture ≥ 70 % ET précision ≥ 85 %.
+  /// Sans ça, voir 1 question + la réussir = "Maîtrisé" → trompeur (le
+  /// user croit avoir fini alors qu'il a vu 3 % du programme).
+  ///
+  /// "Bon démarrage" est introduit pour le cas spécifique "précision OK
+  /// mais peu de couverture" — encourage à élargir sans dévaloriser.
   (Color, Color, Color, String) _statusFor({
     required bool hasAnswered,
-    required double mastery,
+    required double coverage,
+    required double successRate,
   }) {
     if (!hasAnswered) {
       return (
@@ -1885,23 +1908,17 @@ class _ThemeRow extends StatelessWidget {
         'À démarrer',
       );
     }
-    if (mastery >= 0.8) {
+    // Précision faible → priorité : la qualité doit s'améliorer avant de
+    // se soucier de la couverture.
+    if (successRate < 0.45) {
       return (
-        AppColors.green,
-        AppColors.green,
-        const Color(0xFFE6F4ED),
-        'Maîtrisé',
+        AppColors.red,
+        AppColors.red,
+        AppColors.redLight,
+        'À retravailler',
       );
     }
-    if (mastery >= 0.6) {
-      return (
-        AppColors.blue,
-        AppColors.blue,
-        AppColors.blueLight,
-        'En progrès',
-      );
-    }
-    if (mastery >= 0.4) {
+    if (successRate < 0.65) {
       return (
         AppColors.amber,
         const Color(0xFFB5811A),
@@ -1909,11 +1926,30 @@ class _ThemeRow extends StatelessWidget {
         'À consolider',
       );
     }
+    // Précision ≥ 65 %. On regarde maintenant la couverture pour décider
+    // entre "bon démarrage" (précis mais peu vu), "en progrès" (bien
+    // engagé) et "maîtrisé" (couvre largement le pool avec précision haute).
+    if (coverage < 0.30) {
+      return (
+        AppColors.blue,
+        AppColors.blue,
+        AppColors.blueLight,
+        'Bon démarrage',
+      );
+    }
+    if (coverage >= 0.70 && successRate >= 0.85) {
+      return (
+        AppColors.green,
+        AppColors.green,
+        const Color(0xFFE6F4ED),
+        'Maîtrisé',
+      );
+    }
     return (
-      AppColors.red,
-      AppColors.red,
-      AppColors.redLight,
-      'À retravailler',
+      AppColors.blue,
+      AppColors.blue,
+      AppColors.blueLight,
+      'En progrès',
     );
   }
 }

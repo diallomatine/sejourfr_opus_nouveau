@@ -178,42 +178,6 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
     return auth is AuthAuthenticated && auth.user.canAccessModule(AppModule.tcf);
   }
 
-  /// Démarre un entraînement standard 25 Q sur le module (sans filtre niveau)
-  /// — accroché au bouton du bas. Le tap niveau, lui, push vers l'écran lots
-  /// (cf. `_LevelCard.onTap`).
-  Future<void> _startStandard() async {
-    if (_starting) return;
-    final isPremium = _isPremium();
-
-    setState(() => _starting = true);
-    ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
-
-    try {
-      final attempt = await ref.read(attemptsRepositoryProvider).start(
-            StartAttemptRequest(
-              type: AttemptType.training,
-              module: AppModule.tcf,
-              questionType: isPremium ? widget.module.questionType : null,
-              size: isPremium ? kInitialBatchSize : null,
-            ),
-          );
-      if (!mounted) return;
-      context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
-    } catch (e) {
-      if (!mounted) return;
-      final apiErr = ApiClient.toApiException(e);
-      if (apiErr.isForbidden) {
-        showPaywallSheet(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(apiErr.message), backgroundColor: AppColors.red),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _starting = false);
-    }
-  }
-
   void _openLevel(_SeriesLevel level) {
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
     final route = AppRoutes.tcfLevelLots
@@ -232,7 +196,8 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
       // 1 examen blanc gratuit par sous-module (= un par questionType TCF).
       // Si le user a déjà passé un examen sur ce module, c'est une relance
       // → paywall.
-      final history = ref.read(_moduleExamsHistoryProvider(widget.module.questionType)).valueOrNull ?? const [];
+      final history =
+          ref.read(_moduleExamsHistoryProvider(widget.module.questionType)).valueOrNull ?? const [];
       if (history.any((a) => a.isFinished)) {
         showPaywallSheet(context);
         return;
@@ -328,15 +293,6 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
                   onStartExam: _openExamBriefing,
                   examStarting: _starting,
                 ),
-                if (_tab == _DetailTab.series) ...[
-                  const SizedBox(height: 18),
-                  AppButton(
-                    label: 'Commencer l\'entraînement',
-                    icon: Icons.play_arrow_rounded,
-                    isLoading: _starting,
-                    onPressed: _starting ? null : _startStandard,
-                  ),
-                ],
               ],
             ),
             if (_starting)
