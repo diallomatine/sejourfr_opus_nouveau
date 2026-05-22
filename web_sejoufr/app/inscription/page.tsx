@@ -86,12 +86,6 @@ export default function InscriptionPage() {
             complet pour chaque module.
           </p>
 
-          <GoogleSignInButton
-            variant="signup"
-            onSuccess={() => router.push("/dashboard")}
-            onError={setError}
-          />
-
           <form onSubmit={handleSubmit} className="form" noValidate>
             {error && (
               <div className="form-error" role="alert">
@@ -213,6 +207,12 @@ export default function InscriptionPage() {
               {submitting ? "Création…" : "Créer mon compte gratuit"}
               <span className="form-submit-arrow">→</span>
             </button>
+
+            <GoogleSignInButton
+              variant="signup"
+              onSuccess={() => router.push("/dashboard")}
+              onError={setError}
+            />
 
             <p className="form-already">
               Déjà un compte ?{" "}

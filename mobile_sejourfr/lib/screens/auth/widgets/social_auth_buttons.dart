@@ -11,8 +11,8 @@ import '../../../core/auth/social_sign_in_service.dart';
 import '../../../core/theme/app_theme.dart';
 
 /// Boutons "Continuer avec Google" (toutes plateformes) et "Continuer avec
-/// Apple" (iOS uniquement). Affiche un divider "ou" en dessous quand au
-/// moins un bouton est rendu.
+/// Apple" (iOS uniquement), precedes d'un divider "OU". Pense pour etre
+/// place SOUS le formulaire email/mot de passe.
 ///
 /// Si la config est absente (cf. [SocialAuthConfig]), rien n'est rendu —
 /// pas de bouton mort.
@@ -33,15 +33,18 @@ class SocialAuthButtons extends ConsumerStatefulWidget {
   ConsumerState<SocialAuthButtons> createState() => _SocialAuthButtonsState();
 }
 
-class _SocialAuthButtonsState extends ConsumerState<SocialAuthButtons> {
-  bool _busy = false;
+enum _LoadingProvider { google, apple }
 
+class _SocialAuthButtonsState extends ConsumerState<SocialAuthButtons> {
+  _LoadingProvider? _loading;
+
+  bool get _busy => _loading != null;
   bool get _showGoogle => SocialAuthConfig.isGoogleConfigured;
   bool get _showApple =>
       Platform.isIOS && SocialAuthConfig.isAppleConfigured;
 
   Future<void> _runGoogle() async {
-    setState(() => _busy = true);
+    setState(() => _loading = _LoadingProvider.google);
     try {
       await ref.read(authControllerProvider.notifier).loginWithGoogle();
       widget.onSuccess?.call();
@@ -51,12 +54,12 @@ class _SocialAuthButtonsState extends ConsumerState<SocialAuthButtons> {
       final err = ApiClient.toApiException(e);
       widget.onError(err.message);
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _loading = null);
     }
   }
 
   Future<void> _runApple() async {
-    setState(() => _busy = true);
+    setState(() => _loading = _LoadingProvider.apple);
     try {
       await ref.read(authControllerProvider.notifier).loginWithApple();
       widget.onSuccess?.call();
@@ -66,7 +69,7 @@ class _SocialAuthButtonsState extends ConsumerState<SocialAuthButtons> {
       final err = ApiClient.toApiException(e);
       widget.onError(err.message);
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _loading = null);
     }
   }
 
@@ -77,24 +80,6 @@ class _SocialAuthButtonsState extends ConsumerState<SocialAuthButtons> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_showGoogle)
-          _SocialButton(
-            icon: const _GoogleGlyph(),
-            label: 'Continuer avec Google',
-            background: AppColors.white,
-            foreground: AppColors.ink,
-            borderColor: AppColors.line,
-            onPressed: _busy ? null : _runGoogle,
-          ),
-        if (_showGoogle && _showApple) const SizedBox(height: 10),
-        if (_showApple)
-          _SocialButton(
-            icon: const Icon(Icons.apple, size: 22, color: AppColors.white),
-            label: 'Continuer avec Apple',
-            background: AppColors.ink,
-            foreground: AppColors.white,
-            onPressed: _busy ? null : _runApple,
-          ),
         const SizedBox(height: 18),
         Row(
           children: [
@@ -114,6 +99,26 @@ class _SocialAuthButtonsState extends ConsumerState<SocialAuthButtons> {
           ],
         ),
         const SizedBox(height: 18),
+        if (_showGoogle)
+          _SocialButton(
+            icon: const _GoogleGlyph(),
+            label: 'Continuer avec Google',
+            background: AppColors.white,
+            foreground: AppColors.ink,
+            borderColor: AppColors.line,
+            loading: _loading == _LoadingProvider.google,
+            onPressed: _busy ? null : _runGoogle,
+          ),
+        if (_showGoogle && _showApple) const SizedBox(height: 10),
+        if (_showApple)
+          _SocialButton(
+            icon: const Icon(Icons.apple, size: 22, color: AppColors.white),
+            label: 'Continuer avec Apple',
+            background: AppColors.ink,
+            foreground: AppColors.white,
+            loading: _loading == _LoadingProvider.apple,
+            onPressed: _busy ? null : _runApple,
+          ),
       ],
     );
   }
@@ -127,6 +132,7 @@ class _SocialButton extends StatelessWidget {
     required this.foreground,
     required this.onPressed,
     this.borderColor,
+    this.loading = false,
   });
 
   final Widget icon;
@@ -135,6 +141,7 @@ class _SocialButton extends StatelessWidget {
   final Color foreground;
   final Color? borderColor;
   final VoidCallback? onPressed;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -155,26 +162,37 @@ class _SocialButton extends StatelessWidget {
                 : null,
           ),
           child: Opacity(
-            opacity: disabled ? 0.6 : 1,
-            child: Row(
-              children: [
-                icon,
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      label,
-                      style: AppFonts.jakarta(
-                        size: 15,
-                        color: foreground,
-                        weight: FontWeight.w700,
+            opacity: disabled && !loading ? 0.6 : 1,
+            child: loading
+                ? Center(
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.4,
+                        valueColor: AlwaysStoppedAnimation<Color>(foreground),
                       ),
                     ),
+                  )
+                : Row(
+                    children: [
+                      icon,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            label,
+                            style: AppFonts.jakarta(
+                              size: 15,
+                              color: foreground,
+                              weight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 34),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 34),
-              ],
-            ),
           ),
         ),
       ),

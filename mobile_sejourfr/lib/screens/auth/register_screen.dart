@@ -108,9 +108,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  SocialAuthButtons(
-                    onError: (msg) => setState(() => _error = msg),
-                  ),
                   Row(
                     children: [
                       Expanded(
@@ -177,6 +174,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     label: 'Créer mon compte',
                     onPressed: _submitting ? null : _submit,
                     isLoading: _submitting,
+                  ),
+                  SocialAuthButtons(
+                    onError: (msg) => setState(() => _error = msg),
                   ),
                   const SizedBox(height: 16),
                   Row(

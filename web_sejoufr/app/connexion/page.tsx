@@ -83,12 +83,6 @@ function ConnexionInner() {
             l&apos;avez laissée.
           </p>
 
-          <GoogleSignInButton
-            variant="signin"
-            onSuccess={() => router.push(nextHref)}
-            onError={setError}
-          />
-
           <form onSubmit={handleSubmit} className="form" noValidate>
             {error && (
               <div className="form-error" role="alert">
@@ -152,6 +146,12 @@ function ConnexionInner() {
               {submitting ? "Connexion…" : "Se connecter"}
               <span className="form-submit-arrow">→</span>
             </button>
+
+            <GoogleSignInButton
+              variant="signin"
+              onSuccess={() => router.push(nextHref)}
+              onError={setError}
+            />
 
             <p className="form-signup">
               Nouveau sur SejourFR ?{" "}

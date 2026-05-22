@@ -151,19 +151,19 @@ export default function GoogleSignInButton({
 
   return (
     <div className="google-signin">
-      <div ref={hostRef} aria-label="Bouton Google Sign-In" />
       <div className="google-signin-divider">
         <span>ou</span>
       </div>
+      <div ref={hostRef} aria-label="Bouton Google Sign-In" />
       <style>{`
         .google-signin {
           display: flex;
           flex-direction: column;
           align-items: stretch;
           gap: 18px;
-          margin-bottom: 4px;
+          margin-top: 18px;
         }
-        .google-signin > div:first-child {
+        .google-signin > div:last-child {
           display: flex;
           justify-content: center;
         }

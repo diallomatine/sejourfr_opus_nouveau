@@ -91,9 +91,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 28),
-                  SocialAuthButtons(
-                    onError: (msg) => setState(() => _error = msg),
-                  ),
                   _Field(
                     label: 'Email',
                     controller: _email,
@@ -145,6 +142,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     label: 'Se connecter',
                     onPressed: _submitting ? null : _submit,
                     isLoading: _submitting,
+                  ),
+                  SocialAuthButtons(
+                    onError: (msg) => setState(() => _error = msg),
                   ),
                   const SizedBox(height: 18),
                   Row(
