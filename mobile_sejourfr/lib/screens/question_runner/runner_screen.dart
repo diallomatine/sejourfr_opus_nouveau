@@ -33,13 +33,13 @@ class _RunnerScreenState extends ConsumerState<RunnerScreen> {
   @override
   void initState() {
     super.initState();
-    // Si l'écran a été poussé depuis un tap de lot TCF (cf. TcfLevelLotsScreen),
-    // on bascule le runner en mode "batch fixe" : pas d'extension auto, le
+    // Si l'écran a été poussé depuis un tap de lot (TCF ou civique), on
+    // bascule le runner en mode "batch fixe" : pas d'extension auto, le
     // bouton Terminer apparaît à la dernière question du lot.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final from = GoRouterState.of(context).uri.queryParameters['from'];
-      if (from == 'tcfLot') {
+      if (from == 'tcfLot' || from == 'civiqueLot') {
         ref
             .read(runnerControllerProvider(widget.attemptId).notifier)
             .setFixedBatch(true);
@@ -591,6 +591,24 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
       '${AppRoutes.tcfLotResult.replaceFirst(':attemptId', attempt.id)}'
       '?moduleKey=$moduleKey&level=$level',
     );
+    return;
+  }
+
+  // Contexte de lot Civique (cf. `CiviqueThemeDetailScreen._startLot`) — on
+  // push le rapport d'examen détaillé (questions + corrections), qui sert
+  // de bilan de lot pour le civique. On utilise `pushReplacement` (et pas
+  // `go`) pour préserver l'entrée du détail thème dans la nav stack : la
+  // flèche arrière du bilan peut alors faire un vrai pop qui retombe pile
+  // sur la liste des lots. `from=civiqueLot&themeId` est propagé pour que
+  // l'écran adapte son titre ("Bilan du lot") et garde un fallback de back
+  // au cas où la stack a été reset par ailleurs.
+  if (from == 'civiqueLot') {
+    final themeId = goState.uri.queryParameters['themeId'];
+    final base = AppRoutes.examReport.replaceFirst(':attemptId', attempt.id);
+    final qs = themeId == null
+        ? '?from=civiqueLot'
+        : '?from=civiqueLot&themeId=$themeId';
+    context.pushReplacement('$base$qs');
     return;
   }
 

@@ -132,7 +132,14 @@ class _CiviqueThemeDetailScreenState extends ConsumerState<CiviqueThemeDetailScr
             ),
           );
       if (!mounted) return;
-      context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
+      // `from=civiqueLot` signale au runner de basculer en mode batch fixe
+      // (pas d'extension auto, bouton Terminer à la dernière question) et
+      // de pousser le rapport d'examen à la fin plutôt que le dialog
+      // d'entraînement standard. `themeId` sert au CTA de retour.
+      final runnerPath = AppRoutes.runner.replaceFirst(':attemptId', attempt.id);
+      context.push(
+        '$runnerPath?from=civiqueLot&themeId=${theme.id}',
+      );
     } catch (e) {
       if (!mounted) return;
       final apiErr = ApiClient.toApiException(e);

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/models/attempt_models.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/eyebrow.dart';
@@ -34,14 +35,43 @@ class _ExamReportScreenState extends ConsumerState<ExamReportScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(examReportProvider(widget.attemptId));
 
+    // Contexte de l'écran lu dans la query string (renseigné par le runner).
+    // - `from=civiqueLot&themeId=...` : on vient d'un lot civique → titre
+    //   "Bilan du lot" et fallback de la flèche vers le détail thème
+    //   (le runner a poussé via `context.go` qui reset la nav stack, donc
+    //   `canPop()` renvoie false — il faut un fallback explicite).
+    final qp = GoRouterState.of(context).uri.queryParameters;
+    final fromCiviqueLot = qp['from'] == 'civiqueLot';
+    final themeId = qp['themeId'];
+    final title = fromCiviqueLot ? 'Bilan du lot' : 'Rapport d\'examen';
+
+    void onBack() {
+      // Prefère un vrai `pop` (préserve la stack en aval — quand on est
+      // arrivé via `pushReplacement` depuis le runner, la stack contient
+      // toujours le détail thème en dessous, donc pop suffit et le détail
+      // thème conserve sa propre stack). Fallback contextuel uniquement
+      // si `canPop` est false (cas d'un deep link / hot reload).
+      if (context.canPop()) {
+        context.pop();
+        return;
+      }
+      if (fromCiviqueLot && themeId != null) {
+        context.go(
+          AppRoutes.civiqueThemeDetail.replaceFirst(':themeId', themeId),
+        );
+        return;
+      }
+      context.go(AppRoutes.home);
+    }
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-          onPressed: () => context.pop(),
+          onPressed: onBack,
         ),
         title: Text(
-          'Rapport d\'examen',
+          title,
           style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
         ),
       ),
