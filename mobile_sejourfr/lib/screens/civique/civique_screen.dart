@@ -136,17 +136,19 @@ class CiviqueScreen extends ConsumerWidget {
                 data: (list) {
                   final sorted = [...list]
                     ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+                  // Map themeId → stats du user pour brancher la barre
+                  // couverture sur la donnée réelle. Stats peut être en
+                  // loading/error → fallback null.
+                  final statsByTheme = stats.maybeWhen(
+                    data: (s) => {for (final ts in s.byTheme) ts.themeId: ts},
+                    orElse: () => const <String, ThemeStats>{},
+                  );
                   return Column(
                     children: [
                       for (final t in sorted)
-                        HubModuleCard(
-                          icon: _iconForTheme(t.code),
-                          iconColor: _accentForOrder(t.displayOrder),
-                          iconBg: _accentBgForOrder(t.displayOrder),
-                          title: t.name,
-                          description: t.description ??
-                              'Questions officielles du programme',
-                          meta: '${t.questionCount} questions',
+                        _civiqueModuleCard(
+                          t,
+                          statsByTheme[t.id],
                           onTap: () => openThemeDetail(t),
                         ),
                     ],
@@ -221,6 +223,37 @@ class CiviqueScreen extends ConsumerWidget {
       default:
         return AppColors.blueLight;
     }
+  }
+
+  /// Construit la card d'un thème civique avec sa barre de couverture du
+  /// pool (basée sur les stats user). Le label rappelle aussi la précision
+  /// sur ce que le user a déjà tenté pour reproduire la même lecture que
+  /// l'écran Progression.
+  HubModuleCard _civiqueModuleCard(
+    ThemeDto theme,
+    ThemeStats? stats, {
+    required VoidCallback onTap,
+  }) {
+    final hasStarted = stats != null && stats.answered > 0;
+    final ratio = hasStarted ? stats.progress.clamp(0.0, 1.0) : 0.0;
+    final precision = hasStarted ? (stats.successRate * 100).round() : null;
+    final coverageLabel = !hasStarted
+        ? null
+        : precision == null
+            ? '${stats.answered}/${theme.questionCount} vues'
+            : '${stats.answered}/${theme.questionCount} vues · $precision % justes';
+
+    return HubModuleCard(
+      icon: _iconForTheme(theme.code),
+      iconColor: _accentForOrder(theme.displayOrder),
+      iconBg: _accentBgForOrder(theme.displayOrder),
+      title: theme.name,
+      description: theme.description ?? 'Questions officielles du programme',
+      meta: '${theme.questionCount} questions',
+      coverageRatio: hasStarted ? ratio : null,
+      coverageLabel: coverageLabel,
+      onTap: onTap,
+    );
   }
 }
 

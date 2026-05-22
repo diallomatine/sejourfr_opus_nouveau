@@ -329,6 +329,8 @@ class HubModuleCard extends StatelessWidget {
     required this.onTap,
     this.aiTag = false,
     this.locked = false,
+    this.coverageRatio,
+    this.coverageLabel,
   });
 
   final IconData icon;
@@ -340,6 +342,17 @@ class HubModuleCard extends StatelessWidget {
   final bool aiTag;
   final bool locked;
   final VoidCallback onTap;
+
+  /// Taux de couverture du pool de questions du module (0..1). Quand
+  /// non null, une fine barre s'affiche sous le meta avec [coverageLabel].
+  /// Cohérent avec la logique "barre = couverture" des hubs et de
+  /// l'écran Progression : on n'affiche pas la mastery agrégée (correct/total)
+  /// qui démotive au démarrage, mais la part du pool déjà touchée.
+  final double? coverageRatio;
+
+  /// Texte court rendu à côté de la barre — typiquement "X/Y vues · Z% justes".
+  /// Null si seule la barre suffit. Ignoré quand [coverageRatio] est null.
+  final String? coverageLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -442,6 +455,14 @@ class HubModuleCard extends StatelessWidget {
                             weight: FontWeight.w700,
                           ),
                         ),
+                        if (coverageRatio != null) ...[
+                          const SizedBox(height: 8),
+                          _ModuleCardCoverage(
+                            ratio: coverageRatio!.clamp(0.0, 1.0),
+                            label: coverageLabel,
+                            accent: iconColor,
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -457,6 +478,60 @@ class HubModuleCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Mini barre de progression + label, rendue sous le meta d'une [HubModuleCard]
+/// quand `coverageRatio` est fourni. Représente la couverture du pool du
+/// module (% du programme touché), en miroir de la barre par thème de
+/// l'écran Progression. Pas de marqueur de seuil — la couverture vise 100%.
+class _ModuleCardCoverage extends StatelessWidget {
+  const _ModuleCardCoverage({
+    required this.ratio,
+    required this.accent,
+    this.label,
+  });
+
+  final double ratio;
+  final Color accent;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Stack(
+          children: [
+            Container(
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.line2,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+            FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: ratio.clamp(0.02, 1.0),
+              child: Container(
+                height: 4,
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (label != null) ...[
+          const SizedBox(height: 5),
+          Text(
+            label!,
+            style: AppFonts.jakarta(size: 11, color: AppColors.muted),
+          ),
+        ],
+      ],
     );
   }
 }

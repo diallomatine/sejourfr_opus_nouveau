@@ -242,34 +242,39 @@ class _StatCell extends StatelessWidget {
 class ModuleDetailScoreCard extends StatelessWidget {
   const ModuleDetailScoreCard({
     super.key,
-    required this.percent,
-    required this.attemptsCount,
+    required this.answered,
+    required this.correct,
+    required this.total,
     required this.accent,
   });
 
-  final int percent;
-  final int attemptsCount;
+  /// Nombre de questions distinctes que le user a vues sur ce module
+  /// (= ce qui alimente la barre couverture).
+  final int answered;
+
+  /// Nombre de questions distinctes que le user a réussies au moins une
+  /// fois sur ce module.
+  final int correct;
+
+  /// Taille du pool actif du module (depuis `Theme.questionCount`).
+  final int total;
+
   final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    final clamped = percent.clamp(0, 100);
-    final neverPlayed = attemptsCount == 0;
+    final neverPlayed = answered == 0;
+    final coverage = total == 0 ? 0.0 : (answered / total).clamp(0.0, 1.0);
+    final precision = answered == 0 ? 0.0 : (correct / answered).clamp(0.0, 1.0);
+    final precisionPct = (precision * 100).round();
 
-    final badgeLabel = neverPlayed
-        ? 'À démarrer'
-        : clamped >= 70
-            ? 'Bon niveau'
-            : clamped >= 40
-                ? 'En progression'
-                : 'À renforcer';
-    final badgeColor = neverPlayed
-        ? AppColors.muted
-        : clamped >= 70
-            ? AppColors.green
-            : clamped >= 40
-                ? AppColors.blue
-                : AppColors.amber;
+    // Status combiné couverture + précision (mêmes seuils que `_ThemeRow`
+    // de l'écran Progression — cohérence sur les deux surfaces).
+    final (badgeLabel, badgeColor) = _statusFor(
+      hasAnswered: !neverPlayed,
+      coverage: coverage,
+      successRate: precision,
+    );
 
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
@@ -295,7 +300,7 @@ class ModuleDetailScoreCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'SCORE DE MAÎTRISE',
+                      'COUVERTURE DU MODULE',
                       style: AppFonts.mono(
                         size: 9.5,
                         color: AppColors.muted,
@@ -304,13 +309,35 @@ class ModuleDetailScoreCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      neverPlayed ? '—' : '$clamped %',
-                      style: AppFonts.jakarta(
-                        size: 22,
-                        weight: FontWeight.w800,
-                        color: AppColors.ink,
-                      ).copyWith(letterSpacing: -0.4),
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: neverPlayed ? '0' : '$answered',
+                            style: AppFonts.jakarta(
+                              size: 22,
+                              weight: FontWeight.w800,
+                              color: AppColors.ink,
+                            ).copyWith(letterSpacing: -0.4),
+                          ),
+                          TextSpan(
+                            text: ' / $total',
+                            style: AppFonts.jakarta(
+                              size: 18,
+                              weight: FontWeight.w600,
+                              color: AppColors.muted2,
+                            ),
+                          ),
+                          TextSpan(
+                            text: ' vues',
+                            style: AppFonts.jakarta(
+                              size: 13,
+                              weight: FontWeight.w500,
+                              color: AppColors.muted,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -333,6 +360,9 @@ class ModuleDetailScoreCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
+          // Barre couverture (% du pool exploré). Pas de marqueur de seuil
+          // — la cible naturelle est 100 % vu, mais un user peut être prêt
+          // bien avant si sa précision est haute.
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: Stack(
@@ -342,7 +372,7 @@ class ModuleDetailScoreCard extends StatelessWidget {
                   color: AppColors.line2,
                 ),
                 FractionallySizedBox(
-                  widthFactor: neverPlayed ? 0 : clamped / 100,
+                  widthFactor: neverPlayed ? 0 : coverage.clamp(0.02, 1.0),
                   child: Container(
                     height: 8,
                     decoration: BoxDecoration(
@@ -356,18 +386,69 @@ class ModuleDetailScoreCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Text(
-            neverPlayed
-                ? 'Lance ta première session pour voir ton niveau.'
-                : '$attemptsCount session${attemptsCount > 1 ? "s" : ""} terminée${attemptsCount > 1 ? "s" : ""} · vise 70 % pour confirmer le niveau.',
-            style: AppFonts.jakarta(
-              size: 12.5,
-              color: AppColors.muted,
-            ),
+          Row(
+            children: [
+              if (!neverPlayed)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.line2,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    '✓ $precisionPct % justes',
+                    style: AppFonts.mono(
+                      size: 9.5,
+                      color: AppColors.ink2,
+                      letterSpacing: 1.2,
+                      weight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              if (!neverPlayed) const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  neverPlayed
+                      ? 'Lance ta première session pour voir ta progression.'
+                      : '$correct/$answered réussies — élargis ton exploration pour sécuriser le niveau.',
+                  style: AppFonts.jakarta(
+                    size: 12,
+                    color: AppColors.muted,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  /// Status combiné couverture + précision. "Maîtrisé" exige couverture
+  /// ≥ 70 % ET précision ≥ 85 % — sinon un user à 100 % de précision sur
+  /// 3 questions vues serait labellisé "Maîtrisé" à tort. Aligné avec
+  /// `_ThemeRow._statusFor` de l'écran Progression.
+  (String, Color) _statusFor({
+    required bool hasAnswered,
+    required double coverage,
+    required double successRate,
+  }) {
+    if (!hasAnswered) {
+      return ('À démarrer', AppColors.muted);
+    }
+    if (successRate < 0.45) {
+      return ('À retravailler', AppColors.red);
+    }
+    if (successRate < 0.65) {
+      return ('À consolider', AppColors.amber);
+    }
+    if (coverage < 0.30) {
+      return ('Bon démarrage', AppColors.blue);
+    }
+    if (coverage >= 0.70 && successRate >= 0.85) {
+      return ('Maîtrisé', AppColors.green);
+    }
+    return ('En progrès', AppColors.blue);
   }
 }
 

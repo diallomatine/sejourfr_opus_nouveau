@@ -239,18 +239,6 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
     final mod = widget.module;
     final statsAsync = ref.watch(_tcfStatsProvider);
 
-    final tcfStats = statsAsync.maybeWhen(
-      data: (s) {
-        final correct = s.byTheme.fold<int>(0, (sum, t) => sum + t.correct);
-        final total = s.byTheme.fold<int>(0, (sum, t) => sum + t.total);
-        return (
-          percent: total == 0 ? 0 : ((correct / total) * 100).round(),
-          attempts: s.attemptsTotal,
-        );
-      },
-      orElse: () => (percent: 0, attempts: 0),
-    );
-
     final auth = ref.watch(authControllerProvider);
     final target = auth is AuthAuthenticated ? auth.user.targetProcedure?.tcfLevel : null;
     final niveauLabel = target == null ? 'A2-B2' : 'Cible $target';
@@ -259,12 +247,24 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
     // backend (40 pour CO, 136 pour CE, 87 pour Structure aujourd'hui, mais
     // ça évolue à chaque seed). Null pendant le fetch → fallback "…".
     final themesAsync = ref.watch(_tcfThemesProvider);
-    final poolSize = themesAsync.maybeWhen(
-      data: (themes) => themes.where((t) => t.code == mod.themeCode).map((t) => t.questionCount).firstOrNull,
+    final theme = themesAsync.maybeWhen(
+      data: (themes) => themes.where((t) => t.code == mod.themeCode).firstOrNull,
       orElse: () => null,
     );
+    final poolSize = theme?.questionCount;
     final headline = poolSize == null ? 'Plein de ${mod.headlineNoun}' : '$poolSize ${mod.headlineNoun}';
     final questionsStatValue = poolSize == null ? '…' : '$poolSize';
+
+    // Stats user spécifiques à CE module (filtrées par themeId — pas
+    // l'agrégat global TCF qui mélangerait CO/CE/Structure).
+    final themeStats = statsAsync.maybeWhen(
+      data: (s) => theme == null
+          ? null
+          : s.byTheme.where((t) => t.themeId == theme.id).firstOrNull,
+      orElse: () => null,
+    );
+    final answered = themeStats?.answered ?? 0;
+    final correctCount = themeStats?.correct ?? 0;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -303,8 +303,9 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
                 ),
                 const SizedBox(height: 14),
                 ModuleDetailScoreCard(
-                  percent: tcfStats.percent,
-                  attemptsCount: tcfStats.attempts,
+                  answered: answered,
+                  correct: correctCount,
+                  total: poolSize ?? 0,
                   accent: AppColors.red,
                 ),
                 const SizedBox(height: 18),

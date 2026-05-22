@@ -6,14 +6,22 @@ import '../../core/api/repositories.dart';
 import '../../core/api/user_content_repository.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/enums.dart';
+import '../../core/models/question_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
-import '../../core/widgets/paywall_sheet.dart';
 import '../hub/widgets/hub_widgets.dart';
 
 final _tcfStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
   return ref.watch(userContentRepositoryProvider).stats(module: AppModule.tcf);
+});
+
+/// Thèmes TCF (CO / CE / STRUCTURE) — sert à connaître le `questionCount`
+/// réel par module pour afficher un meta dynamique et calculer la
+/// couverture user de chaque card QCM. Autodispose : se rafraîchit avec
+/// le pull-to-refresh du hub.
+final _tcfThemesProvider = FutureProvider.autoDispose<List<ThemeDto>>((ref) {
+  return ref.watch(themesRepositoryProvider).list(module: AppModule.tcf);
 });
 
 class TcfScreen extends ConsumerWidget {
@@ -79,7 +87,11 @@ class TcfScreen extends ConsumerWidget {
           color: AppColors.red,
           onRefresh: () async {
             ref.invalidate(_tcfStatsProvider);
-            await ref.read(_tcfStatsProvider.future);
+            ref.invalidate(_tcfThemesProvider);
+            await Future.wait([
+              ref.read(_tcfStatsProvider.future),
+              ref.read(_tcfThemesProvider.future),
+            ]);
           },
           child: ListView(
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
@@ -113,23 +125,29 @@ class TcfScreen extends ConsumerWidget {
               const SizedBox(height: 22),
               const HubSectionTitle('Modules d\'entraînement'),
               const SizedBox(height: 12),
-              HubModuleCard(
+              _qcmTcfModuleCard(
+                ref: ref,
+                code: 'TCF_CO',
                 icon: Icons.headphones_rounded,
                 iconColor: AppColors.blue,
                 iconBg: AppColors.blueLight,
                 title: 'Compréhension orale',
                 description: 'Dialogues, annonces et messages audio',
-                meta: '$kInitialBatchSize QUESTIONS · ≈ 20 MIN',
-                onTap: () => openDetail(AppRoutes.tcfCoDetail),
+                duration: '≈ 20 MIN',
+                route: AppRoutes.tcfCoDetail,
+                openDetail: openDetail,
               ),
-              HubModuleCard(
+              _qcmTcfModuleCard(
+                ref: ref,
+                code: 'TCF_CE',
                 icon: Icons.menu_book_rounded,
                 iconColor: AppColors.amber,
                 iconBg: AppColors.amber.withValues(alpha: 0.12),
                 title: 'Compréhension écrite',
                 description: 'Textes courts et structure de la langue',
-                meta: '$kInitialBatchSize QUESTIONS · ≈ 35 MIN',
-                onTap: () => openDetail(AppRoutes.tcfCeDetail),
+                duration: '≈ 35 MIN',
+                route: AppRoutes.tcfCeDetail,
+                openDetail: openDetail,
               ),
               HubModuleCard(
                 icon: Icons.edit_note_rounded,
@@ -155,14 +173,18 @@ class TcfScreen extends ConsumerWidget {
               // Module bonus : grammaire / lexique. Pas dans le TCF IRN
               // officiel, mais utile en entraînement de fond. Bannière
               // d'info rendue dans le détail via `TcfQcmModule.structure.notice`.
-              HubModuleCard(
+              _qcmTcfModuleCard(
+                ref: ref,
+                code: 'TCF_STRUCTURE',
                 icon: Icons.spellcheck_rounded,
                 iconColor: AppColors.ink2,
                 iconBg: AppColors.line2,
                 title: 'Structure de la langue',
                 description: 'Grammaire et lexique — non évalué au TCF IRN',
-                meta: 'ENTRAÎNEMENT BONUS · ≈ 20 MIN',
-                onTap: () => openDetail(AppRoutes.tcfStructureDetail),
+                duration: '≈ 20 MIN',
+                route: AppRoutes.tcfStructureDetail,
+                openDetail: openDetail,
+                bonusLabel: 'BONUS',
               ),
               const SizedBox(height: 8),
               HubExamCard(
@@ -178,4 +200,70 @@ class TcfScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Construit une `HubModuleCard` QCM (CO / CE / Structure) avec compte de
+/// questions dynamique (depuis le `Theme.questionCount` côté backend) et
+/// barre de couverture user. Aligné avec la barre par thème de l'écran
+/// Progression : barre = `answered/total`, label = "X/Y vues · Z% justes".
+///
+/// EE / EO n'utilisent pas cette helper — ces épreuves n'ont pas de notion
+/// de pool de questions, leurs cards restent statiques avec un meta tâche.
+HubModuleCard _qcmTcfModuleCard({
+  required WidgetRef ref,
+  required String code,
+  required IconData icon,
+  required Color iconColor,
+  required Color iconBg,
+  required String title,
+  required String description,
+  required String duration,
+  required String route,
+  required void Function(String) openDetail,
+  String? bonusLabel,
+}) {
+  final themesAsync = ref.watch(_tcfThemesProvider);
+  final statsAsync = ref.watch(_tcfStatsProvider);
+
+  final theme = themesAsync.maybeWhen(
+    data: (list) => list.where((t) => t.code == code).firstOrNull,
+    orElse: () => null,
+  );
+  final stats = statsAsync.maybeWhen(
+    data: (s) => theme == null
+        ? null
+        : s.byTheme.where((t) => t.themeId == theme.id).firstOrNull,
+    orElse: () => null,
+  );
+
+  final total = theme?.questionCount;
+  final answered = stats?.answered ?? 0;
+  final hasStarted = stats != null && answered > 0;
+  final ratio = hasStarted && total != null && total > 0
+      ? (answered / total).clamp(0.0, 1.0)
+      : 0.0;
+  final precision = hasStarted ? (stats.successRate * 100).round() : null;
+
+  final metaQuestions = total == null ? '…' : '$total QUESTIONS';
+  final meta = bonusLabel == null
+      ? '$metaQuestions · $duration'
+      : '$bonusLabel · $metaQuestions · $duration';
+
+  final coverageLabel = !hasStarted || total == null
+      ? null
+      : precision == null
+          ? '$answered/$total vues'
+          : '$answered/$total vues · $precision % justes';
+
+  return HubModuleCard(
+    icon: icon,
+    iconColor: iconColor,
+    iconBg: iconBg,
+    title: title,
+    description: description,
+    meta: meta,
+    coverageRatio: hasStarted ? ratio : null,
+    coverageLabel: coverageLabel,
+    onTap: () => openDetail(route),
+  );
 }

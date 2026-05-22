@@ -246,8 +246,8 @@ class _CiviqueThemeDetailScreenState extends ConsumerState<CiviqueThemeDetailScr
               data: (s) => s.byTheme.where((t) => t.themeId == theme.id).firstOrNull,
               orElse: () => null,
             );
-            final percent = themeStats == null ? 0 : (themeStats.mastery * 100).round();
-            final attempts = themeStats?.answered ?? 0;
+            final answered = themeStats?.answered ?? 0;
+            final correctCount = themeStats?.correct ?? 0;
 
             return Stack(
               children: [
@@ -282,8 +282,9 @@ class _CiviqueThemeDetailScreenState extends ConsumerState<CiviqueThemeDetailScr
                     ),
                     const SizedBox(height: 14),
                     ModuleDetailScoreCard(
-                      percent: percent,
-                      attemptsCount: attempts,
+                      answered: answered,
+                      correct: correctCount,
+                      total: theme.questionCount,
                       accent: AppColors.blue,
                     ),
                     const SizedBox(height: 18),
