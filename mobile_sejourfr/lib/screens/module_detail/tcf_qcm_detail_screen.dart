@@ -28,31 +28,39 @@ enum TcfQcmModule {
   co(
     routeKey: 'co',
     questionType: QuestionType.co,
+    themeCode: 'TCF_CO',
     eyebrow: 'Module TCF',
     title: 'Compréhension orale',
-    headline: '25 questions audio',
-    description: 'Écoute des dialogues courts, annonces ou messages, puis choisis la bonne réponse.',
+    headlineNoun: 'questions audio',
+    description: 'Entraîne ton oreille sur des dialogues, annonces et messages — '
+        'le format exact de l\'examen. C\'est l\'épreuve qui distingue le '
+        'plus les niveaux : la travailler régulièrement sécurise ton palier CECRL.',
     icon: Icons.headphones_rounded,
     durationLabel: '≈ 20 min',
   ),
   ce(
     routeKey: 'ce',
     questionType: QuestionType.ce,
+    themeCode: 'TCF_CE',
     eyebrow: 'Module TCF',
     title: 'Compréhension écrite',
-    headline: '25 questions sur textes courts',
-    description: 'Affiches, articles, courriels, structure de la langue — lis et identifie la bonne réponse.',
+    headlineNoun: 'questions sur textes courts',
+    description: 'Affiches, articles, courriels, formulaires — tu rencontres exactement ce '
+        'que tu auras le jour J. Lecture rapide, choix juste : ici se joue ton '
+        'aisance écrite au TCF.',
     icon: Icons.menu_book_rounded,
     durationLabel: '≈ 35 min',
   ),
   structure(
     routeKey: 'structure',
     questionType: QuestionType.structure,
+    themeCode: 'TCF_STRUCTURE',
     eyebrow: 'Entraînement complémentaire',
     title: 'Structure de la langue',
-    headline: 'Grammaire et lexique en QCM',
-    description:
-        'Conjugaison, accords, prépositions, connecteurs : choisis la forme correcte parmi les propositions.',
+    headlineNoun: 'questions de grammaire',
+    description: 'Conjugaison, accords, prépositions, connecteurs. Module hors TCF IRN '
+        'officiel — mais chaque point de grammaire que tu consolides ici fait '
+        'gagner des points sur CE, EE et EO.',
     icon: Icons.spellcheck_rounded,
     durationLabel: '≈ 20 min',
     notice:
@@ -62,9 +70,10 @@ enum TcfQcmModule {
   const TcfQcmModule({
     required this.routeKey,
     required this.questionType,
+    required this.themeCode,
     required this.eyebrow,
     required this.title,
-    required this.headline,
+    required this.headlineNoun,
     required this.description,
     required this.icon,
     required this.durationLabel,
@@ -73,9 +82,20 @@ enum TcfQcmModule {
 
   final String routeKey;
   final QuestionType questionType;
+
+  /// Code du `Theme` côté backend ("TCF_CO" / "TCF_CE" / "TCF_STRUCTURE") —
+  /// sert à retrouver le `questionCount` réel via `themesRepository.list()`
+  /// pour afficher le pool exact à la place d'une valeur en dur.
+  final String themeCode;
+
   final String eyebrow;
   final String title;
-  final String headline;
+
+  /// Nom commun affiché derrière le compte de questions dans le hero
+  /// ("questions audio", "textes à analyser", etc.). Le compteur dynamique
+  /// est préfixé en runtime via le pool actif côté backend.
+  final String headlineNoun;
+
   final String description;
   final IconData icon;
   final String durationLabel;
@@ -85,6 +105,13 @@ enum TcfQcmModule {
   /// CO/CE.
   final String? notice;
 }
+
+/// Thèmes TCF en base — sert à dériver le `questionCount` (= taille du pool
+/// actif) par module pour afficher le vrai compte dans le hero et la
+/// stats card "Questions". Autodispose pour rafraîchir au refresh.
+final _tcfThemesProvider = FutureProvider.autoDispose<List<ThemeDto>>((ref) {
+  return ref.watch(themesRepositoryProvider).list(module: AppModule.tcf);
+});
 
 final _tcfStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
   return ref.watch(userContentRepositoryProvider).stats(module: AppModule.tcf);
@@ -228,6 +255,17 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
     final target = auth is AuthAuthenticated ? auth.user.targetProcedure?.tcfLevel : null;
     final niveauLabel = target == null ? 'A2-B2' : 'Cible $target';
 
+    // Pool actif du module = `questionCount` du thème correspondant côté
+    // backend (40 pour CO, 136 pour CE, 87 pour Structure aujourd'hui, mais
+    // ça évolue à chaque seed). Null pendant le fetch → fallback "…".
+    final themesAsync = ref.watch(_tcfThemesProvider);
+    final poolSize = themesAsync.maybeWhen(
+      data: (themes) => themes.where((t) => t.code == mod.themeCode).map((t) => t.questionCount).firstOrNull,
+      orElse: () => null,
+    );
+    final headline = poolSize == null ? 'Plein de ${mod.headlineNoun}' : '$poolSize ${mod.headlineNoun}';
+    final questionsStatValue = poolSize == null ? '…' : '$poolSize';
+
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
@@ -251,14 +289,14 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
                 const SizedBox(height: 22),
                 ModuleDetailHero(
                   icon: mod.icon,
-                  headline: mod.headline,
+                  headline: headline,
                   description: mod.description,
                   gradient: const [AppColors.red, AppColors.redDark],
                 ),
                 const SizedBox(height: 16),
                 ModuleDetailStats(
                   items: [
-                    (value: '$kInitialBatchSize', label: 'Questions'),
+                    (value: questionsStatValue, label: 'Questions'),
                     (value: mod.durationLabel, label: 'Durée'),
                     (value: niveauLabel, label: 'Niveau'),
                   ],
