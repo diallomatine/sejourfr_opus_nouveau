@@ -94,13 +94,10 @@ class _TcfProductionTaskSubjectsScreenState
 
   Future<void> _startTask(ProductionTaskDto task) async {
     if (_starting) return;
-    final auth = ref.read(authControllerProvider);
-    final isPremium =
-        auth is AuthAuthenticated && auth.user.canAccessModule(AppModule.tcf);
-    if (!isPremium) {
-      showPaywallSheet(context);
-      return;
-    }
+    // Pas de pré-blocage premium ici : le quota gratuit (2 submissions à
+    // vie par épreuve) vit côté backend, on laisse le user naviguer et on
+    // affiche le paywall uniquement si la création de l'attempt renvoie
+    // un 403.
     setState(() => _starting = true);
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
     try {
@@ -123,12 +120,16 @@ class _TcfProductionTaskSubjectsScreenState
     } catch (e) {
       if (!mounted) return;
       final apiErr = ApiClient.toApiException(e);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(apiErr.message),
-          backgroundColor: AppColors.red,
-        ),
-      );
+      if (apiErr.isForbidden) {
+        showPaywallSheet(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(apiErr.message),
+            backgroundColor: AppColors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _starting = false);
     }

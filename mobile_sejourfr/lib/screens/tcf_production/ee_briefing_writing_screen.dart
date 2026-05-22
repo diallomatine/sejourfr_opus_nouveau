@@ -314,13 +314,13 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
 
     final sessionAsync = ref.watch(eeSessionProvider);
     // Fallback back-arrow contextuel : si `canPop` est faux (deep link,
-    // pushReplacement chain, etc.), on retombe sur le hub EE sauf en mode
+    // pushReplacement chain, etc.), on retombe sur le détail EE sauf en mode
     // examen blanc complet où on retourne au progress de l'examen.
     final goState = GoRouterState.of(context);
     final fullExamId = goState.uri.queryParameters['fullExamId'];
     final fallbackRoute = fullExamId != null
         ? '/tcf/examen-blanc/$fullExamId'
-        : '/tcf/expression-ecrite';
+        : '/tcf/ee';
     return Scaffold(
       backgroundColor: AppColors.white,
       resizeToAvoidBottomInset: true,

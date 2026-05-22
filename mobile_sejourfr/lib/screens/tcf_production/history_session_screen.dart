@@ -154,7 +154,7 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
     final allTasks = ref.watch(_allTasksProvider(widget.epreuve));
 
     final fallbackRoute =
-        widget.epreuve == EpreuveType.tcfEo ? '/tcf/expression-orale' : '/tcf/expression-ecrite';
+        widget.epreuve == EpreuveType.tcfEo ? '/tcf/eo' : '/tcf/ee';
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: ProductionAppHeader(

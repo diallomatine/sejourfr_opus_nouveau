@@ -171,7 +171,7 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
     final fullExamId = goState.uri.queryParameters['fullExamId'];
     final fallbackRoute = fullExamId != null
         ? '/tcf/examen-blanc/$fullExamId'
-        : '/tcf/expression-orale';
+        : '/tcf/eo';
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: ProductionAppHeader(

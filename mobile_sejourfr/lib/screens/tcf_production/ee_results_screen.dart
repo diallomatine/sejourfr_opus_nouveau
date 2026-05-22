@@ -99,7 +99,7 @@ class _EeResultsScreenState extends ConsumerState<EeResultsScreen> {
 
     final fallbackRoute = fullExamId != null
         ? '/tcf/examen-blanc/$fullExamId'
-        : '/tcf/expression-ecrite';
+        : '/tcf/ee';
     return _Wrapper(
       fallbackRoute: fallbackRoute,
       body: async.when(

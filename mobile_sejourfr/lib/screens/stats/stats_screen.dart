@@ -1084,9 +1084,11 @@ class _ThemesCard extends ConsumerWidget {
   }
 
   void _openProductionHub(BuildContext context, EpreuveType epreuve) {
+    // Le `ProductionHubScreen` a été supprimé : la sélection T1/T2/T3 vit
+    // désormais sur l'onglet Tâches du détail module (`/tcf/eo` ou `/tcf/ee`).
     final route = epreuve == EpreuveType.tcfEe
-        ? AppRoutes.tcfExpressionEcrite
-        : AppRoutes.tcfExpressionOrale;
+        ? AppRoutes.tcfEeDetail
+        : AppRoutes.tcfEoDetail;
     context.push(route);
   }
 

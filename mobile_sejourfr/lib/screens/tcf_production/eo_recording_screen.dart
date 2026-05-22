@@ -58,7 +58,7 @@ class _EoRecordingScreenState extends ConsumerState<EoRecordingScreen> {
         GoRouterState.of(context).uri.queryParameters['fullExamId'];
     return fullExamId != null
         ? '/tcf/examen-blanc/$fullExamId'
-        : '/tcf/expression-orale';
+        : '/tcf/eo';
   }
 
   Future<bool> _confirmQuit(BuildContext context) async {

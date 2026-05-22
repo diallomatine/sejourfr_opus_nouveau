@@ -28,10 +28,11 @@ class ProductionHistoryScreen extends ConsumerWidget {
   String get _moduleTitle =>
       epreuve == EpreuveType.tcfEo ? 'Expression orale' : 'Expression écrite';
 
-  /// Route vers le hub d'entrainement (parent de cet ecran d'historique).
-  String _hubRoute() => epreuve == EpreuveType.tcfEo
-      ? '/tcf/expression-orale'
-      : '/tcf/expression-ecrite';
+  /// Route vers le détail module (parent de cet écran d'historique depuis
+  /// la suppression du `ProductionHubScreen` — la sélection T1/T2/T3 vit
+  /// désormais sur l'onglet Tâches du détail).
+  String _hubRoute() =>
+      epreuve == EpreuveType.tcfEo ? '/tcf/eo' : '/tcf/ee';
 
   String _sessionRoute(String attemptId) => epreuve == EpreuveType.tcfEo
       ? '/tcf/expression-orale/sessions/$attemptId'

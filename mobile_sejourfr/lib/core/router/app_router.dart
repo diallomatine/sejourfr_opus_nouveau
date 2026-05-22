@@ -12,11 +12,9 @@ import '../../screens/civique/civique_exam_blanc_screen.dart';
 import '../../screens/civique/civique_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/module_detail/civique_theme_detail_screen.dart';
+import '../../screens/module_detail/tcf_full_exams_screen.dart';
 import '../../screens/module_detail/tcf_level_lots_screen.dart';
 import '../../screens/module_detail/tcf_lot_result_screen.dart';
-import '../../screens/module_detail/tcf_full_exams_screen.dart';
-import '../../screens/tcf_full_exam/tcf_full_exam_bilan_screen.dart';
-import '../../screens/tcf_full_exam/tcf_full_exam_progress_screen.dart';
 import '../../screens/module_detail/tcf_production_detail_screen.dart';
 import '../../screens/module_detail/tcf_production_task_subjects_screen.dart';
 import '../../screens/module_detail/tcf_qcm_detail_screen.dart';
@@ -30,6 +28,8 @@ import '../../screens/splash/splash_screen.dart';
 import '../../screens/stats/stats_screen.dart';
 import '../../screens/target_path/target_path_screen.dart';
 import '../../screens/tcf/tcf_screen.dart';
+import '../../screens/tcf_full_exam/tcf_full_exam_bilan_screen.dart';
+import '../../screens/tcf_full_exam/tcf_full_exam_progress_screen.dart';
 import '../../screens/tcf_production/ee_briefing_writing_screen.dart';
 import '../../screens/tcf_production/ee_results_screen.dart';
 import '../../screens/tcf_production/eo_briefing_screen.dart';
@@ -38,7 +38,6 @@ import '../../screens/tcf_production/eo_recording_screen.dart';
 import '../../screens/tcf_production/eo_results_screen.dart';
 import '../../screens/tcf_production/history_session_screen.dart';
 import '../../screens/tcf_production/production_history_screen.dart';
-import '../../screens/tcf_production/production_hub_screen.dart';
 import '../auth/auth_controller.dart';
 import '../models/enums.dart';
 
@@ -58,23 +57,29 @@ class AppRoutes {
   static const tcfStructureDetail = '/tcf/structure';
   static const tcfEoDetail = '/tcf/eo';
   static const tcfEeDetail = '/tcf/ee';
+
   // Sujets d'une tâche EE ou EO (route hors shell). tacheNumero ∈ {1,2,3}.
   // Cf. `TcfProductionTaskSubjectsScreen` — affichage groupé par lots de 5
   // si > 15 sujets, sinon liste plate. Bypass pour EO T1 (consigne fixe).
   static const tcfEoTaskSubjects = '/tcf/eo/tache/:tacheNumero';
   static const tcfEeTaskSubjects = '/tcf/ee/tache/:tacheNumero';
+
   // Examen blanc complet TCF (les 4 épreuves enchaînées). 20 slots dans
   // la liste. Distinct des module exams (CO/CE seul) côté backend via
   // attempts.epreuve = TCF_COMPLET vs attempts.module_exam_question_type.
   static const tcfFullExams = '/tcf/examens-blancs';
+
   // Hub de progression d'un examen blanc complet en cours (4 étapes).
   // Push après création du parent via POST /api/full-tcf-exams.
   static const tcfFullExamProgress = '/tcf/examen-blanc/:parentId';
+
   // Bilan final agrégé (niveau CECRL plancher + détail des 4 épreuves).
   static const tcfFullExamBilan = '/tcf/examen-blanc/:parentId/bilan';
+
   // Liste des lots pour un niveau d'un module TCF QCM.
   // moduleKey ∈ {co, ce}, level ∈ {a2, b1, b2}.
   static const tcfLevelLots = '/tcf/:moduleKey/niveau/:level';
+
   // Bilan affiché à la fin d'un lot TCF QCM. Push par le runner avec
   // moduleKey + level en query pour reconstruire le retour.
   static const tcfLotResult = '/tcf/lot-result/:attemptId';
@@ -280,20 +285,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       // d'info rendue par TcfQcmDetailScreen quand `module.notice != null`.
       GoRoute(
         path: AppRoutes.tcfStructureDetail,
-        builder: (_, __) =>
-            const TcfQcmDetailScreen(module: TcfQcmModule.structure),
+        builder: (_, __) => const TcfQcmDetailScreen(module: TcfQcmModule.structure),
       ),
-      // TCF productions : un détail par épreuve (EO, EE) → push
-      // `ProductionHubScreen` (sélection T1/T2/T3) via le CTA.
+      // TCF productions : un détail par épreuve (EO, EE). L'onglet Tâches
+      // du détail expose les 3 cards T1/T2/T3 et push directement la
+      // sélection des sujets (`TcfProductionTaskSubjectsScreen`) — il n'y
+      // a plus d'écran hub intermédiaire.
       GoRoute(
         path: AppRoutes.tcfEoDetail,
-        builder: (_, __) =>
-            const TcfProductionDetailScreen(module: TcfProductionModule.eo),
+        builder: (_, __) => const TcfProductionDetailScreen(module: TcfProductionModule.eo),
       ),
       GoRoute(
         path: AppRoutes.tcfEeDetail,
-        builder: (_, __) =>
-            const TcfProductionDetailScreen(module: TcfProductionModule.ee),
+        builder: (_, __) => const TcfProductionDetailScreen(module: TcfProductionModule.ee),
       ),
       // Sujets d'une tâche EE / EO. Pushé depuis l'onglet Tâches du détail
       // production quand l'utilisateur tape une card tâche.
@@ -373,8 +377,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // TCF Expression orale — hub + sous-routes des écrans de session.
-      //   /tcf/expression-orale                          -> hub d'entrainement
+      // TCF Expression orale — sous-routes des écrans de session.
+      //   /tcf/expression-orale                          -> [supprimé] redirige vers le détail EO
       //   /tcf/expression-orale/historique               -> historique des sessions passees
       //   /tcf/expression-orale/sessions/:attemptId      -> bilan détaillé d'une session
       //                                                    (mode `?live=1` après T3 = polling actif)
@@ -382,15 +386,26 @@ final routerProvider = Provider<GoRouter>((ref) {
       //   /tcf/expression-orale/t/:idx/enregistrement    -> capture audio
       //   /tcf/expression-orale/t/:idx/termine           -> ecoute + soumission
       //   /tcf/expression-orale/resultats/:id?taskIndex=N&history=1  -> resultats (live ou history)
+      //
+      // L'ancien hub `ProductionHubScreen` a été supprimé : la sélection
+      // T1/T2/T3 vit désormais sur `TcfProductionDetailScreen` (/tcf/eo).
+      // On garde le path parent pour absorber les anciens liens (deep links,
+      // historiques) via un redirect — mais uniquement quand l'URL exacte
+      // est la racine ; les sous-routes restent atteignables.
       GoRoute(
         path: AppRoutes.tcfExpressionOrale,
-        builder: (_, __) =>
-            const ProductionHubScreen(epreuve: EpreuveType.tcfEo),
+        // `state.matchedLocation` est parfois la path du parent (et pas l'URL
+        // complète) pendant l'évaluation d'une navigation vers sous-route
+        // dans go_router 14 — ce qui ferait fire la redirection alors qu'on
+        // navigue en fait vers `/tcf/expression-orale/t/0` ou similaire. On
+        // teste donc `state.uri.path` (URL réelle de destination) pour ne
+        // rediriger QUE quand l'utilisateur cible l'ancien path racine du hub.
+        redirect: (_, state) =>
+            state.uri.path == AppRoutes.tcfExpressionOrale ? AppRoutes.tcfEoDetail : null,
         routes: [
           GoRoute(
             path: 'historique',
-            builder: (_, __) =>
-                const ProductionHistoryScreen(epreuve: EpreuveType.tcfEo),
+            builder: (_, __) => const ProductionHistoryScreen(epreuve: EpreuveType.tcfEo),
           ),
           GoRoute(
             path: 'sessions/:attemptId',
@@ -439,16 +454,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // TCF Expression ecrite — mêmes sous-routes qu'EO sans /enregistrement
-      // /termine (le briefing + zone d'écriture sont combinés).
+      // /termine (le briefing + zone d'écriture sont combinés). Le path
+      // parent redirige vers le détail EE comme pour l'orale (cf. supra).
       GoRoute(
         path: AppRoutes.tcfExpressionEcrite,
-        builder: (_, __) =>
-            const ProductionHubScreen(epreuve: EpreuveType.tcfEe),
+        // Cf. note sur l'analogue EO juste au-dessus : on filtre via
+        // `state.uri.path` pour ne pas intercepter les navigations vers
+        // les sous-routes (`/historique`, `/sessions/:id`, `/t/:idx`, ...).
+        redirect: (_, state) =>
+            state.uri.path == AppRoutes.tcfExpressionEcrite ? AppRoutes.tcfEeDetail : null,
         routes: [
           GoRoute(
             path: 'historique',
-            builder: (_, __) =>
-                const ProductionHistoryScreen(epreuve: EpreuveType.tcfEe),
+            builder: (_, __) => const ProductionHistoryScreen(epreuve: EpreuveType.tcfEe),
           ),
           GoRoute(
             path: 'sessions/:attemptId',

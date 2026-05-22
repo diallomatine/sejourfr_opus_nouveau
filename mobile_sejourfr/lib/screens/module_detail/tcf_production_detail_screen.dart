@@ -102,7 +102,8 @@ class _ProductionExamSession {
 
 /// Module TCF productif (Expression écrite ou orale). Reste séparé de
 /// `TcfQcmModule` parce que le flow downstream est différent : ces 2 modules
-/// pushent un `ProductionHubScreen` (sélection T1/T2/T3) et non un runner QCM.
+/// portent leur propre sélection T1/T2/T3 sur cet écran détail et pushent
+/// directement le briefing de la tâche choisie (pas de hub intermédiaire).
 ///
 /// Couleurs : palette stricte bleu / blanc / rouge SejourFR (pas de vert ni
 /// violet). EE et EO se distinguent par leur icône et le libellé du 3ᵉ onglet
@@ -118,7 +119,6 @@ enum TcfProductionModule {
         'Rédige tes réponses puis reçois un niveau CECRL, des corrections et des conseils personnalisés.',
     icon: Icons.edit_note_rounded,
     durationLabel: '30',
-    hubRoutePath: AppRoutes.tcfExpressionEcrite,
     historyTabLabel: 'Corrections',
     ctaLabel: 'Commencer à écrire',
   ),
@@ -132,7 +132,6 @@ enum TcfProductionModule {
         'Enregistre tes réponses et reçois une analyse IA avec transcription et niveau CECRL.',
     icon: Icons.mic_rounded,
     durationLabel: '10',
-    hubRoutePath: AppRoutes.tcfExpressionOrale,
     historyTabLabel: 'Analyses',
     ctaLabel: 'Commencer à parler',
   );
@@ -146,7 +145,6 @@ enum TcfProductionModule {
     required this.description,
     required this.icon,
     required this.durationLabel,
-    required this.hubRoutePath,
     required this.historyTabLabel,
     required this.ctaLabel,
   });
@@ -159,7 +157,6 @@ enum TcfProductionModule {
   final String description;
   final IconData icon;
   final String durationLabel;
-  final String hubRoutePath;
   final String historyTabLabel;
   final String ctaLabel;
 }
@@ -245,11 +242,12 @@ class _TcfProductionDetailScreenState
   }
 
   void _openTask(_ProductionTaskCard task) {
+    // Seul le verrou `premiumOnly` (T3) bloque la navigation côté front.
+    // Pour les autres tâches, le quota gratuit "2 submissions à vie par
+    // épreuve" est appliqué côté backend (`SubscriptionService.hasTcf`) :
+    // la liste des sujets reste accessible aux non-premium, et la paywall
+    // apparaît plus tard si le user dépasse le quota au moment de soumettre.
     if (task.premiumOnly && !_isPremium()) {
-      showPaywallSheet(context);
-      return;
-    }
-    if (!_isPremium()) {
       showPaywallSheet(context);
       return;
     }
