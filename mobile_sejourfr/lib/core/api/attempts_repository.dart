@@ -46,6 +46,7 @@ class AttemptsRepository {
     AttemptType? type,
     AppModule? module,
     QuestionType? moduleExamQuestionType,
+    String? themeId,
     int limit = 20,
   }) async {
     final res = await _client.dio.get<List<dynamic>>(
@@ -55,6 +56,7 @@ class AttemptsRepository {
         if (module != null) 'module': module.wire,
         if (moduleExamQuestionType != null)
           'moduleExamQuestionType': moduleExamQuestionType.wire,
+        if (themeId != null) 'themeId': themeId,
         'limit': limit,
       },
     );

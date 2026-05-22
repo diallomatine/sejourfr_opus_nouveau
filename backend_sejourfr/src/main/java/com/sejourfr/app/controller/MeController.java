@@ -57,9 +57,10 @@ public class MeController {
             @RequestParam(required = false) AttemptType type,
             @RequestParam(required = false) Module module,
             @RequestParam(required = false) QuestionType moduleExamQuestionType,
+            @RequestParam(required = false) UUID themeId,
             @RequestParam(defaultValue = "20") int limit) {
         return attemptService.listMine(
-                currentUser.getId(), type, module, moduleExamQuestionType, limit);
+                currentUser.getId(), type, module, moduleExamQuestionType, themeId, limit);
     }
 
     // ------------------------------------------------------------------------

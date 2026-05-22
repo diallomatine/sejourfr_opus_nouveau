@@ -205,7 +205,7 @@ Règle de découpage :
 effective du lot demandé — même source de vérité que `GET /api/lots`,
 donc impossible que les deux endpoints divergent.
 
-**Trace lot ↔ attempt** : la migration `V097__attempts_lot_columns.sql`
+**Trace lot ↔ attempt** : la migration `V088__attempts_lot_columns.sql`
 ajoute trois colonnes TCF (`lot_numero`, `lot_question_type`, `lot_difficulty`),
 et `V089__attempts_lot_theme_id.sql` ajoute `lot_theme_id` pour les lots
 Civique. `startFromLot` remplit les colonnes correspondantes selon le

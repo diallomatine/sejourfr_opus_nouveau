@@ -309,10 +309,12 @@ bottom nav) :
     `GET /api/lots?module=CIVIQUE&themeId=...`. Tap lot → `POST /api/attempts {type:TRAINING,
     module:CIVIQUE, themeId, lotNumero}` puis push runner. Backend trace via `lot_theme_id` +
     `lot_numero` (cf. migration V089 + CLAUDE.md racine § Lots).
-  - **Examens** : 20 slots d'examens blancs civique (40 Q / 45 min / seuil 32). L'historique
-    `_civiqueExamsHistoryProvider` (`GET /api/me/attempts?type=MOCK_EXAM&module=CIVIQUE`) est
-    partagé entre les 5 écrans détail thème — le mock_exam civique n'est pas scopé par thème
-    côté backend, c'est par design (le vrai examen civique touche aux 5 thèmes).
+  - **Examens** : **10 slots d'examens civique scopés à ce thème** (20 Q du thème, 20 min,
+    seuil 16/20). Provider `_civiqueThemeExamsHistoryProvider(themeId)` →
+    `GET /api/me/attempts?type=MOCK_EXAM&module=CIVIQUE&themeId=...`. Backend distingue
+    cette variante en posant `lot_theme_id` sur l'attempt lors du POST (cf.
+    `AttemptService` branche `CIVIQUE_THEME_EXAM`). Distinct de l'examen blanc complet
+    civique (40 Q tous thèmes, 45 min, seuil 32) qui reste sur la carte sombre du hub.
   - **Erreurs** : 20 dernières questions ratées du user sur **ce thème précis**, via
     `_civiqueWrongProvider(themeId)` → `GET /api/me/questions/wrong?module=CIVIQUE&themeId=...`.
     Tap question → `showQuestionDetailSheet` partagé.

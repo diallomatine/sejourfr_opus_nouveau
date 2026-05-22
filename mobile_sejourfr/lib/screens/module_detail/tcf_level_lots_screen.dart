@@ -101,7 +101,8 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
               type: AttemptType.training,
               module: AppModule.tcf,
               questionType: widget.module.questionType,
-              difficulty: lot.difficulty,
+              // TCF uniquement → difficulty toujours présente.
+              difficulty: lot.difficulty!,
               lotNumero: lot.numero,
             ),
           );

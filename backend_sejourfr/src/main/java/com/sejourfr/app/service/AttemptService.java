@@ -55,6 +55,12 @@ public class AttemptService {
     private static final int CIVIQUE_EXAM_TIME = 45 * 60;
     private static final int CIVIQUE_EXAM_THRESHOLD = 32;
 
+    // Examen civique scopé à un thème (lancé depuis l'onglet Examens du
+    // détail thème). 20 questions du thème en 20 min, seuil 16/20.
+    private static final int CIVIQUE_THEME_EXAM_SIZE = 20;
+    private static final int CIVIQUE_THEME_EXAM_TIME = 20 * 60;
+    private static final int CIVIQUE_THEME_EXAM_THRESHOLD = 16;
+
     private static final int TCF_EXAM_SIZE = 60;
     private static final int TCF_EXAM_TIME = 90 * 60;
 
@@ -137,11 +143,23 @@ public class AttemptService {
         Integer timeLimit = null;
         Integer threshold = null;
 
+        // Civic MOCK_EXAM scopé à un thème (20 Q de ce thème) vs global
+        // (40 Q tous thèmes). Détecté via `themeId` côté request.
+        boolean civicThemeExam = req.type() == AttemptType.MOCK_EXAM
+                && req.module() == Module.CIVIQUE
+                && req.themeId() != null;
+
         if (req.type() == AttemptType.MOCK_EXAM) {
             if (req.module() == Module.CIVIQUE) {
-                size = CIVIQUE_EXAM_SIZE;
-                timeLimit = CIVIQUE_EXAM_TIME;
-                threshold = CIVIQUE_EXAM_THRESHOLD;
+                if (civicThemeExam) {
+                    size = CIVIQUE_THEME_EXAM_SIZE;
+                    timeLimit = CIVIQUE_THEME_EXAM_TIME;
+                    threshold = CIVIQUE_THEME_EXAM_THRESHOLD;
+                } else {
+                    size = CIVIQUE_EXAM_SIZE;
+                    timeLimit = CIVIQUE_EXAM_TIME;
+                    threshold = CIVIQUE_EXAM_THRESHOLD;
+                }
             } else {
                 size = TCF_EXAM_SIZE;
                 timeLimit = TCF_EXAM_TIME;
@@ -158,7 +176,16 @@ public class AttemptService {
             // du quota guest 2026-05-17).
             questions = questionManager.findDemoPool(req.module(), size);
         } else {
-            UUID themeId = req.type() == AttemptType.MOCK_EXAM ? null : req.themeId();
+            // Pour un examen civique theme-scopé, on garde le themeId — sinon
+            // règle historique : pas de themeId sur MOCK_EXAM (tous thèmes).
+            UUID themeId;
+            if (civicThemeExam) {
+                themeId = req.themeId();
+            } else if (req.type() == AttemptType.MOCK_EXAM) {
+                themeId = null;
+            } else {
+                themeId = req.themeId();
+            }
             var qType = req.type() == AttemptType.MOCK_EXAM ? null : req.questionType();
             Difficulty effectiveDifficulty = resolveDifficulty(user, req.module(), req.difficulty());
             questions = questionManager.findRandom(req.module(), themeId, effectiveDifficulty, qType, size);
@@ -176,6 +203,12 @@ public class AttemptService {
         attempt.setTimeLimitSeconds(timeLimit);
         attempt.setPassThreshold(threshold);
         attempt.setStartedAt(Instant.now());
+        // Pour l'examen civique theme-scopé, on réutilise `lot_theme_id`
+        // comme colonne de scoping de l'attempt (l'index existant suffit pour
+        // filtrer l'historique par thème côté `MeAttemptsController`).
+        if (civicThemeExam) {
+            attempt.setLotThemeId(req.themeId());
+        }
         attempt = attemptManager.save(attempt);
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
@@ -626,10 +659,11 @@ public class AttemptService {
             AttemptType type,
             Module module,
             QuestionType moduleExamQuestionType,
+            UUID themeId,
             int limit) {
         int safeLimit = Math.max(LIST_LIMIT_MIN, Math.min(LIST_LIMIT_MAX, limit));
         List<Attempt> attempts = attemptManager.findByUserFiltered(
-                userId, type, module, moduleExamQuestionType, safeLimit);
+                userId, type, module, moduleExamQuestionType, themeId, safeLimit);
         return attempts.stream().map(mapper::toSummary).toList();
     }
 

@@ -4,8 +4,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 
 /// Bottom sheet de briefing affichée avant le démarrage d'un examen blanc
-/// civique. Rappelle les conditions (40 Q, 45 min, seuil 32/40, pas de
-/// retour arrière) puis appelle `onStart` au tap du CTA primaire.
+/// civique **global** (40 Q tous thèmes, 45 min, seuil 32/40). Branchée
+/// depuis la card sombre du hub civique.
 Future<void> showCiviqueExamBriefingSheet(
   BuildContext context, {
   required VoidCallback onStart,
@@ -14,7 +14,23 @@ Future<void> showCiviqueExamBriefingSheet(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
-    builder: (sheetCtx) => _CiviqueExamBriefingSheet(
+    builder: (sheetCtx) => _CiviqueBriefingBody(
+      eyebrow: 'EXAMEN BLANC CIVIQUE',
+      title: 'Prêt à passer ?',
+      rows: const [
+        _BriefRowData(
+          icon: Icons.quiz_outlined,
+          text: '40 questions tirées sur les 5 thèmes officiels.',
+        ),
+        _BriefRowData(
+          icon: Icons.timer_outlined,
+          text: '45 minutes chrono, pas de retour en arrière.',
+        ),
+        _BriefRowData(
+          icon: Icons.check_circle_outline_rounded,
+          text: 'Seuil de réussite : 32 / 40 bonnes réponses.',
+        ),
+      ],
       onStart: () {
         Navigator.of(sheetCtx).pop();
         onStart();
@@ -23,9 +39,59 @@ Future<void> showCiviqueExamBriefingSheet(
   );
 }
 
-class _CiviqueExamBriefingSheet extends StatelessWidget {
-  const _CiviqueExamBriefingSheet({required this.onStart});
+/// Variante theme-scopée : 20 Q de ce thème, 20 min, seuil 16/20. Branchée
+/// depuis l'onglet Examens du détail thème civique.
+Future<void> showCiviqueThemeExamBriefingSheet(
+  BuildContext context, {
+  required String themeName,
+  required VoidCallback onStart,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (sheetCtx) => _CiviqueBriefingBody(
+      eyebrow: 'EXAMEN · ${themeName.toUpperCase()}',
+      title: 'Prêt à passer ?',
+      rows: [
+        _BriefRowData(
+          icon: Icons.quiz_outlined,
+          text: '20 questions tirées uniquement du thème « $themeName ».',
+        ),
+        const _BriefRowData(
+          icon: Icons.timer_outlined,
+          text: '20 minutes chrono, pas de retour en arrière.',
+        ),
+        const _BriefRowData(
+          icon: Icons.check_circle_outline_rounded,
+          text: 'Seuil de réussite : 16 / 20 bonnes réponses.',
+        ),
+      ],
+      onStart: () {
+        Navigator.of(sheetCtx).pop();
+        onStart();
+      },
+    ),
+  );
+}
 
+class _BriefRowData {
+  const _BriefRowData({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+}
+
+class _CiviqueBriefingBody extends StatelessWidget {
+  const _CiviqueBriefingBody({
+    required this.eyebrow,
+    required this.title,
+    required this.rows,
+    required this.onStart,
+  });
+
+  final String eyebrow;
+  final String title;
+  final List<_BriefRowData> rows;
   final VoidCallback onStart;
 
   @override
@@ -55,7 +121,7 @@ class _CiviqueExamBriefingSheet extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               Text(
-                'EXAMEN BLANC CIVIQUE',
+                eyebrow,
                 style: AppFonts.mono(
                   size: 10,
                   color: AppColors.blue,
@@ -66,23 +132,12 @@ class _CiviqueExamBriefingSheet extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Prêt à passer ?',
+                title,
                 style: AppFonts.fraunces(size: 24, weight: FontWeight.w600),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 14),
-              const _BriefRow(
-                icon: Icons.quiz_outlined,
-                text: '40 questions tirées sur les 5 thèmes officiels.',
-              ),
-              const _BriefRow(
-                icon: Icons.timer_outlined,
-                text: '45 minutes chrono, pas de retour en arrière.',
-              ),
-              const _BriefRow(
-                icon: Icons.check_circle_outline_rounded,
-                text: 'Seuil de réussite : 32 / 40 bonnes réponses.',
-              ),
+              for (final r in rows) _BriefRow(icon: r.icon, text: r.text),
               const SizedBox(height: 22),
               AppButton(
                 label: 'Commencer maintenant',

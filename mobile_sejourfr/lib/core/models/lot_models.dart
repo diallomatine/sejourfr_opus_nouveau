@@ -2,10 +2,13 @@ import 'enums.dart';
 
 /// Miroir Dart de `LotDto` côté backend.
 ///
-/// Un lot est un chunk déterministe de questions filtrées par
-/// (module, questionType, difficulty). Le numéro est 1-indexé. La taille du
-/// lot est constante par niveau TCF (A2 = 15, B1 = 20, B2 = 25) — exposée
-/// par le backend pour éviter qu'on doive la dupliquer côté mobile.
+/// Un lot est un chunk déterministe de questions filtrées par module +
+/// critères : pour TCF par (questionType, difficulty), pour Civique par
+/// (themeId). Le numéro est 1-indexé. La taille du lot est constante :
+/// TCF A2 = 15 / B1 = 20 / B2 = 25, Civique = 15.
+///
+/// Le champ `difficulty` est nullable — il est porté uniquement par les
+/// lots TCF. Les lots Civique le laissent à null côté backend.
 ///
 /// Les champs `last*` sont remplis avec le dernier attempt fini de l'user
 /// sur ce lot (null si jamais tenté) — sert au mobile pour différencier
@@ -20,7 +23,7 @@ class LotDto {
   });
 
   final int numero;
-  final Difficulty difficulty;
+  final Difficulty? difficulty;
   final int totalQuestions;
   final int? lastScore;
   final DateTime? lastAttemptedAt;
@@ -29,7 +32,9 @@ class LotDto {
 
   factory LotDto.fromJson(Map<String, dynamic> json) => LotDto(
         numero: (json['numero'] as num).toInt(),
-        difficulty: Difficulty.fromWire(json['difficulty'] as String),
+        difficulty: json['difficulty'] == null
+            ? null
+            : Difficulty.fromWire(json['difficulty'] as String),
         totalQuestions: (json['totalQuestions'] as num).toInt(),
         lastScore: (json['lastScore'] as num?)?.toInt(),
         lastAttemptedAt: json['lastAttemptedAt'] == null

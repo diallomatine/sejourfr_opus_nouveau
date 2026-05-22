@@ -60,9 +60,10 @@ public class AttemptManager {
             AttemptType type,
             Module module,
             QuestionType moduleExamQuestionType,
+            UUID themeId,
             int limit) {
         return repository.findByUserFiltered(
-                userId, type, module, moduleExamQuestionType, PageRequest.of(0, limit));
+                userId, type, module, moduleExamQuestionType, themeId, PageRequest.of(0, limit));
     }
 
     /**

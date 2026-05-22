@@ -22,8 +22,7 @@ import 'civique_exam_briefing_sheet.dart';
 import 'widgets/module_detail_widgets.dart';
 
 /// Pool des thèmes civique — partagé avec le hub mais on évite de l'importer.
-final _civiqueThemesProvider =
-    FutureProvider.autoDispose<List<ThemeDto>>((ref) {
+final _civiqueThemesProvider = FutureProvider.autoDispose<List<ThemeDto>>((ref) {
   return ref.watch(themesRepositoryProvider).list(module: AppModule.civique);
 });
 
@@ -31,22 +30,22 @@ final _civiqueStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
   return ref.watch(userContentRepositoryProvider).stats(module: AppModule.civique);
 });
 
-/// Historique des examens blancs civique du user. Partagé entre tous les
-/// écrans détail thème (le mock_exam civique n'est pas scopé par thème —
-/// il tire 40 questions sur les 5 thèmes en 45 min).
-final _civiqueExamsHistoryProvider =
-    FutureProvider.autoDispose<List<AttemptSummary>>((ref) {
+/// Historique des **examens civique scopés à un thème** (20 Q de ce thème,
+/// 20 min, seuil 16). Family indexée par themeId. Filtre côté backend via
+/// `?themeId=...` qui regarde la colonne `lot_theme_id` de l'attempt.
+final _civiqueThemeExamsHistoryProvider =
+    FutureProvider.autoDispose.family<List<AttemptSummary>, String>((ref, themeId) {
   return ref.watch(attemptsRepositoryProvider).listMine(
         type: AttemptType.mockExam,
         module: AppModule.civique,
+        themeId: themeId,
         limit: 30,
       );
 });
 
 /// Questions ratées du user sur un thème civique précis. Family indexée
 /// par themeId.
-final _civiqueWrongProvider = FutureProvider.autoDispose
-    .family<List<QuestionDto>, String>((ref, themeId) {
+final _civiqueWrongProvider = FutureProvider.autoDispose.family<List<QuestionDto>, String>((ref, themeId) {
   return ref.watch(userContentRepositoryProvider).wrongAnswered(
         module: AppModule.civique,
         themeId: themeId,
@@ -55,7 +54,9 @@ final _civiqueWrongProvider = FutureProvider.autoDispose
 
 enum _DetailTab { lots, exams, errors }
 
-const int _civiqueExamSlotsCount = 20;
+/// 10 slots d'examens par thème (vs 20 pour l'examen blanc complet
+/// civique qui couvre les 5 thèmes — cf. `CiviqueExamBlancScreen`).
+const int _civiqueThemeExamSlotsCount = 10;
 
 /// Écran détail d'un thème civique avec 3 onglets (Lots / Examens / Erreurs),
 /// calqué sur le pattern TCF QCM (CO/CE). Accessible via `/civique/theme/:themeId`.
@@ -65,19 +66,16 @@ class CiviqueThemeDetailScreen extends ConsumerStatefulWidget {
   final String themeId;
 
   @override
-  ConsumerState<CiviqueThemeDetailScreen> createState() =>
-      _CiviqueThemeDetailScreenState();
+  ConsumerState<CiviqueThemeDetailScreen> createState() => _CiviqueThemeDetailScreenState();
 }
 
-class _CiviqueThemeDetailScreenState
-    extends ConsumerState<CiviqueThemeDetailScreen> {
+class _CiviqueThemeDetailScreenState extends ConsumerState<CiviqueThemeDetailScreen> {
   bool _starting = false;
   _DetailTab _tab = _DetailTab.lots;
 
   bool _isPremium() {
     final auth = ref.read(authControllerProvider);
-    return auth is AuthAuthenticated &&
-        auth.user.canAccessModule(AppModule.civique);
+    return auth is AuthAuthenticated && auth.user.canAccessModule(AppModule.civique);
   }
 
   /// Lance un entraînement libre sur ce thème (CTA du bas onglet Lots).
@@ -150,9 +148,10 @@ class _CiviqueThemeDetailScreenState
     }
   }
 
-  /// Lance un examen blanc civique (40 Q, 45 min, tous thèmes). Réservé
-  /// premium. Reuse pour les CTAs "Lancer" + slot vide + "Reprendre".
-  Future<void> _startExam() async {
+  /// Lance un examen civique scopé à un thème (20 Q de ce thème, 20 min,
+  /// seuil 16/20). Distinct de l'examen blanc complet civique (40 Q tous
+  /// thèmes) accessible depuis la carte sombre du hub.
+  Future<void> _startThemeExam(ThemeDto theme) async {
     if (_starting) return;
     if (!_isPremium()) {
       showPaywallSheet(context);
@@ -165,10 +164,11 @@ class _CiviqueThemeDetailScreenState
             StartAttemptRequest(
               type: AttemptType.mockExam,
               module: AppModule.civique,
+              themeId: theme.id,
             ),
           );
       if (!mounted) return;
-      ref.invalidate(_civiqueExamsHistoryProvider);
+      ref.invalidate(_civiqueThemeExamsHistoryProvider(theme.id));
       context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
     } catch (e) {
       if (!mounted) return;
@@ -185,13 +185,17 @@ class _CiviqueThemeDetailScreenState
     }
   }
 
-  void _openExamBriefing() {
+  void _openExamBriefing(ThemeDto theme) {
     if (_starting) return;
     if (!_isPremium()) {
       showPaywallSheet(context);
       return;
     }
-    showCiviqueExamBriefingSheet(context, onStart: _startExam);
+    showCiviqueThemeExamBriefingSheet(
+      context,
+      themeName: theme.name,
+      onStart: () => _startThemeExam(theme),
+    );
   }
 
   @override
@@ -211,8 +215,7 @@ class _CiviqueThemeDetailScreenState
             onBack: () => context.pop(),
           ),
           data: (themes) {
-            final theme =
-                themes.where((t) => t.id == widget.themeId).firstOrNull;
+            final theme = themes.where((t) => t.id == widget.themeId).firstOrNull;
             if (theme == null) {
               return _ErrorBlock(
                 message: 'Thème introuvable.',
@@ -221,12 +224,10 @@ class _CiviqueThemeDetailScreenState
             }
 
             final themeStats = statsAsync.maybeWhen(
-              data: (s) =>
-                  s.byTheme.where((t) => t.themeId == theme.id).firstOrNull,
+              data: (s) => s.byTheme.where((t) => t.themeId == theme.id).firstOrNull,
               orElse: () => null,
             );
-            final percent =
-                themeStats == null ? 0 : (themeStats.mastery * 100).round();
+            final percent = themeStats == null ? 0 : (themeStats.mastery * 100).round();
             final attempts = themeStats?.answered ?? 0;
 
             return Stack(
@@ -249,8 +250,7 @@ class _CiviqueThemeDetailScreenState
                     ModuleDetailHero(
                       icon: _iconForTheme(theme.code),
                       headline: '${theme.questionCount} questions au programme',
-                      description: theme.description ??
-                          'Questions officielles couvrant ce thème.',
+                      description: theme.description ?? 'Questions officielles couvrant ce thème.',
                       gradient: const [AppColors.blue, AppColors.blueDark],
                     ),
                     const SizedBox(height: 16),
@@ -271,8 +271,7 @@ class _CiviqueThemeDetailScreenState
                     ModuleDetailTabs(
                       labels: const ['Lots', 'Examens', 'Erreurs'],
                       activeIndex: _tab.index,
-                      onChanged: (i) =>
-                          setState(() => _tab = _DetailTab.values[i]),
+                      onChanged: (i) => setState(() => _tab = _DetailTab.values[i]),
                       accent: AppColors.blue,
                     ),
                     const SizedBox(height: 14),
@@ -280,7 +279,7 @@ class _CiviqueThemeDetailScreenState
                       tab: _tab,
                       theme: theme,
                       onLotTap: (lot) => _startLot(theme, lot),
-                      onStartExam: _openExamBriefing,
+                      onStartExam: () => _openExamBriefing(theme),
                       examStarting: _starting,
                     ),
                     if (_tab == _DetailTab.lots) ...[
@@ -289,8 +288,7 @@ class _CiviqueThemeDetailScreenState
                         label: 'Commencer l\'entraînement',
                         icon: Icons.play_arrow_rounded,
                         isLoading: _starting,
-                        onPressed:
-                            _starting ? null : () => _startFreeTraining(theme),
+                        onPressed: _starting ? null : () => _startFreeTraining(theme),
                       ),
                     ],
                   ],
@@ -453,8 +451,7 @@ class _LotsTab extends ConsumerWidget {
               child: SizedBox(
                 width: 22,
                 height: 22,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.4, color: AppColors.blue),
+                child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.blue),
               ),
             ),
           ),
@@ -466,8 +463,7 @@ class _LotsTab extends ConsumerWidget {
               return ModuleDetailTabPlaceholder(
                 icon: Icons.menu_book_outlined,
                 title: 'Aucun lot pour ce thème',
-                description:
-                    'Le pool de questions est en cours de constitution. Reviens d\'ici peu.',
+                description: 'Le pool de questions est en cours de constitution. Reviens d\'ici peu.',
               );
             }
             return Column(
@@ -567,8 +563,7 @@ class _CiviqueLotCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   if (done)
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: color,
                         borderRadius: BorderRadius.circular(999),
@@ -612,9 +607,9 @@ class _CiviqueLotCard extends StatelessWidget {
 // Onglet Examens
 // ---------------------------------------------------------------------------
 
-/// 20 slots d'examens blancs civiques (40 Q, 45 min, tous thèmes). L'historique
-/// est partagé entre les 5 thèmes — le mock_exam civique n'est pas scopé par
-/// thème côté backend.
+/// 10 slots d'examens civique **scopés à ce thème** (20 questions du thème
+/// en 20 min, seuil 16/20). Distinct de l'examen blanc complet civique
+/// (40 Q tous thèmes) accessible depuis la carte sombre du hub.
 class _ExamsTab extends ConsumerWidget {
   const _ExamsTab({
     required this.theme,
@@ -628,7 +623,7 @@ class _ExamsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncHistory = ref.watch(_civiqueExamsHistoryProvider);
+    final asyncHistory = ref.watch(_civiqueThemeExamsHistoryProvider(theme.id));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -644,7 +639,7 @@ class _ExamsTab extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'EXAMEN BLANC CIVIQUE',
+                'EXAMEN BLANC · ${theme.name.toUpperCase()}',
                 style: AppFonts.mono(
                   size: 9.5,
                   color: AppColors.muted,
@@ -654,8 +649,8 @@ class _ExamsTab extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '40 questions tirées sur les 5 thèmes en 45 min — conditions '
-                'réelles. Seuil de réussite : 32/40.',
+                '20 questions tirées uniquement de ce thème en 20 min — '
+                'conditions réelles. Seuil de réussite : 16/20.',
                 style: AppFonts.jakarta(
                   size: 13,
                   color: AppColors.ink2,
@@ -667,9 +662,9 @@ class _ExamsTab extends ConsumerWidget {
                 spacing: 6,
                 runSpacing: 6,
                 children: const [
-                  _Chip(text: '40 questions'),
-                  _Chip(text: '45 min'),
-                  _Chip(text: '5 thèmes'),
+                  _Chip(text: '20 questions'),
+                  _Chip(text: '20 min'),
+                  _Chip(text: 'Seuil 16/20'),
                 ],
               ),
             ],
@@ -688,7 +683,7 @@ class _ExamsTab extends ConsumerWidget {
             ),
             const Spacer(),
             Text(
-              '$_civiqueExamSlotsCount disponibles',
+              '$_civiqueThemeExamSlotsCount disponibles',
               style: AppFonts.mono(
                 size: 10,
                 color: AppColors.muted,
@@ -706,8 +701,7 @@ class _ExamsTab extends ConsumerWidget {
               child: SizedBox(
                 width: 22,
                 height: 22,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2.4, color: AppColors.blue),
+                child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.blue),
               ),
             ),
           ),
@@ -715,11 +709,10 @@ class _ExamsTab extends ConsumerWidget {
             message: ApiClient.toApiException(e).message,
           ),
           data: (history) {
-            final finished =
-                history.where((a) => a.isFinished).toList().reversed.toList();
+            final finished = history.where((a) => a.isFinished).toList().reversed.toList();
             return Column(
               children: [
-                for (int i = 0; i < _civiqueExamSlotsCount; i++)
+                for (int i = 0; i < _civiqueThemeExamSlotsCount; i++)
                   _CiviqueExamSlotCard(
                     slot: i + 1,
                     attempt: i < finished.length ? finished[i] : null,
@@ -834,9 +827,7 @@ class _CiviqueExamSlotCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          done
-                              ? _formatDoneSubtitle(attempt!)
-                              : 'Disponible · 40 questions, 45 min',
+                          done ? _formatDoneSubtitle(attempt!) : 'Disponible · 20 questions, 20 min',
                           style: AppFonts.jakarta(
                             size: 12,
                             color: AppColors.muted,
@@ -850,8 +841,7 @@ class _CiviqueExamSlotCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   if (done)
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: color,
                         borderRadius: BorderRadius.circular(999),
@@ -892,8 +882,18 @@ class _CiviqueExamSlotCard extends StatelessWidget {
 
   String _formatDoneSubtitle(AttemptSummary a) {
     const months = [
-      'janv.', 'févr.', 'mars', 'avril', 'mai', 'juin',
-      'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+      'janv.',
+      'févr.',
+      'mars',
+      'avril',
+      'mai',
+      'juin',
+      'juil.',
+      'août',
+      'sept.',
+      'oct.',
+      'nov.',
+      'déc.',
     ];
     final d = a.finishedAt!;
     return '${d.day} ${months[d.month - 1]} ${d.year} · ${a.score ?? 0}/${a.totalQuestions}';
@@ -989,20 +989,17 @@ class _ErrorsTab extends ConsumerWidget {
           child: SizedBox(
             width: 24,
             height: 24,
-            child: CircularProgressIndicator(
-                strokeWidth: 2.4, color: AppColors.blue),
+            child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.blue),
           ),
         ),
       ),
-      error: (e, _) =>
-          _SmallErrorBox(message: ApiClient.toApiException(e).message),
+      error: (e, _) => _SmallErrorBox(message: ApiClient.toApiException(e).message),
       data: (wrongs) {
         if (wrongs.isEmpty) {
           return ModuleDetailTabPlaceholder(
             icon: Icons.verified_outlined,
             title: 'Aucune erreur récente',
-            description:
-                'Bravo — aucune question ratée sur ${theme.name} pour l\'instant.',
+            description: 'Bravo — aucune question ratée sur ${theme.name} pour l\'instant.',
           );
         }
         // Cap à 20 entrées pour rester cohérent avec les autres modules.
@@ -1013,8 +1010,7 @@ class _ErrorsTab extends ConsumerWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: AppColors.red.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(999),
@@ -1163,9 +1159,7 @@ class _WrongQuestionCard extends ConsumerWidget {
   Future<void> _openDetail(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final detailed = await ref
-          .read(userContentRepositoryProvider)
-          .reviewQuestion(question.id);
+      final detailed = await ref.read(userContentRepositoryProvider).reviewQuestion(question.id);
       if (!context.mounted) return;
       showQuestionDetailSheet(context, question: detailed);
     } catch (e) {
@@ -1185,7 +1179,9 @@ class _WrongQuestionCard extends ConsumerWidget {
 
 class _Chip extends StatelessWidget {
   const _Chip({required this.text});
+
   final String text;
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1209,7 +1205,9 @@ class _Chip extends StatelessWidget {
 
 class _SmallErrorBox extends StatelessWidget {
   const _SmallErrorBox({required this.message});
+
   final String message;
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1228,8 +1226,10 @@ class _SmallErrorBox extends StatelessWidget {
 
 class _ErrorBlock extends StatelessWidget {
   const _ErrorBlock({required this.message, required this.onBack});
+
   final String message;
   final VoidCallback onBack;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
