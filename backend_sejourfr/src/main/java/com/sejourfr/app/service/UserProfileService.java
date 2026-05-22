@@ -8,6 +8,7 @@ import com.sejourfr.app.manager.UserManager;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -181,7 +182,16 @@ public class UserProfileService {
 
         User user = token.getUser();
         user.setEmail(token.getNewEmail());
-        userManager.save(user);
+        try {
+            userManager.save(user);
+        } catch (DataIntegrityViolationException e) {
+            // Course gagnée par un autre user (register / autre confirmEmailChange)
+            // entre notre existsByEmail() ci-dessus et le save final. La
+            // contrainte UNIQUE de la DB nous protège, on traduit en 409 propre
+            // au lieu du 500 brut. Cf audit Vuln 9.
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Cet email a été pris entre-temps par un autre compte.");
+        }
 
         token.setUsedAt(Instant.now());
         emailChangeTokenManager.save(token);

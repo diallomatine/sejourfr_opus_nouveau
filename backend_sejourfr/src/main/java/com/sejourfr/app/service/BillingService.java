@@ -9,6 +9,7 @@ import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.BillingPlan;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.PlanManager;
+import com.sejourfr.app.manager.ProcessedExternalEventManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
 import com.sejourfr.app.mapper.PlanMapper;
@@ -18,6 +19,8 @@ import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
 import com.stripe.model.EventDataObjectDeserializer;
+import com.stripe.model.LineItem;
+import com.stripe.model.LineItemCollection;
 import com.stripe.model.StripeObject;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.Webhook;
@@ -61,10 +64,27 @@ public class BillingService {
     private static final int DEFAULT_DURATION_DAYS = 90;
     private static final long CENTS_PER_EURO = 100L;
 
+    /** Provider key utilisé dans {@code processed_external_events}. */
+    private static final String STRIPE_PROVIDER = "stripe";
+
+    /** Seule devise acceptée — nos plans sont libellés en EUR. */
+    private static final String EXPECTED_CURRENCY = "eur";
+
+    /** Stripe pose {@code payment_status="paid"} dès qu'un paiement est confirmé. */
+    private static final String PAID_STATUS = "paid";
+
+    /**
+     * Tolérance temporelle anti-replay : on rejette tout évènement dont la
+     * date de création serveur est plus vieille que cet écart. Stripe re-livre
+     * normalement sous quelques minutes max ; au-delà, c'est suspect.
+     */
+    private static final long REPLAY_TOLERANCE_SECONDS = 300L;
+
     private final StripeProperties stripeProperties;
     private final UserManager userManager;
     private final PlanManager planManager;
     private final UserSubscriptionManager userSubscriptionManager;
+    private final ProcessedExternalEventManager processedEventManager;
     private final PlanMapper planMapper;
 
     /**
@@ -195,6 +215,31 @@ public class BillingService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Signature webhook invalide");
         }
 
+        // Anti-replay temporel : Stripe doit re-livrer rapidement, un évènement
+        // de 1h n'est pas un retry normal. event.getCreated() est en secondes
+        // epoch — fourni par Stripe, donc fiable (la signature couvre tout le
+        // payload, l'horodatage compris).
+        Long createdSec = event.getCreated();
+        if (createdSec != null) {
+            long ageSeconds = Instant.now().getEpochSecond() - createdSec;
+            if (ageSeconds > REPLAY_TOLERANCE_SECONDS) {
+                log.warn("Stripe event trop ancien (age={}s, id={}) — rejeté.",
+                        ageSeconds, event.getId());
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Évènement trop ancien (possible replay).");
+            }
+        }
+
+        // Idempotence : si on a déjà traité cet event.id, on skip silencieusement.
+        // tryMarkProcessed insère (provider, event_id) — si conflit PK, return
+        // false. À ce stade le @Transactional englobe l'insertion ET le
+        // handleCheckoutCompleted en aval — soit tout passe, soit tout rollback,
+        // donc pas de risque de marquer "processed" sans avoir appliqué.
+        if (!processedEventManager.tryMarkProcessed(STRIPE_PROVIDER, event.getId())) {
+            log.info("Stripe event {} déjà traité — skip (replay/retry).", event.getId());
+            return;
+        }
+
         if (CHECKOUT_COMPLETED_EVENT.equals(event.getType())) {
             handleCheckoutCompleted(event);
         } else {
@@ -211,11 +256,33 @@ public class BillingService {
             return;
         }
 
-        long amountTotalCents = session.getAmountTotal() != null ? session.getAmountTotal() : 0L;
-        BillingPlan plan = mapAmountToPlan(amountTotalCents);
+        // Garde 1 — devise : nos plans sont en EUR. Si un paiement passe en
+        // JPY/USD/etc., le montant peut matcher numériquement les centimes
+        // EUR (ex: 1990 yens ≈ 12 €) et activer un abonnement gratuitement.
+        // Cf audit Vuln 6.
+        String currency = session.getCurrency();
+        if (currency == null || !EXPECTED_CURRENCY.equalsIgnoreCase(currency)) {
+            log.warn("Checkout completed avec devise inattendue : {} (session {})",
+                    currency, session.getId());
+            return;
+        }
+
+        // Garde 2 — payment_status : pour les méthodes asynchrones (SEPA,
+        // bank transfer), Stripe envoie `checkout.session.completed` AVANT
+        // la confirmation finale. On n'active qu'à `paid`.
+        String paymentStatus = session.getPaymentStatus();
+        if (paymentStatus == null || !PAID_STATUS.equalsIgnoreCase(paymentStatus)) {
+            log.warn("Checkout completed non payé (payment_status={}, session {})",
+                    paymentStatus, session.getId());
+            return;
+        }
+
+        // Mapping vers le plan : on privilégie le priceId (déterministe,
+        // résistant aux paiements arbitraires), fallback sur le montant si
+        // les priceIds ne sont pas configurés (mode Payment Link historique).
+        BillingPlan plan = mapSessionToPlan(session);
         if (plan == null) {
-            log.warn("Checkout completed avec montant inconnu : {} cents (session {})",
-                    amountTotalCents, session.getId());
+            log.warn("Checkout completed sans plan identifiable (session {})", session.getId());
             return;
         }
 
@@ -229,6 +296,61 @@ public class BillingService {
 
         activateSubscription(userId, plan, session.getCustomer(), session.getId());
         log.info("Abonnement {} activé pour user={} session={}", plan, userId, session.getId());
+    }
+
+    /**
+     * Mappe une session Checkout vers son plan. Stratégie en deux temps :
+     *
+     * <ol>
+     *   <li>Si les Stripe Price IDs sont configurés (mode Checkout Session
+     *       moderne), on liste les line items via l'API Stripe et on compare
+     *       les priceIds aux constantes connues. C'est déterministe : seul
+     *       un paiement sur NOS prix peut déclencher une activation.</li>
+     *   <li>Sinon (mode Payment Link historique sans price IDs configurés),
+     *       on retombe sur le mapping par montant — protégé en amont par
+     *       les gardes devise/payment_status.</li>
+     * </ol>
+     */
+    private BillingPlan mapSessionToPlan(Session session) {
+        if (stripeProperties.isCheckoutSessionConfigured()) {
+            BillingPlan plan = mapByPriceId(session);
+            if (plan != null) return plan;
+            // Si on est en mode Checkout Session mais que le priceId ne match
+            // aucun des nôtres, c'est suspect — on refuse plutôt que de
+            // retomber sur le mapping par montant. Un attaquant pourrait
+            // sinon créer son propre price avec un montant qui matche.
+            return null;
+        }
+        long amountTotalCents = session.getAmountTotal() != null ? session.getAmountTotal() : 0L;
+        return mapAmountToPlan(amountTotalCents);
+    }
+
+    /**
+     * Liste les line items de la session via l'API Stripe (round-trip réseau)
+     * et compare leur priceId à {@code stripeProperties.priceCivique/Integral}.
+     * Renvoie {@code null} si aucun match ou si l'appel échoue.
+     */
+    private BillingPlan mapByPriceId(Session session) {
+        try {
+            LineItemCollection lineItems = session.listLineItems();
+            if (lineItems == null || lineItems.getData() == null) return null;
+            for (LineItem item : lineItems.getData()) {
+                if (item.getPrice() == null) continue;
+                String priceId = item.getPrice().getId();
+                if (priceId == null) continue;
+                if (priceId.equals(stripeProperties.getPriceCivique())) {
+                    return BillingPlan.CIVIQUE_3MOIS;
+                }
+                if (priceId.equals(stripeProperties.getPriceIntegral())) {
+                    return BillingPlan.INTEGRAL_3MOIS;
+                }
+            }
+            return null;
+        } catch (StripeException e) {
+            log.warn("Impossible de lister les line items (session {}) : {}",
+                    session.getId(), e.getMessage());
+            return null;
+        }
     }
 
     /**

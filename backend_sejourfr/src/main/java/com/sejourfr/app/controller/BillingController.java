@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
@@ -47,14 +48,21 @@ public class BillingController {
     }
 
     /**
-     * Endpoint signe par Stripe (verification HMAC via Stripe-Signature).
-     * Pas d'auth utilisateur : Stripe est l'appelant, identifie par signature.
+     * Endpoint signé par Stripe (vérification HMAC via Stripe-Signature).
+     * Pas d'auth utilisateur : Stripe est l'appelant, identifié par signature.
+     *
+     * <p>Body en {@code byte[]} puis décodé UTF-8 explicitement plutôt que
+     * {@code @RequestBody String} : Spring choisit le charset selon le
+     * Content-Type, et un mismatch (proxy qui reformate, charset par défaut
+     * non UTF-8) casserait la signature HMAC sur des caractères non-ASCII.
+     * Pattern recommandé par les exemples officiels Stripe Java.
      */
     @PostMapping("/webhook")
     @ResponseStatus(HttpStatus.OK)
     public void handleWebhook(
-            @RequestBody String payload,
+            @RequestBody byte[] payloadBytes,
             @RequestHeader("Stripe-Signature") String signature) {
+        String payload = new String(payloadBytes, StandardCharsets.UTF_8);
         billingService.handleWebhook(payload, signature);
     }
 }

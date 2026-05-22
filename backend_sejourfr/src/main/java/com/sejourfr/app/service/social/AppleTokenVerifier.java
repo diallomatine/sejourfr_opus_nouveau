@@ -104,6 +104,20 @@ public class AppleTokenVerifier implements SocialTokenVerifier {
             throw new InvalidSocialTokenException("Email absent du token Apple");
         }
 
+        // Vérif email_verified : Apple autorise un utilisateur à associer
+        // n'importe quelle adresse à son Apple ID, et expose ce claim pour
+        // distinguer celles qu'il a réellement validées. Sans cette garde,
+        // combiné au refus de fallback par email (cf. SocialAuthService),
+        // on resterait vulnérable à un sign-up frauduleux avec l'adresse
+        // d'une victime non encore inscrite — l'attaquant créerait le
+        // compte avant elle. Cf. audit Vuln 2.
+        //
+        // Apple est inconsistant sur le type (Boolean ou String selon la
+        // version), donc on accepte les deux.
+        if (!isEmailVerified(claims)) {
+            throw new InvalidSocialTokenException("Email non vérifié par Apple");
+        }
+
         // Apple ne renvoie pas given_name / family_name dans le JWT.
         return new SocialIdentity(
                 AuthProvider.APPLE,
@@ -112,6 +126,18 @@ public class AppleTokenVerifier implements SocialTokenVerifier {
                 null,
                 null
         );
+    }
+
+    /**
+     * Lit le claim {@code email_verified} en tolérant les deux formats que
+     * Apple peut renvoyer ({@code Boolean} ou {@code String "true"/"false"}).
+     * Strict : {@code null} ou absent → non vérifié.
+     */
+    private static boolean isEmailVerified(JWTClaimsSet claims) {
+        Object raw = claims.getClaim("email_verified");
+        if (raw instanceof Boolean b) return b;
+        if (raw instanceof String s) return "true".equalsIgnoreCase(s);
+        return false;
     }
 
     private static String safeString(JWTClaimsSet claims, String name) {

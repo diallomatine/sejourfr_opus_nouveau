@@ -51,6 +51,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()   // <-- AJOUTÉ
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+                        // /api/auth/me exige un Bearer valide — il vit sous
+                        // /api/auth/** pour des raisons d'URL, mais ce n'est
+                        // pas un endpoint public. Sans cette ligne, le
+                        // permitAll() en dessous laisse passer la requête
+                        // jusqu'au controller, et `principal` y est null →
+                        // NullPointerException 500. Cf audit Vuln 8.
+                        .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/exams/**").permitAll()

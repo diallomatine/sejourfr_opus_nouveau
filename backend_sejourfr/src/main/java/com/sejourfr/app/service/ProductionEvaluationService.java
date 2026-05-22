@@ -15,6 +15,7 @@ import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.UserManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -69,6 +70,15 @@ public class ProductionEvaluationService {
             .orElseThrow(() -> new NotFoundException("ProductionTask introuvable : " + taskId));
         Attempt attempt = attemptManager.findById(attemptId)
             .orElseThrow(() -> new NotFoundException("Attempt introuvable : " + attemptId));
+
+        // Vérif d'appartenance (IDOR — audit Vuln 5) : sans ce check, un
+        // attaquant peut deviner un UUID d'attempt actif d'une victime et
+        // y poster ses propres submissions, polluant son examen blanc
+        // TCF_COMPLET (sub-attempt finalisé prématurément, plancher CECRL
+        // calculé sur les productions de l'attaquant).
+        if (attempt.getUser() == null || !attempt.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("Cette session ne vous appartient pas");
+        }
 
         if (!task.isActive()) {
             throw new BusinessException("La tache " + taskId + " n'est pas active.");
@@ -221,11 +231,29 @@ public class ProductionEvaluationService {
         }
     }
 
+    /**
+     * Extrait une extension de fichier sûre à utiliser comme suffixe de clé
+     * R2/S3. La valeur user-controlled (filename, content-type) est
+     * whitelistée par une regex stricte — sinon on retombe sur "bin".
+     *
+     * <p>Sans cette garde, un {@code originalFilename = "foo.x/../audio/<id>.mp3"}
+     * produit une key R2 contenant des slashes et {@code ..} (R2 stocke les
+     * clés en strings opaques, mais des proxies/CDN peuvent canoniser). Cf
+     * audit Vuln 7.
+     */
+    private static final java.util.regex.Pattern SAFE_EXTENSION =
+            java.util.regex.Pattern.compile("^[a-z0-9]{1,8}$");
+
     private static String extractExtension(MultipartFile file) {
         String name = file.getOriginalFilename();
         if (name != null) {
             int dot = name.lastIndexOf('.');
-            if (dot >= 0 && dot < name.length() - 1) return name.substring(dot + 1);
+            if (dot >= 0 && dot < name.length() - 1) {
+                String candidate = name.substring(dot + 1).toLowerCase();
+                if (SAFE_EXTENSION.matcher(candidate).matches()) {
+                    return candidate;
+                }
+            }
         }
         String ct = file.getContentType();
         if (ct != null) {
