@@ -83,6 +83,23 @@ class AuthRepository {
     );
   }
 
+  /// Révoque le refresh token côté serveur. Best-effort : on absorbe toutes
+  /// les erreurs (timeout, 4xx, 5xx) — le logout côté client doit toujours
+  /// aboutir en clearant le storage, peu importe si le serveur a confirmé.
+  /// `skipAuth=true` car le token d'accès peut être expiré au moment du
+  /// logout (sinon l'intercepteur essaie de refresh, ce qu'on ne veut pas).
+  Future<void> logout({required String refreshToken}) async {
+    try {
+      await _client.dio.post(
+        '/api/auth/logout',
+        data: {'refreshToken': refreshToken},
+        options: _publicOptions(),
+      );
+    } catch (_) {
+      // Silencieux. Le clear local est garanti par AuthController.logout().
+    }
+  }
+
   Options _publicOptions() =>
       Options(extra: const {'skipAuth': true, 'skipRefresh': true});
 }

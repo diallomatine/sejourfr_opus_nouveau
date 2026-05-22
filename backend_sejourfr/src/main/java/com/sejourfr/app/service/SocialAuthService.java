@@ -50,20 +50,21 @@ public class SocialAuthService {
 
     private final UserManager userManager;
     private final JwtService jwtService;
+    private final SessionService sessionService;
     private final SubscriptionService subscriptionService;
     private final GoogleTokenVerifier googleVerifier;
     private final AppleTokenVerifier appleVerifier;
 
-    public TokenResponse loginWithGoogle(GoogleSignInRequest req) {
+    public TokenResponse loginWithGoogle(GoogleSignInRequest req, String userAgent, String ipAddress) {
         SocialIdentity identity = googleVerifier.verify(req.idToken());
         User user = findOrCreate(identity, null, null);
-        return buildTokenResponse(user);
+        return buildTokenResponse(user, userAgent, ipAddress);
     }
 
-    public TokenResponse loginWithApple(AppleSignInRequest req) {
+    public TokenResponse loginWithApple(AppleSignInRequest req, String userAgent, String ipAddress) {
         SocialIdentity identity = appleVerifier.verify(req.identityToken());
         User user = findOrCreate(identity, trim(req.firstName()), trim(req.lastName()));
-        return buildTokenResponse(user);
+        return buildTokenResponse(user, userAgent, ipAddress);
     }
 
     public boolean isGoogleConfigured() {
@@ -124,11 +125,11 @@ public class SocialAuthService {
         return userManager.save(user);
     }
 
-    private TokenResponse buildTokenResponse(User u) {
-        String access = jwtService.generateAccessToken(u);
-        String refresh = jwtService.generateRefreshToken(u);
+    private TokenResponse buildTokenResponse(User u, String userAgent, String ipAddress) {
+        SessionService.IssuedTokens tokens = sessionService.openSession(u, userAgent, ipAddress);
         SubscriptionService.CurrentAccess current = subscriptionService.currentAccess(u.getId());
-        return TokenResponse.of(access, refresh, jwtService.accessTokenTtlSeconds(),
+        return TokenResponse.of(tokens.accessToken(), tokens.refreshToken(),
+                jwtService.accessTokenTtlSeconds(),
                 AuthenticatedUser.from(u, current.module(), current.endsAt()));
     }
 

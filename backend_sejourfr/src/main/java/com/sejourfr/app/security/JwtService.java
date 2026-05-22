@@ -12,6 +12,7 @@ import javax.crypto.SecretKey;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
+import java.util.UUID;
 
 @Service
 public class JwtService {
@@ -52,17 +53,42 @@ public class JwtService {
                 .compact();
     }
 
-    public String generateRefreshToken(User user) {
+    /**
+     * Génère un refresh token signé contenant un {@code jti} qui sert d'index
+     * dans la table {@code refresh_tokens} côté serveur. À chaque
+     * {@code /refresh}, on lookup cette row pour vérifier que la session n'a
+     * pas été révoquée (cf. {@code SessionService}).
+     */
+    public String generateRefreshToken(User user, UUID jti) {
         Instant now = Instant.now();
         Instant exp = now.plus(Duration.ofDays(properties.getRefreshTokenTtlDays()));
         return Jwts.builder()
                 .issuer(properties.getIssuer())
                 .subject(user.getId().toString())
+                .id(jti.toString())
                 .claim(CLAIM_TYPE, TYPE_REFRESH)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(exp))
                 .signWith(key)
                 .compact();
+    }
+
+    /**
+     * Extrait le {@code jti} d'un refresh token. Lève {@link IllegalArgumentException}
+     * si absent ou mal formé — un refresh token sans jti n'est pas exploitable
+     * par le serveur (toutes les sessions modernes en ont un).
+     */
+    public UUID extractJti(Claims claims) {
+        String jtiStr = claims.getId();
+        if (jtiStr == null || jtiStr.isBlank()) {
+            throw new IllegalArgumentException("Refresh token sans jti");
+        }
+        return UUID.fromString(jtiStr);
+    }
+
+    /** Durée de vie d'un refresh token (utilisée par {@code SessionService}). */
+    public Duration refreshTokenTtl() {
+        return Duration.ofDays(properties.getRefreshTokenTtlDays());
     }
 
     public Claims parseAndValidate(String token) {

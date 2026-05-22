@@ -49,6 +49,7 @@ public class UserProfileService {
     private final EmailChangeTokenManager emailChangeTokenManager;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
+    private final SessionService sessionService;
     private final SecureRandom random = new SecureRandom();
 
     // ------------------------------------------------------------------------
@@ -95,6 +96,11 @@ public class UserProfileService {
 
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userManager.save(user);
+
+        // Cascade : révoque toutes les autres sessions actives. Un attaquant
+        // qui détenait un refresh token devient incapable de prolonger sa
+        // session — l'utilisateur devra se reconnecter avec le nouveau mdp.
+        sessionService.revokeAllForUser(userId);
     }
 
     // ------------------------------------------------------------------------
@@ -195,6 +201,13 @@ public class UserProfileService {
 
         token.setUsedAt(Instant.now());
         emailChangeTokenManager.save(token);
+
+        // Cascade : un changement d'email implique souvent une perte de
+        // contrôle de l'ancienne adresse (vol, abandon). On déconnecte
+        // toutes les sessions pour forcer une reconnexion avec le nouvel
+        // email — défense contre l'attaquant qui aurait gardé un refresh
+        // token de l'ancien compte.
+        sessionService.revokeAllForUser(user.getId());
 
         return user.getEmail();
     }

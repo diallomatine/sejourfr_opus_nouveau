@@ -8,13 +8,10 @@ import com.sejourfr.app.dto.TokenResponse;
 import com.sejourfr.app.entity.PasswordResetToken;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.Role;
-import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.PasswordResetTokenManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.security.JwtService;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -49,6 +46,7 @@ public class AuthService {
     private final UserManager userManager;
     private final PasswordResetTokenManager passwordResetTokenManager;
     private final JwtService jwtService;
+    private final SessionService sessionService;
     private final SubscriptionService subscriptionService;
     private final MailService mailService;
     private final PasswordEncoder passwordEncoder;
@@ -59,7 +57,7 @@ public class AuthService {
     // Login / refresh / me
     // ------------------------------------------------------------------------
 
-    public TokenResponse login(LoginRequest req) {
+    public TokenResponse login(LoginRequest req, String userAgent, String ipAddress) {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.email(), req.password()));
@@ -71,27 +69,22 @@ public class AuthService {
                 .orElseThrow(() -> new BadCredentialsException("Identifiants invalides"));
 
         u.setLastLoginAt(Instant.now());
-        return buildTokenResponse(u);
+        return buildTokenResponse(u, userAgent, ipAddress);
     }
 
-    public TokenResponse refresh(RefreshRequest req) {
-        Claims claims;
-        try {
-            claims = jwtService.parseAndValidate(req.refreshToken());
-        } catch (JwtException ex) {
-            throw new BusinessException("Refresh token invalide");
-        }
-        if (!jwtService.isRefreshToken(claims)) {
-            throw new BusinessException("Le token fourni n'est pas un refresh token");
-        }
+    public TokenResponse refresh(RefreshRequest req, String userAgent, String ipAddress) {
+        SessionService.IssuedTokens tokens = sessionService.rotate(
+                req.refreshToken(), userAgent, ipAddress);
+        return tokenResponseFrom(tokens);
+    }
 
-        UUID userId = UUID.fromString(claims.getSubject());
-        User u = userManager.findById(userId)
-                .orElseThrow(() -> NotFoundException.of("User", userId));
-        if (!u.isActive()) {
-            throw new BusinessException("Compte desactive");
-        }
-        return buildTokenResponse(u);
+    /**
+     * Révoque le refresh token fourni — endpoint POST /api/auth/logout.
+     * Silencieux : un token déjà invalide / expiré renvoie sans erreur (côté
+     * client la session est effacée localement quoi qu'il arrive).
+     */
+    public void logout(String refreshToken) {
+        sessionService.closeSession(refreshToken);
     }
 
     @Transactional(readOnly = true)
@@ -110,7 +103,7 @@ public class AuthService {
      * Cree un compte USER puis enchaine sur {@link #login} pour retourner les
      * tokens (l'utilisateur est connecte sans avoir a re-saisir son mot de passe).
      */
-    public TokenResponse register(RegisterRequest req) {
+    public TokenResponse register(RegisterRequest req, String userAgent, String ipAddress) {
         String email = req.email().toLowerCase().trim();
         if (userManager.existsByEmail(email)) {
             throw new IllegalArgumentException("Un compte existe déjà avec cet email");
@@ -125,7 +118,7 @@ public class AuthService {
         user.setCreatedAt(Instant.now());
         userManager.save(user);
 
-        return login(new LoginRequest(email, req.password()));
+        return login(new LoginRequest(email, req.password()), userAgent, ipAddress);
     }
 
     // ------------------------------------------------------------------------
@@ -174,17 +167,27 @@ public class AuthService {
 
         token.setUsedAt(Instant.now());
         passwordResetTokenManager.save(token);
+
+        // Cascade : révoque toutes les sessions actives (audit Vuln 3). Un
+        // refresh token volé devient invalide après reset, donc l'attaquant
+        // ne peut plus prolonger sa session.
+        sessionService.revokeAllForUser(user.getId());
     }
 
     // ------------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------------
 
-    private TokenResponse buildTokenResponse(User u) {
-        String access = jwtService.generateAccessToken(u);
-        String refresh = jwtService.generateRefreshToken(u);
+    private TokenResponse buildTokenResponse(User u, String userAgent, String ipAddress) {
+        SessionService.IssuedTokens tokens = sessionService.openSession(u, userAgent, ipAddress);
+        return tokenResponseFrom(tokens);
+    }
+
+    private TokenResponse tokenResponseFrom(SessionService.IssuedTokens tokens) {
+        User u = tokens.user();
         SubscriptionService.CurrentAccess current = subscriptionService.currentAccess(u.getId());
-        return TokenResponse.of(access, refresh, jwtService.accessTokenTtlSeconds(),
+        return TokenResponse.of(tokens.accessToken(), tokens.refreshToken(),
+                jwtService.accessTokenTtlSeconds(),
                 AuthenticatedUser.from(u, current.module(), current.endsAt()));
     }
 

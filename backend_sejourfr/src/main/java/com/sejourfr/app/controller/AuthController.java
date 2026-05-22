@@ -3,6 +3,7 @@ package com.sejourfr.app.controller;
 import com.sejourfr.app.dto.*;
 import com.sejourfr.app.service.AuthService;
 import com.sejourfr.app.service.UserProfileService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,13 +23,24 @@ public class AuthController {
     private final UserProfileService userProfileService;
 
     @PostMapping("/login")
-    public TokenResponse login(@Valid @RequestBody LoginRequest req) {
-        return authService.login(req);
+    public TokenResponse login(@Valid @RequestBody LoginRequest req, HttpServletRequest http) {
+        return authService.login(req, userAgent(http), clientIp(http));
     }
 
     @PostMapping("/refresh")
-    public TokenResponse refresh(@Valid @RequestBody RefreshRequest req) {
-        return authService.refresh(req);
+    public TokenResponse refresh(@Valid @RequestBody RefreshRequest req, HttpServletRequest http) {
+        return authService.refresh(req, userAgent(http), clientIp(http));
+    }
+
+    /**
+     * Révoque le refresh token côté serveur (table {@code refresh_tokens}).
+     * Idempotent : un token déjà invalide / expiré renvoie 204 sans erreur,
+     * le client doit toujours nettoyer son storage local après.
+     */
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(@Valid @RequestBody LogoutRequest req) {
+        authService.logout(req.refreshToken());
     }
 
     @GetMapping("/me")
@@ -40,9 +52,9 @@ public class AuthController {
      * Cree un compte USER + retourne directement les tokens (auto-login).
      */
     @PostMapping("/register")
-    public TokenResponse register(@Valid @RequestBody RegisterRequest req) {
+    public TokenResponse register(@Valid @RequestBody RegisterRequest req, HttpServletRequest http) {
         throw new IllegalArgumentException("Les inscriptions sont temporairement desactivées");
-        //return authService.register(req);
+        //return authService.register(req, userAgent(http), clientIp(http));
     }
 
     @PostMapping("/forgot-password")
@@ -55,6 +67,25 @@ public class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
         authService.resetPassword(req.token(), req.newPassword());
+    }
+
+    /**
+     * Récupère l'IP de l'appelant en respectant les headers du reverse proxy
+     * (X-Forwarded-For) puis fallback sur {@code request.getRemoteAddr()}.
+     * Pour observabilité / forensics — pas pour de la sécurité (ces headers
+     * sont trivialement spoofables, on les stocke juste comme metadata).
+     */
+    static String clientIp(HttpServletRequest request) {
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            int comma = xff.indexOf(',');
+            return (comma > 0 ? xff.substring(0, comma) : xff).trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    static String userAgent(HttpServletRequest request) {
+        return request.getHeader("User-Agent");
     }
 
     /**

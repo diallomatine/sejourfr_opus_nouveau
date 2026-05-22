@@ -152,6 +152,13 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    // Révocation serveur du refresh token (best-effort — le repo absorbe
+    // les erreurs réseau). Sans ça, un refresh token volé resterait
+    // utilisable jusqu'à son expiration de 30 jours.
+    final refreshToken = await _storage.readRefresh();
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      await _repo.logout(refreshToken: refreshToken);
+    }
     await _socialService.signOutAll();
     await _storage.clear();
     state = const AuthUnauthenticated();
