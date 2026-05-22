@@ -1,8 +1,11 @@
 package com.sejourfr.app.controller;
 
 import com.sejourfr.app.dto.AttemptSummaryResponse;
+import com.sejourfr.app.dto.ChangeEmailRequest;
+import com.sejourfr.app.dto.ChangePasswordRequest;
 import com.sejourfr.app.dto.QuestionPublicResponse;
 import com.sejourfr.app.dto.QuestionReviewResponse;
+import com.sejourfr.app.dto.UpdateProfileRequest;
 import com.sejourfr.app.dto.UpdateTargetProcedureRequest;
 import com.sejourfr.app.dto.ProgressionSummaryResponse;
 import com.sejourfr.app.dto.UserStatsResponse;
@@ -12,11 +15,13 @@ import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.AttemptService;
 import com.sejourfr.app.service.MeService;
+import com.sejourfr.app.service.UserProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -41,6 +46,7 @@ public class MeController {
 
     private final MeService meService;
     private final AttemptService attemptService;
+    private final UserProfileService userProfileService;
     private final CurrentUser currentUser;
 
     // ------------------------------------------------------------------------
@@ -51,6 +57,43 @@ public class MeController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void updateTargetPath(@Valid @RequestBody UpdateTargetProcedureRequest req) {
         meService.updateTargetProcedure(currentUser.getId(), req.targetProcedure());
+    }
+
+    // ------------------------------------------------------------------------
+    // Profil — identité (prénom, nom)
+    // ------------------------------------------------------------------------
+
+    @PatchMapping("/profile")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateProfile(@Valid @RequestBody UpdateProfileRequest req) {
+        userProfileService.updateProfile(currentUser.getId(), req.firstName(), req.lastName());
+    }
+
+    // ------------------------------------------------------------------------
+    // Mot de passe
+    // ------------------------------------------------------------------------
+
+    @PostMapping("/change-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void changePassword(@Valid @RequestBody ChangePasswordRequest req) {
+        userProfileService.changePassword(
+                currentUser.getId(), req.currentPassword(), req.newPassword());
+    }
+
+    // ------------------------------------------------------------------------
+    // Email (workflow vérification : POST puis confirm via lien mail)
+    // ------------------------------------------------------------------------
+
+    /**
+     * Demande un changement d'email. Le compte garde son email actuel tant
+     * que l'utilisateur n'a pas cliqué sur le lien envoyé au nouvel email.
+     * Le endpoint de confirmation est public : {@code GET /api/auth/confirm-email-change?token=...}.
+     */
+    @PostMapping("/change-email-request")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void requestEmailChange(@Valid @RequestBody ChangeEmailRequest req) {
+        userProfileService.requestEmailChange(
+                currentUser.getId(), req.newEmail(), req.currentPassword());
     }
 
     @GetMapping("/attempts")

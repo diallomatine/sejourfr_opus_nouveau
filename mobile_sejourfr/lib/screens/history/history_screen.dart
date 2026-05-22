@@ -12,11 +12,21 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/eyebrow.dart';
 
-final _historyProvider = FutureProvider.autoDispose<List<AttemptSummary>>((ref) {
-  return ref.watch(attemptsRepositoryProvider).listMine(
+/// Historique des examens blancs **civique complets uniquement** (40 Q, tous
+/// thèmes, seuil 32). Les examens thématiques (20 Q d'un seul thème) vivent
+/// dans l'onglet Examens du détail de chaque thème, pas ici — sinon la liste
+/// se mélange et le "score moyen" perd son sens.
+///
+/// Filtre côté API (`module=CIVIQUE&type=MOCK_EXAM`) + filtre côté client
+/// (`!isThemeScoped`, qui s'appuie sur `lotThemeId == null`).
+final _civiqueExamHistoryProvider =
+    FutureProvider.autoDispose<List<AttemptSummary>>((ref) async {
+  final all = await ref.watch(attemptsRepositoryProvider).listMine(
         type: AttemptType.mockExam,
-        limit: 20,
+        module: AppModule.civique,
+        limit: 30,
       );
+  return all.where((s) => !s.isThemeScoped).toList();
 });
 
 class HistoryScreen extends ConsumerWidget {
@@ -24,7 +34,7 @@ class HistoryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final list = ref.watch(_historyProvider);
+    final list = ref.watch(_civiqueExamHistoryProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -33,7 +43,7 @@ class HistoryScreen extends ConsumerWidget {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'Mes examens',
+          'Examens civique',
           style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
         ),
       ),
@@ -42,12 +52,12 @@ class HistoryScreen extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => _ErrorState(
             message: ApiClient.toApiException(e).message,
-            onRetry: () => ref.invalidate(_historyProvider),
+            onRetry: () => ref.invalidate(_civiqueExamHistoryProvider),
           ),
           data: (sessions) {
             if (sessions.isEmpty) return const _EmptyState();
             return RefreshIndicator(
-              onRefresh: () async => ref.invalidate(_historyProvider),
+              onRefresh: () async => ref.invalidate(_civiqueExamHistoryProvider),
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
                 children: [
@@ -367,9 +377,10 @@ class _SessionItem extends StatelessWidget {
             ? AppColors.red
             : AppColors.blue;
 
-    final moduleLabel = session.module == AppModule.civique ? 'Civique' : 'TCF';
-    final diffLabel = session.difficulty?.wire ?? '';
-    final title = '$moduleLabel${diffLabel.isEmpty ? '' : ' · $diffLabel'}';
+    // L'écran ne montre que des examens blancs civique complets (40 Q tous
+    // thèmes). Pas besoin de répéter "Civique" sur chaque ligne — le titre
+    // explique le format de l'examen.
+    final title = 'Examen blanc · 40 questions';
 
     final dateStr = _formatDate(session.startedAt);
     final durStr = session.durationSeconds != null ? '${(session.durationSeconds! / 60).round()} min' : '';
@@ -483,7 +494,7 @@ class _EmptyState extends StatelessWidget {
             const Icon(Icons.timer_outlined, size: 48, color: AppColors.muted2),
             const SizedBox(height: 14),
             Text(
-              'Aucun examen passé',
+              'Aucun examen civique',
               style: AppFonts.fraunces(
                 size: 20,
                 weight: FontWeight.w500,
@@ -493,7 +504,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Vos examens blancs apparaîtront ici, avec votre progression.',
+              'Vos examens blancs civique (40 questions) apparaîtront ici.',
               textAlign: TextAlign.center,
               style: AppFonts.jakarta(size: 13, color: AppColors.muted2),
             ),

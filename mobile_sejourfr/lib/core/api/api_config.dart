@@ -11,6 +11,13 @@ class ApiConfig {
   static String get baseUrl =>
       Env.read('API_BASE_URL', fallback: 'http://192.168.1.13:8080');
 
+  /// URL publique du site web (FAQ, CGU, Confidentialité ouvertes en
+  /// WebView depuis le mobile pour ne pas dupliquer le contenu).
+  /// Fallback prod si rien dans .env — préférable à localhost pour ne pas
+  /// casser l'app en build release sans config.
+  static String get webBaseUrl =>
+      Env.read('WEB_BASE_URL', fallback: 'https://sejourfr.fr');
+
   /// Timeout des requêtes.
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 20);

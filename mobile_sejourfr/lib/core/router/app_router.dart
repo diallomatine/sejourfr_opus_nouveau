@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sejourfr_mobile/screens/exam/exam_report_screen.dart';
 import 'package:sejourfr_mobile/screens/exam/exam_result_screen.dart';
 import 'package:sejourfr_mobile/screens/history/history_screen.dart';
+import 'package:sejourfr_mobile/screens/history/tcf_exam_history_screen.dart';
 
 import '../../screens/auth/forgot_password_screen.dart';
 import '../../screens/auth/login_screen.dart';
@@ -19,7 +20,11 @@ import '../../screens/module_detail/tcf_production_detail_screen.dart';
 import '../../screens/module_detail/tcf_production_task_subjects_screen.dart';
 import '../../screens/module_detail/tcf_qcm_detail_screen.dart';
 import '../../screens/onboarding/onboarding_screen.dart';
+import '../../screens/help/contact_screen.dart';
+import '../../screens/help/help_center_screen.dart';
+import '../../screens/help/in_app_webview_screen.dart';
 import '../../screens/profile/mes_historiques_screen.dart';
+import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/question_runner/runner_screen.dart';
 import '../../screens/review/review_screen.dart';
@@ -90,11 +95,26 @@ class AppRoutes {
   static const onboarding = '/onboarding';
   static const targetPath = '/target-path';
   static const examResult = '/exam-result/:attemptId';
+  /// Historique des examens blancs **civique complets** (40 Q tous thèmes,
+  /// pas les examens thématiques ni les lots — ceux-là vivent dans l'onglet
+  /// Examens du détail thème). Surchargée dans `HistoryScreen`.
   static const history = '/history';
+
+  /// Historique des examens blancs **TCF complets** (parent `TCF_COMPLET`
+  /// + 4 sous-attempts CO/CE/EE/EO). Source : `/api/me/full-tcf-exams`.
+  static const tcfExamHistory = '/historiques/tcf';
   static const examReport = '/exam-report/:attemptId';
 
   // Hub "Mes historiques" depuis le profil : regroupe QCM + EE + EO.
   static const historiques = '/historiques';
+
+  // Centre d'aide (hub) + contact natif + WebView générique pour FAQ/CGU/Privacy.
+  static const helpCenter = '/help';
+  static const contact = '/help/contact';
+  static const helpWebview = '/help/page';
+
+  // Édition des informations personnelles (firstName/lastName/email/password).
+  static const personalInfo = '/profile/personal-info';
 
   // TCF Expression orale / ecrite (Lot A : briefing seul, soumission a venir).
   static const tcfExpressionOrale = '/tcf/expression-orale';
@@ -199,14 +219,38 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // Historique des examens (accessible depuis le profil)
+      // Historiques (accessibles depuis le profil)
       GoRoute(
         path: AppRoutes.history,
         builder: (_, __) => const HistoryScreen(),
       ),
       GoRoute(
+        path: AppRoutes.tcfExamHistory,
+        builder: (_, __) => const TcfExamHistoryScreen(),
+      ),
+      GoRoute(
         path: AppRoutes.historiques,
         builder: (_, __) => const MesHistoriquesScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.helpCenter,
+        builder: (_, __) => const HelpCenterScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.contact,
+        builder: (_, __) => const ContactScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.helpWebview,
+        builder: (_, state) {
+          final url = state.uri.queryParameters['url'] ?? '';
+          final title = state.uri.queryParameters['title'] ?? '';
+          return InAppWebViewScreen(title: title, url: url);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.personalInfo,
+        builder: (_, __) => const PersonalInfoScreen(),
       ),
       GoRoute(
         path: AppRoutes.examReport,

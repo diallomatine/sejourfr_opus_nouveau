@@ -4,14 +4,19 @@ import 'package:go_router/go_router.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 
-/// Hub "Mes historiques" accessible depuis le profil. Regroupe les 3 surfaces
-/// d'historique de l'app :
-///   - QCM (civique + TCF CO/CE/Structure) -> ecran existant /history
-///   - TCF Expression ecrite -> ProductionHistoryScreen (route existante)
-///   - TCF Expression orale  -> ProductionHistoryScreen (route existante)
+/// Hub "Mes historiques" accessible depuis le profil. Liste **4 surfaces**
+/// d'historique, toutes scopées aux **examens blancs complets** (pas les
+/// lots ni les examens thématiques — ceux-là ont leur propre onglet dans
+/// le détail du thème/module concerné, plus contextuel) :
 ///
-/// Aucun nouvel ecran d'historique a coder : on reuse les surfaces deja en
-/// place. Ce hub se contente d'orienter l'utilisateur.
+///   - **Examens civique** → 40 Q tous thèmes, seuil 32 → `/history`
+///   - **Examens TCF**     → parent `TCF_COMPLET` + 4 sous-attempts → `/historiques/tcf`
+///   - **Expression écrite (EE)** → sessions IA → `/tcf/expression-ecrite/historique`
+///   - **Expression orale (EO)**  → sessions IA → `/tcf/expression-orale/historique`
+///
+/// Le scope "complets uniquement" est volontaire : les listes ici servent à
+/// suivre la performance globale, pas les entraînements par lot (qui sont
+/// déjà visibles dans le hub du thème/module avec leur score).
 class MesHistoriquesScreen extends StatelessWidget {
   const MesHistoriquesScreen({super.key});
 
@@ -34,7 +39,7 @@ class MesHistoriquesScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
             Text(
-              'Consultez vos sessions passées par catégorie.',
+              'Consultez vos examens blancs et sessions IA passés.',
               style: AppFonts.jakarta(
                 size: 13.5,
                 color: AppColors.muted,
@@ -42,34 +47,69 @@ class MesHistoriquesScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
+            _SectionLabel('Examens blancs'),
+            const SizedBox(height: 10),
             _HistoryCategoryCard(
-              icon: Icons.fact_check_outlined,
+              icon: Icons.account_balance_rounded,
               accent: AppColors.blue,
-              title: 'Mes examens',
+              title: 'Examens civique',
               subtitle:
-                  'QCM civique + TCF (CO / CE / Structure) — examens blancs et entraînements terminés.',
+                  '40 questions tous thèmes, seuil 32. Score et progression dans le temps.',
               onTap: () => context.push(AppRoutes.history),
             ),
             const SizedBox(height: 10),
             _HistoryCategoryCard(
-              icon: Icons.edit_note_rounded,
-              accent: AppColors.blue,
-              title: 'TCF Expression écrite',
+              icon: Icons.translate_rounded,
+              accent: AppColors.red,
+              title: 'Examens TCF',
               subtitle:
-                  'Sessions de rédaction notées par IA, par tâche et niveau atteint.',
+                  'CO + CE + EE + EO en conditions réelles, niveau CECRL plancher.',
+              onTap: () => context.push(AppRoutes.tcfExamHistory),
+            ),
+            const SizedBox(height: 22),
+            _SectionLabel('Sessions IA'),
+            const SizedBox(height: 10),
+            _HistoryCategoryCard(
+              icon: Icons.edit_note_rounded,
+              accent: AppColors.green,
+              title: 'Expression écrite',
+              subtitle:
+                  'Rédactions notées par IA, niveau CECRL et feedback détaillé.',
               onTap: () => context.push('${AppRoutes.tcfExpressionEcrite}/historique'),
             ),
             const SizedBox(height: 10),
             _HistoryCategoryCard(
               icon: Icons.mic_rounded,
-              accent: AppColors.blue,
-              title: 'TCF Expression orale',
+              accent: AppColors.red,
+              title: 'Expression orale',
               subtitle:
                   'Enregistrements transcrits par Whisper et évalués par IA.',
               onTap: () => context.push('${AppRoutes.tcfExpressionOrale}/historique'),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        '§ ${text.toUpperCase()}',
+        style: AppFonts.mono(
+          size: 10,
+          color: AppColors.muted,
+          letterSpacing: 2.0,
+          weight: FontWeight.w600,
+        ).copyWith(height: 1.0),
       ),
     );
   }

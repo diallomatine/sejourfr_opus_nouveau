@@ -60,6 +60,9 @@ public class SecurityConfig {
                         // Webhook Stripe : appelé par Stripe (pas un user), authentifié
                         // par signature HMAC vérifiée dans BillingService.
                         .requestMatchers(HttpMethod.POST, "/api/billing/webhook").permitAll()
+                        // Formulaire de contact accessible sans login (visiteur
+                        // qui n'a pas encore créé de compte peut nous écrire).
+                        .requestMatchers(HttpMethod.POST, "/api/contact").permitAll()
                         // Surface publique pour les visiteurs non authentifiés
                         // (démo guest : themes, exams, attempts limités par IP).
                         .requestMatchers("/api/public/**").permitAll()

@@ -63,6 +63,11 @@ dependencies:
   # Cf. core/config/env.dart pour les accesseurs typés.
   flutter_dotenv: ^5.2.1
 
+  # WebView pour les pages "statiques" longues (FAQ, CGU, Confidentialité).
+  # On charge directement les pages web pour ne pas dupliquer 1200+ lignes
+  # de contenu en Dart natif. AppBar native autour pour rester intégré.
+  webview_flutter: ^4.10.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

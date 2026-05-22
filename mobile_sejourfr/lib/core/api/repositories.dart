@@ -2,10 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/auth_controller.dart';
 import 'attempts_repository.dart';
+import 'contact_repository.dart';
 import 'exams_repository.dart';
 import 'full_tcf_exam_repository.dart';
 import 'lots_repository.dart';
 import 'production_repository.dart';
+import 'profile_repository.dart';
 import 'themes_repository.dart';
 import 'user_content_repository.dart';
 
@@ -35,4 +37,12 @@ final lotsRepositoryProvider = Provider<LotsRepository>(
 
 final fullTcfExamRepositoryProvider = Provider<FullTcfExamRepository>(
   (ref) => FullTcfExamRepository(ref.watch(apiClientProvider)),
+);
+
+final profileRepositoryProvider = Provider<ProfileRepository>(
+  (ref) => ProfileRepository(ref.watch(apiClientProvider)),
+);
+
+final contactRepositoryProvider = Provider<ContactRepository>(
+  (ref) => ContactRepository(ref.watch(apiClientProvider)),
 );
