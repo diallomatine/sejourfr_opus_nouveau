@@ -21,8 +21,7 @@ import 'widgets/production_app_header.dart';
 import 'widgets/results_eval_banner.dart';
 import 'widgets/transcription_section.dart';
 
-final _eoSubmissionFetcher = FutureProvider.autoDispose
-    .family<ProductionSubmissionDto, String>((ref, id) {
+final _eoSubmissionFetcher = FutureProvider.autoDispose.family<ProductionSubmissionDto, String>((ref, id) {
   return ref.watch(productionRepositoryProvider).getSubmission(id);
 });
 
@@ -92,7 +91,11 @@ class _EoResultsScreenState extends ConsumerState<EoResultsScreen> {
     final qp = GoRouterState.of(context).uri.queryParameters;
     final fullExamId = qp['fullExamId'];
 
+    final fallbackRoute = fullExamId != null
+        ? '/tcf/examen-blanc/$fullExamId'
+        : '/tcf/expression-orale';
     return _Wrapper(
+      fallbackRoute: fallbackRoute,
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
@@ -126,8 +129,10 @@ class _EoResultsScreenState extends ConsumerState<EoResultsScreen> {
 }
 
 class _Wrapper extends StatelessWidget {
-  const _Wrapper({required this.body});
+  const _Wrapper({required this.body, this.fallbackRoute = '/tcf'});
+
   final Widget body;
+  final String fallbackRoute;
 
   @override
   Widget build(BuildContext context) {
@@ -135,6 +140,7 @@ class _Wrapper extends StatelessWidget {
       backgroundColor: AppColors.white,
       appBar: ProductionAppHeader(
         title: 'Resultats',
+        fallbackRoute: fallbackRoute,
         rightAction: const ProductionAppHeaderInfo(),
       ),
       body: body,
@@ -161,28 +167,11 @@ class _Body extends ConsumerWidget {
   final String? fullExamId;
   final Map<String, String> queryParameters;
 
-  bool get _hasNext =>
-      !isHistory && session != null && taskIndex + 1 < session!.totalTasks;
-
   /// Mode entrainement libre (single-task depuis le hub). Le bilan de session
   /// n'a pas de sens : on propose juste un retour au hub des taches.
-  bool get _isSingleTask =>
-      !isHistory && session != null && session!.totalTasks == 1;
+  bool get _isSingleTask => !isHistory && session != null && session!.totalTasks == 1;
 
-  /// Route de la prochaine tâche en propageant les query params capturés au
-  /// niveau du screen parent. Pas d'appel à `GoRouterState.of` ici — cf.
-  /// commentaire ee_results_screen.dart.
-  String _nextTaskRoute(int nextIndex) {
-    final base = '/tcf/expression-orale/t/$nextIndex';
-    if (queryParameters.isEmpty) return base;
-    final qs = queryParameters.entries
-        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
-        .join('&');
-    return '$base?$qs';
-  }
-
-  String get _bilanCtaLabel =>
-      fullExamId != null ? 'Continuer l\'examen blanc' : 'Voir mon bilan';
+  String get _bilanCtaLabel => fullExamId != null ? 'Continuer l\'examen blanc' : 'Voir mon bilan';
 
   void _navigateToBilan(BuildContext context, WidgetRef ref) {
     if (fullExamId != null) {
@@ -191,7 +180,10 @@ class _Body extends ConsumerWidget {
       context.go('/tcf/examen-blanc/$fullExamId');
       return;
     }
-    context.pushReplacement('/tcf/expression-orale/bilan');
+    // Hors examen blanc complet : ce CTA n'est plus atteignable en mode
+    // session 3-tâches (cf. `eo_finished_screen` qui push directement le
+    // bilan détaillé après T3). Reste joignable uniquement comme CTA
+    // "Continuer l'examen blanc" en mode fullExam ci-dessus.
   }
 
   @override
@@ -239,8 +231,7 @@ class _Body extends ConsumerWidget {
                   title: 'Suggestion globale',
                   items: eval.feedback.suggestions,
                 ),
-              if (submission.transcription != null &&
-                  submission.transcription!.isNotEmpty) ...[
+              if (submission.transcription != null && submission.transcription!.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
                   'Transcription de votre enregistrement',
@@ -274,66 +265,32 @@ class _Body extends ConsumerWidget {
                       }
                     },
                   )
-                : _hasNext
-                    ? Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => context.pushReplacement(
-                                '/tcf/expression-orale/progression',
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(50),
-                                side: const BorderSide(color: AppColors.line),
-                                foregroundColor: AppColors.ink,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                'Voir les taches',
-                                style: AppFonts.jakarta(
-                                  size: 15,
-                                  weight: FontWeight.w700,
-                                  color: AppColors.ink,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: AppButton(
-                              label: 'Passer a la tache ${taskIndex + 2}',
-                              onPressed: () => context.pushReplacement(
-                                _nextTaskRoute(taskIndex + 1),
-                              ),
-                            ),
-                          ),
-                        ],
+                : _isSingleTask
+                    ? AppButton(
+                        label: 'Retour aux sujets',
+                        icon: Icons.grid_view_rounded,
+                        onPressed: () {
+                          // Retour à la liste des sujets de la tâche
+                          // qu'on vient de faire (TcfProductionTaskSubjectsScreen).
+                          final tacheNumero =
+                              submission.tacheNumero ?? session?.taskAt(taskIndex)?.tacheNumero ?? 1;
+                          ref.read(eoSessionProvider.notifier).reset();
+                          context.go(
+                            AppRoutes.tcfEoTaskSubjects.replaceFirst(':tacheNumero', '$tacheNumero'),
+                          );
+                        },
                       )
-                    : _isSingleTask
-                        ? AppButton(
-                            label: 'Retour aux sujets',
-                            icon: Icons.grid_view_rounded,
-                            onPressed: () {
-                              // Retour à la liste des sujets de la tâche
-                              // qu'on vient de faire (TcfProductionTaskSubjectsScreen).
-                              final tacheNumero = submission.tacheNumero ??
-                                  session?.taskAt(taskIndex)?.tacheNumero ??
-                                  1;
-                              ref.read(eoSessionProvider.notifier).reset();
-                              context.go(
-                                AppRoutes.tcfEoTaskSubjects
-                                    .replaceFirst(':tacheNumero', '$tacheNumero'),
-                              );
-                            },
-                          )
-                        : AppButton(
-                            label: _bilanCtaLabel,
-                            icon: Icons.bar_chart_rounded,
-                            onPressed: () =>
-                                _navigateToBilan(context, ref),
-                          ),
+                    : AppButton(
+                        // Atteint uniquement en mode examen blanc complet
+                        // après la 3ème tâche (cf. `_navigateToBilan` qui
+                        // détecte `fullExamId` et retourne au progress).
+                        // En session 3-tâches autonome, on n'arrive plus
+                        // jamais sur ce screen — le bilan détaillé est
+                        // poussé directement par `eo_finished_screen`.
+                        label: _bilanCtaLabel,
+                        icon: Icons.bar_chart_rounded,
+                        onPressed: () => _navigateToBilan(context, ref),
+                      ),
           ),
         ),
       ],
@@ -342,9 +299,7 @@ class _Body extends ConsumerWidget {
 
   Future<void> _retry(BuildContext context, WidgetRef ref) async {
     try {
-      await ref
-          .read(productionRepositoryProvider)
-          .retrySubmission(submission.id);
+      await ref.read(productionRepositoryProvider).retrySubmission(submission.id);
       ref.invalidate(_eoSubmissionFetcher(submission.id));
     } catch (e) {
       if (!context.mounted) return;
@@ -357,6 +312,7 @@ class _Body extends ConsumerWidget {
 
 class _CriteresCard extends StatelessWidget {
   const _CriteresCard({required this.criteres});
+
   final List<CriterionScore> criteres;
 
   @override
@@ -391,6 +347,7 @@ class _CriteresCard extends StatelessWidget {
 
 class _CorrectionsCard extends StatelessWidget {
   const _CorrectionsCard({required this.examples});
+
   final List<CorrectionExample> examples;
 
   @override
@@ -431,6 +388,7 @@ class _CorrectionsCard extends StatelessWidget {
 
 class _FailedBlock extends StatelessWidget {
   const _FailedBlock({required this.submission, required this.onRetry});
+
   final ProductionSubmissionDto submission;
   final VoidCallback onRetry;
 
@@ -463,9 +421,7 @@ class _FailedBlock extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           AppButton(
-            label: submission.retryCount >= 3
-                ? 'Plafond de retries atteint'
-                : "Reessayer l'evaluation",
+            label: submission.retryCount >= 3 ? 'Plafond de retries atteint' : "Reessayer l'evaluation",
             icon: Icons.refresh_rounded,
             onPressed: submission.retryCount >= 3 ? null : onRetry,
           ),

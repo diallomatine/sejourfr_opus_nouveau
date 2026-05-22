@@ -134,10 +134,16 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
   @override
   Widget build(BuildContext context) {
     final sessionAsync = ref.watch(eoSessionProvider);
+    final goState = GoRouterState.of(context);
+    final fullExamId = goState.uri.queryParameters['fullExamId'];
+    final fallbackRoute = fullExamId != null
+        ? '/tcf/examen-blanc/$fullExamId'
+        : '/tcf/expression-orale';
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: ProductionAppHeader(
         title: 'Expression orale',
+        fallbackRoute: fallbackRoute,
       ),
       body: sessionAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),

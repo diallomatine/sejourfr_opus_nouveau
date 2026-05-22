@@ -97,7 +97,11 @@ class _EeResultsScreenState extends ConsumerState<EeResultsScreen> {
     final qp = GoRouterState.of(context).uri.queryParameters;
     final fullExamId = qp['fullExamId'];
 
+    final fallbackRoute = fullExamId != null
+        ? '/tcf/examen-blanc/$fullExamId'
+        : '/tcf/expression-ecrite';
     return _Wrapper(
+      fallbackRoute: fallbackRoute,
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
@@ -129,8 +133,9 @@ class _EeResultsScreenState extends ConsumerState<EeResultsScreen> {
 }
 
 class _Wrapper extends StatelessWidget {
-  const _Wrapper({required this.body});
+  const _Wrapper({required this.body, this.fallbackRoute = '/tcf'});
   final Widget body;
+  final String fallbackRoute;
 
   @override
   Widget build(BuildContext context) {
@@ -138,6 +143,7 @@ class _Wrapper extends StatelessWidget {
       backgroundColor: AppColors.white,
       appBar: ProductionAppHeader(
         title: 'Resultats',
+        fallbackRoute: fallbackRoute,
         rightAction: const ProductionAppHeaderInfo(),
       ),
       body: body,
@@ -169,25 +175,9 @@ class _ResultsBody extends ConsumerWidget {
   /// Utilisé pour propager fullExamId / subAttemptId aux tâches suivantes.
   final Map<String, String> queryParameters;
 
-  bool get _hasNext =>
-      !isHistory && session != null && taskIndex + 1 < session!.totalTasks;
-
   /// Mode entrainement libre (single-task depuis le hub). Voir EoResultsScreen.
   bool get _isSingleTask =>
       !isHistory && session != null && session!.totalTasks == 1;
-
-  /// Route de la prochaine tâche en propageant les query params (notamment
-  /// `fullExamId` + `subAttemptId` quand on est dans un examen blanc complet).
-  /// Construit ici à partir du snapshot reçu, sans appeler `GoRouterState.of`
-  /// (qui peut planter sous un sous-arbre re-buildé hors contexte route).
-  String _nextTaskRoute(int nextIndex) {
-    final base = '/tcf/expression-ecrite/t/$nextIndex';
-    if (queryParameters.isEmpty) return base;
-    final qs = queryParameters.entries
-        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
-        .join('&');
-    return '$base?$qs';
-  }
 
   String get _bilanCtaLabel =>
       fullExamId != null ? 'Continuer l\'examen blanc' : 'Voir mon bilan';
@@ -199,7 +189,9 @@ class _ResultsBody extends ConsumerWidget {
       context.go('/tcf/examen-blanc/$fullExamId');
       return;
     }
-    context.pushReplacement('/tcf/expression-ecrite/bilan');
+    // Hors examen blanc complet : CTA atteint uniquement quand la session
+    // 3-tâches est en mode legacy. Pour le nouveau flux, `ee_briefing_writing_screen`
+    // push directement le bilan détaillé après T3.
   }
 
   @override
@@ -275,67 +267,32 @@ class _ResultsBody extends ConsumerWidget {
                       }
                     },
                   )
-                : _hasNext
-                    ? Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => context.pushReplacement(
-                                '/tcf/expression-ecrite/progression',
-                              ),
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(50),
-                                side: const BorderSide(color: AppColors.line),
-                                foregroundColor: AppColors.ink,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                'Voir les taches',
-                                style: AppFonts.jakarta(
-                                  size: 15,
-                                  weight: FontWeight.w700,
-                                  color: AppColors.ink,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: AppButton(
-                              label: 'Passer a la tache ${taskIndex + 2}',
-                              onPressed: () => context.pushReplacement(
-                                _nextTaskRoute(taskIndex + 1),
-                              ),
-                            ),
-                          ),
-                        ],
+                : _isSingleTask
+                    ? AppButton(
+                        label: 'Retour aux sujets',
+                        icon: Icons.grid_view_rounded,
+                        onPressed: () {
+                          // Retour à la liste des sujets de la tâche
+                          // qu'on vient de faire (TcfProductionTaskSubjectsScreen).
+                          final tacheNumero = submission.tacheNumero ??
+                              session?.taskAt(taskIndex)?.tacheNumero ??
+                              1;
+                          ref.read(eeSessionProvider.notifier).reset();
+                          context.go(
+                            AppRoutes.tcfEeTaskSubjects
+                                .replaceFirst(':tacheNumero', '$tacheNumero'),
+                          );
+                        },
                       )
-                    : _isSingleTask
-                        ? AppButton(
-                            label: 'Retour aux sujets',
-                            icon: Icons.grid_view_rounded,
-                            onPressed: () {
-                              // Retour à la liste des sujets de la tâche
-                              // qu'on vient de faire (TcfProductionTaskSubjectsScreen),
-                              // pas l'ancien ProductionHubScreen à
-                              // `/tcf/expression-ecrite` ni le détail global.
-                              final tacheNumero = submission.tacheNumero ??
-                                  session?.taskAt(taskIndex)?.tacheNumero ??
-                                  1;
-                              ref.read(eeSessionProvider.notifier).reset();
-                              context.go(
-                                AppRoutes.tcfEeTaskSubjects
-                                    .replaceFirst(':tacheNumero', '$tacheNumero'),
-                              );
-                            },
-                          )
-                        : AppButton(
-                            label: _bilanCtaLabel,
-                            icon: Icons.bar_chart_rounded,
-                            onPressed: () => _navigateToBilan(context, ref),
-                          ),
+                    : AppButton(
+                        // Atteint uniquement en mode examen blanc complet
+                        // (fullExamId != null) ; en session 3-tâches autonome,
+                        // `ee_briefing_writing_screen` push directement le
+                        // bilan détaillé après T3.
+                        label: _bilanCtaLabel,
+                        icon: Icons.bar_chart_rounded,
+                        onPressed: () => _navigateToBilan(context, ref),
+                      ),
           ),
         ),
       ],

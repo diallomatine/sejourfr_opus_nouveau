@@ -94,13 +94,13 @@ lib/
     ├── tcf_production/            EO + EE (productions évaluées par IA)
     │   ├── audio_recorder_service.dart  record 6 + permission_handler + audio_session
     │   ├── draft_service.dart           Brouillon EE en SharedPreferences
-    │   ├── ee_session_controller.dart   Session EE (3 tâches, attempt parent partagé)
+    │   ├── ee_session_controller.dart   Session EE (1 ou 3 tâches, attempt parent partagé)
     │   ├── eo_session_controller.dart   Session EO (idem)
-    │   ├── session_view.dart            Vue abstraite EE+EO pour écrans communs
     │   ├── ee_briefing_writing_screen.dart  Briefing + zone d'écriture combinés
     │   ├── eo_briefing_screen.dart      + recording + finished + results screens
-    │   ├── session_progress_screen.dart Entre les tâches (X/3 + liste)
-    │   ├── session_bilan_screen.dart    Après T3 : hero bleu CECRL + détail
+    │   ├── history_session_screen.dart  Bilan détaillé d'une session (live ou historique) :
+    │   │                                hero CECRL + détail par tâche tappable, polling
+    │   │                                automatique sur les évals IA quand `?live=1`
     │   └── widgets/                     production_app_header, donut_chart_score,
     │                                    mots_card, writing_zone, criterion_row,
     │                                    feedback_block, transcription_section, etc.
@@ -398,20 +398,39 @@ contiennent que du texte, mais l'architecture est prête pour le TCF complet.
 Module distinct du runner QCM : l'utilisateur **produit** un audio (EO) ou un texte (EE), envoyé au backend
 qui le transcrit (Whisper) + le note (Claude) en 10-15 s. Cf. `CLAUDE.md` racine pour le pipeline backend.
 
-**Entry par hub d'entraînement libre.** L'utilisateur n'est plus forcé d'enchaîner T1 → T2 → T3 : il
-arrive sur un hub avec 3 cards (T1, T2, T3), choisit la tâche qu'il veut travailler, fait son
-entraînement, revient au hub. La session 3-tâches chaînée existe toujours dans le code mais est mise au
-frigo en attendant l'examen blanc (cf. roadmap).
+**Deux modes d'entrée** :
+- **Onglet Tâches** du détail module → entraînement libre **single-task** (depuis le
+  `ProductionHubScreen` à `/tcf/expression-X` : 3 cards T1/T2/T3 par niveau cible, tap → 1 tâche).
+  Après soumission, l'écran résultats est affiché immédiatement (correction IA tâche par tâche).
+- **Onglet Examens** du détail module → session **3 tâches enchaînées**, fidèle au vrai TCF :
+  **aucune correction n'est visible entre T1/T2/T3**. Après T3, on push directement le bilan
+  détaillé (`HistorySessionScreen` en mode `?live=1`) qui pollera les évaluations IA jusqu'à ce
+  qu'elles soient toutes EVALUATED/FAILED, puis le user peut tapoter chaque ligne pour voir le
+  détail complet de l'évaluation Claude (donut + critères + feedback + transcription).
+
+**Onglet Examens — slots remplis (parité avec TCF QCM CO/CE)** : 10 slots numérotés. Le provider
+`_productionExamsHistoryProvider` (dans `tcf_production_detail_screen.dart`) regroupe les
+submissions du user par `attemptId` et ne garde **que les attempts à ≥3 submissions** (single-task
+exclus). Slot 1 = plus ancien examen. Tap slot vide → briefing + start nouvelle session. Tap
+slot fait → bottom sheet `_ProductionExamActionSheet` : "Voir les détails" (push
+`/sessions/{attemptId}`, mode historique) ou "Reprendre" (briefing + start). Badge slot : niveau
+CECRL plancher des 3 submissions, teinté rouge/ambre/bleu/vert selon le palier. Si l'éval IA
+tourne encore (badge `…`, sous-titre "évaluation en cours"), c'est qu'on est revenu sur le détail
+avant la fin du pipeline — tap → bilan détaillé qui poll.
 
 **Routes EO** (idem EE en remplaçant `expression-orale` par `expression-ecrite`) :
 - `/tcf/expression-orale` → **hub** d'entraînement (`ProductionHubScreen`)
 - `/tcf/expression-orale/historique` → liste des sessions passées (`ProductionHistoryScreen`)
-- `/tcf/expression-orale/sessions/:attemptId` → bilan d'une session passée (lecture seule)
-- `/tcf/expression-orale/t/:idx` → briefing T(idx+1) (single-task ou exam blanc selon `totalTasks` du SessionController)
+- `/tcf/expression-orale/sessions/:attemptId[?live=1]` → bilan détaillé d'une session,
+  `HistorySessionScreen`. En mode `live=1` (juste après T3) il poll les évaluations IA. Sinon
+  (depuis historique) il lit la donnée déjà figée. Chaque ligne de tâche est tappable → push
+  l'écran `resultats/:submissionId` du detail complet.
+- `/tcf/expression-orale/t/:idx` → briefing T(idx+1)
 - `/tcf/expression-orale/t/:idx/enregistrement` → capture audio (EO uniquement)
 - `/tcf/expression-orale/t/:idx/termine` → écoute + soumission (EO uniquement)
-- `/tcf/expression-orale/resultats/:id?taskIndex=N&history=1` → résultats live ou history
-- `/tcf/expression-orale/nouvelle`, `/progression`, `/bilan` → **legacy session 3-tâches**, conservés pour le futur examen blanc
+- `/tcf/expression-orale/resultats/:id?taskIndex=N&history=1` → résultats détaillés d'une
+  submission (correction IA complète) — push en single-task après soumission, ou depuis le
+  bilan en tap d'une ligne.
 
 **Hub** (`production_hub_screen.dart` + `production_hub_controller.dart`) :
 - `ProductionHubController` (family indexée par `EpreuveType`) charge en parallèle les 3 listes de tâches
@@ -434,8 +453,11 @@ frigo en attendant l'examen blanc (cf. roadmap).
    CTA "Voir mon évaluation" → swap vers `EvaluationLoadingView(includeTranscription: true)` pendant
    l'upload R2 + Whisper + Claude (~15 s), puis push résultats.
 4. **Résultats** (`eo_results_screen.dart`) : score donut violet + critères + feedback + **transcription
-   Whisper**. En single-task (`session.totalTasks == 1`), bouton "Retour aux tâches" qui reset la session
-   et go vers le hub. En 3-tâches : "Passer à la tâche N+1" entre T1/T2 et "Voir mon bilan" sur T3.
+   Whisper**. Atteint en single-task après soumission, ou depuis le bilan en tap d'une ligne, ou
+   depuis l'historique des sessions passées (mode `isHistory`). En 3-tâches, `eo_finished_screen`
+   **bypasse** ce screen entre les tâches : il push direct le briefing suivant, et après T3 le
+   bilan détaillé. CTAs : "Retour aux sujets" (single-task) ou "Continuer l'examen blanc" (full
+   TCF exam) ou "Retour" (history).
 
 **Flow EE** : 1 seul écran combiné `ee_briefing_writing_screen.dart` (briefing + textarea + compteur live +
 `MotsCard` ambre + brouillon auto-save 3 s dans `SharedPreferences` via `EeDraftService`).
@@ -454,16 +476,24 @@ frigo en attendant l'examen blanc (cf. roadmap).
   confidentialité (cf. `_ConfidentialitySheet` privé dans le screen).
 
 **Sessions** : `EeSessionController` / `EoSessionController` (StateNotifier **non-autoDispose**) portent
-les tasks (1 en single-task, 3 en exam blanc) + l'attempt parent + la map des submissions. Deux points
-d'entrée :
-- `start(niveau:...)` → mode 3-tâches (chargé tasks + crée attempt). Réservé à l'examen blanc futur.
-- `startSingle(task:...)` → mode entraînement libre (1 tâche pickée par le hub + crée attempt).
-Reset manuel après "Retour aux tâches" ou abandon.
+les tasks (1 en single-task, 3 en session examens) + l'attempt parent + la map des submissions. Trois
+points d'entrée :
+- `start(niveau:...)` → mode 3-tâches (session examens depuis l'onglet Examens du détail).
+- `startSingle(task:...)` → mode entraînement libre (1 tâche pickée par le hub).
+- `startInFullExam(subAttemptId:..., niveau:...)` → reprend le sous-attempt EE/EO créé par le
+  backend dans un examen blanc TCF complet.
+- `refreshSubmission(taskIndex)` permet au bilan d'aller chercher la dernière version d'une
+  submission (utilisé par le polling mode `live=1` de `HistorySessionScreen`).
 
-**Écrans communs EE + EO** (`session_progress_screen.dart`, `session_bilan_screen.dart`) paramétrés par
-`EpreuveType`, lisent la session via `readSessionView(ref, epreuve)` (helper dans `session_view.dart` qui
-abstrait `EeSessionState` et `EoSessionState`). **Inutilisés en mode single-task**, vivent pour l'examen
-blanc futur.
+Reset manuel après "Retour aux tâches" / "Terminer la session" / abandon.
+
+**Bilan unique pour les sessions EE/EO** : `HistorySessionScreen` (`history_session_screen.dart`)
+sert à la fois pour le post-T3 d'une session examens (`?live=1` → polling actif + CTA "Terminer
+la session" → go au hub TCF) et pour les sessions passées (depuis l'onglet historique → CTA
+"Retour"). Lecture des submissions par `productionRepository.listMine` filtré par `attemptId`.
+Tap sur une ligne → push `resultats/:submissionId?history=1` du détail complet d'évaluation.
+Les ex `SessionProgressScreen` / `SessionBilanScreen` / `session_view.dart` ont été **supprimés**
+(doublons dégradés sans drill-down).
 
 **Gotchas iOS** :
 - `record_ios 1.2.0` produit un fichier vide (28 B) sur **iOS 26 en AAC-LC**. Workaround : `AudioEncoder.wav`

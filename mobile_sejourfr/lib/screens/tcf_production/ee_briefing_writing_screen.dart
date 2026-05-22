@@ -216,7 +216,9 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
                 parentAttemptId: fullExamId,
                 epreuveWire: 'TCF_EE',
               );
-        } catch (_) {/* fallback : hook auto backend finira par poser finishedAt */}
+        } catch (_) {
+          /* fallback : hook auto backend finira par poser finishedAt */
+        }
         if (!mounted) return;
         ref.read(eeSessionProvider.notifier).reset();
         ref.invalidate(fullTcfExamProvider(fullExamId));
@@ -236,6 +238,31 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
           );
       await ref.read(eeDraftServiceProvider).clear(task.id);
       if (!mounted) return;
+      final session = ref.read(eeSessionProvider).value;
+      final isExamMode = session != null && session.totalTasks > 1;
+      final hasNext = session != null && widget.taskIndex + 1 < session.totalTasks;
+      if (isExamMode) {
+        // Mode session 3-tâches (onglet Examens) : pas d'évaluation visible
+        // entre T1/T2/T3, fidèle au vrai TCF. On enchaîne directement le
+        // briefing suivant ; après T3 on push le bilan détaillé
+        // (`HistorySessionScreen` en mode `live=1`) qui pollera les
+        // évaluations IA Claude et permettra de tapoter chaque tâche pour
+        // voir son rapport complet.
+        if (hasNext) {
+          context.pushReplacement(
+            withCurrentQuery(
+              context,
+              '/tcf/expression-ecrite/t/${widget.taskIndex + 1}',
+            ),
+          );
+        } else {
+          final attemptId = session.attempt!.id;
+          context.pushReplacement(
+            '/tcf/expression-ecrite/sessions/$attemptId?live=1',
+          );
+        }
+        return;
+      }
       context.pushReplacement(
         withCurrentQuery(
           context,
@@ -286,11 +313,20 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
     }
 
     final sessionAsync = ref.watch(eeSessionProvider);
+    // Fallback back-arrow contextuel : si `canPop` est faux (deep link,
+    // pushReplacement chain, etc.), on retombe sur le hub EE sauf en mode
+    // examen blanc complet où on retourne au progress de l'examen.
+    final goState = GoRouterState.of(context);
+    final fullExamId = goState.uri.queryParameters['fullExamId'];
+    final fallbackRoute = fullExamId != null
+        ? '/tcf/examen-blanc/$fullExamId'
+        : '/tcf/expression-ecrite';
     return Scaffold(
       backgroundColor: AppColors.white,
       resizeToAvoidBottomInset: true,
       appBar: ProductionAppHeader(
         title: 'Expression écrite',
+        fallbackRoute: fallbackRoute,
         rightAction: ProductionAppHeaderInfo(
           onPressed: () => _showConfidentialitySheet(context),
         ),

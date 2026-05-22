@@ -14,12 +14,17 @@ class TacheBilanRow extends StatelessWidget {
     required this.niveauCible,
     this.score,
     this.niveauObtenu,
+    this.pending = false,
   });
 
   final String name;
   final String niveauCible;
   final double? score;
   final NiveauCecrl? niveauObtenu;
+
+  /// Quand `true`, l'évaluation IA tourne encore : on remplace le "—" muet
+  /// par un mini-spinner pour signaler l'attente plutôt qu'une absence.
+  final bool pending;
 
   NiveauCecrl? _parseNiveauCible() {
     switch (niveauCible.toUpperCase()) {
@@ -85,6 +90,12 @@ class TacheBilanRow extends StatelessWidget {
                 weight: FontWeight.w700,
                 color: AppColors.ink,
               ),
+            )
+          else if (pending)
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
             )
           else
             Text(

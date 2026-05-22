@@ -160,6 +160,20 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
     return submission;
   }
 
+  /// Re-fetch la submission de la tâche `taskIndex` depuis le backend et la
+  /// remet à jour dans le state. Utilisé par le bilan de session 3-tâches
+  /// pour poller l'évaluation IA (Whisper + Claude) tant que la submission
+  /// n'est pas dans un statut final (`EVALUATED` ou `FAILED`).
+  Future<void> refreshSubmission(int taskIndex) async {
+    final current = state.value;
+    if (current == null) return;
+    final existing = current.submissions[taskIndex];
+    if (existing == null) return;
+    final fresh = await _repo.getSubmission(existing.id);
+    final updated = {...current.submissions, taskIndex: fresh};
+    state = AsyncData(current.copyWith(submissions: updated));
+  }
+
   void reset() {
     state = const AsyncData(EoSessionState.empty());
   }

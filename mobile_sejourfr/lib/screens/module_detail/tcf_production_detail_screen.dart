@@ -27,6 +27,79 @@ final _submissionsHistoryProvider = FutureProvider.autoDispose
       );
 });
 
+/// Historique des **examens** (sessions 3-tâches enchaînées) du user, par
+/// épreuve. Dérivé de `listMine` : on groupe les submissions par `attemptId`
+/// et on retient uniquement les attempts qui en ont **3 ou plus** — un attempt
+/// single-task (entraînement libre) n'a qu'une submission et n'est pas un
+/// examen. Trié ASC par date de première submission pour que le slot 1
+/// corresponde au plus ancien examen passé (même logique que TCF QCM).
+final _productionExamsHistoryProvider = FutureProvider.autoDispose
+    .family<List<_ProductionExamSession>, EpreuveType>((ref, epreuve) async {
+  final all = await ref.watch(productionRepositoryProvider).listMine(
+        epreuve: epreuve,
+        limit: 200,
+      );
+  final byAttempt = <String, List<ProductionSubmissionDto>>{};
+  for (final s in all) {
+    final id = s.attemptId;
+    if (id == null) continue;
+    byAttempt.putIfAbsent(id, () => []).add(s);
+  }
+  final exams = <_ProductionExamSession>[];
+  for (final entry in byAttempt.entries) {
+    if (entry.value.length < 3) continue; // single-task → pas un examen
+    exams.add(_ProductionExamSession(
+      attemptId: entry.key,
+      submissions: entry.value,
+    ));
+  }
+  exams.sort((a, b) => a.firstSubmittedAt.compareTo(b.firstSubmittedAt));
+  return exams;
+});
+
+/// Snapshot d'une session 3-tâches finie : utilisé par l'onglet Examens pour
+/// afficher la card du slot (date + niveau global + nombre d'évaluations
+/// remontées).
+class _ProductionExamSession {
+  _ProductionExamSession({
+    required this.attemptId,
+    required this.submissions,
+  });
+
+  final String attemptId;
+  final List<ProductionSubmissionDto> submissions;
+
+  DateTime get firstSubmittedAt =>
+      submissions.map((s) => s.submittedAt).reduce((a, b) => a.isBefore(b) ? a : b);
+
+  DateTime get lastSubmittedAt =>
+      submissions.map((s) => s.submittedAt).reduce((a, b) => a.isAfter(b) ? a : b);
+
+  int get evaluatedCount =>
+      submissions.where((s) => s.evaluation != null).length;
+
+  /// Niveau CECRL plancher des évaluations disponibles (règle TCF IRN).
+  /// Null tant qu'aucune submission n'a été évaluée.
+  NiveauCecrl? get niveauPlancher {
+    NiveauCecrl? floor;
+    for (final s in submissions) {
+      final n = s.evaluation?.niveauCecrl;
+      if (n == null) continue;
+      if (floor == null || n.scaleIndex < floor.scaleIndex) floor = n;
+    }
+    return floor;
+  }
+
+  double? get noteMoyenne {
+    final notes = submissions
+        .map((s) => s.evaluation?.noteSurVingt)
+        .whereType<double>()
+        .toList();
+    if (notes.isEmpty) return null;
+    return notes.reduce((a, b) => a + b) / notes.length;
+  }
+}
+
 /// Module TCF productif (Expression écrite ou orale). Reste séparé de
 /// `TcfQcmModule` parce que le flow downstream est différent : ces 2 modules
 /// pushent un `ProductionHubScreen` (sélection T1/T2/T3) et non un runner QCM.
@@ -219,11 +292,11 @@ class _TcfProductionDetailScreenState
       if (widget.module.epreuve == EpreuveType.tcfEo) {
         await ref.read(eoSessionProvider.notifier).start(niveau: niveau);
         if (!mounted) return;
-        context.push('/tcf/expression-orale/nouvelle');
+        context.push('/tcf/expression-orale/t/0');
       } else {
         await ref.read(eeSessionProvider.notifier).start(niveau: niveau);
         if (!mounted) return;
-        context.push('/tcf/expression-ecrite/nouvelle');
+        context.push('/tcf/expression-ecrite/t/0');
       }
     } catch (e) {
       if (!mounted) return;
@@ -364,11 +437,11 @@ class _TabContent extends StatelessWidget {
 const int _productionExamSlotsCount = 10;
 
 /// Onglet Examens : 10 slots numérotés (Examen 1 → 10) sur le même pattern
-/// que TCF QCM. Tous "Disponible" pour l'instant — l'historique des sessions
-/// 3-tâches passées arrive quand on aura l'endpoint backend dédié (listage
-/// des attempts parents TCF_COMPLET du user). Tap slot → start session
-/// 3-tâches enchaînées via `EeSessionController` / `EoSessionController`.
-class _ExamsTab extends StatelessWidget {
+/// que TCF QCM. Les sessions 3-tâches finies du user remplissent les slots
+/// de 1 vers le haut (slot 1 = plus ancien examen, comme CO/CE). Tap slot
+/// vide → briefing + start. Tap slot fait → bottom sheet avec "Voir les
+/// détails" (push HistorySessionScreen) ou "Reprendre".
+class _ExamsTab extends ConsumerWidget {
   const _ExamsTab({
     required this.module,
     required this.starting,
@@ -380,8 +453,10 @@ class _ExamsTab extends StatelessWidget {
   final VoidCallback onStart;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isEo = module.epreuve == EpreuveType.tcfEo;
+    final asyncExams = ref.watch(_productionExamsHistoryProvider(module.epreuve));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -453,47 +528,208 @@ class _ExamsTab extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 10),
-        for (int i = 1; i <= _productionExamSlotsCount; i++)
-          _ProductionExamSlotCard(
-            slot: i,
-            onTap: starting
-                ? null
-                : () => showProductionExamBriefingSheet(
-                      context,
-                      module: module,
-                      starting: starting,
-                      onStart: onStart,
-                    ),
+        asyncExams.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.red),
+              ),
+            ),
           ),
+          error: (e, _) => Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Text(
+              ApiClient.toApiException(e).message,
+              style: AppFonts.jakarta(size: 12.5, color: AppColors.muted),
+            ),
+          ),
+          data: (exams) => Column(
+            children: [
+              for (int i = 0; i < _productionExamSlotsCount; i++)
+                _ProductionExamSlotCard(
+                  slot: i + 1,
+                  session: i < exams.length ? exams[i] : null,
+                  onTapEmpty: starting
+                      ? null
+                      : () => showProductionExamBriefingSheet(
+                            context,
+                            module: module,
+                            starting: starting,
+                            onStart: onStart,
+                          ),
+                  onTapDone: (session) => _showSessionSheet(
+                    context,
+                    session,
+                  ),
+                ),
+            ],
+          ),
+        ),
       ],
+    );
+  }
+
+  void _showSessionSheet(BuildContext context, _ProductionExamSession session) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => _ProductionExamActionSheet(
+        session: session,
+        onViewDetails: () {
+          Navigator.of(sheetCtx).pop();
+          final base = module.epreuve == EpreuveType.tcfEo
+              ? '/tcf/expression-orale'
+              : '/tcf/expression-ecrite';
+          context.push('$base/sessions/${session.attemptId}');
+        },
+        onRetake: () {
+          Navigator.of(sheetCtx).pop();
+          // Même flow que tap slot vide : briefing → start nouvelle session.
+          showProductionExamBriefingSheet(
+            context,
+            module: module,
+            starting: starting,
+            onStart: onStart,
+          );
+        },
+      ),
     );
   }
 }
 
-/// Card slot d'examen complet 3-tâches. Pour l'instant aucun slot n'a
-/// d'historique (besoin d'un endpoint backend pour lister les attempts
-/// TCF_COMPLET du user) — tous restent "Disponible".
-class _ProductionExamSlotCard extends StatelessWidget {
-  const _ProductionExamSlotCard({required this.slot, required this.onTap});
+/// Bottom sheet déclenchée au tap sur un slot d'examen déjà fait. Deux CTAs :
+/// "Voir les détails" (push le bilan détaillé) ou "Reprendre" (nouvelle
+/// session 3-tâches).
+class _ProductionExamActionSheet extends StatelessWidget {
+  const _ProductionExamActionSheet({
+    required this.session,
+    required this.onViewDetails,
+    required this.onRetake,
+  });
 
-  final int slot;
-  final VoidCallback? onTap;
+  final _ProductionExamSession session;
+  final VoidCallback onViewDetails;
+  final VoidCallback onRetake;
 
   @override
   Widget build(BuildContext context) {
+    final niveau = session.niveauPlancher;
+    final note = session.noteMoyenne;
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.line,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Examen passé',
+                style: AppFonts.fraunces(size: 22, weight: FontWeight.w600),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _summary(niveau, note),
+                textAlign: TextAlign.center,
+                style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+              ),
+              const SizedBox(height: 20),
+              AppButton(
+                label: 'Voir les détails',
+                icon: Icons.visibility_outlined,
+                onPressed: onViewDetails,
+              ),
+              const SizedBox(height: 8),
+              AppButton(
+                label: 'Reprendre (nouvelle session)',
+                icon: Icons.refresh_rounded,
+                variant: AppButtonVariant.ghost,
+                onPressed: onRetake,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _summary(NiveauCecrl? niveau, double? note) {
+    final parts = <String>[];
+    if (niveau != null) parts.add('Niveau ${niveau.displayName}');
+    if (note != null) {
+      final formatted = note == note.truncateToDouble()
+          ? note.toInt().toString()
+          : note.toStringAsFixed(1).replaceAll('.', ',');
+      parts.add('moyenne $formatted/20');
+    }
+    if (session.evaluatedCount < session.submissions.length) {
+      parts.add(
+        '${session.evaluatedCount}/${session.submissions.length} évaluations remontées',
+      );
+    }
+    if (parts.isEmpty) return 'Évaluation IA en cours.';
+    return parts.join(' · ');
+  }
+}
+
+/// Card slot d'examen complet 3-tâches. Quand `session != null`, c'est un
+/// examen déjà passé : numéro coloré, date + niveau global + badge CECRL
+/// teinté selon le score, tap → bottom sheet "Voir détails / Reprendre".
+/// Sinon (slot vide), affichage neutre + chevron play → briefing + start.
+class _ProductionExamSlotCard extends StatelessWidget {
+  const _ProductionExamSlotCard({
+    required this.slot,
+    required this.session,
+    required this.onTapEmpty,
+    required this.onTapDone,
+  });
+
+  final int slot;
+  final _ProductionExamSession? session;
+  final VoidCallback? onTapEmpty;
+  final ValueChanged<_ProductionExamSession> onTapDone;
+
+  @override
+  Widget build(BuildContext context) {
+    final done = session != null;
+    final color = _slotColor(session);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: done ? color.withValues(alpha: 0.05) : AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.line),
+        border: Border.all(
+          color: done ? color.withValues(alpha: 0.3) : AppColors.line,
+        ),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(14),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: onTap,
+            onTap: done ? () => onTapDone(session!) : onTapEmpty,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
               child: Row(
@@ -503,7 +739,7 @@ class _ProductionExamSlotCard extends StatelessWidget {
                     height: 40,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: AppColors.line2,
+                      color: done ? color : AppColors.line2,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -511,7 +747,7 @@ class _ProductionExamSlotCard extends StatelessWidget {
                       style: AppFonts.jakarta(
                         size: 14,
                         weight: FontWeight.w800,
-                        color: AppColors.muted,
+                        color: done ? AppColors.white : AppColors.muted,
                       ),
                     ),
                   ),
@@ -531,21 +767,42 @@ class _ProductionExamSlotCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Disponible · 3 tâches enchaînées',
+                          done
+                              ? _formatDoneSubtitle(session!)
+                              : 'Disponible · 3 tâches enchaînées',
                           style: AppFonts.jakarta(
                             size: 12,
                             color: AppColors.muted,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Icon(
-                    Icons.play_arrow_rounded,
-                    color: AppColors.muted2,
-                    size: 22,
-                  ),
+                  if (done)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        _badgeText(session!),
+                        style: AppFonts.jakarta(
+                          size: 12,
+                          weight: FontWeight.w800,
+                          color: AppColors.white,
+                        ),
+                      ),
+                    )
+                  else
+                    const Icon(
+                      Icons.play_arrow_rounded,
+                      color: AppColors.muted2,
+                      size: 22,
+                    ),
                 ],
               ),
             ),
@@ -553,6 +810,48 @@ class _ProductionExamSlotCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Color _slotColor(_ProductionExamSession? s) {
+    final niveau = s?.niveauPlancher;
+    if (niveau == null) return AppColors.muted;
+    switch (niveau) {
+      case NiveauCecrl.a1NonAtteint:
+      case NiveauCecrl.a1:
+        return AppColors.red;
+      case NiveauCecrl.a2:
+        return AppColors.amber;
+      case NiveauCecrl.b1:
+        return AppColors.blue;
+      case NiveauCecrl.b2:
+      case NiveauCecrl.c1:
+      case NiveauCecrl.c2:
+        return AppColors.green;
+    }
+  }
+
+  String _badgeText(_ProductionExamSession s) {
+    final niveau = s.niveauPlancher;
+    if (niveau != null) return niveau.displayName;
+    // Pas encore d'évaluation IA finalisée : badge muet d'attente.
+    return '…';
+  }
+
+  String _formatDoneSubtitle(_ProductionExamSession s) {
+    const months = [
+      'janv.', 'févr.', 'mars', 'avril', 'mai', 'juin',
+      'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+    ];
+    final d = s.lastSubmittedAt;
+    final date = '${d.day} ${months[d.month - 1]} ${d.year}';
+    final note = s.noteMoyenne;
+    if (note == null) {
+      return '$date · évaluation en cours';
+    }
+    final formatted = note == note.truncateToDouble()
+        ? note.toInt().toString()
+        : note.toStringAsFixed(1).replaceAll('.', ',');
+    return '$date · $formatted/20 moyenne';
   }
 }
 

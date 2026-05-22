@@ -17,49 +17,83 @@ import 'full_tcf_exam_provider.dart';
 ///
 /// Quand on arrive ici juste après le dernier sous-attempt, les évaluations
 /// IA EE/EO peuvent encore être en cours (`status = PENDING_EVALUATIONS`).
-/// Dans ce cas l'écran montre un état "On finalise ton évaluation…" et
-/// rafraîchit toutes les 4 s jusqu'à passer à `COMPLETED`.
+/// L'écran appelle `finish` (idempotent), puis poll `GET /full-tcf-exams/{id}`
+/// avec un intervalle adaptatif (3 s pendant 30 s, puis 8 s) pendant 5 min
+/// max. Si l'évaluation n'est toujours pas prête, on bascule sur un état
+/// `_pollExhausted` qui remplace le spinner du badge par une icône
+/// "Actualiser" — et le pull-to-refresh relance un cycle complet.
 class TcfFullExamBilanScreen extends ConsumerStatefulWidget {
   const TcfFullExamBilanScreen({super.key, required this.parentAttemptId});
 
   final String parentAttemptId;
 
   @override
-  ConsumerState<TcfFullExamBilanScreen> createState() =>
-      _TcfFullExamBilanScreenState();
+  ConsumerState<TcfFullExamBilanScreen> createState() => _TcfFullExamBilanScreenState();
 }
 
-class _TcfFullExamBilanScreenState
-    extends ConsumerState<TcfFullExamBilanScreen> {
+class _TcfFullExamBilanScreenState extends ConsumerState<TcfFullExamBilanScreen> {
   Timer? _pollTimer;
   bool _finishCalled = false;
+  bool _pollExhausted = false;
 
-  /// Polling stop hard après cette durée — protège contre une éval IA bloquée
-  /// ou plantée silencieusement. Au-delà, l'utilisateur voit l'état partiel
-  /// disponible (niveau plancher des sous-épreuves OK) sans rester coincé.
-  static const Duration _pollMaxDuration = Duration(seconds: 90);
-  late final DateTime _pollStartedAt;
+  /// Polling stop hard après cette durée. 5 min : largement de quoi laisser
+  /// les 6 évals IA (3 EE + 3 EO) finir, même quand Claude est lent ou que
+  /// la queue backend est saturée. Au-delà, on bascule sur `_pollExhausted`
+  /// qui swap le spinner muet pour un bouton "Actualiser".
+  static const Duration _pollMaxDuration = Duration(minutes: 5);
+
+  /// Au-delà de ce délai depuis [FullTcfExamResponse.finishedAt], on considère
+  /// l'examen comme "stale" : si une submission n'a pas remonté son évaluation
+  /// IA après 2 min, c'est qu'elle est bloquée côté backend (jamais picked
+  /// up par l'@Async ou exception silencieuse). Inutile de polluer le réseau
+  /// avec du polling — on affiche directement l'état terminal et un bouton
+  /// "Actualiser" pour relance manuelle.
+  static const Duration _staleThreshold = Duration(minutes: 2);
+
+  /// Intervalle initial — agressif pour décrocher dès que possible quand les
+  /// évals finissent en quelques secondes.
+  static const Duration _pollIntervalFast = Duration(seconds: 3);
+
+  /// Intervalle après [_pollSlowdownAt] — économise des requêtes quand
+  /// l'évaluation s'étire.
+  static const Duration _pollIntervalSlow = Duration(seconds: 8);
+  static const Duration _pollSlowdownAt = Duration(seconds: 30);
+
+  DateTime? _pollStartedAt;
 
   @override
   void initState() {
     super.initState();
-    _pollStartedAt = DateTime.now();
-    // Au premier affichage, on poste le finish (idempotent côté backend) puis
-    // on attend que toutes les évaluations IA soient prêtes. Le polling
-    // s'arrête dès `status == COMPLETED` OU au bout de _pollMaxDuration.
     WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
+  }
+
+  /// Détermine si l'examen est trop vieux pour qu'un polling ait du sens :
+  /// le parent a été finalisé il y a plus de [_staleThreshold] et le statut
+  /// n'est toujours pas COMPLETED ⇒ une submission est bloquée côté backend,
+  /// rien ne va changer en attendant.
+  bool _examIsStale(FullTcfExamResponse exam) {
+    if (exam.status == FullTcfExamStatus.completed) return false;
+    final finishedAt = exam.finishedAt;
+    if (finishedAt == null) return false;
+    return DateTime.now().difference(finishedAt) > _staleThreshold;
   }
 
   Future<void> _bootstrap() async {
     if (_finishCalled) return;
     _finishCalled = true;
     try {
-      final exam = await ref
-          .read(fullTcfExamRepositoryProvider)
-          .finish(widget.parentAttemptId);
-      if (exam.status != FullTcfExamStatus.completed) {
-        _startPolling();
+      final exam = await ref.read(fullTcfExamRepositoryProvider).finish(widget.parentAttemptId);
+      if (exam.status == FullTcfExamStatus.completed) {
+        return;
       }
+      if (_examIsStale(exam)) {
+        // Examen "déjà fait" depuis longtemps mais resté PENDING : pas de
+        // Claude qui tourne derrière, polling inutile — on affiche
+        // directement l'état terminal avec CTA Actualiser.
+        if (mounted) setState(() => _pollExhausted = true);
+        return;
+      }
+      _startPolling();
     } catch (_) {
       // Ignore : `finish` peut renvoyer 400 si l'utilisateur arrive ici sans
       // que tous les sous-attempts soient finis (cas rare — l'écran montre
@@ -76,27 +110,65 @@ class _TcfFullExamBilanScreenState
 
   void _startPolling() {
     _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(const Duration(seconds: 4), (timer) async {
-      if (!mounted) {
-        timer.cancel();
+    _pollStartedAt = DateTime.now();
+    if (_pollExhausted && mounted) {
+      setState(() => _pollExhausted = false);
+    }
+    _schedulePollTick(_pollIntervalFast);
+  }
+
+  void _schedulePollTick(Duration delay) {
+    _pollTimer?.cancel();
+    _pollTimer = Timer(delay, _pollTick);
+  }
+
+  Future<void> _pollTick() async {
+    if (!mounted) return;
+    final startedAt = _pollStartedAt;
+    if (startedAt == null) return;
+    if (DateTime.now().difference(startedAt) > _pollMaxDuration) {
+      if (mounted) setState(() => _pollExhausted = true);
+      return;
+    }
+    ref.invalidate(fullTcfExamProvider(widget.parentAttemptId));
+    try {
+      final exam = await ref.read(fullTcfExamProvider(widget.parentAttemptId).future);
+      if (!mounted) return;
+      if (exam.status == FullTcfExamStatus.completed) {
+        return; // plus de polling : le widget rebuild affichera le niveau.
+      }
+      if (_examIsStale(exam)) {
+        // Le parent est finalisé depuis longtemps mais une eval reste bloquée :
+        // pas la peine de continuer à hammerer le backend, on affiche un CTA
+        // Actualiser et on s'arrête.
+        setState(() => _pollExhausted = true);
         return;
       }
-      // Timeout hard : on arrête, l'écran affichera l'état disponible.
-      if (DateTime.now().difference(_pollStartedAt) > _pollMaxDuration) {
-        timer.cancel();
+    } catch (_) {
+      // Ignore : on retentera au prochain tick.
+    }
+    final elapsed = DateTime.now().difference(startedAt);
+    final next = elapsed < _pollSlowdownAt ? _pollIntervalFast : _pollIntervalSlow;
+    _schedulePollTick(next);
+  }
+
+  Future<void> _onPullToRefresh() async {
+    ref.invalidate(fullTcfExamProvider(widget.parentAttemptId));
+    try {
+      final exam = await ref.read(fullTcfExamProvider(widget.parentAttemptId).future);
+      if (!mounted) return;
+      if (exam.status == FullTcfExamStatus.completed) {
+        if (_pollExhausted) setState(() => _pollExhausted = false);
         return;
       }
-      ref.invalidate(fullTcfExamProvider(widget.parentAttemptId));
-      try {
-        final exam = await ref
-            .read(fullTcfExamProvider(widget.parentAttemptId).future);
-        if (exam.status == FullTcfExamStatus.completed) {
-          timer.cancel();
-        }
-      } catch (_) {
-        // Ignore : on retentera au prochain tick.
+      if (_examIsStale(exam)) {
+        if (!_pollExhausted) setState(() => _pollExhausted = true);
+        return;
       }
-    });
+      _startPolling();
+    } catch (_) {
+      if (mounted) _startPolling();
+    }
   }
 
   @override
@@ -120,17 +192,30 @@ class _TcfFullExamBilanScreenState
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.cloud_off_outlined,
-                      size: 40, color: AppColors.red),
+                  const Icon(Icons.cloud_off_outlined, size: 40, color: AppColors.red),
                   const SizedBox(height: 12),
                   Text(e.toString(),
-                      textAlign: TextAlign.center,
-                      style: AppFonts.jakarta(color: AppColors.muted)),
+                      textAlign: TextAlign.center, style: AppFonts.jakarta(color: AppColors.muted)),
                 ],
               ),
             ),
           ),
-          data: (exam) => _BilanView(exam: exam),
+          data: (exam) {
+            // `_pollExhausted` (5 min de polling sans succès) OU exam stale
+            // (déjà finalisé depuis plus de 2 min ⇒ pipeline IA bloqué côté
+            // backend). Dans les deux cas, le bilan affiche un CTA Actualiser
+            // au lieu de spinners infinis pour les sous-attempts en attente.
+            final effectiveExhausted = _pollExhausted || _examIsStale(exam);
+            return RefreshIndicator(
+              onRefresh: _onPullToRefresh,
+              color: AppColors.red,
+              child: _BilanView(
+                exam: exam,
+                pollExhausted: effectiveExhausted,
+                onManualRefresh: _onPullToRefresh,
+              ),
+            );
+          },
         ),
       ),
     );
@@ -138,32 +223,101 @@ class _TcfFullExamBilanScreenState
 }
 
 class _BilanView extends StatelessWidget {
-  const _BilanView({required this.exam});
+  const _BilanView({
+    required this.exam,
+    required this.pollExhausted,
+    required this.onManualRefresh,
+  });
 
   final FullTcfExamResponse exam;
+  final bool pollExhausted;
+  final Future<void> Function() onManualRefresh;
 
   @override
   Widget build(BuildContext context) {
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
       children: [
-        _TopBar(onBack: () => _backToHub(context)),
+        _TopBar(onBack: () => _backToExams(context)),
         const SizedBox(height: 20),
         _Hero(exam: exam),
         const SizedBox(height: 18),
-        _DetailSection(exam: exam),
+        if (pollExhausted && exam.status != FullTcfExamStatus.completed) ...[
+          _PollExhaustedBanner(onRefresh: onManualRefresh),
+          const SizedBox(height: 14),
+        ],
+        _DetailSection(
+          exam: exam,
+          pollExhausted: pollExhausted,
+          onManualRefresh: onManualRefresh,
+        ),
         const SizedBox(height: 22),
         AppButton(
-          label: 'Retour au TCF',
-          icon: Icons.home_outlined,
-          onPressed: () => _backToHub(context),
+          label: 'Retour aux examens',
+          icon: Icons.arrow_back_rounded,
+          onPressed: () => _backToExams(context),
         ),
       ],
     );
   }
 
-  void _backToHub(BuildContext context) {
-    context.go(AppRoutes.tcf);
+  void _backToExams(BuildContext context) {
+    context.go(AppRoutes.tcfFullExams);
+  }
+}
+
+class _PollExhaustedBanner extends StatelessWidget {
+  const _PollExhaustedBanner({required this.onRefresh});
+
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.blueLight),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.schedule_rounded, color: AppColors.blue, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "L'évaluation IA prend plus longtemps que prévu. Reviens dans une minute ou actualise.",
+              style: AppFonts.jakarta(
+                size: 12.5,
+                color: AppColors.ink,
+                height: 1.35,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Material(
+            color: AppColors.blue,
+            borderRadius: BorderRadius.circular(8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: onRefresh,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                child: Text(
+                  'Actualiser',
+                  style: AppFonts.jakarta(
+                    size: 12,
+                    weight: FontWeight.w800,
+                    color: AppColors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -190,8 +344,7 @@ class _TopBar extends StatelessWidget {
                 border: Border.all(color: AppColors.line),
               ),
               alignment: Alignment.center,
-              child: const Icon(Icons.chevron_left_rounded,
-                  size: 22, color: AppColors.ink),
+              child: const Icon(Icons.chevron_left_rounded, size: 22, color: AppColors.ink),
             ),
           ),
         ),
@@ -339,9 +492,15 @@ class _Hero extends StatelessWidget {
 }
 
 class _DetailSection extends StatelessWidget {
-  const _DetailSection({required this.exam});
+  const _DetailSection({
+    required this.exam,
+    required this.pollExhausted,
+    required this.onManualRefresh,
+  });
 
   final FullTcfExamResponse exam;
+  final bool pollExhausted;
+  final Future<void> Function() onManualRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -369,6 +528,8 @@ class _DetailSection extends StatelessWidget {
               epreuve: e,
               sub: exam.subFor(e),
               parentAttemptId: exam.id,
+              pollExhausted: pollExhausted,
+              onManualRefresh: onManualRefresh,
             ),
           ),
       ],
@@ -381,11 +542,15 @@ class _DetailCard extends ConsumerStatefulWidget {
     required this.epreuve,
     required this.sub,
     required this.parentAttemptId,
+    required this.pollExhausted,
+    required this.onManualRefresh,
   });
 
   final EpreuveType epreuve;
   final FullTcfExamSubAttempt? sub;
   final String parentAttemptId;
+  final bool pollExhausted;
+  final Future<void> Function() onManualRefresh;
 
   @override
   ConsumerState<_DetailCard> createState() => _DetailCardState();
@@ -393,6 +558,32 @@ class _DetailCard extends ConsumerStatefulWidget {
 
 class _DetailCardState extends ConsumerState<_DetailCard> {
   bool _retrying = false;
+
+  /// Route vers les détails d'évaluation du sous-attempt, selon l'épreuve :
+  /// - CO/CE → `/exam-report/{subAttemptId}` (questions + correction)
+  /// - EE/EO → `/tcf/expression-{ecrite,orale}/sessions/{subAttemptId}`
+  ///   (bilan lecture seule des 3 productions évaluées par l'IA)
+  String? _detailsRouteFor(FullTcfExamSubAttempt sub) {
+    switch (widget.epreuve) {
+      case EpreuveType.tcfCo:
+      case EpreuveType.tcfCe:
+        return '/exam-report/${sub.attemptId}';
+      case EpreuveType.tcfEe:
+        return '/tcf/expression-ecrite/sessions/${sub.attemptId}';
+      case EpreuveType.tcfEo:
+        return '/tcf/expression-orale/sessions/${sub.attemptId}';
+      default:
+        return null;
+    }
+  }
+
+  void _openDetails() {
+    final sub = widget.sub;
+    if (sub == null || !sub.isFinished) return;
+    final route = _detailsRouteFor(sub);
+    if (route == null) return;
+    context.push(route);
+  }
 
   Future<void> _retryFailed() async {
     final sub = widget.sub;
@@ -430,9 +621,14 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
     final meta = _epreuveMeta(widget.epreuve);
     final sub = widget.sub;
     final level = sub?.cecrlLevel;
-    final pending = sub != null && level == null && sub.isFinished &&
-        (sub.failedSubmissionIds.isEmpty);
+    final pending = sub != null && level == null && sub.isFinished && (sub.failedSubmissionIds.isEmpty);
     final hasFailures = sub != null && sub.failedSubmissionIds.isNotEmpty;
+
+    // Card tappable quand le sous-attempt est fini ET qu'on a une route de
+    // détails à ouvrir (toutes les épreuves CO/CE/EE/EO en ont une). Sinon
+    // (sub == null ou pas encore fini), on reste passif — pas d'illusion
+    // clickable sur quelque chose qui n'existe pas.
+    final tappable = sub != null && sub.isFinished && _detailsRouteFor(sub) != null;
 
     return Container(
       decoration: BoxDecoration(
@@ -440,81 +636,93 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.line),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: meta.iconBg,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(meta.icon, size: 22, color: meta.iconColor),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        meta.title,
-                        style: AppFonts.jakarta(
-                          size: 14.5,
-                          weight: FontWeight.w800,
-                          color: AppColors.ink,
-                        ),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: tappable ? _openDetails : null,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: meta.iconBg,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _subtitle(sub, pending),
-                        style: AppFonts.jakarta(
-                          size: 12,
-                          color: AppColors.muted,
-                        ),
+                      child: Icon(meta.icon, size: 22, color: meta.iconColor),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            meta.title,
+                            style: AppFonts.jakarta(
+                              size: 14.5,
+                              weight: FontWeight.w800,
+                              color: AppColors.ink,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _subtitle(sub, pending),
+                            style: AppFonts.jakarta(
+                              size: 12,
+                              color: AppColors.muted,
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (level != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _levelColor(level).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          _shortLevel(level),
+                          style: AppFonts.jakarta(
+                            size: 13,
+                            weight: FontWeight.w800,
+                            color: _levelColor(level),
+                          ),
+                        ),
+                      )
+                    else if (pending && widget.pollExhausted)
+                      _RefreshLevelButton(onTap: widget.onManualRefresh)
+                    else if (pending)
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else if (hasFailures)
+                      const Icon(Icons.error_outline_rounded, color: AppColors.red, size: 22)
+                    else
+                      Text('—',
+                          style: AppFonts.jakarta(
+                            size: 16,
+                            weight: FontWeight.w700,
+                            color: AppColors.muted2,
+                          )),
+                    if (tappable) ...[
+                      const SizedBox(width: 6),
+                      const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.muted2),
                     ],
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                if (level != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: _levelColor(level).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      _shortLevel(level),
-                      style: AppFonts.jakarta(
-                        size: 13,
-                        weight: FontWeight.w800,
-                        color: _levelColor(level),
-                      ),
-                    ),
-                  )
-                else if (pending)
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else if (hasFailures)
-                  const Icon(Icons.error_outline_rounded,
-                      color: AppColors.red, size: 22)
-                else
-                  Text('—',
-                      style: AppFonts.jakarta(
-                        size: 16,
-                        weight: FontWeight.w700,
-                        color: AppColors.muted2,
-                      )),
-              ],
+              ),
             ),
           ),
           if (hasFailures)
@@ -613,6 +821,42 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
           iconBg: AppColors.bg,
         );
     }
+  }
+}
+
+class _RefreshLevelButton extends StatelessWidget {
+  const _RefreshLevelButton({required this.onTap});
+
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.blueSoft,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.refresh_rounded, size: 14, color: AppColors.blue),
+              const SizedBox(width: 6),
+              Text(
+                'Actualiser',
+                style: AppFonts.jakarta(
+                  size: 11.5,
+                  weight: FontWeight.w800,
+                  color: AppColors.blue,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

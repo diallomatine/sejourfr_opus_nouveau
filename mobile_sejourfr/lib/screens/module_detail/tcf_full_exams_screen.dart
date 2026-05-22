@@ -29,6 +29,12 @@ final _fullExamsHistoryProvider =
   return ref.watch(fullTcfExamRepositoryProvider).listMine(limit: 50);
 });
 
+/// 20 slots disponibles, comme un cahier d'examens blancs. Au-delà, on
+/// continue à pouvoir lancer mais on n'affiche plus de slot supplémentaire
+/// — l'historique reste consultable via les premiers slots (rotation
+/// chronologique : slot 1 = examen le plus ancien).
+const int _fullExamSlotsCount = 20;
+
 class TcfFullExamsScreen extends ConsumerWidget {
   const TcfFullExamsScreen({super.key});
 
@@ -36,7 +42,7 @@ class TcfFullExamsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final historyAsync = ref.watch(_fullExamsHistoryProvider);
 
-    Future<void> startNew() async {
+    Future<void> startNew(int slot) async {
       final auth = ref.read(authControllerProvider);
       final isPremium = auth is AuthAuthenticated &&
           auth.user.canAccessModule(AppModule.tcf);
@@ -45,10 +51,9 @@ class TcfFullExamsScreen extends ConsumerWidget {
         showPaywallSheet(context);
         return;
       }
-      final nextNumber = (historyAsync.valueOrNull?.length ?? 0) + 1;
       showTcfFullExamBriefingSheet(
         context,
-        slot: nextNumber,
+        slot: slot,
         onStart: () async {
           try {
             final exam =
@@ -102,12 +107,6 @@ class TcfFullExamsScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               const _Stats(),
               const SizedBox(height: 22),
-              AppButton(
-                label: 'Lancer un nouvel examen',
-                icon: Icons.play_arrow_rounded,
-                onPressed: startNew,
-              ),
-              const SizedBox(height: 22),
               historyAsync.when(
                 loading: () => const Padding(
                   padding: EdgeInsets.symmetric(vertical: 32),
@@ -117,9 +116,10 @@ class TcfFullExamsScreen extends ConsumerWidget {
                   message: e.toString(),
                   onRetry: () => ref.invalidate(_fullExamsHistoryProvider),
                 ),
-                data: (history) => _HistorySection(
+                data: (history) => _SlotsSection(
                   history: history,
-                  onTap: (exam) => _openExam(context, exam),
+                  onTapDone: (exam) => _openExam(context, exam),
+                  onTapEmpty: startNew,
                 ),
               ),
             ],
@@ -330,24 +330,34 @@ class _StatCell extends StatelessWidget {
   }
 }
 
-class _HistorySection extends StatelessWidget {
-  const _HistorySection({required this.history, required this.onTap});
+/// Section principale : 20 slots numérotés, comme l'onglet Examens du
+/// détail TCF QCM/EE/EO. Les examens passés sont triés ASC (le plus ancien
+/// occupe le slot 1) et remplissent les slots de gauche à droite. Les slots
+/// restants sont vides (clic = nouvelle session).
+class _SlotsSection extends StatelessWidget {
+  const _SlotsSection({
+    required this.history,
+    required this.onTapDone,
+    required this.onTapEmpty,
+  });
 
   final List<FullTcfExamSummary> history;
-  final void Function(FullTcfExamSummary) onTap;
+  final void Function(FullTcfExamSummary) onTapDone;
+  final void Function(int slot) onTapEmpty;
 
   @override
   Widget build(BuildContext context) {
-    if (history.isEmpty) {
-      return _EmptyHistory();
-    }
+    // Le backend renvoie l'historique DESC (récent en premier). On inverse
+    // pour avoir le plus ancien en slot 1 — même règle que TCF QCM (CO/CE)
+    // et EE/EO, pour que la numérotation reste stable dans le temps.
+    final ordered = history.reversed.toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
             Text(
-              'Mes examens',
+              'Tes examens',
               style: AppFonts.jakarta(
                 size: 16,
                 weight: FontWeight.w800,
@@ -356,7 +366,7 @@ class _HistorySection extends StatelessWidget {
             ),
             const Spacer(),
             Text(
-              '${history.length}',
+              '$_fullExamSlotsCount disponibles',
               style: AppFonts.mono(
                 size: 10,
                 color: AppColors.muted,
@@ -367,94 +377,56 @@ class _HistorySection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        for (int i = 0; i < history.length; i++) ...[
-          _ExamCard(
-            // Numérotation chronologique (le plus ancien = #1).
-            number: history.length - i,
-            exam: history[i],
-            onTap: () => onTap(history[i]),
+        for (int i = 0; i < _fullExamSlotsCount; i++) ...[
+          _ExamSlotCard(
+            slot: i + 1,
+            exam: i < ordered.length ? ordered[i] : null,
+            onTapDone: onTapDone,
+            onTapEmpty: () => onTapEmpty(i + 1),
           ),
-          if (i != history.length - 1) const SizedBox(height: 10),
+          if (i != _fullExamSlotsCount - 1) const SizedBox(height: 10),
         ],
       ],
     );
   }
 }
 
-class _EmptyHistory extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 18),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.redLight,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.workspace_premium_rounded,
-                color: AppColors.red, size: 22),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Aucun examen blanc encore',
-            style: AppFonts.jakarta(
-              size: 14.5,
-              weight: FontWeight.w800,
-              color: AppColors.ink,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Lance ton premier pour obtenir ton niveau CECRL TCF IRN.',
-            textAlign: TextAlign.center,
-            style: AppFonts.jakarta(size: 12.5, color: AppColors.muted, height: 1.4),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ExamCard extends StatelessWidget {
-  const _ExamCard({
-    required this.number,
+/// Une card slot. État vide → numéro encre sur gris muet, sous-titre
+/// "Disponible · 4 épreuves, 90 min", chevron play. État fait → numéro
+/// teinté par le niveau, icône premium + badge CECRL à droite.
+class _ExamSlotCard extends StatelessWidget {
+  const _ExamSlotCard({
+    required this.slot,
     required this.exam,
-    required this.onTap,
+    required this.onTapDone,
+    required this.onTapEmpty,
   });
 
-  final int number;
-  final FullTcfExamSummary exam;
-  final VoidCallback onTap;
+  final int slot;
+  final FullTcfExamSummary? exam;
+  final void Function(FullTcfExamSummary) onTapDone;
+  final VoidCallback onTapEmpty;
 
   @override
   Widget build(BuildContext context) {
-    final isDone = exam.status == FullTcfExamStatus.completed ||
-        exam.status == FullTcfExamStatus.pendingEvaluations;
-    final level = exam.finalCecrlLevel;
-    final accent = _statusAccent(exam.status, level);
+    final done = exam != null;
+    final level = exam?.finalCecrlLevel;
+    final accent = done ? _statusAccent(exam!.status, level) : AppColors.muted;
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: done ? accent.withValues(alpha: 0.05) : AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.line),
+        border: Border.all(
+          color: done ? accent.withValues(alpha: 0.3) : AppColors.line,
+        ),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(14),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: onTap,
+            onTap: done ? () => onTapDone(exam!) : onTapEmpty,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
               child: Row(
@@ -464,20 +436,17 @@ class _ExamCard extends StatelessWidget {
                     height: 44,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: isDone ? accent.withValues(alpha: 0.12) : AppColors.ink,
+                      color: done ? accent : AppColors.line2,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: isDone
-                        ? Icon(Icons.workspace_premium_rounded,
-                            color: accent, size: 22)
-                        : Text(
-                            '$number',
-                            style: AppFonts.jakarta(
-                              size: 14,
-                              weight: FontWeight.w800,
-                              color: AppColors.white,
-                            ),
-                          ),
+                    child: Text(
+                      '$slot',
+                      style: AppFonts.jakarta(
+                        size: 14,
+                        weight: FontWeight.w800,
+                        color: done ? AppColors.white : AppColors.muted,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -486,7 +455,7 @@ class _ExamCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Examen blanc $number',
+                          'Examen blanc $slot',
                           style: AppFonts.jakarta(
                             size: 14.5,
                             weight: FontWeight.w800,
@@ -495,17 +464,32 @@ class _ExamCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          _subtitle(exam),
+                          done
+                              ? _doneSubtitle(exam!)
+                              : 'Disponible · 4 épreuves, 90 min',
                           style: AppFonts.jakarta(
                             size: 12,
                             color: AppColors.muted,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _Trailing(status: exam.status, level: level, accent: accent),
+                  if (done)
+                    _DoneTrailing(
+                      status: exam!.status,
+                      level: level,
+                      accent: accent,
+                    )
+                  else
+                    const Icon(
+                      Icons.play_arrow_rounded,
+                      color: AppColors.muted2,
+                      size: 22,
+                    ),
                 ],
               ),
             ),
@@ -515,11 +499,11 @@ class _ExamCard extends StatelessWidget {
     );
   }
 
-  String _subtitle(FullTcfExamSummary exam) {
+  String _doneSubtitle(FullTcfExamSummary exam) {
     final date = _formatDate(exam.startedAt);
     final statusLabel = switch (exam.status) {
       FullTcfExamStatus.inProgress => 'En cours · Reprendre',
-      FullTcfExamStatus.pendingEvaluations => 'En évaluation IA',
+      FullTcfExamStatus.pendingEvaluations => 'Évaluation IA en cours',
       FullTcfExamStatus.completed => 'Terminé',
     };
     return '$date · $statusLabel';
@@ -542,8 +526,11 @@ class _ExamCard extends StatelessWidget {
   }
 }
 
-class _Trailing extends StatelessWidget {
-  const _Trailing({
+/// Rendu du badge à droite d'un slot fait : niveau CECRL coloré pour un
+/// examen terminé, mini spinner pour un examen en évaluation IA, icône play
+/// ambre pour un examen en cours (reprenable).
+class _DoneTrailing extends StatelessWidget {
+  const _DoneTrailing({
     required this.status,
     required this.level,
     required this.accent,
@@ -566,20 +553,19 @@ class _Trailing extends StatelessWidget {
         child: CircularProgressIndicator(strokeWidth: 2.5),
       );
     }
-    // COMPLETED : badge niveau CECRL
     if (level != null) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: accent.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
+          color: accent,
+          borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           _shortLevel(level!),
           style: AppFonts.jakarta(
-            size: 13,
+            size: 12,
             weight: FontWeight.w800,
-            color: accent,
+            color: AppColors.white,
           ),
         ),
       );

@@ -4,9 +4,10 @@ import '../../../core/models/enums.dart';
 import '../../../core/theme/app_theme.dart';
 import 'cecrl_scale.dart';
 
-/// Carte "Bilan global" sur fond bleu degrade : moyenne des scores a gauche,
-/// niveau global a droite, barre CECRL A1->C2 en bas.
-/// Equivalent de `.bilan-hero` du mockup HTML.
+/// Carte "Bilan global" sur fond bleu dégradé : eyebrow mono + moyenne /20
+/// à gauche, niveau CECRL plancher à droite (règle TCF IRN), barre A1→C2
+/// en bas. Alignée sur le pattern hero des autres écrans bilan (TCF complet,
+/// EE/EO results).
 class BilanHero extends StatelessWidget {
   const BilanHero({
     super.key,
@@ -14,8 +15,10 @@ class BilanHero extends StatelessWidget {
     required this.niveauGlobal,
   });
 
-  /// Moyenne des notes sur 20 (peut etre nulle si aucune submission n'a abouti).
+  /// Moyenne des notes /20 (null tant qu'aucune submission n'a été évaluée).
   final double? moyenneSur20;
+
+  /// Niveau CECRL plancher des évaluations disponibles (règle TCF IRN).
   final NiveauCecrl? niveauGlobal;
 
   String _formatScore(double s) {
@@ -25,9 +28,10 @@ class BilanHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasResult = moyenneSur20 != null || niveauGlobal != null;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -35,30 +39,40 @@ class BilanHero extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [AppColors.blue, AppColors.blueDark],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.blue.withValues(alpha: 0.25),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: AppColors.blue.withValues(alpha: 0.22),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            'BILAN DE LA SESSION',
+            style: AppFonts.mono(
+              size: 10,
+              color: Colors.white.withValues(alpha: 0.85),
+              letterSpacing: 1.8,
+              weight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 14),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Score global (moyenne)',
+                      'Note moyenne',
                       style: AppFonts.jakarta(
                         size: 12,
-                        color: Colors.white.withValues(alpha: 0.8),
+                        color: Colors.white.withValues(alpha: 0.78),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -68,17 +82,17 @@ class BilanHero extends StatelessWidget {
                           TextSpan(
                             text: moyenneSur20 == null ? '—' : _formatScore(moyenneSur20!),
                             style: AppFonts.fraunces(
-                              size: 40,
+                              size: 44,
                               weight: FontWeight.w700,
                               color: Colors.white,
-                            ),
+                            ).copyWith(height: 1, letterSpacing: -1.5),
                           ),
                           TextSpan(
-                            text: '/20',
+                            text: ' / 20',
                             style: AppFonts.jakarta(
-                              size: 20,
+                              size: 18,
                               weight: FontWeight.w500,
-                              color: Colors.white.withValues(alpha: 0.6),
+                              color: Colors.white.withValues(alpha: 0.65),
                             ),
                           ),
                         ],
@@ -92,34 +106,47 @@ class BilanHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      'Niveau global',
+                      'Niveau plancher',
                       style: AppFonts.jakarta(
                         size: 12,
-                        color: Colors.white.withValues(alpha: 0.8),
+                        color: Colors.white.withValues(alpha: 0.78),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         niveauGlobal!.displayName,
                         style: AppFonts.jakarta(
                           size: 18,
-                          weight: FontWeight.w700,
+                          weight: FontWeight.w800,
                           color: AppColors.blue,
-                        ),
+                        ).copyWith(letterSpacing: -0.3),
                       ),
                     ),
                   ],
                 ),
             ],
           ),
-          const SizedBox(height: 16),
-          if (niveauGlobal != null) CecrlScale(level: niveauGlobal!, dark: true),
+          if (niveauGlobal != null) ...[
+            const SizedBox(height: 18),
+            CecrlScale(level: niveauGlobal!, dark: true),
+          ],
+          if (!hasResult) ...[
+            const SizedBox(height: 12),
+            Text(
+              'L\'évaluation IA est en cours sur tes productions.',
+              style: AppFonts.jakarta(
+                size: 13,
+                color: Colors.white.withValues(alpha: 0.85),
+                height: 1.4,
+              ),
+            ),
+          ],
         ],
       ),
     );

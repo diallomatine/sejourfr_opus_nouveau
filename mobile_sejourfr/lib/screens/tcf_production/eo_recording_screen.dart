@@ -53,6 +53,14 @@ class _EoRecordingScreenState extends ConsumerState<EoRecordingScreen> {
     );
   }
 
+  String _fallbackRouteFor(BuildContext context) {
+    final fullExamId =
+        GoRouterState.of(context).uri.queryParameters['fullExamId'];
+    return fullExamId != null
+        ? '/tcf/examen-blanc/$fullExamId'
+        : '/tcf/expression-orale';
+  }
+
   Future<bool> _confirmQuit(BuildContext context) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -113,18 +121,29 @@ class _EoRecordingScreenState extends ConsumerState<EoRecordingScreen> {
         if (didPop) return;
         if (await _confirmQuit(context)) {
           await ref.read(recordingControllerProvider.notifier).cancel();
-          if (context.mounted && context.canPop()) context.pop();
+          if (!context.mounted) return;
+          if (context.canPop()) {
+            context.pop();
+          } else {
+            context.go(_fallbackRouteFor(context));
+          }
         }
       },
       child: Scaffold(
         backgroundColor: AppColors.white,
         appBar: ProductionAppHeader(
           title: 'Expression orale',
+          fallbackRoute: _fallbackRouteFor(context),
           rightAction: ProductionAppHeaderQuit(
             onPressed: () async {
               if (await _confirmQuit(context)) {
                 await ref.read(recordingControllerProvider.notifier).cancel();
-                if (context.mounted && context.canPop()) context.pop();
+                if (!context.mounted) return;
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go(_fallbackRouteFor(context));
+                }
               }
             },
           ),

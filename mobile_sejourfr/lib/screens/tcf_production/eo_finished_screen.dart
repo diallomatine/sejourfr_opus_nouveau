@@ -101,6 +101,31 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
             mimeType: rec.fileMime ?? 'audio/mp4',
           );
       if (!context.mounted) return;
+      final session = ref.read(eoSessionProvider).value;
+      final isExamMode = session != null && session.totalTasks > 1;
+      final hasNext = session != null && widget.taskIndex + 1 < session.totalTasks;
+      if (isExamMode) {
+        // Mode session 3-tâches (onglet Examens) : pas d'évaluation visible
+        // entre les tâches, comme dans le vrai TCF. On enchaîne directement
+        // le briefing suivant ; après T3 on push le bilan détaillé
+        // (`HistorySessionScreen` en mode `live=1`) qui pollera les
+        // évaluations IA des 3 submissions et permettra de drill-down sur
+        // chaque tâche.
+        if (hasNext) {
+          context.pushReplacement(
+            withCurrentQuery(
+              context,
+              '/tcf/expression-orale/t/${widget.taskIndex + 1}',
+            ),
+          );
+        } else {
+          final attemptId = session.attempt!.id;
+          context.pushReplacement(
+            '/tcf/expression-orale/sessions/$attemptId?live=1',
+          );
+        }
+        return;
+      }
       context.pushReplacement(
         withCurrentQuery(
           context,
@@ -142,15 +167,25 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
       );
     }
 
+    final goState = GoRouterState.of(context);
+    final fullExamId = goState.uri.queryParameters['fullExamId'];
+    final fallbackRoute = fullExamId != null
+        ? '/tcf/examen-blanc/$fullExamId'
+        : '/tcf/expression-orale';
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: ProductionAppHeader(
         title: 'Expression orale',
+        fallbackRoute: fallbackRoute,
         rightAction: ProductionAppHeaderQuit(
           onPressed: () {
             ref.read(recordingControllerProvider.notifier).cancel();
             ref.read(eoSessionProvider.notifier).reset();
-            if (context.canPop()) context.pop();
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(fallbackRoute);
+            }
           },
         ),
       ),

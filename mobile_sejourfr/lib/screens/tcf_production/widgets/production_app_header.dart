@@ -6,22 +6,42 @@ import '../../../core/theme/app_theme.dart';
 /// Header personnalise pour les ecrans EO/EE, calque sur la classe `.app-header`
 /// du mockup HTML : bouton retour bleu a gauche, titre encre au centre, action
 /// optionnelle a droite (texte "Quitter" ou icone info).
+///
+/// **Back robuste** : `context.canPop()` peut renvoyer false dans go_router
+/// quand l'écran est arrivé via `context.go`, après `pushReplacement` en
+/// chaîne, ou quand l'utilisateur a deep-link / hot-reload. Dans ce cas, le
+/// fallback est `context.go(fallbackRoute)` (par défaut le hub TCF) — pas
+/// un no-op silencieux. Les écrans qui ont une cible précise (hub d'examen
+/// blanc complet, etc.) la passent via `fallbackRoute`.
 class ProductionAppHeader extends StatelessWidget implements PreferredSizeWidget {
   const ProductionAppHeader({
     super.key,
     required this.title,
     this.onBack,
+    this.fallbackRoute = '/tcf',
     this.rightAction,
   });
 
   final String title;
   final VoidCallback? onBack;
 
+  /// Route empruntée quand `context.canPop()` renvoie false. Garantit que la
+  /// flèche arrière fait toujours quelque chose.
+  final String fallbackRoute;
+
   /// Bouton droit optionnel (ex: ProductionAppHeaderQuit, ProductionAppHeaderInfo).
   final Widget? rightAction;
 
   @override
   Size get preferredSize => const Size.fromHeight(48);
+
+  void _defaultBack(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(fallbackRoute);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,10 +59,7 @@ class ProductionAppHeader extends StatelessWidget implements PreferredSizeWidget
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.chevron_left_rounded, size: 26),
                   color: AppColors.blue,
-                  onPressed: onBack ??
-                      () {
-                        if (context.canPop()) context.pop();
-                      },
+                  onPressed: onBack ?? () => _defaultBack(context),
                 ),
                 Expanded(
                   child: Center(
