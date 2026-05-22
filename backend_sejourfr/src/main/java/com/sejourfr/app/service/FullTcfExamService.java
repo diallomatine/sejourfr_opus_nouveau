@@ -142,6 +142,23 @@ public class FullTcfExamService {
     }
 
     /**
+     * Dernier examen blanc complet TCF du user (parent TCF_COMPLET le plus
+     * récent) avec son détail intégral — sub-attempts mappés, niveau CECRL
+     * par épreuve, statut. Renvoie {@code null} si l'utilisateur n'en a
+     * jamais lancé.
+     *
+     * <p>Utilisé par {@code MeService.progressionSummary} pour alimenter le
+     * hero "Progression" mobile sans dupliquer la logique de calcul CECRL.
+     */
+    @Transactional(readOnly = true)
+    public FullTcfExamResponse findLatestForUser(UUID userId) {
+        List<Attempt> parents = attemptManager.findByUserAndEpreuve(
+                userId, EpreuveType.TCF_COMPLET, 1);
+        if (parents.isEmpty()) return null;
+        return buildResponse(parents.get(0));
+    }
+
+    /**
      * Marque explicitement un sous-attempt EE/EO comme terminé, sans attendre
      * que toutes les submissions soient persistées. Appelé par le mobile
      * après la dernière tâche d'une épreuve productive en mode examen blanc

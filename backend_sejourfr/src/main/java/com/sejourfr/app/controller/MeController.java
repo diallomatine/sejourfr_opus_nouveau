@@ -4,6 +4,7 @@ import com.sejourfr.app.dto.AttemptSummaryResponse;
 import com.sejourfr.app.dto.QuestionPublicResponse;
 import com.sejourfr.app.dto.QuestionReviewResponse;
 import com.sejourfr.app.dto.UpdateTargetProcedureRequest;
+import com.sejourfr.app.dto.ProgressionSummaryResponse;
 import com.sejourfr.app.dto.UserStatsResponse;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Module;
@@ -70,6 +71,16 @@ public class MeController {
     @GetMapping("/stats")
     public UserStatsResponse stats(@RequestParam Module module) {
         return meService.stats(currentUser.getId(), module);
+    }
+
+    /**
+     * Résumé de progression aligné sur les examens passés par le user.
+     * Sert à l'écran "Progression" mobile : header + 3 stats cards. Voir
+     * {@link MeService#progressionSummary} pour le détail de l'agrégation.
+     */
+    @GetMapping("/progression")
+    public ProgressionSummaryResponse progression(@RequestParam Module module) {
+        return meService.progressionSummary(currentUser.getId(), module);
     }
 
     // ------------------------------------------------------------------------

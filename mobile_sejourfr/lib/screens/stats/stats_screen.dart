@@ -25,8 +25,17 @@ final _statsProvider = FutureProvider.autoDispose.family<UserStats, AppModule>((
   return ref.watch(userContentRepositoryProvider).stats(module: module);
 });
 
+/// Résumé de progression aligné sur les examens passés — calculé côté
+/// backend (`MeService.progressionSummary`). Le front ne fait que parser
+/// et afficher : pas d'agrégation locale (Sessions / Questions / Mastery
+/// globaux ne disaient rien sur la préparation à l'examen, cf. discussion
+/// 2026-05-22). Family par module pour rester aligné sur le tab actif.
+final _progressionProvider = FutureProvider.autoDispose.family<ProgressionSummary, AppModule>((ref, module) {
+  return ref.watch(userContentRepositoryProvider).progression(module: module);
+});
+
 /// Derniers attempts du user pour ce module — sert au graphe de tendance
-/// (score sur 7 derniers jours) et à la heatmap d'activité (28 jours).
+/// (score sur 7 derniers passages d'examens blancs).
 final _recentAttemptsProvider =
     FutureProvider.autoDispose.family<List<AttemptSummary>, AppModule>((ref, module) {
   return ref.watch(attemptsRepositoryProvider).listMine(module: module, limit: 100);
@@ -36,8 +45,7 @@ final _recentAttemptsProvider =
 /// competences/thematiques meme celles ou l'utilisateur n'a encore aucune
 /// reponse (`0 / total`). Les themes seedes (5 civique, 3 TCF) ne bougent
 /// pas souvent : on garde le cache autoDispose pour rafraichir au refresh.
-final _allThemesProvider =
-    FutureProvider.autoDispose.family<List<ThemeDto>, AppModule>((ref, module) {
+final _allThemesProvider = FutureProvider.autoDispose.family<List<ThemeDto>, AppModule>((ref, module) {
   return ref.watch(themesRepositoryProvider).list(module: module);
 });
 
@@ -86,8 +94,7 @@ class _ProductionCompetenceStats {
       );
     }
     final byScale = [...evaluated]..sort(
-        (a, b) =>
-            b.evaluation!.niveauCecrl!.scaleIndex.compareTo(a.evaluation!.niveauCecrl!.scaleIndex),
+        (a, b) => b.evaluation!.niveauCecrl!.scaleIndex.compareTo(a.evaluation!.niveauCecrl!.scaleIndex),
       );
     final byDate = [...evaluated]..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
     return _ProductionCompetenceStats(
@@ -124,9 +131,7 @@ class StatsScreen extends ConsumerWidget {
     final stats = ref.watch(_statsProvider(module));
     final attemptsAsync = ref.watch(_recentAttemptsProvider(module));
     final allThemesAsync = ref.watch(_allThemesProvider(module));
-    final productionStatsAsync = module == AppModule.tcf
-        ? ref.watch(_productionStatsProvider)
-        : null;
+    final productionStatsAsync = module == AppModule.tcf ? ref.watch(_productionStatsProvider) : null;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -134,6 +139,7 @@ class StatsScreen extends ConsumerWidget {
         child: RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(_statsProvider(module));
+            ref.invalidate(_progressionProvider(module));
             ref.invalidate(_recentAttemptsProvider(module));
             ref.invalidate(_allThemesProvider(module));
             if (module == AppModule.tcf) {
@@ -339,7 +345,7 @@ class _ModuleTabBtn extends StatelessWidget {
 // Body (state with data)
 // ---------------------------------------------------------------------------
 
-class _Body extends StatelessWidget {
+class _Body extends ConsumerWidget {
   const _Body({
     required this.stats,
     required this.attempts,
@@ -359,7 +365,13 @@ class _Body extends StatelessWidget {
   final bool isPremium;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Snapshot de progression calculé côté backend (cf.
+    // `MeService.progressionSummary`). Tant que la requête est en cours, on
+    // affiche le rendu sans hero (les autres sections fonctionnent avec
+    // `stats` et `attempts`). Une fois là, on dérive le snapshot module-spé.
+    final progressionAsync = ref.watch(_progressionProvider(module));
+    final progression = progressionAsync.valueOrNull;
     // Fusion themes seedes + stats par theme : on garde l'ordre canonique
     // du backend (displayOrder) et on injecte les stats quand elles existent.
     // Les themes sans reponse apparaissent en 0 / questionCount.
@@ -396,35 +408,37 @@ class _Body extends StatelessWidget {
       return const _EmptyState();
     }
 
-    // Score global = somme correct / somme total des thèmes du module
-    // (couverture × justesse — cohérent avec les barres par thème).
-    final globalCorrect = themes.fold<int>(0, (sum, t) => sum + t.correct);
-    final globalTotal = themes.fold<int>(0, (sum, t) => sum + t.total);
-    final mastery = globalTotal == 0 ? 0.0 : globalCorrect / globalTotal;
-    final successRate = stats.questionsAnswered == 0 ? 0.0 : stats.questionsCorrect / stats.questionsAnswered;
     final accent = module == AppModule.civique ? AppColors.blue : AppColors.red;
+    final civiqueProgress = progression?.civique;
+    final tcfProgress = progression?.tcf;
+
+    // Pour la tendance, on isole les MOCK_EXAM uniquement — le score d'un
+    // lot d'entraînement n'a pas le même poids que celui d'un examen blanc,
+    // les mélanger ferait mentir le graphe.
+    final examAttempts = attempts.where((a) => a.type == AttemptType.mockExam).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _ReadinessHero(
-          mastery: mastery,
           module: module,
           accent: accent,
-          themes: themes,
+          civiqueProgress: civiqueProgress,
+          tcfProgress: tcfProgress,
         ),
         const SizedBox(height: 14),
         _StatsRow(
-          questions: stats.questionsAnswered,
-          successRate: successRate,
-          attempts: stats.attemptsTotal,
+          module: module,
+          civiqueProgress: civiqueProgress,
+          tcfProgress: tcfProgress,
         ),
         const SizedBox(height: 22),
-        _TrendCard(attempts: attempts, accent: accent),
+        _TrendCard(attempts: examAttempts, accent: accent),
         const SizedBox(height: 22),
         _SectionTitle(
           module == AppModule.tcf ? 'Par compétence' : 'Par thématique',
-          hint: '${themes.where((t) => t.answered > 0).length + productions.where((p) => p.stats.hasEvaluated).length}'
+          hint:
+              '${themes.where((t) => t.answered > 0).length + productions.where((p) => p.stats.hasEvaluated).length}'
               ' / ${themes.length + productions.length}',
         ),
         const SizedBox(height: 12),
@@ -434,8 +448,6 @@ class _Body extends StatelessWidget {
           module: module,
           locked: !isPremium,
         ),
-        const SizedBox(height: 22),
-        _ActivityHeatmap(attempts: attempts, accent: accent),
       ],
     );
   }
@@ -471,31 +483,19 @@ class _Body extends StatelessWidget {
 
 class _ReadinessHero extends StatelessWidget {
   const _ReadinessHero({
-    required this.mastery,
     required this.module,
     required this.accent,
-    required this.themes,
+    required this.civiqueProgress,
+    required this.tcfProgress,
   });
 
-  final double mastery;
   final AppModule module;
   final Color accent;
-  final List<ThemeStats> themes;
+  final CiviqueProgression? civiqueProgress;
+  final TcfProgression? tcfProgress;
 
   @override
   Widget build(BuildContext context) {
-    final score100 = (mastery * 100).round();
-    // Seuil de réussite indicatif :
-    //  - Civique : 32/40 sur l'examen blanc officiel.
-    //  - TCF : niveau B1 = ≥ 60% sur les épreuves QCM (règle interne app).
-    final thresholdLabel = module == AppModule.civique ? 'Seuil : 32 / 40' : 'Niveau visé : B1+';
-
-    final notStarted = themes.where((t) => t.answered == 0).length;
-    final weak = themes.where((t) => t.answered > 0 && t.mastery < 0.6).length;
-    final toConsolidate = notStarted + weak;
-
-    final (status, detail) = _statusFor(mastery, toConsolidate);
-
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 22, 22, 22),
       decoration: BoxDecoration(
@@ -515,118 +515,618 @@ class _ReadinessHero extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
+      child: module == AppModule.civique
+          ? (civiqueProgress == null ? const _HeroLoading() : _CiviqueHero(progress: civiqueProgress!))
+          : (tcfProgress == null ? const _HeroLoading() : _TcfHero(progress: tcfProgress!)),
+    );
+  }
+}
+
+/// Placeholder rendu en attendant que `/api/me/progression` réponde. Garde
+/// la même hauteur que le hero réel pour éviter un sursaut de layout au
+/// moment où la donnée arrive.
+class _HeroLoading extends StatelessWidget {
+  const _HeroLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 124,
+      child: Center(
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.4,
+            valueColor: AlwaysStoppedAnimation(AppColors.white.withValues(alpha: 0.8)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Hero Civique : gauge basé sur le score du dernier examen blanc complet
+/// /40 (vs seuil officiel 32). Si jamais tenté → état "À démarrer" avec un
+/// gauge vide et un sous-titre qui guide vers le 1er examen.
+class _CiviqueHero extends StatelessWidget {
+  const _CiviqueHero({required this.progress});
+
+  final CiviqueProgression progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = progress.latestScore;
+    final ratio = score == null ? 0.0 : score / CiviqueProgression.defaultExamTotal;
+    final (status, detail) = _statusFor(score);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'DERNIER EXAMEN BLANC',
+                style: AppFonts.mono(
+                  size: 10,
+                  color: AppColors.white.withValues(alpha: 0.7),
+                  letterSpacing: 1.6,
+                  weight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.white.withValues(alpha: 0.13),
+                borderRadius: BorderRadius.circular(99),
+              ),
+              child: Text(
+                'Seuil ${CiviqueProgression.defaultExamThreshold} / ${CiviqueProgression.defaultExamTotal}',
+                style: AppFonts.mono(
+                  size: 10,
+                  color: AppColors.white,
+                  letterSpacing: 0.8,
+                  weight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _GaugeCircle(
+              percent: ratio,
+              centerLabel: score == null ? '—' : '$score',
+              subLabel: '/ ${CiviqueProgression.defaultExamTotal}',
+            ),
+            const SizedBox(width: 18),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    status,
+                    style: AppFonts.jakarta(
+                      size: 17,
+                      weight: FontWeight.w700,
+                      color: AppColors.white,
+                    ).copyWith(letterSpacing: -0.2),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    detail,
+                    style: AppFonts.jakarta(
+                      size: 12.5,
+                      color: AppColors.white.withValues(alpha: 0.78),
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  (String, String) _statusFor(int? score) {
+    if (score == null) {
+      return (
+        'Pas encore tenté',
+        'Passe ton 1er examen blanc pour voir où tu en es vs le seuil officiel.',
+      );
+    }
+    final delta = score - CiviqueProgression.defaultExamThreshold;
+    if (delta >= 0) {
+      return (
+        'Réussi',
+        'Tu es au-dessus du seuil officiel. Refais 1-2 examens pour confirmer.',
+      );
+    }
+    if (delta >= -3) {
+      return (
+        'À ${-delta} point${-delta > 1 ? "s" : ""} du seuil',
+        'Tu y es presque — cible les thèmes faibles avant ton prochain blanc.',
+      );
+    }
+    return (
+      'En progression',
+      'Travaille thème par thème, puis retente un examen blanc d\'ici 1 semaine.',
+    );
+  }
+}
+
+/// Hero TCF : affiche le résultat du dernier examen blanc complet
+/// (TCF_COMPLET) ou une CTA pour en démarrer un.
+///
+/// 4 états :
+/// - aucun examen passé → CTA "Passe un examen blanc"
+/// - {@code IN_PROGRESS} → examen en cours, bouton "Reprendre"
+/// - {@code PENDING_EVALUATIONS} → "Évaluations IA en cours"
+/// - {@code COMPLETED} → badge CECRL plancher + breakdown des 4 épreuves
+class _TcfHero extends StatelessWidget {
+  const _TcfHero({required this.progress});
+
+  final TcfProgression progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final exam = progress.lastFullExam;
+
+    // État 1 : aucun examen blanc passé → CTA pour en démarrer un.
+    if (exam == null) {
+      return _TcfHeroNoExam(target: progress.targetLevel);
+    }
+
+    // États 2 & 3 : examen en cours ou évaluations IA en attente.
+    if (exam.status != LastFullTcfExamStatus.completed) {
+      return _TcfHeroPending(exam: exam, target: progress.targetLevel);
+    }
+
+    // État 4 : examen finalisé, on affiche le breakdown.
+    return _TcfHeroCompleted(exam: exam, target: progress.targetLevel);
+  }
+}
+
+/// État "aucun examen blanc complet" — CTA pour en démarrer un.
+class _TcfHeroNoExam extends StatelessWidget {
+  const _TcfHeroNoExam({required this.target});
+
+  final NiveauCecrl? target;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'NIVEAU TCF IRN',
+                style: AppFonts.mono(
+                  size: 10,
+                  color: AppColors.white.withValues(alpha: 0.7),
+                  letterSpacing: 1.6,
+                  weight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (target != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.white.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(99),
+                ),
                 child: Text(
-                  'NIVEAU DE PRÉPARATION',
+                  'Cible ${target!.displayName}',
                   style: AppFonts.mono(
                     size: 10,
-                    color: AppColors.white.withValues(alpha: 0.7),
-                    letterSpacing: 1.6,
-                    weight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppColors.white.withValues(alpha: 0.13),
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                  child: Text(
-                    thresholdLabel,
-                    style: AppFonts.mono(
-                      size: 10,
-                      color: AppColors.white,
-                      letterSpacing: 0.8,
-                      weight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    color: AppColors.white,
+                    letterSpacing: 0.8,
+                    weight: FontWeight.w600,
                   ),
                 ),
               ),
-            ],
+          ],
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Passe un examen blanc complet',
+          style: AppFonts.jakarta(
+            size: 19,
+            weight: FontWeight.w800,
+            color: AppColors.white,
+            height: 1.2,
+          ).copyWith(letterSpacing: -0.3),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Les 4 épreuves IRN (CO, CE, EE, EO) en conditions réelles — '
+          'le seul vrai indicateur de ton niveau actuel.',
+          style: AppFonts.jakarta(
+            size: 12.5,
+            color: AppColors.white.withValues(alpha: 0.85),
+            height: 1.45,
           ),
-          const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              _GaugeCircle(percent: mastery, value: score100),
-              const SizedBox(width: 18),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      status,
-                      style: AppFonts.jakarta(
-                        size: 17,
-                        weight: FontWeight.w700,
-                        color: AppColors.white,
-                      ).copyWith(letterSpacing: -0.2),
+        ),
+        const SizedBox(height: 14),
+        AppButton(
+          label: 'Lancer un examen blanc',
+          icon: Icons.play_arrow_rounded,
+          variant: AppButtonVariant.primary,
+          onPressed: () => context.push(AppRoutes.tcfFullExams),
+        ),
+      ],
+    );
+  }
+}
+
+/// État "examen en cours" ou "évaluations IA en attente" — badge "…",
+/// status, et bouton de reprise vers le hub de progression.
+class _TcfHeroPending extends StatelessWidget {
+  const _TcfHeroPending({required this.exam, required this.target});
+
+  final LastFullTcfExam exam;
+  final NiveauCecrl? target;
+
+  @override
+  Widget build(BuildContext context) {
+    final isInProgress = exam.status == LastFullTcfExamStatus.inProgress;
+    final title = isInProgress ? 'Examen en cours' : 'Évaluations IA en cours';
+    final detail = isInProgress
+        ? 'Tu n\'as pas encore terminé toutes les épreuves. Reprends pour voir ton niveau.'
+        : 'Les évaluations IA (EE / EO) tournent encore. Reviens dans quelques instants.';
+    final cta = isInProgress ? 'Reprendre' : 'Voir l\'avancement';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'NIVEAU TCF IRN',
+                style: AppFonts.mono(
+                  size: 10,
+                  color: AppColors.white.withValues(alpha: 0.7),
+                  letterSpacing: 1.6,
+                  weight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (target != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.white.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  'Cible ${target!.displayName}',
+                  style: AppFonts.mono(
+                    size: 10,
+                    color: AppColors.white,
+                    letterSpacing: 0.8,
+                    weight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const _CecrlBadge(level: null),
+            const SizedBox(width: 18),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppFonts.jakarta(
+                      size: 17,
+                      weight: FontWeight.w700,
+                      color: AppColors.white,
+                    ).copyWith(letterSpacing: -0.2),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    detail,
+                    style: AppFonts.jakarta(
+                      size: 12.5,
+                      color: AppColors.white.withValues(alpha: 0.78),
+                      height: 1.45,
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      detail,
-                      style: AppFonts.jakarta(
-                        size: 12.5,
-                        color: AppColors.white.withValues(alpha: 0.78),
-                        height: 1.45,
+                  ),
+                  const SizedBox(height: 10),
+                  GestureDetector(
+                    onTap: () => context.push(
+                      AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', exam.attemptId),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: Text(
+                        cta,
+                        style: AppFonts.jakarta(
+                          size: 12,
+                          weight: FontWeight.w800,
+                          color: AppColors.red,
+                        ),
                       ),
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// État "examen complet finalisé" — badge plancher + 4 mini-badges
+/// (CO/CE/EE/EO) + signalement de l'épreuve qui limite si nécessaire.
+class _TcfHeroCompleted extends StatelessWidget {
+  const _TcfHeroCompleted({required this.exam, required this.target});
+
+  final LastFullTcfExam exam;
+  final NiveauCecrl? target;
+
+  @override
+  Widget build(BuildContext context) {
+    final final_ = exam.finalLevel;
+    final (status, detail) = _statusFor(final_, target);
+
+    // Identifie l'épreuve qui limite le plancher (= celle au niveau le plus
+    // bas). Utilisé pour le message "Limité par EE".
+    final epreuves = <(String, NiveauCecrl?)>[
+      ('CO', exam.coLevel),
+      ('CE', exam.ceLevel),
+      ('EE', exam.eeLevel),
+      ('EO', exam.eoLevel),
+    ];
+    String? limitedBy;
+    if (final_ != null) {
+      final weak = epreuves
+          .where((e) => e.$2 != null && e.$2!.scaleIndex == final_.scaleIndex)
+          .map((e) => e.$1)
+          .toList();
+      if (weak.length < 4) {
+        limitedBy = weak.join(' / ');
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'NIVEAU TCF IRN',
+                style: AppFonts.mono(
+                  size: 10,
+                  color: AppColors.white.withValues(alpha: 0.7),
+                  letterSpacing: 1.6,
+                  weight: FontWeight.w500,
                 ),
               ),
+            ),
+            if (target != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.white.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  'Cible ${target!.displayName}',
+                  style: AppFonts.mono(
+                    size: 10,
+                    color: AppColors.white,
+                    letterSpacing: 0.8,
+                    weight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _CecrlBadge(level: final_),
+            const SizedBox(width: 18),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    status,
+                    style: AppFonts.jakarta(
+                      size: 17,
+                      weight: FontWeight.w700,
+                      color: AppColors.white,
+                    ).copyWith(letterSpacing: -0.2),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    limitedBy == null ? detail : '$detail Épreuve à renforcer : $limitedBy.',
+                    style: AppFonts.jakarta(
+                      size: 12.5,
+                      color: AppColors.white.withValues(alpha: 0.78),
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        // Breakdown des 4 épreuves IRN. Visuellement : 4 chips alignées.
+        Row(
+          children: [
+            for (final e in epreuves) ...[
+              Expanded(child: _EpreuveChip(label: e.$1, level: e.$2, target: target)),
+              if (e != epreuves.last) const SizedBox(width: 6),
             ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  (String, String) _statusFor(NiveauCecrl? level, NiveauCecrl? target) {
+    if (level == null) {
+      return (
+        'Examen en attente',
+        'Le calcul du niveau plancher est en cours.',
+      );
+    }
+    if (target == null) {
+      return (
+        'Niveau plancher : ${level.displayName}',
+        'Règle TCF IRN : ton niveau = le plus bas des 4 épreuves. Définis ton parcours dans le profil pour voir la cible.',
+      );
+    }
+    final delta = level.scaleIndex - target.scaleIndex;
+    if (delta >= 0) {
+      return (
+        'Objectif atteint',
+        'Tes 4 épreuves sont à ${level.displayName} ou plus, cible ${target.displayName}.',
+      );
+    }
+    if (delta == -1) {
+      return (
+        'Tu y es presque',
+        'Un palier à gagner pour atteindre ${target.displayName} partout.',
+      );
+    }
+    return (
+      'En progression',
+      'Vise ${target.displayName} sur chaque épreuve.',
+    );
+  }
+}
+
+/// Mini-chip rendant une épreuve dans le breakdown du hero TCF : libellé
+/// court (CO/CE/EE/EO) + niveau atteint (ou "—" si non passée). Coloration
+/// verte si le niveau atteint ≥ cible, rouge sinon.
+class _EpreuveChip extends StatelessWidget {
+  const _EpreuveChip({
+    required this.label,
+    required this.level,
+    required this.target,
+  });
+
+  final String label;
+  final NiveauCecrl? level;
+  final NiveauCecrl? target;
+
+  @override
+  Widget build(BuildContext context) {
+    final reached = level != null && target != null && level!.scaleIndex >= target!.scaleIndex;
+    final bg = level == null
+        ? AppColors.white.withValues(alpha: 0.08)
+        : reached
+            ? AppColors.white.withValues(alpha: 0.22)
+            : AppColors.white.withValues(alpha: 0.12);
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppColors.white.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: AppFonts.mono(
+              size: 9.5,
+              color: AppColors.white.withValues(alpha: 0.75),
+              letterSpacing: 1.2,
+              weight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            level == null ? '—' : level!.displayName,
+            style: AppFonts.jakarta(
+              size: 13,
+              weight: FontWeight.w800,
+              color: AppColors.white,
+            ),
           ),
         ],
       ),
     );
   }
+}
 
-  (String, String) _statusFor(double mastery, int toConsolidate) {
-    if (mastery >= 0.85) {
-      return (
-        'Prêt pour l\'examen',
-        'Tu maîtrises bien le programme. Continue 10 min / jour pour rester au top.',
-      );
-    }
-    if (mastery >= 0.7) {
-      final extra = toConsolidate == 0
-          ? 'Encore quelques sessions pour sécuriser ton niveau.'
-          : 'Encore $toConsolidate thème${toConsolidate > 1 ? "s" : ""} '
-              'à consolider pour passer l\'examen sereinement.';
-      return ('Tu y es presque', extra);
-    }
-    if (mastery >= 0.4) {
-      return (
-        'En progression',
-        'Reviens sur les thèmes faibles et enchaîne les lots pour gagner en régularité.',
-      );
-    }
-    return (
-      'À démarrer',
-      'Commence par 1 thème par jour et passe un examen blanc en fin de semaine.',
+/// Grand badge "B1" / "A2" / ... pour le hero TCF.
+class _CecrlBadge extends StatelessWidget {
+  const _CecrlBadge({required this.level});
+
+  final NiveauCecrl? level;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = level == null ? '—' : (level == NiveauCecrl.a1NonAtteint ? 'A1-' : level!.displayName);
+    return Container(
+      width: 92,
+      height: 92,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.white.withValues(alpha: 0.14),
+        border: Border.all(color: AppColors.white.withValues(alpha: 0.3), width: 2),
+      ),
+      child: Text(
+        label,
+        style: AppFonts.jakarta(
+          size: 28,
+          weight: FontWeight.w800,
+          color: AppColors.white,
+          height: 1,
+        ).copyWith(letterSpacing: -0.5),
+      ),
     );
   }
 }
 
 class _GaugeCircle extends StatelessWidget {
-  const _GaugeCircle({required this.percent, required this.value});
+  const _GaugeCircle({
+    required this.percent,
+    required this.centerLabel,
+    required this.subLabel,
+  });
 
   /// 0..1
   final double percent;
-  final int value;
+  final String centerLabel;
+  final String subLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -644,7 +1144,7 @@ class _GaugeCircle extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '$value',
+                centerLabel,
                 style: AppFonts.jakarta(
                   size: 28,
                   weight: FontWeight.w800,
@@ -654,7 +1154,7 @@ class _GaugeCircle extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                '/ 100',
+                subLabel,
                 style: AppFonts.mono(
                   size: 10,
                   color: AppColors.white.withValues(alpha: 0.7),
@@ -712,44 +1212,118 @@ class _GaugePainter extends CustomPainter {
 // Stats row (3 mini cards)
 // ---------------------------------------------------------------------------
 
+/// 3 stats cards alignées sur la préparation à l'examen (pas l'activité brute).
+/// Module-dépendant : civique parle examens blancs / thèmes consolidés,
+/// TCF parle épreuves passées / productions évaluées / meilleur score QCM.
 class _StatsRow extends StatelessWidget {
   const _StatsRow({
-    required this.questions,
-    required this.successRate,
-    required this.attempts,
+    required this.module,
+    required this.civiqueProgress,
+    required this.tcfProgress,
   });
 
-  final int questions;
-  final double successRate;
-  final int attempts;
+  final AppModule module;
+  final CiviqueProgression? civiqueProgress;
+  final TcfProgression? tcfProgress;
+
+  @override
+  Widget build(BuildContext context) {
+    if (module == AppModule.civique) {
+      // Pendant que `_progressionProvider` charge, on rend des cards
+      // "neutres" (—) plutôt que de crasher — même hauteur de layout,
+      // pas de sursaut au moment où la donnée arrive.
+      if (civiqueProgress == null) {
+        return _StatsRowSkeleton(
+          accents: const [AppColors.blue, AppColors.green, AppColors.amber],
+          labels: const ['Examens passés', 'Thèmes consolidés', 'Meilleur score'],
+        );
+      }
+      final p = civiqueProgress!;
+      return Row(
+        children: [
+          Expanded(
+            child: _StatMini(
+              value: '${p.fullExamCount}',
+              label: 'Examens passés',
+              color: AppColors.blue,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _StatMini(
+              value: '${p.themesConsolidated}/${p.themesTotal}',
+              label: 'Thèmes consolidés',
+              color: AppColors.green,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _StatMini(
+              value: p.bestScore == null ? '—' : '${p.bestScore}/${CiviqueProgression.defaultExamTotal}',
+              label: 'Meilleur score',
+              color: AppColors.amber,
+            ),
+          ),
+        ],
+      );
+    }
+    // TCF
+    if (tcfProgress == null) {
+      return _StatsRowSkeleton(
+        accents: const [AppColors.red, AppColors.green, AppColors.amber],
+        labels: const ['Épreuves QCM', 'EE / EO évaluées', 'Meilleur QCM'],
+      );
+    }
+    final p = tcfProgress!;
+    return Row(
+      children: [
+        Expanded(
+          child: _StatMini(
+            value: '${p.qcmEpreuvesTried}/${p.qcmEpreuvesTotal}',
+            label: 'Épreuves QCM',
+            color: AppColors.red,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatMini(
+            value: '${p.productionsEvaluated}/${p.productionsTotal}',
+            label: 'EE / EO évaluées',
+            color: AppColors.green,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatMini(
+            value: p.bestWeightedScore == null ? '—' : '${p.bestWeightedScore}/${p.bestWeightedMax}',
+            label: 'Meilleur QCM',
+            color: AppColors.amber,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Placeholder des 3 stats cards en attendant que `/api/me/progression`
+/// réponde. Garde la même hauteur et les mêmes labels que le rendu réel
+/// pour éviter un saut de layout au moment où la donnée arrive.
+class _StatsRowSkeleton extends StatelessWidget {
+  const _StatsRowSkeleton({required this.accents, required this.labels});
+
+  final List<Color> accents;
+  final List<String> labels;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-          child: _StatMini(
-            value: '$questions',
-            label: 'Questions',
-            color: AppColors.blue,
+        for (int i = 0; i < labels.length; i++) ...[
+          Expanded(
+            child: _StatMini(value: '—', label: labels[i], color: accents[i]),
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _StatMini(
-            value: '${(successRate * 100).round()}%',
-            label: 'Réussite',
-            color: AppColors.green,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _StatMini(
-            value: '$attempts',
-            label: 'Sessions',
-            color: AppColors.amber,
-          ),
-        ),
+          if (i != labels.length - 1) const SizedBox(width: 10),
+        ],
       ],
     );
   }
@@ -834,7 +1408,7 @@ class _TrendCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Score moyen · derniers attempts',
+              'Tendance · examens blancs',
               style: AppFonts.jakarta(
                 size: 14,
                 weight: FontWeight.w700,
@@ -843,7 +1417,7 @@ class _TrendCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Au moins 2 sessions finies pour voir la tendance.',
+              'Passe au moins 2 examens blancs pour voir ta tendance.',
               style: AppFonts.jakarta(size: 11.5, color: AppColors.muted),
             ),
           ],
@@ -876,7 +1450,7 @@ class _TrendCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Score · derniers attempts',
+                      'Tendance · examens blancs',
                       style: AppFonts.jakarta(
                         size: 14,
                         weight: FontWeight.w700,
@@ -885,7 +1459,7 @@ class _TrendCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${sample.length} sessions',
+                      '${sample.length} derniers passages',
                       style: AppFonts.jakarta(
                         size: 11.5,
                         color: AppColors.muted,
@@ -1086,9 +1660,7 @@ class _ThemesCard extends ConsumerWidget {
   void _openProductionHub(BuildContext context, EpreuveType epreuve) {
     // Le `ProductionHubScreen` a été supprimé : la sélection T1/T2/T3 vit
     // désormais sur l'onglet Tâches du détail module (`/tcf/eo` ou `/tcf/ee`).
-    final route = epreuve == EpreuveType.tcfEe
-        ? AppRoutes.tcfEeDetail
-        : AppRoutes.tcfEoDetail;
+    final route = epreuve == EpreuveType.tcfEe ? AppRoutes.tcfEeDetail : AppRoutes.tcfEoDetail;
     context.push(route);
   }
 
@@ -1575,149 +2147,6 @@ class _ProductionRow extends StatelessWidget {
       AppColors.redLight,
       level.displayName,
     );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Heatmap (28 derniers jours d'activité, basé sur attempts.startedAt)
-// ---------------------------------------------------------------------------
-
-class _ActivityHeatmap extends StatelessWidget {
-  const _ActivityHeatmap({required this.attempts, required this.accent});
-
-  final List<AttemptSummary> attempts;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    // Compte des sessions par jour sur les 28 derniers jours (cellule 0 = il
-    // y a 27 jours, cellule 27 = aujourd'hui).
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final counts = List<int>.filled(28, 0);
-    for (final a in attempts) {
-      final d = DateTime(a.startedAt.year, a.startedAt.month, a.startedAt.day);
-      final daysAgo = today.difference(d).inDays;
-      if (daysAgo >= 0 && daysAgo < 28) {
-        counts[27 - daysAgo]++;
-      }
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Text(
-                'Activité · 4 dernières semaines',
-                style: AppFonts.jakarta(
-                  size: 14,
-                  weight: FontWeight.w700,
-                  color: AppColors.ink,
-                ).copyWith(letterSpacing: -0.1),
-              ),
-              const Spacer(),
-              Text(
-                '28 J',
-                style: AppFonts.mono(
-                  size: 10,
-                  color: AppColors.muted,
-                  letterSpacing: 1.0,
-                  weight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 14,
-              mainAxisSpacing: 4,
-              crossAxisSpacing: 4,
-              childAspectRatio: 1,
-            ),
-            itemCount: 28,
-            itemBuilder: (_, i) {
-              final level = _level(counts[i]);
-              return Container(
-                decoration: BoxDecoration(
-                  color: _cellColor(level),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Text(
-                'Moins',
-                style: AppFonts.mono(
-                  size: 9,
-                  color: AppColors.muted,
-                  letterSpacing: 0.6,
-                ),
-              ),
-              const SizedBox(width: 6),
-              for (final l in [0, 1, 2, 3, 4]) ...[
-                Container(
-                  width: 10,
-                  height: 10,
-                  margin: const EdgeInsets.only(left: 3),
-                  decoration: BoxDecoration(
-                    color: _cellColor(l),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-              ],
-              const SizedBox(width: 6),
-              Text(
-                'Plus',
-                style: AppFonts.mono(
-                  size: 9,
-                  color: AppColors.muted,
-                  letterSpacing: 0.6,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  int _level(int count) {
-    if (count == 0) return 0;
-    if (count == 1) return 1;
-    if (count == 2) return 2;
-    if (count <= 4) return 3;
-    return 4;
-  }
-
-  Color _cellColor(int level) {
-    switch (level) {
-      case 0:
-        return AppColors.line2;
-      case 1:
-        return const Color(0xFFD6DDF1);
-      case 2:
-        return const Color(0xFF8DA0D6);
-      case 3:
-        return const Color(0xFF4F6BBC);
-      case 4:
-        return AppColors.blue;
-      default:
-        return AppColors.line2;
-    }
   }
 }
 
