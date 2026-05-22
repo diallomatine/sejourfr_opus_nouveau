@@ -36,12 +36,14 @@ class UserContentRepository {
   Future<List<QuestionDto>> wrongAnswered({
     AppModule? module,
     QuestionType? questionType,
+    String? themeId,
   }) async {
     final res = await _client.dio.get<List<dynamic>>(
       '/api/me/questions/wrong',
       queryParameters: {
         if (module != null) 'module': module.wire,
         if (questionType != null) 'questionType': questionType.wire,
+        if (themeId != null) 'themeId': themeId,
       },
     );
     return (res.data ?? [])

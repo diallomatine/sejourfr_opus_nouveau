@@ -86,6 +86,26 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
     );
 
     /**
+     * Variante Civique de {@link #findFinishedByUserAndLot} : filtre par
+     * {@code lotThemeId} au lieu de difficulty/questionType. Sert à enrichir
+     * `GET /api/lots?module=CIVIQUE&themeId=...` avec le dernier score du user
+     * sur chaque lot.
+     */
+    @Query("""
+            SELECT a FROM Attempt a
+            WHERE a.user.id = :userId
+              AND a.module = com.sejourfr.app.enums.Module.CIVIQUE
+              AND a.lotThemeId = :themeId
+              AND a.lotNumero IS NOT NULL
+              AND a.finishedAt IS NOT NULL
+            ORDER BY a.finishedAt DESC
+            """)
+    List<Attempt> findFinishedByUserAndLotCivique(
+            @Param("userId") UUID userId,
+            @Param("themeId") UUID themeId
+    );
+
+    /**
      * Liste les sous-attempts d'un examen blanc TCF complet (parent
      * {@code TCF_COMPLET}). Ordonnés par {@code startedAt asc} — l'ordre de
      * création correspond à l'ordre des épreuves (CO, CE, EE, EO).

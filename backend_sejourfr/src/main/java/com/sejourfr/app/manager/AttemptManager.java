@@ -85,6 +85,22 @@ public class AttemptManager {
         return latest;
     }
 
+    /**
+     * Variante Civique : pour un user + thème, renvoie le dernier attempt
+     * fini par numéro de lot. Cle = lot_numero, valeur = attempt le plus
+     * recent. Sert à enrichir `GET /api/lots?module=CIVIQUE&themeId=...`.
+     */
+    public Map<Integer, Attempt> findLastFinishedByLotsCivique(UUID userId, UUID themeId) {
+        List<Attempt> attempts = repository.findFinishedByUserAndLotCivique(userId, themeId);
+        Map<Integer, Attempt> latest = new HashMap<>();
+        for (Attempt a : attempts) {
+            if (a.getLotNumero() != null) {
+                latest.putIfAbsent(a.getLotNumero(), a);
+            }
+        }
+        return latest;
+    }
+
     /** Sous-attempts d'un examen blanc complet, ordre de création (= ordre des épreuves). */
     public List<Attempt> findSubAttempts(UUID parentAttemptId) {
         return repository.findByParentAttemptIdOrderByStartedAtAsc(parentAttemptId);

@@ -8,6 +8,7 @@ import 'package:sejourfr_mobile/screens/history/history_screen.dart';
 import '../../screens/auth/forgot_password_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
+import '../../screens/civique/civique_exam_blanc_screen.dart';
 import '../../screens/civique/civique_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/module_detail/civique_theme_detail_screen.dart';
@@ -50,6 +51,7 @@ class AppRoutes {
   static const home = '/';
   static const civique = '/civique';
   static const civiqueThemeDetail = '/civique/theme/:themeId';
+  static const civiqueExamsBlancs = '/civique/examens-blancs';
   static const tcf = '/tcf';
   static const tcfCoDetail = '/tcf/co';
   static const tcfCeDetail = '/tcf/ce';
@@ -255,6 +257,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => CiviqueThemeDetailScreen(
           themeId: state.pathParameters['themeId']!,
         ),
+      ),
+      // Liste des 20 slots d'examen blanc civique. Pushée depuis la card
+      // sombre du hub civique. Tap vide → briefing + start MOCK_EXAM.
+      GoRoute(
+        path: AppRoutes.civiqueExamsBlancs,
+        builder: (_, __) => const CiviqueExamBlancScreen(),
       ),
       // TCF QCM : un détail par épreuve (CO, CE) → push runner après attempt.
       GoRoute(

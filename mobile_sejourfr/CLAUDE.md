@@ -285,7 +285,10 @@ structure visuelle identique implémentée dans `screens/hub/widgets/hub_widgets
 - `HubExamCard` : carte sombre "Examen blanc" en bas. Côté TCF → push
   `/tcf/examens-blancs` (liste 20 slots) → briefing modal → POST
   `/api/full-tcf-exams` → push `/tcf/examen-blanc/:parentId` (hub
-  progression). Côté civique : pas encore branché.
+  progression). Côté Civique → push `/civique/examens-blancs`
+  (`CiviqueExamBlancScreen`, 20 slots) → briefing modal
+  (`showCiviqueExamBriefingSheet`) → POST `/api/attempts {type:MOCK_EXAM,
+  module:CIVIQUE}` (40 Q / 45 min / seuil 32) → push runner.
 
 **Modules affichés :**
 - **Civique** = les 5 thèmes officiels chargés via `/api/themes?module=CIVIQUE` (Principes &
@@ -300,7 +303,19 @@ structure visuelle identique implémentée dans `screens/hub/widgets/hub_widgets
 **Écran détail (lot 3 + 3 bis)** — vit dans `screens/module_detail/`. Routes hors shell (pas de
 bottom nav) :
 - `/civique/theme/:themeId` → `CiviqueThemeDetailScreen` (fetch theme via `themesRepository`,
-  cherche les stats du thème dans `byTheme[themeId]`).
+  cherche les stats du thème dans `byTheme[themeId]`). **3 onglets** (Lots / Examens / Erreurs)
+  calqués sur le pattern TCF QCM :
+  - **Lots** : liste des lots civique (15 Q chacun) du thème via `civiqueLotsProvider(themeId)` →
+    `GET /api/lots?module=CIVIQUE&themeId=...`. Tap lot → `POST /api/attempts {type:TRAINING,
+    module:CIVIQUE, themeId, lotNumero}` puis push runner. Backend trace via `lot_theme_id` +
+    `lot_numero` (cf. migration V089 + CLAUDE.md racine § Lots).
+  - **Examens** : 20 slots d'examens blancs civique (40 Q / 45 min / seuil 32). L'historique
+    `_civiqueExamsHistoryProvider` (`GET /api/me/attempts?type=MOCK_EXAM&module=CIVIQUE`) est
+    partagé entre les 5 écrans détail thème — le mock_exam civique n'est pas scopé par thème
+    côté backend, c'est par design (le vrai examen civique touche aux 5 thèmes).
+  - **Erreurs** : 20 dernières questions ratées du user sur **ce thème précis**, via
+    `_civiqueWrongProvider(themeId)` → `GET /api/me/questions/wrong?module=CIVIQUE&themeId=...`.
+    Tap question → `showQuestionDetailSheet` partagé.
 - `/tcf/co` et `/tcf/ce` → `TcfQcmDetailScreen` avec l'enum `TcfQcmModule.{co,ce}` qui porte
   l'intitulé, l'icône, le `QuestionType` et le label de durée.
 - `/tcf/eo` et `/tcf/ee` → `TcfProductionDetailScreen` avec l'enum `TcfProductionModule.{eo,ee}`

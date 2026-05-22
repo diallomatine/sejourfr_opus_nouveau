@@ -122,14 +122,17 @@ public class MeService {
     // ------------------------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public List<QuestionPublicResponse> wrongAnswered(UUID userId, Module module, QuestionType questionType) {
+    public List<QuestionPublicResponse> wrongAnswered(
+            UUID userId, Module module, QuestionType questionType, UUID themeId) {
         List<UUID> ids = answerManager.findWrongQuestionIds(userId, module);
         if (ids.isEmpty()) return List.of();
-        // Le filtre questionType est appliqué côté Java après chargement —
-        // le manager renvoie déjà la liste filtrée par module via un join
-        // sur questions, on raffine ici sans toucher à la query SQL.
+        // Les filtres questionType / themeId sont appliqués côté Java après
+        // chargement — le manager renvoie déjà la liste filtrée par module
+        // via un join sur questions, on raffine ici sans toucher à la SQL.
         return questionManager.findAllById(ids).stream()
                 .filter(q -> questionType == null || q.getQuestionType() == questionType)
+                .filter(q -> themeId == null
+                        || (q.getTheme() != null && themeId.equals(q.getTheme().getId())))
                 .map(this::toPublic)
                 .toList();
     }

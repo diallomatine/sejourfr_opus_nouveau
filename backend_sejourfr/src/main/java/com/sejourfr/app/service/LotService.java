@@ -18,23 +18,26 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Calcul dynamique des lots d'entraînement TCF. Un lot est un sous-ensemble
- * déterministe de questions filtrées par (module, questionType, difficulty),
- * trié par {@code createdAt ASC, id ASC}.
+ * Calcul dynamique des lots d'entraînement. Un lot est un sous-ensemble
+ * déterministe de questions filtrées par (module + critères), trié par
+ * {@code createdAt ASC, id ASC}.
+ *
+ * <p>Deux modes :
+ * <ul>
+ *   <li><b>TCF</b> : filtré par {@code questionType + difficulty}, taille
+ *       fixe par niveau (A2 = 15, B1 = 20, B2 = 25).</li>
+ *   <li><b>Civique</b> : filtré par {@code themeId}, taille fixe à 15.</li>
+ * </ul>
  *
  * <p>Aucune persistance côté schéma : la composition d'un lot est dérivée de
- * sa position dans le découpage du pool filtré, avec une taille fixe par
- * niveau (A2 = 15, B1 = 20, B2 = 25). Tant que le pool ne change pas, Lot 1
- * renvoie toujours les mêmes questions.
+ * sa position dans le découpage du pool filtré. Tant que le pool ne change
+ * pas, Lot 1 renvoie toujours les mêmes questions.
  *
- * <p>Règle de découpage :
+ * <p>Règle de découpage (commune) :
  * <ul>
  *   <li>Pool == 0 → aucun lot</li>
- *   <li>Pool &lt; lotSize standard → 1 <b>lot partiel</b> avec tout le pool
- *       (utile au démarrage quand le pool CO se remplit progressivement)</li>
- *   <li>Pool &ge; lotSize → N lots complets de taille standard, les questions
- *       au-delà du dernier multiple sont ignorées (elles seront exposées
- *       quand un nouveau multiple sera atteint)</li>
+ *   <li>Pool &lt; lotSize standard → 1 <b>lot partiel</b> avec tout le pool</li>
+ *   <li>Pool &ge; lotSize → N lots complets de taille standard</li>
  * </ul>
  */
 @Service
@@ -46,12 +49,19 @@ public class LotService {
     public static final int LOT_SIZE_B1 = 20;
     public static final int LOT_SIZE_B2 = 25;
 
+    /** Taille fixe d'un lot civique, indépendamment du thème. */
+    public static final int LOT_SIZE_CIVIQUE = 15;
+
     private final QuestionManager questionManager;
     private final AttemptManager attemptManager;
 
+    // ------------------------------------------------------------------------
+    // Mode TCF (questionType + difficulty)
+    // ------------------------------------------------------------------------
+
     @Transactional(readOnly = true)
     public List<LotDto> list(UUID userId, Module module, QuestionType questionType, Difficulty difficulty) {
-        validateInputs(module, difficulty);
+        validateTcfInputs(module, difficulty);
         int lotSize = lotSizeFor(difficulty);
         long total = questionManager.countActiveMatching(module, null, difficulty, questionType);
 
@@ -59,15 +69,11 @@ public class LotService {
             return List.of();
         }
 
-        // Dernier attempt fini par l'utilisateur sur chaque lot — sert à
-        // afficher le score "déjà fait" côté mobile.
         Map<Integer, Attempt> latestByLot = userId == null
                 ? Map.of()
                 : attemptManager.findLastFinishedByLots(userId, module, questionType, difficulty);
 
         if (total < lotSize) {
-            // Pool insuffisant pour un lot complet : on expose un unique lot
-            // partiel pour ne pas masquer les questions disponibles.
             return List.of(buildLotDto(1, difficulty, (int) total, latestByLot));
         }
 
@@ -79,26 +85,13 @@ public class LotService {
         return result;
     }
 
-    private LotDto buildLotDto(int numero, Difficulty difficulty, int size, Map<Integer, Attempt> latestByLot) {
-        Attempt last = latestByLot.get(numero);
-        return new LotDto(
-                numero,
-                difficulty,
-                size,
-                last != null ? last.getScore() : null,
-                last != null ? last.getFinishedAt() : null
-        );
-    }
-
     /**
-     * Résout la fenêtre exacte d'un lot demandé : nombre de questions à
-     * fetcher pour {@code lotNumero}. Source de vérité partagée avec
-     * {@link #list} pour éviter qu'`AttemptService` ne diverge des lots
-     * exposés au front. Lève {@link BusinessException} si le lot n'existe pas.
+     * Résout la fenêtre exacte d'un lot TCF demandé. Source de vérité partagée
+     * avec {@link #list} pour éviter qu'{@link AttemptService} ne diverge.
      */
     @Transactional(readOnly = true)
     public int resolveLotSize(Module module, QuestionType questionType, Difficulty difficulty, int lotNumero) {
-        validateInputs(module, difficulty);
+        validateTcfInputs(module, difficulty);
         if (lotNumero < 1) {
             throw new BusinessException("lotNumero doit être >= 1.");
         }
@@ -121,8 +114,88 @@ public class LotService {
         return lotSize;
     }
 
+    // ------------------------------------------------------------------------
+    // Mode Civique (themeId)
+    // ------------------------------------------------------------------------
+
     /**
-     * Taille d'un lot pour un niveau donné. Statique pour permettre à
+     * Liste les lots Civique disponibles pour un thème. Taille fixe 15.
+     * Numérotation séquentielle (1..N), enrichie du dernier score du user
+     * sur chaque lot quand l'attempt correspondant a été finalisé.
+     */
+    @Transactional(readOnly = true)
+    public List<LotDto> listCivique(UUID userId, UUID themeId) {
+        validateCiviqueInputs(themeId);
+        int lotSize = LOT_SIZE_CIVIQUE;
+        long total = questionManager.countActiveMatching(Module.CIVIQUE, themeId, null, null);
+
+        if (total == 0) {
+            return List.of();
+        }
+
+        Map<Integer, Attempt> latestByLot = userId == null
+                ? Map.of()
+                : attemptManager.findLastFinishedByLotsCivique(userId, themeId);
+
+        if (total < lotSize) {
+            // Pool partiel : un seul lot avec toutes les questions disponibles.
+            return List.of(buildLotDto(1, null, (int) total, latestByLot));
+        }
+
+        int lotCount = (int) (total / lotSize);
+        List<LotDto> result = new ArrayList<>(lotCount);
+        for (int i = 1; i <= lotCount; i++) {
+            result.add(buildLotDto(i, null, lotSize, latestByLot));
+        }
+        return result;
+    }
+
+    /**
+     * Résout la taille d'un lot Civique demandé. Même contrat que la version
+     * TCF, mais avec le filtre `themeId` à la place de `difficulty`.
+     */
+    @Transactional(readOnly = true)
+    public int resolveLotSizeCivique(UUID themeId, int lotNumero) {
+        validateCiviqueInputs(themeId);
+        if (lotNumero < 1) {
+            throw new BusinessException("lotNumero doit être >= 1.");
+        }
+        int lotSize = LOT_SIZE_CIVIQUE;
+        long total = questionManager.countActiveMatching(Module.CIVIQUE, themeId, null, null);
+
+        if (total == 0) {
+            throw new BusinessException("Aucune question disponible pour ce thème.");
+        }
+        if (total < lotSize) {
+            if (lotNumero != 1) {
+                throw new BusinessException("Lot " + lotNumero + " introuvable (pool partiel de " + total + " questions).");
+            }
+            return (int) total;
+        }
+        int lotCount = (int) (total / lotSize);
+        if (lotNumero > lotCount) {
+            throw new BusinessException("Lot " + lotNumero + " introuvable (" + lotCount + " lots disponibles).");
+        }
+        return lotSize;
+    }
+
+    // ------------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------------
+
+    private LotDto buildLotDto(int numero, Difficulty difficulty, int size, Map<Integer, Attempt> latestByLot) {
+        Attempt last = latestByLot.get(numero);
+        return new LotDto(
+                numero,
+                difficulty,
+                size,
+                last != null ? last.getScore() : null,
+                last != null ? last.getFinishedAt() : null
+        );
+    }
+
+    /**
+     * Taille d'un lot TCF pour un niveau donné. Statique pour permettre à
      * {@link AttemptService#start} de reconstruire la même fenêtre quand un
      * client passe {@code lotNumero}.
      */
@@ -132,16 +205,22 @@ public class LotService {
             case B1 -> LOT_SIZE_B1;
             case B2 -> LOT_SIZE_B2;
             default -> throw new BusinessException(
-                    "Les lots ne sont définis que pour les niveaux TCF (A2, B1, B2). Reçu : " + difficulty);
+                    "Les lots TCF ne sont définis que pour A2, B1, B2. Reçu : " + difficulty);
         };
     }
 
-    private void validateInputs(Module module, Difficulty difficulty) {
+    private void validateTcfInputs(Module module, Difficulty difficulty) {
         if (module != Module.TCF) {
-            throw new BusinessException("Les lots sont réservés au module TCF pour l'instant.");
+            throw new BusinessException("Cette branche est réservée au module TCF.");
         }
         if (difficulty == null) {
             throw new BusinessException("difficulty est obligatoire (A2 / B1 / B2).");
+        }
+    }
+
+    private void validateCiviqueInputs(UUID themeId) {
+        if (themeId == null) {
+            throw new BusinessException("themeId est obligatoire pour les lots Civique.");
         }
     }
 }

@@ -121,6 +121,18 @@ public class QuestionManager {
                 module, null, difficulty, questionType, PageRequest.of(lotNumero - 1, lotSize));
     }
 
+    /**
+     * Variante Civique : fenêtre du lot sur le pool filtré par thème.
+     * Tri stable identique à {@link LotService#listCivique}.
+     */
+    public List<Question> findLotQuestionsCivique(
+            UUID themeId,
+            int lotNumero,
+            int lotSize) {
+        return repository.findOrdered(
+                Module.CIVIQUE, themeId, null, null, PageRequest.of(lotNumero - 1, lotSize));
+    }
+
     // ------------------------------------------------------------------------
     // CRUD admin
     // ------------------------------------------------------------------------

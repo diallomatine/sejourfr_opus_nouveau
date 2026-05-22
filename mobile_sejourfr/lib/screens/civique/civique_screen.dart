@@ -126,9 +126,13 @@ class CiviqueScreen extends ConsumerWidget {
               HubExamCard(
                 title: 'Examen blanc civique',
                 subtitle:
-                    'QCM en conditions réelles · ${target?.shortLabel ?? 'CSP · CR · NAT'}',
-                ctaLabel: 'Bientôt',
-                // onTap volontairement omis — branchement à venir.
+                    '40 questions, 45 min · ${target?.shortLabel ?? 'CSP · CR · NAT'}',
+                ctaLabel: 'Lancer',
+                onTap: () {
+                  ref.read(selectedModuleProvider.notifier).state =
+                      AppModule.civique;
+                  context.push(AppRoutes.civiqueExamsBlancs);
+                },
               ),
               const SizedBox(height: 12),
             ],

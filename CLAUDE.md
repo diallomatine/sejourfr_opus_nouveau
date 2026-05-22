@@ -171,19 +171,22 @@ db/migration-dev/                    V9xx        seeds dev uniquement (V900 comp
 
 `out-of-order: true` est activé : l'ordre d'ajout n'est pas contraint tant que les numéros restent uniques.
 
-## Lots d'entraînement TCF (calcul dynamique, sans schéma)
+## Lots d'entraînement TCF + Civique (calcul dynamique, sans schéma)
 
 Un **lot** est un sous-ensemble déterministe de questions filtrées par
-(`module=TCF`, `questionType=CO|CE`, `difficulty=A2|B1|B2`), trié par
-`created_at ASC, id ASC`. **Aucune table dédiée** : la composition d'un lot
-est dérivée de sa position dans le pool. Tant que le pool ne change pas,
-Lot 1 renvoie toujours les mêmes questions.
+critères propres au module, trié par `created_at ASC, id ASC`. **Aucune
+table dédiée** : la composition est dérivée de la position dans le pool.
+Tant que le pool ne change pas, Lot 1 renvoie toujours les mêmes questions.
 
-**Tailles fixes par niveau** (constantes dans `LotService.LOT_SIZE_{A2,B1,B2}`) :
+- **TCF** : (`module=TCF`, `questionType=CO|CE`, `difficulty=A2|B1|B2`).
+  Endpoint : `GET /api/lots?module=TCF&questionType=CO&difficulty=A2`.
+- **Civique** : (`module=CIVIQUE`, `themeId=<uuid>`).
+  Endpoint : `GET /api/lots?module=CIVIQUE&themeId=...`.
 
-- A2 = 15 questions
-- B1 = 20 questions
-- B2 = 25 questions
+**Tailles fixes** (constantes dans `LotService.LOT_SIZE_*`) :
+
+- TCF A2 = 15 · B1 = 20 · B2 = 25
+- Civique = 15 (constant, indépendant du thème)
 
 Règle de découpage :
 
@@ -197,19 +200,21 @@ Règle de découpage :
   multiple sera atteint). Exemple A2 avec 47 questions : Lot 1 (1-15), Lot 2
   (16-30), Lot 3 (31-45), les 2 restantes en attente.
 
-`AttemptService.startFromLot` utilise `LotService.resolveLotSize(...)` pour
-résoudre la taille effective du lot demandé — même source de vérité que
-`GET /api/lots`, donc impossible que les deux endpoints divergent.
+`AttemptService.startFromLot` utilise `LotService.resolveLotSize(...)`
+(TCF) ou `resolveLotSizeCivique(...)` (Civique) pour résoudre la taille
+effective du lot demandé — même source de vérité que `GET /api/lots`,
+donc impossible que les deux endpoints divergent.
 
-**Trace lot ↔ attempt** : la migration `V097__attempts_lot_columns.sql` ajoute
-trois colonnes nullables sur `attempts` (`lot_numero`, `lot_question_type`,
-`lot_difficulty`) que `startFromLot` remplit. L'index partiel
-`idx_attempts_user_lot` couvre la query `findFinishedByUserAndLot`
-(`AttemptRepository`) qu'`AttemptManager.findLastFinishedByLots` utilise pour
-renvoyer le dernier attempt fini par lot (clé = `lot_numero`). `LotService.list`
-enrichit chaque `LotDto` avec `lastScore` + `lastAttemptedAt` du user pour
-que le mobile différencie visuellement les lots déjà faits (carte teintée +
-badge score `X/Y`).
+**Trace lot ↔ attempt** : la migration `V097__attempts_lot_columns.sql`
+ajoute trois colonnes TCF (`lot_numero`, `lot_question_type`, `lot_difficulty`),
+et `V089__attempts_lot_theme_id.sql` ajoute `lot_theme_id` pour les lots
+Civique. `startFromLot` remplit les colonnes correspondantes selon le
+module. Index partiels `idx_attempts_user_lot` (TCF) et
+`idx_attempts_user_lot_civique` (CIVIQUE) couvrent les queries
+`findFinishedByUserAndLot` / `findFinishedByUserAndLotCivique`. Les deux
+chemins (TCF et Civique) enrichissent les `LotDto` avec `lastScore` +
+`lastAttemptedAt` du user pour que le mobile différencie visuellement les
+lots déjà faits (carte teintée + badge score `X/Y`).
 
 ## Examens module TCF (CO ou CE, sous-set de MOCK_EXAM)
 
@@ -218,6 +223,7 @@ est un MOCK_EXAM scopé à une seule épreuve TCF QCM (CO ou CE), pour
 permettre de simuler la passation d'une épreuve unique.
 
 Migration `V098__attempts_module_exam_columns.sql` ajoute :
+
 - `module_exam_question_type` (varchar 24) : `CO` ou `CE` quand scopé, NULL sinon
 - `weighted_score` + `max_weighted_score` (int) : score pondéré persisté à la
   finalisation pour éviter de re-joindre `attempt_questions` à chaque lecture
@@ -225,6 +231,7 @@ Migration `V098__attempts_module_exam_columns.sql` ajoute :
   `(user_id, module, module_exam_question_type, finished_at DESC)`
 
 **Composition** (`AttemptService.composeModuleExam`) :
+
 - 8 A2 + 9 B1 + 8 B2 = 25 questions progressives, tirage aléatoire dans chaque
   strate (`module=TCF`, `questionType=CO|CE`)
 - Fallback si une strate est sous-dotée : on complète sans contrainte de niveau
@@ -236,6 +243,7 @@ Migration `V098__attempts_module_exam_columns.sql` ajoute :
 Calculé à la finalisation par `computeWeightedScore`.
 
 **Endpoints** :
+
 - `POST /api/attempts {type:MOCK_EXAM, module:TCF, moduleExamQuestionType:CO|CE}`
   → `AttemptService.startModuleExam` (premium TCF requis)
 - `GET /api/me/attempts?type=MOCK_EXAM&module=TCF&moduleExamQuestionType=CO|CE`
@@ -281,38 +289,44 @@ Chrono global 90 min (CO 20 + CE 30 + EE 30 + EO 10). Le niveau final est
 le **plancher CECRL des 4 sous-épreuves** (règle officielle TCF IRN).
 
 **Modèle de données** :
+
 - Parent `attempts` avec `epreuve = TCF_COMPLET`, sans questions propres,
   `time_limit_seconds = 5400` (90 min), `final_cecrl_level` rempli à la
   finalisation quand toutes les évaluations IA EE/EO sont prêtes.
 - 4 sous-attempts liés via `attempts.parent_attempt_id` (cf. migration V96) :
-  - `TCF_CO` : 25 QCM (8 A2 + 9 B1 + 8 B2), chrono 20 min, score pondéré /50
-  - `TCF_CE` : idem CE, chrono **30 min** (raccourci du 35 min standalone via
-    constante `FULL_EXAM_CE_SECONDS`)
-  - `TCF_EE` : attempt vide, 3 submissions liées via `production_submissions.attempt_id`
-  - `TCF_EO` : idem EO
+    - `TCF_CO` : 25 QCM (8 A2 + 9 B1 + 8 B2), chrono 20 min, score pondéré /50
+    - `TCF_CE` : idem CE, chrono **30 min** (raccourci du 35 min standalone via
+      constante `FULL_EXAM_CE_SECONDS`)
+    - `TCF_EE` : attempt vide, 3 submissions liées via `production_submissions.attempt_id`
+    - `TCF_EO` : idem EO
 - Migration `V099__attempts_final_cecrl_level.sql` : colonne `final_cecrl_level
   VARCHAR(24)` nullable sur `attempts`.
 
 **Création atomique** (`FullTcfExamService.start`) : un seul POST crée parent
+
 + 4 sous-attempts en transaction. Réservé aux abonnés TCF (`hasTcf(userId)`).
-Réutilise `AttemptService.startModuleExamSubAttempt` pour CO/CE (skip le
-check premium puisque le parent porte l'accès) et
-`AttemptService.startProductionAttempt` pour EE/EO (déjà capable de gérer
-`parentAttemptId` avec validation `TCF_COMPLET`).
+  Réutilise `AttemptService.startModuleExamSubAttempt` pour CO/CE (skip le
+  check premium puisque le parent porte l'accès) et
+  `AttemptService.startProductionAttempt` pour EE/EO (déjà capable de gérer
+  `parentAttemptId` avec validation `TCF_COMPLET`).
 
 **Statut global** (`FullTcfExamResponse.FullTcfExamStatus`) :
+
 - `IN_PROGRESS` : ≥1 sous-attempt n'a pas `finished_at`
 - `PENDING_EVALUATIONS` : tous finis mais ≥1 eval IA EE/EO pas EVALUATED
 - `COMPLETED` : tout fini + tout évalué + `final_cecrl_level` posé
 
 **Calcul du CECRL plancher** (`FullTcfExamService.weightedScoreToCecrl`
+
 + `floorOfCecrls`) :
+
 - CO/CE : ratio = weightedScore/maxWeightedScore →
   ≥80% B2 · ≥60% B1 · ≥40% A2 · ≥20% A1 · sinon A1_NON_ATTEINT
 - EE/EO : plancher des `niveauCecrl` des 3 `AiEvaluation` liées aux 3 submissions
 - Final = min ordinal des 4 (A1_NON_ATTEINT(0) < A1 < A2 < B1 < B2 < C1 < C2)
 
 **Endpoints** :
+
 - `POST /api/full-tcf-exams` → `start(userId)` (premium TCF requis)
 - `GET /api/full-tcf-exams/{id}` → état complet (parent + 4 sous-attempts +
   calcul CECRL lazy si non encore persisté)
@@ -322,6 +336,7 @@ check premium puisque le parent porte l'accès) et
   sous-attempts)
 
 **Côté backend** (`backend_sejourfr/src/main/java/com/sejourfr/app/`) :
+
 - `service/FullTcfExamService.java` — orchestration
 - `controller/FullTcfExamController.java` — REST
 - `dto/FullTcfExamResponse.java` + `FullTcfExamSummaryResponse.java`
@@ -337,6 +352,7 @@ bilan final agrégé CECRL plancher. L'UI des 20 slots
 (`TcfFullExamsScreen`) + briefing modal sont déjà en place.
 
 **Gotchas** :
+
 - `FullTcfExamService.start` n'a PAS de quota anti-spam : un user premium
   peut créer autant d'examens blancs qu'il veut. Si besoin, ajouter un
   filter Bucket4j sur le controller.
@@ -572,7 +588,8 @@ Cf. `mobile_sejourfr/CLAUDE.md` section "Bottom nav et hubs Civique / TCF" pour 
 - **Examen blanc TCF complet — orchestration mobile** : backend livré (cf. section « Examen blanc TCF
   complet » plus haut, `POST /api/full-tcf-exams` atomique + 4 sous-attempts + CECRL plancher). Reste à
   brancher le mobile : orchestrateur Riverpod qui enchaîne les sub-attemptIds CO/CE (runner QCM existant en
-  mode strict examen module) puis EE/EO (réutiliser `EeSessionController.start()` / `EoSessionController.start()`
+  mode strict examen module) puis EE/EO (réutiliser `EeSessionController.start()` /
+  `EoSessionController.start()`
   qui sont déjà en mode 3-tâches mais à passer le `subAttemptId` du parent au lieu de créer un attempt
   isolé). Stratégie validée : fire-and-forget pour les évaluations IA EE/EO — chaque submit part en async
   pendant que l'utilisateur enchaîne. Écran progression "Étape X/4" + écran bilan agrégé CECRL plancher

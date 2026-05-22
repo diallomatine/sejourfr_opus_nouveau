@@ -353,14 +353,17 @@ public class AttemptService {
         if (req.type() != AttemptType.TRAINING) {
             throw new BusinessException("Les lots sont reserves au type TRAINING.");
         }
-        if (req.module() != Module.TCF) {
-            throw new BusinessException("Les lots sont reserves au module TCF.");
-        }
-        if (req.difficulty() == null) {
-            throw new BusinessException("difficulty est obligatoire pour un attempt par lot (A2/B1/B2).");
-        }
         if (!subscriptionService.isPremium(user.getId())) {
             throw new AccessDeniedException("Les lots cibles sont reserves aux abonnes.");
+        }
+        if (req.module() == Module.CIVIQUE) {
+            return startCiviqueLot(user, req);
+        }
+        if (req.module() != Module.TCF) {
+            throw new BusinessException("Module non supporte pour les lots : " + req.module());
+        }
+        if (req.difficulty() == null) {
+            throw new BusinessException("difficulty est obligatoire pour un lot TCF (A2/B1/B2).");
         }
 
         int effectiveSize = lotService.resolveLotSize(
@@ -386,6 +389,39 @@ public class AttemptService {
         attempt.setLotNumero(req.lotNumero());
         attempt.setLotQuestionType(req.questionType());
         attempt.setLotDifficulty(req.difficulty());
+        attempt = attemptManager.save(attempt);
+
+        List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
+        return mapper.toResponse(attempt, aqList, false);
+    }
+
+    /**
+     * Variante Civique : pas de difficulty / questionType, le lot est porté
+     * par {@code themeId} (fenêtre de 15 questions sur le pool actif du thème,
+     * tri stable identique à {@link LotService#listCivique}).
+     */
+    private AttemptResponse startCiviqueLot(User user, StartAttemptRequest req) {
+        if (req.themeId() == null) {
+            throw new BusinessException("themeId est obligatoire pour un lot Civique.");
+        }
+
+        int effectiveSize = lotService.resolveLotSizeCivique(req.themeId(), req.lotNumero());
+
+        List<Question> questions = questionManager.findLotQuestionsCivique(
+                req.themeId(), req.lotNumero(), effectiveSize);
+
+        if (questions.isEmpty()) {
+            throw new BusinessException("Lot " + req.lotNumero() + " indisponible pour ce thème.");
+        }
+
+        Attempt attempt = new Attempt();
+        attempt.setUser(user);
+        attempt.setType(AttemptType.TRAINING);
+        attempt.setModule(Module.CIVIQUE);
+        attempt.setTotalQuestions(questions.size());
+        attempt.setStartedAt(Instant.now());
+        attempt.setLotNumero(req.lotNumero());
+        attempt.setLotThemeId(req.themeId());
         attempt = attemptManager.save(attempt);
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);

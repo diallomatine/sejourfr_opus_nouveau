@@ -111,6 +111,12 @@ public class Attempt {
     @Column(name = "lot_difficulty", length = 8)
     private Difficulty lotDifficulty;
 
+    // Lots Civique : identifient un lot par son thème (les TCF utilisent
+    // difficulty + questionType à la place). NULL pour les lots TCF, les
+    // examens et les attempts non-lot. Cf. migration V100.
+    @Column(name = "lot_theme_id", columnDefinition = "uuid")
+    private UUID lotThemeId;
+
     // Examen blanc scopé à une épreuve TCF QCM (CO ou CE). NULL pour les
     // examens blancs complets et les attempts non-MOCK_EXAM. Cf. migration V098
     // et `AttemptService.startModuleExam`.
@@ -234,6 +240,9 @@ public class Attempt {
 
     public Difficulty getLotDifficulty() { return lotDifficulty; }
     public void setLotDifficulty(Difficulty lotDifficulty) { this.lotDifficulty = lotDifficulty; }
+
+    public UUID getLotThemeId() { return lotThemeId; }
+    public void setLotThemeId(UUID lotThemeId) { this.lotThemeId = lotThemeId; }
 
     public QuestionType getModuleExamQuestionType() { return moduleExamQuestionType; }
     public void setModuleExamQuestionType(QuestionType moduleExamQuestionType) { this.moduleExamQuestionType = moduleExamQuestionType; }

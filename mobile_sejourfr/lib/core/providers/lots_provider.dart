@@ -4,9 +4,8 @@ import '../api/repositories.dart';
 import '../models/enums.dart';
 import '../models/lot_models.dart';
 
-/// Clé du family `lotsProvider` : un (questionType, difficulty) identifie un
-/// pool. Le module est implicite (TCF pour l'instant — civique n'a pas de
-/// notion de lots).
+/// Clé du family `lotsProvider` TCF : un (questionType, difficulty) identifie
+/// un pool. Le module est implicite (TCF).
 class LotsKey {
   const LotsKey({required this.questionType, required this.difficulty});
 
@@ -33,4 +32,11 @@ final lotsProvider =
         questionType: key.questionType,
         difficulty: key.difficulty,
       );
+});
+
+/// Charge les lots Civique d'un thème (15 Q par lot). Family indexée par
+/// `themeId` (String). autoDispose pour libérer le cache au quit de l'écran.
+final civiqueLotsProvider =
+    FutureProvider.autoDispose.family<List<LotDto>, String>((ref, themeId) {
+  return ref.watch(lotsRepositoryProvider).listCivique(themeId: themeId);
 });
