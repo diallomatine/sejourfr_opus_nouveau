@@ -67,15 +67,12 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
   late final bool _liveMode;
 
   String _resultsRoute(String submissionId, int taskIndex) {
-    final base = widget.epreuve == EpreuveType.tcfEo
-        ? '/tcf/expression-orale'
-        : '/tcf/expression-ecrite';
+    final base = widget.epreuve == EpreuveType.tcfEo ? '/tcf/expression-orale' : '/tcf/expression-ecrite';
     return '$base/resultats/$submissionId?taskIndex=$taskIndex&history=1';
   }
 
-  String get _moduleTitle => widget.epreuve == EpreuveType.tcfEo
-      ? 'Résultats — Expression orale'
-      : 'Résultats — Expression écrite';
+  String get _moduleTitle =>
+      widget.epreuve == EpreuveType.tcfEo ? 'Résultats — Expression orale' : 'Résultats — Expression écrite';
 
   @override
   void initState() {
@@ -156,9 +153,8 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
     final history = ref.watch(_historyForBilanProvider(widget.epreuve));
     final allTasks = ref.watch(_allTasksProvider(widget.epreuve));
 
-    final fallbackRoute = widget.epreuve == EpreuveType.tcfEo
-        ? '/tcf/expression-orale'
-        : '/tcf/expression-ecrite';
+    final fallbackRoute =
+        widget.epreuve == EpreuveType.tcfEo ? '/tcf/expression-orale' : '/tcf/expression-ecrite';
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: ProductionAppHeader(
@@ -248,17 +244,12 @@ class _Body extends StatelessWidget {
   final Future<void> Function() onManualRefresh;
   final VoidCallback onFinishLive;
 
-  int get _pendingCount =>
-      submissions.where((s) => !s.statut.isFinal).length;
+  int get _pendingCount => submissions.where((s) => !s.statut.isFinal).length;
 
-  int get _evaluatedCount =>
-      submissions.where((s) => s.evaluation != null).length;
+  int get _evaluatedCount => submissions.where((s) => s.evaluation != null).length;
 
   double? get _moyenne {
-    final notes = submissions
-        .map((s) => s.evaluation?.noteSurVingt)
-        .whereType<double>()
-        .toList();
+    final notes = submissions.map((s) => s.evaluation?.noteSurVingt).whereType<double>().toList();
     if (notes.isEmpty) return null;
     return notes.reduce((a, b) => a + b) / notes.length;
   }
@@ -289,7 +280,7 @@ class _Body extends StatelessWidget {
         return "Reviens aux bases de l'expression $modaliteAdj — vise le A2 "
             'à ta prochaine session.';
       case NiveauCecrl.a2:
-        return 'Niveau A2 atteint : suffisant pour la Carte de séjour. '
+        return 'Niveau A2 atteint : suffisant pour la Carte de séjour pluriannuel. '
             'Continue pour viser le B1.';
       case NiveauCecrl.b1:
         return 'Niveau B1 atteint : suffisant pour la Carte de résident. '
@@ -359,7 +350,6 @@ class _Body extends StatelessWidget {
                   onTap: () => onTapTache(i),
                   child: TacheBilanRow(
                     name: _taskName(i),
-                    niveauCible: _taskNiveauCible(i),
                     score: submissions[i].evaluation?.noteSurVingt,
                     niveauObtenu: submissions[i].evaluation?.niveauCecrl,
                     pending: !submissions[i].statut.isFinal,
@@ -383,8 +373,7 @@ class _Body extends StatelessWidget {
           child: SafeArea(
             top: false,
             child: AppButton(
-              label:
-                  liveMode ? 'Terminer la session' : 'Retour à l\'historique',
+              label: liveMode ? 'Terminer la session' : 'Retour à l\'historique',
               icon: liveMode ? Icons.check_rounded : Icons.arrow_back_rounded,
               onPressed: liveMode
                   ? onFinishLive
@@ -405,11 +394,6 @@ class _Body extends StatelessWidget {
     final t = tasksById[s.productionTaskId];
     if (t == null) return 'Tâche ${i + 1}';
     return 'Tâche ${t.tacheNumero} — ${t.displayTitle}';
-  }
-
-  String _taskNiveauCible(int i) {
-    final s = submissions[i];
-    return tasksById[s.productionTaskId]?.niveauCible ?? '';
   }
 }
 
@@ -503,8 +487,7 @@ class _EvaluatingBanner extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 onTap: onRefresh,
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   child: Text(
                     'Actualiser',
                     style: AppFonts.jakarta(
@@ -536,8 +519,7 @@ class _ErrorBox extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline_rounded,
-              size: 32, color: AppColors.red),
+          const Icon(Icons.error_outline_rounded, size: 32, color: AppColors.red),
           const SizedBox(height: 10),
           Text(
             message,
