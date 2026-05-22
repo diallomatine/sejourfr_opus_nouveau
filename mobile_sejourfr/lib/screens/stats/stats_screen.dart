@@ -9,6 +9,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/models/attempt_summary.dart';
 import '../../core/models/enums.dart';
+import '../../core/models/production_models.dart';
 import '../../core/models/question_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
@@ -31,12 +32,71 @@ final _recentAttemptsProvider =
   return ref.watch(attemptsRepositoryProvider).listMine(module: module, limit: 100);
 });
 
-/// Top questions ratées du user pour ce module — sert à la section
-/// "À retravailler en priorité". On garde les 3 premières remontées.
-final _wrongQuestionsProvider =
-    FutureProvider.autoDispose.family<List<QuestionDto>, AppModule>((ref, module) {
-  return ref.watch(userContentRepositoryProvider).wrongAnswered(module: module);
+/// Liste complete des themes du module — utilisee pour afficher toutes les
+/// competences/thematiques meme celles ou l'utilisateur n'a encore aucune
+/// reponse (`0 / total`). Les themes seedes (5 civique, 3 TCF) ne bougent
+/// pas souvent : on garde le cache autoDispose pour rafraichir au refresh.
+final _allThemesProvider =
+    FutureProvider.autoDispose.family<List<ThemeDto>, AppModule>((ref, module) {
+  return ref.watch(themesRepositoryProvider).list(module: module);
 });
+
+/// Submissions EE + EO du user, agregees par epreuve. Sert a afficher
+/// Expression ecrite / Expression orale comme competences additionnelles
+/// dans la liste TCF "Par competence" (pas de notion de theme cote backend
+/// pour ces epreuves : on a juste des productions notees par l'IA).
+final _productionStatsProvider =
+    FutureProvider.autoDispose<Map<EpreuveType, _ProductionCompetenceStats>>((ref) async {
+  final repo = ref.watch(productionRepositoryProvider);
+  final results = await Future.wait([
+    repo.listMine(epreuve: EpreuveType.tcfEe, limit: 100),
+    repo.listMine(epreuve: EpreuveType.tcfEo, limit: 100),
+  ]);
+  return {
+    EpreuveType.tcfEe: _ProductionCompetenceStats.fromSubmissions(results[0]),
+    EpreuveType.tcfEo: _ProductionCompetenceStats.fromSubmissions(results[1]),
+  };
+});
+
+/// Stats agregees pour une epreuve productive : nombre de submissions notees
+/// et meilleur niveau CECRL atteint. Quand `evaluatedCount == 0`, la ligne
+/// affiche "A demarrer".
+class _ProductionCompetenceStats {
+  const _ProductionCompetenceStats({
+    required this.evaluatedCount,
+    required this.bestLevel,
+    required this.lastLevel,
+  });
+
+  final int evaluatedCount;
+  final NiveauCecrl? bestLevel;
+  final NiveauCecrl? lastLevel;
+
+  bool get hasEvaluated => evaluatedCount > 0;
+
+  factory _ProductionCompetenceStats.fromSubmissions(
+    List<ProductionSubmissionDto> subs,
+  ) {
+    final evaluated = subs.where((s) => s.evaluation?.niveauCecrl != null).toList();
+    if (evaluated.isEmpty) {
+      return const _ProductionCompetenceStats(
+        evaluatedCount: 0,
+        bestLevel: null,
+        lastLevel: null,
+      );
+    }
+    final byScale = [...evaluated]..sort(
+        (a, b) =>
+            b.evaluation!.niveauCecrl!.scaleIndex.compareTo(a.evaluation!.niveauCecrl!.scaleIndex),
+      );
+    final byDate = [...evaluated]..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+    return _ProductionCompetenceStats(
+      evaluatedCount: evaluated.length,
+      bestLevel: byScale.first.evaluation!.niveauCecrl,
+      lastLevel: byDate.first.evaluation!.niveauCecrl,
+    );
+  }
+}
 
 void _showProgressPaywall(BuildContext context) {
   showModalBottomSheet<void>(
@@ -63,7 +123,10 @@ class StatsScreen extends ConsumerWidget {
 
     final stats = ref.watch(_statsProvider(module));
     final attemptsAsync = ref.watch(_recentAttemptsProvider(module));
-    final wrongAsync = ref.watch(_wrongQuestionsProvider(module));
+    final allThemesAsync = ref.watch(_allThemesProvider(module));
+    final productionStatsAsync = module == AppModule.tcf
+        ? ref.watch(_productionStatsProvider)
+        : null;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -72,7 +135,10 @@ class StatsScreen extends ConsumerWidget {
           onRefresh: () async {
             ref.invalidate(_statsProvider(module));
             ref.invalidate(_recentAttemptsProvider(module));
-            ref.invalidate(_wrongQuestionsProvider(module));
+            ref.invalidate(_allThemesProvider(module));
+            if (module == AppModule.tcf) {
+              ref.invalidate(_productionStatsProvider);
+            }
           },
           color: AppColors.blue,
           child: ListView(
@@ -98,7 +164,8 @@ class StatsScreen extends ConsumerWidget {
                 data: (s) => _Body(
                   stats: s,
                   attempts: attemptsAsync.valueOrNull ?? const [],
-                  wrongQuestions: wrongAsync.valueOrNull ?? const [],
+                  allThemes: allThemesAsync.valueOrNull ?? const [],
+                  productionStats: productionStatsAsync?.valueOrNull ?? const {},
                   module: module,
                   isPremium: isPremiumForModule,
                 ),
@@ -276,27 +343,63 @@ class _Body extends StatelessWidget {
   const _Body({
     required this.stats,
     required this.attempts,
-    required this.wrongQuestions,
+    required this.allThemes,
+    required this.productionStats,
     required this.module,
     required this.isPremium,
   });
 
   final UserStats stats;
   final List<AttemptSummary> attempts;
-  final List<QuestionDto> wrongQuestions;
+  final List<ThemeDto> allThemes;
+
+  /// Stats EE/EO du user. Vide si module != TCF, ou si fetch en cours / KO.
+  final Map<EpreuveType, _ProductionCompetenceStats> productionStats;
   final AppModule module;
   final bool isPremium;
 
   @override
   Widget build(BuildContext context) {
-    if (stats.questionsAnswered == 0) {
+    // Fusion themes seedes + stats par theme : on garde l'ordre canonique
+    // du backend (displayOrder) et on injecte les stats quand elles existent.
+    // Les themes sans reponse apparaissent en 0 / questionCount.
+    final themes = _mergeThemes(allThemes, stats.byTheme);
+
+    // Pour TCF, on liste aussi EE et EO comme competences (productions
+    // notees par l'IA, distinctes des thèmes QCM). Ordre fixe : EE puis EO.
+    final productions = module == AppModule.tcf
+        ? <({EpreuveType epreuve, _ProductionCompetenceStats stats})>[
+            (
+              epreuve: EpreuveType.tcfEe,
+              stats: productionStats[EpreuveType.tcfEe] ??
+                  const _ProductionCompetenceStats(
+                    evaluatedCount: 0,
+                    bestLevel: null,
+                    lastLevel: null,
+                  ),
+            ),
+            (
+              epreuve: EpreuveType.tcfEo,
+              stats: productionStats[EpreuveType.tcfEo] ??
+                  const _ProductionCompetenceStats(
+                    evaluatedCount: 0,
+                    bestLevel: null,
+                    lastLevel: null,
+                  ),
+            ),
+          ]
+        : const <({EpreuveType epreuve, _ProductionCompetenceStats stats})>[];
+
+    // Cas exceptionnel : aucun theme seede (backend pas pret) ET aucun
+    // attempt → on garde l'empty state historique pour guider vers le hub.
+    if (themes.isEmpty && productions.isEmpty && stats.questionsAnswered == 0) {
       return const _EmptyState();
     }
 
     // Score global = somme correct / somme total des thèmes du module
     // (couverture × justesse — cohérent avec les barres par thème).
-    final globalCorrect = stats.byTheme.fold<int>(0, (sum, t) => sum + t.correct);
-    final globalTotal = stats.byTheme.fold<int>(0, (sum, t) => sum + t.total);
+    final globalCorrect = themes.fold<int>(0, (sum, t) => sum + t.correct);
+    final globalTotal = themes.fold<int>(0, (sum, t) => sum + t.total);
     final mastery = globalTotal == 0 ? 0.0 : globalCorrect / globalTotal;
     final successRate = stats.questionsAnswered == 0 ? 0.0 : stats.questionsCorrect / stats.questionsAnswered;
     final accent = module == AppModule.civique ? AppColors.blue : AppColors.red;
@@ -308,7 +411,7 @@ class _Body extends StatelessWidget {
           mastery: mastery,
           module: module,
           accent: accent,
-          themes: stats.byTheme,
+          themes: themes,
         ),
         const SizedBox(height: 14),
         _StatsRow(
@@ -321,35 +424,44 @@ class _Body extends StatelessWidget {
         const SizedBox(height: 22),
         _SectionTitle(
           module == AppModule.tcf ? 'Par compétence' : 'Par thématique',
-          hint: '${stats.byTheme.length} / ${stats.byTheme.length}',
+          hint: '${themes.where((t) => t.answered > 0).length + productions.where((p) => p.stats.hasEvaluated).length}'
+              ' / ${themes.length + productions.length}',
         ),
         const SizedBox(height: 12),
         _ThemesCard(
-          themes: stats.byTheme,
+          themes: themes,
+          productions: productions,
           module: module,
           locked: !isPremium,
         ),
         const SizedBox(height: 22),
-        // Filtre client défensif : `wrongAnswered` est censé être scopé
-        // par module côté backend mais si jamais une question cross-module
-        // remontait (ancien attempt, glitch de sélection), on la sort ici.
-        // Garantit qu'aucune question civique ne s'affiche dans l'onglet TCF
-        // (et inverse).
-        if (wrongQuestions.where((q) => q.module == module).isNotEmpty) ...[
-          const _SectionTitle('À retravailler en priorité'),
-          const SizedBox(height: 12),
-          _WeakList(
-            questions: wrongQuestions
-                .where((q) => q.module == module)
-                .take(3)
-                .toList(),
-            module: module,
-          ),
-          const SizedBox(height: 22),
-        ],
         _ActivityHeatmap(attempts: attempts, accent: accent),
       ],
     );
+  }
+
+  /// Pour chaque theme seede, retourne le `ThemeStats` correspondant si
+  /// l'utilisateur y a deja repondu, sinon un placeholder a 0 / total.
+  /// Si la liste des themes seedes est vide (cas degrade), on retombe sur
+  /// `stats.byTheme` tel quel pour rester resilient.
+  List<ThemeStats> _mergeThemes(
+    List<ThemeDto> seeded,
+    List<ThemeStats> answered,
+  ) {
+    if (seeded.isEmpty) return answered;
+    final byId = {for (final s in answered) s.themeId: s};
+    final ordered = [...seeded]..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+    return ordered
+        .map((t) =>
+            byId[t.id] ??
+            ThemeStats(
+              themeId: t.id,
+              themeName: t.name,
+              answered: 0,
+              correct: 0,
+              total: t.questionCount,
+            ))
+        .toList();
   }
 }
 
@@ -917,17 +1029,25 @@ class _TrendPainter extends CustomPainter {
 class _ThemesCard extends ConsumerWidget {
   const _ThemesCard({
     required this.themes,
+    required this.productions,
     required this.module,
     required this.locked,
   });
 
   final List<ThemeStats> themes;
+  final List<({EpreuveType epreuve, _ProductionCompetenceStats stats})> productions;
   final AppModule module;
   final bool locked;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sorted = _sortedByWeakest(themes);
+    // Themes QCM en haut (tries du plus faible au plus fort, non-demarres
+    // a la fin). Productions EE/EO toujours en bas en ordre fixe — ce sont
+    // des "competences" a part, on ne les melange pas au tri.
+    final sortedThemes = _sortedByWeakest(themes);
+    final hasProductions = productions.isNotEmpty;
+    final totalRows = sortedThemes.length + productions.length;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
@@ -937,18 +1057,37 @@ class _ThemesCard extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          for (int i = 0; i < sorted.length; i++)
+          for (int i = 0; i < sortedThemes.length; i++)
             _ThemeRow(
               index: i + 1,
-              theme: sorted[i],
-              isLast: i == sorted.length - 1,
+              theme: sortedThemes[i],
+              isLast: i == totalRows - 1,
               locked: locked,
-              onTap:
-                  locked ? () => _showProgressPaywall(context) : () => _trainTheme(context, ref, sorted[i]),
+              onTap: locked
+                  ? () => _showProgressPaywall(context)
+                  : () => _trainTheme(context, ref, sortedThemes[i]),
             ),
+          if (hasProductions)
+            for (int i = 0; i < productions.length; i++)
+              _ProductionRow(
+                index: sortedThemes.length + i + 1,
+                production: productions[i],
+                isLast: sortedThemes.length + i == totalRows - 1,
+                locked: locked,
+                onTap: locked
+                    ? () => _showProgressPaywall(context)
+                    : () => _openProductionHub(context, productions[i].epreuve),
+              ),
         ],
       ),
     );
+  }
+
+  void _openProductionHub(BuildContext context, EpreuveType epreuve) {
+    final route = epreuve == EpreuveType.tcfEe
+        ? AppRoutes.tcfExpressionEcrite
+        : AppRoutes.tcfExpressionOrale;
+    context.push(route);
   }
 
   Future<void> _trainTheme(
@@ -1060,16 +1199,16 @@ class _ThemeRow extends StatelessWidget {
                 const SizedBox(width: 8),
                 if (locked)
                   const Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.muted2)
-                else if (hasAnswered)
+                else
                   RichText(
                     text: TextSpan(
                       children: [
                         TextSpan(
-                          text: '${theme.correct}',
+                          text: hasAnswered ? '${theme.correct}' : '0',
                           style: AppFonts.mono(
                             size: 12,
                             weight: FontWeight.w700,
-                            color: AppColors.ink,
+                            color: hasAnswered ? AppColors.ink : AppColors.muted2,
                           ),
                         ),
                         TextSpan(
@@ -1081,15 +1220,6 @@ class _ThemeRow extends StatelessWidget {
                           ),
                         ),
                       ],
-                    ),
-                  )
-                else
-                  Text(
-                    '— / ${theme.total}',
-                    style: AppFonts.mono(
-                      size: 12,
-                      color: AppColors.muted2,
-                      weight: FontWeight.w500,
                     ),
                   ),
               ],
@@ -1214,104 +1344,234 @@ class _ThemeRow extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Weak spots (top 3 wrong questions)
-// ---------------------------------------------------------------------------
+/// Ligne "competence" pour les epreuves productives EE/EO. Distincte de
+/// `_ThemeRow` car ces epreuves n'ont pas de notion correct/total : on
+/// affiche le nb de productions notees et le niveau CECRL atteint sur
+/// une echelle A1→C2.
+class _ProductionRow extends StatelessWidget {
+  const _ProductionRow({
+    required this.index,
+    required this.production,
+    required this.isLast,
+    required this.locked,
+    required this.onTap,
+  });
 
-class _WeakList extends StatelessWidget {
-  const _WeakList({required this.questions, required this.module});
-
-  final List<QuestionDto> questions;
-  final AppModule module;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        for (int i = 0; i < questions.length; i++)
-          Padding(
-            padding: EdgeInsets.only(
-              bottom: i == questions.length - 1 ? 0 : 8,
-            ),
-            child: _WeakItem(rank: i + 1, question: questions[i]),
-          ),
-      ],
-    );
-  }
-}
-
-class _WeakItem extends StatelessWidget {
-  const _WeakItem({required this.rank, required this.question});
-
-  final int rank;
-  final QuestionDto question;
+  final int index;
+  final ({EpreuveType epreuve, _ProductionCompetenceStats stats}) production;
+  final bool isLast;
+  final bool locked;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 28,
-            height: 28,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.redLight,
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Text(
-              rank.toString().padLeft(2, '0'),
-              style: AppFonts.mono(
-                size: 11,
-                color: AppColors.red,
-                weight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+    final epreuve = production.epreuve;
+    final stats = production.stats;
+    final label = epreuve == EpreuveType.tcfEe ? 'Expression écrite' : 'Expression orale';
+    final hasEvaluated = stats.hasEvaluated;
+    final level = stats.bestLevel;
+    // Position du curseur sur l'echelle A1→C2 (6 paliers, index 0..5).
+    final scalePct = level == null ? 0.0 : (level.scaleIndex + 1) / 6;
+    final (barColor, tagColor, tagBg, tagLabel) = _statusFor(level);
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Text(
-                  question.statement,
-                  style: AppFonts.jakarta(
-                    size: 13,
-                    weight: FontWeight.w600,
-                    color: AppColors.ink,
-                    height: 1.3,
+                Container(
+                  width: 22,
+                  height: 22,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.redLight,
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  child: Text(
+                    index.toString().padLeft(2, '0'),
+                    style: AppFonts.mono(
+                      size: 10,
+                      color: AppColors.red,
+                      weight: FontWeight.w600,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  question.themeName,
-                  style: AppFonts.jakarta(
-                    size: 11,
-                    color: AppColors.muted,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label,
+                        style: AppFonts.jakarta(
+                          size: 13.5,
+                          weight: FontWeight.w600,
+                          color: AppColors.ink,
+                          height: 1.25,
+                        ).copyWith(letterSpacing: -0.1),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Évaluation IA',
+                        style: AppFonts.mono(
+                          size: 9,
+                          color: AppColors.muted2,
+                          letterSpacing: 1.2,
+                          weight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(width: 8),
+                if (locked)
+                  const Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.muted2)
+                else
+                  RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '${stats.evaluatedCount}',
+                          style: AppFonts.mono(
+                            size: 12,
+                            weight: FontWeight.w700,
+                            color: hasEvaluated ? AppColors.ink : AppColors.muted2,
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' prod.',
+                          style: AppFonts.mono(
+                            size: 12,
+                            color: AppColors.muted2,
+                            weight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Barre = position du meilleur niveau sur l'echelle A1→C2.
+            // Marqueur seuil = B1 (palier de la majorite des parcours).
+            Stack(
+              children: [
+                Container(
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: AppColors.line2,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+                if (!locked && hasEvaluated)
+                  FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: scalePct.clamp(0.05, 1.0),
+                    child: Container(
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: barColor,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: -2,
+                  bottom: -2,
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    // Seuil B1 = palier 3 sur 6 → 0.5.
+                    widthFactor: 0.5,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        width: 2,
+                        decoration: BoxDecoration(
+                          color: AppColors.ink.withValues(alpha: 0.45),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          const Icon(
-            Icons.chevron_right_rounded,
-            size: 20,
-            color: AppColors.muted2,
-          ),
-        ],
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: tagBg,
+                borderRadius: BorderRadius.circular(99),
+              ),
+              child: Text(
+                '● $tagLabel',
+                style: AppFonts.mono(
+                  size: 9.5,
+                  color: tagColor,
+                  letterSpacing: 1.2,
+                  weight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (!isLast) ...[
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: AppColors.line2),
+            ],
+          ],
+        ),
       ),
+    );
+  }
+
+  /// Couleurs + label de status selon le niveau CECRL atteint. Aucune
+  /// evaluation → "À démarrer".
+  (Color, Color, Color, String) _statusFor(NiveauCecrl? level) {
+    if (level == null) {
+      return (
+        AppColors.muted2,
+        AppColors.muted,
+        AppColors.line2,
+        'À démarrer',
+      );
+    }
+    if (level.scaleIndex >= NiveauCecrl.b2.scaleIndex) {
+      return (
+        AppColors.green,
+        AppColors.green,
+        const Color(0xFFE6F4ED),
+        level.displayName,
+      );
+    }
+    if (level.scaleIndex >= NiveauCecrl.b1.scaleIndex) {
+      return (
+        AppColors.blue,
+        AppColors.blue,
+        AppColors.blueLight,
+        level.displayName,
+      );
+    }
+    if (level.scaleIndex >= NiveauCecrl.a2.scaleIndex) {
+      return (
+        AppColors.amber,
+        const Color(0xFFB5811A),
+        const Color(0xFFFDF3DD),
+        level.displayName,
+      );
+    }
+    return (
+      AppColors.red,
+      AppColors.red,
+      AppColors.redLight,
+      level.displayName,
     );
   }
 }
