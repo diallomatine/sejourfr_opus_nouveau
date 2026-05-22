@@ -110,7 +110,16 @@ class _TcfProductionTaskSubjectsScreenState
         await ref.read(eeSessionProvider.notifier).startSingle(task: task);
       }
       if (!mounted) return;
-      context.push(_briefingRoute);
+      // EO Tâche 1 = transit pur (auto-démarrée, rend `_loading()` en
+      // permanence). Si on push le briefing normalement, le back depuis le
+      // briefing revient ici et l'utilisateur reste bloqué sur un spinner
+      // infini. On remplace donc cet écran dans la pile : back depuis le
+      // briefing revient directement au détail EO.
+      if (_isEo && widget.tacheNumero == 1) {
+        context.pushReplacement(_briefingRoute);
+      } else {
+        context.push(_briefingRoute);
+      }
     } catch (e) {
       if (!mounted) return;
       final apiErr = ApiClient.toApiException(e);
