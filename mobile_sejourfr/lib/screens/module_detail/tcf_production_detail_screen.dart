@@ -27,6 +27,16 @@ final _submissionsHistoryProvider = FutureProvider.autoDispose
       );
 });
 
+/// Vrai quand l'utilisateur a déjà au moins une submission sur la Tâche 1 de
+/// cette épreuve (tous niveaux confondus). Sert au verrou freemium :
+/// non-abonné = 1 seule passage de T1 puis verrouillée (correction visible
+/// dans l'onglet Corrections).
+final _hasT1SubmittedProvider = FutureProvider.autoDispose
+    .family<bool, EpreuveType>((ref, epreuve) async {
+  final subs = await ref.watch(_submissionsHistoryProvider(epreuve).future);
+  return subs.any((s) => s.tacheNumero == 1);
+});
+
 /// Historique des **examens** (sessions 3-tâches enchaînées) du user, par
 /// épreuve. Dérivé de `listMine` : on groupe les submissions par `attemptId`
 /// et on retient uniquement les attempts qui en ont **3 ou plus** — un attempt
@@ -242,14 +252,21 @@ class _TcfProductionDetailScreenState
   }
 
   void _openTask(_ProductionTaskCard task) {
-    // Seul le verrou `premiumOnly` (T3) bloque la navigation côté front.
-    // Pour les autres tâches, le quota gratuit "2 submissions à vie par
-    // épreuve" est appliqué côté backend (`SubscriptionService.hasTcf`) :
-    // la liste des sujets reste accessible aux non-premium, et la paywall
-    // apparaît plus tard si le user dépasse le quota au moment de soumettre.
-    if (task.premiumOnly && !_isPremium()) {
-      showPaywallSheet(context);
-      return;
+    final isPremium = _isPremium();
+    if (!isPremium) {
+      // Verrou freemium EE/EO :
+      //   - T2 et T3 toujours réservés aux abonnés
+      //   - T1 : 1 tentative gratuite ; après la 1ère submission, locked
+      //     (correction restant accessible via l'onglet Corrections)
+      if (task.index != 1) {
+        showPaywallSheet(context);
+        return;
+      }
+      final hasT1 = ref.read(_hasT1SubmittedProvider(widget.module.epreuve)).valueOrNull ?? false;
+      if (hasT1) {
+        showPaywallSheet(context);
+        return;
+      }
     }
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
     // Push l'écran lots par tâche. Pour EO T1 (consigne fixe), l'écran lots
@@ -354,8 +371,18 @@ class _TcfProductionDetailScreenState
             ModuleDetailTabs(
               labels: ['Tâches', 'Examens', mod.historyTabLabel],
               activeIndex: _tab.index,
-              onChanged: (i) =>
-                  setState(() => _tab = _ProductionTab.values[i]),
+              // Examens (sessions 3-tâches) réservé aux abonnés TCF — les
+              // non-premium n'ont droit qu'à la T1 unitaire (cf. onglet Tâches).
+              // Corrections / Analyses restent libres pour voir l'éval de T1.
+              lockedIndices: isPremium ? const {} : const {1},
+              onChanged: (i) {
+                final target = _ProductionTab.values[i];
+                if (target == _ProductionTab.exams && !isPremium) {
+                  showPaywallSheet(context);
+                  return;
+                }
+                setState(() => _tab = target);
+              },
               accent: AppColors.blue,
             ),
             const SizedBox(height: 14),
@@ -382,7 +409,7 @@ class _TcfProductionDetailScreenState
   }
 }
 
-class _TabContent extends StatelessWidget {
+class _TabContent extends ConsumerWidget {
   const _TabContent({
     required this.tab,
     required this.module,
@@ -400,11 +427,16 @@ class _TabContent extends StatelessWidget {
   final bool startingExam;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     switch (tab) {
       case _ProductionTab.tasks:
         final cards =
             module.epreuve == EpreuveType.tcfEo ? _eoTaskCards : _eeTaskCards;
+        // Verrou freemium : T2/T3 réservés aux abonnés, T1 = 1 passage
+        // gratuit puis locked (cf. `_hasT1SubmittedProvider`).
+        final hasT1Submitted = isPremium
+            ? false
+            : ref.watch(_hasT1SubmittedProvider(module.epreuve)).valueOrNull ?? false;
         return Column(
           children: [
             for (final task in cards)
@@ -415,7 +447,7 @@ class _TabContent extends StatelessWidget {
                 // T1 vert, T2 ambre, T3 rouge — pattern miroir des niveaux
                 // A2/B1/B2 des séries QCM (progression vert → rouge).
                 accent: _colorForTaskIndex(task.index),
-                locked: task.premiumOnly && !isPremium,
+                locked: !isPremium && (task.index != 1 || hasT1Submitted),
                 onTap: () => onTaskTap(task),
               ),
           ],
@@ -425,6 +457,7 @@ class _TabContent extends StatelessWidget {
           module: module,
           starting: startingExam,
           onStart: onStartFullExam,
+          isPremium: isPremium,
         );
       case _ProductionTab.history:
         return _AnalysisTab(module: module);
@@ -444,11 +477,13 @@ class _ExamsTab extends ConsumerWidget {
     required this.module,
     required this.starting,
     required this.onStart,
+    required this.isPremium,
   });
 
   final TcfProductionModule module;
   final bool starting;
   final VoidCallback onStart;
+  final bool isPremium;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -550,9 +585,15 @@ class _ExamsTab extends ConsumerWidget {
                 _ProductionExamSlotCard(
                   slot: i + 1,
                   session: i < exams.length ? exams[i] : null,
+                  // Examen blanc EE/EO complet (3 tâches) = abonnés seulement.
+                  // Pour non-premium tous les slots sont locked (la T1 seule
+                  // s'utilise via l'onglet Tâches).
+                  locked: !isPremium,
                   onTapEmpty: starting
                       ? null
-                      : () => showProductionExamBriefingSheet(
+                      : !isPremium
+                          ? () => showPaywallSheet(context)
+                          : () => showProductionExamBriefingSheet(
                             context,
                             module: module,
                             starting: starting,
@@ -701,12 +742,14 @@ class _ProductionExamSlotCard extends StatelessWidget {
     required this.session,
     required this.onTapEmpty,
     required this.onTapDone,
+    this.locked = false,
   });
 
   final int slot;
   final _ProductionExamSession? session;
   final VoidCallback? onTapEmpty;
   final ValueChanged<_ProductionExamSession> onTapDone;
+  final bool locked;
 
   @override
   Widget build(BuildContext context) {
@@ -779,7 +822,22 @@ class _ProductionExamSlotCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  if (done)
+                  if (locked)
+                    Container(
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.line2,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.lock_outline_rounded,
+                        size: 15,
+                        color: AppColors.muted,
+                      ),
+                    )
+                  else if (done)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(

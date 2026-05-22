@@ -379,12 +379,18 @@ class ModuleDetailTabs extends StatelessWidget {
     required this.activeIndex,
     required this.onChanged,
     required this.accent,
+    this.lockedIndices = const <int>{},
   });
 
   final List<String> labels;
   final int activeIndex;
   final ValueChanged<int> onChanged;
   final Color accent;
+
+  /// Indices d'onglets réservés aux abonnés : un petit cadenas est rendu à
+  /// côté du label, et le tap reste fonctionnel (au caller d'afficher le
+  /// paywall en regardant si l'onglet sélectionné est dans cet ensemble).
+  final Set<int> lockedIndices;
 
   @override
   Widget build(BuildContext context) {
@@ -417,13 +423,27 @@ class ModuleDetailTabs extends StatelessWidget {
                         : null,
                   ),
                   alignment: Alignment.center,
-                  child: Text(
-                    labels[i],
-                    style: AppFonts.jakarta(
-                      size: 12.5,
-                      weight: FontWeight.w800,
-                      color: i == activeIndex ? accent : AppColors.muted,
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        labels[i],
+                        style: AppFonts.jakarta(
+                          size: 12.5,
+                          weight: FontWeight.w800,
+                          color: i == activeIndex ? accent : AppColors.muted,
+                        ),
+                      ),
+                      if (lockedIndices.contains(i)) ...[
+                        const SizedBox(width: 5),
+                        Icon(
+                          Icons.lock_outline_rounded,
+                          size: 12,
+                          color: i == activeIndex ? accent : AppColors.muted,
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),

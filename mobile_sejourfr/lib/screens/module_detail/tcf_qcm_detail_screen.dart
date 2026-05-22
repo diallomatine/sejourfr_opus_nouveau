@@ -229,8 +229,14 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
   void _openExamBriefing() {
     if (_starting) return;
     if (!_isPremium()) {
-      showPaywallSheet(context);
-      return;
+      // 1 examen blanc gratuit par sous-module (= un par questionType TCF).
+      // Si le user a déjà passé un examen sur ce module, c'est une relance
+      // → paywall.
+      final history = ref.read(_moduleExamsHistoryProvider(widget.module.questionType)).valueOrNull ?? const [];
+      if (history.any((a) => a.isFinished)) {
+        showPaywallSheet(context);
+        return;
+      }
     }
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
     showModuleExamBriefingSheet(context, widget.module);
@@ -302,7 +308,16 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
                 ModuleDetailTabs(
                   labels: const ['Séries', 'Examens', 'Erreurs'],
                   activeIndex: _tab.index,
-                  onChanged: (i) => setState(() => _tab = _DetailTab.values[i]),
+                  // Onglet Erreurs réservé aux abonnés TCF.
+                  lockedIndices: _isPremium() ? const {} : const {2},
+                  onChanged: (i) {
+                    final target = _DetailTab.values[i];
+                    if (target == _DetailTab.errors && !_isPremium()) {
+                      showPaywallSheet(context);
+                      return;
+                    }
+                    setState(() => _tab = target);
+                  },
                   accent: AppColors.red,
                 ),
                 const SizedBox(height: 14),
@@ -392,6 +407,8 @@ class _ExamsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncHistory = ref.watch(_moduleExamsHistoryProvider(module.questionType));
     final examDuration = module.questionType == QuestionType.co ? '20 min' : '35 min';
+    final auth = ref.watch(authControllerProvider);
+    final isPremium = auth is AuthAuthenticated && auth.user.canAccessModule(AppModule.tcf);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -485,7 +502,13 @@ class _ExamsTab extends ConsumerWidget {
                   _ExamSlotCard(
                     slot: i + 1,
                     attempt: i < finished.length ? finished[i] : null,
-                    onTapEmpty: starting ? null : onStartExam,
+                    // Slot 1 gratuit pour découvrir le module ; slots 2+ locked.
+                    locked: !isPremium && (i + 1) > 1,
+                    onTapEmpty: starting
+                        ? null
+                        : (!isPremium && (i + 1) > 1)
+                            ? () => showPaywallSheet(context)
+                            : onStartExam,
                     onTapDone: (attempt) => _showExamSheet(context, attempt, onStartExam),
                   ),
               ],
@@ -533,12 +556,14 @@ class _ExamSlotCard extends StatelessWidget {
     required this.attempt,
     required this.onTapEmpty,
     required this.onTapDone,
+    this.locked = false,
   });
 
   final int slot;
   final AttemptSummary? attempt;
   final VoidCallback? onTapEmpty;
   final ValueChanged<AttemptSummary> onTapDone;
+  final bool locked;
 
   @override
   Widget build(BuildContext context) {
@@ -609,7 +634,22 @@ class _ExamSlotCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  if (done)
+                  if (locked)
+                    Container(
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.line2,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.lock_outline_rounded,
+                        size: 15,
+                        color: AppColors.muted,
+                      ),
+                    )
+                  else if (done)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(

@@ -55,8 +55,20 @@ class _CiviqueExamBlancScreenState
   Future<void> _startExam() async {
     if (_starting) return;
     if (!_isPremium()) {
-      showPaywallSheet(context);
-      return;
+      // Non-abonné : 1 examen blanc gratuit (slot 1). Si un attempt existe
+      // déjà — fini ou en cours — on ne crée jamais de nouvel attempt.
+      final history = ref.read(_civiqueExamsProvider).valueOrNull ?? const [];
+      // In-progress → on resume avec le même attempt (questions inchangées).
+      final inProgress = history.where((a) => !a.isFinished).toList();
+      if (inProgress.isNotEmpty) {
+        context.push(AppRoutes.runner.replaceFirst(':attemptId', inProgress.first.id));
+        return;
+      }
+      // Fini → paywall (relance non autorisée pour non-abonné).
+      if (history.any((a) => a.isFinished)) {
+        showPaywallSheet(context);
+        return;
+      }
     }
     setState(() => _starting = true);
     ref.read(selectedModuleProvider.notifier).state = AppModule.civique;
@@ -91,8 +103,19 @@ class _CiviqueExamBlancScreenState
   void _openBriefing() {
     if (_starting) return;
     if (!_isPremium()) {
-      showPaywallSheet(context);
-      return;
+      final history = ref.read(_civiqueExamsProvider).valueOrNull ?? const [];
+      // Attempt en cours : on reprend directement, sans briefing — questions
+      // inchangées car même attempt côté backend.
+      final inProgress = history.where((a) => !a.isFinished).toList();
+      if (inProgress.isNotEmpty) {
+        context.push(AppRoutes.runner.replaceFirst(':attemptId', inProgress.first.id));
+        return;
+      }
+      // Examen déjà fini : pas de relance, paywall.
+      if (history.any((a) => a.isFinished)) {
+        showPaywallSheet(context);
+        return;
+      }
     }
     showCiviqueExamBriefingSheet(context, onStart: _startExam);
   }
@@ -146,6 +169,8 @@ class _CiviqueExamBlancScreenState
                   history: history,
                   onTapDone: _openResult,
                   onTapEmpty: _openBriefing,
+                  isPremium: _isPremium(),
+                  onLocked: () => showPaywallSheet(context),
                 ),
               ),
             ],
@@ -338,11 +363,15 @@ class _SlotsSection extends StatelessWidget {
     required this.history,
     required this.onTapDone,
     required this.onTapEmpty,
+    required this.isPremium,
+    required this.onLocked,
   });
 
   final List<AttemptSummary> history;
   final void Function(AttemptSummary) onTapDone;
   final VoidCallback onTapEmpty;
+  final bool isPremium;
+  final VoidCallback onLocked;
 
   @override
   Widget build(BuildContext context) {
@@ -381,7 +410,9 @@ class _SlotsSection extends StatelessWidget {
             slot: i + 1,
             attempt: i < finished.length ? finished[i] : null,
             onTapDone: onTapDone,
-            onTapEmpty: onTapEmpty,
+            // Slot 1 = découverte gratuite ; slots 2+ réservés aux abonnés.
+            locked: !isPremium && (i + 1) > 1,
+            onTapEmpty: !isPremium && (i + 1) > 1 ? onLocked : onTapEmpty,
           ),
           if (i != _civiqueExamSlotsCount - 1) const SizedBox(height: 10),
         ],
@@ -396,12 +427,14 @@ class _ExamSlotCard extends StatelessWidget {
     required this.attempt,
     required this.onTapDone,
     required this.onTapEmpty,
+    this.locked = false,
   });
 
   final int slot;
   final AttemptSummary? attempt;
   final void Function(AttemptSummary) onTapDone;
   final VoidCallback onTapEmpty;
+  final bool locked;
 
   @override
   Widget build(BuildContext context) {
@@ -473,7 +506,22 @@ class _ExamSlotCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  if (done)
+                  if (locked)
+                    Container(
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.line2,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.lock_outline_rounded,
+                        size: 15,
+                        color: AppColors.muted,
+                      ),
+                    )
+                  else if (done)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 5),

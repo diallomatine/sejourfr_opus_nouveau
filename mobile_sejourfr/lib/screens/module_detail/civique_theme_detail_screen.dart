@@ -113,10 +113,11 @@ class _CiviqueThemeDetailScreenState extends ConsumerState<CiviqueThemeDetailScr
   }
 
   /// Lance un lot précis de 15 questions du thème (tap sur une card de lot).
-  /// Réservé premium : 403 → paywall.
+  /// Lot 1 = découverte gratuite du sous-module ; Lot 2+ paywall pour les
+  /// non-abonnés.
   Future<void> _startLot(ThemeDto theme, LotDto lot) async {
     if (_starting) return;
-    if (!_isPremium()) {
+    if (!_isPremium() && lot.numero > 1) {
       showPaywallSheet(context);
       return;
     }
@@ -160,9 +161,15 @@ class _CiviqueThemeDetailScreenState extends ConsumerState<CiviqueThemeDetailScr
   /// thèmes) accessible depuis la carte sombre du hub.
   Future<void> _startThemeExam(ThemeDto theme) async {
     if (_starting) return;
+    // Non-abonné : autoriser la 1ère tentative (slot 1 gratuit), bloquer
+    // les relances. La pré-vérif est faite dans `_openExamBriefing`, on
+    // re-vérifie ici par sécurité au cas où le briefing serait court-circuité.
     if (!_isPremium()) {
-      showPaywallSheet(context);
-      return;
+      final history = ref.read(_civiqueThemeExamsHistoryProvider(theme.id)).valueOrNull ?? const [];
+      if (history.any((a) => a.isFinished)) {
+        showPaywallSheet(context);
+        return;
+      }
     }
     setState(() => _starting = true);
     ref.read(selectedModuleProvider.notifier).state = AppModule.civique;
@@ -195,8 +202,13 @@ class _CiviqueThemeDetailScreenState extends ConsumerState<CiviqueThemeDetailScr
   void _openExamBriefing(ThemeDto theme) {
     if (_starting) return;
     if (!_isPremium()) {
-      showPaywallSheet(context);
-      return;
+      // Non-abonné : 1 examen blanc gratuit par sous-module. Si l'utilisateur
+      // a déjà passé un examen sur ce thème, c'est une relance → paywall.
+      final history = ref.read(_civiqueThemeExamsHistoryProvider(theme.id)).valueOrNull ?? const [];
+      if (history.any((a) => a.isFinished)) {
+        showPaywallSheet(context);
+        return;
+      }
     }
     showCiviqueThemeExamBriefingSheet(
       context,
@@ -278,7 +290,17 @@ class _CiviqueThemeDetailScreenState extends ConsumerState<CiviqueThemeDetailScr
                     ModuleDetailTabs(
                       labels: const ['Lots', 'Examens', 'Erreurs'],
                       activeIndex: _tab.index,
-                      onChanged: (i) => setState(() => _tab = _DetailTab.values[i]),
+                      // Onglet Erreurs réservé aux abonnés — cadenas affiché
+                      // pour les non-premium ; tap intercepté vers paywall.
+                      lockedIndices: _isPremium() ? const {} : const {2},
+                      onChanged: (i) {
+                        final target = _DetailTab.values[i];
+                        if (target == _DetailTab.errors && !_isPremium()) {
+                          showPaywallSheet(context);
+                          return;
+                        }
+                        setState(() => _tab = target);
+                      },
                       accent: AppColors.blue,
                     ),
                     const SizedBox(height: 14),
@@ -388,6 +410,8 @@ class _LotsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lotsAsync = ref.watch(civiqueLotsProvider(theme.id));
+    final auth = ref.watch(authControllerProvider);
+    final isPremium = auth is AuthAuthenticated && auth.user.canAccessModule(AppModule.civique);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -413,8 +437,11 @@ class _LotsTab extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Découpés en séries de 15 questions, dans l\'ordre du programme. '
-                'Touche un lot pour t\'entraîner, ton dernier score reste affiché.',
+                isPremium
+                    ? 'Découpés en séries de 15 questions, dans l\'ordre du programme. '
+                        'Touche un lot pour t\'entraîner, ton dernier score reste affiché.'
+                    : 'Le Lot 1 est gratuit pour découvrir le format. Les lots suivants '
+                        'sont réservés aux abonnés.',
                 style: AppFonts.jakarta(
                   size: 13,
                   color: AppColors.ink2,
@@ -478,6 +505,7 @@ class _LotsTab extends ConsumerWidget {
                 for (final lot in lots)
                   _CiviqueLotCard(
                     lot: lot,
+                    locked: !isPremium && lot.numero > 1,
                     onTap: () => onLotTap(lot),
                   ),
               ],
@@ -490,12 +518,18 @@ class _LotsTab extends ConsumerWidget {
 }
 
 /// Card d'un lot civique. Numéro coloré à gauche, titre + sous-titre,
-/// badge dernier score à droite quand le lot a déjà été fait.
+/// badge dernier score à droite quand le lot a déjà été fait. Si `locked`,
+/// la card grise + cadenas (tap → paywall côté caller).
 class _CiviqueLotCard extends StatelessWidget {
-  const _CiviqueLotCard({required this.lot, required this.onTap});
+  const _CiviqueLotCard({
+    required this.lot,
+    required this.onTap,
+    this.locked = false,
+  });
 
   final LotDto lot;
   final VoidCallback onTap;
+  final bool locked;
 
   @override
   Widget build(BuildContext context) {
@@ -568,7 +602,22 @@ class _CiviqueLotCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  if (done)
+                  if (locked)
+                    Container(
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.line2,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.lock_outline_rounded,
+                        size: 15,
+                        color: AppColors.muted,
+                      ),
+                    )
+                  else if (done)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
@@ -631,6 +680,8 @@ class _ExamsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncHistory = ref.watch(_civiqueThemeExamsHistoryProvider(theme.id));
+    final auth = ref.watch(authControllerProvider);
+    final isPremium = auth is AuthAuthenticated && auth.user.canAccessModule(AppModule.civique);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -723,7 +774,13 @@ class _ExamsTab extends ConsumerWidget {
                   _CiviqueExamSlotCard(
                     slot: i + 1,
                     attempt: i < finished.length ? finished[i] : null,
-                    onTapEmpty: starting ? null : onStartExam,
+                    // Slot 1 = découverte gratuite par sous-module ; slots 2+ locked.
+                    locked: !isPremium && (i + 1) > 1,
+                    onTapEmpty: starting
+                        ? null
+                        : (!isPremium && (i + 1) > 1)
+                            ? () => showPaywallSheet(context)
+                            : onStartExam,
                     onTapDone: (attempt) => _showExamSheet(
                       context,
                       attempt,
@@ -770,12 +827,14 @@ class _CiviqueExamSlotCard extends StatelessWidget {
     required this.attempt,
     required this.onTapEmpty,
     required this.onTapDone,
+    this.locked = false,
   });
 
   final int slot;
   final AttemptSummary? attempt;
   final VoidCallback? onTapEmpty;
   final ValueChanged<AttemptSummary> onTapDone;
+  final bool locked;
 
   @override
   Widget build(BuildContext context) {
@@ -846,7 +905,22 @@ class _CiviqueExamSlotCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  if (done)
+                  if (locked)
+                    Container(
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.line2,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.lock_outline_rounded,
+                        size: 15,
+                        color: AppColors.muted,
+                      ),
+                    )
+                  else if (done)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(

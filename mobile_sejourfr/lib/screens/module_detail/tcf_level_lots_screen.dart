@@ -86,7 +86,9 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
 
   Future<void> _startLot(LotDto lot) async {
     if (_starting) return;
-    if (!_isPremium()) {
+    // Lot 1 = découverte gratuite par (module, niveau) — accessible aux
+    // non-abonnés. Lot 2+ → paywall.
+    if (!_isPremium() && lot.numero > 1) {
       showPaywallSheet(context);
       return;
     }
@@ -227,7 +229,9 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
                                 ? '${lot.totalQuestions} questions · déjà fait'
                                 : '${lot.totalQuestions} questions · ${meta.label.toLowerCase()}',
                             accent: meta.accent,
-                            locked: !isPremium,
+                            // Lot 1 = découverte gratuite par (module, niveau) ;
+                            // Lot 2+ réservés aux abonnés TCF.
+                            locked: !isPremium && lot.numero > 1,
                             scoreBadge:
                                 lot.lastScore == null ? null : '${lot.lastScore}/${lot.totalQuestions}',
                             scoreColor: _colorForScore(lot),
