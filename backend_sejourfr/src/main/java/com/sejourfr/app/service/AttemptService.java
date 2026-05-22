@@ -380,15 +380,27 @@ public class AttemptService {
      * avec ce que `/api/lots` expose au front (y compris le cas d'un lot
      * partiel quand le pool est sous la taille standard).
      *
-     * <p>Reserve aux comptes premium pour le module concerne — le filtre n'a
-     * pas de sens en demo (le backend ignore les filtres en demo).
+     * <p>Verrou freemium par sous-module : Lot 1 = decouverte gratuite ;
+     * Lot 2+ reserve aux abonnes du module concerne (Civique → hasCivique,
+     * TCF → hasTcf). Cf. mobile {@code TcfLevelLotsScreen} /
+     * {@code CiviqueThemeDetailScreen} qui appliquent le meme verrou en UI.
      */
     private AttemptResponse startFromLot(User user, StartAttemptRequest req) {
         if (req.type() != AttemptType.TRAINING) {
             throw new BusinessException("Les lots sont reserves au type TRAINING.");
         }
-        if (!subscriptionService.isPremium(user.getId())) {
-            throw new AccessDeniedException("Les lots cibles sont reserves aux abonnes.");
+        // Lot 1 = gratuit pour tous (decouverte du sous-module). Lot 2+ →
+        // check premium ciblé sur le module.
+        if (req.lotNumero() != null && req.lotNumero() > 1) {
+            final UUID uid = user.getId();
+            final boolean hasAccess = switch (req.module()) {
+                case CIVIQUE -> subscriptionService.hasCivique(uid);
+                case TCF -> subscriptionService.hasTcf(uid);
+            };
+            if (!hasAccess) {
+                throw new AccessDeniedException(
+                        "Les lots au-delà du premier sont reserves aux abonnes du module.");
+            }
         }
         if (req.module() == Module.CIVIQUE) {
             return startCiviqueLot(user, req);

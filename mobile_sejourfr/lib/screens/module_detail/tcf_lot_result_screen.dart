@@ -9,8 +9,7 @@ import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 
-final _attemptProvider =
-    FutureProvider.autoDispose.family<Attempt, String>((ref, attemptId) {
+final _attemptProvider = FutureProvider.autoDispose.family<Attempt, String>((ref, attemptId) {
   return ref.watch(attemptsRepositoryProvider).getById(attemptId);
 });
 
@@ -55,9 +54,7 @@ class TcfLotResultScreen extends ConsumerWidget {
         return;
       }
       context.go(
-        AppRoutes.tcfLevelLots
-            .replaceFirst(':moduleKey', moduleKey)
-            .replaceFirst(':level', level),
+        AppRoutes.tcfLevelLots.replaceFirst(':moduleKey', moduleKey).replaceFirst(':level', level),
       );
     }
 
@@ -138,12 +135,6 @@ class TcfLotResultScreen extends ConsumerWidget {
                 _AdviceCard(
                   percent: percent,
                   level: levelLabel,
-                ),
-                const SizedBox(height: 22),
-                AppButton(
-                  label: 'Voir mes erreurs',
-                  icon: Icons.flag_outlined,
-                  onPressed: () => context.push(AppRoutes.review),
                 ),
                 const SizedBox(height: 10),
                 AppButton(
