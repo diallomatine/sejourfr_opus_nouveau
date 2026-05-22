@@ -258,9 +258,7 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
     // Stats user spécifiques à CE module (filtrées par themeId — pas
     // l'agrégat global TCF qui mélangerait CO/CE/Structure).
     final themeStats = statsAsync.maybeWhen(
-      data: (s) => theme == null
-          ? null
-          : s.byTheme.where((t) => t.themeId == theme.id).firstOrNull,
+      data: (s) => theme == null ? null : s.byTheme.where((t) => t.themeId == theme.id).firstOrNull,
       orElse: () => null,
     );
     final answered = themeStats?.answered ?? 0;

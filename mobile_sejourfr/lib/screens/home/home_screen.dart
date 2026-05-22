@@ -21,6 +21,42 @@ final _tcfStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
   return ref.watch(userContentRepositoryProvider).stats(module: AppModule.tcf);
 });
 
+/// Snapshot agrégé d'un module pour la card du home : couverture +
+/// précision globales. Calculées depuis `byTheme` (somme answered, correct,
+/// total) — même logique que les hubs et l'écran Progression pour rester
+/// cohérent sur les 3 surfaces.
+class _ModuleProgress {
+  const _ModuleProgress({
+    required this.answered,
+    required this.correct,
+    required this.total,
+    required this.sessions,
+  });
+
+  final int answered;
+  final int correct;
+  final int total;
+  final int sessions;
+
+  bool get isStarted => answered > 0;
+
+  double get coverage => total == 0 ? 0.0 : (answered / total).clamp(0.0, 1.0);
+
+  int get precisionPct => answered == 0 ? 0 : (correct / answered * 100).round();
+
+  static _ModuleProgress fromStats(UserStats s) {
+    final answered = s.byTheme.fold<int>(0, (sum, t) => sum + t.answered);
+    final correct = s.byTheme.fold<int>(0, (sum, t) => sum + t.correct);
+    final total = s.byTheme.fold<int>(0, (sum, t) => sum + t.total);
+    return _ModuleProgress(
+      answered: answered,
+      correct: correct,
+      total: total,
+      sessions: s.attemptsTotal,
+    );
+  }
+}
+
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -37,6 +73,16 @@ class HomeScreen extends ConsumerWidget {
     }
 
     final tcfIsDemo = user != null && !user.canAccessModule(AppModule.tcf);
+
+    // Compteur global "X vues" rendu en chip top-right du card bleu. Somme
+    // des answered des 2 modules (même grammaire que les hubs). null tant
+    // qu'au moins un des deux stats charge encore → on attend pour ne pas
+    // afficher un sous-total trompeur, et le chip ne paraît pas si le user
+    // n'a encore rien vu (évite "0 vues" déprimant à l'onboarding).
+    final int? viewedCount = (civiqueStats.valueOrNull != null && tcfStats.valueOrNull != null)
+        ? civiqueStats.value!.byTheme.fold<int>(0, (sum, t) => sum + t.answered) +
+            tcfStats.value!.byTheme.fold<int>(0, (sum, t) => sum + t.answered)
+        : null;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -56,12 +102,9 @@ class HomeScreen extends ConsumerWidget {
             children: [
               _Header(user: user),
               const SizedBox(height: 22),
-              _StreakAndTarget(
-                streakDays: 7, // TODO: brancher sur backend
+              _HeroParcoursCard(
                 target: user?.targetProcedure,
-                onEditTarget: () => context.push(
-                  '${AppRoutes.targetPath}?from=${Uri.encodeComponent(AppRoutes.home)}',
-                ),
+                viewedCount: viewedCount,
               ),
               const SizedBox(height: 24),
               _SectionTitle(
@@ -81,6 +124,13 @@ class HomeScreen extends ConsumerWidget {
                 stats: tcfStats,
                 isDemo: tcfIsDemo,
                 onTap: () => selectAndGo(AppModule.tcf, AppRoutes.tcf),
+              ),
+              const SizedBox(height: 18),
+              _AiHighlightCard(
+                onTap: () {
+                  ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
+                  context.push(AppRoutes.tcfEeDetail);
+                },
               ),
               const SizedBox(height: 26),
               const _SectionTitle(label: 'Raccourcis'),
@@ -255,24 +305,25 @@ class _IconChip extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// STREAK + TARGET (inchangée)
+// HERO PARCOURS — card bleu premium en lecture seule (l'édition de
+// l'objectif vit désormais dans le profil, pas dans le home — le home doit
+// rester un point d'entrée motivant, pas un panneau de réglages).
 // ---------------------------------------------------------------------------
 
-class _StreakAndTarget extends StatelessWidget {
-  const _StreakAndTarget({
-    required this.streakDays,
-    required this.target,
-    required this.onEditTarget,
-  });
+class _HeroParcoursCard extends StatelessWidget {
+  const _HeroParcoursCard({required this.target, required this.viewedCount});
 
-  final int streakDays;
   final TargetProcedure? target;
-  final VoidCallback onEditTarget;
+
+  /// Nombre total de questions vues (civique + tcf). `null` = en cours de
+  /// chargement → on n'affiche pas le chip pour ne pas afficher un sous-
+  /// total. `0` = pas encore commencé → idem, on cache (évite l'effet
+  /// "0 vues" déprimant à l'onboarding).
+  final int? viewedCount;
 
   @override
   Widget build(BuildContext context) {
     final hasTarget = target != null;
-    final hasStreak = streakDays > 0;
 
     return Container(
       decoration: BoxDecoration(
@@ -281,167 +332,184 @@ class _StreakAndTarget extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [AppColors.blue, AppColors.blueDark],
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: AppColors.blue.withValues(alpha: 0.22),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
+            color: AppColors.blue.withValues(alpha: 0.28),
+            blurRadius: 28,
+            offset: const Offset(0, 14),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(22),
         child: Stack(
           children: [
+            // Décors géométriques — cohérence avec les hero des hubs.
             Positioned(
-              top: -30,
-              right: -30,
+              top: -50,
+              right: -40,
               child: Container(
-                width: 120,
-                height: 120,
+                width: 160,
+                height: 160,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.white.withValues(alpha: 0.05),
+                  color: AppColors.white.withValues(alpha: 0.06),
                 ),
               ),
             ),
             Positioned(
-              right: 18,
-              bottom: -18,
+              right: -10,
+              bottom: -30,
               child: Container(
-                width: 60,
-                height: 60,
+                width: 90,
+                height: 90,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: AppColors.red.withValues(alpha: 0.18),
+                  color: AppColors.red.withValues(alpha: 0.22),
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: AppColors.white.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                        alignment: Alignment.center,
-                        child: hasStreak
-                            ? Text(
-                                '$streakDays',
-                                style: AppFonts.fraunces(
-                                  size: 20,
-                                  weight: FontWeight.w700,
-                                  color: AppColors.white,
-                                  height: 1.0,
-                                ),
-                              )
-                            : const Icon(
-                                Icons.local_fire_department_rounded,
-                                size: 22,
-                                color: Colors.white,
-                              ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'SÉRIE EN COURS',
-                              style: AppFonts.mono(
-                                size: 9.5,
-                                color: AppColors.white.withValues(alpha: 0.65),
-                                letterSpacing: 1.8,
-                                weight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              hasStreak
-                                  ? '$streakDays ${streakDays == 1 ? "jour" : "jours"} d\'affilée'
-                                  : 'Commencez votre série',
-                              style: AppFonts.jakarta(
-                                size: 16,
-                                weight: FontWeight.w700,
-                                color: AppColors.white,
-                              ).copyWith(letterSpacing: -0.2),
-                            ),
-                          ],
+                      Text(
+                        'TON PARCOURS',
+                        style: AppFonts.mono(
+                          size: 10,
+                          color: AppColors.white.withValues(alpha: 0.7),
+                          letterSpacing: 1.8,
+                          weight: FontWeight.w600,
                         ),
                       ),
+                      const Spacer(),
+                      if (viewedCount != null && viewedCount! > 0) _ViewedChip(count: viewedCount!),
                     ],
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Container(
-                      height: 1,
-                      color: AppColors.white.withValues(alpha: 0.12),
+                  const SizedBox(height: 14),
+                  if (hasTarget) ...[
+                    Text(
+                      target!.shortLabel,
+                      style: AppFonts.jakarta(
+                        size: 22,
+                        weight: FontWeight.w800,
+                        color: AppColors.white,
+                        height: 1.15,
+                      ).copyWith(letterSpacing: -0.4),
                     ),
-                  ),
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(8),
-                      onTap: onEditTarget,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          children: [
-                            Icon(
-                              hasTarget ? Icons.flag_rounded : Icons.flag_outlined,
-                              size: 15,
-                              color: AppColors.white.withValues(alpha: 0.85),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.white.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Text(
+                            'TCF ${target!.tcfLevel}',
+                            style: AppFonts.mono(
+                              size: 10,
+                              color: AppColors.white,
+                              letterSpacing: 1.4,
+                              weight: FontWeight.w700,
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: RichText(
-                                text: TextSpan(
-                                  style: AppFonts.jakarta(
-                                    size: 12.5,
-                                    color: AppColors.white.withValues(alpha: 0.85),
-                                  ),
-                                  children: [
-                                    TextSpan(
-                                      text: hasTarget ? 'Objectif : ' : 'Définir mon objectif',
-                                    ),
-                                    if (hasTarget)
-                                      TextSpan(
-                                        text: '${target!.shortLabel} · TCF ${target!.tcfLevel}',
-                                        style: AppFonts.jakarta(
-                                          size: 12.5,
-                                          weight: FontWeight.w700,
-                                          color: AppColors.white,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Icon(
-                              hasTarget ? Icons.edit_outlined : Icons.arrow_forward_rounded,
-                              size: 14,
-                              color: AppColors.white.withValues(alpha: 0.7),
-                            ),
-                          ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            _parcoursPitch(target!),
+                            style: AppFonts.jakarta(
+                              size: 12.5,
+                              color: AppColors.white.withValues(alpha: 0.85),
+                              height: 1.35,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    Text(
+                      'Choisis ton parcours',
+                      style: AppFonts.jakarta(
+                        size: 22,
+                        weight: FontWeight.w800,
+                        color: AppColors.white,
+                      ).copyWith(letterSpacing: -0.4),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'CSP · CR · NAT — définis ta cible depuis ton profil pour personnaliser tes entraînements.',
+                      style: AppFonts.jakarta(
+                        size: 12.5,
+                        color: AppColors.white.withValues(alpha: 0.85),
+                        height: 1.4,
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  String _parcoursPitch(TargetProcedure t) {
+    switch (t) {
+      case TargetProcedure.csp:
+        return 'Titre de séjour — niveau A2 visé.';
+      case TargetProcedure.cr:
+        return 'Carte de résident — niveau B1 visé.';
+      case TargetProcedure.nat:
+        return 'Naturalisation — niveau B2 visé.';
+    }
+  }
+}
+
+/// Chip top-right du card bleu : compteur global de questions vues (civique
+/// + tcf agrégés). Donnée 100 % réelle (somme `byTheme.answered`), pas de
+/// fake number. Pluriel à 2+, masqué à 0 (cf. param `viewedCount`).
+class _ViewedChip extends StatelessWidget {
+  const _ViewedChip({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = count > 1 ? '$count vues' : '$count vue';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.check_circle_rounded,
+            size: 13,
+            color: AppColors.white.withValues(alpha: 0.95),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: AppFonts.jakarta(
+              size: 12,
+              weight: FontWeight.w800,
+              color: AppColors.white,
+            ).copyWith(letterSpacing: -0.1),
+          ),
+        ],
       ),
     );
   }
@@ -524,6 +592,11 @@ class _ModuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final progress = stats.maybeWhen(
+      data: _ModuleProgress.fromStats,
+      orElse: () => null,
+    );
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -554,78 +627,95 @@ class _ModuleCard extends StatelessWidget {
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Icône
-                      Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: _accentLight,
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                        alignment: Alignment.center,
-                        child: Icon(_icon, size: 22, color: _accent),
-                      ),
-                      const SizedBox(width: 14),
-                      // Titre + meta + niveaux
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Row(
+                      Row(
+                        children: [
+                          // Icône
+                          Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                              color: _accentLight,
+                              borderRadius: BorderRadius.circular(13),
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(_icon, size: 22, color: _accent),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Flexible(
-                                  child: Text(
-                                    _title,
-                                    style: AppFonts.jakarta(
-                                      size: 15.5,
-                                      weight: FontWeight.w800,
-                                      color: AppColors.ink,
-                                    ).copyWith(letterSpacing: -0.2),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                if (isDemo) ...[
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.amber.withValues(alpha: 0.16),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      'DÉMO',
-                                      style: AppFonts.mono(
-                                        size: 8.5,
-                                        color: AppColors.amber,
-                                        letterSpacing: 1.2,
-                                        weight: FontWeight.w700,
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        _title,
+                                        style: AppFonts.jakarta(
+                                          size: 15.5,
+                                          weight: FontWeight.w800,
+                                          color: AppColors.ink,
+                                        ).copyWith(letterSpacing: -0.2),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
+                                    if (isDemo) ...[
+                                      const SizedBox(width: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.amber.withValues(alpha: 0.16),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          'DÉMO',
+                                          style: AppFonts.mono(
+                                            size: 8.5,
+                                            color: AppColors.amber,
+                                            letterSpacing: 1.2,
+                                            weight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _subtitle,
+                                  style: AppFonts.mono(
+                                    size: 10,
+                                    color: AppColors.muted,
+                                    letterSpacing: 1.4,
+                                    weight: FontWeight.w600,
                                   ),
-                                ],
+                                ),
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            _ModuleMeta(
-                              stats: stats,
-                              fallback: _subtitle,
-                              accent: _accent,
-                            ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: _accent,
+                            size: 22,
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        color: _accent,
-                        size: 22,
+                      // Barre de couverture + label si le user a déjà touché
+                      // au module. Sinon état "Pas encore commencé" pour
+                      // inviter à démarrer. Aligné avec les hubs et l'écran
+                      // Progression : `answered/total` du pool.
+                      const SizedBox(height: 12),
+                      _ModuleProgressStrip(
+                        progress: progress,
+                        accent: _accent,
                       ),
                     ],
                   ),
@@ -639,88 +729,211 @@ class _ModuleCard extends StatelessWidget {
   }
 }
 
-class _ModuleMeta extends StatelessWidget {
-  const _ModuleMeta({
-    required this.stats,
-    required this.fallback,
-    required this.accent,
-  });
+/// Mini barre couverture + label "X/Y vues · Z% justes" sous la card
+/// module. Quand le user n'a pas encore touché au module, affichage
+/// "Pas encore commencé — appuie pour démarrer".
+class _ModuleProgressStrip extends StatelessWidget {
+  const _ModuleProgressStrip({required this.progress, required this.accent});
 
-  final AsyncValue<UserStats> stats;
-  final String fallback;
+  final _ModuleProgress? progress;
   final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    return stats.when(
-      loading: () => Text(
-        fallback,
-        style: AppFonts.mono(
-          size: 10,
-          color: AppColors.muted,
-          letterSpacing: 1.4,
-          weight: FontWeight.w600,
-        ),
-      ),
-      error: (_, __) => Text(
-        fallback,
-        style: AppFonts.mono(
-          size: 10,
-          color: AppColors.muted,
-          letterSpacing: 1.4,
-          weight: FontWeight.w600,
-        ),
-      ),
-      data: (s) {
-        if (s.attemptsTotal == 0) {
-          // Pas encore commencé : montre les niveaux
-          return Text(
-            fallback,
-            style: AppFonts.mono(
-              size: 10,
-              color: AppColors.muted,
-              letterSpacing: 1.4,
-              weight: FontWeight.w600,
+    final p = progress;
+    if (p == null || !p.isStarted) {
+      return Row(
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: AppColors.muted2,
+              shape: BoxShape.circle,
             ),
-          );
-        }
-        // En cours : montre les stats
-        // Score de maîtrise (questions distinctes réussies / total du pool) —
-        // cohérent avec l'onglet Progression et la carte SCORE GLOBAL.
-        final correct = s.byTheme.fold<int>(0, (sum, t) => sum + t.correct);
-        final total = s.byTheme.fold<int>(0, (sum, t) => sum + t.total);
-        final percent = total == 0 ? 0 : ((correct / total) * 100).round();
-        return RichText(
-          text: TextSpan(
+          ),
+          const SizedBox(width: 8),
+          Text(
+            p == null ? 'Chargement…' : 'Pas encore commencé · appuie pour démarrer',
             style: AppFonts.jakarta(
-              size: 12.5,
+              size: 11.5,
               color: AppColors.muted,
             ),
-            children: [
-              TextSpan(
-                text: '$percent% ',
-                style: AppFonts.jakarta(
-                  size: 12.5,
+          ),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Barre 4px, accent module.
+        Stack(
+          children: [
+            Container(
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.line2,
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+            FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: p.coverage.clamp(0.02, 1.0),
+              child: Container(
+                height: 4,
+                decoration: BoxDecoration(
                   color: accent,
-                  weight: FontWeight.w800,
+                  borderRadius: BorderRadius.circular(99),
                 ),
               ),
-              const TextSpan(text: 'de maîtrise · '),
-              TextSpan(
-                text: '${s.attemptsTotal}',
-                style: AppFonts.jakarta(
-                  size: 12.5,
-                  color: AppColors.ink,
-                  weight: FontWeight.w700,
-                ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '${p.answered}/${p.total} vues · ${p.precisionPct} % justes',
+          style: AppFonts.jakarta(
+            size: 11.5,
+            color: AppColors.muted,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// AI HIGHLIGHT CARD — met en valeur le différenciateur produit : l'éval IA
+// pour Expression écrite + Expression orale. Card éditoriale premium.
+// ---------------------------------------------------------------------------
+
+class _AiHighlightCard extends StatelessWidget {
+  const _AiHighlightCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.blue,
+                AppColors.blue.withValues(alpha: 0.94),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.ink.withValues(alpha: 0.22),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
               ),
-              TextSpan(text: ' session${s.attemptsTotal > 1 ? "s" : ""}'),
             ],
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        );
-      },
+          child: Row(
+            children: [
+              // Pastille IA — design distinct, animation visuelle légère via
+              // un dégradé bleu / violet pour l'isoler des modules.
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.red.withValues(alpha: 0.9),
+                      AppColors.red.withValues(alpha: 0.55),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 22,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'CORRECTION IA',
+                          style: AppFonts.mono(
+                            size: 9.5,
+                            color: AppColors.white.withValues(alpha: 0.65),
+                            letterSpacing: 1.8,
+                            weight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.red.withValues(alpha: 0.22),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'NOUVEAU',
+                            style: AppFonts.mono(
+                              size: 8.5,
+                              color: AppColors.white,
+                              letterSpacing: 1.2,
+                              weight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Correction IA instantanée',
+                      style: AppFonts.jakarta(
+                        size: 14.5,
+                        weight: FontWeight.w800,
+                        color: AppColors.white,
+                      ).copyWith(letterSpacing: -0.2),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'EE & EO corrigées par IA — niveau CECRL, '
+                      'points forts, axes à travailler.',
+                      style: AppFonts.jakarta(
+                        size: 11.5,
+                        color: AppColors.white.withValues(alpha: 0.72),
+                        height: 1.35,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.white.withValues(alpha: 0.7),
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
