@@ -24,10 +24,25 @@ public class ContactService {
     public void submit(ContactRequest req) {
         log.info("Contact form submission from {} : '{}'", req.email(), req.subject());
         mailService.sendContactMessage(
-                req.name().trim(),
+                sanitizeHeader(req.name().trim()),
                 req.email().trim().toLowerCase(),
-                req.subject().trim(),
+                sanitizeHeader(req.subject().trim()),
                 req.message().trim()
         );
+    }
+
+    /**
+     * Défense en profondeur contre l'injection de headers SMTP : on retire
+     * tout CR/LF d'une valeur user-controlled susceptible de finir dans un
+     * header de mail (sujet, display name d'un Reply-To, etc.).
+     *
+     * <p>Jakarta Mail encode normalement les headers, mais ne stripe pas
+     * activement les CR/LF — si un futur changement déplace `subject` ou
+     * `name` vers un header brut, on évite la classe de bug "BCC silencieux
+     * via Subject: foo\r\nBcc: victim@x.com". Le `message` reste libre
+     * (corps du mail, pas un header).
+     */
+    private static String sanitizeHeader(String value) {
+        return value.replace("\r", " ").replace("\n", " ");
     }
 }
