@@ -37,21 +37,21 @@ class _LevelMeta {
 
 const _levelMetas = <Difficulty, _LevelMeta>{
   Difficulty.a2: _LevelMeta(
-    label: 'Niveau A2',
+    label: 'Niveau débutant',
     subtitle: 'Bases — phrases simples et situations courantes.',
     accent: AppColors.green,
     accentDark: Color(0xFF0E6D43),
     indicativeLotSize: 15,
   ),
   Difficulty.b1: _LevelMeta(
-    label: 'Niveau B1',
+    label: 'Niveau intermédiaire',
     subtitle: 'Intermédiaire — situations du quotidien étendues.',
     accent: AppColors.amber,
     accentDark: Color(0xFFB47A0E),
     indicativeLotSize: 20,
   ),
   Difficulty.b2: _LevelMeta(
-    label: 'Niveau B2',
+    label: 'Niveau avancée',
     subtitle: 'Challenge — textes longs et argumentation.',
     accent: AppColors.red,
     accentDark: AppColors.redDark,
@@ -73,8 +73,7 @@ class TcfLevelLotsScreen extends ConsumerStatefulWidget {
   final Difficulty level;
 
   @override
-  ConsumerState<TcfLevelLotsScreen> createState() =>
-      _TcfLevelLotsScreenState();
+  ConsumerState<TcfLevelLotsScreen> createState() => _TcfLevelLotsScreenState();
 }
 
 class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
@@ -157,9 +156,7 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
                     if (context.canPop()) {
                       context.pop();
                     } else {
-                      final fallback = mod == TcfQcmModule.ce
-                          ? AppRoutes.tcfCeDetail
-                          : AppRoutes.tcfCoDetail;
+                      final fallback = mod == TcfQcmModule.ce ? AppRoutes.tcfCeDetail : AppRoutes.tcfCoDetail;
                       context.go(fallback);
                     }
                   },
@@ -227,9 +224,8 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
                                 : '${lot.totalQuestions} questions · ${meta.label.toLowerCase()}',
                             accent: meta.accent,
                             locked: !isPremium,
-                            scoreBadge: lot.lastScore == null
-                                ? null
-                                : '${lot.lastScore}/${lot.totalQuestions}',
+                            scoreBadge:
+                                lot.lastScore == null ? null : '${lot.lastScore}/${lot.totalQuestions}',
                             scoreColor: _colorForScore(lot),
                             onTap: () => _startLot(lot),
                           ),

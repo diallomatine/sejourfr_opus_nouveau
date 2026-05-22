@@ -28,8 +28,7 @@ enum TcfQcmModule {
     eyebrow: 'Module TCF',
     title: 'Compréhension orale',
     headline: '25 questions audio',
-    description:
-        'Écoute des dialogues courts, annonces ou messages, puis choisis la bonne réponse.',
+    description: 'Écoute des dialogues courts, annonces ou messages, puis choisis la bonne réponse.',
     icon: Icons.headphones_rounded,
     durationLabel: '≈ 20 min',
   ),
@@ -39,8 +38,7 @@ enum TcfQcmModule {
     eyebrow: 'Module TCF',
     title: 'Compréhension écrite',
     headline: '25 questions sur textes courts',
-    description:
-        'Affiches, articles, courriels, structure de la langue — lis et identifie la bonne réponse.',
+    description: 'Affiches, articles, courriels, structure de la langue — lis et identifie la bonne réponse.',
     icon: Icons.menu_book_rounded,
     durationLabel: '≈ 35 min',
   );
@@ -72,8 +70,8 @@ final _tcfStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
 
 /// Historique des examens module (CO ou CE) du user. Family indexée par
 /// QuestionType pour distinguer les deux épreuves.
-final _moduleExamsHistoryProvider = FutureProvider.autoDispose
-    .family<List<AttemptSummary>, QuestionType>((ref, questionType) {
+final _moduleExamsHistoryProvider =
+    FutureProvider.autoDispose.family<List<AttemptSummary>, QuestionType>((ref, questionType) {
   return ref.watch(attemptsRepositoryProvider).listMine(
         type: AttemptType.mockExam,
         module: AppModule.tcf,
@@ -84,8 +82,8 @@ final _moduleExamsHistoryProvider = FutureProvider.autoDispose
 
 /// Questions ratées de l'utilisateur sur une épreuve (CO ou CE). Family
 /// indexée par QuestionType.
-final _wrongQuestionsProvider = FutureProvider.autoDispose
-    .family<List<QuestionDto>, QuestionType>((ref, questionType) {
+final _wrongQuestionsProvider =
+    FutureProvider.autoDispose.family<List<QuestionDto>, QuestionType>((ref, questionType) {
   return ref.watch(userContentRepositoryProvider).wrongAnswered(
         module: AppModule.tcf,
         questionType: questionType,
@@ -116,7 +114,7 @@ class _SeriesLevel {
 const _seriesLevels = <_SeriesLevel>[
   _SeriesLevel(
     difficulty: Difficulty.a2,
-    label: 'Niveau A2',
+    label: 'Niveau débutant',
     subtitle: 'Bases — 15 questions par lot',
     lotSize: 15,
     accent: AppColors.green,
@@ -124,7 +122,7 @@ const _seriesLevels = <_SeriesLevel>[
   ),
   _SeriesLevel(
     difficulty: Difficulty.b1,
-    label: 'Niveau B1',
+    label: 'Niveau intermédiaire',
     subtitle: 'Intermédiaire — 20 questions par lot',
     lotSize: 20,
     accent: AppColors.amber,
@@ -132,7 +130,7 @@ const _seriesLevels = <_SeriesLevel>[
   ),
   _SeriesLevel(
     difficulty: Difficulty.b2,
-    label: 'Niveau B2',
+    label: 'Niveau avancée',
     subtitle: 'Challenge — 25 questions par lot',
     lotSize: 25,
     accent: AppColors.red,
@@ -146,8 +144,7 @@ class TcfQcmDetailScreen extends ConsumerStatefulWidget {
   final TcfQcmModule module;
 
   @override
-  ConsumerState<TcfQcmDetailScreen> createState() =>
-      _TcfQcmDetailScreenState();
+  ConsumerState<TcfQcmDetailScreen> createState() => _TcfQcmDetailScreenState();
 }
 
 class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
@@ -235,9 +232,7 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
     );
 
     final auth = ref.watch(authControllerProvider);
-    final target = auth is AuthAuthenticated
-        ? auth.user.targetProcedure?.tcfLevel
-        : null;
+    final target = auth is AuthAuthenticated ? auth.user.targetProcedure?.tcfLevel : null;
     final niveauLabel = target == null ? 'A2-B2' : 'Cible $target';
 
     return Scaffold(
@@ -281,8 +276,7 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
                 ModuleDetailTabs(
                   labels: const ['Séries', 'Examens', 'Erreurs'],
                   activeIndex: _tab.index,
-                  onChanged: (i) =>
-                      setState(() => _tab = _DetailTab.values[i]),
+                  onChanged: (i) => setState(() => _tab = _DetailTab.values[i]),
                   accent: AppColors.red,
                 ),
                 const SizedBox(height: 14),
@@ -336,8 +330,7 @@ class _TabContent extends StatelessWidget {
       case _DetailTab.series:
         return Column(
           children: [
-            for (final level in _seriesLevels)
-              _LevelCard(level: level, onTap: () => onLevelTap(level)),
+            for (final level in _seriesLevels) _LevelCard(level: level, onTap: () => onLevelTap(level)),
           ],
         );
       case _DetailTab.exams:
@@ -467,8 +460,7 @@ class _ExamsTab extends ConsumerWidget {
                     slot: i + 1,
                     attempt: i < finished.length ? finished[i] : null,
                     onTapEmpty: starting ? null : onStartExam,
-                    onTapDone: (attempt) =>
-                        _showExamSheet(context, attempt, onStartExam),
+                    onTapDone: (attempt) => _showExamSheet(context, attempt, onStartExam),
                   ),
               ],
             );
@@ -579,9 +571,7 @@ class _ExamSlotCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          done
-                              ? _formatDoneSubtitle(attempt!)
-                              : 'Disponible · 25 questions',
+                          done ? _formatDoneSubtitle(attempt!) : 'Disponible · 25 questions',
                           style: AppFonts.jakarta(
                             size: 12,
                             color: AppColors.muted,
@@ -636,8 +626,18 @@ class _ExamSlotCard extends StatelessWidget {
 
   String _formatDoneSubtitle(AttemptSummary a) {
     const months = [
-      'janv.', 'févr.', 'mars', 'avril', 'mai', 'juin',
-      'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+      'janv.',
+      'févr.',
+      'mars',
+      'avril',
+      'mai',
+      'juin',
+      'juil.',
+      'août',
+      'sept.',
+      'oct.',
+      'nov.',
+      'déc.',
     ];
     final d = a.finishedAt!;
     return '${d.day} ${months[d.month - 1]} ${d.year} · ${a.score ?? 0}/${a.totalQuestions}';
@@ -913,9 +913,7 @@ class _WrongQuestionCard extends ConsumerWidget {
     // d'ouvrir le sheet partagé.
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final detailed = await ref
-          .read(userContentRepositoryProvider)
-          .reviewQuestion(question.id);
+      final detailed = await ref.read(userContentRepositoryProvider).reviewQuestion(question.id);
       if (!context.mounted) return;
       showQuestionDetailSheet(context, question: detailed);
     } catch (e) {
