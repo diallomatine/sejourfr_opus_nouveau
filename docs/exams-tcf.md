@@ -1,7 +1,13 @@
 # Examens TCF — module et blanc complet
 
-Deux variantes coexistent : **examen module** (CO ou CE seul, sous-set de `MOCK_EXAM`) et
-**examen blanc complet** (les 4 épreuves enchaînées sous un parent `TCF_COMPLET`).
+Deux variantes coexistent : **examen module** (CO, CE ou STRUCTURE seul, sous-set de
+`MOCK_EXAM`) et **examen blanc complet** (les 4 épreuves IRN enchaînées sous un parent
+`TCF_COMPLET`).
+
+> **STRUCTURE** est un module bonus exposé côté mobile (hors TCF IRN officiel). Les
+> examens module sur STRUCTURE fonctionnent comme CO/CE (25 Q, 20 min, score pondéré
+> A2/B1/B2 sur /50) mais ne sont jamais inclus comme sous-attempt d'un examen blanc
+> complet — la validation de `startModuleExamSubAttempt` reste restreinte à CO/CE.
 
 ---
 
@@ -25,7 +31,8 @@ Migration `V098__attempts_module_exam_columns.sql` ajoute :
 
 ### Chrono
 
-20 min CO / 35 min CE (constantes `MODULE_EXAM_CO_SECONDS` / `MODULE_EXAM_CE_SECONDS`).
+20 min CO / 35 min CE / 20 min STRUCTURE (constantes `MODULE_EXAM_CO_SECONDS` /
+`MODULE_EXAM_CE_SECONDS` / `MODULE_EXAM_STRUCTURE_SECONDS`).
 
 ### Score pondéré
 
@@ -34,12 +41,12 @@ A2=1, B1=2, B2=3 → max 50 pts pour la répartition 8/9/8. Calculé à la final
 
 ### Endpoints
 
-- `POST /api/attempts {type:MOCK_EXAM, module:TCF, moduleExamQuestionType:CO|CE}` →
-  `AttemptService.startModuleExam` (premium TCF requis)
-- `GET /api/me/attempts?type=MOCK_EXAM&module=TCF&moduleExamQuestionType=CO|CE` →
-  historique des examens passés/en cours du user
-- `GET /api/me/questions/wrong?module=TCF&questionType=CO|CE` → questions ratées filtrées
-  par épreuve (utilisé par l'onglet Erreurs)
+- `POST /api/attempts {type:MOCK_EXAM, module:TCF, moduleExamQuestionType:CO|CE|STRUCTURE}`
+  → `AttemptService.startModuleExam` (premium TCF requis)
+- `GET /api/me/attempts?type=MOCK_EXAM&module=TCF&moduleExamQuestionType=CO|CE|STRUCTURE`
+  → historique des examens passés/en cours du user
+- `GET /api/me/questions/wrong?module=TCF&questionType=CO|CE|STRUCTURE` → questions ratées
+  filtrées par épreuve (utilisé par l'onglet Erreurs)
 
 `AttemptSummaryResponse` (et son miroir Dart `AttemptSummary`) exposent
 `moduleExamQuestionType`, `weightedScore`, `maxWeightedScore` (null pour les autres

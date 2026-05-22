@@ -123,6 +123,18 @@ class TcfScreen extends ConsumerWidget {
                 aiTag: true,
                 onTap: () => openDetail(AppRoutes.tcfEoDetail),
               ),
+              // Module bonus : grammaire / lexique. Pas dans le TCF IRN
+              // officiel, mais utile en entraînement de fond. Bannière
+              // d'info rendue dans le détail via `TcfQcmModule.structure.notice`.
+              HubModuleCard(
+                icon: Icons.spellcheck_rounded,
+                iconColor: AppColors.ink2,
+                iconBg: AppColors.line2,
+                title: 'Structure de la langue',
+                description: 'Grammaire et lexique — non évalué au TCF IRN',
+                meta: 'ENTRAÎNEMENT BONUS · ≈ 20 MIN',
+                onTap: () => openDetail(AppRoutes.tcfStructureDetail),
+              ),
               const SizedBox(height: 8),
               HubExamCard(
                 title: 'Examen blanc complet',

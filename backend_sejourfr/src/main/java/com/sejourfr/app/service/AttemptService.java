@@ -89,6 +89,7 @@ public class AttemptService {
     // 30 min pour tenir dans l'enveloppe globale de 90 min.
     private static final int MODULE_EXAM_CO_SECONDS = 20 * 60;
     private static final int MODULE_EXAM_CE_SECONDS = 35 * 60;
+    private static final int MODULE_EXAM_STRUCTURE_SECONDS = 20 * 60;
     private static final int FULL_EXAM_CE_SECONDS = 30 * 60;
 
     // Pondération du score par niveau (A2=1, B1=2, B2=3) — applique à la finalisation
@@ -131,7 +132,7 @@ public class AttemptService {
         }
 
         // Branche examen module : si moduleExamQuestionType est fourni, on tire
-        // 8 A2 + 9 B1 + 8 B2 progressif dans l'epreuve concernee (CO ou CE).
+        // 8 A2 + 9 B1 + 8 B2 progressif dans l'epreuve concernee (CO, CE ou STRUCTURE).
         if (req.moduleExamQuestionType() != null) {
             return startModuleExam(user, req);
         }
@@ -462,11 +463,16 @@ public class AttemptService {
     }
 
     /**
-     * Demarre un examen blanc scope a une epreuve TCF QCM (CO ou CE).
-     * Composition : 8 A2 + 9 B1 + 8 B2 progressifs (constantes MODULE_EXAM_*),
-     * tire aleatoirement dans le pool filtre par module + questionType. Si
-     * une strate est trop petite, on complete avec les niveaux voisins pour
-     * atteindre 25 questions au total (fallback).
+     * Demarre un examen blanc scope a une epreuve TCF QCM (CO, CE ou
+     * STRUCTURE). Composition : 8 A2 + 9 B1 + 8 B2 progressifs (constantes
+     * MODULE_EXAM_*), tire aleatoirement dans le pool filtre par module +
+     * questionType. Si une strate est trop petite, on complete avec les
+     * niveaux voisins pour atteindre 25 questions au total (fallback).
+     *
+     * <p>STRUCTURE est un module bonus (hors TCF IRN officiel), inclus ici
+     * pour exposer la meme experience d'examen blanc que CO/CE cote mobile.
+     * Duree : 20 min (alignee sur CO). N'apparait jamais en sous-attempt
+     * d'un examen blanc complet TCF_COMPLET — cf. {@link #startModuleExamSubAttempt}.
      *
      * <p>Reserve aux comptes premium TCF. Sur 403 le front affiche le paywall.
      */
@@ -478,8 +484,8 @@ public class AttemptService {
             throw new BusinessException("Les examens module sont reserves au module TCF.");
         }
         QuestionType qType = req.moduleExamQuestionType();
-        if (qType != QuestionType.CO && qType != QuestionType.CE) {
-            throw new BusinessException("moduleExamQuestionType doit etre CO ou CE.");
+        if (qType != QuestionType.CO && qType != QuestionType.CE && qType != QuestionType.STRUCTURE) {
+            throw new BusinessException("moduleExamQuestionType doit etre CO, CE ou STRUCTURE.");
         }
         if (!subscriptionService.isPremium(user.getId())) {
             throw new AccessDeniedException("Les examens module sont reserves aux abonnes.");
@@ -490,7 +496,12 @@ public class AttemptService {
             throw new BusinessException("Aucune question disponible pour cet examen module.");
         }
 
-        int timeLimit = qType == QuestionType.CO ? MODULE_EXAM_CO_SECONDS : MODULE_EXAM_CE_SECONDS;
+        int timeLimit = switch (qType) {
+            case CO -> MODULE_EXAM_CO_SECONDS;
+            case CE -> MODULE_EXAM_CE_SECONDS;
+            case STRUCTURE -> MODULE_EXAM_STRUCTURE_SECONDS;
+            default -> throw new BusinessException("qType non supporte pour examen module : " + qType);
+        };
 
         Attempt attempt = new Attempt();
         attempt.setUser(user);

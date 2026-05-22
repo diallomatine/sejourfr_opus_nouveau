@@ -156,7 +156,11 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
                     if (context.canPop()) {
                       context.pop();
                     } else {
-                      final fallback = mod == TcfQcmModule.ce ? AppRoutes.tcfCeDetail : AppRoutes.tcfCoDetail;
+                      final fallback = switch (mod) {
+                        TcfQcmModule.ce => AppRoutes.tcfCeDetail,
+                        TcfQcmModule.structure => AppRoutes.tcfStructureDetail,
+                        TcfQcmModule.co => AppRoutes.tcfCoDetail,
+                      };
                       context.go(fallback);
                     }
                   },

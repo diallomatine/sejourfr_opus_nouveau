@@ -87,28 +87,7 @@ class _ModuleExamBriefingSheetState
   @override
   Widget build(BuildContext context) {
     final mod = widget.module;
-    final isCo = mod.questionType == QuestionType.co;
-    final durationLabel = isCo ? '20 min' : '35 min';
-
-    final heroIcon = isCo ? Icons.headphones_rounded : Icons.menu_book_rounded;
-    final heroTitle = isCo ? 'Prêt à écouter ?' : 'Prêt à lire ?';
-    final heroDescription = isCo
-        ? 'Tu vas répondre à 25 questions audio. Chaque document peut être écouté une seule fois, comme en condition d\'examen.'
-        : 'Tu vas répondre à 25 questions sur textes courts. Lis attentivement avant de choisir, comme en condition d\'examen.';
-
-    final consignes = <_ConsigneLine>[
-      _ConsigneLine(
-        label: isCo ? '1 audio par question' : '1 texte par question',
-        icon: isCo ? '🎧' : '📖',
-      ),
-      const _ConsigneLine(label: '4 réponses possibles', icon: 'ABCD'),
-      const _ConsigneLine(label: 'Pas de retour en arrière', icon: '⏭'),
-      const _ConsigneLine(label: 'Correction à la fin', icon: '✅'),
-    ];
-
-    final conseil = isCo
-        ? 'Lis rapidement les réponses avant d\'écouter. Concentre-toi sur l\'idée principale, pas chaque mot.'
-        : 'Repère les mots-clés de la question avant de lire le texte. Une seule réponse est correcte.';
+    final copy = _BriefingCopy.forModule(mod);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.85,
@@ -150,19 +129,23 @@ class _ModuleExamBriefingSheetState
                         ),
                       ),
                       const Spacer(),
-                      _DurationBadge(label: durationLabel),
+                      _DurationBadge(label: copy.durationLabel),
                     ],
                   ),
                   const SizedBox(height: 12),
                   _BriefingHero(
-                    icon: heroIcon,
-                    title: heroTitle,
-                    description: heroDescription,
+                    icon: copy.heroIcon,
+                    title: copy.heroTitle,
+                    description: copy.heroDescription,
                   ),
+                  if (copy.notice != null) ...[
+                    const SizedBox(height: 12),
+                    _NoticeCard(text: copy.notice!),
+                  ],
                   const SizedBox(height: 16),
-                  _ConsignesCard(items: consignes),
+                  _ConsignesCard(items: copy.consignes),
                   const SizedBox(height: 12),
-                  _ConseilCard(text: conseil),
+                  _ConseilCard(text: copy.conseil),
                   const SizedBox(height: 22),
                   AppButton(
                     label: 'Commencer maintenant',
@@ -203,6 +186,152 @@ class _ConsigneLine {
 
   final String label;
   final String icon;
+}
+
+/// Textes du briefing dérivés du module. Centralise les variations entre CO,
+/// CE et STRUCTURE (durée, hero, consignes, conseil) — évite les ternaires
+/// imbriqués dans `build()`. `notice` est non-null uniquement pour STRUCTURE
+/// (rappel : module hors TCF IRN).
+class _BriefingCopy {
+  const _BriefingCopy({
+    required this.durationLabel,
+    required this.heroIcon,
+    required this.heroTitle,
+    required this.heroDescription,
+    required this.consignes,
+    required this.conseil,
+    this.notice,
+  });
+
+  final String durationLabel;
+  final IconData heroIcon;
+  final String heroTitle;
+  final String heroDescription;
+  final List<_ConsigneLine> consignes;
+  final String conseil;
+  final String? notice;
+
+  static _BriefingCopy forModule(TcfQcmModule mod) {
+    switch (mod.questionType) {
+      case QuestionType.co:
+        return const _BriefingCopy(
+          durationLabel: '20 min',
+          heroIcon: Icons.headphones_rounded,
+          heroTitle: 'Prêt à écouter ?',
+          heroDescription:
+              'Tu vas répondre à 25 questions audio. Chaque document peut être écouté une seule fois, comme en condition d\'examen.',
+          consignes: [
+            _ConsigneLine(label: '1 audio par question', icon: '🎧'),
+            _ConsigneLine(label: '4 réponses possibles', icon: 'ABCD'),
+            _ConsigneLine(label: 'Pas de retour en arrière', icon: '⏭'),
+            _ConsigneLine(label: 'Correction à la fin', icon: '✅'),
+          ],
+          conseil:
+              'Lis rapidement les réponses avant d\'écouter. Concentre-toi sur l\'idée principale, pas chaque mot.',
+        );
+      case QuestionType.ce:
+        return const _BriefingCopy(
+          durationLabel: '35 min',
+          heroIcon: Icons.menu_book_rounded,
+          heroTitle: 'Prêt à lire ?',
+          heroDescription:
+              'Tu vas répondre à 25 questions sur textes courts. Lis attentivement avant de choisir, comme en condition d\'examen.',
+          consignes: [
+            _ConsigneLine(label: '1 texte par question', icon: '📖'),
+            _ConsigneLine(label: '4 réponses possibles', icon: 'ABCD'),
+            _ConsigneLine(label: 'Pas de retour en arrière', icon: '⏭'),
+            _ConsigneLine(label: 'Correction à la fin', icon: '✅'),
+          ],
+          conseil:
+              'Repère les mots-clés de la question avant de lire le texte. Une seule réponse est correcte.',
+        );
+      case QuestionType.structure:
+        return const _BriefingCopy(
+          durationLabel: '20 min',
+          heroIcon: Icons.spellcheck_rounded,
+          heroTitle: 'Prêt à analyser ?',
+          heroDescription:
+              'Tu vas répondre à 25 questions de grammaire et de lexique : conjugaison, accords, prépositions, connecteurs.',
+          consignes: [
+            _ConsigneLine(label: '1 phrase à compléter', icon: '✏️'),
+            _ConsigneLine(label: '4 réponses possibles', icon: 'ABCD'),
+            _ConsigneLine(label: 'Pas de retour en arrière', icon: '⏭'),
+            _ConsigneLine(label: 'Correction à la fin', icon: '✅'),
+          ],
+          conseil:
+              'Lis la phrase entière avant de choisir : le bon mot dépend souvent du contexte autour du trou.',
+          notice:
+              'La structure de la langue n\'est pas évaluée au TCF IRN officiel. Cet entraînement reste très utile pour renforcer ta grammaire.',
+        );
+      case QuestionType.connaissance:
+      case QuestionType.miseSituation:
+        // Ces types ne sont pas exposés via le briefing module exam (cf.
+        // validation backend `startModuleExam`). Garde un fallback pour
+        // l'exhaustivité du switch.
+        return const _BriefingCopy(
+          durationLabel: '20 min',
+          heroIcon: Icons.quiz_outlined,
+          heroTitle: 'Prêt à commencer ?',
+          heroDescription: '25 questions à enchaîner sans retour en arrière.',
+          consignes: [
+            _ConsigneLine(label: '4 réponses possibles', icon: 'ABCD'),
+            _ConsigneLine(label: 'Pas de retour en arrière', icon: '⏭'),
+            _ConsigneLine(label: 'Correction à la fin', icon: '✅'),
+          ],
+          conseil: 'Lis chaque question attentivement avant de répondre.',
+        );
+    }
+  }
+}
+
+/// Bandeau d'avertissement rendu sous le hero quand le module n'est pas
+/// officiellement évalué au TCF IRN (cf. STRUCTURE).
+class _NoticeCard extends StatelessWidget {
+  const _NoticeCard({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.blueLight),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.blueLight,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.info_outline_rounded,
+              color: AppColors.blue,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: AppFonts.jakarta(
+                size: 12.5,
+                color: AppColors.ink2,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _BriefingHero extends StatelessWidget {

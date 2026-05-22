@@ -19,8 +19,11 @@ import '../../core/widgets/question_detail_sheet.dart';
 import 'tcf_module_exam_briefing_screen.dart';
 import 'widgets/module_detail_widgets.dart';
 
-/// Identifie le module TCF QCM exposé via `/tcf/co` ou `/tcf/ce`. Restreint
-/// volontairement à CO et CE — EE/EO ont leur propre détail.
+/// Identifie le module TCF QCM exposé via `/tcf/co`, `/tcf/ce` ou
+/// `/tcf/structure`. EE/EO ont leur propre détail.
+///
+/// `structure` porte un `notice` non nul → bannière d'info rendue en haut du
+/// détail pour signaler que ce module ne fait pas partie du TCF IRN officiel.
 enum TcfQcmModule {
   co(
     routeKey: 'co',
@@ -41,6 +44,19 @@ enum TcfQcmModule {
     description: 'Affiches, articles, courriels, structure de la langue — lis et identifie la bonne réponse.',
     icon: Icons.menu_book_rounded,
     durationLabel: '≈ 35 min',
+  ),
+  structure(
+    routeKey: 'structure',
+    questionType: QuestionType.structure,
+    eyebrow: 'Entraînement complémentaire',
+    title: 'Structure de la langue',
+    headline: 'Grammaire et lexique en QCM',
+    description:
+        'Conjugaison, accords, prépositions, connecteurs : choisis la forme correcte parmi les propositions.',
+    icon: Icons.spellcheck_rounded,
+    durationLabel: '≈ 20 min',
+    notice:
+        'Module non évalué dans le TCF IRN officiel. Cet entraînement reste très utile pour consolider ta grammaire et progresser sur les autres épreuves.',
   );
 
   const TcfQcmModule({
@@ -52,6 +68,7 @@ enum TcfQcmModule {
     required this.description,
     required this.icon,
     required this.durationLabel,
+    this.notice,
   });
 
   final String routeKey;
@@ -62,6 +79,11 @@ enum TcfQcmModule {
   final String description;
   final IconData icon;
   final String durationLabel;
+
+  /// Message d'avertissement affiché en haut du détail (juste sous le titre)
+  /// quand ce module n'est pas une épreuve officielle TCF IRN. `null` pour
+  /// CO/CE.
+  final String? notice;
 }
 
 final _tcfStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
@@ -251,6 +273,10 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
                 ),
                 const SizedBox(height: 22),
                 ModuleDetailTitle(eyebrow: mod.eyebrow, title: mod.title),
+                if (mod.notice != null) ...[
+                  const SizedBox(height: 16),
+                  _ModuleNoticeBanner(message: mod.notice!),
+                ],
                 const SizedBox(height: 22),
                 ModuleDetailHero(
                   icon: mod.icon,
@@ -1052,6 +1078,72 @@ class _Chip extends StatelessWidget {
           letterSpacing: 1.2,
           weight: FontWeight.w600,
         ),
+      ),
+    );
+  }
+}
+
+/// Bannière d'avertissement rendue sous le titre du détail quand le module
+/// n'est pas une épreuve officielle TCF IRN (cf. `TcfQcmModule.structure`).
+class _ModuleNoticeBanner extends StatelessWidget {
+  const _ModuleNoticeBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.blueLight),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.blueLight,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.info_outline_rounded,
+              color: AppColors.blue,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'À SAVOIR',
+                  style: AppFonts.mono(
+                    size: 9.5,
+                    color: AppColors.blue,
+                    letterSpacing: 1.8,
+                    weight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: AppFonts.jakarta(
+                    size: 12.5,
+                    color: AppColors.ink2,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

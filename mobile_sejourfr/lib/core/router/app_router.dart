@@ -55,6 +55,7 @@ class AppRoutes {
   static const tcf = '/tcf';
   static const tcfCoDetail = '/tcf/co';
   static const tcfCeDetail = '/tcf/ce';
+  static const tcfStructureDetail = '/tcf/structure';
   static const tcfEoDetail = '/tcf/eo';
   static const tcfEeDetail = '/tcf/ee';
   // Sujets d'une tâche EE ou EO (route hors shell). tacheNumero ∈ {1,2,3}.
@@ -273,6 +274,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.tcfCeDetail,
         builder: (_, __) => const TcfQcmDetailScreen(module: TcfQcmModule.ce),
       ),
+      // Structure de la langue : QCM grammaire / lexique. Non évalué dans le
+      // TCF IRN officiel — gardé comme entraînement complémentaire. Mêmes
+      // onglets Séries / Examens / Erreurs que CO et CE, avec une bannière
+      // d'info rendue par TcfQcmDetailScreen quand `module.notice != null`.
+      GoRoute(
+        path: AppRoutes.tcfStructureDetail,
+        builder: (_, __) =>
+            const TcfQcmDetailScreen(module: TcfQcmModule.structure),
+      ),
       // TCF productions : un détail par épreuve (EO, EE) → push
       // `ProductionHubScreen` (sélection T1/T2/T3) via le CTA.
       GoRoute(
@@ -335,7 +345,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) {
           final moduleKey = state.pathParameters['moduleKey']!;
           final levelKey = state.pathParameters['level']!.toUpperCase();
-          final module = moduleKey == 'ce' ? TcfQcmModule.ce : TcfQcmModule.co;
+          final module = switch (moduleKey) {
+            'ce' => TcfQcmModule.ce,
+            'structure' => TcfQcmModule.structure,
+            _ => TcfQcmModule.co,
+          };
           final level = Difficulty.values.firstWhere(
             (d) => d.wire == levelKey,
             orElse: () => Difficulty.a2,

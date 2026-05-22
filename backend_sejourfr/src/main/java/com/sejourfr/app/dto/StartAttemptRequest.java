@@ -19,8 +19,9 @@ import java.util.UUID;
  *      module + difficulty (A2/B1/B2) + questionType (CO/CE) déterminent le pool ;
  *      la fenêtre est ((lotNumero - 1) * lotSize, lotNumero * lotSize). size est ignoré.
  *   3. moduleExamQuestionType fourni → MOCK_EXAM scopé à une épreuve TCF QCM
- *      (CO ou CE). Tire 8 A2 + 9 B1 + 8 B2 dans le pool filtré, en 20 min (CO)
- *      ou 35 min (CE). Score pondéré par niveau à la finalisation
+ *      (CO, CE ou STRUCTURE). Tire 8 A2 + 9 B1 + 8 B2 dans le pool filtré, en
+ *      20 min (CO), 35 min (CE) ou 20 min (STRUCTURE, entraînement bonus hors
+ *      TCF IRN). Score pondéré par niveau à la finalisation
  *      (cf. {@link com.sejourfr.app.service.AttemptService#startModuleExam}).
  *   4. ni l'un ni l'autre → comportement historique :
  *      - TRAINING / REVIEW : tirage filtré (themeId/difficulty/questionType/size)

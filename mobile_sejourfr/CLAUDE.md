@@ -349,11 +349,19 @@ structure visuelle identique implémentée dans `screens/hub/widgets/hub_widgets
 - **Civique** = les 5 thèmes officiels chargés via `/api/themes?module=CIVIQUE` (Principes &
   symboles, Institutions, Droits & devoirs, Histoire-Géo, Société). Tap → push
   `/civique/theme/:themeId` (écran détail).
-- **TCF** = 4 modules, **tous** avec un écran détail :
+- **TCF** = 4 modules officiels IRN + 1 bonus, **tous** avec un écran détail :
   - CO → `/tcf/co`, CE → `/tcf/ce` → `TcfQcmDetailScreen` → CTA "Commencer l'entraînement"
     → `POST /api/attempts` + push runner.
   - EE → `/tcf/ee`, EO → `/tcf/eo` → `TcfProductionDetailScreen` → CTA "Voir les tâches"
     → push `ProductionHubScreen` (sélection T1/T2/T3) après paywall check si non-premium.
+  - **Structure de la langue** → `/tcf/structure` → `TcfQcmDetailScreen` avec
+    `TcfQcmModule.structure` (`questionType = STRUCTURE`). Bannière `_ModuleNoticeBanner`
+    rendue sous le titre pour rappeler que le module n'est pas évalué au TCF IRN. Mêmes
+    onglets Séries / Examens / Erreurs que CO/CE. Briefing examen rendu par
+    `_BriefingCopy.forModule(...)` (durée 20 min, hero "Prêt à analyser ?", `_NoticeCard`
+    sous le hero). Backend : `startModuleExam` accepte CO/CE/STRUCTURE, mais
+    `startModuleExamSubAttempt` reste restreint à CO/CE (STRUCTURE jamais sous-attempt
+    d'un examen blanc complet IRN).
 
 **Écran détail (lot 3 + 3 bis)** — vit dans `screens/module_detail/`. Routes hors shell (pas de
 bottom nav) :
