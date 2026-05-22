@@ -46,6 +46,14 @@ class TcfLotResultScreen extends ConsumerWidget {
     };
 
     void backToLots() {
+      // Grâce au `pushReplacement` côté runner, l'écran lots est resté dans
+      // la stack — un pop retombe pile dessus en préservant sa propre
+      // history vers le détail module. Fallback `context.go` uniquement si
+      // la stack a été reset par ailleurs (deep link / hot reload).
+      if (context.canPop()) {
+        context.pop();
+        return;
+      }
       context.go(
         AppRoutes.tcfLevelLots
             .replaceFirst(':moduleKey', moduleKey)

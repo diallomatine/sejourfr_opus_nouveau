@@ -126,10 +126,13 @@ public class MeService {
             UUID userId, Module module, QuestionType questionType, UUID themeId) {
         List<UUID> ids = answerManager.findWrongQuestionIds(userId, module);
         if (ids.isEmpty()) return List.of();
-        // Les filtres questionType / themeId sont appliqués côté Java après
-        // chargement — le manager renvoie déjà la liste filtrée par module
-        // via un join sur questions, on raffine ici sans toucher à la SQL.
+        // Filtres appliqués côté Java après chargement. On re-filtre par
+        // `q.module` en plus du filtre déjà appliqué côté query sur l'attempt :
+        // garantit qu'aucune question CIVIQUE ne fuite côté TCF (et vice
+        // versa) — défense en profondeur si jamais un attempt mixte
+        // remontait des questions cross-module.
         return questionManager.findAllById(ids).stream()
+                .filter(q -> module == null || q.getModule() == module)
                 .filter(q -> questionType == null || q.getQuestionType() == questionType)
                 .filter(q -> themeId == null
                         || (q.getTheme() != null && themeId.equals(q.getTheme().getId())))

@@ -583,11 +583,14 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
 
   // Contexte de lot TCF QCM (cf. `TcfLevelLotsScreen._startLot`) — si la
   // route du runner porte `from=tcfLot`, on push le bilan dédié plutôt que
-  // d'afficher le dialog d'entraînement standard.
+  // d'afficher le dialog d'entraînement standard. `pushReplacement` (au
+  // lieu de `go`) préserve l'écran lots dans la stack — la flèche arrière
+  // du bilan peut alors pop naturellement vers cet écran lots, qui à son
+  // tour conserve sa propre stack vers le détail module.
   final moduleKey = goState.uri.queryParameters['moduleKey'];
   final level = goState.uri.queryParameters['level'];
   if (from == 'tcfLot' && moduleKey != null && level != null) {
-    context.go(
+    context.pushReplacement(
       '${AppRoutes.tcfLotResult.replaceFirst(':attemptId', attempt.id)}'
       '?moduleKey=$moduleKey&level=$level',
     );

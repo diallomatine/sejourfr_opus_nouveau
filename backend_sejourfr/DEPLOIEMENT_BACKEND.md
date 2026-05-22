@@ -50,13 +50,16 @@ Le binaire de l'application. C'est ce qu'on remplace à chaque déploiement.
 # Voir la taille / date
 ls -lh /opt/sejourfr/backend/app.jar
 
+./mvnw clean package -DskipTests
+
 # Remplacer (depuis ta machine de dev)
 scp target/sejourfr-backend-*.jar root@82.223.165.43:/tmp/sejourfr-backend.jar
-ssh user@sejourfr.fr
+ssh root@82.223.165.43
 sudo systemctl stop sejourfr-backend
 sudo mv /tmp/sejourfr-backend.jar /opt/sejourfr/backend/app.jar
 sudo chown sejourfr:sejourfr /opt/sejourfr/backend/app.jar
 sudo systemctl start sejourfr-backend
+sudo tail -f /opt/sejourfr/logs/backend-stdout.log
 ```
 
 ### 3.2. `/opt/sejourfr/backend/application-prod.yaml`
