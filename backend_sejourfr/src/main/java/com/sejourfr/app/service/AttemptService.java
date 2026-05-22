@@ -499,8 +499,24 @@ public class AttemptService {
         if (qType != QuestionType.CO && qType != QuestionType.CE && qType != QuestionType.STRUCTURE) {
             throw new BusinessException("moduleExamQuestionType doit etre CO, CE ou STRUCTURE.");
         }
-        if (!subscriptionService.isPremium(user.getId())) {
-            throw new AccessDeniedException("Les examens module sont reserves aux abonnes.");
+        // Verrou freemium par sous-module TCF QCM : le 1er examen blanc est
+        // gratuit pour chaque épreuve (CO / CE / STRUCTURE). Une fois qu'un
+        // examen est terminé sur cette épreuve, les relances sont réservées
+        // aux abonnés TCF. Le front (`TcfQcmDetailScreen._openExamBriefing`)
+        // applique déjà ce verrou en UI ; on le double ici par sécurité.
+        if (!subscriptionService.hasTcf(user.getId())) {
+            final List<Attempt> previous = attemptManager.findByUserFiltered(
+                    user.getId(),
+                    AttemptType.MOCK_EXAM,
+                    Module.TCF,
+                    qType,
+                    null,
+                    50);
+            final boolean alreadyTaken = previous.stream().anyMatch(a -> a.getFinishedAt() != null);
+            if (alreadyTaken) {
+                throw new AccessDeniedException(
+                        "L'examen blanc " + qType + " a déjà été passé ; les relances sont réservées aux abonnés TCF.");
+            }
         }
 
         List<Question> picked = composeModuleExam(req.module(), qType);
