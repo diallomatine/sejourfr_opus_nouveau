@@ -7,6 +7,7 @@ import com.sejourfr.app.entity.Plan;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.BillingPlan;
+import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.PlanManager;
 import com.sejourfr.app.manager.ProcessedExternalEventManager;
@@ -65,7 +66,7 @@ public class BillingService {
     private static final long CENTS_PER_EURO = 100L;
 
     /** Provider key utilisé dans {@code processed_external_events}. */
-    private static final String STRIPE_PROVIDER = "stripe";
+    private static final String STRIPE_PROVIDER = SubscriptionSource.STRIPE.providerKey();
 
     /** Seule devise acceptée — nos plans sont libellés en EUR. */
     private static final String EXPECTED_CURRENCY = "eur";
@@ -442,6 +443,17 @@ public class BillingService {
         // Avec Payment Links one-shot il n'y a pas de Subscription Stripe, mais
         // on garde l'ID de la session checkout pour la tracabilite.
         sub.setStripeSubscriptionId(stripeSessionId);
+
+        // Schéma multi-source (V103). En mode one-shot Stripe actuel,
+        // original_transaction_id = session_id (stable, identifie l'achat
+        // unique). Le lot 4 le remplacera par le vrai subscription_id Stripe
+        // quand on passera en abonnement récurrent. auto_renew=false tant
+        // qu'on est en one-shot.
+        sub.setSource(SubscriptionSource.STRIPE);
+        sub.setExternalTransactionId(stripeSessionId);
+        sub.setOriginalTransactionId(stripeSessionId);
+        sub.setProductId(dbPlan.getCode());
+        sub.setAutoRenew(false);
         userSubscriptionManager.save(sub);
     }
 }

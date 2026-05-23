@@ -2,9 +2,15 @@ package com.sejourfr.app.controller;
 
 import com.sejourfr.app.dto.BillingCheckoutResponse;
 import com.sejourfr.app.dto.PlanPublicResponse;
+import com.sejourfr.app.dto.SubscriptionStatusResponse;
+import com.sejourfr.app.dto.VerifyReceiptRequest;
+import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.BillingPlan;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.BillingService;
+import com.sejourfr.app.service.ReceiptVerificationService;
+import com.sejourfr.app.service.SubscriptionService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +31,8 @@ import java.util.List;
 public class BillingController {
 
     private final BillingService billingService;
+    private final SubscriptionService subscriptionService;
+    private final ReceiptVerificationService receiptVerificationService;
     private final CurrentUser currentUser;
 
     /**
@@ -45,6 +53,47 @@ public class BillingController {
     @GetMapping("/payment-link")
     public BillingCheckoutResponse getPaymentLink(@RequestParam("plan") BillingPlan plan) {
         return billingService.getPaymentLink(currentUser.getId(), plan);
+    }
+
+    /**
+     * Statut Premium agrégé toutes sources confondues (Stripe + Apple + Google).
+     * Lu par les 3 fronts au démarrage et après chaque action de paiement.
+     *
+     * <p>Anti-double-paiement : un utilisateur déjà Premium via Stripe verra
+     * {@code isPremium=true} avec {@code source=STRIPE} — l'app mobile doit
+     * alors masquer le bouton d'achat IAP. Inversement après un achat sur
+     * iOS, l'app web verra {@code source=APPLE} et ne proposera plus Stripe.
+     */
+    @GetMapping("/subscription-status")
+    public SubscriptionStatusResponse getSubscriptionStatus() {
+        return subscriptionService.currentSubscription(currentUser.getId())
+                .map(this::toStatusResponse)
+                .orElseGet(SubscriptionStatusResponse::notPremium);
+    }
+
+    private SubscriptionStatusResponse toStatusResponse(UserSubscription sub) {
+        return new SubscriptionStatusResponse(
+                true,
+                sub.getSource(),
+                sub.getProductId(),
+                sub.getEndsAt(),
+                sub.getStatus(),
+                sub.getPlan().getModuleAccess(),
+                sub.isAutoRenew()
+        );
+    }
+
+    /**
+     * Validation d'un reçu d'achat IAP (Apple StoreKit ou Google Play). Appelé
+     * par l'app mobile après un achat réussi. Le backend re-valide auprès du
+     * store (jamais confiance au client) avant de marquer Premium.
+     *
+     * <p>Lot 1 = scaffold qui renvoie 501 — l'app mobile NE doit PAS encore
+     * appeler. Sera implémenté en lots 2 (Apple) et 3 (Google).
+     */
+    @PostMapping("/verify-receipt")
+    public SubscriptionStatusResponse verifyReceipt(@Valid @RequestBody VerifyReceiptRequest request) {
+        return receiptVerificationService.verify(currentUser.getId(), request);
     }
 
     /**

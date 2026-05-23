@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -87,8 +88,66 @@ public class SubscriptionService {
 
     public record CurrentAccess(ModuleAccess module, Instant endsAt) {}
 
+    /**
+     * Retourne la souscription "qui compte" pour ce user — celle qui ouvre
+     * l'accès Premium visible côté app. Critères de sélection :
+     *
+     * <ol>
+     *   <li>Statut "couvrant" (cf. {@link #isCovering}) : ACTIVE / TRIAL /
+     *       IN_GRACE, ou CANCELED tant que {@code endsAt} est dans le futur.</li>
+     *   <li>Accès le plus permissif (INTEGRAL &gt; CIVIQUE).</li>
+     *   <li>À niveau égal, {@code endsAt} le plus tardif.</li>
+     * </ol>
+     *
+     * <p>Sert au endpoint {@code GET /api/billing/subscription-status} : l'app
+     * mobile NE doit PAS proposer d'IAP si une souscription Stripe est encore
+     * active, et inversement. C'est ici qu'on tranche.
+     */
+    public Optional<UserSubscription> currentSubscription(UUID userId) {
+        Instant now = Instant.now();
+        UserSubscription best = null;
+        for (UserSubscription s : userSubscriptionManager.findByUserId(userId)) {
+            if (!isCovering(s, now)) continue;
+            if (best == null || isBetter(s, best)) {
+                best = s;
+            }
+        }
+        return Optional.ofNullable(best);
+    }
+
+    /**
+     * Vrai si {@code candidate} doit l'emporter sur {@code incumbent} pour
+     * l'affichage du statut Premium. INTEGRAL gagne sur CIVIQUE ; à module
+     * égal, la date de fin la plus tardive l'emporte ; une souscription sans
+     * date de fin (cas seed / lifetime) bat toute date finie.
+     */
+    private boolean isBetter(UserSubscription candidate, UserSubscription incumbent) {
+        ModuleAccess candidateAccess = candidate.getPlan().getModuleAccess();
+        ModuleAccess incumbentAccess = incumbent.getPlan().getModuleAccess();
+        if (candidateAccess == ModuleAccess.INTEGRAL && incumbentAccess != ModuleAccess.INTEGRAL) {
+            return true;
+        }
+        if (candidateAccess != ModuleAccess.INTEGRAL && incumbentAccess == ModuleAccess.INTEGRAL) {
+            return false;
+        }
+        Instant candidateEnd = candidate.getEndsAt();
+        Instant incumbentEnd = incumbent.getEndsAt();
+        if (candidateEnd == null) return incumbentEnd != null;
+        if (incumbentEnd == null) return false;
+        return candidateEnd.isAfter(incumbentEnd);
+    }
+
     private boolean isCovering(UserSubscription s, Instant now) {
-        if (s.getStatus() != SubscriptionStatus.ACTIVE && s.getStatus() != SubscriptionStatus.TRIAL) {
+        SubscriptionStatus status = s.getStatus();
+        // ACTIVE / TRIAL / IN_GRACE = Premium ouvert sans condition.
+        // CANCELED = Premium ouvert tant que ends_at est dans le futur (annulation
+        //            sans expiration immédiate).
+        // PENDING / EXPIRED / REFUNDED = pas de Premium.
+        boolean statusCovers = status == SubscriptionStatus.ACTIVE
+                || status == SubscriptionStatus.TRIAL
+                || status == SubscriptionStatus.IN_GRACE
+                || status == SubscriptionStatus.CANCELED;
+        if (!statusCovers) {
             return false;
         }
         Plan plan = s.getPlan();

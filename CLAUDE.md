@@ -182,6 +182,58 @@ local concerné et celui de la racine si la modif est transverse. Pas de changel
 exhaustif — juste de quoi qu'un futur Claude se repère vite. Inutile d'y consigner les
 bugfixes ou les micro-ajustements.
 
+## Paiements multi-source (Stripe + Apple + Google)
+
+Le statut Premium est centralisé dans `user_subscriptions` (table backend). C'est
+**la source de vérité unique**, alimentée par 3 canaux : Stripe (web), Apple
+(iOS, IAP) et Google (Android, Play Billing). Le client ne décide JAMAIS s'il est
+Premium — il lit le statut auprès du backend.
+
+**Schéma `user_subscriptions`** (cf. migration V103) :
+- `source` enum `STRIPE | APPLE | GOOGLE`
+- `external_transaction_id` — id de transaction courant (change à chaque renouvellement)
+- `original_transaction_id` — **clé de réconciliation**. Apple: `originalTransactionId`,
+  Google: `purchaseToken`, Stripe: `subscription_id` ou `session_id` (one-shot).
+  Stable sur toute la chaîne de renouvellements pour un même user/produit.
+- `product_id` — SKU côté store ou `Plan.code` côté Stripe
+- `auto_renew` — true pour les abonnements récurrents (Apple/Google), false en
+  one-shot Stripe (changera au lot 4).
+- Statuts : `ACTIVE`, `TRIAL`, `IN_GRACE`, `PENDING`, `CANCELED`, `EXPIRED`, `REFUNDED`.
+
+**Index unique `(source, original_transaction_id)`** : un webhook de
+renouvellement update la ligne existante, ne crée pas de doublon. Combiné avec
+`processed_external_events` (provider, event_id), c'est la double défense contre
+les replays.
+
+**Agrégation Premium** : `SubscriptionService.currentSubscription(userId)` retourne
+la souscription "qui compte" en cas de cumul — INTEGRAL > CIVIQUE, puis date de
+fin la plus tardive. Exposée via `GET /api/billing/subscription-status`.
+
+**Anti-double-paiement** : un user déjà Premium via Stripe télécharge l'app →
+`subscription-status` renvoie `isPremium=true, source=STRIPE` → l'app mobile
+masque le bouton d'achat IAP. Pareil dans l'autre sens.
+
+**Endpoints** :
+- `GET /api/billing/subscription-status` — authentifié, statut agrégé.
+- `POST /api/billing/verify-receipt` — authentifié, l'app mobile soumet un reçu
+  Apple/Google après achat. Backend re-vérifie côté store avant d'écrire.
+- `POST /api/billing/webhook` — Stripe (signé HMAC).
+- `POST /api/billing/webhooks/apple` — Apple ASSN V2 (JWS signé, à vérifier).
+- `POST /api/billing/webhooks/google` — Google RTDN via Pub/Sub.
+
+**État des lots** :
+- **Lot 1 (✅ fait)** : schéma multi-source, migration V103, agrégateur,
+  endpoints `subscription-status` + scaffolds verify-receipt / webhooks (501 ou
+  log+200 tant que la validation store n'est pas en place).
+- **Lot 2 (à faire)** : intégration Apple complète — lib `app-store-server-library`,
+  JWT auth pour l'App Store Server API, validation JWS signedTransactionInfo,
+  webhook ASSN V2 avec vérif chaîne de certifs Apple.
+- **Lot 3 (à faire)** : intégration Google complète — `google-api-services-androidpublisher`,
+  service account, `Purchases.subscriptionsv2.get`, webhook RTDN via Pub/Sub.
+- **Lot 4 (à faire)** : refonte des plans en abonnements récurrents (mensuel /
+  trimestriel), migration de Stripe Payment vers Subscription, alignement des 3
+  fronts. Touche les 4 sous-projets.
+
 ## Git
 
 - Remote : `git@github.com:diallomatine/sejourfr_opus_nouveau.git`

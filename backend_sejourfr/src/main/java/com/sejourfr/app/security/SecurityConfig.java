@@ -67,6 +67,12 @@ public class SecurityConfig {
                         // Webhook Stripe : appelé par Stripe (pas un user), authentifié
                         // par signature HMAC vérifiée dans BillingService.
                         .requestMatchers(HttpMethod.POST, "/api/billing/webhook").permitAll()
+                        // Webhooks stores mobiles : Apple (ASSN V2, JWS signé) et
+                        // Google (RTDN via Pub/Sub, message signé). Authentifiés
+                        // par vérification de signature/authenticité dans
+                        // StoreWebhookService — lots 2 et 3.
+                        .requestMatchers(HttpMethod.POST, "/api/billing/webhooks/apple").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/billing/webhooks/google").permitAll()
                         // Formulaire de contact accessible sans login (visiteur
                         // qui n'a pas encore créé de compte peut nous écrire).
                         .requestMatchers(HttpMethod.POST, "/api/contact").permitAll()
