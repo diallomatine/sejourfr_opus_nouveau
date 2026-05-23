@@ -256,6 +256,13 @@ masque le bouton d'achat IAP. Pareil dans l'autre sens.
   `GET /api/admin/plans` + `PATCH /api/admin/plans/{id}` +
   `GET /api/admin/subscriptions?…` avec Specifications JPA pour les filtres
   dynamiques + UserSubscriptionMapper.
+- **Lot 4d (✅ fait, mobile)** : IAP natif Apple StoreKit + Google Play
+  Billing via package `in_app_purchase`. Écran paywall plein écran avec
+  toggle périodicité (mensuel/trimestriel/annuel) + 2 cards Civique/Intégral.
+  `BillingController` orchestre purchaseStream → verify-receipt → refresh
+  AuthUser. Restoration via bouton "Restaurer". L'ancien `openSubscriptionWeb`
+  (redirect web) est supprimé — non conforme Apple 3.1.1 dès qu'on vend du
+  contenu digital. Cf. `mobile_sejourfr/CLAUDE.md` section "In-App Purchase".
 - **Lot 4d (à faire, mobile)** : UI paywall mensuel/trimestriel/annuel,
   branchement package `in_app_purchase`, appel `/verify-receipt` après
   achat, lecture `/subscription-status` au boot.

@@ -68,6 +68,16 @@ dependencies:
   # de contenu en Dart natif. AppBar native autour pour rester intégré.
   webview_flutter: ^4.10.0
 
+  # In-App Purchase : abonnements récurrents iOS (StoreKit 2) + Android (Play
+  # Billing v6). API unifiée Flutter. Cf. lot 4d : `core/billing/iap_service.dart`
+  # qui wrap le package + appelle /api/billing/verify-receipt au backend pour
+  # la validation autoritative (jamais confiance au store côté client seul).
+  in_app_purchase: ^3.2.3
+  # Android-specific : permet d'extraire le purchaseToken depuis
+  # GooglePlayPurchaseDetails (le backend Google attend purchaseToken brut,
+  # pas le JSON wrapper renvoyé par serverVerificationData côté Android).
+  in_app_purchase_android: ^0.4.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -12,7 +12,7 @@ import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/eyebrow.dart';
 import '../../core/widgets/rich_paragraph_text.dart';
-import '../../core/widgets/tcf_paywall.dart';
+import '../../core/widgets/paywall_sheet.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'runner_controller.dart';
 import 'widgets/choice_tile.dart';
@@ -673,12 +673,12 @@ void _showTrainingResultDialog(
                 label: 'Gérer mon accès sur le site',
                 icon: Icons.open_in_new_rounded,
                 variant: AppButtonVariant.primary,
-                onPressed: () async {
+                onPressed: () {
                   Navigator.of(ctx).pop();
                   if (!context.mounted) return;
                   GoRouter.of(context).pop();
                   if (!context.mounted) return;
-                  await openSubscriptionWeb(context);
+                  showPaywallSheet(context);
                 },
               ),
               const SizedBox(height: 6),

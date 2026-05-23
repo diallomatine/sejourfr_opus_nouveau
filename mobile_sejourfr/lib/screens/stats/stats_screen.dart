@@ -15,7 +15,7 @@ import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
-import '../../core/widgets/tcf_paywall.dart';
+import '../../core/widgets/paywall_sheet.dart';
 
 // ---------------------------------------------------------------------------
 // Providers
@@ -2518,12 +2518,12 @@ class _ProgressPaywallSheet extends StatelessWidget {
               ),
               const SizedBox(height: 22),
               AppButton(
-                label: 'Gérer mon accès sur le site',
+                label: 'Voir les abonnements',
                 icon: Icons.open_in_new_rounded,
                 variant: AppButtonVariant.primary,
-                onPressed: () async {
+                onPressed: () {
                   Navigator.of(context).pop();
-                  await openSubscriptionWeb(context);
+                  showPaywallSheet(context);
                 },
               ),
               const SizedBox(height: 4),

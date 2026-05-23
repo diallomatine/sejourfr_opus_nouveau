@@ -649,6 +649,85 @@ EE/EO survit entre les écrans du même flow. Si l'utilisateur quitte et revient
 attempts, l'écran progression repart de l'état serveur — pas de "session" client à reprendre, l'état
 canonique vit côté backend.
 
+## In-App Purchase (lot 4d) — Apple StoreKit + Google Play Billing
+
+Depuis le **lot 4d**, le mobile vend les abonnements via **IAP natif**, plus
+par redirection web (obligatoire d'après les guidelines Apple/Google quand on
+vend du contenu digital). L'ancien `openSubscriptionWeb()` est supprimé.
+
+**Architecture** :
+- `core/models/billing_models.dart` — DTOs miroirs `/api/billing/*`
+  (`PlanPublicResponse`, `SubscriptionStatusResponse`, `VerifyReceiptRequest`)
+  + enums `PlanPeriodicity` (monthly/quarterly/yearly), `PlanModuleTarget`
+  (CIVIQUE/INTEGRAL), helper `planCodeFor(module, periodicity)`.
+- `core/api/billing_repository.dart` — 3 endpoints :
+  - `listPlans()` (public)
+  - `getSubscriptionStatus()` (authentifié, source de vérité Premium)
+  - `verifyReceipt(req)` (authentifié)
+- `core/billing/iap_service.dart` — wrapper sur `in_app_purchase` 3.x :
+  `init`, `loadProducts(skuIds)`, `purchase(product)`, `restorePurchases`,
+  `completePurchase`, `purchaseStream`. `IapService.currentSource` détecte
+  iOS→Apple / Android→Google. `IapService.receiptFor(purchase)` extrait le
+  bon format selon la plateforme (JWS Apple ou purchaseToken Google).
+- `core/billing/billing_controller.dart` — `StateNotifier<BillingState>`
+  s'abonne au `purchaseStream`, charge plans backend × SKUs store, déclenche
+  `verify-receipt` sur PURCHASED/RESTORED puis acquitte le store et refresh
+  `AuthUser` via `AuthController.refreshSubscriptionStatus()`.
+- `screens/paywall/paywall_screen.dart` — UI plein écran avec toggle
+  périodicité (mensuel/trimestriel/annuel) + 2 cards Civique/Intégral.
+  Prix lus depuis le store en devise locale. Bouton « Restaurer mes achats »
+  obligatoire pour validation Apple.
+
+**Flow d'achat** :
+1. User tap CTA premium → `showPaywallSheet(context)` push l'écran.
+2. `BillingController.load()` appelle `listPlans()` puis
+   `IapService.loadProducts({skus})` qui retourne `ProductDetails` (prix,
+   devise, titre, description) depuis le store.
+3. User choisit périodicité + tap card → `BillingController.startPurchase()`
+   → `iap.buyNonConsumable()` ouvre l'UI native (sheet Apple / dialog Google).
+4. User confirme → `purchaseStream` émet `pending` puis `purchased`.
+5. Sur `purchased` → `verify-receipt` au backend (qui re-valide auprès du
+   store, source de vérité unique) → renvoie `SubscriptionStatusResponse`.
+6. `AuthController.refreshSubscriptionStatus(status)` met à jour
+   `hasCivique/hasTcf/premiumEndsAt` sur le user → l'app sort du mode démo.
+7. `iap.completePurchase()` acquitte au store (sinon retentatives en boucle).
+
+**Sécurité** :
+- L'app NE décide JAMAIS du statut Premium — c'est le backend après vérif
+  store qui tranche. `AuthUser.hasCivique/hasTcf` est rafraîchi à 3
+  moments : (a) au boot via `/subscription-status`, (b) après login,
+  (c) après chaque `verify-receipt` OK.
+- Si le backend échoue après un achat store réussi (network down), on
+  N'ACQUITTE PAS le store. Au prochain démarrage le `purchaseStream`
+  re-livre l'achat → retry automatique. Le user n'a pas payé deux fois.
+
+**Restore purchases** : bouton « Restaurer » → `IapService.restorePurchases()`
+→ les achats existants reviennent via `purchaseStream` avec
+`PurchaseStatus.restored` → même flow que `purchased` (verify-receipt +
+refresh user).
+
+**SKUs** : convention `<MODULE>_<PERIODICITY>` (ex: `CIVIQUE_MONTHLY`,
+`INTEGRAL_QUARTERLY`). Doit matcher EXACTEMENT :
+- Le `Plan.code` côté backend (table `plans`, cf. migration V106).
+- Le Product ID dans App Store Connect → Subscriptions.
+- Le Product ID dans Google Play Console → In-app products.
+
+Sans cet alignement, `loadProducts` retourne les SKUs dans `notFoundIDs` et
+les cards correspondantes ne s'affichent pas.
+
+**Setup natif requis** (à faire avant les tests sandbox) :
+- iOS : Xcode → Runner → Signing & Capabilities → +In-App Purchase.
+  App Store Connect → Subscriptions → créer le Subscription Group + les 6
+  SKUs. TestFlight pour le sandbox.
+- Android : Play Console → Monetisation → Subscriptions → créer les 6
+  Base Plans (un par SKU avec billing period correspondant). Testing track
+  + comptes Google de test.
+
+**Ancien comportement (avant lot 4d)** : `openSubscriptionWeb()` redirigeait
+vers `https://sejourfr.fr/paiement`. Supprimé — Apple aurait rejeté l'app
+au review (3.1.1). Si on a besoin de référencer une URL web pour les CGV,
+utiliser `url_launcher` ponctuellement, jamais pour le paiement.
+
 ## Roadmap (ce qui n'est pas encore fait)
 
 - **Chrono global examen blanc** : `time_limit_seconds = 5400` (90 min) est posé sur le parent backend
@@ -658,7 +737,7 @@ canonique vit côté backend.
 - **Offline-first** : pas de SQLite/Drift pour l'instant, tout passe par le réseau. À ajouter dans
   `core/storage/` quand on aura besoin (questions civiques stables, peuvent être cachées).
 - **Notifications push** (rappels d'entraînement) : à ajouter via `firebase_messaging` ou OneSignal.
-- **In-app purchase** (Premium) : `in_app_purchase` côté Flutter, validation côté backend.
+- ~~**In-app purchase** (Premium)~~ ✅ fait au lot 4d (cf. section dédiée plus bas).
 - **Mode sombre** : la palette est prête (l'identité visuelle marche en dark), mais `buildAppTheme()` ne fait
   que le clair pour l'instant.
 - **Tests** : aucun pour l'instant. Quand on en ajoutera, Vitest n'existe pas en Flutter — c'est

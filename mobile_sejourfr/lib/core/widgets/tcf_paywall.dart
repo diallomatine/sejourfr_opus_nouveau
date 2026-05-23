@@ -1,35 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../models/billing_models.dart';
 import '../theme/app_theme.dart';
+import 'paywall_sheet.dart';
 
-/// URL de la page d'activation côté web. L'activation et la facturation se
-/// font uniquement sur le web (l'app mobile ne vend pas de contenu digital
-/// au sens des règles Apple/Google).
-const String _subscriptionWebUrl = 'https://sejourfr.fr/paiement';
-
-/// Ouvre la page d'activation dans le navigateur externe par défaut
-/// (Safari/Chrome). On évite le mode WebView interne pour rester conforme
-/// aux guidelines Apple : l'utilisateur quitte explicitement l'app pour
-/// gérer son accès sur notre site web.
-///
-/// En cas d'échec (navigateur indisponible), on bascule sur un snackbar
-/// d'information avec l'URL en clair.
-Future<void> openSubscriptionWeb(BuildContext context) async {
-  final uri = Uri.parse(_subscriptionWebUrl);
-  final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-  if (!ok && context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: AppColors.ink,
-        behavior: SnackBarBehavior.floating,
-        content: Text(
-          'Impossible d\'ouvrir le navigateur. Rendez-vous sur $_subscriptionWebUrl',
-          style: AppFonts.jakarta(color: AppColors.white, size: 13),
-        ),
-      ),
-    );
-  }
+/// Helper d'ouverture du paywall depuis cette carte. Depuis le lot 4d le
+/// paiement se fait via IAP natif (Apple/Google), pas par redirect web —
+/// obligation des stores quand on vend du contenu digital.
+void _openPaywall(BuildContext context) {
+  showPaywallSheet(context, initialTarget: PlanModuleTarget.integral);
 }
 
 /// Carte affichée à la place du contenu TCF quand l'utilisateur n'a pas
@@ -210,15 +189,15 @@ class _OpenSubscriptionButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
         ),
       ),
-      onPressed: () async {
+      onPressed: () {
         if (closeOnTap) Navigator.of(context).pop();
-        await openSubscriptionWeb(context);
+        _openPaywall(context);
       },
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Gérer mon accès sur le site',
+            'Voir les abonnements',
             style: AppFonts.jakarta(
               size: 15,
               weight: FontWeight.w700,

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/auth_controller.dart';
 import 'attempts_repository.dart';
+import 'billing_repository.dart';
 import 'contact_repository.dart';
 import 'exams_repository.dart';
 import 'full_tcf_exam_repository.dart';
@@ -45,4 +46,8 @@ final profileRepositoryProvider = Provider<ProfileRepository>(
 
 final contactRepositoryProvider = Provider<ContactRepository>(
   (ref) => ContactRepository(ref.watch(apiClientProvider)),
+);
+
+final billingRepositoryProvider = Provider<BillingRepository>(
+  (ref) => BillingRepository(ref.watch(apiClientProvider)),
 );

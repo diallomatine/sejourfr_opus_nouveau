@@ -2,7 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
 import '../api/auth_repository.dart';
+import '../api/billing_repository.dart';
+import '../api/repositories.dart';
 import '../models/auth_models.dart';
+import '../models/billing_models.dart';
 import 'social_sign_in_service.dart';
 import 'token_storage.dart';
 
@@ -60,6 +63,7 @@ class AuthController extends StateNotifier<AuthState> {
 
   TokenStorage get _storage => _ref.read(tokenStorageProvider);
   AuthRepository get _repo => _ref.read(authRepositoryProvider);
+  BillingRepository get _billing => _ref.read(billingRepositoryProvider);
   SocialSignInService get _socialService =>
       _ref.read(socialSignInServiceProvider);
 
@@ -77,7 +81,14 @@ class AuthController extends StateNotifier<AuthState> {
       // Token présent : on tente /me. Si le token est expiré, l'intercepteur
       // de Dio refresh automatiquement. Si tout échoue, on tombe en logout.
       try {
-        final user = await _repo.me();
+        AuthUser user = await _repo.me();
+        // Sync best-effort de l'état Premium depuis /subscription-status.
+        // Source de vérité unique côté backend (Stripe + Apple + Google
+        // agrégés). En cas d'échec réseau, on garde l'état renvoyé par /me.
+        try {
+          final status = await _billing.getSubscriptionStatus();
+          user = _applyStatus(user, status);
+        } catch (_) {/* tolérant */}
         next = AuthAuthenticated(user);
       } catch (_) {
         await _storage.clear();
@@ -89,6 +100,38 @@ class AuthController extends StateNotifier<AuthState> {
       await Future.delayed(_minSplashDuration - elapsed);
     }
     state = next;
+  }
+
+  /// Met à jour le user authentifié avec un statut Premium fraîchement obtenu
+  /// du backend (typiquement après un verify-receipt IAP ou un appel direct
+  /// à /subscription-status). No-op si on n'est pas authentifié.
+  Future<void> refreshSubscriptionStatus([
+    SubscriptionStatusResponse? known,
+  ]) async {
+    final current = state;
+    if (current is! AuthAuthenticated) return;
+    SubscriptionStatusResponse status;
+    if (known != null) {
+      status = known;
+    } else {
+      try {
+        status = await _billing.getSubscriptionStatus();
+      } catch (_) {
+        return;
+      }
+    }
+    final updated = _applyStatus(current.user, status);
+    await _storage.saveUser(updated);
+    state = AuthAuthenticated(updated);
+  }
+
+  AuthUser _applyStatus(AuthUser user, SubscriptionStatusResponse status) {
+    return user.copyWith(
+      isPremium: status.isPremium,
+      hasCivique: status.hasCivique,
+      hasTcf: status.hasTcf,
+      premiumEndsAt: status.expiresAt,
+    );
   }
 
   Future<void> login({required String email, required String password}) async {
