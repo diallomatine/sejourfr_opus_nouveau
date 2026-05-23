@@ -37,4 +37,13 @@ public class PlanManager {
     public Optional<Plan> findByGoogleProductId(String googleProductId) {
         return repository.findByGoogleProductId(googleProductId);
     }
+
+    /**
+     * Retrouve un Plan à partir d'un Stripe Price ID. Utilisé par les
+     * webhooks {@code customer.subscription.*} pour identifier le Plan
+     * correspondant à la souscription.
+     */
+    public Optional<Plan> findByStripePriceId(String stripePriceId) {
+        return repository.findByStripePriceId(stripePriceId);
+    }
 }

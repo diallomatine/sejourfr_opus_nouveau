@@ -32,13 +32,19 @@ INSERT INTO users (id, email, password_hash, first_name, last_name, target_proce
 -- ---------------------------------------------------------------------------
 -- Abonnements
 -- ---------------------------------------------------------------------------
-INSERT INTO user_subscriptions (id, user_id, plan_id, status, starts_at, ends_at) VALUES
+INSERT INTO user_subscriptions (id, user_id, plan_id, status, starts_at, ends_at,
+                                 source, original_transaction_id, product_id, auto_renew)
+VALUES
   ('bbbbbbbb-0000-0000-0000-000000000001',
    'aaaaaaaa-0000-0000-0000-000000000002',
-   '33333333-0000-0000-0000-000000000003',  -- Intégral 3 mois (accès civique + TCF)
+   '33333333-0000-0000-0000-000000000021',  -- INTEGRAL_QUARTERLY (Civique + TCF)
    'ACTIVE',
    NOW() - INTERVAL '15 days',
-   NOW() + INTERVAL '75 days');
+   NOW() + INTERVAL '75 days',
+   'STRIPE',
+   'seed_bbbbbbbb-0000-0000-0000-000000000001',
+   'INTEGRAL_QUARTERLY',
+   FALSE);
 
 -- ---------------------------------------------------------------------------
 -- Questions Civique (extraites du mockup admin)

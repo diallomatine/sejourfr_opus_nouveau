@@ -44,36 +44,13 @@ sejourfr:
   cors:
     allowed-origins: http://localhost:3000,http://localhost:5173,http://192.168.1.13:3000
   stripe:
-    # À surcharger en dev/prod. Par défaut vides → le backend démarre, mais
-    # l'endpoint billing renverra 503 tant qu'au moins un mode n'est pas
-    # configuré.
-    #
-    # Deux modes supportés :
-    #
-    # 1. Checkout Sessions (recommandé) — le backend crée dynamiquement une
-    #    session par paiement avec success_url et cancel_url définies en code.
-    #    L'utilisateur revient automatiquement sur /paiement/succes après
-    #    paiement, et /paiement?canceled=1 en cas d'abandon. Pas de config
-    #    dashboard nécessaire.
-    #    Requiert : secret-key + price-civique + price-integral + app-base-url.
-    #    Les Price IDs (format `price_xxx`) se trouvent dans le dashboard
-    #    Stripe → Products → un produit → un prix.
-    #
-    # 2. Payment Links statiques (fallback) — URLs créées manuellement dans
-    #    le dashboard Stripe (menu "Payment Links"). La redirection après
-    #    paiement doit être configurée sur chaque lien dans le dashboard.
-    #    Requiert : secret-key + payment-link-civique + payment-link-integral.
-    #
-    # Si les deux modes sont configurés, les Checkout Sessions priment.
+    # Abonnements récurrents (Checkout Session mode=SUBSCRIPTION) depuis le
+    # lot 4. Les Stripe Price IDs vivent en base sur plans.stripe_price_id —
+    # ne pas les déclarer ici. Tant que secret-key est vide, /api/billing/*
+    # renvoie 503 sur les flows payants.
     secret-key: ""
     webhook-secret: ""
-    # Mode 1 — Checkout Sessions
-    price-civique: ""
-    price-integral: ""
     app-base-url: "http://localhost:3000"
-    # Mode 2 — Payment Links (fallback)
-    payment-link-civique: ""
-    payment-link-integral: ""
   # --------------------------------------------------------------------------
   # Apple App Store Server (IAP iOS).
   # --------------------------------------------------------------------------

@@ -60,6 +60,15 @@ public class Plan {
     @Column(name = "google_product_id", length = 128)
     private String googleProductId;
 
+    /**
+     * Stripe Price ID (format {@code price_xxx}) correspondant à ce Plan en
+     * mode abonnement récurrent (Checkout Session mode=SUBSCRIPTION). NULL
+     * pour le plan FREE. Lu au lieu de StripeProperties — la config Stripe
+     * vit désormais sur la ligne Plan, pas en yaml.
+     */
+    @Column(name = "stripe_price_id", length = 255)
+    private String stripePriceId;
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
@@ -92,4 +101,7 @@ public class Plan {
 
     public String getGoogleProductId() { return googleProductId; }
     public void setGoogleProductId(String googleProductId) { this.googleProductId = googleProductId; }
+
+    public String getStripePriceId() { return stripePriceId; }
+    public void setStripePriceId(String stripePriceId) { this.stripePriceId = stripePriceId; }
 }

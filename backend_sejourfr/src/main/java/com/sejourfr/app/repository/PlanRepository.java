@@ -13,4 +13,6 @@ public interface PlanRepository extends JpaRepository<Plan, UUID> {
     Optional<Plan> findByAppleProductId(String appleProductId);
 
     Optional<Plan> findByGoogleProductId(String googleProductId);
+
+    Optional<Plan> findByStripePriceId(String stripePriceId);
 }

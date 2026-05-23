@@ -43,23 +43,15 @@ sejourfr:
     # Push Protection bloque le commit.
     # https://dashboard.stripe.com/test/apikeys
     #
-    # Mode recommandé — Checkout Sessions (success_url/cancel_url dynamiques) :
-    # définir STRIPE_PRICE_CIVIQUE et STRIPE_PRICE_INTEGRAL avec les Price IDs
-    # (format `price_xxx`) trouvés dans Dashboard → Products → un produit →
-    # son prix. Pas de config dashboard à faire sur la redirection.
-    #
-    # Mode fallback — Payment Links : URLs créées manuellement dans le
-    # dashboard Stripe (menu "Payment Links"). Format `https://buy.stripe.com/test_xxx`.
-    # La redirection après paiement doit être configurée sur chaque lien.
+    # Mode abonnement récurrent (Checkout Session mode=SUBSCRIPTION) : les
+    # Stripe Price IDs vivent en base sur plans.stripe_price_id depuis le
+    # lot 4 — plus besoin de les déclarer ici. Côté Stripe Dashboard, créer
+    # un Product par module (Civique / Intégral), avec 3 prix récurrents
+    # (mensuel / trimestriel / annuel), puis UPDATE plans.stripe_price_id
+    # avec les Price IDs correspondants (format price_xxx).
     secret-key: ${STRIPE_SECRET_KEY:}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
-    # Checkout Sessions (recommandé)
-    price-civique: ${STRIPE_PRICE_CIVIQUE:}
-    price-integral: ${STRIPE_PRICE_INTEGRAL:}
     app-base-url: ${APP_BASE_URL:http://localhost:3000}
-    # Payment Links (fallback historique)
-    payment-link-civique: ${STRIPE_PAYMENT_LINK_CIVIQUE:}
-    payment-link-integral: ${STRIPE_PAYMENT_LINK_INTEGRAL:}
   apple:
     # App Store Server API + Notifications V2. Tant qu'un champ est vide,
     # les endpoints IAP Apple renvoient 503. Voir App Store Connect →

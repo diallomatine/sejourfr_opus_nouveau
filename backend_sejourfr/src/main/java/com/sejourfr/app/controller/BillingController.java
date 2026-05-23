@@ -4,7 +4,6 @@ import com.sejourfr.app.dto.BillingCheckoutResponse;
 import com.sejourfr.app.dto.PlanPublicResponse;
 import com.sejourfr.app.dto.SubscriptionStatusResponse;
 import com.sejourfr.app.dto.VerifyReceiptRequest;
-import com.sejourfr.app.enums.BillingPlan;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.BillingService;
 import com.sejourfr.app.service.ReceiptVerificationService;
@@ -45,13 +44,18 @@ public class BillingController {
     }
 
     /**
-     * Renvoie l'URL du paiement Stripe (Checkout Session ou Payment Link selon
-     * config) pour le plan demande, enrichie d'un client_reference_id (= user_id)
-     * pour retrouver l'utilisateur lors du webhook checkout.session.completed.
+     * Renvoie l'URL d'une Checkout Session Stripe pour le plan demandé. Depuis
+     * le lot 4 le {@code planCode} est un identifiant libre (ex:
+     * {@code INTEGRAL_MONTHLY}) résolu en DB ; tout plan actif avec un
+     * {@code stripe_price_id} renseigné peut être acheté.
+     *
+     * <p>L'ancienne signature {@code ?plan=BillingPlan} (CIVIQUE_3MOIS /
+     * INTEGRAL_3MOIS) est supprimée — les anciens plans sont désactivés en
+     * V106 et n'apparaissent plus.
      */
     @GetMapping("/payment-link")
-    public BillingCheckoutResponse getPaymentLink(@RequestParam("plan") BillingPlan plan) {
-        return billingService.getPaymentLink(currentUser.getId(), plan);
+    public BillingCheckoutResponse getPaymentLink(@RequestParam("planCode") String planCode) {
+        return billingService.getPaymentLink(currentUser.getId(), planCode);
     }
 
     /**

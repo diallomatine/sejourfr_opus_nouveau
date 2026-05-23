@@ -238,9 +238,28 @@ masque le bouton d'achat IAP. Pareil dans l'autre sens.
   email SA). `verify-receipt` branch GOOGLE + webhook `/webhooks/google`
   opérationnels (idempotence via `messageId` Pub/Sub, anti-account-stealing en
   409, mapping `subscriptionState` → `SubscriptionStatus`).
-- **Lot 4 (à faire)** : refonte des plans en abonnements récurrents (mensuel /
-  trimestriel), migration de Stripe Payment vers Subscription, alignement des 3
-  fronts. Touche les 4 sous-projets.
+- **Lot 4 (✅ backend fait)** : refonte des plans en abonnements récurrents.
+  6 SKUs (Civique + Intégral × mensuel/trimestriel/annuel) + Free. Stripe
+  passe en mode `SUBSCRIPTION` (Checkout Session). Stripe Price ID stocké
+  sur `plans.stripe_price_id` (migration V105). Webhooks étendus :
+  `customer.subscription.created/.updated/.deleted` + `charge.refunded`.
+  Endpoint `/payment-link?planCode=<string>` (l'enum `BillingPlan` supprimé).
+  Logique extraite dans `service/billing/StripeSubscriptionService` par
+  symétrie avec Apple/Google.
+- **Lot 4b (à faire, web)** : refonte page `/paiement` avec 3 plans × 3
+  périodicités (toggle mensuel/trimestriel/annuel), portail client Stripe
+  pour gérer l'abonnement (annuler, changer de plan). API existant
+  `/api/billing/plans` renvoie déjà tous les plans actifs.
+- **Lot 4c (à faire, admin)** : section Abonnements (liste des
+  user_subscriptions, filtres par source/statut), édition prix + activation
+  des plans, badge revenue par source (Stripe/Apple/Google).
+- **Lot 4d (à faire, mobile)** : UI paywall mensuel/trimestriel/annuel,
+  branchement package `in_app_purchase`, appel `/verify-receipt` après
+  achat, lecture `/subscription-status` au boot.
+
+⚠ **Cassure connue après lot 4** : le web `/paiement` actuel envoie
+`?plan=BillingPlan` (CIVIQUE_3MOIS / INTEGRAL_3MOIS) ; il sera 400 jusqu'à
+ce que le lot 4b mette à jour l'appel en `?planCode=<string>`.
 
 **Setup Apple (lot 2)** :
 1. **App Store Connect → Users and Access → Integrations → App Store Server API**
@@ -335,6 +354,42 @@ juste "ça a changé sur ce purchaseToken". On appelle TOUJOURS l'API
 `subscriptionsv2.get` pour avoir l'état autoritatif. Côté Apple à l'inverse,
 le `signedTransactionInfo` inclus dans la notification est déjà autoritatif
 (JWS signé), pas besoin d'appel API.
+
+**Setup Stripe Subscription (lot 4)** :
+1. **Stripe Dashboard → Products** : créer 2 Products ("Civique" et
+   "Intégral"). Pour chacun, créer 3 prix récurrents (mensuel / trimestriel /
+   annuel). Noter les 6 Price IDs (format `price_xxx`).
+2. **Base de données** : `UPDATE plans SET stripe_price_id = 'price_xxx'
+   WHERE code = 'CIVIQUE_MONTHLY'` etc., pour les 6 plans créés en V106.
+3. **Variables d'env Stripe** simplifiées : `STRIPE_SECRET_KEY` +
+   `STRIPE_WEBHOOK_SECRET` + `APP_BASE_URL` (les anciens
+   `STRIPE_PRICE_*` / `STRIPE_PAYMENT_LINK_*` ne sont plus lus).
+4. **Stripe Dashboard → Webhooks → Add endpoint** : pointer
+   `https://api.sejourfr.fr/api/billing/webhook`, sélectionner les events :
+   `checkout.session.completed`, `customer.subscription.created`,
+   `customer.subscription.updated`, `customer.subscription.deleted`,
+   `charge.refunded`.
+
+**Events Stripe gérés** (cf. `StripeSubscriptionService`) :
+- `checkout.session.completed` (mode=SUBSCRIPTION) → init UserSubscription,
+  fetch la Subscription Stripe et applique son état. Les sessions en mode
+  PAYMENT (héritage one-shot) sont ignorées.
+- `customer.subscription.created/.updated` → mise à jour de l'état :
+  - status `active` + `cancel_at_period_end=false` → ACTIVE
+  - status `active` + `cancel_at_period_end=true` → CANCELED (Premium ouvert
+    jusqu'à `current_period_end`)
+  - status `trialing` → TRIAL
+  - status `past_due` / `unpaid` → IN_GRACE (Stripe Smart Retries)
+  - status `incomplete` → PENDING
+  - status `canceled` → CANCELED (ou EXPIRED si ends_at passé)
+  - status `paused` → EXPIRED
+- `customer.subscription.deleted` → EXPIRED immédiat.
+- `charge.refunded` → REFUNDED (Premium retiré).
+
+**Clé d'unicité Stripe** : `(STRIPE, subscription.id)` (sub_xxx). Stable sur
+toute la chaîne de renouvellements. Les events arrivant pour un
+subscription_id inconnu (race avec checkout.session.completed) sont logués
+et ignorés.
 
 ## Git
 

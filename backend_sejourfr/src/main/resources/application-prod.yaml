@@ -52,15 +52,10 @@ sejourfr:
   app:
     base-url: ${APP_BASE_URL:https://sejourfr.fr}
   stripe:
+    # Stripe Price IDs vivent en base (plans.stripe_price_id) — cf. lot 4.
     secret-key: ${STRIPE_SECRET_KEY}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET}
-    # Mode recommandé : Checkout Sessions. Renseigner les Price IDs.
-    price-civique: ${STRIPE_PRICE_CIVIQUE:}
-    price-integral: ${STRIPE_PRICE_INTEGRAL:}
     app-base-url: ${APP_BASE_URL:https://sejourfr.fr}
-    # Fallback : Payment Links statiques (utilisés si les Price IDs sont vides).
-    payment-link-civique: ${STRIPE_PAYMENT_LINK_CIVIQUE:}
-    payment-link-integral: ${STRIPE_PAYMENT_LINK_INTEGRAL:}
   apple:
     issuer-id: ${APPLE_ISSUER_ID:}
     key-id: ${APPLE_KEY_ID:}
