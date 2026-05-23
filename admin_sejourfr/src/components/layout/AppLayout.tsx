@@ -78,6 +78,10 @@ export function AppLayout() {
         </NavItem>
         <NavItem to="/audio-questions/logs">↳ Audit generations</NavItem>
 
+        <div className={styles.navSection}>Commerce</div>
+        <NavItem to="/plans">↳ Plans & tarifs</NavItem>
+        <NavItem to="/subscriptions">↳ Abonnements</NavItem>
+
         <div className={styles.navSection}>Echanges</div>
         <NavItem to="/conversations" badge={unreadQuery.data?.count}>
           ↳ Conversations

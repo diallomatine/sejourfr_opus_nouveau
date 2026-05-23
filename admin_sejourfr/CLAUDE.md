@@ -66,6 +66,8 @@ Endpoints utilisés actuellement :
 - `GET|POST|PATCH|DELETE /api/admin/conversations[/{id}[/reply|mark-read|status]]`
 - `GET /api/admin/conversations/unread-count`
 - `POST|GET|PATCH|DELETE /api/admin/audio-questions[/{id}[/preview|validate]]` + `GET /api/admin/audio-questions/generation-logs`
+- `GET /api/admin/plans`, `PATCH /api/admin/plans/{id}` (commerce — lot 4c)
+- `GET /api/admin/subscriptions?source=…&status=…&moduleAccess=…&search=…&page=…&size=…` (lot 4c)
 
 **Authentification** : JWT Bearer dans l'en-tête `Authorization`. Le refresh est automatique côté `http.ts` quand une requête prend un 401 — pas besoin de le gérer dans les composants.
 
@@ -125,13 +127,25 @@ Comptes admin (en dev, ils sont dans le seed Flyway du backend) :
 
 Pas encore d'API côté backend, donc pas implémenté ici :
 - **Clients / utilisateurs** : liste, détail, désactivation
-- **Abonnements** : suivi des plans, paiements
 - **Upload de médias** dans le formulaire de question : l'endpoint `/api/admin/media/upload` existe côté backend mais pas encore intégré dans le formulaire. À ajouter quand on aura des questions avec audio/image (TCF compréhension orale notamment).
 - **Statistiques par utilisateur** : taux de réussite, progression, etc.
 
+**Commerce (lot 4c ✅ fait)** :
+- `features/plans/` — tableau des Plans (FREE + 6 SKUs récurrents) avec
+  modal d'édition. Champs éditables : prix, prix barré (originalPrice),
+  active, stripePriceId, appleProductId, googleProductId. Garde anti-incohérence
+  côté backend : un plan payant actif doit avoir au moins un SKU renseigné.
+  Les Plans sont créés en migration Flyway (V100/V106) — pas de POST/DELETE
+  côté admin.
+- `features/subscriptions/` — liste paginée des UserSubscription, filtres
+  source/status/moduleAccess + recherche email+nom (debounced 300ms),
+  pagination prev/next. Tri par updatedAt desc. Modal détail montrant tous
+  les transactionIds, dates, plan, montant. Trois sources possibles : Stripe
+  (web), Apple (iOS), Google (Android) — cf. CLAUDE.md racine pour le schéma.
+
 ## Pistes d'évolution
 
-- Quand les écrans **clients** et **abonnements** seront ajoutés, créer `features/users/` et `features/subscriptions/` sur le même modèle.
+- Quand l'écran **clients** sera ajouté, créer `features/users/` sur le même modèle (`features/subscriptions/` existe depuis le lot 4c).
 - Pour l'upload de médias dans le formulaire question : ajouter un composant `MediaPicker` qui appelle `POST /api/admin/media/upload` (multipart) ou `POST /api/admin/media/from-url`, puis remplit `mediaId` dans le `QuestionWriteRequest`.
 - Si la pagination des questions devient lourde, envisager un `useInfiniteQuery` plutôt que des boutons précédent/suivant.
 - Tests : aucun pour l'instant. Quand on en ajoutera, partir sur Vitest + React Testing Library.

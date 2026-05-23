@@ -10,8 +10,10 @@ import { ConversationsPage } from "./features/conversations/ConversationsPage";
 import { DashboardPage } from "./features/dashboard/DashboardPage";
 import { ExamFormPage } from "./features/exams/ExamFormPage";
 import { ExamsPage } from "./features/exams/ExamsPage";
+import { PlansPage } from "./features/plans/PlansPage";
 import { QuestionDetailPage } from "./features/questions/QuestionDetailPage";
 import { QuestionsPage } from "./features/questions/QuestionsPage";
+import { SubscriptionsPage } from "./features/subscriptions/SubscriptionsPage";
 import { ThemesPage } from "./features/themes/ThemesPage";
 import { queryClient } from "./lib/queryClient";
 import { LoginPage } from "./pages/LoginPage";
@@ -60,6 +62,8 @@ export function App() {
                   path="/audio-questions/logs"
                   element={<AudioQuestionLogsPage />}
                 />
+                <Route path="/plans" element={<PlansPage />} />
+                <Route path="/subscriptions" element={<SubscriptionsPage />} />
                 <Route path="/conversations" element={<ConversationsPage />} />
               </Route>
 

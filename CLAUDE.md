@@ -250,9 +250,12 @@ masque le bouton d'achat IAP. Pareil dans l'autre sens.
   périodicités (toggle mensuel/trimestriel/annuel), portail client Stripe
   pour gérer l'abonnement (annuler, changer de plan). API existant
   `/api/billing/plans` renvoie déjà tous les plans actifs.
-- **Lot 4c (à faire, admin)** : section Abonnements (liste des
-  user_subscriptions, filtres par source/statut), édition prix + activation
-  des plans, badge revenue par source (Stripe/Apple/Google).
+- **Lot 4c (✅ fait, admin)** : `features/plans/` (table + modal d'édition
+  prix/active/store IDs) + `features/subscriptions/` (liste paginée avec
+  filtres source/status/module + recherche + modal détail). Backend :
+  `GET /api/admin/plans` + `PATCH /api/admin/plans/{id}` +
+  `GET /api/admin/subscriptions?…` avec Specifications JPA pour les filtres
+  dynamiques + UserSubscriptionMapper.
 - **Lot 4d (à faire, mobile)** : UI paywall mensuel/trimestriel/annuel,
   branchement package `in_app_purchase`, appel `/verify-receipt` après
   achat, lecture `/subscription-status` au boot.

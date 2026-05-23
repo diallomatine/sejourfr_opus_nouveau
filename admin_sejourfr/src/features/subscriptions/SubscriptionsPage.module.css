@@ -1,0 +1,139 @@
+.filtersBar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) 2fr;
+  gap: 16px;
+  padding: 16px 20px;
+  align-items: end;
+}
+
+@media (max-width: 900px) {
+  .filtersBar {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 560px) {
+  .filtersBar {
+    grid-template-columns: 1fr;
+  }
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filterLabel {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.searchGroup {
+  grid-column: span 1;
+}
+
+.subLine {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.cancelHint {
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.dateCell {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--line);
+}
+
+.paginationInfo {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+/* ===== Modal détail ===== */
+.detailGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detailRow {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-2);
+}
+.detailRow:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+@media (max-width: 600px) {
+  .detailRow {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+.detailLabel {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.detailValue {
+  font-size: 14px;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  word-break: break-all;
+}
+
+.detailValue strong {
+  font-weight: 600;
+}
+
+.detailSub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.code {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-2);
+  background: var(--paper-2);
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  word-break: break-all;
+}

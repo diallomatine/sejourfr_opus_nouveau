@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Couche d'acces aux donnees pour {@link Plan}.
@@ -19,6 +20,14 @@ public class PlanManager {
 
     public List<Plan> findAll() {
         return repository.findAll();
+    }
+
+    public Optional<Plan> findById(UUID id) {
+        return repository.findById(id);
+    }
+
+    public Plan save(Plan plan) {
+        return repository.save(plan);
     }
 
     public Optional<Plan> findByCode(String code) {

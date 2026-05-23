@@ -522,3 +522,88 @@ export interface BatchGenerationResultDto {
 export interface PendingReviewCountDto {
   count: number;
 }
+
+// ============================================================================
+// Plans + Abonnements (lot 4c admin)
+// ============================================================================
+
+export type BillingCycle = "NONE" | "MONTHLY" | "THREE_MONTHS" | "SIX_MONTHS" | "YEARLY";
+export type ModuleAccess = "NONE" | "CIVIQUE" | "TCF" | "INTEGRAL";
+export type SubscriptionSource = "STRIPE" | "APPLE" | "GOOGLE";
+export type SubscriptionStatus =
+  | "ACTIVE"
+  | "TRIAL"
+  | "IN_GRACE"
+  | "PENDING"
+  | "CANCELED"
+  | "EXPIRED"
+  | "REFUNDED";
+
+/** Vue admin d'un Plan (lecture + édition partielle). */
+export interface AdminPlanDto {
+  id: string;
+  code: string;
+  name: string;
+  billingCycle: BillingCycle;
+  price: number;
+  originalPrice: number | null;
+  moduleAccess: ModuleAccess;
+  durationDays: number;
+  active: boolean;
+  stripePriceId: string | null;
+  appleProductId: string | null;
+  googleProductId: string | null;
+}
+
+/**
+ * Patch partiel d'un Plan. Champs omis = non touchés.
+ * `originalPrice` à 0 ou négatif retire le prix barré.
+ * `stripePriceId` / `appleProductId` / `googleProductId` à "" effacent le SKU.
+ */
+export interface AdminPlanUpdateRequest {
+  price?: number;
+  originalPrice?: number;
+  active?: boolean;
+  stripePriceId?: string;
+  appleProductId?: string;
+  googleProductId?: string;
+}
+
+/** Vue admin d'une UserSubscription enrichie (user + plan). */
+export interface AdminSubscriptionDto {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userFirstName: string | null;
+  userLastName: string | null;
+  source: SubscriptionSource;
+  status: SubscriptionStatus;
+  externalTransactionId: string | null;
+  originalTransactionId: string;
+  productId: string | null;
+  autoRenew: boolean;
+  startsAt: string;
+  endsAt: string | null;
+  updatedAt: string;
+  planId: string | null;
+  planCode: string | null;
+  planName: string | null;
+  moduleAccess: ModuleAccess | null;
+  planPrice: number | null;
+}
+
+export interface AdminSubscriptionListResponse {
+  items: AdminSubscriptionDto[];
+  total: number;
+  page: number;
+  size: number;
+}
+
+export interface AdminSubscriptionFilters {
+  source?: SubscriptionSource;
+  status?: SubscriptionStatus;
+  moduleAccess?: ModuleAccess;
+  search?: string;
+  page?: number;
+  size?: number;
+}

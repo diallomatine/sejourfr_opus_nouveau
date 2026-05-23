@@ -3,6 +3,7 @@ package com.sejourfr.app.repository;
 import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.SubscriptionSource;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -10,7 +11,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface UserSubscriptionRepository extends JpaRepository<UserSubscription, UUID> {
+public interface UserSubscriptionRepository
+        extends JpaRepository<UserSubscription, UUID>,
+                JpaSpecificationExecutor<UserSubscription> {
 
     List<UserSubscription> findByUserId(UUID userId);
 

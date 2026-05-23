@@ -4,6 +4,9 @@ import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.repository.UserSubscriptionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -38,5 +41,13 @@ public class UserSubscriptionManager {
 
     public UserSubscription save(UserSubscription subscription) {
         return repository.save(subscription);
+    }
+
+    /**
+     * Recherche paginée par {@link Specification} — utilisée par l'admin pour
+     * combiner filtres source/status/module/search.
+     */
+    public Page<UserSubscription> findAll(Specification<UserSubscription> spec, Pageable pageable) {
+        return repository.findAll(spec, pageable);
     }
 }
