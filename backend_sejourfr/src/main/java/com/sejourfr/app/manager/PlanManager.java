@@ -24,4 +24,17 @@ public class PlanManager {
     public Optional<Plan> findByCode(String code) {
         return repository.findByCode(code);
     }
+
+    /**
+     * Retrouve un Plan à partir d'un SKU Apple App Store. Utilisé après
+     * validation d'un reçu IAP : le store nous donne le productId, on remonte
+     * au Plan pour savoir quel {@code ModuleAccess} ouvrir (CIVIQUE / INTEGRAL).
+     */
+    public Optional<Plan> findByAppleProductId(String appleProductId) {
+        return repository.findByAppleProductId(appleProductId);
+    }
+
+    public Optional<Plan> findByGoogleProductId(String googleProductId) {
+        return repository.findByGoogleProductId(googleProductId);
+    }
 }

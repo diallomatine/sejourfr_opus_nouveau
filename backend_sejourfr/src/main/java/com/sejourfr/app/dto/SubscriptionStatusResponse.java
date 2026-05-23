@@ -1,6 +1,7 @@
 package com.sejourfr.app.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
@@ -33,5 +34,17 @@ public record SubscriptionStatusResponse(
     public static SubscriptionStatusResponse notPremium() {
         return new SubscriptionStatusResponse(
                 false, null, null, null, null, ModuleAccess.NONE, false);
+    }
+
+    public static SubscriptionStatusResponse from(UserSubscription sub) {
+        return new SubscriptionStatusResponse(
+                true,
+                sub.getSource(),
+                sub.getProductId(),
+                sub.getEndsAt(),
+                sub.getStatus(),
+                sub.getPlan().getModuleAccess(),
+                sub.isAutoRenew()
+        );
     }
 }

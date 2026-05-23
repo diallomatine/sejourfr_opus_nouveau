@@ -61,4 +61,11 @@ sejourfr:
     # Fallback : Payment Links statiques (utilisés si les Price IDs sont vides).
     payment-link-civique: ${STRIPE_PAYMENT_LINK_CIVIQUE:}
     payment-link-integral: ${STRIPE_PAYMENT_LINK_INTEGRAL:}
+  apple:
+    issuer-id: ${APPLE_ISSUER_ID:}
+    key-id: ${APPLE_KEY_ID:}
+    private-key: ${APPLE_PRIVATE_KEY:}
+    bundle-id: ${APPLE_BUNDLE_ID:}
+    app-apple-id: ${APPLE_APP_ID:#{null}}
+    environment: ${APPLE_ENVIRONMENT:PRODUCTION}
 

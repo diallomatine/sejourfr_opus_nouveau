@@ -44,6 +44,22 @@ public class Plan {
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
+    /**
+     * SKU Apple App Store correspondant à ce Plan (ex: "integral.monthly").
+     * NULL tant que le produit n'a pas été créé côté App Store Connect. Sert
+     * au backend à retrouver le Plan à partir du {@code productId} remonté
+     * par un reçu IAP.
+     */
+    @Column(name = "apple_product_id", length = 128)
+    private String appleProductId;
+
+    /**
+     * SKU Google Play correspondant à ce Plan. Même fonction que
+     * {@link #appleProductId} côté Android.
+     */
+    @Column(name = "google_product_id", length = 128)
+    private String googleProductId;
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
@@ -70,4 +86,10 @@ public class Plan {
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+
+    public String getAppleProductId() { return appleProductId; }
+    public void setAppleProductId(String appleProductId) { this.appleProductId = appleProductId; }
+
+    public String getGoogleProductId() { return googleProductId; }
+    public void setGoogleProductId(String googleProductId) { this.googleProductId = googleProductId; }
 }

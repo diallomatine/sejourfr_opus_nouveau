@@ -9,4 +9,8 @@ import java.util.UUID;
 @Repository
 public interface PlanRepository extends JpaRepository<Plan, UUID> {
     Optional<Plan> findByCode(String code);
+
+    Optional<Plan> findByAppleProductId(String appleProductId);
+
+    Optional<Plan> findByGoogleProductId(String googleProductId);
 }

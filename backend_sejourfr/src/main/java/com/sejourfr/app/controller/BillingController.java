@@ -4,7 +4,6 @@ import com.sejourfr.app.dto.BillingCheckoutResponse;
 import com.sejourfr.app.dto.PlanPublicResponse;
 import com.sejourfr.app.dto.SubscriptionStatusResponse;
 import com.sejourfr.app.dto.VerifyReceiptRequest;
-import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.BillingPlan;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.BillingService;
@@ -67,20 +66,8 @@ public class BillingController {
     @GetMapping("/subscription-status")
     public SubscriptionStatusResponse getSubscriptionStatus() {
         return subscriptionService.currentSubscription(currentUser.getId())
-                .map(this::toStatusResponse)
+                .map(SubscriptionStatusResponse::from)
                 .orElseGet(SubscriptionStatusResponse::notPremium);
-    }
-
-    private SubscriptionStatusResponse toStatusResponse(UserSubscription sub) {
-        return new SubscriptionStatusResponse(
-                true,
-                sub.getSource(),
-                sub.getProductId(),
-                sub.getEndsAt(),
-                sub.getStatus(),
-                sub.getPlan().getModuleAccess(),
-                sub.isAutoRenew()
-        );
     }
 
     /**

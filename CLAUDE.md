@@ -223,16 +223,67 @@ masque le bouton d'achat IAP. Pareil dans l'autre sens.
 
 **État des lots** :
 - **Lot 1 (✅ fait)** : schéma multi-source, migration V103, agrégateur,
-  endpoints `subscription-status` + scaffolds verify-receipt / webhooks (501 ou
-  log+200 tant que la validation store n'est pas en place).
-- **Lot 2 (à faire)** : intégration Apple complète — lib `app-store-server-library`,
-  JWT auth pour l'App Store Server API, validation JWS signedTransactionInfo,
-  webhook ASSN V2 avec vérif chaîne de certifs Apple.
-- **Lot 3 (à faire)** : intégration Google complète — `google-api-services-androidpublisher`,
-  service account, `Purchases.subscriptionsv2.get`, webhook RTDN via Pub/Sub.
+  endpoints `subscription-status` + scaffolds verify-receipt / webhooks.
+- **Lot 2 (✅ fait)** : intégration Apple complète — lib
+  `app-store-server-library` 5.2.0, vérif JWS (transactions + notifications +
+  renewal info), App Store Server API client. `verify-receipt` branch APPLE
+  + webhook `/webhooks/apple` opérationnels (idempotence via
+  `processed_external_events`, anti-account-stealing en 409, mapping
+  `NotificationTypeV2` → `SubscriptionStatus`). Mapping productId → Plan
+  via colonnes `plans.apple_product_id` (migration V104).
+- **Lot 3 (à faire)** : intégration Google complète —
+  `google-api-services-androidpublisher`, service account, `Purchases.subscriptionsv2.get`,
+  webhook RTDN via Pub/Sub.
 - **Lot 4 (à faire)** : refonte des plans en abonnements récurrents (mensuel /
   trimestriel), migration de Stripe Payment vers Subscription, alignement des 3
   fronts. Touche les 4 sous-projets.
+
+**Setup Apple (lot 2)** :
+1. **App Store Connect → Users and Access → Integrations → App Store Server API**
+   → générer une clé. Télécharger le P8 (téléchargeable une seule fois). Noter
+   l'`Issuer ID` (team-level, UUID) et le `Key ID` (10 caractères).
+2. **Root certs Apple** — déposer 3 fichiers dans
+   `backend_sejourfr/src/main/resources/apple/` :
+   - `AppleRootCA-G3.cer` (signature actuelle des JWS Apple)
+   - `AppleIncRootCertificate.cer` (legacy)
+   - `AppleComputerRootCertificate.cer` (legacy)
+   Téléchargeables sur https://www.apple.com/certificateauthority/. Ne pas
+   commiter de bouchons : le bean `AppleStoreClient` détecte l'absence et
+   reste en mode 503.
+3. **Variables d'env** : `APPLE_ISSUER_ID`, `APPLE_KEY_ID`,
+   `APPLE_PRIVATE_KEY` (contenu du P8 brut), `APPLE_BUNDLE_ID`,
+   `APPLE_APP_ID` (numérique, prod uniquement), `APPLE_ENVIRONMENT`
+   (`SANDBOX` en dev / TestFlight, `PRODUCTION` en App Store).
+4. **App Store Connect → Subscriptions** : créer les produits IAP (SKUs
+   définis au lot 4 quand les abonnements récurrents seront en place), puis
+   mettre à jour `plans.apple_product_id` en base via SQL.
+5. **App Store Connect → App Information → App Store Server Notifications →
+   V2** : pointer Production URL et Sandbox URL sur
+   `https://<host>/api/billing/webhooks/apple`.
+
+**Notifications Apple gérées** (`NotificationTypeV2`) :
+- `SUBSCRIBED`, `DID_RENEW`, `OFFER_REDEEMED` → status ACTIVE, `expiresDate`
+  rafraîchi.
+- `EXPIRED`, `GRACE_PERIOD_EXPIRED` → status EXPIRED.
+- `DID_FAIL_TO_RENEW` + `subtype=GRACE_PERIOD` → status IN_GRACE.
+- `DID_FAIL_TO_RENEW` sans subtype → état inchangé (l'abonnement court jusqu'à
+  `expiresDate`).
+- `DID_CHANGE_RENEWAL_STATUS` + `AUTO_RENEW_DISABLED` → status CANCELED
+  (Premium reste ouvert jusqu'à `expiresDate`).
+- `DID_CHANGE_RENEWAL_STATUS` + `AUTO_RENEW_ENABLED` → status ACTIVE si on
+  était CANCELED.
+- `REFUND`, `REVOKE` → status REFUNDED (Premium retiré immédiatement).
+- `REFUND_REVERSED` → ACTIVE si `expiresDate` couvre encore.
+- `DID_CHANGE_RENEWAL_PREF` → log seulement (changement pour prochain
+  renouvellement, pas d'impact courant).
+- Autres types (`PRICE_INCREASE`, `METADATA_UPDATE`, `TEST`, `MIGRATION`,
+  `PRICE_CHANGE`, `CONSUMPTION_REQUEST`, `RENEWAL_EXTENDED`, ...) → log debug,
+  pas d'impact sur l'accès Premium.
+
+**Limites assumées** : Family Sharing pas géré (un `originalTransactionId`
+rattaché à User A est verrouillé sur lui — un autre user qui tenterait avec
+le même reçu reçoit 409). Seul `AUTO_RENEWABLE_SUBSCRIPTION` est accepté ; les
+NON_CONSUMABLE / CONSUMABLE / NON_RENEWING_SUBSCRIPTION renvoient 400.
 
 ## Git
 

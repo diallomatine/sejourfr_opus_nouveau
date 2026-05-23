@@ -74,6 +74,28 @@ sejourfr:
     # Mode 2 — Payment Links (fallback)
     payment-link-civique: ""
     payment-link-integral: ""
+  # --------------------------------------------------------------------------
+  # Apple App Store Server (IAP iOS).
+  # --------------------------------------------------------------------------
+  # Tant qu'un champ est vide → endpoints IAP Apple renvoient 503.
+  # Variables d'env (cf. .env dev / secrets prod) :
+  #   APPLE_ISSUER_ID=99b16628-15e4-4668-972b-eeff55eeff55
+  #   APPLE_KEY_ID=ABCDEFGHIJ
+  #   APPLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+  #   APPLE_BUNDLE_ID=com.sejourfr.app
+  #   APPLE_APP_ID=1234567890                # prod uniquement
+  #   APPLE_ENVIRONMENT=SANDBOX              # ou PRODUCTION
+  # Les root certs Apple doivent être présents dans src/main/resources/apple/
+  # (AppleRootCA-G3.cer, AppleIncRootCertificate.cer, AppleComputerRootCertificate.cer).
+  apple:
+    issuer-id: ""
+    key-id: ""
+    private-key: ""
+    bundle-id: ""
+    app-apple-id: null
+    environment: SANDBOX
+    root-certs-classpath: "classpath:apple/*.cer"
+    enable-online-checks: true
   security:
     jwt:
       issuer: sejourfr-backend

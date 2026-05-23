@@ -22,6 +22,7 @@
         <stripe.version>28.0.0</stripe.version>
         <aws-sdk.version>2.30.18</aws-sdk.version>
         <spring-retry.version>2.0.12</spring-retry.version>
+        <app-store-server-library.version>5.2.0</app-store-server-library.version>
     </properties>
 
     <dependencyManagement>
@@ -103,6 +104,15 @@
             <groupId>com.stripe</groupId>
             <artifactId>stripe-java</artifactId>
             <version>${stripe.version}</version>
+        </dependency>
+
+        <!-- App Store Server Library (Apple) : vérif JWS des transactions et
+             notifications V2 + client API serveur (JWT signé p8). Utilisée
+             pour valider les reçus IAP iOS et traiter les webhooks ASSN V2. -->
+        <dependency>
+            <groupId>com.apple.itunes.storekit</groupId>
+            <artifactId>app-store-server-library</artifactId>
+            <version>${app-store-server-library.version}</version>
         </dependency>
 
         <!-- Validation des ID tokens Google / Apple (JWKS + signature RS256) pour social sign-in -->
