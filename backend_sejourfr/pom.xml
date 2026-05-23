@@ -23,6 +23,8 @@
         <aws-sdk.version>2.30.18</aws-sdk.version>
         <spring-retry.version>2.0.12</spring-retry.version>
         <app-store-server-library.version>5.2.0</app-store-server-library.version>
+        <google-api-androidpublisher.version>v3-rev20260519-2.0.0</google-api-androidpublisher.version>
+        <google-auth-library.version>1.47.0</google-auth-library.version>
     </properties>
 
     <dependencyManagement>
@@ -113,6 +115,20 @@
             <groupId>com.apple.itunes.storekit</groupId>
             <artifactId>app-store-server-library</artifactId>
             <version>${app-store-server-library.version}</version>
+        </dependency>
+
+        <!-- Google Play Developer API (AndroidPublisher) : validation des
+             reçus IAP Android (purchases.subscriptionsv2.get) et acknowledge
+             des achats. Auth via Service Account JSON. -->
+        <dependency>
+            <groupId>com.google.apis</groupId>
+            <artifactId>google-api-services-androidpublisher</artifactId>
+            <version>${google-api-androidpublisher.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.auth</groupId>
+            <artifactId>google-auth-library-oauth2-http</artifactId>
+            <version>${google-auth-library.version}</version>
         </dependency>
 
         <!-- Validation des ID tokens Google / Apple (JWKS + signature RS256) pour social sign-in -->

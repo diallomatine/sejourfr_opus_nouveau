@@ -96,6 +96,20 @@ sejourfr:
     environment: SANDBOX
     root-certs-classpath: "classpath:apple/*.cer"
     enable-online-checks: true
+  # --------------------------------------------------------------------------
+  # Google Play Billing (IAP Android).
+  # --------------------------------------------------------------------------
+  # Tant qu'un champ est vide → endpoints IAP Google renvoient 503.
+  # Variables d'env :
+  #   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON='{"type":"service_account",...}'
+  #   GOOGLE_PLAY_PACKAGE_NAME=com.sejourfr.app
+  #   GOOGLE_PUBSUB_AUDIENCE=https://api.sejourfr.fr/api/billing/webhooks/google
+  #   GOOGLE_PUBSUB_SA_EMAIL=pubsub-pusher@<project>.iam.gserviceaccount.com
+  google:
+    service-account-json: ""
+    package-name: ""
+    pub-sub-audience: ""
+    pub-sub-service-account-email: ""
   security:
     jwt:
       issuer: sejourfr-backend

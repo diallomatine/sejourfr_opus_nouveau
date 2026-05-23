@@ -231,9 +231,13 @@ masque le bouton d'achat IAP. Pareil dans l'autre sens.
   `processed_external_events`, anti-account-stealing en 409, mapping
   `NotificationTypeV2` → `SubscriptionStatus`). Mapping productId → Plan
   via colonnes `plans.apple_product_id` (migration V104).
-- **Lot 3 (à faire)** : intégration Google complète —
-  `google-api-services-androidpublisher`, service account, `Purchases.subscriptionsv2.get`,
-  webhook RTDN via Pub/Sub.
+- **Lot 3 (✅ fait)** : intégration Google Play Billing complète — lib
+  `google-api-services-androidpublisher` + `google-auth-library-oauth2-http`,
+  Service Account JSON, `purchases.subscriptionsv2.get` pour l'état autoritatif,
+  webhook RTDN via Pub/Sub avec vérification du Bearer JWT (signature, audience,
+  email SA). `verify-receipt` branch GOOGLE + webhook `/webhooks/google`
+  opérationnels (idempotence via `messageId` Pub/Sub, anti-account-stealing en
+  409, mapping `subscriptionState` → `SubscriptionStatus`).
 - **Lot 4 (à faire)** : refonte des plans en abonnements récurrents (mensuel /
   trimestriel), migration de Stripe Payment vers Subscription, alignement des 3
   fronts. Touche les 4 sous-projets.
@@ -284,6 +288,53 @@ masque le bouton d'achat IAP. Pareil dans l'autre sens.
 rattaché à User A est verrouillé sur lui — un autre user qui tenterait avec
 le même reçu reçoit 409). Seul `AUTO_RENEWABLE_SUBSCRIPTION` est accepté ; les
 NON_CONSUMABLE / CONSUMABLE / NON_RENEWING_SUBSCRIPTION renvoient 400.
+
+**Setup Google Play (lot 3)** :
+1. **Google Cloud Console → IAM → Service Accounts** : créer un SA dédié,
+   générer une clé JSON. Le SA doit avoir le rôle minimal "Service Account
+   User".
+2. **Play Console → Setup → API access** : lier le compte Google Cloud,
+   accorder à ce SA les permissions "View financial data" + "Manage orders
+   and subscriptions" (pour pouvoir lire les abonnements et accepter les
+   refunds).
+3. **Cloud Console → Pub/Sub** : créer un topic (ex: `play-rtdn`), puis une
+   subscription **push** :
+   - Endpoint : `https://api.sejourfr.fr/api/billing/webhooks/google`
+   - Authentication : activer "Enable authentication", choisir un Service
+     Account (peut être un SA dédié à Pub/Sub, distinct de celui du Play API)
+   - Audience : URL exacte de l'endpoint (claim `aud` du JWT)
+4. **Play Console → Monetization setup → Real-time developer notifications** :
+   pointer le Cloud project + le topic créé.
+5. **Variables d'env** :
+   - `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` (contenu JSON brut de la clé SA)
+   - `GOOGLE_PLAY_PACKAGE_NAME` (ex: `com.sejourfr.app`)
+   - `GOOGLE_PUBSUB_AUDIENCE` = URL du webhook
+   - `GOOGLE_PUBSUB_SA_EMAIL` = email du SA configuré sur la push subscription
+6. **Play Console → Subscriptions** : créer les produits IAP (SKUs définis au
+   lot 4), puis `UPDATE plans SET google_product_id = ...` en base.
+
+**RTDN gérées** (`subscriptionNotification.notificationType` int + état refetché) :
+- Tous types (sauf REVOKED) déclenchent un appel `subscriptionsv2.get` qui
+  donne l'état autoritatif. Le mapping `subscriptionState` → `SubscriptionStatus` :
+  - `SUBSCRIPTION_STATE_ACTIVE` → ACTIVE
+  - `SUBSCRIPTION_STATE_CANCELED` → CANCELED (Premium ouvert jusqu'à `expiryTime`)
+  - `SUBSCRIPTION_STATE_IN_GRACE_PERIOD` → IN_GRACE
+  - `SUBSCRIPTION_STATE_ON_HOLD` / `PAUSED` / `EXPIRED` → EXPIRED
+  - `SUBSCRIPTION_STATE_PENDING` → PENDING (pas de Premium)
+  - `SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED` → REFUNDED
+- `SUBSCRIPTION_REVOKED` (12) → REFUNDED + autoRenew=false **immédiatement**,
+  sans attendre le refetch (l'API peut encore renvoyer ACTIVE temporairement).
+- `testNotification` → log, no-op.
+
+**Idempotence Google** : Pub/Sub livre at-least-once. On stocke chaque
+`message.messageId` traité dans `processed_external_events` (provider=`google`).
+Un replay du même messageId est silencieusement skipé.
+
+**Différence sémantique vs Apple** : la RTDN ne porte PAS l'état détaillé —
+juste "ça a changé sur ce purchaseToken". On appelle TOUJOURS l'API
+`subscriptionsv2.get` pour avoir l'état autoritatif. Côté Apple à l'inverse,
+le `signedTransactionInfo` inclus dans la notification est déjà autoritatif
+(JWS signé), pas besoin d'appel API.
 
 ## Git
 

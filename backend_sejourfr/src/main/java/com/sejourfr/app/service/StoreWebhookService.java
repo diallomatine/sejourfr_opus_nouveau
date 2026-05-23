@@ -1,6 +1,7 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.service.billing.AppleSubscriptionService;
+import com.sejourfr.app.service.billing.GoogleSubscriptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -10,39 +11,29 @@ import org.springframework.stereotype.Service;
  * <ul>
  *   <li>Apple : App Store Server Notifications V2 (JWS signé) — délégué à
  *       {@link AppleSubscriptionService}.</li>
- *   <li>Google : Real-time Developer Notifications via Pub/Sub — lot 3 TODO.</li>
+ *   <li>Google : Real-time Developer Notifications via Pub/Sub (Bearer JWT
+ *       signé Service Account) — délégué à {@link GoogleSubscriptionService}.</li>
  * </ul>
  *
- * <p>Idempotence + verification d'authenticité vivent dans les services
- * spécialisés. Ici on ne fait que router et logger les erreurs en
- * non-bloquant — l'endpoint retourne 200 vite, comme attendu par les stores,
- * sauf en cas de problème dur (vérification signature KO ou exception
- * inattendue) où on remonte un 4xx pour que le store retente.
+ * <p>Vérification d'authenticité + idempotence vivent dans les services
+ * spécialisés ; ici on ne fait que router. Les controllers retournent 200 vite
+ * (attendu des stores) ; en cas d'échec d'auth ou de validation, les services
+ * lèvent une {@code ResponseStatusException} (401/400/502) pour que le store
+ * retente.
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class StoreWebhookService {
 
-    /** Tronque les payloads loggés — un JWS Apple complet fait plusieurs KB. */
-    private static final int LOG_PREVIEW_CHARS = 200;
-
     private final AppleSubscriptionService appleSubscriptionService;
+    private final GoogleSubscriptionService googleSubscriptionService;
 
     public void handleAppleNotification(String payload) {
         appleSubscriptionService.handleNotification(payload);
     }
 
-    public void handleGoogleNotification(String payload) {
-        log.warn(
-                "Google RTDN reçu — handler scaffold (lot 3 TODO). Payload preview: {}",
-                preview(payload)
-        );
-    }
-
-    private String preview(String payload) {
-        if (payload == null) return "<null>";
-        if (payload.length() <= LOG_PREVIEW_CHARS) return payload;
-        return payload.substring(0, LOG_PREVIEW_CHARS) + "...[+" + (payload.length() - LOG_PREVIEW_CHARS) + " chars]";
+    public void handleGoogleNotification(String authHeader, String payload) {
+        googleSubscriptionService.handleNotification(authHeader, payload);
     }
 }

@@ -74,6 +74,16 @@ sejourfr:
     app-apple-id: ${APPLE_APP_ID:#{null}}
     # SANDBOX (TestFlight + builds locaux) | PRODUCTION (App Store).
     environment: ${APPLE_ENVIRONMENT:SANDBOX}
+  google:
+    # Play Developer API + Real-time Developer Notifications. Tant qu'un
+    # champ est vide, les endpoints IAP Android renvoient 503. Service
+    # Account JSON à générer dans Cloud Console → IAM → Service Accounts,
+    # puis lier à Play Console (API access).
+    service-account-json: ${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:}
+    package-name: ${GOOGLE_PLAY_PACKAGE_NAME:}
+    # URL publique exacte du webhook (= aud du JWT Pub/Sub).
+    pub-sub-audience: ${GOOGLE_PUBSUB_AUDIENCE:}
+    pub-sub-service-account-email: ${GOOGLE_PUBSUB_SA_EMAIL:}
   security:
     jwt:
       # Cle de signature (HS256) en BASE64. >= 32 octets.
