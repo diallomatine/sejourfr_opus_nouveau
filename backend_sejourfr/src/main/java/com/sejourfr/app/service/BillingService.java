@@ -4,6 +4,7 @@ import com.sejourfr.app.config.StripeProperties;
 import com.sejourfr.app.dto.BillingCheckoutResponse;
 import com.sejourfr.app.dto.PlanPublicResponse;
 import com.sejourfr.app.entity.Plan;
+import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.manager.PlanManager;
 import com.sejourfr.app.manager.ProcessedExternalEventManager;
@@ -124,7 +125,7 @@ public class BillingService {
                     "Stripe non configuré côté backend (secret-key manquant)."
             );
         }
-        userManager.findById(userId)
+        User user = userManager.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User introuvable"));
 
         Plan plan = planManager.findByCode(planCode)
@@ -150,6 +151,7 @@ public class BillingService {
         SessionCreateParams params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
                 .setClientReferenceId(userId.toString())
+                .setCustomerEmail(user.getEmail())
                 .setSuccessUrl(successUrl)
                 .setCancelUrl(cancelUrl)
                 .addLineItem(SessionCreateParams.LineItem.builder()
