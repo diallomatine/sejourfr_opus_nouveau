@@ -8,8 +8,12 @@ interface PaywallSheetProps {
   onClose: () => void;
   title?: string;
   message?: string;
-  /** Plan pré-sélectionné quand on arrive sur /paiement. */
-  plan?: "CIVIQUE_3MOIS" | "INTEGRAL_3MOIS";
+  /**
+   * Module pré-sélectionné quand on arrive sur /paiement. L'utilisateur
+   * choisit ensuite la périodicité (mensuel / trimestriel / annuel) sur
+   * la page de paiement.
+   */
+  module?: "CIVIQUE" | "INTEGRAL";
 }
 
 /**
@@ -22,7 +26,7 @@ export function PaywallSheet({
   onClose,
   title = "Continuez en illimité",
   message = "Le mode démo offre 20 questions de découverte. Activez l'abonnement pour accéder à tous les thèmes, l'entraînement illimité, et la révision des erreurs.",
-  plan = "CIVIQUE_3MOIS",
+  module = "CIVIQUE",
 }: PaywallSheetProps) {
   // Fermeture par ESC
   useEffect(() => {
@@ -89,7 +93,7 @@ export function PaywallSheet({
         </div>
 
         <Link
-          href={`/paiement?plan=${plan}`}
+          href={`/paiement?module=${module}`}
           className="btn btn-red btn-lg pws-cta"
           onClick={onClose}
         >

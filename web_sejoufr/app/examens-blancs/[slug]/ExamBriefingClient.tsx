@@ -348,7 +348,7 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
             ? "1 examen TCF offert pour découvrir. L'abonnement Intégral débloque le reste + tout le civique + la révision."
             : "1 examen civique offert. L'abonnement débloque CSP, CR, Naturalisation, l'entraînement illimité et la révision."
         }
-        plan={isTcf ? "INTEGRAL_3MOIS" : "CIVIQUE_3MOIS"}
+        module={isTcf ? "INTEGRAL" : "CIVIQUE"}
       />
 
       <style>{styles}</style>

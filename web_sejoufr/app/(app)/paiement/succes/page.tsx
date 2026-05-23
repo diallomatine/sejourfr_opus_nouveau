@@ -272,8 +272,10 @@ function isPremium(user: AuthenticatedUser | null): boolean {
 }
 
 function derivePlanLabel(user: AuthenticatedUser, planParam: string | null): string {
-  if (planParam === "INTEGRAL_3MOIS") return "Intégral";
-  if (planParam === "CIVIQUE_3MOIS") return "Civique";
+  if (planParam) {
+    if (planParam.startsWith("INTEGRAL")) return "Intégral";
+    if (planParam.startsWith("CIVIQUE")) return "Civique";
+  }
   if (user.hasTcf) return "Intégral";
   if (user.hasCivique) return "Civique";
   return "Premium";

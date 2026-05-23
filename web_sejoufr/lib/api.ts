@@ -291,18 +291,56 @@ export const themeApi = {
 // Endpoints Billing (Stripe Payment Links)
 // ============================================================================
 
-export type BillingPlan = "CIVIQUE_3MOIS" | "INTEGRAL_3MOIS";
+/**
+ * Périodicité d'un abonnement récurrent. Le {@link planCodeFor} en dérive
+ * le `planCode` à passer à {@link billingApi.getPaymentLink}.
+ */
+export type PlanPeriodicity = "monthly" | "quarterly" | "yearly";
+
+/** Module visé pour un paywall : civique seul ou intégral (civique + TCF). */
+export type PlanModuleTarget = "CIVIQUE" | "INTEGRAL";
+
+/**
+ * Dérive le `planCode` backend à partir d'un module + d'une périodicité.
+ * Doit rester synchronisé avec la table `plans` (migration V106 :
+ * CIVIQUE_MONTHLY / CIVIQUE_QUARTERLY / CIVIQUE_YEARLY + idem INTEGRAL_*).
+ */
+export function planCodeFor(
+    module: PlanModuleTarget,
+    periodicity: PlanPeriodicity,
+): string {
+    const suffix = periodicity.toUpperCase();
+    return `${module}_${suffix}`;
+}
+
+/**
+ * Mappe un `billingCycle` backend vers une {@link PlanPeriodicity} du toggle UI.
+ * Le seul cycle servant à l'achat est récurrent : MONTHLY/THREE_MONTHS/YEARLY.
+ * Renvoie {@code null} pour les autres (NONE, SIX_MONTHS).
+ */
+export function periodicityFromCycle(
+    cycle: string | null | undefined,
+): PlanPeriodicity | null {
+    switch (cycle) {
+        case "MONTHLY": return "monthly";
+        case "THREE_MONTHS": return "quarterly";
+        case "YEARLY": return "yearly";
+        default: return null;
+    }
+}
 
 export const billingApi = {
     /**
-     * Récupère l'URL du Stripe Payment Link pour le plan demandé (one-shot,
-     * pas de renouvellement automatique). Le backend ajoute déjà
-     * client_reference_id=<user_id> à l'URL. Le front n'a plus qu'à rediriger
-     * vers cette URL.
+     * Récupère l'URL d'une Stripe Checkout Session (mode SUBSCRIPTION) pour
+     * le plan demandé. Le backend ajoute déjà `client_reference_id=<user_id>`
+     * à l'URL ; le front n'a plus qu'à rediriger vers cette URL.
+     *
+     * @param planCode code du Plan en base (ex: `INTEGRAL_MONTHLY`). Voir
+     *                 {@link planCodeFor} pour le dériver depuis le toggle UI.
      */
-    getPaymentLink(plan: BillingPlan): Promise<{ url: string }> {
+    getPaymentLink(planCode: string): Promise<{ url: string }> {
         return apiFetch<{ url: string }>(
-            `/api/billing/payment-link?plan=${encodeURIComponent(plan)}`,
+            `/api/billing/payment-link?planCode=${encodeURIComponent(planCode)}`,
             {auth: true}
         );
     },

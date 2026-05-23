@@ -261,7 +261,7 @@ export function ExamsModuleView({ module }: { module: ModuleEnum }) {
             ? "Vous avez 1 examen blanc civique offert. L'abonnement débloque les examens CSP, CR et naturalisation, plus tout l'entraînement illimité."
             : "Vous avez 1 examen blanc TCF offert. L'abonnement Intégral débloque les diagnostics A2/B1/B2, le civique illimité et la révision des erreurs."
         }
-        plan={isCivique ? "CIVIQUE_3MOIS" : "INTEGRAL_3MOIS"}
+        module={isCivique ? "CIVIQUE" : "INTEGRAL"}
       />
 
       <style>{styles}</style>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PricingHero } from "@/components/pricing/PricingHero";
-import { PricingCards } from "@/components/pricing/PricingCards";
+import { PricingPlans } from "@/components/pricing/PricingPlans";
 import { PricingComparison } from "@/components/pricing/PricingComparison";
 import { PricingFAQ } from "@/components/pricing/PricingFAQ";
 import { billingApi } from "@/lib/api";
@@ -9,14 +9,14 @@ import { SITE } from "@/lib/site";
 import type { PlanPublicResponse } from "@/lib/types";
 
 export const metadata: Metadata = {
-  title: "Tarifs — Civique et Intégral 3 mois | SejourFR",
+  title: "Tarifs — Abonnements Civique et Intégral | SejourFR",
   description:
-    "Préparez votre examen civique avec un paiement unique : Civique 3 mois ou Intégral 3 mois (Civique + TCF). Sans renouvellement automatique.",
+    "Préparez votre examen civique avec un abonnement mensuel, trimestriel ou annuel : Civique ou Intégral (Civique + TCF). Annulable à tout moment.",
   alternates: { canonical: "/tarifs" },
   openGraph: {
     title: "Tarifs SejourFR — examen civique et naturalisation",
     description:
-      "Paiement unique, sans renouvellement automatique. Découverte gratuite, Civique 3 mois, Intégral (Civique + TCF) 3 mois.",
+      "Abonnements mensuel, trimestriel ou annuel. Découverte gratuite, Civique, Intégral (Civique + TCF). Annulable à tout moment.",
     type: "website",
     url: `${SITE.url}/tarifs`,
   },
@@ -24,44 +24,13 @@ export const metadata: Metadata = {
 
 export const revalidate = 1800;
 
-const FALLBACK_PLANS: PlanPublicResponse[] = [
-  {
-    code: "FREE",
-    name: "Découverte",
-    billingCycle: "NONE",
-    price: 0,
-    originalPrice: null,
-    moduleAccess: "NONE",
-    durationDays: 0,
-  },
-  {
-    code: "CIVIQUE_3MOIS",
-    name: "Civique — 3 mois",
-    billingCycle: "THREE_MONTHS",
-    price: 5.99,
-    originalPrice: 9.99,
-    moduleAccess: "CIVIQUE",
-    durationDays: 90,
-  },
-  {
-    code: "INTEGRAL_3MOIS",
-    name: "Intégral — 3 mois",
-    billingCycle: "THREE_MONTHS",
-    price: 14.99,
-    originalPrice: 19.99,
-    moduleAccess: "INTEGRAL",
-    durationDays: 90,
-  },
-];
-
 async function fetchPlans(): Promise<PlanPublicResponse[]> {
   try {
-    const fetched = await billingApi.listPlans();
-    return fetched.length > 0 ? fetched : FALLBACK_PLANS;
+    return await billingApi.listPlans();
   } catch {
-    // Si l'API est down au build, on retombe sur le fallback statique pour ne
-    // pas casser la page tarifs (page critique pour la conversion).
-    return FALLBACK_PLANS;
+    // Si l'API est down au build, on retombe sur un fallback vide — le
+    // composant affichera juste la card Free. Mieux que de casser /tarifs.
+    return [];
   }
 }
 
@@ -99,13 +68,13 @@ export default async function TarifsPage() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
         <PricingHero />
-        <PricingCards plans={plans} />
+        <PricingPlans plans={plans} />
         <PricingComparison />
         <PricingFAQ />
 
         <p className="tarifs-foot">
-          Paiement sécurisé par <strong>Stripe</strong>. Une question avant
-          achat ?{" "}
+          Paiement sécurisé par <strong>Stripe</strong>. Annulable à tout moment.
+          Une question avant achat ?{" "}
           <Link href="/contact" className="tarifs-foot-link">
             Contactez-nous
           </Link>

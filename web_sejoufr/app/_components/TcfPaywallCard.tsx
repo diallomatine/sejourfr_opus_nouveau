@@ -18,8 +18,8 @@ export function TcfPaywallCard({ compact = false }: { compact?: boolean }) {
       </h3>
       <p className="tpc-text">
         L&apos;épreuve TCF (compréhension orale + écrite + structures) est
-        incluse uniquement dans le plan <strong>Intégral 3 mois</strong>. Vous
-        gardez aussi tout l&apos;entraînement civique.
+        incluse uniquement dans l&apos;abonnement <strong>Intégral</strong>.
+        Vous gardez aussi tout l&apos;entraînement civique.
       </p>
       <ul className="tpc-features">
         <li>Compréhension orale (audios authentiques)</li>
@@ -28,7 +28,7 @@ export function TcfPaywallCard({ compact = false }: { compact?: boolean }) {
         <li>Statistiques par niveau et révision des erreurs</li>
       </ul>
       <div className="tpc-actions">
-        <Link href="/paiement?plan=INTEGRAL_3MOIS" className="btn btn-red">
+        <Link href="/paiement?module=INTEGRAL" className="btn btn-red">
           Voir l&apos;offre Intégral →
         </Link>
         <Link href="/paiement" className="btn btn-ghost">

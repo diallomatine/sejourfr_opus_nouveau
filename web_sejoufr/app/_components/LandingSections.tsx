@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {billingApi} from "@/lib/api";
+import {PricingPlans} from "@/components/pricing/PricingPlans";
 import type {PlanPublicResponse} from "@/lib/types";
 
 // ============================================================================
@@ -629,124 +630,19 @@ export function HowItWorksSection() {
 }
 
 // ============================================================================
-// PRICING — plans dynamiques depuis le backend
+// PRICING — délègue au composant partagé PricingPlans (avec toggle)
 // ============================================================================
-
-const PLAN_PRESENTATION: Record<
-    string,
-    {
-        name: string;
-        desc: string;
-        features: { label: string; muted?: boolean; strong?: boolean }[];
-        cta: { label: string; href: string; variant: "ghost" | "red" | "primary" };
-        featured?: boolean;
-        badge?: { label: string; tone: "red" | "green" };
-    }
-> = {
-    FREE: {
-        name: "DÉCOUVERTE",
-        desc: "Un échantillon représentatif pour évaluer la méthode.",
-        cta: {label: "Commencer gratuitement", href: "/inscription", variant: "ghost"},
-        features: [
-            {label: "20 questions par module"},
-            {label: "Corrections expliquées"},
-            {label: "1 examen blanc par module"},
-            {label: "Pas de suivi de progression complet", muted: true},
-            {label: "Pas d'accès hors-ligne", muted: true},
-        ],
-    },
-    CIVIQUE_3MOIS: {
-        name: "CIVIQUE",
-        desc: "Accès complet au module civique. Sans renouvellement.",
-        cta: {label: "Choisir Civique", href: "/paiement?plan=CIVIQUE_3MOIS", variant: "primary"},
-        features: [
-            {label: "Banque complète civique", strong: true},
-            {label: "Examens blancs civiques illimités"},
-            {label: "Entraînement par thème"},
-            {label: "Révision des erreurs et favoris"},
-            {label: "Statistiques par thématique"},
-            {label: "3 mois d'accès"},
-        ],
-    },
-    INTEGRAL_3MOIS: {
-        name: "INTÉGRAL",
-        desc: "Civique + TCF IRN. Le plus complet pour CR ou naturalisation.",
-        cta: {label: "Passer Intégral", href: "/paiement?plan=INTEGRAL_3MOIS", variant: "primary"},
-        featured: true,
-        badge: {label: "RECOMMANDÉ", tone: "red"},
-        features: [
-            {label: "Tout le Civique inclus", strong: true},
-            {label: "Module TCF complet (CO + CE + Structure)", strong: true},
-            {label: "Diagnostic CECRL (A2 / B1 / B2)"},
-            {label: "Examens blancs TCF illimités"},
-            {label: "Révision + statistiques"},
-            {label: "3 mois d'accès"},
-        ],
-    },
-};
-
-const PLANS_FALLBACK: PlanPublicResponse[] = [
-    {
-        code: "FREE",
-        name: "Découverte",
-        billingCycle: "NONE",
-        price: 0,
-        originalPrice: null,
-        moduleAccess: "NONE",
-        durationDays: 0
-    },
-    {
-        code: "CIVIQUE_3MOIS",
-        name: "Civique — 3 mois",
-        billingCycle: "THREE_MONTHS",
-        price: 5.99,
-        originalPrice: 9.99,
-        moduleAccess: "CIVIQUE",
-        durationDays: 90
-    },
-    {
-        code: "INTEGRAL_3MOIS",
-        name: "Intégral — 3 mois",
-        billingCycle: "THREE_MONTHS",
-        price: 14.99,
-        originalPrice: 19.99,
-        moduleAccess: "INTEGRAL",
-        durationDays: 90
-    },
-];
-
-const PLAN_ORDER = ["FREE", "CIVIQUE_3MOIS", "INTEGRAL_3MOIS"];
-
-function formatPrice(value: number): string {
-    if (value === 0) return "0";
-    if (Number.isInteger(value)) return String(value);
-    return value.toFixed(2).replace(".", ",").replace(/,?0+$/, (m) => (m.startsWith(",") ? "" : m));
-}
-
-function formatPeriod(plan: PlanPublicResponse): string {
-    if (plan.code === "FREE") return "pour toujours";
-    if (plan.durationDays >= 30) {
-        const months = Math.round(plan.durationDays / 30);
-        return `pour ${months} mois`;
-    }
-    return `pour ${plan.durationDays} jours`;
-}
 
 export async function PricingSection() {
     let plans: PlanPublicResponse[];
     try {
-        const fetched = await billingApi.listPlans();
-        plans = fetched.length > 0 ? fetched : PLANS_FALLBACK;
+        plans = await billingApi.listPlans();
     } catch {
-        plans = PLANS_FALLBACK;
+        // Si l'API est down, on n'affiche pas la section pricing sur la
+        // landing plutôt que de servir des prix incorrects.
+        plans = [];
     }
-
-    const sorted = [...plans].sort((a, b) => {
-        const ai = PLAN_ORDER.indexOf(a.code);
-        const bi = PLAN_ORDER.indexOf(b.code);
-        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-    });
-    const display = sorted.slice(0, 3);
+    if (plans.length === 0) return null;
 
     return (
         <section id="tarifs" className="pricing-sec">
@@ -759,181 +655,37 @@ export async function PricingSection() {
                     prêt.
                 </SectionHead>
 
-                <div className="plans">
-                    {display.map((plan) => (
-                        <PlanCard key={plan.code} plan={plan}/>
-                    ))}
-                </div>
+                <PricingPlans plans={plans} variant="compact" />
 
                 <p className="plans-foot">
-                    Paiement sécurisé Stripe · TVA incluse · L&apos;accès se termine
-                    automatiquement à la fin de la période, vous rachetez si besoin.
+                    Paiement sécurisé Stripe · Annulable à tout moment · Vos données
+                    restent disponibles si vous suspendez ou reprenez plus tard.
                 </p>
             </div>
 
             <style>{`
-        .pricing-sec {
-          background: var(--color-paper);
-          border-top: 1px solid var(--color-line);
-          border-bottom: 1px solid var(--color-line);
-          padding: 100px 0;
-        }
-        .plans {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 22px;
-          max-width: 1100px;
-          margin: 0 auto;
-        }
-        .plans-foot {
-          margin: 32px auto 0;
-          max-width: 600px;
-          text-align: center;
-          font-size: 12.5px;
-          color: var(--color-muted);
-          line-height: 1.6;
-        }
-        .plan {
-          border: 1px solid var(--color-line);
-          border-radius: 22px;
-          padding: 36px 32px;
-          background: #fff;
-          position: relative;
-          display: flex;
-          flex-direction: column;
-        }
-        .plan.featured {
-          border: 2px solid var(--color-blue);
-          background:
-            radial-gradient(at 0% 0%, var(--color-blue-light) 0px, transparent 50%),
-            #fff;
-          box-shadow: 0 20px 50px -20px rgba(30, 58, 140, 0.25);
-        }
-        .plan-badge {
-          position: absolute; top: -12px; left: 32px;
-          background: var(--color-red); color: #fff;
-          font-family: var(--font-mono);
-          font-size: 10px;
-          padding: 5px 10px; border-radius: 6px;
-          letter-spacing: 0.1em; font-weight: 600;
-        }
-        .plan-badge.green { background: var(--color-green); }
-        .plan-name {
-          font-family: var(--font-mono);
-          font-size: 11px;
-          color: var(--color-muted);
-          letter-spacing: 0.18em;
-          margin-bottom: 16px;
-          font-weight: 600;
-        }
-        .plan-price {
-          display: flex; align-items: baseline; gap: 6px;
-          margin-bottom: 8px;
-        }
-        .plan-price .num {
-          font-family: var(--font-display);
-          font-size: 52px; font-weight: 600;
-          color: var(--color-ink);
-          letter-spacing: -0.03em;
-          line-height: 1;
-        }
-        .plan-price .num-old {
-          font-family: var(--font-display);
-          font-size: 22px;
-          color: var(--color-muted-2);
-          text-decoration: line-through;
-          margin-right: 4px;
-          align-self: center;
-        }
-        .plan-price .per {
-          font-size: 14px;
-          color: var(--color-muted);
-        }
-        .plan-desc {
-          color: var(--color-muted);
-          font-size: 14px;
-          margin: 0 0 24px;
-          min-height: 42px;
-        }
-        .plan-feat {
-          list-style: none; padding: 0;
-          margin: 0 0 28px;
-          flex: 1;
-        }
-        .plan-feat li {
-          padding: 9px 0;
-          font-size: 14px;
-          color: var(--color-ink-2);
-          display: flex; align-items: flex-start; gap: 10px;
-        }
-        .plan-feat .tick {
-          color: var(--color-green); font-weight: 700; flex-shrink: 0;
-        }
-        .plan-feat .dash {
-          color: var(--color-muted-2); flex-shrink: 0;
-        }
-        .plan-feat li.muted span:last-child { color: var(--color-muted); }
-        .plan-cta {
-          width: 100%;
-        }
-        @media (max-width: 980px) {
-          .plans { grid-template-columns: 1fr; max-width: 480px; }
-          .pricing-sec { padding: 70px 0; }
-        }
-      `}</style>
+              .pricing-sec {
+                background: var(--color-paper);
+                border-top: 1px solid var(--color-line);
+                border-bottom: 1px solid var(--color-line);
+                padding: 100px 0;
+              }
+              .plans-foot {
+                margin: 32px auto 0;
+                max-width: 600px;
+                text-align: center;
+                font-size: 12.5px;
+                color: var(--color-muted);
+                line-height: 1.6;
+              }
+              @media (max-width: 900px) {
+                .pricing-sec { padding: 70px 0; }
+              }
+            `}</style>
         </section>
     );
 }
 
-function PlanCard({plan}: { plan: PlanPublicResponse }) {
-    const preset = PLAN_PRESENTATION[plan.code];
-    const name = preset?.name ?? plan.name.toUpperCase();
-    const desc = preset?.desc ?? "";
-    const cta = preset?.cta ?? {
-        label: plan.code === "FREE" ? "Créer mon compte" : "Choisir ce plan",
-        href: plan.code === "FREE" ? "/inscription" : `/paiement?plan=${plan.code}`,
-        variant: "primary" as const,
-    };
-    const featured = preset?.featured ?? false;
-    const badge = preset?.badge ?? null;
-    const features = preset?.features ?? [];
-
-    const btnClass =
-        cta.variant === "ghost" ? "btn btn-ghost plan-cta" :
-            cta.variant === "red" ? "btn btn-red plan-cta" : "btn plan-cta";
-
-    return (
-        <div className={`plan ${featured ? "featured" : ""}`}>
-            {badge && (
-                <span className={`plan-badge ${badge.tone === "green" ? "green" : ""}`}>
-          {badge.label}
-        </span>
-            )}
-            <div className="plan-name">{name}</div>
-            <div className="plan-price">
-                {plan.originalPrice !== null && plan.originalPrice > plan.price && (
-                    <span className="num-old">{formatPrice(plan.originalPrice)}€</span>
-                )}
-                <span className="num">{formatPrice(plan.price)}€</span>
-                <span className="per">/ {formatPeriod(plan)}</span>
-            </div>
-            <p className="plan-desc">{desc}</p>
-            <ul className="plan-feat">
-                {features.map((f, i) => (
-                    <li key={i} className={f.muted ? "muted" : ""}>
-            <span className={f.muted ? "dash" : "tick"}>
-              {f.muted ? "—" : "✓"}
-            </span>
-                        <span>{f.strong ? <strong>{f.label}</strong> : f.label}</span>
-                    </li>
-                ))}
-            </ul>
-            <Link href={cta.href} className={btnClass}>
-                {cta.label}
-            </Link>
-        </div>
-    );
-}
 
 // ============================================================================
 // TESTIMONIALS

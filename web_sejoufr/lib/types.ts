@@ -94,9 +94,9 @@ export interface AuthenticatedUser {
   targetLevel?: TargetLevel;
   /** Vrai si l'utilisateur a au moins un plan payant actif (CIVIQUE ou INTÉGRAL). */
   isPremium?: boolean;
-  /** Accès au module Civique (vrai si plan CIVIQUE_3MOIS ou INTEGRAL_3MOIS actif). */
+  /** Accès au module Civique (vrai si un Plan donnant accès Civique ou Intégral est actif). */
   hasCivique?: boolean;
-  /** Accès au module TCF (vrai si plan INTEGRAL_3MOIS actif). */
+  /** Accès au module TCF (vrai si un Plan donnant accès Intégral est actif). */
   hasTcf?: boolean;
   /** Date d'expiration de l'accès payant (ISO 8601), null si pas de plan actif. */
   premiumEndsAt?: string | null;

@@ -502,7 +502,7 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
                         ? "Vous avez 20 questions de découverte et 1 examen blanc offerts en TCF. L'abonnement Intégral débloque l'entraînement illimité TCF + Civique, les examens blancs sans limite et la révision des erreurs."
                         : "L'entraînement par thématique est réservé aux abonnés. Avec l'abonnement Civique, débloquez tous les thèmes et l'entraînement illimité."
                 }
-                plan={paywallModule === "TCF" ? "INTEGRAL_3MOIS" : "CIVIQUE_3MOIS"}
+                module={paywallModule === "TCF" ? "INTEGRAL" : "CIVIQUE"}
             />
 
             <style>{styles}</style>

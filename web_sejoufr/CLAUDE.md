@@ -38,7 +38,9 @@ Backend Spring Boot Java 21 séparé, qui tourne sur `http://localhost:8080`.
 | GET     | `/api/attempts/{id}`                   | reprendre                            | oui  |
 | POST    | `/api/attempts/{id}/answers`           | soumettre une réponse                | oui  |
 | POST    | `/api/attempts/{id}/finish`            | finaliser                            | oui  |
-| POST    | `/api/billing/create-checkout-session` | **à implémenter côté back** — Stripe | oui  |
+| GET     | `/api/billing/plans`                   | liste plans actifs (publique, ISR 30min)  | non  |
+| GET     | `/api/billing/payment-link?planCode=…` | Checkout Session Stripe (mode subscription) | oui  |
+| GET     | `/api/billing/subscription-status`     | statut Premium agrégé (Stripe + Apple + Google) | oui  |
 
 ### Enums Spring miroirs côté TS (dans `lib/types.ts`)
 
@@ -203,30 +205,57 @@ multi-réponses, adapter `toggleChoice` pour additionner au lieu de remplacer.
 Pour autoriser vraiment une démo publique, il faudra exposer côté Spring un endpoint `POST /api/attempts/demo`
 qui ne demande pas de Bearer et limite à 1 tentative/mois par IP.
 
-## Paiement — état
+## Paiement — abonnements récurrents (lot 4b)
 
-La structure de la page paiement est complète (form de facturation, plan switcher mensuel/annuel avec recalcul
-du total et de la TVA, récap, badges trust). Le clic sur "Payer" appelle
-`POST /api/billing/create-checkout-session` avec `{ plan: "MENSUEL" | "ANNUEL" }`, attend une réponse
-`{ url: string }`, puis fait `window.location.assign(url)` pour rediriger vers Stripe Checkout.
+Depuis le **lot 4b** (refonte backend lot 4) le web vend des **abonnements
+récurrents Stripe** au lieu de paiements one-shot. 6 SKUs proposés : Civique +
+Intégral × mensuel / trimestriel / annuel.
 
-**Le backend doit implémenter cette route.** Côté Java :
+**Flow d'achat** :
+1. L'utilisateur arrive sur `/paiement` (depuis paywall, sidebar, ou
+   `/tarifs`). Optionnel : `?module=CIVIQUE|INTEGRAL` pour mettre l'accent
+   sur un module, `?period=monthly|quarterly|yearly` pour pré-sélectionner
+   la périodicité.
+2. Toggle de périodicité (mensuel / trimestriel / annuel, par défaut
+   trimestriel) → met à jour les prix sur les 2 cards (Civique + Intégral).
+3. Clic sur un CTA → `billingApi.getPaymentLink(planCode)` où le `planCode`
+   est dérivé via `planCodeFor(module, periodicity)` (ex: `INTEGRAL_QUARTERLY`).
+4. Le backend renvoie `{ url }` d'une Checkout Session Stripe en mode
+   `SUBSCRIPTION` ; le front fait `window.location.assign(url)`.
+5. Stripe redirige vers `/paiement/succes?session_id=…&plan=<code>` après
+   paiement. La page poll `refreshUser()` jusqu'à voir `hasCivique`/`hasTcf`
+   activé (webhook backend → DB).
 
-1. Ajouter dépendance `com.stripe:stripe-java`
-2. Créer `BillingController` avec endpoint `POST /api/billing/create-checkout-session`
-3. Lire les Price IDs Stripe depuis `application.yaml` (`sejourfr.stripe.price-monthly`,
-   `sejourfr.stripe.price-annual`)
-4. Créer la `Session` avec `mode = SUBSCRIPTION`, `success_url`, `cancel_url`
-5. Retourner `{ url: session.getUrl() }`
+**Composants** :
+- `components/pricing/PricingPlans.tsx` (client) — toggle + 3 cards
+  (Free/Civique/Intégral). Variante `compact` pour la landing. Partagé entre
+  `/tarifs` et la `PricingSection` du `/` (landing).
+- `app/_components/PaywallSheet.tsx` — bottom sheet d'incitation à l'achat,
+  prop `module: "CIVIQUE" | "INTEGRAL"` (plus de `plan`).
+- `app/(app)/paiement/page.tsx` — page de checkout authentifiée, toggle
+  + 2 cards, gestion du status courant (CurrentSubscriptionCard) et cas
+  upgrade (CIVIQUE → INTEGRAL).
 
-Si la route renvoie 404, le front affiche un `alert()` explicite (fallback démo, ne pas garder en prod).
+**Helpers `lib/api.ts`** :
+- `planCodeFor(module, periodicity)` — dérive le code backend.
+- `periodicityFromCycle(billingCycle)` — convertit le `billingCycle` backend
+  (`MONTHLY` / `THREE_MONTHS` / `YEARLY`) vers la périodicité UI.
+
+**Types `lib/types.ts`** :
+- `PlanModuleTarget = "CIVIQUE" | "INTEGRAL"`
+- `PlanPeriodicity = "monthly" | "quarterly" | "yearly"`
+
+**Backend** : géré dans le lot 4 (cf. `CLAUDE.md` racine — Stripe Subscription
+mode, `customer.subscription.*` webhooks, `plans.stripe_price_id` en DB).
 
 ## Stratégie produit — parité fonctionnelle avec le mobile
 
 Décision **2026-05-16** : le web n'est plus une simple vitrine, c'est désormais une
 surface d'entraînement complète à parité fonctionnelle avec l'app mobile, avec le
-même paywall Stripe (CIVIQUE_3MOIS / INTEGRAL_3MOIS). Le mobile reste l'app
-quotidienne (offline futur, notifs), mais tout est faisable depuis le web.
+même paywall Stripe. Depuis le **lot 4b (mai 2026)** le modèle commercial est
+en abonnements récurrents (mensuel / trimestriel / annuel) sur deux modules
+(Civique / Intégral). Le mobile reste l'app quotidienne (offline futur,
+notifs), mais tout est faisable depuis le web.
 
 Chantier découpé en vagues :
 

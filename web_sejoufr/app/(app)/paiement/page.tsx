@@ -3,18 +3,16 @@
 import Link from "next/link";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import {Suspense, useEffect, useMemo, useState} from "react";
-import {ApiException, billingApi} from "@/lib/api";
+import {ApiException, billingApi, periodicityFromCycle, planCodeFor, type PlanModuleTarget, type PlanPeriodicity} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
-import type {AuthenticatedUser, PlanPublicResponse} from "@/lib/types";
+import type {AuthenticatedUser, BillingCycle, PlanPublicResponse} from "@/lib/types";
 
-type PlanCode = "CIVIQUE_3MOIS" | "INTEGRAL_3MOIS";
+// ============================================================================
+// CONSTANTES DE PRÉSENTATION
+// ============================================================================
 
-/**
- * Métadonnées éditoriales par plan. Les chiffres (prix, durée) viennent de
- * billingApi.listPlans côté serveur.
- */
 const PRESENTATION: Record<
-    PlanCode,
+    PlanModuleTarget,
     {
         name: string;
         tone: "blue" | "red";
@@ -23,7 +21,7 @@ const PRESENTATION: Record<
         features: { label: string; strong?: boolean }[];
     }
 > = {
-    CIVIQUE_3MOIS: {
+    CIVIQUE: {
         name: "Civique",
         tone: "blue",
         tag: "POUR CSP · CR · NAT",
@@ -36,41 +34,36 @@ const PRESENTATION: Record<
             {label: "Statistiques par thématique"},
         ],
     },
-    INTEGRAL_3MOIS: {
+    INTEGRAL: {
         name: "Intégral",
         tone: "red",
         tag: "CIVIQUE + TCF",
-        pitch: "Civique + TCF IRN. Le plus complet pour CR ou naturalisation.",
+        pitch: "Civique + TCF IRN avec EE/EO évalués par IA. Le plus complet pour CR ou naturalisation.",
         features: [
             {label: "Tout le Civique inclus", strong: true},
             {label: "Module TCF complet (CO + CE + Structure)", strong: true},
-            {label: "Diagnostic CECRL (A2 / B1 / B2)"},
+            {label: "Expression écrite + orale évaluée par IA"},
             {label: "Examens blancs TCF illimités"},
-            {label: "Révision + statistiques"},
+            {label: "Diagnostic CECRL (A2 / B1 / B2)"},
         ],
     },
 };
 
-const FALLBACK_PLANS: PlanPublicResponse[] = [
-    {
-        code: "CIVIQUE_3MOIS",
-        name: "Civique — 3 mois",
-        billingCycle: "THREE_MONTHS",
-        price: 5.99,
-        originalPrice: 9.99,
-        moduleAccess: "CIVIQUE",
-        durationDays: 90
-    },
-    {
-        code: "INTEGRAL_3MOIS",
-        name: "Intégral (Civique + TCF) — 3 mois",
-        billingCycle: "THREE_MONTHS",
-        price: 14.99,
-        originalPrice: 19.99,
-        moduleAccess: "INTEGRAL",
-        durationDays: 90
-    },
+const PERIODICITIES: { value: PlanPeriodicity; label: string; sub: string }[] = [
+    {value: "monthly", label: "Mensuel", sub: "facturé chaque mois"},
+    {value: "quarterly", label: "Trimestriel", sub: "facturé tous les 3 mois"},
+    {value: "yearly", label: "Annuel", sub: "facturé chaque année"},
 ];
+
+const PERIOD_SUFFIX: Record<PlanPeriodicity, string> = {
+    monthly: "/ mois",
+    quarterly: "/ 3 mois",
+    yearly: "/ an",
+};
+
+// ============================================================================
+// HELPERS
+// ============================================================================
 
 type CurrentPlan = "FREE" | "CIVIQUE" | "INTEGRAL";
 
@@ -79,6 +72,16 @@ function deriveCurrentPlan(user: AuthenticatedUser | null): CurrentPlan {
     if (user.hasTcf) return "INTEGRAL";
     if (user.hasCivique) return "CIVIQUE";
     return "FREE";
+}
+
+function moduleFromParam(raw: string | null): PlanModuleTarget | null {
+    if (raw === "CIVIQUE" || raw === "INTEGRAL") return raw;
+    return null;
+}
+
+function periodicityFromParam(raw: string | null): PlanPeriodicity | null {
+    if (raw === "monthly" || raw === "quarterly" || raw === "yearly") return raw;
+    return null;
 }
 
 function daysLeft(iso: string | null | undefined): number | null {
@@ -101,10 +104,29 @@ function formatPrice(n: number): string {
     return n.toFixed(2).replace(".", ",");
 }
 
-function durationLabel(days: number): string {
-    if (days >= 365) return `${Math.round(days / 365)} an${days >= 730 ? "s" : ""} d'accès`;
-    if (days >= 30) return `${Math.round(days / 30)} mois d'accès`;
-    return `${days} jours d'accès`;
+/** Calcule l'équivalent mensuel d'un plan trimestriel/annuel. */
+function monthlyEquivalent(price: number, cycle: BillingCycle): number | null {
+    if (cycle === "THREE_MONTHS") return price / 3;
+    if (cycle === "YEARLY") return price / 12;
+    return null;
+}
+
+/**
+ * Indexe les plans payants par (module, periodicity). Renvoie undefined si
+ * la combinaison n'existe pas en DB ou si la périodicité n'est pas reconnue.
+ */
+function indexPlans(plans: PlanPublicResponse[]): Map<string, PlanPublicResponse> {
+    const map = new Map<string, PlanPublicResponse>();
+    for (const p of plans) {
+        const periodicity = periodicityFromCycle(p.billingCycle);
+        if (!periodicity) continue;
+        let mod: PlanModuleTarget | null = null;
+        if (p.moduleAccess === "CIVIQUE") mod = "CIVIQUE";
+        else if (p.moduleAccess === "INTEGRAL") mod = "INTEGRAL";
+        if (!mod) continue;
+        map.set(`${mod}:${periodicity}`, p);
+    }
+    return map;
 }
 
 // ============================================================================
@@ -124,20 +146,23 @@ function PaiementInner() {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const currentPlan = deriveCurrentPlan(user);
+    const focusedModule = moduleFromParam(searchParams.get("module"));
 
     const canceledParam = searchParams.get("canceled");
     const [showCanceled, setShowCanceled] = useState<boolean>(
         canceledParam === "1" || canceledParam === "true",
     );
 
-    const [plans, setPlans] = useState<PlanPublicResponse[]>(FALLBACK_PLANS);
+    const [plans, setPlans] = useState<PlanPublicResponse[]>([]);
     const [plansLoaded, setPlansLoaded] = useState(false);
-    const [loadingPlan, setLoadingPlan] = useState<PlanCode | null>(null);
+    const [plansError, setPlansError] = useState<string | null>(null);
+    const initialPeriodicity = periodicityFromParam(searchParams.get("period")) ?? "quarterly";
+    const [periodicity, setPeriodicity] = useState<PlanPeriodicity>(initialPeriodicity);
+    const [loadingCode, setLoadingCode] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     function dismissCanceled() {
         setShowCanceled(false);
-        // Nettoie l'URL pour éviter de réafficher la bannière au refresh / partage.
         router.replace(pathname);
     }
 
@@ -147,13 +172,11 @@ function PaiementInner() {
             .listPlans()
             .then((list) => {
                 if (cancelled) return;
-                const payable = list.filter(
-                    (p) => p.code === "CIVIQUE_3MOIS" || p.code === "INTEGRAL_3MOIS",
-                );
-                setPlans(payable.length > 0 ? payable : FALLBACK_PLANS);
+                setPlans(list);
             })
             .catch(() => {
-                // Backend HS : on garde le fallback statique.
+                if (cancelled) return;
+                setPlansError("Tarifs indisponibles pour le moment. Réessayez dans un instant.");
             })
             .finally(() => {
                 if (!cancelled) setPlansLoaded(true);
@@ -163,40 +186,39 @@ function PaiementInner() {
         };
     }, []);
 
-    const visiblePlans = useMemo(() => {
-        const byCode = new Map(plans.map((p) => [p.code, p]));
-        if (currentPlan === "INTEGRAL") {
-            const integral = byCode.get("INTEGRAL_3MOIS");
-            return integral ? [integral] : [];
-        }
-        return ["CIVIQUE_3MOIS", "INTEGRAL_3MOIS"]
-            .map((code) => byCode.get(code))
-            .filter((p): p is PlanPublicResponse => p !== undefined);
-    }, [plans, currentPlan]);
+    const index = useMemo(() => indexPlans(plans), [plans]);
 
-    async function handleSubscribe(plan: PlanCode) {
+    /** Modules visibles : INTEGRAL seul si déjà INTEGRAL ; les 2 sinon ; focus si demandé. */
+    const visibleModules = useMemo<PlanModuleTarget[]>(() => {
+        if (currentPlan === "INTEGRAL") return ["INTEGRAL"];
+        if (focusedModule) {
+            // Toujours montrer INTEGRAL à côté pour permettre l'upgrade
+            return focusedModule === "INTEGRAL" ? ["INTEGRAL"] : ["CIVIQUE", "INTEGRAL"];
+        }
+        return ["CIVIQUE", "INTEGRAL"];
+    }, [currentPlan, focusedModule]);
+
+    async function handleSubscribe(planCode: string) {
         setError(null);
-        setLoadingPlan(plan);
+        setLoadingCode(planCode);
         try {
-            const {url} = await billingApi.getPaymentLink(plan);
+            const {url} = await billingApi.getPaymentLink(planCode);
             window.location.assign(url);
         } catch (err) {
             if (err instanceof ApiException) {
                 if (err.status === 503) {
-                    setError(
-                        "Le paiement n'est pas encore activé côté serveur (clés Stripe à configurer). Réessayez plus tard.",
-                    );
+                    setError("Le paiement n'est pas encore activé côté serveur (clés Stripe à configurer). Réessayez plus tard.");
+                } else if (err.status === 404) {
+                    setError("Ce plan n'est plus disponible. Rechargez la page pour voir les tarifs à jour.");
                 } else if (err.status === 401) {
                     setError("Connexion expirée. Reconnectez-vous puis recommencez.");
                 } else {
                     setError(err.message);
                 }
             } else {
-                setError(
-                    "Impossible d'initier le paiement. Réessayez dans un instant.",
-                );
+                setError("Impossible d'initier le paiement. Réessayez dans un instant.");
             }
-            setLoadingPlan(null);
+            setLoadingCode(null);
         }
     }
 
@@ -214,9 +236,20 @@ function PaiementInner() {
         );
     }
 
+    if (plansError) {
+        return (
+            <main className="pay-gate">
+                <p>{plansError}</p>
+                <button type="button" onClick={() => window.location.reload()} className="pay-gate-cta">
+                    Réessayer
+                </button>
+                <style>{gateStyles}</style>
+            </main>
+        );
+    }
+
     return (
         <main className="pay">
-            {/* ============ TOPBAR ============ */}
             <header className="topbar">
                 <div>
                     <div className="breadcrumb">
@@ -231,27 +264,29 @@ function PaiementInner() {
                 </div>
             </header>
 
-            {showCanceled && (
-                <CanceledBanner onDismiss={dismissCanceled}/>
-            )}
+            {showCanceled && <CanceledBanner onDismiss={dismissCanceled}/>}
 
             {currentPlan !== "FREE" && (
                 <CurrentSubscriptionCard user={user} currentPlan={currentPlan}/>
             )}
 
-            {/* ============ PLAN CARDS ============ */}
-            <section className={`pay-cards ${visiblePlans.length === 1 ? "is-single" : ""}`}>
-                {visiblePlans.map((plan) => {
-                    const code = plan.code as PlanCode;
-                    const intent = deriveIntent(currentPlan, code);
+            <PeriodicityToggle value={periodicity} onChange={setPeriodicity}/>
+
+            <section className={`pay-cards ${visibleModules.length === 1 ? "is-single" : ""}`}>
+                {visibleModules.map((module) => {
+                    const plan = index.get(`${module}:${periodicity}`);
+                    if (!plan) return null;
+                    const intent = deriveIntent(currentPlan, module);
                     return (
                         <PlanCard
-                            key={plan.code}
+                            key={module}
+                            module={module}
                             plan={plan}
+                            periodicity={periodicity}
                             intent={intent}
-                            loading={loadingPlan === plan.code}
-                            anyLoading={loadingPlan !== null}
-                            onSubscribe={() => handleSubscribe(code)}
+                            loading={loadingCode === planCodeFor(module, periodicity)}
+                            anyLoading={loadingCode !== null}
+                            onSubscribe={() => handleSubscribe(planCodeFor(module, periodicity))}
                         />
                     );
                 })}
@@ -263,7 +298,6 @@ function PaiementInner() {
                 </div>
             )}
 
-            {/* ============ TRUST ============ */}
             <section className="trust">
                 <div className="trust-row">
                     <TrustItem
@@ -272,30 +306,61 @@ function PaiementInner() {
                         body="Stripe — CB, Apple Pay, Google Pay."
                     />
                     <TrustItem
-                        icon={<RefreshOffIcon/>}
-                        title="Sans renouvellement"
-                        body="Aucun prélèvement automatique. Vous rachetez si vous voulez."
+                        icon={<CalendarIcon/>}
+                        title="Annulable à tout moment"
+                        body="Vous gardez l'accès jusqu'à la fin de la période payée."
                     />
                     <TrustItem
                         icon={<MailIcon/>}
                         title="Support direct"
                         body={
                             <>
-                                <a href="mailto:support@sejourfr.fr">hello@sejourfr.fr</a> — on
+                                <a href="mailto:hello@sejourfr.fr">hello@sejourfr.fr</a> — on
                                 répond.
                             </>
                         }
                     />
                 </div>
                 <p className="trust-foot">
-                    À l&apos;expiration, votre accès s&apos;arrête simplement. Vos données
-                    (favoris, erreurs, progression) restent sur votre compte au cas où
-                    vous renouvellez plus tard.
+                    Vos données (favoris, erreurs, progression) restent sur votre compte
+                    si vous suspendez ou reprenez l&apos;abonnement plus tard.
                 </p>
             </section>
 
             <style>{styles}</style>
         </main>
+    );
+}
+
+// ============================================================================
+// PERIODICITY TOGGLE
+// ============================================================================
+function PeriodicityToggle({
+                               value,
+                               onChange,
+                           }: {
+    value: PlanPeriodicity;
+    onChange: (v: PlanPeriodicity) => void;
+}) {
+    return (
+        <div className="period-toggle" role="tablist" aria-label="Périodicité de l'abonnement">
+            {PERIODICITIES.map((p) => {
+                const active = p.value === value;
+                return (
+                    <button
+                        key={p.value}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        className={`period-btn ${active ? "is-active" : ""}`}
+                        onClick={() => onChange(p.value)}
+                    >
+                        <span className="period-label">{p.label}</span>
+                        <span className="period-sub">{p.sub}</span>
+                    </button>
+                );
+            })}
+        </div>
     );
 }
 
@@ -318,8 +383,7 @@ function CanceledBanner({onDismiss}: { onDismiss: () => void }) {
                 </div>
                 <div className="cancel-meta">
                     Aucun montant n&apos;a été prélevé. Vous pouvez choisir un plan
-                    et reprendre le paiement quand vous voulez — vos données
-                    démo (favoris, erreurs, progression) restent intactes.
+                    et reprendre le paiement quand vous voulez.
                 </div>
             </div>
             <button
@@ -334,25 +398,6 @@ function CanceledBanner({onDismiss}: { onDismiss: () => void }) {
     );
 }
 
-function InfoIcon() {
-    return (
-        <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="16" x2="12" y2="12"/>
-            <line x1="12" y1="8" x2="12.01" y2="8"/>
-        </svg>
-    );
-}
-
 // ============================================================================
 // CURRENT SUBSCRIPTION CARD
 // ============================================================================
@@ -364,8 +409,7 @@ function CurrentSubscriptionCard({
     currentPlan: CurrentPlan;
 }) {
     const remaining = daysLeft(user.premiumEndsAt);
-    const label =
-        currentPlan === "INTEGRAL" ? "Intégral · Civique + TCF" : "Civique";
+    const label = currentPlan === "INTEGRAL" ? "Intégral · Civique + TCF" : "Civique";
     const expiresSoon = remaining !== null && remaining <= 14;
     const tone: "green" | "amber" = expiresSoon ? "amber" : "green";
 
@@ -378,27 +422,24 @@ function CurrentSubscriptionCard({
                 <div className="current-row">
                     <span className="current-label">PLAN ACTUEL</span>
                     <span className={`current-tone-pill current-tone-pill-${tone}`}>
-            {expiresSoon ? "Bientôt expiré" : "Actif"}
-          </span>
+                        {expiresSoon ? "Bientôt expiré" : "Actif"}
+                    </span>
                 </div>
                 <div className="current-title">{label}</div>
                 <div className="current-meta">
                     {user.premiumEndsAt ? (
                         <>
-                            Valide jusqu&apos;au{" "}
+                            Prochaine échéance le{" "}
                             <strong>{formatEndDate(user.premiumEndsAt)}</strong>
                             {remaining !== null && (
                                 <>
                                     {" "}·{" "}
                                     {remaining > 0 ? (
                                         <>
-                                            il vous reste{" "}
-                                            <strong>
-                                                {remaining} jour{remaining > 1 ? "s" : ""}
-                                            </strong>
+                                            dans <strong>{remaining} jour{remaining > 1 ? "s" : ""}</strong>
                                         </>
                                     ) : (
-                                        <strong>expire aujourd&apos;hui</strong>
+                                        <strong>échéance aujourd&apos;hui</strong>
                                     )}
                                 </>
                             )}
@@ -417,28 +458,31 @@ function CurrentSubscriptionCard({
 // ============================================================================
 type CardIntent = "subscribe" | "current" | "upgrade";
 
-function deriveIntent(currentPlan: CurrentPlan, planCode: PlanCode): CardIntent {
-    if (currentPlan === "INTEGRAL" && planCode === "INTEGRAL_3MOIS") return "current";
-    if (currentPlan === "CIVIQUE" && planCode === "CIVIQUE_3MOIS") return "current";
-    if (currentPlan === "CIVIQUE" && planCode === "INTEGRAL_3MOIS") return "upgrade";
+function deriveIntent(currentPlan: CurrentPlan, module: PlanModuleTarget): CardIntent {
+    if (currentPlan === "INTEGRAL" && module === "INTEGRAL") return "current";
+    if (currentPlan === "CIVIQUE" && module === "CIVIQUE") return "current";
+    if (currentPlan === "CIVIQUE" && module === "INTEGRAL") return "upgrade";
     return "subscribe";
 }
 
 function PlanCard({
+                      module,
                       plan,
+                      periodicity,
                       intent,
                       loading,
                       anyLoading,
                       onSubscribe,
                   }: {
+    module: PlanModuleTarget;
     plan: PlanPublicResponse;
+    periodicity: PlanPeriodicity;
     intent: CardIntent;
     loading: boolean;
     anyLoading: boolean;
     onSubscribe: () => void;
 }) {
-    const code = plan.code as PlanCode;
-    const preset = PRESENTATION[code];
+    const preset = PRESENTATION[module];
     const tone = preset.tone;
 
     let ctaLabel: string;
@@ -460,14 +504,16 @@ function PlanCard({
     let ribbon: { label: string; tone: "current" | "upgrade" | "featured" } | null = null;
     if (intent === "current") ribbon = {label: "PLAN ACTUEL", tone: "current"};
     else if (intent === "upgrade") ribbon = {label: "RECOMMANDÉ", tone: "upgrade"};
-    else if (code === "INTEGRAL_3MOIS") ribbon = {label: "LE PLUS COMPLET", tone: "featured"};
+    else if (module === "INTEGRAL") ribbon = {label: "LE PLUS COMPLET", tone: "featured"};
+
+    const monthly = monthlyEquivalent(plan.price, plan.billingCycle);
 
     return (
         <article className={`plan-card plan-card-${tone}`}>
             {ribbon && (
                 <span className={`plan-ribbon plan-ribbon-${ribbon.tone}`}>
-          {ribbon.label}
-        </span>
+                    {ribbon.label}
+                </span>
             )}
             <span className={`plan-tag plan-tag-${tone}`}>{preset.tag}</span>
             <h2 className="plan-name">{preset.name}</h2>
@@ -478,16 +524,18 @@ function PlanCard({
                     <span className="plan-price-old">{formatPrice(plan.originalPrice)}€</span>
                 )}
                 <span className="plan-price-now">{formatPrice(plan.price)}€</span>
-                <span className="plan-price-period">paiement unique</span>
+                <span className="plan-price-period">{PERIOD_SUFFIX[periodicity]}</span>
             </div>
-            <div className="plan-duration">{durationLabel(plan.durationDays)}</div>
+            {monthly !== null && (
+                <div className="plan-equivalence">
+                    soit {formatPrice(Number(monthly.toFixed(2)))}€/mois
+                </div>
+            )}
 
             <ul className="plan-features">
                 {preset.features.map((f) => (
                     <li key={f.label}>
-            <span className="plan-check" aria-hidden>
-              ✓
-            </span>
+                        <span className="plan-check" aria-hidden>✓</span>
                         <span>{f.strong ? <strong>{f.label}</strong> : f.label}</span>
                     </li>
                 ))}
@@ -534,33 +582,27 @@ function TrustItem({
 function titleFor(plan: CurrentPlan, firstName: string | null): React.ReactNode {
     if (plan === "INTEGRAL") {
         return (
-            <>
-                Vous avez l&apos;<em>Intégral</em>.
-            </>
+            <>Vous avez l&apos;<em>Intégral</em>.</>
         );
     }
     if (plan === "CIVIQUE") {
         return (
-            <>
-                Votre plan <em>Civique</em>.
-            </>
+            <>Votre plan <em>Civique</em>.</>
         );
     }
     return (
-        <>
-            Bonjour {firstName ?? "à vous"}, choisissez votre <em>formule</em>.
-        </>
+        <>Bonjour {firstName ?? "à vous"}, choisissez votre <em>formule</em>.</>
     );
 }
 
 function leadFor(plan: CurrentPlan): string {
     if (plan === "INTEGRAL") {
-        return "Accès complet à la plateforme. Vous pouvez prolonger 3 mois supplémentaires à tout moment — pas de renouvellement automatique.";
+        return "Accès complet à la plateforme. Vous pouvez ajuster ou annuler votre abonnement à tout moment.";
     }
     if (plan === "CIVIQUE") {
         return "Renouvelez votre Civique ou passez à l'Intégral pour débloquer aussi le TCF IRN.";
     }
-    return "Un paiement unique, accès 3 mois. Pas de renouvellement automatique — vous renouvelez vous-même si vous le souhaitez.";
+    return "Mensuel, trimestriel ou annuel — choisissez ce qui colle à votre échéance d'examen. Annulable à tout moment.";
 }
 
 // ============================================================================
@@ -581,8 +623,20 @@ const gateStyles = `
     gap: 14px;
     color: var(--color-muted);
     padding: 36px;
+    text-align: center;
   }
-  .pay-gate-cta { color: var(--color-blue); font-weight: 700; text-decoration: none; }
+  .pay-gate-cta {
+    color: var(--color-blue);
+    font-weight: 700;
+    text-decoration: none;
+    background: none;
+    border: 1px solid var(--color-blue);
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .pay-gate-cta:hover { background: var(--color-blue); color: #fff; }
 `;
 
 // ============================================================================
@@ -602,9 +656,7 @@ const I = (props: React.SVGProps<SVGSVGElement>) => (
     />
 );
 const CheckIcon = () => (
-    <I>
-        <polyline points="20 6 9 17 4 12"/>
-    </I>
+    <I><polyline points="20 6 9 17 4 12"/></I>
 );
 const AlertIcon = () => (
     <I>
@@ -619,17 +671,25 @@ const LockIcon = () => (
         <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
     </I>
 );
-const RefreshOffIcon = () => (
+const CalendarIcon = () => (
     <I>
-        <path d="M3 12a9 9 0 0 1 14.5-7.1"/>
-        <polyline points="17 4 17 9 12 9"/>
-        <line x1="2" y1="2" x2="22" y2="22"/>
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
     </I>
 );
 const MailIcon = () => (
     <I>
         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
         <polyline points="22,6 12,13 2,6"/>
+    </I>
+);
+const InfoIcon = () => (
+    <I>
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="16" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12.01" y2="8"/>
     </I>
 );
 
@@ -679,6 +739,53 @@ const styles = `
     max-width: 620px;
   }
 
+  /* ========== PERIODICITY TOGGLE ========== */
+  .period-toggle {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    background: var(--color-paper-2);
+    border-radius: 16px;
+    padding: 6px;
+    margin-bottom: 26px;
+  }
+  .period-btn {
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 10px;
+    font-family: inherit;
+    color: var(--color-muted);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  }
+  .period-btn:hover { color: var(--color-ink); }
+  .period-btn.is-active {
+    background: #fff;
+    color: var(--color-ink);
+    box-shadow: 0 2px 8px -2px rgba(15, 24, 57, 0.12);
+  }
+  .period-label {
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .period-sub {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    color: var(--color-muted);
+    text-transform: uppercase;
+  }
+  @media (max-width: 560px) {
+    .period-btn { padding: 10px 6px; }
+    .period-label { font-size: 13px; }
+    .period-sub { display: none; }
+  }
+
   /* ========== CANCELED BANNER ========== */
   .cancel-banner {
     display: flex; align-items: flex-start; gap: 14px;
@@ -701,7 +808,6 @@ const styles = `
     border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
-    margin-top: 1px;
   }
   .cancel-body { flex: 1; min-width: 0; }
   .cancel-row {
@@ -727,9 +833,7 @@ const styles = `
     font-weight: 700;
   }
   .cancel-title {
-    font-family: var(--font-sans);
-    font-weight: 700;
-    font-size: 14px;
+    font-weight: 700; font-size: 14px;
     color: var(--color-ink);
     line-height: 1.3;
     margin-bottom: 4px;
@@ -745,9 +849,7 @@ const styles = `
     background: rgba(255, 255, 255, 0.6);
     border: 1px solid rgba(232, 163, 23, 0.2);
     color: var(--color-muted);
-    font-size: 13px;
     cursor: pointer;
-    transition: all 0.15s;
     flex-shrink: 0;
     font-family: inherit;
   }
@@ -914,7 +1016,7 @@ const styles = `
     display: flex;
     align-items: baseline;
     gap: 8px;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     flex-wrap: wrap;
   }
   .plan-price-old {
@@ -939,10 +1041,13 @@ const styles = `
     text-transform: uppercase;
     color: var(--color-muted);
   }
-  .plan-duration {
-    font-size: 13px;
+  .plan-equivalence {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
     color: var(--color-muted);
-    margin-bottom: 20px;
+    margin-bottom: 18px;
+    text-transform: lowercase;
   }
 
   .plan-features {

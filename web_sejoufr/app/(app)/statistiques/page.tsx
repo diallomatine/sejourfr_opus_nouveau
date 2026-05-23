@@ -30,7 +30,7 @@ export default function StatistiquesPage() {
     const [paywallOpen, setPaywallOpen] = useState(false);
 
     const isPremiumForModule = user !== null && canAccessModule(user, module);
-    const upsellPlan = module === "TCF" ? "INTEGRAL_3MOIS" : "CIVIQUE_3MOIS";
+    const upsellModule: "CIVIQUE" | "INTEGRAL" = module === "TCF" ? "INTEGRAL" : "CIVIQUE";
 
     useEffect(() => {
         if (status !== "authenticated") return;
@@ -471,7 +471,7 @@ export default function StatistiquesPage() {
                         : "Suivi détaillé avec l'abonnement"
                 }
                 message="L'abonnement débloque l'entraînement illimité, le choix du thème et le suivi de toutes vos thématiques."
-                plan={upsellPlan}
+                module={upsellModule}
             />
 
             <style>{styles}</style>
