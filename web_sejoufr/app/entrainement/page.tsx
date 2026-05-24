@@ -79,6 +79,7 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
 
     const [filter, setFilter] = useState<Filter>(filterFromUrl);
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setFilter(filterFromUrl);
     }, [filterFromUrl]);
     const [query, setQuery] = useState("");
@@ -100,6 +101,7 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
     // ========== LOAD ==========
     useEffect(() => {
         let cancelled = false;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setLoading(true);
 
         const themeFetcher = isGuest ? publicThemeApi.list : themeApi.list;
@@ -218,6 +220,27 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
         [statsByModule],
     );
 
+    // Synthèse du module courant pour les "summary boxes" du hero (façon template).
+    const heroStats = useMemo(() => {
+        const s = statsByModule[filter];
+        const answered = s?.questionsAnswered ?? 0;
+        const correct = s?.questionsCorrect ?? 0;
+        const byTheme = s?.byTheme ?? [];
+        const mastered = byTheme.filter((t) => t.total > 0 && t.correct / t.total >= 0.8).length;
+        const tcfLevelOf = (p: string | null | undefined) =>
+            p === "NAT" ? "B2" : p === "CR" ? "B1" : p === "CSP" ? "A2" : "—";
+        const objective =
+            filter === "TCF"
+                ? tcfLevelOf(user?.targetProcedure)
+                : (user?.targetProcedure ?? "—");
+        return {
+            objective: isGuest ? "—" : objective || "—",
+            mastery: isGuest || answered === 0 ? "—" : `${Math.round((correct / answered) * 100)}%`,
+            themes: isGuest ? "—" : `${mastered}/${byTheme.length}`,
+            questions: isGuest ? "—" : String(answered),
+        };
+    }, [statsByModule, filter, isGuest, user]);
+
     const filteredThemes = useMemo(() => {
         const list = themes[filter] ?? [];
         const q = query.trim().toLowerCase();
@@ -257,22 +280,58 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
     return (
         <main className="train">
             {/* ============ TOPBAR ============ */}
-            <header className="topbar">
-                <div>
+            <header className="train-hero">
+                <div className="train-hero-main">
                     <div className="breadcrumb">
-                        ACCUEIL <span className="sep">/</span> ENTRAÎNEMENT
+                        ACCUEIL <span className="sep">/</span>{" "}
+                        {filter === "TCF" ? "TCF IRN" : "EXAMEN CIVIQUE"}
                     </div>
                     <h1>
-                        Choisissez une <em>thématique</em>.
+                        {filter === "TCF" ? (
+                            <>
+                                Préparation <em>TCF IRN</em>
+                            </>
+                        ) : (
+                            <>
+                                Examen <em>civique</em>
+                            </>
+                        )}
                     </h1>
+                    <p>
+                        {filter === "TCF"
+                            ? "Compréhension orale et écrite, expression écrite et orale, examens blancs — entraîne-toi par thème."
+                            : "Valeurs de la République, institutions, droits et devoirs, histoire et société — révise par thème."}
+                    </p>
+                    {!isGuest && (
+                        <div className="train-hero-actions">
+                            <Link href="/examens-blancs" className="btn">
+                                Lancer un examen blanc
+                            </Link>
+                            <Link href="/revision" className="btn btn-ghost">
+                                Mes erreurs
+                            </Link>
+                        </div>
+                    )}
                 </div>
-                {!isGuest && (
-                    <div className="topbar-actions">
-                        <Link href="/revision" className="btn-outline">
-                            Mes erreurs
-                        </Link>
+
+                <div className="train-summary">
+                    <div className="summary-box">
+                        <strong>{heroStats.objective}</strong>
+                        <span>Objectif</span>
                     </div>
-                )}
+                    <div className="summary-box">
+                        <strong>{heroStats.mastery}</strong>
+                        <span>Maîtrise</span>
+                    </div>
+                    <div className="summary-box">
+                        <strong>{heroStats.themes}</strong>
+                        <span>Thèmes maîtrisés</span>
+                    </div>
+                    <div className="summary-box">
+                        <strong>{heroStats.questions}</strong>
+                        <span>Questions</span>
+                    </div>
+                </div>
             </header>
 
             {/* parcours visé (connecté avec target seulement) */}
@@ -960,6 +1019,72 @@ const styles = `
     transition: all 0.15s;
   }
   .btn-outline:hover { border-color: var(--color-blue); color: var(--color-blue); }
+
+  /* ========== HERO (façon template tcf-irn-page) ========== */
+  .train-hero {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 22px;
+    background: linear-gradient(150deg, #fff 0%, var(--color-blue-soft) 100%);
+    border: 1px solid var(--color-line);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 22px;
+  }
+  .train-hero-main h1 {
+    font-family: var(--font-display);
+    font-size: clamp(24px, 3.4vw, 32px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+    margin: 8px 0 0;
+    color: var(--color-ink);
+  }
+  .train-hero-main h1 em { color: var(--color-blue); font-style: italic; font-weight: 500; }
+  .train-hero-main p {
+    color: var(--color-muted);
+    font-size: 14.5px;
+    line-height: 1.6;
+    margin: 10px 0 0;
+    max-width: 540px;
+  }
+  .train-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 18px;
+  }
+  .train-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    align-content: start;
+  }
+  .summary-box {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .summary-box strong {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 24px;
+    line-height: 1;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .summary-box span {
+    font-size: 11.5px;
+    color: var(--color-muted);
+  }
+  @media (min-width: 900px) {
+    .train-hero { grid-template-columns: 1.4fr 1fr; align-items: center; padding: 30px; }
+    .train-summary { grid-template-columns: 1fr 1fr; gap: 12px; }
+  }
 
   .train-target { margin-bottom: 18px; }
   .train-error { margin-bottom: 18px; }
