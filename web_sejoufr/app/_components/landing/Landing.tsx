@@ -15,6 +15,7 @@ import {
   PenLine,
   Smartphone,
 } from "lucide-react";
+import { PhoneMock, StoreBadge } from "../MobileAppPromo";
 import styles from "./landing.module.css";
 
 /* ---------------------------------------------------------------------------
@@ -106,37 +107,21 @@ export function Hero() {
           </ul>
         </div>
 
-        {/* Visuel attractif (desktop) : carte "niveau estimé" + chips flottantes */}
-        <div className={styles.heroVisual} aria-hidden>
-          <div className={styles.heroCard}>
-            <div className={styles.heroCardTop}>
-              <span className={styles.heroCardEyebrow}>Résultat · TCF IRN</span>
-              <span className={styles.heroCardTag}>Analysé par IA</span>
-            </div>
-            <div className={styles.heroCardLevel}>B1</div>
-            <div className={styles.heroCardLabel}>Niveau estimé · CECRL</div>
-            <div className={styles.heroCardBar}>
-              <span style={{ width: "72%" }} />
-            </div>
-            <div className={styles.heroCardStats}>
-              <div>
-                <strong>76%</strong>
-                <span>Score moyen</span>
-              </div>
-              <div>
-                <strong>4</strong>
-                <span>Compétences</span>
-              </div>
-              <div>
-                <strong>12</strong>
-                <span>Examens blancs</span>
-              </div>
+        {/* Visuel (desktop) : l'app mobile + boutons de téléchargement */}
+        <div className={styles.heroVisual}>
+          <div className={styles.heroPhone} aria-hidden>
+            <PhoneMock variant="back" />
+          </div>
+          <div className={styles.heroAppCopy}>
+            <p className={styles.heroAppText}>
+              Révisez aussi dans la poche — votre progression est synchronisée
+              entre le web et l&apos;app.
+            </p>
+            <div className={styles.heroStores}>
+              <StoreBadge variant="ios" />
+              <StoreBadge variant="android" />
             </div>
           </div>
-          <span className={`${styles.heroFloat} ${styles.heroFloatA}`}>
-            <Check size={14} className={styles.badgeCheck} aria-hidden /> Conditions réelles
-          </span>
-          <span className={`${styles.heroFloat} ${styles.heroFloatB}`}>🎯 Objectif B2</span>
         </div>
       </div>
     </section>

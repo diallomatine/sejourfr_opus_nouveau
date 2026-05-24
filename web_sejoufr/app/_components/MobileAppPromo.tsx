@@ -331,7 +331,7 @@ export function MobileAppSection() {
 // Phone mockup
 // ============================================================================
 
-function PhoneMock({ variant }: { variant: "front" | "back" }) {
+export function PhoneMock({ variant }: { variant: "front" | "back" }) {
   const isFront = variant === "front";
   return (
     <div className={`pm pm--${variant}`}>
@@ -656,7 +656,7 @@ function BackScreen() {
 // Store badges
 // ============================================================================
 
-function StoreBadge({ variant }: { variant: "ios" | "android" }) {
+export function StoreBadge({ variant }: { variant: "ios" | "android" }) {
   const isIos = variant === "ios";
   return (
     <a
