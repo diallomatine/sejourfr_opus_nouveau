@@ -5,11 +5,15 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ApiException, attemptApi, lotApi, themeApi, userContentApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { canAccessModule } from "@/lib/types";
 import type {
   AttemptSummaryResponse,
   LotDto,
   QuestionReviewResponse,
 } from "@/lib/types";
+import { DualChromeShell } from "@/app/_components/DualChromeShell";
+import { QuestionDetailModal } from "@/app/_components/QuestionDetailModal";
+import { PaywallSheet } from "@/app/_components/PaywallSheet";
 
 type Tab = "lots" | "examens" | "erreurs";
 const EXAM_SLOTS = 10;
@@ -28,6 +32,10 @@ export default function CiviqueThemeDetailPage() {
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedQuestion, setSelectedQuestion] = useState<QuestionReviewResponse | null>(null);
+  const [paywallOpen, setPaywallOpen] = useState(false);
+
+  const isPremium = user ? canAccessModule(user, "CIVIQUE") : false;
 
   useEffect(() => {
     if (status !== "authenticated" || !themeId) return;
@@ -115,6 +123,7 @@ export default function CiviqueThemeDetailPage() {
   }
 
   return (
+    <DualChromeShell>
     <main className="ctd">
       <div className="ctd-breadcrumb">
         <Link href="/entrainement?module=CIVIQUE">Entraînement</Link>
@@ -197,20 +206,25 @@ export default function CiviqueThemeDetailPage() {
                     </Link>
                   );
                 }
-                const isNext = i === exams.length;
+                // Parité Flutter : un abonné peut lancer n'importe quel slot
+                // vide ; en gratuit seul le slot 1 est ouvert (2+ → paywall).
+                const locked = !isPremium && slot > 1;
                 return (
                   <button
                     type="button"
                     key={`slot-${slot}`}
-                    className={`ctd-exam ${isNext ? "is-next" : "is-locked"}`}
-                    onClick={isNext ? startThemeExam : undefined}
-                    disabled={!isNext || starting}
+                    className={`ctd-exam ${locked ? "is-locked" : "is-next"}`}
+                    onClick={locked ? () => setPaywallOpen(true) : startThemeExam}
+                    disabled={locked ? false : starting}
                   >
                     <div className="ctd-exam-head">
                       <span className="ctd-lot-num">Examen {slot}</span>
+                      {locked && <span className="ctd-lock-chip">Premium</span>}
                     </div>
-                    <p className="ctd-lot-meta">{isNext ? "À passer" : "Verrouillé"}</p>
-                    {isNext && <span className="ctd-lot-cta">{starting ? "…" : "Commencer →"}</span>}
+                    <p className="ctd-lot-meta">{locked ? "Réservé aux abonnés" : "À passer"}</p>
+                    <span className="ctd-lot-cta">
+                      {locked ? "Débloquer →" : starting ? "…" : "Commencer →"}
+                    </span>
                   </button>
                 );
               })}
@@ -228,10 +242,16 @@ export default function CiviqueThemeDetailPage() {
         ) : (
           <section className="ctd-errlist">
             {errors.map((q) => (
-              <div key={q.id} className="ctd-err">
+              <button
+                type="button"
+                key={q.id}
+                className="ctd-err"
+                onClick={() => setSelectedQuestion(q)}
+              >
                 <span className="ctd-err-chip">{q.difficulty}</span>
                 <p>{q.statement}</p>
-              </div>
+                <span className="ctd-err-arrow" aria-hidden>›</span>
+              </button>
             ))}
             <Link href="/revision?tab=erreurs" className="ctd-err-cta">
               Retravailler mes erreurs →
@@ -240,8 +260,21 @@ export default function CiviqueThemeDetailPage() {
         )
       )}
 
+      {selectedQuestion && (
+        <QuestionDetailModal
+          question={selectedQuestion}
+          onClose={() => setSelectedQuestion(null)}
+        />
+      )}
+      <PaywallSheet
+        open={paywallOpen}
+        onClose={() => setPaywallOpen(false)}
+        module="CIVIQUE"
+      />
+
       <style>{styles}</style>
     </main>
+    </DualChromeShell>
   );
 }
 
@@ -327,19 +360,32 @@ const styles = `
   .ctd-lot-meta { font-size: 13px; color: var(--color-muted); margin: 0; }
   .ctd-lot-cta { font-size: 13px; font-weight: 700; color: var(--color-blue); }
 
-  .ctd-exam.is-locked { opacity: 0.55; cursor: not-allowed; border-style: dashed; }
+  .ctd-exam.is-locked { border-style: dashed; }
   .ctd-exam.is-next { border-color: var(--color-blue); border-style: dashed; }
+  .ctd-lock-chip {
+    font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 100px;
+    background: var(--color-red-light); color: var(--color-red);
+  }
 
   .ctd-errlist { display: flex; flex-direction: column; gap: 10px; }
   .ctd-err {
-    display: flex; gap: 12px; align-items: flex-start; background: #fff;
+    display: flex; gap: 12px; align-items: center; background: #fff;
     border: 1px solid var(--color-line); border-radius: 12px; padding: 14px;
+    width: 100%; text-align: left; cursor: pointer; font-family: inherit;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  }
+  .ctd-err:hover {
+    transform: translateY(-2px); border-color: var(--color-blue);
+    box-shadow: 0 12px 28px -20px rgba(30,58,140,0.3);
   }
   .ctd-err-chip {
     flex-shrink: 0; font-family: var(--font-mono); font-size: 10px; font-weight: 700;
     padding: 3px 8px; border-radius: 6px; background: var(--color-paper-2); color: var(--color-muted);
   }
-  .ctd-err p { margin: 0; font-size: 14px; color: var(--color-ink-2); line-height: 1.45; }
+  .ctd-err p { margin: 0; flex: 1; min-width: 0; font-size: 14px; color: var(--color-ink-2); line-height: 1.45; }
+  .ctd-err-arrow { flex-shrink: 0; color: var(--color-muted-2); font-size: 20px; }
   .ctd-err-cta { align-self: flex-start; margin-top: 6px; color: var(--color-blue); font-weight: 700; font-size: 14px; }
 
   @media (min-width: 620px) { .ctd-grid { grid-template-columns: 1fr 1fr; } }
