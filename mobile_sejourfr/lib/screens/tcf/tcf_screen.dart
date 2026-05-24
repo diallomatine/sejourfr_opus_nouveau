@@ -11,6 +11,7 @@ import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../hub/widgets/hub_widgets.dart';
+import '../module_detail/tcf_full_exams_screen.dart';
 
 final _tcfStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
   return ref.watch(userContentRepositoryProvider).stats(module: AppModule.tcf);
@@ -24,8 +25,58 @@ final _tcfThemesProvider = FutureProvider.autoDispose<List<ThemeDto>>((ref) {
   return ref.watch(themesRepositoryProvider).list(module: AppModule.tcf);
 });
 
-class TcfScreen extends ConsumerWidget {
+/// Hub TCF : en-tête fixe (topbar + onglets Entraînement / Examens) au-dessus
+/// du corps switché. L'onglet Examens embarque `TcfFullExamsView` (les 20
+/// slots d'examens blancs complets).
+class TcfScreen extends ConsumerStatefulWidget {
   const TcfScreen({super.key});
+
+  @override
+  ConsumerState<TcfScreen> createState() => _TcfScreenState();
+}
+
+class _TcfScreenState extends ConsumerState<TcfScreen> {
+  HubTab _tab = HubTab.entrainement;
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = ref.watch(authControllerProvider);
+    final user = auth is AuthAuthenticated ? auth.user : null;
+    final badgeText = user?.targetProcedure?.tcfLevel ?? 'TCF';
+
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
+              child: Column(
+                children: [
+                  HubTopBar(badgeText: badgeText, badgeColor: AppColors.red),
+                  const SizedBox(height: 16),
+                  HubTabsBar(
+                    current: _tab,
+                    activeColor: AppColors.red,
+                    onChanged: (t) => setState(() => _tab = t),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: _tab == HubTab.entrainement
+                  ? const _TcfTrainingTab()
+                  : const TcfFullExamsView(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TcfTrainingTab extends ConsumerWidget {
+  const _TcfTrainingTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -35,7 +86,6 @@ class TcfScreen extends ConsumerWidget {
 
     final target = user?.targetProcedure;
     final level = target?.tcfLevel;
-    final badgeText = level ?? 'TCF';
     final objectiveValue =
         level == null ? 'Définis ton niveau cible' : 'Niveau $level visé';
 
@@ -80,28 +130,20 @@ class TcfScreen extends ConsumerWidget {
       context.push(route);
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.red,
-          onRefresh: () async {
-            ref.invalidate(_tcfStatsProvider);
-            ref.invalidate(_tcfThemesProvider);
-            await Future.wait([
-              ref.read(_tcfStatsProvider.future),
-              ref.read(_tcfThemesProvider.future),
-            ]);
-          },
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
-            children: [
-              HubTopBar(
-                badgeText: badgeText,
-                badgeColor: AppColors.red,
-              ),
-              const SizedBox(height: 18),
-              const HubHero(
+    return RefreshIndicator(
+      color: AppColors.red,
+      onRefresh: () async {
+        ref.invalidate(_tcfStatsProvider);
+        ref.invalidate(_tcfThemesProvider);
+        await Future.wait([
+          ref.read(_tcfStatsProvider.future),
+          ref.read(_tcfThemesProvider.future),
+        ]);
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
+        children: [
+          const HubHero(
                 eyebrow: 'Entraînement officiel',
                 titleTop: 'Prépare ton',
                 titleBottom: 'TCF IRN',
@@ -186,18 +228,8 @@ class TcfScreen extends ConsumerWidget {
                 openDetail: openDetail,
                 bonusLabel: 'BONUS',
               ),
-              const SizedBox(height: 8),
-              HubExamCard(
-                title: 'Examen blanc complet',
-                subtitle: 'CO + CE + EE + EO en conditions réelles · 90 min',
-                ctaLabel: 'Lancer',
-                onTap: () => context.push(AppRoutes.tcfFullExams),
-              ),
-              const SizedBox(height: 12),
             ],
           ),
-        ),
-      ),
     );
   }
 }

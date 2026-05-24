@@ -35,8 +35,45 @@ final _fullExamsHistoryProvider =
 /// chronologique : slot 1 = examen le plus ancien).
 const int _fullExamSlotsCount = 20;
 
-class TcfFullExamsScreen extends ConsumerWidget {
+/// Écran plein des examens blancs TCF complets, avec topbar + back. Atteint
+/// depuis le hero Progression, l'historique et le bilan (`AppRoutes.tcfFullExams`).
+/// Dans le hub TCF, c'est `TcfFullExamsView` (le corps) qui est embarqué sous
+/// l'onglet Examens — pas cet écran.
+class TcfFullExamsScreen extends StatelessWidget {
   const TcfFullExamsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
+              child: _TopBar(onBack: () => _back(context)),
+            ),
+            const Expanded(child: TcfFullExamsView()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _back(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.tcf);
+    }
+  }
+}
+
+/// Corps de l'onglet « Examens » du hub TCF : 20 slots d'examens blancs
+/// complets. Embarqué dans `TcfScreen` (le hub fournit l'en-tête) et réutilisé
+/// par `TcfFullExamsScreen` (qui ajoute une topbar avec back).
+class TcfFullExamsView extends ConsumerWidget {
+  const TcfFullExamsView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -89,42 +126,35 @@ class TcfFullExamsScreen extends ConsumerWidget {
       );
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.red,
-          onRefresh: () async {
-            ref.invalidate(_fullExamsHistoryProvider);
-            await ref.read(_fullExamsHistoryProvider.future);
-          },
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
-            children: [
-              _TopBar(onBack: () => _back(context)),
-              const SizedBox(height: 22),
-              const _Hero(),
-              const SizedBox(height: 16),
-              const _Stats(),
-              const SizedBox(height: 22),
-              historyAsync.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (e, _) => _ErrorBox(
-                  message: e.toString(),
-                  onRetry: () => ref.invalidate(_fullExamsHistoryProvider),
-                ),
-                data: (history) => _SlotsSection(
-                  history: history,
-                  onTapDone: (exam) => _openExam(context, exam),
-                  onTapEmpty: startNew,
-                ),
-              ),
-            ],
+    return RefreshIndicator(
+      color: AppColors.red,
+      onRefresh: () async {
+        ref.invalidate(_fullExamsHistoryProvider);
+        await ref.read(_fullExamsHistoryProvider.future);
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
+        children: [
+          const _Hero(),
+          const SizedBox(height: 16),
+          const _Stats(),
+          const SizedBox(height: 22),
+          historyAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (e, _) => _ErrorBox(
+              message: e.toString(),
+              onRetry: () => ref.invalidate(_fullExamsHistoryProvider),
+            ),
+            data: (history) => _SlotsSection(
+              history: history,
+              onTapDone: (exam) => _openExam(context, exam),
+              onTapEmpty: startNew,
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -142,14 +172,6 @@ class TcfFullExamsScreen extends ConsumerWidget {
           AppRoutes.tcfFullExamBilan.replaceFirst(':parentId', exam.id),
         );
         break;
-    }
-  }
-
-  void _back(BuildContext context) {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go(AppRoutes.tcf);
     }
   }
 }

@@ -72,9 +72,10 @@ lib/
     ├── hub/
     │   └── widgets/hub_widgets.dart  Widgets partagés des 2 hubs (topbar, hero, progress, module card, exam card)
     ├── civique/
-    │   └── civique_screen.dart    Hub Civique : hero bleu + progress + 5 thèmes officiels + exam card inactive
+    │   ├── civique_screen.dart    Hub Civique : onglets Entraînement / Examens (hero bleu + 5 thèmes / 20 slots)
+    │   └── civique_exam_blanc_view.dart  Corps de l'onglet Examens civique (20 slots MOCK_EXAM)
     ├── tcf/
-    │   └── tcf_screen.dart        Hub TCF : hero rouge + progress + 4 modules (CO/CE/EE IA/EO IA) + exam card inactive
+    │   └── tcf_screen.dart        Hub TCF : onglets Entraînement / Examens (4 modules CO/CE/EE IA/EO IA / 20 slots)
     ├── module_detail/             Écran détail intermédiaire entre hub et runner / sujets de tâche
     │   ├── civique_theme_detail_screen.dart   Détail d'un thème civique (par themeId)
     │   ├── tcf_qcm_detail_screen.dart         Détail TCF CO/CE/Structure (enum TcfQcmModule) — onglet Séries = cards niveau
@@ -328,23 +329,36 @@ ont été **supprimés** : un tap module dans un hub démarre directement un att
 vivent désormais dans `core/widgets/paywall_sheet.dart` avec le bottom sheet `PaywallSheet` réutilisable.
 
 Les 2 hubs (`screens/civique/civique_screen.dart` et `screens/tcf/tcf_screen.dart`) partagent une
-structure visuelle identique implémentée dans `screens/hub/widgets/hub_widgets.dart` :
+structure visuelle identique implémentée dans `screens/hub/widgets/hub_widgets.dart`. Chaque hub est
+un `ConsumerStatefulWidget` avec un **en-tête fixe** (topbar + onglets, ne scrolle pas) au-dessus d'un
+**corps switché par onglet** (calqué sur le segmented control de l'écran Progression) :
 
 - `HubTopBar` : icône notifications à gauche, pastille de niveau/parcours à droite (bleue sur Civique
   affiche CSP/CR/NAT, rouge sur TCF affiche A2/B1/B2 d'après `user.targetProcedure`).
+- `HubTabsBar` (enum `HubTab { entrainement, examens }`) : deux onglets **Entraînement / Examens**,
+  couleur active = accent du hub. Le state `_tab` vit sur le hub ; `Expanded` rend le corps de
+  l'onglet courant.
+  - **Entraînement** : `_CiviqueTrainingTab` / `_TcfTrainingTab` (hero + progress + cards modules,
+    chacun avec son propre `RefreshIndicator`).
+  - **Examens** : embarque directement la vue des 20 slots d'examens blancs — `CiviqueExamBlancView`
+    (Civique : POST `/api/attempts {type:MOCK_EXAM, module:CIVIQUE}`, 40 Q / 45 min / seuil 32 → runner)
+    ou `TcfFullExamsView` (TCF : POST `/api/full-tcf-exams` → `/tcf/examen-blanc/:parentId`). Le
+    briefing modal (`showCiviqueExamBriefingSheet` / `showTcfFullExamBriefingSheet`) s'ouvre au tap
+    d'un slot vide.
 - `HubHero` : bandeau gradient (bleu sur Civique, rouge sur TCF) avec eyebrow mono, titre Jakarta gras
   sur 2 lignes, description.
 - `HubProgressCard` : objectif (libellé du parcours / niveau visé) + % de maîtrise calculé sur les
   stats `byTheme` (correct / total).
 - `HubModuleCard` : icône colorée + titre + description + meta + chevron. Flag `aiTag: true` pour
   EE/EO. Flag `locked: true` réservé aux modules premium futurs.
-- `HubExamCard` : carte sombre "Examen blanc" en bas. Côté TCF → push
-  `/tcf/examens-blancs` (liste 20 slots) → briefing modal → POST
-  `/api/full-tcf-exams` → push `/tcf/examen-blanc/:parentId` (hub
-  progression). Côté Civique → push `/civique/examens-blancs`
-  (`CiviqueExamBlancScreen`, 20 slots) → briefing modal
-  (`showCiviqueExamBriefingSheet`) → POST `/api/attempts {type:MOCK_EXAM,
-  module:CIVIQUE}` (40 Q / 45 min / seuil 32) → push runner.
+
+**Vues d'examens blancs** (corps de l'onglet Examens, sans topbar propre) :
+- `CiviqueExamBlancView` (`civique/civique_exam_blanc_view.dart`) — n'est plus un écran routé : l'ancien
+  `CiviqueExamBlancScreen` + la route `/civique/examens-blancs` ont été **supprimés** (l'examen civique
+  vit uniquement dans l'onglet Examens du hub).
+- `TcfFullExamsView` (`module_detail/tcf_full_exams_screen.dart`) — embarquée dans le hub TCF, **et**
+  enveloppée par `TcfFullExamsScreen` (topbar + back) qui reste routé sur `/tcf/examens-blancs` car
+  encore atteint depuis le hero Progression, l'historique et le bilan.
 
 **Modules affichés :**
 - **Civique** = les 5 thèmes officiels chargés via `/api/themes?module=CIVIQUE` (Principes &
@@ -380,7 +394,7 @@ bottom nav) :
     `GET /api/me/attempts?type=MOCK_EXAM&module=CIVIQUE&themeId=...`. Backend distingue
     cette variante en posant `lot_theme_id` sur l'attempt lors du POST (cf.
     `AttemptService` branche `CIVIQUE_THEME_EXAM`). Distinct de l'examen blanc complet
-    civique (40 Q tous thèmes, 45 min, seuil 32) qui reste sur la carte sombre du hub.
+    civique (40 Q tous thèmes, 45 min, seuil 32) qui vit sur l'onglet Examens du hub.
   - **Erreurs** : 20 dernières questions ratées du user sur **ce thème précis**, via
     `_civiqueWrongProvider(themeId)` → `GET /api/me/questions/wrong?module=CIVIQUE&themeId=...`.
     Tap question → `showQuestionDetailSheet` partagé.
@@ -635,7 +649,7 @@ pour choisir le niveau des tâches EE/EO du full exam — fallback `B1` si absen
 côté backend ne sont pas mixés par niveau ; tout le full exam utilise donc un seul niveau cible.
 
 **Flow utilisateur typique** :
-1. Hub TCF → carte sombre "Examen blanc complet" → push `/tcf/examens-blancs` (20 slots)
+1. Hub TCF → onglet "Examens" (`TcfFullExamsView`, 20 slots)
 2. Tap slot → briefing modal → bouton "Lancer" → `POST /api/full-tcf-exams` → push
    `/tcf/examen-blanc/:parentId`
 3. CTA "Commencer · Compréhension orale" → runner CO → finish → retour progress

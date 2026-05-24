@@ -536,76 +536,111 @@ class _ModuleCardCoverage extends StatelessWidget {
   }
 }
 
-/// Carte "Examen blanc complet" sombre en bas de hub.
-/// Pour l'instant inactive — la prochaine itération branchera l'action.
-class HubExamCard extends StatelessWidget {
-  const HubExamCard({
+/// Les deux onglets en haut des hubs Civique / TCF.
+enum HubTab { entrainement, examens }
+
+/// Switch Entraînement / Examens stylé en segmented control sur fond blanc,
+/// calqué sur le switch module de l'écran Progression. La couleur active
+/// suit l'accent du hub (bleu sur Civique, rouge sur TCF).
+class HubTabsBar extends StatelessWidget {
+  const HubTabsBar({
     super.key,
-    required this.title,
-    required this.subtitle,
-    required this.ctaLabel,
-    this.onTap,
+    required this.current,
+    required this.onChanged,
+    required this.activeColor,
   });
 
-  final String title;
-  final String subtitle;
-  final String ctaLabel;
-  final VoidCallback? onTap;
+  final HubTab current;
+  final ValueChanged<HubTab> onChanged;
+  final Color activeColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppColors.ink,
-        borderRadius: BorderRadius.circular(18),
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.line),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.ink.withValues(alpha: 0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppFonts.jakarta(
-                    size: 16,
-                    weight: FontWeight.w800,
-                    color: AppColors.white,
-                  ).copyWith(letterSpacing: -0.2),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: AppFonts.jakarta(
-                    size: 12,
-                    color: AppColors.white.withValues(alpha: 0.7),
-                  ),
-                ),
-              ],
+            child: _HubTabBtn(
+              label: 'Entraînement',
+              active: current == HubTab.entrainement,
+              activeColor: activeColor,
+              onTap: () => onChanged(HubTab.entrainement),
             ),
           ),
-          const SizedBox(width: 10),
-          Material(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: onTap,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                child: Text(
-                  ctaLabel,
-                  style: AppFonts.jakarta(
-                    size: 13,
-                    weight: FontWeight.w800,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
+          Expanded(
+            child: _HubTabBtn(
+              label: 'Examens',
+              active: current == HubTab.examens,
+              activeColor: activeColor,
+              onTap: () => onChanged(HubTab.examens),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HubTabBtn extends StatelessWidget {
+  const _HubTabBtn({
+    required this.label,
+    required this.active,
+    required this.activeColor,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool active;
+  final Color activeColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: active ? activeColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                      color: activeColor.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            label,
+            style: AppFonts.jakarta(
+              size: 13,
+              weight: active ? FontWeight.w700 : FontWeight.w600,
+              color: active ? AppColors.white : AppColors.muted,
+            ),
+          ),
+        ),
       ),
     );
   }

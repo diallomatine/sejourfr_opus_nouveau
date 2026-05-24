@@ -11,6 +11,7 @@ import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../hub/widgets/hub_widgets.dart';
+import 'civique_exam_blanc_view.dart';
 
 final _civiqueThemesProvider =
     FutureProvider.autoDispose<List<ThemeDto>>((ref) {
@@ -21,8 +22,63 @@ final _civiqueStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
   return ref.watch(userContentRepositoryProvider).stats(module: AppModule.civique);
 });
 
-class CiviqueScreen extends ConsumerWidget {
+/// Hub Civique : en-tête fixe (topbar + onglets Entraînement / Examens)
+/// au-dessus du corps switché. L'onglet Examens embarque
+/// `CiviqueExamBlancView` (les 20 slots d'examens blancs).
+class CiviqueScreen extends ConsumerStatefulWidget {
   const CiviqueScreen({super.key});
+
+  @override
+  ConsumerState<CiviqueScreen> createState() => _CiviqueScreenState();
+}
+
+class _CiviqueScreenState extends ConsumerState<CiviqueScreen> {
+  HubTab _tab = HubTab.entrainement;
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = ref.watch(authControllerProvider);
+    final user = auth is AuthAuthenticated ? auth.user : null;
+    final badgeText = switch (user?.targetProcedure) {
+      TargetProcedure.csp => 'CSP',
+      TargetProcedure.cr => 'CR',
+      TargetProcedure.nat => 'NAT',
+      null => 'CIV',
+    };
+
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
+              child: Column(
+                children: [
+                  HubTopBar(badgeText: badgeText, badgeColor: AppColors.blue),
+                  const SizedBox(height: 16),
+                  HubTabsBar(
+                    current: _tab,
+                    activeColor: AppColors.blue,
+                    onChanged: (t) => setState(() => _tab = t),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: _tab == HubTab.entrainement
+                  ? const _CiviqueTrainingTab()
+                  : const CiviqueExamBlancView(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CiviqueTrainingTab extends ConsumerWidget {
+  const _CiviqueTrainingTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -32,12 +88,6 @@ class CiviqueScreen extends ConsumerWidget {
     final stats = ref.watch(_civiqueStatsProvider);
 
     final target = user?.targetProcedure;
-    final badgeText = switch (target) {
-      TargetProcedure.csp => 'CSP',
-      TargetProcedure.cr => 'CR',
-      TargetProcedure.nat => 'NAT',
-      null => 'CIV',
-    };
     final objectiveValue = target?.shortLabel ?? 'Définis ton parcours';
 
     // Couverture du programme = % des questions actives déjà tentées au
@@ -85,28 +135,20 @@ class CiviqueScreen extends ConsumerWidget {
       );
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.blue,
-          onRefresh: () async {
-            ref.invalidate(_civiqueThemesProvider);
-            ref.invalidate(_civiqueStatsProvider);
-            await Future.wait([
-              ref.read(_civiqueThemesProvider.future),
-              ref.read(_civiqueStatsProvider.future),
-            ]);
-          },
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
-            children: [
-              HubTopBar(
-                badgeText: badgeText,
-                badgeColor: AppColors.blue,
-              ),
-              const SizedBox(height: 18),
-              const HubHero(
+    return RefreshIndicator(
+      color: AppColors.blue,
+      onRefresh: () async {
+        ref.invalidate(_civiqueThemesProvider);
+        ref.invalidate(_civiqueStatsProvider);
+        await Future.wait([
+          ref.read(_civiqueThemesProvider.future),
+          ref.read(_civiqueStatsProvider.future),
+        ]);
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
+        children: [
+          const HubHero(
                 eyebrow: 'Examen civique',
                 titleTop: 'Prépare ton',
                 titleBottom: 'entretien citoyen',
@@ -155,23 +197,8 @@ class CiviqueScreen extends ConsumerWidget {
                   );
                 },
               ),
-              const SizedBox(height: 8),
-              HubExamCard(
-                title: 'Examen blanc civique',
-                subtitle:
-                    '40 questions, 45 min · ${target?.shortLabel ?? 'CSP · CR · NAT'}',
-                ctaLabel: 'Lancer',
-                onTap: () {
-                  ref.read(selectedModuleProvider.notifier).state =
-                      AppModule.civique;
-                  context.push(AppRoutes.civiqueExamsBlancs);
-                },
-              ),
-              const SizedBox(height: 12),
             ],
           ),
-        ),
-      ),
     );
   }
 

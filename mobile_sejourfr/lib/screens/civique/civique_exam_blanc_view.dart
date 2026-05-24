@@ -14,9 +14,11 @@ import '../../core/utils/selected_module.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../module_detail/civique_exam_briefing_sheet.dart';
 
-/// 20 slots d'examens blancs civiques. Tap vide → briefing + start
-/// (POST `/api/attempts {type:MOCK_EXAM, module:CIVIQUE}`), tap fait → push
-/// le rapport d'examen. Cf. `TcfFullExamsScreen` pour la version TCF complète.
+/// Corps de l'onglet « Examens » du hub Civique : 20 slots d'examens blancs.
+/// Tap vide → briefing + start (POST `/api/attempts {type:MOCK_EXAM,
+/// module:CIVIQUE}`), tap fait → push le rapport d'examen. Embarqué dans
+/// `CiviqueScreen` (pas de topbar propre, le hub fournit l'en-tête).
+/// Cf. `TcfFullExamsView` pour la version TCF complète.
 const int _civiqueExamSlotsCount = 20;
 
 final _civiqueExamsProvider =
@@ -34,16 +36,16 @@ final _civiqueExamsProvider =
   return all.where((a) => !a.isThemeScoped).toList();
 });
 
-class CiviqueExamBlancScreen extends ConsumerStatefulWidget {
-  const CiviqueExamBlancScreen({super.key});
+class CiviqueExamBlancView extends ConsumerStatefulWidget {
+  const CiviqueExamBlancView({super.key});
 
   @override
-  ConsumerState<CiviqueExamBlancScreen> createState() =>
-      _CiviqueExamBlancScreenState();
+  ConsumerState<CiviqueExamBlancView> createState() =>
+      _CiviqueExamBlancViewState();
 }
 
-class _CiviqueExamBlancScreenState
-    extends ConsumerState<CiviqueExamBlancScreen> {
+class _CiviqueExamBlancViewState
+    extends ConsumerState<CiviqueExamBlancView> {
   bool _starting = false;
 
   bool _isPremium() {
@@ -126,107 +128,42 @@ class _CiviqueExamBlancScreenState
     );
   }
 
-  void _back() {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go(AppRoutes.civique);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final historyAsync = ref.watch(_civiqueExamsProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.blue,
-          onRefresh: () async {
-            ref.invalidate(_civiqueExamsProvider);
-            await ref.read(_civiqueExamsProvider.future);
-          },
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
-            children: [
-              _TopBar(onBack: _back),
-              const SizedBox(height: 22),
-              const _Hero(),
-              const SizedBox(height: 16),
-              const _Stats(),
-              const SizedBox(height: 22),
-              historyAsync.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (e, _) => _ErrorBox(
-                  message: ApiClient.toApiException(e).message,
-                  onRetry: () => ref.invalidate(_civiqueExamsProvider),
-                ),
-                data: (history) => _SlotsSection(
-                  history: history,
-                  onTapDone: _openResult,
-                  onTapEmpty: _openBriefing,
-                  isPremium: _isPremium(),
-                  onLocked: () => showPaywallSheet(context),
-                ),
-              ),
-            ],
+    return RefreshIndicator(
+      color: AppColors.blue,
+      onRefresh: () async {
+        ref.invalidate(_civiqueExamsProvider);
+        await ref.read(_civiqueExamsProvider.future);
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
+        children: [
+          const _Hero(),
+          const SizedBox(height: 16),
+          const _Stats(),
+          const SizedBox(height: 22),
+          historyAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (e, _) => _ErrorBox(
+              message: ApiClient.toApiException(e).message,
+              onRetry: () => ref.invalidate(_civiqueExamsProvider),
+            ),
+            data: (history) => _SlotsSection(
+              history: history,
+              onTapDone: _openResult,
+              onTapEmpty: _openBriefing,
+              isPremium: _isPremium(),
+              onLocked: () => showPaywallSheet(context),
+            ),
           ),
-        ),
+        ],
       ),
-    );
-  }
-}
-
-class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onBack});
-
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Material(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: onBack,
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.line),
-              ),
-              alignment: Alignment.center,
-              child: const Icon(Icons.chevron_left_rounded,
-                  size: 22, color: AppColors.ink),
-            ),
-          ),
-        ),
-        const Spacer(),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          decoration: BoxDecoration(
-            color: AppColors.blueLight,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            'CIVIQUE',
-            style: AppFonts.jakarta(
-              size: 12,
-              weight: FontWeight.w800,
-              color: AppColors.blue,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }
