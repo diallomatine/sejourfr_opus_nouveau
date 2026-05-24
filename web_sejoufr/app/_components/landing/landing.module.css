@@ -155,6 +155,16 @@
   display: flex;
   justify-content: center;
 }
+/* Le PhoneMock "back" est en position:absolute (pour s'empiler dans la section
+   App). Seul dans le hero, on le remet en flux normal pour qu'il ne chevauche
+   pas le texte. */
+.heroPhone :global(.pm--back) {
+  position: relative;
+  left: auto;
+  top: auto;
+  opacity: 1;
+  transform: rotate(-2deg);
+}
 .heroAppCopy {
   display: flex;
   flex-direction: column;
