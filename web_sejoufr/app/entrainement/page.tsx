@@ -10,7 +10,6 @@ import {
   type ProductionKind,
   ProductionMobileSheet,
 } from "@/app/_components/ProductionMobileSheet";
-import {TargetPathBanner} from "@/app/_components/TargetPathBanner";
 import {
   ApiException,
   attemptApi,
@@ -371,16 +370,6 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
                 </div>
             </header>
 
-            {/* parcours visé (connecté avec target seulement) */}
-            {!isGuest && user.targetProcedure && (
-                <div className="train-target">
-                    <TargetPathBanner
-                        procedure={user.targetProcedure ?? null}
-                        level={user.targetLevel ?? null}
-                    />
-                </div>
-            )}
-
             {/* démo banner */}
             {showDemoBanner && (
                 <DemoBanner
@@ -390,30 +379,6 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
                     onOpenPaywall={(m) => setPaywallModule(m)}
                 />
             )}
-
-            {/* ============ FILTERS ============ */}
-            <div className="filters">
-                <div className="filter-tabs" role="tablist" aria-label="Module">
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={filter === "CIVIQUE"}
-                        className={`tab tab-blue ${filter === "CIVIQUE" ? "is-active" : ""}`}
-                        onClick={() => setFilter("CIVIQUE")}
-                    >
-                        Civique
-                    </button>
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={filter === "TCF"}
-                        className={`tab tab-red ${filter === "TCF" ? "is-active" : ""}`}
-                        onClick={() => setFilter("TCF")}
-                    >
-                        TCF
-                    </button>
-                </div>
-            </div>
 
             {error && <div className="form-error train-error">{error}</div>}
 
@@ -464,7 +429,41 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
                 </section>
             )}
 
-            {/* ============ EXAMENS BLANCS ============ */}
+            {/* ============ EXAMENS BLANCS + CONSEILS IA (façon template) ============ */}
+            {!isGuest && (
+                <div className="hub-twocols">
+                    <section className="hub-panel">
+                        <div className="hub-panel-head">
+                            <h2>Examens blancs {filter === "TCF" ? "TCF" : "civique"}</h2>
+                            <Link href="/examens-blancs">Tout afficher →</Link>
+                        </div>
+                        {(filter === "TCF" ? TCF_EXAM_ROWS : CIVIQUE_EXAM_ROWS).map((r) => (
+                            <Link key={r.title} href="/examens-blancs" className="mock-row">
+                                <span className={`mock-icon tone-${r.tone}`} aria-hidden>{r.emoji}</span>
+                                <div className="mock-row-body">
+                                    <h3>{r.title}</h3>
+                                    <p>{r.desc}</p>
+                                </div>
+                                <span className="mock-btn">{r.cta}</span>
+                            </Link>
+                        ))}
+                    </section>
+
+                    <aside className="hub-panel">
+                        <h2 className="hub-panel-title">Conseils IA</h2>
+                        <div className="tips-list">
+                            {(filter === "TCF" ? TCF_TIPS : CIVIQUE_TIPS).map((t) => (
+                                <div key={t.text} className="tip">
+                                    <span className="tip-emoji" aria-hidden>{t.emoji}</span>
+                                    <p>{t.text}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </aside>
+                </div>
+            )}
+
+            {/* ============ EXAMENS BLANCS (guest) ============ */}
             {/* Section masquée pour les connectés : ils ont déjà /examens-blancs
                 dans la sidebar — éviter la redondance. */}
             {isGuest && (
@@ -739,6 +738,27 @@ function buildMastery(stats: Partial<Record<ModuleEnum, UserStatsResponse | null
     return {byTheme};
 }
 
+const TCF_EXAM_ROWS = [
+    {emoji: "📝", tone: "red", title: "Examen blanc complet", desc: "CO + CE en conditions réelles, score global CECRL.", cta: "Lancer"},
+    {emoji: "⚡", tone: "blue", title: "Mini examen rapide", desc: "Questions mélangées pour s'entraîner en 15 minutes.", cta: "Démarrer"},
+    {emoji: "🎯", tone: "green", title: "Examen ciblé", desc: "Idéal pour vérifier si tu es prêt pour ton objectif.", cta: "Essayer"},
+];
+const CIVIQUE_EXAM_ROWS = [
+    {emoji: "📝", tone: "blue", title: "Examen blanc civique", desc: "40 questions en 45 minutes, au seuil de réussite officiel.", cta: "Lancer"},
+    {emoji: "⚡", tone: "green", title: "Quiz rapide", desc: "Une dizaine de questions mélangées pour réviser vite.", cta: "Démarrer"},
+    {emoji: "🎯", tone: "amber", title: "Thèmes à renforcer", desc: "Cible les thématiques où tu es le plus faible.", cta: "Réviser"},
+];
+const TCF_TIPS = [
+    {emoji: "🎧", text: "Travaille davantage la compréhension orale : ton score est bon, mais encore instable."},
+    {emoji: "✍️", text: "En expression écrite, ajoute plus de connecteurs : d'abord, ensuite, cependant, enfin."},
+    {emoji: "🎙️", text: "À l'oral, réponds plus naturellement. Le TCF IRN évalue surtout la communication."},
+];
+const CIVIQUE_TIPS = [
+    {emoji: "🏛️", text: "Maîtrise les institutions : Président, gouvernement, Parlement et leurs rôles."},
+    {emoji: "⚖️", text: "Revois les valeurs de la République et la laïcité — souvent au cœur de l'entretien."},
+    {emoji: "📅", text: "Mémorise quelques dates et symboles clés de l'histoire de France."},
+];
+
 function themeBlurb(code: string): string {
     const map: Record<string, string> = {
         PRINCIPES: "Devise, symboles, laïcité, République",
@@ -1008,9 +1028,52 @@ const styles = `
   .tone-purple { background: rgba(124, 58, 173, 0.12); color: #7C3AAD; }
   .tone-red { background: var(--color-red-light); color: var(--color-red); }
 
+  /* ========== TWO-COLS : examens blancs + conseils IA ========== */
+  .hub-twocols { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 26px; }
+  .hub-panel {
+    background: #fff; border: 1px solid var(--color-line); border-radius: 16px; padding: 20px;
+  }
+  .hub-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+  .hub-panel-head h2, .hub-panel-title {
+    font-family: var(--font-display); font-weight: 600; font-size: 18px;
+    letter-spacing: -0.015em; color: var(--color-ink); margin: 0;
+  }
+  .hub-panel-title { margin-bottom: 14px; }
+  .hub-panel-head a { font-size: 13px; font-weight: 600; color: var(--color-blue); white-space: nowrap; }
+  .hub-panel-head a:hover { text-decoration: underline; }
+  .mock-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--color-line-2);
+    text-decoration: none;
+  }
+  .mock-row:last-child { border-bottom: none; }
+  .mock-icon {
+    width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  .mock-row-body { flex: 1; min-width: 0; }
+  .mock-row-body h3 { font-family: var(--font-sans); font-weight: 700; font-size: 14px; color: var(--color-ink); margin: 0 0 2px; }
+  .mock-row-body p { font-size: 12.5px; color: var(--color-muted); line-height: 1.45; margin: 0; }
+  .mock-btn {
+    flex-shrink: 0; padding: 8px 14px; border-radius: 9px;
+    background: var(--color-ink); color: #fff;
+    font-family: var(--font-sans); font-weight: 700; font-size: 12.5px;
+    transition: background 0.15s;
+  }
+  .mock-row:hover .mock-btn { background: #0A1230; }
+  .tips-list { display: flex; flex-direction: column; gap: 14px; }
+  .tip { display: flex; gap: 12px; align-items: flex-start; }
+  .tip-emoji {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 16px;
+    background: var(--color-blue-soft);
+  }
+  .tip p { font-size: 13px; color: var(--color-ink-2); line-height: 1.5; margin: 0; }
+
   @media (min-width: 560px) { .hub-grid { grid-template-columns: 1fr 1fr; } }
   @media (min-width: 900px) {
     .train-hero { grid-template-columns: 1.4fr 1fr; align-items: center; padding: 30px; }
+    .hub-twocols { grid-template-columns: 1.6fr 1fr; }
   }
   @media (min-width: 1100px) { .hub-grid { grid-template-columns: repeat(4, 1fr); } }
 
