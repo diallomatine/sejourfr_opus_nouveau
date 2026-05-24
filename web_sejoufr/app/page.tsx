@@ -5,7 +5,6 @@ import {
   Hero,
   Niveau,
   Simulation,
-  TrustStrip,
 } from "./_components/landing/Landing";
 import { MobileAppSection } from "./_components/MobileAppPromo";
 
@@ -13,7 +12,6 @@ export default function HomePage() {
   return (
     <main>
       <Hero />
-      <TrustStrip />
       <Examens />
       <Competences />
       <Simulation />

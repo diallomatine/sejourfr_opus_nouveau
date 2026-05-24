@@ -128,48 +128,6 @@
   flex-shrink: 0;
 }
 
-/* ---- Trust strip (faits clés + app mobile) --------------------------------- */
-.trust {
-  background: var(--color-ink);
-  color: #fff;
-}
-.trustInner {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 2px;
-}
-.trustItem {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 18px 4px;
-}
-.trustItem + .trustItem {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-.trustIcon {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-.trustTitle {
-  font-family: var(--font-sans);
-  font-weight: 700;
-  font-size: 14.5px;
-  color: #fff;
-}
-.trustDesc {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.62);
-  margin-top: 1px;
-}
-
 /* ---- Section générique (espacement vertical) ------------------------------- */
 .section {
   padding: 64px 0;
@@ -575,13 +533,6 @@
     flex-direction: row;
     justify-content: center;
   }
-  .trustInner {
-    grid-template-columns: 1fr 1fr;
-    gap: 2px 28px;
-  }
-  .trustItem + .trustItem {
-    border-top: none;
-  }
 }
 
 @media (min-width: 720px) {
@@ -611,19 +562,6 @@
   }
   .grid {
     margin-top: 52px;
-  }
-  .trustInner {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0;
-  }
-  .trustItem {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 26px 22px;
-  }
-  .trustItem + .trustItem {
-    border-left: 1px solid rgba(255, 255, 255, 0.1);
   }
 }
 

@@ -107,52 +107,6 @@ export function Hero() {
 }
 
 /* ---------------------------------------------------------------------------
-   Trust strip (faits clés + app mobile)
-   ------------------------------------------------------------------------- */
-const TRUST = [
-  {
-    Icon: Clock,
-    title: "Obligatoire en 2026",
-    desc: "Examen civique et TCF requis depuis le 1ᵉʳ janvier 2026.",
-  },
-  {
-    Icon: GraduationCap,
-    title: "TCF IRN — 4 épreuves",
-    desc: "Compréhension et expression, orale et écrite.",
-  },
-  {
-    Icon: Building2,
-    title: "Examen civique",
-    desc: "Valeurs de la République et vie en France.",
-  },
-  {
-    Icon: Smartphone,
-    title: "App iOS & Android",
-    desc: "Révisez partout, votre progression est synchronisée.",
-  },
-];
-
-export function TrustStrip() {
-  return (
-    <section className={styles.trust} aria-label="Points clés">
-      <div className={`container-x ${styles.trustInner}`}>
-        {TRUST.map(({ Icon, title, desc }) => (
-          <div key={title} className={styles.trustItem}>
-            <span className={styles.trustIcon} aria-hidden>
-              <Icon size={20} strokeWidth={1.8} />
-            </span>
-            <span>
-              <span className={styles.trustTitle}>{title}</span>
-              <span className={styles.trustDesc}>{desc}</span>
-            </span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/* ---------------------------------------------------------------------------
    Examens (2 cartes)
    ------------------------------------------------------------------------- */
 const EXAMENS = [
