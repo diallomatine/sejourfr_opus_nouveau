@@ -82,6 +82,7 @@ export default function GoogleSignInButton({
     if (!clientId) return;
     if (typeof window === "undefined") return;
     if (window.google?.accounts?.id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setScriptReady(true);
       return;
     }
@@ -102,32 +103,48 @@ export default function GoogleSignInButton({
     document.head.appendChild(script);
   }, [clientId]);
 
+  // Callbacks gardés dans une ref : ils changent d'identité à chaque render de
+  // la page parente (ex: onSuccess={() => router.push(...)}), mais on ne veut
+  // PAS ré-exécuter initialize()/renderButton pour autant.
+  const cbRef = useRef({ loginWithGoogle, onSuccess, onError });
+  useEffect(() => {
+    cbRef.current = { loginWithGoogle, onSuccess, onError };
+  }, [loginWithGoogle, onSuccess, onError]);
+
+  // initialize() est une config globale GIS : on ne l'appelle qu'une fois par
+  // montage (le garde survit au double-invoke de StrictMode en dev). Sinon GIS
+  // log "initialize() is called multiple times".
+  const initedRef = useRef(false);
+
   useEffect(() => {
     if (!clientId) return;
     if (!scriptReady) return;
     if (!hostRef.current) return;
     if (!window.google?.accounts?.id) return;
 
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      ux_mode: "popup",
-      callback: async (resp) => {
-        if (!resp.credential) {
-          onError?.("Aucun token reçu de Google.");
-          return;
-        }
-        try {
-          await loginWithGoogle(resp.credential);
-          onSuccess?.();
-        } catch (err) {
-          if (err instanceof ApiException) {
-            onError?.(err.message);
-          } else {
-            onError?.("Connexion Google impossible. Réessayez.");
+    if (!initedRef.current) {
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        ux_mode: "popup",
+        callback: async (resp) => {
+          if (!resp.credential) {
+            cbRef.current.onError?.("Aucun token reçu de Google.");
+            return;
           }
-        }
-      },
-    });
+          try {
+            await cbRef.current.loginWithGoogle(resp.credential);
+            cbRef.current.onSuccess?.();
+          } catch (err) {
+            if (err instanceof ApiException) {
+              cbRef.current.onError?.(err.message);
+            } else {
+              cbRef.current.onError?.("Connexion Google impossible. Réessayez.");
+            }
+          }
+        },
+      });
+      initedRef.current = true;
+    }
 
     // Vider l'hote avant render (en cas de re-mount).
     hostRef.current.innerHTML = "";
@@ -140,7 +157,7 @@ export default function GoogleSignInButton({
       logo_alignment: "left",
       locale: "fr",
     });
-  }, [clientId, scriptReady, loginWithGoogle, onSuccess, onError, variant]);
+  }, [clientId, scriptReady, variant]);
 
   if (!clientId) {
     // En dev sans cles configurees, on n'affiche rien plutot que de polluer
