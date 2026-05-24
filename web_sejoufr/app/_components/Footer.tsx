@@ -1,148 +1,154 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { Heart, Mail, Send } from "lucide-react";
-import { newsletterApi } from "@/lib/api";
-import { ApiException } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
-import { shouldHideGlobalChrome } from "@/lib/chrome-routes";
+import {usePathname} from "next/navigation";
+import {useState} from "react";
+import {Heart, Mail, Send} from "lucide-react";
+import {ApiException, newsletterApi} from "@/lib/api";
+import {useAuth} from "@/lib/auth-context";
+import {shouldHideGlobalChrome} from "@/lib/chrome-routes";
 
 // lucide-react ne distribue plus les icônes de marques (politique de trademark) :
 // on définit nos propres SVG pour Twitter/Instagram/LinkedIn/YouTube/GitHub.
 type IconProps = { className?: string };
-const Twitter = ({ className }: IconProps) => (
-  <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden focusable="false">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-  </svg>
+const Twitter = ({className}: IconProps) => (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden focusable="false">
+        <path
+            d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+    </svg>
 );
-const Instagram = ({ className }: IconProps) => (
-  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden focusable="false">
-    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-  </svg>
+const Instagram = ({className}: IconProps) => (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round" aria-hidden focusable="false">
+        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+    </svg>
 );
-const Linkedin = ({ className }: IconProps) => (
-  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden focusable="false">
-    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z" />
-    <rect x="2" y="9" width="4" height="12" />
-    <circle cx="4" cy="4" r="2" />
-  </svg>
+const Linkedin = ({className}: IconProps) => (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round" aria-hidden focusable="false">
+        <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/>
+        <rect x="2" y="9" width="4" height="12"/>
+        <circle cx="4" cy="4" r="2"/>
+    </svg>
 );
-const Youtube = ({ className }: IconProps) => (
-  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden focusable="false">
-    <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19.1c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z" />
-    <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" fill="currentColor" stroke="none" />
-  </svg>
+const Youtube = ({className}: IconProps) => (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round" aria-hidden focusable="false">
+        <path
+            d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19.1c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/>
+        <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" fill="currentColor" stroke="none"/>
+    </svg>
 );
-const Github = ({ className }: IconProps) => (
-  <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden focusable="false">
-    <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-  </svg>
+const Github = ({className}: IconProps) => (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden focusable="false">
+        <path
+            d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+    </svg>
 );
 
 const productLinks = [
-  { href: "/entrainement?module=CIVIQUE", label: "Module civique" },
-  { href: "/entrainement?module=TCF", label: "Module TCF" },
-  { href: "/tarifs", label: "Tarifs" },
+    {href: "/entrainement?module=CIVIQUE", label: "Module civique"},
+    {href: "/entrainement?module=TCF", label: "Module TCF"},
+    {href: "/tarifs", label: "Tarifs"},
 ];
 
 const resourceLinks = [
-  { href: "/blog", label: "Blog" },
-  { href: "/faq", label: "FAQ" },
-  { href: "/blog/demande-naturalisation-francaise-guide-complet", label: "Guide naturalisation" },
+    {href: "/blog", label: "Blog"},
+    {href: "/faq", label: "FAQ"},
+    {href: "/blog/demande-naturalisation-francaise-guide-complet", label: "Guide naturalisation"},
 ];
 
 const legalLinks = [
-  { href: "/cgu", label: "CGU" },
-  { href: "/mentions-legales", label: "Mentions légales" },
-  { href: "/confidentialite", label: "Confidentialité" },
-  { href: "/confidentialite#article-8", label: "Cookies" },
-  { href: "/contact", label: "Contact" },
+    {href: "/cgu", label: "CGU"},
+    {href: "/mentions-legales", label: "Mentions légales"},
+    {href: "/confidentialite", label: "Confidentialité"},
+    {href: "/confidentialite#article-8", label: "Cookies"},
+    {href: "/contact", label: "Contact"},
 ];
 
 const socials = [
-  { href: "https://twitter.com", label: "Twitter / X", Icon: Twitter },
-  { href: "https://instagram.com", label: "Instagram", Icon: Instagram },
-  { href: "https://linkedin.com", label: "LinkedIn", Icon: Linkedin },
-  { href: "https://youtube.com", label: "YouTube", Icon: Youtube },
-  { href: "https://github.com", label: "GitHub", Icon: Github },
+    {href: "https://twitter.com", label: "Twitter / X", Icon: Twitter},
+    {href: "https://instagram.com", label: "Instagram", Icon: Instagram},
+    {href: "https://linkedin.com", label: "LinkedIn", Icon: Linkedin},
+    {href: "https://youtube.com", label: "YouTube", Icon: Youtube},
+    {href: "https://github.com", label: "GitHub", Icon: Github},
 ];
 
 export function Footer() {
-  const pathname = usePathname();
-  const { status, user } = useAuth();
-  const isAuth = status === "authenticated" && user !== null;
-  if (shouldHideGlobalChrome(pathname, isAuth)) return null;
+    const pathname = usePathname();
+    const {status, user} = useAuth();
+    const isAuth = status === "authenticated" && user !== null;
+    if (shouldHideGlobalChrome(pathname, isAuth)) return null;
 
-  return (
-    <footer className="site-footer">
-      <div className="footer-blob footer-blob-blue" aria-hidden />
-      <div className="footer-blob footer-blob-red" aria-hidden />
+    return (
+        <footer className="site-footer">
+            <div className="footer-blob footer-blob-blue" aria-hidden/>
+            <div className="footer-blob footer-blob-red" aria-hidden/>
 
-      <div className="container-x footer-inner">
-        <NewsletterBlock />
+            <div className="container-x footer-inner">
+                <NewsletterBlock/>
 
-        <div className="footer-grid">
-          <div className="footer-brand-col">
-            <Link href="/" className="footer-brand">
-              <FooterLogo />
-              <span className="footer-brand-name">SejourFR</span>
-            </Link>
-            <p className="footer-pitch">
-              Préparez sereinement votre examen civique pour le titre de séjour
-              et votre entretien de naturalisation.
-            </p>
-            <div className="footer-flag" role="img" aria-label="Drapeau français">
-              <span className="flag-band flag-blue" />
-              <span className="flag-band flag-white" />
-              <span className="flag-band flag-red" />
+                <div className="footer-grid">
+                    <div className="footer-brand-col">
+                        <Link href="/" className="footer-brand">
+                            <FooterLogo/>
+                            <span className="footer-brand-name">SejourFR</span>
+                        </Link>
+                        <p className="footer-pitch">
+                            Préparez sereinement votre examen civique pour le titre de séjour
+                            et votre entretien de naturalisation.
+                        </p>
+                        <div className="footer-flag" role="img" aria-label="Drapeau français">
+                            <span className="flag-band flag-blue"/>
+                            <span className="flag-band flag-white"/>
+                            <span className="flag-band flag-red"/>
+                        </div>
+                    </div>
+
+                    <FooterColumn title="Produit" links={productLinks}/>
+                    <FooterColumn title="Ressources" links={resourceLinks}/>
+                    <FooterColumn title="Légal" links={legalLinks}/>
+                </div>
+
+                <div className="footer-socials">
+                    {socials.map(({href, label, Icon}) => (
+                        <a
+                            key={label}
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={label}
+                            className="footer-social"
+                        >
+                            <Icon className="footer-social-icon"/>
+                        </a>
+                    ))}
+                </div>
             </div>
-          </div>
 
-          <FooterColumn title="Produit" links={productLinks} />
-          <FooterColumn title="Ressources" links={resourceLinks} />
-          <FooterColumn title="Légal" links={legalLinks} />
-        </div>
-
-        <div className="footer-socials">
-          {socials.map(({ href, label, Icon }) => (
-            <a
-              key={label}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={label}
-              className="footer-social"
-            >
-              <Icon className="footer-social-icon" />
-            </a>
-          ))}
-        </div>
-      </div>
-
-      <div className="footer-bar">
-        <div className="container-x footer-bar-inner">
+            <div className="footer-bar">
+                <div className="container-x footer-bar-inner">
           <span>
             © {new Date().getFullYear()} SejourFR. Tous droits réservés.
           </span>
-          <span className="footer-made">
+                    <span className="footer-made">
             Made with
-            <Heart className="footer-heart" />
+            <Heart className="footer-heart"/>
             in France
           </span>
-          <LanguageSelector />
-        </div>
-      </div>
+                    <LanguageSelector/>
+                </div>
+            </div>
 
-      <style>{`
+            <style>{`
         .site-footer {
           position: relative;
-          background: #0F172A;
-          color: #CBD5E1;
-          margin-top: 64px;
+          background: var(--color-blue);
+          color: #fff;
+          font-weight: 400;
+          margin-top: 64px; 
           overflow: hidden;
         }
         .footer-blob {
@@ -202,7 +208,8 @@ export function Footer() {
         .footer-pitch {
           font-size: 14px;
           line-height: 1.6;
-          color: #94A3B8;
+          color: #fff;
+          font-weight: 500;
           margin: 16px 0 0;
           max-width: 300px;
         }
@@ -240,11 +247,12 @@ export function Footer() {
         }
         .footer-col-link {
           font-size: 14px;
-          color: #94A3B8;
+          color: #fff;
+          font-weight: 500;
           text-decoration: none;
-          transition: color 0.2s ease;
+          transition: opacity 0.2s ease;
         }
-        .footer-col-link:hover { color: #fff; }
+        .footer-col-link:hover { opacity: 0.75; }
 
         .footer-socials {
           display: flex;
@@ -286,7 +294,8 @@ export function Footer() {
           padding-top: 24px;
           padding-bottom: 24px;
           font-size: 12px;
-          color: #94A3B8;
+          color: #fff;
+          font-weight: 500;
         }
         .footer-made {
           display: inline-flex;
@@ -325,118 +334,119 @@ export function Footer() {
           .footer-pitch { max-width: none; }
         }
       `}</style>
-    </footer>
-  );
+        </footer>
+    );
 }
 
 function FooterColumn({
-  title,
-  links,
-}: {
-  title: string;
-  links: { href: string; label: string }[];
+                          title,
+                          links,
+                      }: {
+    title: string;
+    links: { href: string; label: string }[];
 }) {
-  return (
-    <div>
-      <h3 className="footer-col-title">{title}</h3>
-      <ul className="footer-col-list">
-        {links.map((l) => (
-          <li key={l.label}>
-            <Link href={l.href} className="footer-col-link">
-              {l.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+    return (
+        <div>
+            <h3 className="footer-col-title">{title}</h3>
+            <ul className="footer-col-list">
+                {links.map((l) => (
+                    <li key={l.label}>
+                        <Link href={l.href} className="footer-col-link">
+                            {l.label}
+                        </Link>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
 }
 
 type FeedbackKind = "success" | "info" | "error";
+
 interface Feedback {
-  kind: FeedbackKind;
-  message: string;
+    kind: FeedbackKind;
+    message: string;
 }
 
 function NewsletterBlock() {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
+    const [email, setEmail] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [feedback, setFeedback] = useState<Feedback | null>(null);
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = email.trim();
-    if (!trimmed) return;
-    setLoading(true);
-    setFeedback(null);
-    try {
-      const data = await newsletterApi.subscribe(trimmed, "footer");
-      setEmail("");
-      setFeedback(
-        data.alreadySubscribed
-          ? { kind: "info", message: "Vous êtes déjà inscrit·e à la newsletter." }
-          : { kind: "success", message: "Merci ! Vous êtes inscrit·e à la newsletter." }
-      );
-    } catch (err) {
-      const msg =
-        err instanceof ApiException && err.status === 404
-          ? "Service bientôt disponible — réessayez plus tard."
-          : "Impossible d'enregistrer votre inscription pour le moment.";
-      setFeedback({ kind: "error", message: msg });
-    } finally {
-      setLoading(false);
-    }
-  };
+    const onSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const trimmed = email.trim();
+        if (!trimmed) return;
+        setLoading(true);
+        setFeedback(null);
+        try {
+            const data = await newsletterApi.subscribe(trimmed, "footer");
+            setEmail("");
+            setFeedback(
+                data.alreadySubscribed
+                    ? {kind: "info", message: "Vous êtes déjà inscrit·e à la newsletter."}
+                    : {kind: "success", message: "Merci ! Vous êtes inscrit·e à la newsletter."}
+            );
+        } catch (err) {
+            const msg =
+                err instanceof ApiException && err.status === 404
+                    ? "Service bientôt disponible — réessayez plus tard."
+                    : "Impossible d'enregistrer votre inscription pour le moment.";
+            setFeedback({kind: "error", message: msg});
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  return (
-    <div className="newsletter">
-      <div>
-        <h2 className="newsletter-title">
-          Conseils, mises à jour, nouvelles questions.
-        </h2>
-        <p className="newsletter-lede">
-          Rejoignez la newsletter pour recevoir nos meilleurs conseils pour
-          réussir l&apos;examen civique et votre naturalisation.
-        </p>
-      </div>
-      <div className="newsletter-right">
-        {/* suppressHydrationWarning : neutralise les attributs injectés par les
+    return (
+        <div className="newsletter">
+            <div>
+                <h2 className="newsletter-title">
+                    Conseils, mises à jour, nouvelles questions.
+                </h2>
+                <p className="newsletter-lede">
+                    Rejoignez la newsletter pour recevoir nos meilleurs conseils pour
+                    réussir l&apos;examen civique et votre naturalisation.
+                </p>
+            </div>
+            <div className="newsletter-right">
+                {/* suppressHydrationWarning : neutralise les attributs injectés par les
             extensions navigateur (Grammarly, etc.) sur form / input qui sinon
             génèrent un hydration mismatch côté React. */}
-        <form
-          onSubmit={onSubmit}
-          className="newsletter-form"
-          suppressHydrationWarning
-        >
-          <label className="newsletter-input-wrap">
-            <span className="sr-only">Adresse email</span>
-            <Mail className="newsletter-input-icon" aria-hidden />
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="vous@exemple.fr"
-              className="newsletter-input"
-              suppressHydrationWarning
-            />
-          </label>
-          <button type="submit" disabled={loading} className="newsletter-submit">
-            <Send className="newsletter-submit-icon" />
-            {loading ? "..." : "S'abonner"}
-          </button>
-        </form>
-        {feedback && (
-          <p
-            className={`newsletter-feedback newsletter-feedback-${feedback.kind}`}
-            role="status"
-          >
-            {feedback.message}
-          </p>
-        )}
-      </div>
+                <form
+                    onSubmit={onSubmit}
+                    className="newsletter-form"
+                    suppressHydrationWarning
+                >
+                    <label className="newsletter-input-wrap">
+                        <span className="sr-only">Adresse email</span>
+                        <Mail className="newsletter-input-icon" aria-hidden/>
+                        <input
+                            type="email"
+                            required
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="vous@exemple.fr"
+                            className="newsletter-input"
+                            suppressHydrationWarning
+                        />
+                    </label>
+                    <button type="submit" disabled={loading} className="newsletter-submit">
+                        <Send className="newsletter-submit-icon"/>
+                        {loading ? "..." : "S'abonner"}
+                    </button>
+                </form>
+                {feedback && (
+                    <p
+                        className={`newsletter-feedback newsletter-feedback-${feedback.kind}`}
+                        role="status"
+                    >
+                        {feedback.message}
+                    </p>
+                )}
+            </div>
 
-      <style>{`
+            <style>{`
         .newsletter {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -456,7 +466,8 @@ function NewsletterBlock() {
         .newsletter-lede {
           font-size: 14px;
           line-height: 1.6;
-          color: #94A3B8;
+          color: #fff;
+          font-weight: 500;
           margin: 8px 0 0;
         }
         .newsletter-right { display: flex; flex-direction: column; gap: 10px; }
@@ -545,26 +556,26 @@ function NewsletterBlock() {
           .newsletter-submit { width: 100%; }
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 }
 
 function LanguageSelector() {
-  return (
-    <div className="lang-switch">
-      <button type="button" className="lang-btn lang-active" aria-current="true">
-        FR
-      </button>
-      <button
-        type="button"
-        disabled
-        className="lang-btn lang-disabled"
-        title="Bientôt disponible"
-      >
-        EN · bientôt
-      </button>
+    return (
+        <div className="lang-switch">
+            <button type="button" className="lang-btn lang-active" aria-current="true">
+                FR
+            </button>
+            <button
+                type="button"
+                disabled
+                className="lang-btn lang-disabled"
+                title="Bientôt disponible"
+            >
+                EN · bientôt
+            </button>
 
-      <style>{`
+            <style>{`
         .lang-switch {
           display: inline-flex;
           align-items: center;
@@ -594,22 +605,22 @@ function LanguageSelector() {
           cursor: not-allowed;
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 }
 
 function FooterLogo() {
-  return (
-    <svg viewBox="0 0 32 32" className="footer-logo" aria-hidden focusable="false">
-      <defs>
-        <linearGradient id="footer-logo-rim" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#0F2C66" />
-          <stop offset="100%" stopColor="#1E40AF" />
-        </linearGradient>
-      </defs>
-      <circle cx="16" cy="16" r="15" fill="url(#footer-logo-rim)" />
-      <circle cx="16" cy="16" r="10" fill="#FFFFFF" />
-      <circle cx="16" cy="16" r="5" fill="#E1373B" />
-    </svg>
-  );
+    return (
+        <svg viewBox="0 0 32 32" className="footer-logo" aria-hidden focusable="false">
+            <defs>
+                <linearGradient id="footer-logo-rim" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#0F2C66"/>
+                    <stop offset="100%" stopColor="#1E40AF"/>
+                </linearGradient>
+            </defs>
+            <circle cx="16" cy="16" r="15" fill="url(#footer-logo-rim)"/>
+            <circle cx="16" cy="16" r="10" fill="#FFFFFF"/>
+            <circle cx="16" cy="16" r="5" fill="#E1373B"/>
+        </svg>
+    );
 }
