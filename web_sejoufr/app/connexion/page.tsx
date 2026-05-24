@@ -77,7 +77,7 @@ function ConnexionInner() {
         avatarTone: "blue",
       }}
     >
-      <form onSubmit={handleSubmit} className={styles.form} noValidate>
+      <form onSubmit={handleSubmit} className={styles.form} noValidate suppressHydrationWarning>
         {error && (
           <div className="form-error" role="alert">
             {error}
@@ -97,6 +97,7 @@ function ConnexionInner() {
             className="field-input"
             autoComplete="email"
             autoFocus
+            suppressHydrationWarning
           />
         </div>
 

@@ -33,6 +33,7 @@ export function PasswordInput({
         placeholder={placeholder}
         className="field-input"
         autoComplete={autoComplete}
+        suppressHydrationWarning
       />
       <button
         type="button"

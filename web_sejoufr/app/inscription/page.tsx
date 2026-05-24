@@ -79,7 +79,7 @@ export default function InscriptionPage() {
         avatarTone: "red",
       }}
     >
-      <form onSubmit={handleSubmit} className={styles.form} noValidate>
+      <form onSubmit={handleSubmit} className={styles.form} noValidate suppressHydrationWarning>
         {error && (
           <div className="form-error" role="alert">
             {error}
@@ -99,6 +99,7 @@ export default function InscriptionPage() {
               placeholder="Fatima"
               className="field-input"
               autoComplete="given-name"
+              suppressHydrationWarning
             />
           </div>
           <div className="field">
@@ -113,6 +114,7 @@ export default function InscriptionPage() {
               placeholder="Achour"
               className="field-input"
               autoComplete="family-name"
+              suppressHydrationWarning
             />
           </div>
         </div>
@@ -129,6 +131,7 @@ export default function InscriptionPage() {
             placeholder="vous@exemple.com"
             className="field-input"
             autoComplete="email"
+            suppressHydrationWarning
           />
         </div>
 
