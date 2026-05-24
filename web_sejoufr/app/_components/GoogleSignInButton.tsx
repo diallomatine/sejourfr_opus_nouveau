@@ -148,6 +148,14 @@ export default function GoogleSignInButton({
 
     // Vider l'hote avant render (en cas de re-mount).
     hostRef.current.innerHTML = "";
+    // Largeur explicite mesurée sur le conteneur (bornée 200–400 px par GIS) :
+    // sans ça, GIS rend l'iframe à sa largeur par défaut au 1er chargement, ce
+    // qui déborde sur mobile (scroll horizontal qui disparaît au refresh).
+    const measured =
+      hostRef.current.clientWidth ||
+      hostRef.current.parentElement?.clientWidth ||
+      0;
+    const width = measured > 0 ? Math.min(400, Math.max(200, Math.floor(measured))) : undefined;
     window.google.accounts.id.renderButton(hostRef.current, {
       type: "standard",
       theme: "outline",
@@ -156,6 +164,7 @@ export default function GoogleSignInButton({
       shape: "rectangular",
       logo_alignment: "left",
       locale: "fr",
+      width,
     });
   }, [clientId, scriptReady, variant]);
 
@@ -179,10 +188,17 @@ export default function GoogleSignInButton({
           align-items: stretch;
           gap: 18px;
           margin-top: 18px;
+          max-width: 100%;
+          overflow: hidden;
         }
         .google-signin > div:last-child {
           display: flex;
           justify-content: center;
+          max-width: 100%;
+          overflow: hidden;
+        }
+        .google-signin iframe {
+          max-width: 100% !important;
         }
         .google-signin-divider {
           position: relative;
