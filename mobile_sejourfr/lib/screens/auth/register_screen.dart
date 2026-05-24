@@ -80,10 +80,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           icon: const Icon(Icons.arrow_back_ios_new, size: 18),
         ),
       ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(28, 0, 28, 32),
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.opaque,
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(28, 0, 28, 32),
             child: Form(
               key: _formKey,
               child: Column(
@@ -111,12 +114,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   AuthFormField.field(
                     label: 'Prénom',
                     controller: _firstName,
+                    prefixIcon: Icons.person_outline,
                     validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requis' : null,
                   ),
                   const SizedBox(height: 14),
                   AuthFormField.field(
                     label: 'Nom',
                     controller: _lastName,
+                    prefixIcon: Icons.badge_outlined,
                     validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requis' : null,
                   ),
                   const SizedBox(height: 14),
@@ -125,6 +130,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.email],
+                    prefixIcon: Icons.mail_outline,
                     validator: (v) {
                       final s = v?.trim() ?? '';
                       if (s.isEmpty) return 'Email requis';
@@ -138,6 +144,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     controller: _password,
                     obscureText: _obscure,
                     autofillHints: const [AutofillHints.newPassword],
+                    prefixIcon: Icons.lock_outline,
                     suffixIcon: IconButton(
                       onPressed: () => setState(() => _obscure = !_obscure),
                       icon: Icon(
@@ -155,6 +162,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     label: 'Confirmer le mot de passe',
                     controller: _passwordConfirm,
                     obscureText: _obscure,
+                    prefixIcon: Icons.lock_outline,
                     validator: (v) => (v?.isEmpty ?? true) ? 'Confirmation requise' : null,
                   ),
                   if (_error != null) ...[
@@ -199,6 +207,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

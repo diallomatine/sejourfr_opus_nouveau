@@ -46,7 +46,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (e) {
       final err = ApiClient.toApiException(e);
       setState(() {
-        _error = err.statusCode == 401 ? 'Email ou mot de passe incorrect.' : err.message;
+        _error = err.statusCode == 401
+            ? 'Email ou mot de passe incorrect.'
+            : err.message;
       });
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -56,121 +58,130 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(28, 32, 28, 32),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 24),
-                  const Center(
-                    child: SejourFrLogoLockup(
-                      cocardeSize: 72,
-                      wordmarkSize: 32,
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        behavior: HitTestBehavior.opaque,
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(28, 32, 28, 32),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 24),
+                    const Center(
+                      child: SejourFrLogoLockup(
+                        cocardeSize: 72,
+                        wordmarkSize: 32,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 48),
-                  const Eyebrow('§ Bienvenue'),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Connectez-vous',
-                    style: AppFonts.fraunces(
-                      size: 30,
-                      weight: FontWeight.w600,
+                    const SizedBox(height: 48),
+                    const Eyebrow('§ Bienvenue'),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Connectez-vous',
+                      style: AppFonts.fraunces(
+                        size: 30,
+                        weight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Reprenez votre préparation là où vous l\'avez laissée.',
-                    style: AppFonts.jakarta(
-                      size: 14,
-                      color: AppColors.muted,
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-                  _Field(
-                    label: 'Email',
-                    controller: _email,
-                    keyboardType: TextInputType.emailAddress,
-                    autofillHints: const [AutofillHints.username],
-                    validator: (v) {
-                      final s = v?.trim() ?? '';
-                      if (s.isEmpty) return 'Email requis';
-                      if (!s.contains('@')) return 'Format invalide';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  _Field(
-                    label: 'Mot de passe',
-                    controller: _password,
-                    obscureText: _obscure,
-                    autofillHints: const [AutofillHints.password],
-                    suffixIcon: IconButton(
-                      onPressed: () => setState(() => _obscure = !_obscure),
-                      icon: Icon(
-                        _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                    const SizedBox(height: 6),
+                    Text(
+                      'Reprenez votre préparation là où vous l\'avez laissée.',
+                      style: AppFonts.jakarta(
+                        size: 14,
                         color: AppColors.muted,
                       ),
                     ),
-                    validator: (v) => (v?.isEmpty ?? true) ? 'Mot de passe requis' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => context.push(AppRoutes.forgotPassword),
-                      child: Text(
-                        'Mot de passe oublié ?',
-                        style: AppFonts.jakarta(
-                          size: 13,
-                          color: AppColors.blue,
-                          weight: FontWeight.w600,
-                        ),
-                      ),
+                    const SizedBox(height: 28),
+                    _Field(
+                      label: 'Email',
+                      controller: _email,
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.username],
+                      prefixIcon: Icons.mail_outline,
+                      validator: (v) {
+                        final s = v?.trim() ?? '';
+                        if (s.isEmpty) return 'Email requis';
+                        if (!s.contains('@')) return 'Format invalide';
+                        return null;
+                      },
                     ),
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 8),
-                    _ErrorBox(message: _error!),
-                  ],
-                  const SizedBox(height: 12),
-                  AppButton(
-                    label: 'Se connecter',
-                    onPressed: _submitting ? null : _submit,
-                    isLoading: _submitting,
-                  ),
-                  SocialAuthButtons(
-                    onError: (msg) => setState(() => _error = msg),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Nouveau ici ? ',
-                        style: AppFonts.jakarta(
-                          size: 14,
+                    const SizedBox(height: 16),
+                    _Field(
+                      label: 'Mot de passe',
+                      controller: _password,
+                      obscureText: _obscure,
+                      autofillHints: const [AutofillHints.password],
+                      prefixIcon: Icons.lock_outline,
+                      suffixIcon: IconButton(
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                        icon: Icon(
+                          _obscure
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
                           color: AppColors.muted,
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () => context.push(AppRoutes.register),
+                      validator: (v) =>
+                          (v?.isEmpty ?? true) ? 'Mot de passe requis' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => context.push(AppRoutes.forgotPassword),
                         child: Text(
-                          'Créer un compte',
+                          'Mot de passe oublié ?',
                           style: AppFonts.jakarta(
-                            size: 14,
+                            size: 13,
                             color: AppColors.blue,
-                            weight: FontWeight.w700,
+                            weight: FontWeight.w600,
                           ),
                         ),
                       ),
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: 8),
+                      _ErrorBox(message: _error!),
                     ],
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    AppButton(
+                      label: 'Se connecter',
+                      onPressed: _submitting ? null : _submit,
+                      isLoading: _submitting,
+                    ),
+                    SocialAuthButtons(
+                      onError: (msg) => setState(() => _error = msg),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Nouveau ici ? ',
+                          style: AppFonts.jakarta(
+                            size: 14,
+                            color: AppColors.muted,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => context.push(AppRoutes.register),
+                          child: Text(
+                            'Créer un compte',
+                            style: AppFonts.jakarta(
+                              size: 14,
+                              color: AppColors.blue,
+                              weight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -191,6 +202,7 @@ class _Field extends StatelessWidget {
     this.keyboardType,
     this.obscureText = false,
     this.validator,
+    this.prefixIcon,
     this.suffixIcon,
     this.autofillHints,
   });
@@ -200,6 +212,7 @@ class _Field extends StatelessWidget {
   final TextInputType? keyboardType;
   final bool obscureText;
   final String? Function(String?)? validator;
+  final IconData? prefixIcon;
   final Widget? suffixIcon;
   final Iterable<String>? autofillHints;
 
@@ -218,6 +231,9 @@ class _Field extends StatelessWidget {
           validator: validator,
           style: AppFonts.jakarta(size: 14),
           decoration: InputDecoration(
+            prefixIcon: prefixIcon != null
+                ? Icon(prefixIcon, size: 20, color: AppColors.muted)
+                : null,
             suffixIcon: suffixIcon,
           ),
         ),
@@ -264,6 +280,7 @@ class FormField {
     TextInputType? keyboardType,
     bool obscureText = false,
     String? Function(String?)? validator,
+    IconData? prefixIcon,
     Widget? suffixIcon,
     Iterable<String>? autofillHints,
   }) =>
@@ -273,6 +290,7 @@ class FormField {
         keyboardType: keyboardType,
         obscureText: obscureText,
         validator: validator,
+        prefixIcon: prefixIcon,
         suffixIcon: suffixIcon,
         autofillHints: autofillHints,
       );
@@ -288,6 +306,7 @@ class AuthFormField {
     TextInputType? keyboardType,
     bool obscureText = false,
     String? Function(String?)? validator,
+    IconData? prefixIcon,
     Widget? suffixIcon,
     Iterable<String>? autofillHints,
   }) =>
@@ -297,6 +316,7 @@ class AuthFormField {
         keyboardType: keyboardType,
         obscureText: obscureText,
         validator: validator,
+        prefixIcon: prefixIcon,
         suffixIcon: suffixIcon,
         autofillHints: autofillHints,
       );
