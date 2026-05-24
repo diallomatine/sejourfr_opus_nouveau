@@ -20,13 +20,14 @@ import {
   type ProductionKind,
   ProductionMobileSheet,
 } from "@/app/_components/ProductionMobileSheet";
-import { attemptApi, statsApi, userContentApi } from "@/lib/api";
+import { attemptApi, statsApi, themeApi, userContentApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
   type AttemptSummaryResponse,
   isProductionAttempt,
   type Module as ModuleEnum,
   type TargetProcedure,
+  type ThemeUserResponse,
   type UserStatsResponse,
 } from "@/lib/types";
 
@@ -43,6 +44,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<StatsByModule>({});
   const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
   const [wrongCount, setWrongCount] = useState<number>(0);
+  const [civiqueThemes, setCiviqueThemes] = useState<ThemeUserResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [productionSheet, setProductionSheet] = useState<ProductionKind | null>(null);
   // Onglet "Choisir un entraînement" : civique vs TCF. Défaut = civique si
@@ -93,16 +95,24 @@ export default function DashboardPage() {
         .wrong()
         .then((q) => q.length)
         .catch(() => 0);
+      // Liste canonique des thèmes civiques (même source que /entrainement et le
+      // mobile) — byTheme des stats ne contient que les thèmes déjà travaillés.
+      const civThemesP =
+        user.hasCivique !== false
+          ? themeApi.list("CIVIQUE").catch((): ThemeUserResponse[] => [])
+          : Promise.resolve<ThemeUserResponse[]>([]);
 
-      const [, atts, w] = await Promise.all([
+      const [, atts, w, civThemes] = await Promise.all([
         Promise.all(promises),
         attemptsP,
         wrongP,
+        civThemesP,
       ]);
       if (cancelled) return;
       setStats(result);
       setAttempts(atts);
       setWrongCount(w);
+      setCiviqueThemes(civThemes);
       setLoading(false);
     })();
     return () => {
@@ -160,9 +170,6 @@ export default function DashboardPage() {
   );
 
   const recentActivity = useMemo(() => attempts.slice(0, 4), [attempts]);
-
-  // Thèmes civiques (vrais noms backend) pour les cartes de l'onglet Civique.
-  const civiqueThemes = stats.CIVIQUE?.byTheme ?? [];
 
   if (status === "loading") return <DashSkeleton />;
   if (!user) {
@@ -332,14 +339,14 @@ export default function DashboardPage() {
               const tone = CIVIQUE_TONES[i % CIVIQUE_TONES.length];
               return (
                 <Link
-                  key={t.themeId}
+                  key={t.id}
                   href="/entrainement?module=CIVIQUE"
                   className="dash-module"
                 >
                   <span className={`dash-module-icon tone-${tone}`} aria-hidden>
                     <Icon size={22} strokeWidth={1.8} />
                   </span>
-                  <h3>{t.themeName}</h3>
+                  <h3>{t.name}</h3>
                   <p>Questions à choix multiple, correction immédiate.</p>
                   <div className="dash-tags">
                     <span className="dash-tag">Civique</span>
