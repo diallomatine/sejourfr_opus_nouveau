@@ -155,6 +155,13 @@ standard 36px, variante `.cocarde.lg` à 56px.
 
 ## Conventions de code
 
+- **🏆 RÈGLE D'OR — TOUT est responsive.** Chaque page et chaque composant doit fonctionner
+  parfaitement du **mobile (~360 px)** au **desktop (1280+)**. Aucune page n'est « finie » tant
+  qu'elle n'a pas été pensée mobile-first et vérifiée mentalement à **360 / 768 / 1280**. Concrètement :
+  pas de largeur fixe en px sans `max-width: 100%` ; `min-width: 0` sur les enfants de grille/flex pour
+  éviter le *blowout* (scroll horizontal) ; grilles multi-colonnes qui retombent en 1 colonne sous les
+  breakpoints ; **inputs en `font-size: 16px` minimum** (sinon iOS zoome au focus → scroll horizontal) ;
+  pas de tableau sans alternative carte sur petit écran. Le mobile est le cas d'usage principal — il prime.
 - **Pas de Tailwind utility-first dans le markup.** Les utilities ne sont pas générées au-delà des design
   tokens. Pour styler, soit `globals.css`, soit `<style>` JSX scoped en fin de composant.
 - **Classes globales réutilisables** définies dans `globals.css` : `.btn`, `.btn-lg`, `.btn-red`,
@@ -163,8 +170,10 @@ standard 36px, variante `.cocarde.lg` à 56px.
 - **Pages avec formulaires** = `"use client"` obligatoire (état local + handlers).
 - **`useSearchParams()`** doit être dans un composant enfant enveloppé par `<Suspense>` (cf.
   `paiement/page.tsx`).
-- **Pas de fichier .module.css** pour l'instant. Si le CSS scoped des composants devient lourd, c'est l'option
-  de refactor à privilégier.
+- **CSS Modules** adoptés lors de la refonte pour les nouveaux composants lourds (ex.
+  `app/_components/landing/landing.module.css`, `app/_components/auth/auth.module.css`) : un `.module.css`
+  co-localisé qui consomme les tokens `@theme` (`var(--color-*)`). Les `<style>` JSX scoped restent OK pour
+  les composants plus simples / hérités. Pas d'utility-first dans les deux cas.
 
 **Hygiène (rappel transverse, cf. CLAUDE.md racine)**
 - Toute nouvelle page App Router prend sa place dans `app/<segment>/`. Les composants partagés à 2+ pages
