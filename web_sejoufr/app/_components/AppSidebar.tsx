@@ -31,6 +31,11 @@ function AppSidebarInner() {
   const revisionTab = searchParams?.get("tab") === "favoris" ? "favoris" : "erreurs";
   const isOnRevision = pathname === "/revision" || pathname?.startsWith("/revision/");
 
+  // Module courant sur /entrainement, pour différencier les entrées
+  // "TCF IRN" et "Examen civique" qui pointent sur la même route.
+  const currentModule = searchParams?.get("module");
+  const isOnEntrainement = pathname === "/entrainement";
+
   const [wrongCount, setWrongCount] = useState<number | null>(null);
   const [favCount, setFavCount] = useState<number | null>(null);
 
@@ -82,8 +87,21 @@ function AppSidebarInner() {
         <SideLink href="/dashboard" pathname={pathname} icon={<GridIcon />}>
           Tableau de bord
         </SideLink>
-        <SideLink href="/entrainement" pathname={pathname} icon={<PlayIcon />}>
-          S&apos;entraîner
+        <SideLink
+          href="/entrainement?module=TCF"
+          pathname={pathname}
+          icon={<HeadphonesIcon />}
+          activeWhen={() => isOnEntrainement && currentModule === "TCF"}
+        >
+          TCF IRN
+        </SideLink>
+        <SideLink
+          href="/entrainement?module=CIVIQUE"
+          pathname={pathname}
+          icon={<LandmarkIcon />}
+          activeWhen={() => isOnEntrainement && currentModule === "CIVIQUE"}
+        >
+          Examen civique
         </SideLink>
         <SideLink
           href="/examens-blancs"
@@ -217,9 +235,20 @@ const GridIcon = () => (
     <rect x="3" y="16" width="7" height="5" />
   </IconBase>
 );
-const PlayIcon = () => (
+const HeadphonesIcon = () => (
   <IconBase>
-    <polygon points="5 3 19 12 5 21 5 3" />
+    <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+    <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+  </IconBase>
+);
+const LandmarkIcon = () => (
+  <IconBase>
+    <line x1="3" y1="22" x2="21" y2="22" />
+    <line x1="6" y1="18" x2="6" y2="11" />
+    <line x1="10" y1="18" x2="10" y2="11" />
+    <line x1="14" y1="18" x2="14" y2="11" />
+    <line x1="18" y1="18" x2="18" y2="11" />
+    <polygon points="12 2 20 7 4 7" />
   </IconBase>
 );
 const ClockCircleIcon = () => (
