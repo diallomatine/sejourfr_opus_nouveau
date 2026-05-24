@@ -14,10 +14,8 @@ import com.sejourfr.app.service.social.GoogleTokenVerifier;
 import com.sejourfr.app.service.social.SocialIdentity;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -26,17 +24,23 @@ import java.util.Optional;
  * Orchestre la connexion via providers externes (Google, Apple) :
  * <ol>
  *   <li>Valide l'ID token via le verifier dedie (signature JWKS + claims).</li>
- *   <li>Find-or-create l'utilisateur local :
+ *   <li>Find-or-create l'utilisateur local (sign-in et sign-up se comportent
+ *       de façon identique — un seul flux "upsert") :
  *     <ul>
- *       <li>match prioritaire par {@code (provider, providerUserId)}</li>
+ *       <li>match prioritaire par {@code (provider, providerUserId)} →
+ *           connexion.</li>
  *       <li>sinon, si l'email pointe sur un compte existant <strong>quel que
- *           soit son auth_provider</strong>, on refuse (409). Le linking
- *           explicite d'un provider à un compte existant doit toujours
- *           partir d'une session authentifiée préalable — sinon n'importe
- *           qui qui contrôle un Apple ID / Workspace Google avec une adresse
- *           non-vérifiée peut prendre le contrôle d'un compte existant.
- *           Cf. audit Vuln 1.</li>
- *       <li>sinon, création d'un nouveau compte USER avec provider = X</li>
+ *           soit son auth_provider</strong> → connexion sur ce compte. C'est
+ *           sûr car l'email est <strong>garanti vérifié par le provider</strong>
+ *           ({@code GoogleTokenVerifier}/{@code AppleTokenVerifier} rejettent
+ *           tout token dont {@code email_verified} n'est pas vrai), donc le
+ *           porteur du token contrôle réellement l'adresse — le scénario de
+ *           prise de contrôle de l'audit Vuln 1/2 est bloqué en amont. On NE
+ *           mute PAS {@code auth_provider} (il reste le mode de création
+ *           initial) ; le prochain sign-in social re-matchera simplement par
+ *           email.</li>
+ *       <li>sinon, création d'un nouveau compte USER avec provider = X →
+ *           connexion.</li>
  *     </ul>
  *   </li>
  *   <li>Retourne les memes TokenResponse que /api/auth/login.</li>
@@ -88,25 +92,20 @@ public class SocialAuthService {
             return userManager.save(user);
         }
 
-        // 2) Si un compte existe déjà avec cet email (peu importe son
-        // auth_provider), on REFUSE. Sans cette garde, n'importe qui qui
-        // peut signer un token social pour une adresse arbitraire (Apple
-        // sans email_verified, Workspace Google avec un sous-domaine
-        // mal-configuré...) pourrait prendre le contrôle d'un compte
-        // existant — l'audit Vuln 1 décrit le scénario en détail.
-        //
-        // Le linking explicite d'un provider social à un compte existant
-        // devra passer par un endpoint authentifié dédié (POST
-        // /api/me/social-link, à implémenter quand on en aura besoin),
-        // qui suppose d'être déjà connecté avec la méthode initiale.
+        // 2) Compte existant pour cet email (quel que soit son auth_provider)
+        // → connexion directe. L'email est garanti vérifié par le provider
+        // (les verifiers rejettent tout token dont email_verified n'est pas
+        // vrai), donc l'utilisateur contrôle réellement l'adresse : le scénario
+        // de prise de contrôle (audit Vuln 1/2) est bloqué en amont. On ne mute
+        // pas auth_provider — il reste le mode de création initial, et le
+        // prochain sign-in social re-matchera ici par email.
         Optional<User> byEmail = userManager.findByEmail(identity.email());
         if (byEmail.isPresent()) {
             User existing = byEmail.get();
-            log.warn("Refus de social sign-in : email {} déjà associé à un compte (provider initial: {}, tentative: {})",
+            existing.setLastLoginAt(Instant.now());
+            log.info("Social sign-in sur compte existant : email={} (provider d'origine={}, via={})",
                     identity.email(), existing.getAuthProvider(), identity.provider());
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Un compte existe déjà avec cette adresse email. Connectez-vous avec votre méthode initiale puis liez "
-                            + identity.provider() + " depuis vos paramètres.");
+            return userManager.save(existing);
         }
 
         // 3) creation
