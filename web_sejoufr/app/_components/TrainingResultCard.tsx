@@ -16,11 +16,14 @@ export function TrainingResultCard({
   attempt,
   isPremium,
   variant = "primary",
+  lotReturnHref,
 }: {
   attempt: AttemptResponse;
   isPremium: boolean;
   /** "primary" = fin de session interactive. "resume" = attempt déjà finalisé. */
   variant?: "primary" | "resume";
+  /** Si défini, la session est un lot : le CTA renvoie vers le détail du thème. */
+  lotReturnHref?: string;
 }) {
   const score = attempt.score ?? 0;
   const total = attempt.totalQuestions;
@@ -58,17 +61,30 @@ export function TrainingResultCard({
         )}
 
         <div className="trc-cta">
-          <Link href="/entrainement" className="btn btn-ghost">
-            ↻ Nouvel entraînement
-          </Link>
-          {isPremium ? (
-            <Link href="/dashboard" className="btn btn-blue">
-              Tableau de bord →
-            </Link>
+          {lotReturnHref ? (
+            <>
+              <Link href="/dashboard" className="btn btn-ghost">
+                Tableau de bord
+              </Link>
+              <Link href={lotReturnHref} className="btn btn-blue">
+                Retour au thème →
+              </Link>
+            </>
           ) : (
-            <Link href="/paiement" className="btn btn-red">
-              Voir l&apos;abonnement →
-            </Link>
+            <>
+              <Link href="/entrainement" className="btn btn-ghost">
+                ↻ Nouvel entraînement
+              </Link>
+              {isPremium ? (
+                <Link href="/dashboard" className="btn btn-blue">
+                  Tableau de bord →
+                </Link>
+              ) : (
+                <Link href="/paiement" className="btn btn-red">
+                  Voir l&apos;abonnement →
+                </Link>
+              )}
+            </>
           )}
         </div>
       </div>

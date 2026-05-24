@@ -72,7 +72,7 @@ export default function CiviqueThemeDetailPage() {
         themeId,
         lotNumero: lot.numero,
       });
-      router.push(`/sessions/${a.id}?lot=1`);
+      router.push(`/sessions/${a.id}?lot=${lot.numero}`);
     } catch (e) {
       setError(e instanceof ApiException ? e.message : "Impossible de démarrer le lot.");
       setStarting(false);
