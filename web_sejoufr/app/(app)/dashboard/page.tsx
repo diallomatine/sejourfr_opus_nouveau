@@ -7,10 +7,14 @@ import {
   BookOpen,
   FileCheck2,
   Headphones,
+  History,
+  Landmark,
   Mic,
   PenLine,
   RotateCcw,
+  Scale,
   ShieldCheck,
+  Users,
 } from "lucide-react";
 import {
   type ProductionKind,
@@ -36,6 +40,16 @@ export default function DashboardPage() {
   const [wrongCount, setWrongCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [productionSheet, setProductionSheet] = useState<ProductionKind | null>(null);
+  // Onglet "Choisir un entraînement" : civique vs TCF. Défaut = civique si
+  // l'utilisateur ne fait que le civique (pas d'accès TCF), sinon TCF.
+  const [trainTab, setTrainTab] = useState<"CIVIQUE" | "TCF">("TCF");
+
+  useEffect(() => {
+    if (user && user.hasTcf === false) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTrainTab("CIVIQUE");
+    }
+  }, [user]);
 
   useEffect(() => {
     if (status !== "authenticated" || !user) return;
@@ -214,60 +228,145 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* ---- Grille entraînement ---- */}
+      {/* ---- Grille entraînement (onglets civique / TCF) ---- */}
       <div className="dash-section-title">
         <h2>Choisir un entraînement</h2>
-        <Link href="/entrainement">Tout voir →</Link>
+        <Link href={`/entrainement?module=${trainTab}`}>Tout voir →</Link>
       </div>
-      <section className="dash-modules">
-        <Link href="/entrainement?module=TCF" className="dash-module">
-          <span className="dash-module-icon tone-blue" aria-hidden>
-            <Headphones size={22} strokeWidth={1.8} />
-          </span>
-          <h3>Compréhension orale</h3>
-          <p>QCM audio chronométrés, correction immédiate.</p>
-          <div className="dash-tags">
-            <span className="dash-tag">TCF</span>
-            <span className="dash-tag">QCM</span>
-          </div>
-        </Link>
-
-        <Link href="/entrainement?module=TCF" className="dash-module">
-          <span className="dash-module-icon tone-green" aria-hidden>
-            <BookOpen size={22} strokeWidth={1.8} />
-          </span>
-          <h3>Compréhension écrite</h3>
-          <p>Textes, annonces et mails du quotidien.</p>
-          <div className="dash-tags">
-            <span className="dash-tag">TCF</span>
-            <span className="dash-tag">QCM</span>
-          </div>
-        </Link>
-
-        <button type="button" className="dash-module" onClick={() => setProductionSheet("EE")}>
-          <span className="dash-module-icon tone-amber" aria-hidden>
-            <PenLine size={22} strokeWidth={1.8} />
-          </span>
-          <h3>Expression écrite</h3>
-          <p>3 tâches corrigées par IA, niveau CECRL.</p>
-          <div className="dash-tags">
-            <span className="dash-tag">IA</span>
-            <span className="dash-tag dash-tag-mobile">Sur mobile</span>
-          </div>
+      <div className="dash-tabs" role="tablist" aria-label="Module d'entraînement">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={trainTab === "CIVIQUE"}
+          className={`dash-tab ${trainTab === "CIVIQUE" ? "is-active" : ""}`}
+          onClick={() => setTrainTab("CIVIQUE")}
+        >
+          Examen civique
         </button>
-
-        <button type="button" className="dash-module" onClick={() => setProductionSheet("EO")}>
-          <span className="dash-module-icon tone-purple" aria-hidden>
-            <Mic size={22} strokeWidth={1.8} />
-          </span>
-          <h3>Expression orale</h3>
-          <p>Enregistre-toi, transcription et feedback détaillé.</p>
-          <div className="dash-tags">
-            <span className="dash-tag">IA</span>
-            <span className="dash-tag dash-tag-mobile">Sur mobile</span>
-          </div>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={trainTab === "TCF"}
+          className={`dash-tab ${trainTab === "TCF" ? "is-active" : ""}`}
+          onClick={() => setTrainTab("TCF")}
+        >
+          TCF IRN
         </button>
-      </section>
+      </div>
+
+      {trainTab === "TCF" ? (
+        <section className="dash-modules">
+          <Link href="/entrainement?module=TCF" className="dash-module">
+            <span className="dash-module-icon tone-blue" aria-hidden>
+              <Headphones size={22} strokeWidth={1.8} />
+            </span>
+            <h3>Compréhension orale</h3>
+            <p>QCM audio chronométrés, correction immédiate.</p>
+            <div className="dash-tags">
+              <span className="dash-tag">TCF</span>
+              <span className="dash-tag">QCM</span>
+            </div>
+          </Link>
+
+          <Link href="/entrainement?module=TCF" className="dash-module">
+            <span className="dash-module-icon tone-green" aria-hidden>
+              <BookOpen size={22} strokeWidth={1.8} />
+            </span>
+            <h3>Compréhension écrite</h3>
+            <p>Textes, annonces et mails du quotidien.</p>
+            <div className="dash-tags">
+              <span className="dash-tag">TCF</span>
+              <span className="dash-tag">QCM</span>
+            </div>
+          </Link>
+
+          <button type="button" className="dash-module" onClick={() => setProductionSheet("EE")}>
+            <span className="dash-module-icon tone-amber" aria-hidden>
+              <PenLine size={22} strokeWidth={1.8} />
+            </span>
+            <h3>Expression écrite</h3>
+            <p>3 tâches corrigées par IA, niveau CECRL.</p>
+            <div className="dash-tags">
+              <span className="dash-tag">IA</span>
+              <span className="dash-tag dash-tag-mobile">Sur mobile</span>
+            </div>
+          </button>
+
+          <button type="button" className="dash-module" onClick={() => setProductionSheet("EO")}>
+            <span className="dash-module-icon tone-purple" aria-hidden>
+              <Mic size={22} strokeWidth={1.8} />
+            </span>
+            <h3>Expression orale</h3>
+            <p>Enregistre-toi, transcription et feedback détaillé.</p>
+            <div className="dash-tags">
+              <span className="dash-tag">IA</span>
+              <span className="dash-tag dash-tag-mobile">Sur mobile</span>
+            </div>
+          </button>
+        </section>
+      ) : (
+        <section className="dash-modules">
+          <Link href="/entrainement?module=CIVIQUE" className="dash-module">
+            <span className="dash-module-icon tone-blue" aria-hidden>
+              <ShieldCheck size={22} strokeWidth={1.8} />
+            </span>
+            <h3>Principes &amp; symboles</h3>
+            <p>Devise, drapeau, Marianne, laïcité et valeurs de la République.</p>
+            <div className="dash-tags">
+              <span className="dash-tag">Civique</span>
+              <span className="dash-tag">QCM</span>
+            </div>
+          </Link>
+
+          <Link href="/entrainement?module=CIVIQUE" className="dash-module">
+            <span className="dash-module-icon tone-green" aria-hidden>
+              <Landmark size={22} strokeWidth={1.8} />
+            </span>
+            <h3>Institutions</h3>
+            <p>Président, gouvernement, Parlement et leurs rôles.</p>
+            <div className="dash-tags">
+              <span className="dash-tag">Civique</span>
+              <span className="dash-tag">QCM</span>
+            </div>
+          </Link>
+
+          <Link href="/entrainement?module=CIVIQUE" className="dash-module">
+            <span className="dash-module-icon tone-amber" aria-hidden>
+              <Scale size={22} strokeWidth={1.8} />
+            </span>
+            <h3>Droits &amp; devoirs</h3>
+            <p>Citoyenneté, libertés, obligations, vote et impôts.</p>
+            <div className="dash-tags">
+              <span className="dash-tag">Civique</span>
+              <span className="dash-tag">QCM</span>
+            </div>
+          </Link>
+
+          <Link href="/entrainement?module=CIVIQUE" className="dash-module">
+            <span className="dash-module-icon tone-purple" aria-hidden>
+              <History size={22} strokeWidth={1.8} />
+            </span>
+            <h3>Histoire &amp; géographie</h3>
+            <p>Révolution, Républiques, grandes dates et géographie.</p>
+            <div className="dash-tags">
+              <span className="dash-tag">Civique</span>
+              <span className="dash-tag">QCM</span>
+            </div>
+          </Link>
+
+          <Link href="/entrainement?module=CIVIQUE" className="dash-module">
+            <span className="dash-module-icon tone-red" aria-hidden>
+              <Users size={22} strokeWidth={1.8} />
+            </span>
+            <h3>Société</h3>
+            <p>Vie quotidienne, services publics et mises en situation.</p>
+            <div className="dash-tags">
+              <span className="dash-tag">Civique</span>
+              <span className="dash-tag">QCM</span>
+            </div>
+          </Link>
+        </section>
+      )}
 
       {/* ---- Examens recommandés + progression ---- */}
       <div className="dash-content">
@@ -342,28 +441,30 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="dash-section-title">
-            <h2>Activité récente</h2>
-          </div>
-          <div className="dash-activity">
-            {loading ? (
-              <div className="dash-activity-skel" />
-            ) : recentActivity.length === 0 ? (
-              <p className="dash-activity-empty">
-                Aucune activité pour l&apos;instant. Lance un entraînement pour
-                démarrer.
-              </p>
-            ) : (
-              recentActivity.map((a) => (
-                <div className="dash-activity-item" key={a.id}>
-                  <span className="dash-dot" aria-hidden />
-                  <div className="dash-activity-body">
-                    <strong>{activityLabel(a)}</strong>
-                    <span>{activityDetail(a)}</span>
+          <div className="dash-activity-section">
+            <div className="dash-section-title">
+              <h2>Activité récente</h2>
+            </div>
+            <div className="dash-activity">
+              {loading ? (
+                <div className="dash-activity-skel" />
+              ) : recentActivity.length === 0 ? (
+                <p className="dash-activity-empty">
+                  Aucune activité pour l&apos;instant. Lance un entraînement pour
+                  démarrer.
+                </p>
+              ) : (
+                recentActivity.map((a) => (
+                  <div className="dash-activity-item" key={a.id}>
+                    <span className="dash-dot" aria-hidden />
+                    <div className="dash-activity-body">
+                      <strong>{activityLabel(a)}</strong>
+                      <span>{activityDetail(a)}</span>
+                    </div>
                   </div>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
           </div>
         </aside>
       </div>
@@ -682,6 +783,39 @@ const styles = `
     white-space: nowrap;
   }
   .dash-section-title a:hover { text-decoration: underline; }
+
+  /* ---- Onglets civique / TCF ---- */
+  .dash-tabs {
+    display: inline-flex;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--color-paper-2);
+    margin-bottom: 16px;
+  }
+  .dash-tab {
+    border: none;
+    background: transparent;
+    padding: 9px 16px;
+    border-radius: 9px;
+    font-family: var(--font-sans);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--color-muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .dash-tab.is-active {
+    background: #fff;
+    color: var(--color-blue);
+    box-shadow: 0 1px 3px rgba(15, 24, 57, 0.08);
+  }
+
+  /* Mobile : on garde l'écran focalisé sur objectif + entraînements +
+     examens blancs ; l'activité récente passe au second plan. */
+  @media (max-width: 699px) {
+    .dash-activity-section { display: none; }
+  }
 
   /* ---- Grille modules ---- */
   .dash-modules {
