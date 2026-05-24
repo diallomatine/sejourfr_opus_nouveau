@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { AuthShell } from "@/app/_components/auth/AuthShell";
+import { PasswordInput } from "@/app/_components/auth/PasswordInput";
+import styles from "@/app/_components/auth/auth.module.css";
 import { ApiException, authApi } from "@/lib/api";
 
 export default function ReinitialiserMotDePassePage() {
@@ -12,6 +15,16 @@ export default function ReinitialiserMotDePassePage() {
     </Suspense>
   );
 }
+
+const VISUAL = {
+  tag: "SÉCURITÉ · NOUVEAU MOT DE PASSE",
+  quote:
+    "Réinitialisation simple et rapide. Mes statistiques et mes favoris étaient toujours là après reconnexion.",
+  authorInitials: "VO",
+  authorName: "Viktor O.",
+  authorMeta: "CARTE DE RÉSIDENT · LYON",
+  avatarTone: "blue" as const,
+};
 
 function ResetInner() {
   const router = useRouter();
@@ -42,15 +55,12 @@ function ResetInner() {
     try {
       await authApi.resetPassword(token, pwd);
       setDone(true);
-      // Petit délai avant la redirection pour que le user voie le succès.
       setTimeout(() => router.push("/connexion"), 1800);
     } catch (err) {
-      if (err instanceof ApiException) {
-        if (err.status === 400 || err.status === 404) {
-          setError("Lien expiré ou invalide. Demandez-en un nouveau.");
-        } else {
-          setError(err.message);
-        }
+      if (err instanceof ApiException && (err.status === 400 || err.status === 404)) {
+        setError("Lien expiré ou invalide. Demandez-en un nouveau.");
+      } else if (err instanceof ApiException) {
+        setError(err.message);
       } else {
         setError("Impossible de réinitialiser. Réessayez dans un instant.");
       }
@@ -61,133 +71,111 @@ function ResetInner() {
 
   if (!token) {
     return (
-      <div className="center-wrap">
-        <div className="card">
-          <span className="eyebrow">Lien invalide</span>
-          <h1 className="h1-edit">
-            Aucun token de <em>réinitialisation</em>.
-          </h1>
-          <p className="sub">
-            Le lien de réinitialisation est incomplet. Demandez un nouveau lien.
+      <AuthShell
+        eyebrow="Lien invalide"
+        eyebrowTone="blue"
+        title={
+          <>
+            Lien de <em>réinitialisation</em> incomplet.
+          </>
+        }
+        subtitle="Le lien est incomplet ou a expiré. Demandez-en un nouveau."
+        visual={VISUAL}
+      >
+        <div className={`${styles.notice} ${styles.noticeError}`}>
+          <p className={styles.noticeText}>
+            Le lien de réinitialisation ne contient pas de jeton valide.
           </p>
-          <Link href="/mot-de-passe-oublie" className="btn btn-red full">
-            Demander un nouveau lien
-          </Link>
+          <div className={styles.noticeActions}>
+            <Link href="/mot-de-passe-oublie" className={`${styles.submit} ${styles.submitBlue}`}>
+              Demander un nouveau lien
+            </Link>
+          </div>
         </div>
-        <PageStyles />
-      </div>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="center-wrap">
-      <div className="card">
-        <span className="eyebrow">Nouveau mot de passe</span>
-        <h1 className="h1-edit">
+    <AuthShell
+      eyebrow="Nouveau mot de passe"
+      eyebrowTone="blue"
+      title={
+        <>
           Choisissez un <em>nouveau mot de passe</em>.
-        </h1>
+        </>
+      }
+      subtitle={
+        done
+          ? "C'est fait."
+          : "Au moins 8 caractères. Évitez ceux de vos autres comptes."
+      }
+      visual={VISUAL}
+    >
+      {done ? (
+        <div className={`${styles.notice} ${styles.noticeSuccess}`}>
+          <span className={styles.noticeIcon}>
+            <CheckIcon />
+          </span>
+          <p className={styles.noticeTitle}>Mot de passe modifié.</p>
+          <p className={styles.noticeText}>Redirection vers la connexion…</p>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className={styles.form} noValidate suppressHydrationWarning>
+          {error && (
+            <div className="form-error" role="alert">
+              {error}
+            </div>
+          )}
 
-        {done ? (
-          <>
-            <p className="sub success">
-              ✓ Mot de passe modifié. Redirection vers la connexion…
-            </p>
-          </>
-        ) : (
-          <>
-            <p className="sub">Au moins 8 caractères. Évitez ceux de vos autres comptes.</p>
+          <div className="field">
+            <label htmlFor="password" className="field-label">
+              Nouveau mot de passe
+            </label>
+            <PasswordInput
+              id="password"
+              name="password"
+              placeholder="8 caractères minimum"
+              autoComplete="new-password"
+              minLength={8}
+            />
+          </div>
 
-            <form onSubmit={handleSubmit} className="reset-form">
-              {error && <div className="form-error">{error}</div>}
+          <div className="field">
+            <label htmlFor="confirm" className="field-label">
+              Confirmer
+            </label>
+            <PasswordInput
+              id="confirm"
+              name="confirm"
+              placeholder="Le même mot de passe"
+              autoComplete="new-password"
+              minLength={8}
+            />
+          </div>
 
-              <div className="field">
-                <label htmlFor="password" className="field-label">
-                  Nouveau mot de passe
-                </label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  minLength={8}
-                  placeholder="8 caractères minimum"
-                  className="field-input"
-                  autoComplete="new-password"
-                />
-              </div>
-
-              <div className="field">
-                <label htmlFor="confirm" className="field-label">
-                  Confirmer
-                </label>
-                <input
-                  id="confirm"
-                  name="confirm"
-                  type="password"
-                  required
-                  minLength={8}
-                  placeholder="Le même"
-                  className="field-input"
-                  autoComplete="new-password"
-                />
-              </div>
-
-              <button type="submit" disabled={submitting} className="btn-submit">
-                {submitting ? "Enregistrement..." : "Réinitialiser le mot de passe"}
-                <span>→</span>
-              </button>
-            </form>
-          </>
-        )}
-      </div>
-      <PageStyles />
-    </div>
+          <button type="submit" disabled={submitting} className={`${styles.submit} ${styles.submitBlue}`}>
+            {submitting ? "Enregistrement…" : "Réinitialiser le mot de passe"}
+            <span className={styles.submitArrow}>→</span>
+          </button>
+        </form>
+      )}
+    </AuthShell>
   );
 }
 
-function PageStyles() {
-  return (
-    <style>{`
-      body {
-        background-image:
-          radial-gradient(at 10% 10%, var(--color-blue-light) 0px, transparent 50%),
-          radial-gradient(at 90% 90%, var(--color-red-light) 0px, transparent 50%);
-      }
-      .center-wrap {
-        min-height: calc(100vh - 140px);
-        display: flex; align-items: center; justify-content: center;
-        padding: 40px 24px;
-      }
-      .card {
-        background: #fff;
-        border: 1px solid var(--color-line);
-        border-radius: 18px;
-        padding: 44px 44px 36px;
-        max-width: 440px; width: 100%;
-        box-shadow: 0 30px 70px -30px rgba(15, 24, 57, 0.18);
-      }
-      .h1-edit {
-        font-family: var(--font-display); font-weight: 500; font-size: 32px;
-        line-height: 1.05; letter-spacing: -0.025em; margin: 12px 0 10px;
-      }
-      .h1-edit em { font-style: italic; color: var(--color-red); }
-      .sub { color: var(--color-muted); font-size: 15px; margin: 0 0 24px; line-height: 1.55; }
-      .sub.success { color: var(--color-green); font-weight: 600; }
-      .reset-form { display: flex; flex-direction: column; gap: 18px; }
-      .btn-submit {
-        background: var(--color-blue); color: #fff; border: none; border-radius: 10px;
-        padding: 14px 22px; font-size: 15px; font-weight: 600;
-        font-family: var(--font-sans);
-        cursor: pointer; transition: all 0.15s;
-        display: flex; align-items: center; justify-content: center; gap: 8px;
-      }
-      .btn-submit:hover { background: var(--color-blue-dark); transform: translateY(-1px); }
-      .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
-      .full { width: 100%; }
-      @media (max-width: 480px) {
-        .card { padding: 32px 26px 26px; }
-        .h1-edit { font-size: 26px; }
-      }
-    `}</style>
-  );
-}
+const CheckIcon = () => (
+  <svg
+    width="22"
+    height="22"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.4"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden
+  >
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
