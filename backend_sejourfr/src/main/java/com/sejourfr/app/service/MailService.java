@@ -40,7 +40,7 @@ public class MailService {
     }
 
     public void sendPasswordResetEmail(String to, String token) {
-        String link = appBaseUrl + "/reset-password?token=" + token;
+        String link = appBaseUrl + "/reinitialiser-mot-de-passe?token=" + token;
         String body = """
                 Bonjour,
 
