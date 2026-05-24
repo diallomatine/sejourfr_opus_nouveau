@@ -66,41 +66,78 @@ export function Hero() {
     <section className={styles.hero}>
       <div className={styles.heroBg} aria-hidden />
       <div className={`container-x ${styles.heroInner}`}>
-        <span className={styles.heroBrand}>
-          <span className="cocarde lg" aria-hidden />
-          <span className={styles.heroWordmark}>
-            Sejour<em>FR</em>
+        <div className={styles.heroText}>
+          <span className={styles.heroBrand}>
+            <span className="cocarde lg" aria-hidden />
+            <span className={styles.heroWordmark}>
+              Sejour<em>FR</em>
+            </span>
           </span>
-        </span>
 
-        <h1 className={styles.heroTitle}>
-          Réussissez votre <em>TCF IRN</em> et votre examen civique
-        </h1>
+          <span className={styles.heroEyebrow}>Obligatoire depuis janvier 2026</span>
 
-        <p className={styles.heroSub}>
-          Entraînez-vous dans des conditions réelles d&apos;examen.
-          Compréhension et expression écrite et orale, structure de la langue —
-          tout est analysé par IA pour vous situer précisément.
-        </p>
+          <h1 className={styles.heroTitle}>
+            Réussissez votre <em>TCF IRN</em> et votre examen civique
+          </h1>
 
-        <div className={styles.heroCtas}>
-          <Link href="/inscription" className="btn btn-red btn-lg">
-            Commencer gratuitement
-            <ArrowRight size={18} className="arrow" aria-hidden />
-          </Link>
-          <a href="#examens" className="btn btn-ghost btn-lg">
-            Découvrir les examens
-          </a>
+          <p className={styles.heroSub}>
+            Entraînez-vous dans des conditions réelles d&apos;examen.
+            Compréhension et expression écrite et orale, structure de la langue —
+            tout est analysé par IA pour vous situer précisément.
+          </p>
+
+          <div className={styles.heroCtas}>
+            <Link href="/inscription" className="btn btn-red btn-lg">
+              Commencer gratuitement
+              <ArrowRight size={18} className="arrow" aria-hidden />
+            </Link>
+            <a href="#examens" className="btn btn-ghost btn-lg">
+              Découvrir les examens
+            </a>
+          </div>
+
+          <ul className={styles.heroBadges}>
+            {HERO_BADGES.map((b) => (
+              <li key={b} className={styles.heroBadge}>
+                <Check size={16} className={styles.badgeCheck} aria-hidden />
+                {b}
+              </li>
+            ))}
+          </ul>
         </div>
 
-        <ul className={styles.heroBadges}>
-          {HERO_BADGES.map((b) => (
-            <li key={b} className={styles.heroBadge}>
-              <Check size={16} className={styles.badgeCheck} aria-hidden />
-              {b}
-            </li>
-          ))}
-        </ul>
+        {/* Visuel attractif (desktop) : carte "niveau estimé" + chips flottantes */}
+        <div className={styles.heroVisual} aria-hidden>
+          <div className={styles.heroCard}>
+            <div className={styles.heroCardTop}>
+              <span className={styles.heroCardEyebrow}>Résultat · TCF IRN</span>
+              <span className={styles.heroCardTag}>Analysé par IA</span>
+            </div>
+            <div className={styles.heroCardLevel}>B1</div>
+            <div className={styles.heroCardLabel}>Niveau estimé · CECRL</div>
+            <div className={styles.heroCardBar}>
+              <span style={{ width: "72%" }} />
+            </div>
+            <div className={styles.heroCardStats}>
+              <div>
+                <strong>76%</strong>
+                <span>Score moyen</span>
+              </div>
+              <div>
+                <strong>4</strong>
+                <span>Compétences</span>
+              </div>
+              <div>
+                <strong>12</strong>
+                <span>Examens blancs</span>
+              </div>
+            </div>
+          </div>
+          <span className={`${styles.heroFloat} ${styles.heroFloatA}`}>
+            <Check size={14} className={styles.badgeCheck} aria-hidden /> Conditions réelles
+          </span>
+          <span className={`${styles.heroFloat} ${styles.heroFloatB}`}>🎯 Objectif B2</span>
+        </div>
       </div>
     </section>
   );

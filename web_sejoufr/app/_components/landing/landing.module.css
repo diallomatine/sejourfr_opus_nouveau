@@ -56,16 +56,18 @@
 }
 .heroInner {
   position: relative;
+}
+.heroText {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
 }
 .heroBrand {
-  display: inline-flex;
+  display: none; /* masqué en mobile : déjà dans le header */
   align-items: center;
   gap: 12px;
-  margin-bottom: 28px;
+  margin-bottom: 22px;
 }
 .heroWordmark {
   font-family: var(--font-sans);
@@ -78,6 +80,20 @@
   font-style: normal;
   color: var(--color-red);
 }
+.heroEyebrow {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--color-blue);
+  background: var(--color-blue-light);
+  padding: 6px 13px;
+  border-radius: 100px;
+  margin-bottom: 18px;
+}
 .heroTitle {
   font-family: var(--font-display);
   font-weight: 600;
@@ -85,7 +101,7 @@
   line-height: 1.06;
   color: var(--color-ink);
   font-size: clamp(2rem, 7vw, 3.4rem);
-  max-width: 14ch;
+  max-width: 16ch;
   margin: 0;
 }
 .heroTitle em {
@@ -96,7 +112,7 @@
   color: var(--color-muted);
   font-size: clamp(1rem, 2.4vw, 1.15rem);
   line-height: 1.6;
-  max-width: 600px;
+  max-width: 540px;
   margin: 20px 0 0;
 }
 .heroCtas {
@@ -126,6 +142,124 @@
 .badgeCheck {
   color: var(--color-green);
   flex-shrink: 0;
+}
+
+/* ---- Visuel du hero (desktop) : carte niveau + chips flottantes ---- */
+.heroVisual {
+  display: none;
+  position: relative;
+}
+.heroCard {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  padding: 26px;
+  box-shadow: 0 34px 80px -34px rgba(15, 24, 57, 0.28);
+}
+.heroCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.heroCardEyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.heroCardTag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--color-red);
+  background: var(--color-red-light);
+  padding: 4px 9px;
+  border-radius: 100px;
+}
+.heroCardLevel {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 56px;
+  line-height: 1;
+  color: var(--color-blue);
+}
+.heroCardLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--color-muted);
+  margin-top: 6px;
+}
+.heroCardBar {
+  height: 8px;
+  border-radius: 100px;
+  background: var(--color-line-2);
+  overflow: hidden;
+  margin: 18px 0;
+}
+.heroCardBar span {
+  display: block;
+  height: 100%;
+  border-radius: 100px;
+  background: linear-gradient(90deg, var(--color-blue), var(--color-green));
+}
+.heroCardStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.heroCardStats > div {
+  background: var(--color-paper);
+  border-radius: 12px;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.heroCardStats strong {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--color-ink);
+}
+.heroCardStats span {
+  font-size: 10.5px;
+  color: var(--color-muted);
+}
+.heroFloat {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 100px;
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-ink);
+  box-shadow: 0 14px 34px -16px rgba(15, 24, 57, 0.32);
+  white-space: nowrap;
+}
+.heroFloatA { top: -16px; left: -20px; }
+.heroFloatB { bottom: -16px; right: -8px; }
+
+@media (min-width: 900px) {
+  .hero { padding: 100px 0 96px; }
+  .heroInner {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 56px;
+    align-items: center;
+  }
+  .heroText { align-items: flex-start; text-align: left; }
+  .heroBrand { display: inline-flex; }
+  .heroBadges { justify-content: flex-start; }
+  .heroVisual { display: block; }
 }
 
 /* ---- Section générique (espacement vertical) ------------------------------- */
