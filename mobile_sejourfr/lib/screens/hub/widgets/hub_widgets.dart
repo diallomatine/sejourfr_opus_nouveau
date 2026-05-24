@@ -236,7 +236,8 @@ class HubProgressCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
@@ -468,7 +469,9 @@ class HubModuleCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Icon(
-                    locked ? Icons.lock_outline_rounded : Icons.chevron_right_rounded,
+                    locked
+                        ? Icons.lock_outline_rounded
+                        : Icons.chevron_right_rounded,
                     size: locked ? 18 : 22,
                     color: AppColors.muted2,
                   ),
@@ -582,7 +585,7 @@ class HubTabsBar extends StatelessWidget {
           ),
           Expanded(
             child: _HubTabBtn(
-              label: 'Examens',
+              label: 'Examens blancs',
               active: current == HubTab.examens,
               activeColor: activeColor,
               onTap: () => onChanged(HubTab.examens),

@@ -23,6 +23,8 @@ spring:
           starttls:
             enable: true
             required: true
+          ssl:
+            trust: ${MAIL_HOST}
   flyway:
     # En prod : uniquement le schema commun, jamais le seed dev
     locations: classpath:db/migration
