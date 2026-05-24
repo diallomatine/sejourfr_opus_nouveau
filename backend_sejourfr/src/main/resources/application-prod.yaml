@@ -25,6 +25,11 @@ spring:
             required: true
           ssl:
             trust: ${MAIL_HOST}
+          # Échec rapide si le SMTP est injoignable, plutôt qu'un hang qui
+          # bloque le thread HTTP (contact, reset password).
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
   flyway:
     # En prod : uniquement le schema commun, jamais le seed dev
     locations: classpath:db/migration

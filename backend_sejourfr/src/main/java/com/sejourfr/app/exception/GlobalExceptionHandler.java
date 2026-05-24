@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.List;
@@ -73,6 +74,22 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, Object>> handleMaxUpload(MaxUploadSizeExceededException e, WebRequest req) {
         return build(HttpStatus.PAYLOAD_TOO_LARGE, "Fichier trop volumineux", req, null);
+    }
+
+    /**
+     * Les {@link ResponseStatusException} (ex: 409 "email déjà utilisé" levée par
+     * le sign-in social) sont sinon rendues par le handler d'erreur par défaut de
+     * Spring — qui n'expose pas {@code reason} dans {@code message} et peut
+     * remonter la stack trace. On les normalise dans notre format JSON pour que
+     * les fronts lisent {@code message} proprement.
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException e, WebRequest req) {
+        HttpStatus status = HttpStatus.resolve(e.getStatusCode().value());
+        if (status == null) {
+            status = HttpStatus.INTERNAL_SERVER_ERROR;
+        }
+        return build(status, e.getReason(), req, null);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -108,24 +108,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AuthFormField.field(
-                          label: 'Prénom',
-                          controller: _firstName,
-                          validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requis' : null,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: AuthFormField.field(
-                          label: 'Nom',
-                          controller: _lastName,
-                          validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requis' : null,
-                        ),
-                      ),
-                    ],
+                  AuthFormField.field(
+                    label: 'Prénom',
+                    controller: _firstName,
+                    validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requis' : null,
+                  ),
+                  const SizedBox(height: 14),
+                  AuthFormField.field(
+                    label: 'Nom',
+                    controller: _lastName,
+                    validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requis' : null,
                   ),
                   const SizedBox(height: 14),
                   AuthFormField.field(
