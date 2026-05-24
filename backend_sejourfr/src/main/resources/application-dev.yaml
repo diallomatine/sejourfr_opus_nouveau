@@ -59,6 +59,7 @@ sejourfr:
     # une clé (téléchargement P8 unique).
     issuer-id: ${APPLE_ISSUER_ID:}
     key-id: ${APPLE_KEY_ID:}
+    # Contenu PEM du .p8, OU chemin vers le fichier .p8 (toléré en dev).
     private-key: ${APPLE_PRIVATE_KEY:}
     bundle-id: ${APPLE_BUNDLE_ID:}
     # Numérique, requis en production seulement (App Store Connect → App

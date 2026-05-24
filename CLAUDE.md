@@ -275,14 +275,17 @@ ce que le lot 4b mette à jour l'appel en `?planCode=<string>`.
 1. **App Store Connect → Users and Access → Integrations → App Store Server API**
    → générer une clé. Télécharger le P8 (téléchargeable une seule fois). Noter
    l'`Issuer ID` (team-level, UUID) et le `Key ID` (10 caractères).
-2. **Root certs Apple** — déposer 3 fichiers dans
-   `backend_sejourfr/src/main/resources/apple/` :
-   - `AppleRootCA-G3.cer` (signature actuelle des JWS Apple)
-   - `AppleIncRootCertificate.cer` (legacy)
-   - `AppleComputerRootCertificate.cer` (legacy)
-   Téléchargeables sur https://www.apple.com/certificateauthority/. Ne pas
-   commiter de bouchons : le bean `AppleStoreClient` détecte l'absence et
-   reste en mode 503.
+2. **Root certs Apple** — déposer dans
+   `backend_sejourfr/src/main/resources/apple/`, depuis la section *Root
+   Certificates* de https://www.apple.com/certificateauthority/ :
+   - `AppleRootCA-G3.cer` (**obligatoire**, chaîne de signature actuelle des JWS Apple)
+   - `AppleRootCA-G2.cer` (par sécurité)
+   - `AppleIncRootCertificate.cer` (legacy, par sécurité)
+   ⚠ L'ancien « Apple Computer, Inc. Root Certificate » n'est plus téléchargeable
+   (seule sa CRL subsiste) et n'est plus utilisé — ne pas le chercher.
+   `SignedDataVerifier` accepte un `Set` de racines ; seul G3 est réellement
+   requis. Ne pas commiter de bouchons : le bean `AppleStoreClient` détecte
+   l'absence et reste en mode 503.
 3. **Variables d'env** : `APPLE_ISSUER_ID`, `APPLE_KEY_ID`,
    `APPLE_PRIVATE_KEY` (contenu du P8 brut), `APPLE_BUNDLE_ID`,
    `APPLE_APP_ID` (numérique, prod uniquement), `APPLE_ENVIRONMENT`

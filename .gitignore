@@ -76,6 +76,14 @@ build/
 *.log
 
 # =========================
+# Secrets / certificats Apple (à fournir hors repo)
+# =========================
+# Root certs Apple téléchargés localement (cf. docs/paiements-iap-setup.md)
+backend_sejourfr/src/main/resources/apple/
+# Clés privées Apple .p8 (App Store Server API / Sign in with Apple)
+*.p8
+
+# =========================
 # Misc
 # =========================
 tmp/

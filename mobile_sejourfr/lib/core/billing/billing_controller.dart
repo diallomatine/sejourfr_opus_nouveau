@@ -182,6 +182,12 @@ class BillingController extends StateNotifier<BillingState> {
     // utilise le `code` du Plan comme convention SKU (CIVIQUE_MONTHLY etc.)
     // et le backend / l'admin doit s'assurer que c'est aligné avec App Store
     // Connect / Play Console.
+    // Le plan FREE (pas de module ciblé / pas de périodicité / prix nul) n'a
+    // aucun SKU côté store → on l'écarte pour ne pas l'envoyer à loadProducts
+    // (sinon il revient en notFoundIDs).
+    if (plan.target == null || plan.periodicity == null || plan.price <= 0) {
+      return null;
+    }
     return plan.code;
   }
 

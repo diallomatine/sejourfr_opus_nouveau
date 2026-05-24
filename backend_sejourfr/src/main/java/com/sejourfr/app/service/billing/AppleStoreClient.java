@@ -21,6 +21,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -42,9 +44,9 @@ import java.util.Set;
  * <p>Les root certs Apple (.cer) doivent être placés dans
  * {@code src/main/resources/apple/} :
  * <ul>
- *   <li>AppleRootCA-G3.cer (signature actuelle des JWS Apple)</li>
- *   <li>AppleIncRootCertificate.cer (legacy)</li>
- *   <li>AppleComputerRootCertificate.cer (legacy)</li>
+ *   <li>AppleRootCA-G3.cer (obligatoire — signature actuelle des JWS Apple)</li>
+ *   <li>AppleRootCA-G2.cer (par sécurité)</li>
+ *   <li>AppleIncRootCertificate.cer (legacy, par sécurité)</li>
  * </ul>
  * Téléchargeables sur <a href="https://www.apple.com/certificateauthority/">apple.com/certificateauthority</a>.
  */
@@ -84,7 +86,7 @@ public class AppleStoreClient {
                     properties.isEnableOnlineChecks()
             );
             this.apiClient = new AppStoreServerAPIClient(
-                    properties.getPrivateKey(),
+                    resolvePrivateKey(),
                     properties.getKeyId(),
                     properties.getIssuerId(),
                     properties.getBundleId(),
@@ -98,7 +100,40 @@ public class AppleStoreClient {
             );
         } catch (IOException e) {
             log.error("Échec chargement root certs Apple : {}", e.getMessage());
+        } catch (RuntimeException e) {
+            // Clé p8 malformée, certs invalides, etc. On ne casse pas le boot :
+            // le bean reste non-ready (isReady() == false) → endpoints en 503.
+            this.verifier = null;
+            this.apiClient = null;
+            log.error(
+                    "Init Apple App Store échouée ({}) — endpoints IAP iOS en 503. "
+                            + "Vérifie sejourfr.apple.private-key (contenu PEM du .p8 ou chemin vers le fichier).",
+                    e.getMessage()
+            );
         }
+    }
+
+    /**
+     * La lib Apple attend le <b>contenu PEM</b> du .p8. On tolère aussi qu'on
+     * lui passe un <b>chemin de fichier</b> (.p8) : pratique en dev pour pointer
+     * directement sur la clé sans inliner le PEM dans une variable d'env.
+     */
+    private String resolvePrivateKey() {
+        String raw = properties.getPrivateKey().trim();
+        if (raw.contains("-----BEGIN")) {
+            return raw;
+        }
+        Path path = Path.of(raw);
+        if (Files.isRegularFile(path)) {
+            try {
+                return Files.readString(path);
+            } catch (IOException e) {
+                throw new IllegalStateException(
+                        "Impossible de lire le fichier de clé privée Apple : " + raw, e
+                );
+            }
+        }
+        return raw;
     }
 
     /** Vrai si le client est utilisable (config + certs OK). */

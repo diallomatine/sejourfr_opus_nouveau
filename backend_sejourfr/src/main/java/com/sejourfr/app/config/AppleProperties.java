@@ -27,8 +27,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * <p>Les root certs Apple nécessaires à la vérification JWS sont chargés depuis
  * {@link #getRootCertsClasspath()} (par défaut {@code classpath:apple/*.cer}).
- * Cf. CLAUDE.md racine pour la procédure de téléchargement des certs (3
- * fichiers : AppleRootCA-G3.cer + AppleIncRootCertificate.cer + AppleComputerRootCertificate.cer).
+ * Cf. CLAUDE.md racine pour la procédure de téléchargement des certs
+ * (AppleRootCA-G3.cer obligatoire + AppleRootCA-G2.cer + AppleIncRootCertificate.cer).
  */
 @ConfigurationProperties(prefix = "sejourfr.apple")
 public class AppleProperties {
