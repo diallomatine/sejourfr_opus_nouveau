@@ -236,7 +236,10 @@ a {
   border: 1px solid var(--color-line);
   border-radius: 10px;
   padding: 13px 14px;
-  font-size: 15px;
+  /* 16px minimum : en dessous, iOS Safari zoome au focus du champ, ce qui
+     permet un scroll horizontal sur mobile. 16px le neutralise sans avoir à
+     désactiver le pinch-zoom (mauvais pour l'accessibilité). */
+  font-size: 16px;
   color: var(--color-ink);
   transition: all 0.15s;
   width: 100%;

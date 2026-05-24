@@ -499,7 +499,8 @@ function NewsletterBlock() {
           background: rgba(255, 255, 255, 0.05);
           border: 1px solid rgba(255, 255, 255, 0.10);
           font-family: var(--font-sans);
-          font-size: 14px;
+          /* 16px : évite le zoom iOS au focus (et donc le scroll horizontal). */
+          font-size: 16px;
           color: #fff;
           transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
