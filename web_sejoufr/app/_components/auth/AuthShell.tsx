@@ -1,4 +1,3 @@
-import Link from "next/link";
 import styles from "./auth.module.css";
 
 const STATS = [
@@ -44,13 +43,6 @@ export function AuthShell({
     <div className={styles.wrap}>
       {/* ----- Colonne formulaire ----- */}
       <div className={styles.formSide}>
-        <Link href="/" className={styles.brand} aria-label="Retour à l'accueil SejourFR">
-          <span className="cocarde" aria-hidden />
-          <span className={styles.brandWordmark}>
-            Sejour<em>FR</em>
-          </span>
-        </Link>
-
         <div className={styles.inner}>
           <span
             className={`${styles.eyebrow} ${
