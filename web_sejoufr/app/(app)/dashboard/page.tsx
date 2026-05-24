@@ -32,6 +32,11 @@ import {
 
 type StatsByModule = Partial<Record<ModuleEnum, UserStatsResponse | null>>;
 
+// Cartes civiques : icônes/teintes cyclées par index (les noms viennent du
+// backend via byTheme → identiques au mobile et à /entrainement).
+const CIVIQUE_ICONS = [ShieldCheck, Landmark, Scale, History, Users];
+const CIVIQUE_TONES = ["blue", "green", "amber", "purple", "red"];
+
 export default function DashboardPage() {
   const { user, status } = useAuth();
 
@@ -155,6 +160,9 @@ export default function DashboardPage() {
   );
 
   const recentActivity = useMemo(() => attempts.slice(0, 4), [attempts]);
+
+  // Thèmes civiques (vrais noms backend) pour les cartes de l'onglet Civique.
+  const civiqueThemes = stats.CIVIQUE?.byTheme ?? [];
 
   if (status === "loading") return <DashSkeleton />;
   if (!user) {
@@ -306,65 +314,41 @@ export default function DashboardPage() {
         </section>
       ) : (
         <section className="dash-modules">
-          <Link href="/entrainement?module=CIVIQUE" className="dash-module">
-            <span className="dash-module-icon tone-blue" aria-hidden>
-              <ShieldCheck size={22} strokeWidth={1.8} />
-            </span>
-            <h3>Principes &amp; symboles</h3>
-            <p>Devise, drapeau, Marianne, laïcité et valeurs de la République.</p>
-            <div className="dash-tags">
-              <span className="dash-tag">Civique</span>
-              <span className="dash-tag">QCM</span>
-            </div>
-          </Link>
-
-          <Link href="/entrainement?module=CIVIQUE" className="dash-module">
-            <span className="dash-module-icon tone-green" aria-hidden>
-              <Landmark size={22} strokeWidth={1.8} />
-            </span>
-            <h3>Institutions</h3>
-            <p>Président, gouvernement, Parlement et leurs rôles.</p>
-            <div className="dash-tags">
-              <span className="dash-tag">Civique</span>
-              <span className="dash-tag">QCM</span>
-            </div>
-          </Link>
-
-          <Link href="/entrainement?module=CIVIQUE" className="dash-module">
-            <span className="dash-module-icon tone-amber" aria-hidden>
-              <Scale size={22} strokeWidth={1.8} />
-            </span>
-            <h3>Droits &amp; devoirs</h3>
-            <p>Citoyenneté, libertés, obligations, vote et impôts.</p>
-            <div className="dash-tags">
-              <span className="dash-tag">Civique</span>
-              <span className="dash-tag">QCM</span>
-            </div>
-          </Link>
-
-          <Link href="/entrainement?module=CIVIQUE" className="dash-module">
-            <span className="dash-module-icon tone-purple" aria-hidden>
-              <History size={22} strokeWidth={1.8} />
-            </span>
-            <h3>Histoire &amp; géographie</h3>
-            <p>Révolution, Républiques, grandes dates et géographie.</p>
-            <div className="dash-tags">
-              <span className="dash-tag">Civique</span>
-              <span className="dash-tag">QCM</span>
-            </div>
-          </Link>
-
-          <Link href="/entrainement?module=CIVIQUE" className="dash-module">
-            <span className="dash-module-icon tone-red" aria-hidden>
-              <Users size={22} strokeWidth={1.8} />
-            </span>
-            <h3>Société</h3>
-            <p>Vie quotidienne, services publics et mises en situation.</p>
-            <div className="dash-tags">
-              <span className="dash-tag">Civique</span>
-              <span className="dash-tag">QCM</span>
-            </div>
-          </Link>
+          {civiqueThemes.length === 0 ? (
+            <Link href="/entrainement?module=CIVIQUE" className="dash-module">
+              <span className="dash-module-icon tone-blue" aria-hidden>
+                <ShieldCheck size={22} strokeWidth={1.8} />
+              </span>
+              <h3>Entraînement civique</h3>
+              <p>Principes, institutions, droits, histoire et société.</p>
+              <div className="dash-tags">
+                <span className="dash-tag">Civique</span>
+                <span className="dash-tag">QCM</span>
+              </div>
+            </Link>
+          ) : (
+            civiqueThemes.map((t, i) => {
+              const Icon = CIVIQUE_ICONS[i % CIVIQUE_ICONS.length];
+              const tone = CIVIQUE_TONES[i % CIVIQUE_TONES.length];
+              return (
+                <Link
+                  key={t.themeId}
+                  href="/entrainement?module=CIVIQUE"
+                  className="dash-module"
+                >
+                  <span className={`dash-module-icon tone-${tone}`} aria-hidden>
+                    <Icon size={22} strokeWidth={1.8} />
+                  </span>
+                  <h3>{t.themeName}</h3>
+                  <p>Questions à choix multiple, correction immédiate.</p>
+                  <div className="dash-tags">
+                    <span className="dash-tag">Civique</span>
+                    <span className="dash-tag">QCM</span>
+                  </div>
+                </Link>
+              );
+            })
+          )}
         </section>
       )}
 
