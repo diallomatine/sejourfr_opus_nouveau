@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {useRouter, useSearchParams} from "next/navigation";
 import {Suspense, useEffect, useMemo, useState} from "react";
-import {Lock, Mic, PenLine} from "lucide-react";
+import {BookOpen, Headphones, Landmark, Lock, Mic, PenLine} from "lucide-react";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {
@@ -82,7 +82,6 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setFilter(filterFromUrl);
     }, [filterFromUrl]);
-    const [query, setQuery] = useState("");
     const [themes, setThemes] = useState<Record<ModuleEnum, ThemeUserResponse[]>>({
         CIVIQUE: [],
         TCF: [],
@@ -241,21 +240,6 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
         };
     }, [statsByModule, filter, isGuest, user]);
 
-    const filteredThemes = useMemo(() => {
-        const list = themes[filter] ?? [];
-        const q = query.trim().toLowerCase();
-        if (!q) return list;
-        return list.filter(
-            (t) =>
-                t.name.toLowerCase().includes(q) ||
-                t.code.toLowerCase().includes(q),
-        );
-    }, [filter, query, themes]);
-
-    const visibleMixedModules: ModuleEnum[] = useMemo(
-        () => (query.trim() ? [] : [filter]),
-        [filter, query],
-    );
 
     // Exams pour la section "Examens blancs" : on prend le 1er free de chaque
     // module + les autres en mode locked.
@@ -276,6 +260,59 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
     // CTAs pour les locked exams : tarifs si connecté, inscription si guest.
     const upsellHref = isGuest ? "/connexion" : "/paiement";
     const upsellLabel = isGuest ? "Se connecter" : "Voir les tarifs";
+
+    // Cartes "Modules" façon template : 4 épreuves pour TCF (CO/CE = thèmes web,
+    // EE/EO = productions → app mobile), thèmes civiques pour CIVIQUE.
+    type ModuleItem = {
+        key: string;
+        kind: "theme" | "prod";
+        theme?: ThemeUserResponse | null;
+        prod?: ProductionKind;
+        tone: string;
+        badge: string;
+        icon: string;
+        title: string;
+        desc: string;
+        tags: string[];
+        cta: string;
+    };
+    const moduleItems = useMemo<ModuleItem[]>(() => {
+        if (filter === "TCF") {
+            const tcf = themes.TCF;
+            return [
+                {
+                    key: "co", kind: "theme", theme: tcf.find((t) => t.code === "CO") ?? null,
+                    tone: "blue", badge: "CO", icon: "co", title: "Compréhension orale",
+                    desc: "Écoute des audios, réponds aux QCM et améliore ta rapidité.",
+                    tags: ["25 questions", "20 min"], cta: "Commencer",
+                },
+                {
+                    key: "ce", kind: "theme", theme: tcf.find((t) => t.code === "CE") ?? null,
+                    tone: "green", badge: "CE", icon: "ce", title: "Compréhension écrite",
+                    desc: "Textes courts, annonces, e-mails, consignes et documents simples.",
+                    tags: ["25 questions", "35 min"], cta: "Commencer",
+                },
+                {
+                    key: "ee", kind: "prod", prod: "EE", tone: "amber", badge: "EE", icon: "ee",
+                    title: "Expression écrite",
+                    desc: "Rédige 3 tâches, obtiens une correction IA et un niveau CECRL.",
+                    tags: ["3 tâches", "Sur mobile"], cta: "S'entraîner",
+                },
+                {
+                    key: "eo", kind: "prod", prod: "EO", tone: "purple", badge: "EO", icon: "eo",
+                    title: "Expression orale",
+                    desc: "Enregistre tes réponses, reçois transcription et feedback IA.",
+                    tags: ["3 tâches", "Sur mobile"], cta: "S'entraîner",
+                },
+            ];
+        }
+        const tones = ["blue", "green", "amber", "purple", "red"];
+        return themes.CIVIQUE.map((t, i) => ({
+            key: t.id, kind: "theme" as const, theme: t, tone: tones[i % tones.length],
+            badge: t.code.slice(0, 3), icon: "civique", title: t.name,
+            desc: themeBlurb(t.code), tags: [`${t.questionCount ?? "—"} questions`], cta: "Commencer",
+        }));
+    }, [filter, themes]);
 
     return (
         <main className="train">
@@ -304,10 +341,10 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
                     </p>
                     {!isGuest && (
                         <div className="train-hero-actions">
-                            <Link href="/examens-blancs" className="btn">
+                            <Link href="/examens-blancs" className="train-hero-btn">
                                 Lancer un examen blanc
                             </Link>
-                            <Link href="/revision" className="btn btn-ghost">
+                            <Link href="/revision" className="train-hero-btn train-hero-btn-ghost">
                                 Mes erreurs
                             </Link>
                         </div>
@@ -317,11 +354,11 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
                 <div className="train-summary">
                     <div className="summary-box">
                         <strong>{heroStats.objective}</strong>
-                        <span>Objectif</span>
+                        <span>Niveau visé</span>
                     </div>
                     <div className="summary-box">
                         <strong>{heroStats.mastery}</strong>
-                        <span>Maîtrise</span>
+                        <span>Score moyen</span>
                     </div>
                     <div className="summary-box">
                         <strong>{heroStats.themes}</strong>
@@ -376,107 +413,54 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
                         TCF
                     </button>
                 </div>
-                <div className="search-wrap">
-                    <svg
-                        width="14"
-                        height="14"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden
-                    >
-                        <circle cx="11" cy="11" r="8"/>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                    </svg>
-                    <input
-                        type="search"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Rechercher un thème…"
-                        aria-label="Rechercher une thématique"
-                    />
-                </div>
             </div>
 
             {error && <div className="form-error train-error">{error}</div>}
 
-            {/* ============ GRID ============ */}
+            {/* ============ MODULES (façon template tcf-irn-page) ============ */}
+            <div className="hub-section-title">
+                <h2>Modules {filter === "TCF" ? "TCF IRN" : "Examen civique"}</h2>
+                {!isGuest && <Link href="/statistiques">Voir ma progression →</Link>}
+            </div>
             {loading ? (
                 <ThemesGridSkeleton/>
             ) : (
-                <div className="theme-grid">
-                    {visibleMixedModules.map((m) => (
-                        <MixedCard
-                            key={`mixed-${m}`}
-                            module={m}
-                            isPremium={m === "CIVIQUE" ? isPremiumCivique : isPremiumTcf}
-                            isGuest={isGuest}
-                            onClick={() =>
-                                startTraining({module: m, label: `__mixed_${m}`})
-                            }
-                            starting={startingThemeId === `__mixed_${m}`}
-                        />
-                    ))}
-                    {filteredThemes.map((t) => (
-                        <ThemeTile
-                            key={t.id}
-                            theme={t}
-                            mastery={isGuest ? null : (mastery.byTheme[t.id] ?? null)}
-                            isPremium={
-                                t.module === "CIVIQUE" ? isPremiumCivique : isPremiumTcf
-                            }
-                            isGuest={isGuest}
-                            onClick={() =>
-                                startTraining({
-                                    module: t.module,
-                                    themeId: t.id,
-                                    label: t.id,
-                                })
-                            }
-                            starting={startingThemeId === t.id}
-                        />
-                    ))}
-                    {filteredThemes.length === 0 && visibleMixedModules.length === 0 && (
-                        <div className="theme-empty">
-                            <p>Aucun thème ne correspond à votre recherche.</p>
-                            <button
-                                type="button"
-                                className="theme-empty-cta"
-                                onClick={() => setQuery("")}
-                            >
-                                Effacer la recherche
-                            </button>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* ============ PRODUCTIONS TCF (EO / EE) ============ */}
-            {/* Visible pour tout le monde (guest + connecté) quand filter = TCF.
-                Click ouvre un modal qui détaille la tâche + pousse vers l'app
-                mobile (EO/EE pas encore disponible côté web). */}
-            {filter === "TCF" && (
-                <section className="prod-section">
-                    <div className="prod-section-head">
-                        <h2>Expression TCF</h2>
-                        <p>
-                            Productions notées par IA : 3 tâches pour l&apos;oral, 3
-                            pour l&apos;écrit. Évaluation détaillée en ~15 secondes.
-                        </p>
-                    </div>
-                    <div className="prod-grid">
-                        <ProductionCard
-                            kind="EO"
-                            onClick={() => setProductionSheet("EO")}
-                        />
-                        <ProductionCard
-                            kind="EE"
-                            onClick={() => setProductionSheet("EE")}
-                        />
-                    </div>
+                <section className="hub-grid">
+                    {moduleItems.map((it) => {
+                        const m =
+                            it.kind === "theme" && it.theme && !isGuest
+                                ? (mastery.byTheme[it.theme.id] ?? null)
+                                : null;
+                        const onClick =
+                            it.kind === "prod"
+                                ? () => setProductionSheet(it.prod ?? "EO")
+                                : () =>
+                                      startTraining(
+                                          isPremiumForFilter && it.theme
+                                              ? {module: filter, themeId: it.theme.id, label: it.theme.id}
+                                              : {module: filter, label: `__mixed_${filter}`},
+                                      );
+                        const starting =
+                            it.kind === "theme"
+                                ? startingThemeId === it.theme?.id ||
+                                  startingThemeId === `__mixed_${filter}`
+                                : false;
+                        return (
+                            <HubModuleCard
+                                key={it.key}
+                                tone={it.tone}
+                                badge={it.badge}
+                                icon={it.icon}
+                                title={it.title}
+                                desc={it.desc}
+                                masteryPct={m ? m.pct : null}
+                                tags={it.tags}
+                                cta={it.cta}
+                                starting={starting}
+                                onClick={onClick}
+                            />
+                        );
+                    })}
                 </section>
             )}
 
@@ -658,163 +642,6 @@ function DemoBanner({
     );
 }
 
-function MixedCard({
-                       module,
-                       isPremium,
-                       isGuest,
-                       onClick,
-                       starting,
-                   }: {
-    module: ModuleEnum;
-    isPremium: boolean;
-    isGuest: boolean;
-    onClick: () => void;
-    starting: boolean;
-}) {
-    const isCivique = module === "CIVIQUE";
-    const label = isCivique ? "Civique mixte" : "TCF mixte";
-    const desc = isCivique
-        ? "Toutes thématiques mélangées · l'entraînement le plus polyvalent."
-        : "CO + CE + Structure mélangés · pour réviser large.";
-    const tag = isCivique ? "CIVIQUE · TOUT" : "TCF · TOUT";
-    const size = isPremium ? PREMIUM_BATCH_SIZE : DEMO_BATCH_SIZE;
-    const isDemo = !isPremium;
-    return (
-        <button
-            type="button"
-            className={`theme-card mixed mixed-${isCivique ? "blue" : "red"}`}
-            onClick={onClick}
-            disabled={starting}
-        >
-            <div className="theme-card-head">
-        <span className={`theme-tag ${isCivique ? "tag-civique" : "tag-tcf"}`}>
-          {tag}
-        </span>
-                <span className="theme-mixed-icon" aria-hidden>
-          {isCivique ? "⚜" : "✶"}
-        </span>
-            </div>
-            <h4 className="theme-card-title">{label}</h4>
-            <p className="theme-card-desc">{desc}</p>
-            <div className="theme-card-foot">
-        <span>
-          {size} QUESTIONS{isDemo ? " · DÉMO" : ""}
-        </span>
-                <span className="theme-card-start">
-          {starting
-              ? "…"
-              : isGuest
-                  ? "Lancer la démo →"
-                  : "Démarrer →"}
-        </span>
-            </div>
-        </button>
-    );
-}
-
-function ThemeTile({
-                       theme,
-                       mastery,
-                       isPremium,
-                       isGuest,
-                       onClick,
-                       starting,
-                   }: {
-    theme: ThemeUserResponse;
-    mastery: { pct: number; answered: number; total: number } | null;
-    isPremium: boolean;
-    isGuest: boolean;
-    onClick: () => void;
-    starting: boolean;
-}) {
-    const isCivique = theme.module === "CIVIQUE";
-    const tone = mastery ? toneFor(mastery.pct) : null;
-    const tagLabel = `${isCivique ? "CIVIQUE" : "TCF"} · ${theme.code}`;
-    const desc = themeBlurb(theme.code);
-
-    // Sur les thèmes spécifiques : verrouillé pour les guests et les connectés
-    // non-premium (la démo ne couvre que le mixte du module).
-    const locked = isGuest || !isPremium;
-
-    return (
-        <button
-            type="button"
-            className={`theme-card ${locked ? "is-locked" : ""} ${
-                tone === "red" ? "border-red" : tone === "amber" ? "border-amber" : ""
-            }`}
-            onClick={onClick}
-            disabled={starting}
-        >
-            {locked && (
-                <span className="theme-lock" aria-hidden>
-          <Lock size={14}/>
-        </span>
-            )}
-            <div className="theme-card-head">
-        <span className={`theme-tag ${isCivique ? "tag-civique" : "tag-tcf"}`}>
-          {tagLabel}
-        </span>
-                {mastery && (
-                    <span className={`theme-mastery theme-mastery-${tone}`}>
-            {mastery.pct}%
-          </span>
-                )}
-            </div>
-            <h4 className="theme-card-title">{theme.name}</h4>
-            {desc && <p className="theme-card-desc">{desc}</p>}
-            <div className="theme-bar">
-                <div
-                    className={`theme-bar-fill theme-bar-${tone ?? "blue"}`}
-                    style={{width: `${Math.max(2, mastery?.pct ?? 0)}%`}}
-                />
-            </div>
-            <div className="theme-card-foot">
-        <span>
-          {mastery
-              ? `${mastery.answered} / ${theme.questionCount ?? mastery.total} QUESTIONS`
-              : `${theme.questionCount ?? "—"} QUESTIONS`}
-        </span>
-                <span className="theme-card-start">
-          {starting ? "…" : locked ? "Débloquer →" : "Démarrer →"}
-        </span>
-            </div>
-        </button>
-    );
-}
-
-function ProductionCard({
-                            kind,
-                            onClick,
-                        }: {
-    kind: ProductionKind;
-    onClick: () => void;
-}) {
-    const isOral = kind === "EO";
-    const title = isOral ? "Expression orale" : "Expression écrite";
-    const tag = isOral ? "TCF · EO" : "TCF · EE";
-    const desc = isOral
-        ? "Parlez ~12 min sur 3 tâches enchaînées · note /20 + CECRL en 15 s."
-        : "Rédigez 3 productions courtes (~60 min) · feedback IA par critères.";
-    const Icon = isOral ? Mic : PenLine;
-
-    return (
-        <button type="button" className="prod-card" onClick={onClick}>
-            <div className="prod-card-head">
-        <span className="theme-tag tag-tcf">{tag}</span>
-                <span className="prod-card-icon" aria-hidden>
-          <Icon size={18} strokeWidth={2}/>
-        </span>
-            </div>
-            <h4 className="prod-card-title">{title}</h4>
-            <p className="prod-card-desc">{desc}</p>
-            <div className="prod-card-foot">
-                <span className="prod-card-pill">APP MOBILE</span>
-                <span className="prod-card-cta">En savoir plus →</span>
-            </div>
-        </button>
-    );
-}
-
 function ExamCard({
                       exam,
                       tone,
@@ -912,13 +739,6 @@ function buildMastery(stats: Partial<Record<ModuleEnum, UserStatsResponse | null
     return {byTheme};
 }
 
-function toneFor(pct: number): "green" | "blue" | "amber" | "red" {
-    if (pct >= 80) return "green";
-    if (pct >= 65) return "blue";
-    if (pct >= 45) return "amber";
-    return "red";
-}
-
 function themeBlurb(code: string): string {
     const map: Record<string, string> = {
         PRINCIPES: "Devise, symboles, laïcité, République",
@@ -969,6 +789,63 @@ function ThemesGridSkeleton() {
         }
       `}</style>
         </div>
+    );
+}
+
+// ============================================================================
+// HUB MODULE CARD (façon template tcf-irn-page)
+// ============================================================================
+function HubModuleCard({
+                           tone,
+                           badge,
+                           icon,
+                           title,
+                           desc,
+                           masteryPct,
+                           tags,
+                           cta,
+                           starting,
+                           onClick,
+                       }: {
+    tone: string;
+    badge: string;
+    icon: string;
+    title: string;
+    desc: string;
+    masteryPct: number | null;
+    tags: string[];
+    cta: string;
+    starting: boolean;
+    onClick: () => void;
+}) {
+    const Icon =
+        icon === "co" ? Headphones
+            : icon === "ce" ? BookOpen
+                : icon === "ee" ? PenLine
+                    : icon === "eo" ? Mic
+                        : Landmark;
+    return (
+        <article className="hub-card">
+            <div className="hub-card-head">
+                <span className={`hub-card-icon tone-${tone}`} aria-hidden>
+                    <Icon size={20} strokeWidth={1.8}/>
+                </span>
+                <span className="hub-card-badge">{badge}</span>
+            </div>
+            <h3 className="hub-card-title">{title}</h3>
+            <p className="hub-card-desc">{desc}</p>
+            <div className="hub-progress">
+                <span style={{width: `${Math.max(3, masteryPct ?? 0)}%`}}/>
+            </div>
+            <div className="hub-tags">
+                {tags.map((t) => (
+                    <span key={t} className="hub-tag">{t}</span>
+                ))}
+            </div>
+            <button type="button" className="hub-cta" onClick={onClick} disabled={starting}>
+                {starting ? "…" : cta}
+            </button>
+        </article>
     );
 }
 
@@ -1025,12 +902,13 @@ const styles = `
     display: grid;
     grid-template-columns: 1fr;
     gap: 22px;
-    background: linear-gradient(150deg, #fff 0%, var(--color-blue-soft) 100%);
-    border: 1px solid var(--color-line);
+    background: linear-gradient(135deg, var(--color-blue) 0%, #3355B5 100%);
+    color: #fff;
     border-radius: 20px;
     padding: 24px;
     margin-bottom: 22px;
   }
+  .train-hero .breadcrumb { color: rgba(255, 255, 255, 0.7); }
   .train-hero-main h1 {
     font-family: var(--font-display);
     font-size: clamp(24px, 3.4vw, 32px);
@@ -1038,53 +916,103 @@ const styles = `
     letter-spacing: -0.02em;
     line-height: 1.12;
     margin: 8px 0 0;
-    color: var(--color-ink);
+    color: #fff;
   }
-  .train-hero-main h1 em { color: var(--color-blue); font-style: italic; font-weight: 500; }
+  .train-hero-main h1 em { font-style: italic; font-weight: 500; opacity: 0.92; }
   .train-hero-main p {
-    color: var(--color-muted);
+    color: rgba(255, 255, 255, 0.82);
     font-size: 14.5px;
     line-height: 1.6;
     margin: 10px 0 0;
     max-width: 540px;
   }
-  .train-hero-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 18px;
+  .train-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+  .train-hero-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 11px 20px; border-radius: 10px;
+    font-family: var(--font-sans); font-size: 14px; font-weight: 700;
+    background: var(--color-ink); color: #fff;
+    text-decoration: none; border: 1px solid transparent;
+    transition: transform 0.15s, background 0.15s;
   }
-  .train-summary {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    align-content: start;
-  }
-  .summary-box {
-    background: #fff;
-    border: 1px solid var(--color-line);
+  .train-hero-btn:hover { transform: translateY(-1px); background: #0A1230; }
+  .train-hero-btn-ghost { background: transparent; border-color: rgba(255, 255, 255, 0.4); }
+  .train-hero-btn-ghost:hover { background: rgba(255, 255, 255, 0.12); }
+  .train-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; }
+  .train-summary .summary-box {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 14px;
     padding: 14px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    display: flex; flex-direction: column; gap: 4px;
   }
-  .summary-box strong {
+  .train-summary .summary-box strong {
     font-family: var(--font-display);
     font-weight: 600;
     font-size: 24px;
     line-height: 1;
-    color: var(--color-ink);
+    color: #fff;
     font-variant-numeric: tabular-nums;
   }
-  .summary-box span {
-    font-size: 11.5px;
-    color: var(--color-muted);
+  .train-summary .summary-box span { font-size: 11.5px; color: rgba(255, 255, 255, 0.7); }
+
+  /* ========== SECTION TITLE + HUB CARDS (4 modules) ========== */
+  .hub-section-title {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; margin: 26px 0 14px;
   }
+  .hub-section-title h2 {
+    font-family: var(--font-display); font-weight: 600; font-size: 19px;
+    letter-spacing: -0.015em; color: var(--color-ink); margin: 0;
+  }
+  .hub-section-title a { font-size: 13px; font-weight: 600; color: var(--color-blue); white-space: nowrap; }
+  .hub-section-title a:hover { text-decoration: underline; }
+  .hub-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  .hub-card {
+    background: #fff; border: 1px solid var(--color-line); border-radius: 16px;
+    padding: 20px; display: flex; flex-direction: column;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  }
+  .hub-card:hover {
+    transform: translateY(-3px); border-color: var(--color-blue);
+    box-shadow: 0 16px 38px -22px rgba(30, 58, 140, 0.3);
+  }
+  .hub-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .hub-card-icon { width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; }
+  .hub-card-badge {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.06em; color: var(--color-muted);
+    background: var(--color-paper-2); padding: 4px 9px; border-radius: 8px;
+  }
+  .hub-card-title { font-family: var(--font-sans); font-weight: 700; font-size: 15.5px; color: var(--color-ink); margin: 0 0 4px; }
+  .hub-card-desc { font-size: 13px; color: var(--color-muted); line-height: 1.5; margin: 0 0 14px; flex: 1; }
+  .hub-progress { height: 6px; border-radius: 100px; background: var(--color-line-2); overflow: hidden; margin-bottom: 14px; }
+  .hub-progress span { display: block; height: 100%; border-radius: 100px; background: var(--color-blue); }
+  .hub-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .hub-tag {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.04em;
+    text-transform: uppercase; font-weight: 600; padding: 4px 9px; border-radius: 100px;
+    background: var(--color-paper-2); color: var(--color-muted);
+  }
+  .hub-cta {
+    width: 100%; padding: 11px; border-radius: 10px; border: none;
+    background: var(--color-ink); color: #fff;
+    font-family: var(--font-sans); font-weight: 700; font-size: 13.5px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .hub-cta:hover:not(:disabled) { background: #0A1230; }
+  .hub-cta:disabled { opacity: 0.6; cursor: not-allowed; }
+  .tone-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .tone-green { background: rgba(22, 143, 91, 0.12); color: var(--color-green); }
+  .tone-amber { background: rgba(232, 163, 23, 0.16); color: #B87908; }
+  .tone-purple { background: rgba(124, 58, 173, 0.12); color: #7C3AAD; }
+  .tone-red { background: var(--color-red-light); color: var(--color-red); }
+
+  @media (min-width: 560px) { .hub-grid { grid-template-columns: 1fr 1fr; } }
   @media (min-width: 900px) {
     .train-hero { grid-template-columns: 1.4fr 1fr; align-items: center; padding: 30px; }
-    .train-summary { grid-template-columns: 1fr 1fr; gap: 12px; }
   }
+  @media (min-width: 1100px) { .hub-grid { grid-template-columns: repeat(4, 1fr); } }
 
   .train-target { margin-bottom: 18px; }
   .train-error { margin-bottom: 18px; }
