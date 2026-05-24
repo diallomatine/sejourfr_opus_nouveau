@@ -340,7 +340,7 @@ export default function DashboardPage() {
               return (
                 <Link
                   key={t.id}
-                  href="/entrainement?module=CIVIQUE"
+                  href={`/entrainement/civique/${t.id}`}
                   className="dash-module"
                 >
                   <span className={`dash-module-icon tone-${tone}`} aria-hidden>

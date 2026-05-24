@@ -11,6 +11,7 @@ import type {
   ExamTemplateSummary,
   GoogleSignInRequest,
   LoginRequest,
+  LotDto,
   Module as ModuleEnum,
   PlanPublicResponse,
   QuestionReviewResponse,
@@ -435,6 +436,20 @@ export const examApi = {
 };
 
 // ============================================================================
+// Lots (découpage déterministe d'un thème/épreuve en séries)
+// ============================================================================
+
+export const lotApi = {
+    /** Lots civiques d'un thème (themeId obligatoire côté backend pour CIVIQUE). */
+    listCivique(themeId: string): Promise<LotDto[]> {
+        return apiFetch<LotDto[]>(
+            `/api/lots?module=CIVIQUE&themeId=${encodeURIComponent(themeId)}`,
+            { auth: true },
+        );
+    },
+};
+
+// ============================================================================
 // Endpoints User content (favoris, questions ratées, stats, target path)
 // ============================================================================
 
@@ -461,8 +476,11 @@ export const userContentApi = {
         });
     },
 
-    wrong(module?: ModuleEnum): Promise<QuestionReviewResponse[]> {
-        const qs = module ? `?module=${module}` : "";
+    wrong(module?: ModuleEnum, themeId?: string): Promise<QuestionReviewResponse[]> {
+        const p = new URLSearchParams();
+        if (module) p.set("module", module);
+        if (themeId) p.set("themeId", themeId);
+        const qs = p.toString() ? `?${p.toString()}` : "";
         return apiFetch<QuestionReviewResponse[]>(
             `/api/me/questions/wrong${qs}`,
             {auth: true},
@@ -549,11 +567,13 @@ export const attemptApi = {
     listMine(opts: {
         type?: AttemptType;
         module?: ModuleEnum;
+        themeId?: string;
         limit?: number;
     } = {}): Promise<AttemptSummaryResponse[]> {
         const qs = new URLSearchParams();
         if (opts.type) qs.set("type", opts.type);
         if (opts.module) qs.set("module", opts.module);
+        if (opts.themeId) qs.set("themeId", opts.themeId);
         if (opts.limit !== undefined) qs.set("limit", String(opts.limit));
         const suffix = qs.toString() ? `?${qs.toString()}` : "";
         return apiFetch<AttemptSummaryResponse[]>(`/api/me/attempts${suffix}`, {

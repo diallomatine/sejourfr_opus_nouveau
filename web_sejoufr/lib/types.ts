@@ -204,6 +204,20 @@ export interface StartAttemptRequest {
   difficulty?: Difficulty;
   questionType?: QuestionType;
   size?: number;
+  /** TRAINING sur un lot précis (découpage déterministe). size est ignoré. */
+  lotNumero?: number;
+  /** MOCK_EXAM scopé à une épreuve TCF QCM (CO/CE/STRUCTURE). */
+  moduleExamQuestionType?: QuestionType;
+}
+
+/** Lot = chunk déterministe de questions (cf. backend LotService / LotDto). */
+export interface LotDto {
+  numero: number;
+  difficulty?: string | null;
+  totalQuestions: number;
+  /** Dernier score sur ce lot (null si jamais fait). */
+  lastScore?: number | null;
+  lastAttemptedAt?: string | null;
 }
 
 export interface AttemptQuestionResponse {

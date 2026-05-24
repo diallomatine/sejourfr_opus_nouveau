@@ -399,12 +399,14 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
                         const onClick =
                             it.kind === "prod"
                                 ? () => setProductionSheet(it.prod ?? "EO")
-                                : () =>
-                                      startTraining(
-                                          isPremiumForFilter && it.theme
-                                              ? {module: filter, themeId: it.theme.id, label: it.theme.id}
-                                              : {module: filter, label: `__mixed_${filter}`},
-                                      );
+                                : filter === "CIVIQUE" && it.theme
+                                    ? () => router.push(`/entrainement/civique/${it.theme!.id}`)
+                                    : () =>
+                                          startTraining(
+                                              isPremiumForFilter && it.theme
+                                                  ? {module: filter, themeId: it.theme.id, label: it.theme.id}
+                                                  : {module: filter, label: `__mixed_${filter}`},
+                                          );
                         const starting =
                             it.kind === "theme"
                                 ? startingThemeId === it.theme?.id ||
