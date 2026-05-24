@@ -784,30 +784,31 @@ const styles = `
   }
   .dash-section-title a:hover { text-decoration: underline; }
 
-  /* ---- Onglets civique / TCF ---- */
+  /* ---- Onglets civique / TCF (pleine largeur, 50/50) ---- */
   .dash-tabs {
-    display: inline-flex;
-    gap: 4px;
-    padding: 4px;
-    border-radius: 12px;
-    background: var(--color-paper-2);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
     margin-bottom: 16px;
   }
   .dash-tab {
-    border: none;
-    background: transparent;
-    padding: 9px 16px;
-    border-radius: 9px;
+    border: 1px solid var(--color-line);
+    background: #fff;
+    padding: 14px 16px;
+    border-radius: 12px;
     font-family: var(--font-sans);
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--color-muted);
     cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    text-align: center;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
   }
+  .dash-tab:hover { border-color: var(--color-blue); color: var(--color-blue); }
   .dash-tab.is-active {
-    background: #fff;
+    background: var(--color-blue-soft);
     color: var(--color-blue);
+    border-color: var(--color-blue);
     box-shadow: 0 1px 3px rgba(15, 24, 57, 0.08);
   }
 
