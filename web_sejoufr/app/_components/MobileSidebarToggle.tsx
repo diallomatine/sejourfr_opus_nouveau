@@ -25,19 +25,38 @@ export function MobileSidebarToggle() {
 
   // Ferme le drawer dès que la route change.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpen(false);
   }, [pathname]);
 
-  // Lock le scroll body quand le drawer est ouvert.
+  // Lock le scroll de la page quand le drawer est ouvert. `overflow: hidden`
+  // sur body ne suffit PAS sur iOS Safari (la page derrière scrolle quand même).
+  // On fige le body en position: fixed à la position courante, puis on restaure
+  // le scroll à la fermeture — technique fiable cross-navigateur, notamment iOS.
   useEffect(() => {
-    if (typeof document === "undefined") return;
-    if (open) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = prev;
-      };
-    }
+    if (typeof document === "undefined" || !open) return;
+    const body = document.body;
+    const scrollY = window.scrollY;
+    const prev = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+    };
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    return () => {
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.left = prev.left;
+      body.style.right = prev.right;
+      body.style.width = prev.width;
+      window.scrollTo(0, scrollY);
+    };
   }, [open]);
 
   // Échap = ferme
