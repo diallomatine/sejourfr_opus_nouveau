@@ -14,8 +14,6 @@ import {
   type UserStatsResponse,
 } from "@/lib/types";
 
-const HEATMAP_DAYS = 30;
-
 export default function StatistiquesPage() {
     const router = useRouter();
     const {user, status} = useAuth();
@@ -88,9 +86,6 @@ export default function StatistiquesPage() {
             0,
         );
     }, [stats]);
-
-    // ========== Heatmap data ==========
-    const heatmap = useMemo(() => buildHeatmap(attempts), [attempts]);
 
     // ========== Themes sorted weak-first ==========
     // On classe par score de maîtrise croissant : un thème jamais touché ou plein
@@ -344,49 +339,6 @@ export default function StatistiquesPage() {
 
             {!loading && stats && stats.questionsAnswered > 0 && (
                 <>
-                    {/* ============ HEATMAP ============ */}
-                    <section className="card">
-                        <div className="card-head">
-                            <div>
-                                <h3>Calendrier de pratique</h3>
-                                <p>
-                                    {HEATMAP_DAYS} derniers jours · plus une case est foncée, plus
-                                    vous avez pratiqué.
-                                </p>
-                            </div>
-                            <div className="heatmap-legend">
-                                <span>MOINS</span>
-                                {HEATMAP_TONES.map((t, i) => (
-                                    <span
-                                        key={i}
-                                        className="heatmap-legend-cell"
-                                        style={{background: t}}
-                                    />
-                                ))}
-                                <span>PLUS</span>
-                            </div>
-                        </div>
-                        <div className="heatmap-grid">
-                            {heatmap.cells.map((c, i) => (
-                                <div
-                                    key={i}
-                                    className="heatmap-cell"
-                                    style={{
-                                        background: HEATMAP_TONES[c.intensity],
-                                        ...(c.isToday
-                                            ? {boxShadow: "0 0 0 2px var(--color-red)"}
-                                            : {}),
-                                    }}
-                                    title={`${c.label} · ${c.count} session${c.count > 1 ? "s" : ""}`}
-                                />
-                            ))}
-                        </div>
-                        <div className="heatmap-footer">
-                            <span>IL Y A {HEATMAP_DAYS} JOURS</span>
-                            <span>AUJOURD&apos;HUI</span>
-                        </div>
-                    </section>
-
                     {/* ============ ROW 2 COLS ============ */}
                     <section className="row-2">
                         {/* Weakest themes */}
@@ -768,44 +720,6 @@ function computeStreak(attempts: AttemptSummaryResponse[]): number {
     return streak;
 }
 
-const HEATMAP_TONES = [
-    "#EEF0F8", // 0 sessions
-    "#D5DCEF", // 1
-    "#A8B5E0", // 2
-    "#1E3A8C", // 3
-    "#15296B", // 4+
-];
-
-function buildHeatmap(attempts: AttemptSummaryResponse[]): {
-    cells: { count: number; intensity: number; isToday: boolean; label: string }[];
-} {
-    const map = new Map<string, number>();
-    for (const a of attempts) {
-        const k = new Date(a.startedAt).toISOString().slice(0, 10);
-        map.set(k, (map.get(k) ?? 0) + 1);
-    }
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const cells: { count: number; intensity: number; isToday: boolean; label: string }[] = [];
-    for (let i = HEATMAP_DAYS - 1; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(today.getDate() - i);
-        const k = d.toISOString().slice(0, 10);
-        const count = map.get(k) ?? 0;
-        const intensity = Math.min(4, count);
-        cells.push({
-            count,
-            intensity,
-            isToday: i === 0,
-            label: d.toLocaleDateString("fr-FR", {
-                day: "numeric",
-                month: "short",
-            }),
-        });
-    }
-    return {cells};
-}
-
 // ============================================================================
 // EMPTY / SKELETON
 // ============================================================================
@@ -1165,40 +1079,6 @@ const styles = `
     letter-spacing: -0.01em;
   }
   .card-head p { margin: 0; color: var(--color-muted); font-size: 13px; }
-
-  /* ========== HEATMAP ========== */
-  .heatmap-grid {
-    display: grid;
-    grid-template-columns: repeat(${HEATMAP_DAYS}, 1fr);
-    gap: 5px;
-    margin-bottom: 14px;
-  }
-  .heatmap-cell {
-    aspect-ratio: 1;
-    border-radius: 4px;
-    transition: transform 0.1s;
-  }
-  .heatmap-cell:hover { transform: scale(1.18); }
-  .heatmap-footer {
-    display: flex; justify-content: space-between;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--color-muted);
-    letter-spacing: 0.1em;
-  }
-  .heatmap-legend {
-    display: flex; align-items: center; gap: 6px;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--color-muted);
-    letter-spacing: 0.1em;
-  }
-  .heatmap-legend-cell {
-    width: 12px; height: 12px; border-radius: 3px;
-  }
-  @media (max-width: 600px) {
-    .heatmap-grid { grid-template-columns: repeat(15, 1fr); }
-  }
 
   /* ========== ROW 2 COLS ========== */
   .row-2 {
