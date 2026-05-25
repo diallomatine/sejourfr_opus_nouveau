@@ -174,6 +174,42 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
               </div>
             </div>
 
+            {isTcf && (
+              <div className="brf-deroule-block">
+                <div className="brf-section-label">DÉROULÉ DU TCF IRN COMPLET · 90 MIN</div>
+                <div className="brf-deroule">
+                  <div className="brf-dr-row">
+                    <span className="brf-dr-ico" aria-hidden>🎧</span>
+                    <span className="brf-dr-label">Compréhension orale</span>
+                    <span className="brf-dr-meta">20 min</span>
+                  </div>
+                  <div className="brf-dr-row">
+                    <span className="brf-dr-ico" aria-hidden>📖</span>
+                    <span className="brf-dr-label">Compréhension écrite</span>
+                    <span className="brf-dr-meta">30 min</span>
+                  </div>
+                  <div className="brf-dr-row is-mobile">
+                    <span className="brf-dr-ico" aria-hidden>✍️</span>
+                    <span className="brf-dr-label">Expression écrite</span>
+                    <span className="brf-dr-badge">Sur l&apos;app mobile</span>
+                  </div>
+                  <div className="brf-dr-row is-mobile">
+                    <span className="brf-dr-ico" aria-hidden>🎙️</span>
+                    <span className="brf-dr-label">Expression orale</span>
+                    <span className="brf-dr-badge">Sur l&apos;app mobile</span>
+                  </div>
+                </div>
+                <p className="brf-mobile-note">
+                  Sur le web, vous passez les épreuves de{" "}
+                  <strong>compréhension</strong> (orale + écrite). L&apos;
+                  <strong>expression écrite et orale</strong>, évaluées par IA, se
+                  font dans l&apos;application mobile. Le niveau{" "}
+                  <strong>CECRL global</strong> du TCF IRN se calcule sur les 4
+                  épreuves.
+                </p>
+              </div>
+            )}
+
             {lastAttempt && (
               <div className="brf-past">
                 <div className="brf-past-icon" aria-hidden>
@@ -365,6 +401,47 @@ const styles = `
     gap: 14px; color: var(--color-muted);
   }
   .brf-wrap { max-width: 760px; margin: 0 auto; }
+
+  /* ===== Déroulé TCF complet (4 épreuves) — aligné sur le mobile ===== */
+  .brf-deroule-block { margin: 4px 0 22px; }
+  .brf-section-label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.16em; color: var(--color-muted);
+    margin-bottom: 10px;
+  }
+  .brf-deroule { display: flex; flex-direction: column; gap: 8px; }
+  .brf-dr-row {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--color-blue-soft);
+    border-radius: 12px; padding: 12px 14px;
+  }
+  .brf-dr-ico { font-size: 18px; line-height: 1; flex-shrink: 0; }
+  .brf-dr-label {
+    flex: 1; min-width: 0; font-weight: 700; font-size: 14px;
+    color: var(--color-ink);
+  }
+  .brf-dr-meta {
+    font-family: var(--font-sans); font-weight: 800; font-size: 12.5px;
+    color: var(--color-blue); flex-shrink: 0;
+  }
+  .brf-dr-row.is-mobile { background: var(--color-paper-2); }
+  .brf-dr-row.is-mobile .brf-dr-label { color: var(--color-muted); }
+  .brf-dr-badge {
+    flex-shrink: 0;
+    font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--color-muted);
+    background: #fff; border: 1px solid var(--color-line);
+    padding: 4px 9px; border-radius: 100px;
+  }
+  .brf-mobile-note {
+    margin: 12px 0 0;
+    font-size: 13px; line-height: 1.55; color: var(--color-muted);
+    background: var(--color-blue-soft);
+    border-left: 3px solid var(--color-blue);
+    border-radius: 10px; padding: 12px 14px;
+  }
+  .brf-mobile-note strong { color: var(--color-ink); font-weight: 700; }
 
   .brf-back {
     display: inline-block;
