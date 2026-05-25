@@ -955,7 +955,9 @@ const styles = `
     margin-bottom: 18px;
   }
   .filter-tabs {
-    display: inline-flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
     background: #fff;
     border: 1px solid var(--color-line);
     border-radius: 12px;
@@ -963,15 +965,16 @@ const styles = `
     gap: 2px;
   }
   .tab {
-    padding: 8px 18px;
+    padding: 10px 18px;
     background: transparent;
     border: none;
     border-radius: 8px;
     font-family: inherit;
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--color-muted);
     cursor: pointer;
+    text-align: center;
     transition: all 0.15s;
   }
   .tab:hover { color: var(--color-ink); }
