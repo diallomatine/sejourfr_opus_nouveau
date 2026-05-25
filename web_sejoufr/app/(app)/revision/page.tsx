@@ -77,6 +77,8 @@ function RevisionInner() {
     useEffect(() => {
         if (status !== "authenticated") return;
         let cancelled = false;
+        // refresh() fait setLoading(true) en synchrone au démarrage.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         refresh(module).then(() => {
             if (cancelled) return;
         });
