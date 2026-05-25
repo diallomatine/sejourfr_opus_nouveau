@@ -39,7 +39,7 @@ function HistoriqueInner() {
   const [error, setError] = useState<string | null>(null);
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
-  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("30D");
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("ALL");
   const [query, setQuery] = useState("");
   const [productionSheet, setProductionSheet] = useState<ProductionKind | null>(null);
 
@@ -85,8 +85,13 @@ function HistoriqueInner() {
     return [...attempts]
       .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
       .filter((a) => {
-        // En mode liste (catégorie choisie), on ne montre que ce module.
-        if (moduleView && a.module !== moduleView) return false;
+        // En mode liste (catégorie choisie) : uniquement les examens de ce
+        // module (sous-examens thème/module + examens blancs complets),
+        // jamais les entraînements/lots.
+        if (moduleView) {
+          if (a.module !== moduleView) return false;
+          if (a.type !== "MOCK_EXAM") return false;
+        }
         const isProd = isProductionAttempt(a);
         // type
         // EXAM = MOCK_EXAM QCM uniquement (les productions EO/EE sont TRAINING).
@@ -125,8 +130,10 @@ function HistoriqueInner() {
   // separement dans le total. On considere une production "finie" si elle a
   // un finishedAt (le score IA est sur une autre route).
   const stats = useMemo(() => {
-    const qcm = attempts.filter((a) => !isProductionAttempt(a));
-    const productions = attempts.filter((a) => isProductionAttempt(a));
+    // En mode liste, les stats résument le module choisi (examens de ce module).
+    const base = moduleView ? attempts.filter((a) => a.module === moduleView) : attempts;
+    const qcm = base.filter((a) => !isProductionAttempt(a));
+    const productions = base.filter((a) => isProductionAttempt(a));
     const finishedQcm = qcm.filter(
       (a) => a.finishedAt && a.score !== null && a.score !== undefined,
     );
@@ -168,14 +175,14 @@ function HistoriqueInner() {
       : null;
     return {
       total: totalSessions,
-      examsCount: attempts.filter((a) => a.type === "MOCK_EXAM" && !isProductionAttempt(a)).length,
-      trainCount: attempts.filter((a) => a.type === "TRAINING" && !isProductionAttempt(a)).length,
+      examsCount: base.filter((a) => a.type === "MOCK_EXAM" && !isProductionAttempt(a)).length,
+      trainCount: base.filter((a) => a.type === "TRAINING" && !isProductionAttempt(a)).length,
       prodCount: productions.length,
       passRate,
       bestLabel,
       bestDetail,
     };
-  }, [attempts]);
+  }, [attempts, moduleView]);
 
   if (status === "loading") return <HistoriqueSkeleton />;
   if (!user) {
@@ -337,33 +344,8 @@ function HistoriqueInner() {
         />
       </section>
 
-      {/* ============ FILTERS ============ */}
+      {/* ============ FILTERS (examens du module : période + recherche) ============ */}
       <section className="filters">
-        <div className="filter-tabs" role="tablist" aria-label="Type de session">
-          {(
-            [
-              ["ALL", "Tout"],
-              ["EXAM", "Examens"],
-              ["TRAIN", "Entraînements"],
-              ["PROD", "Productions"],
-            ] as const
-          ).map(([k, lbl]) => (
-            <button
-              key={k}
-              type="button"
-              role="tab"
-              aria-selected={typeFilter === k}
-              className={`tab ${typeFilter === k ? "is-active" : ""}`}
-              onClick={() => setTypeFilter(k)}
-            >
-              {lbl}
-              {typeFilter === k && filtered.length > 0 && (
-                <span className="tab-count">{filtered.length}</span>
-              )}
-            </button>
-          ))}
-        </div>
-
         <div className="period-chips">
           {(
             [
