@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
+import '../api/api_client.dart';
 import '../api/billing_repository.dart';
 import '../api/repositories.dart';
 import '../auth/auth_controller.dart';
@@ -22,6 +23,8 @@ class BillingState {
     this.products = const [],
     this.lastVerification,
     this.purchaseInProgress = false,
+    this.purchasingSku,
+    this.actionBlocked = false,
   });
 
   /// Chargement initial des plans + des produits du store.
@@ -43,13 +46,27 @@ class BillingState {
   /// valide un reçu. Permet de désactiver les boutons.
   final bool purchaseInProgress;
 
+  /// Code du Plan en cours d'achat (= SKU). Permet à l'UI de n'afficher le
+  /// spinner que sur la card concernée. Null pendant une restauration (qui
+  /// ne cible pas une card précise).
+  final String? purchasingSku;
+
+  /// True quand l'erreur courante est définitive et que réessayer depuis le
+  /// paywall ne servira à rien (ex: 409 compte store déjà lié, produit non
+  /// configuré). L'UI grise alors les boutons d'achat. Toujours remis à false
+  /// quand l'erreur est effacée (clearError).
+  final bool actionBlocked;
+
   BillingState copyWith({
     bool? isLoading,
     String? error,
     List<IapProduct>? products,
     SubscriptionStatusResponse? lastVerification,
     bool? purchaseInProgress,
+    String? purchasingSku,
+    bool? actionBlocked,
     bool clearError = false,
+    bool clearPurchasingSku = false,
   }) {
     return BillingState(
       isLoading: isLoading ?? this.isLoading,
@@ -57,6 +74,9 @@ class BillingState {
       products: products ?? this.products,
       lastVerification: lastVerification ?? this.lastVerification,
       purchaseInProgress: purchaseInProgress ?? this.purchaseInProgress,
+      purchasingSku:
+          clearPurchasingSku ? null : (purchasingSku ?? this.purchasingSku),
+      actionBlocked: clearError ? false : (actionBlocked ?? this.actionBlocked),
     );
   }
 }
@@ -90,11 +110,70 @@ class BillingController extends StateNotifier<BillingState> {
       _onPurchasesUpdated,
       onError: (Object error, StackTrace _) {
         state = state.copyWith(
-          error: 'Erreur de communication avec le store : $error',
+          error: 'La communication avec le store a échoué. Réessayez dans un '
+              'instant.',
           purchaseInProgress: false,
+          clearPurchasingSku: true,
         );
       },
     );
+  }
+
+  /// Nom du store selon la plateforme courante, pour des messages adaptés
+  /// (« App Store » sur iOS, « Google Play » sur Android).
+  static String get _storeName =>
+      IapService.currentSource == SubscriptionSource.apple
+          ? 'App Store'
+          : 'Google Play';
+
+  /// Traduit une exception réseau/store en message court et lisible pour
+  /// l'utilisateur — jamais de stack trace ni de DioException brute à l'écran.
+  /// [blocking] = true quand réessayer est inutile (action à mener hors de ce
+  /// paywall) → l'UI grise alors les boutons d'achat.
+  /// [fallback] couvre les cas non mappés (ex: erreur de chargement vs achat).
+  ({String message, bool blocking}) _describeError(
+    Object e, {
+    required String fallback,
+  }) {
+    final api = ApiClient.toApiException(e);
+    switch (api.statusCode) {
+      case 409:
+        return (
+          message: 'Votre compte $_storeName est déjà associé à un abonnement '
+              'SejourFR actif sur un autre compte. Connectez-vous à ce compte '
+              'pour y accéder, ou utilisez un autre compte $_storeName.',
+          blocking: true,
+        );
+      case 400:
+      case 422:
+        return (
+          message: 'Cet abonnement n\'est pas disponible à l\'achat pour le '
+              'moment. Réessayez plus tard.',
+          blocking: true,
+        );
+      case 401:
+        return (
+          message: 'Votre session a expiré. Reconnectez-vous puis réessayez.',
+          blocking: false,
+        );
+      case 503:
+        return (
+          message: 'Le service de paiement est momentanément indisponible. '
+              'Réessayez dans quelques instants.',
+          blocking: false,
+        );
+      case 0:
+        // Message déjà propre côté ApiClient (« Connexion impossible… »).
+        return (message: api.message, blocking: false);
+    }
+    if (api.statusCode >= 500) {
+      return (
+        message: 'Une erreur est survenue de notre côté. Réessayez dans un '
+            'instant.',
+        blocking: false,
+      );
+    }
+    return (message: fallback, blocking: false);
   }
 
   // --------------------------------------------------------------------------
@@ -167,9 +246,13 @@ class BillingController extends StateNotifier<BillingState> {
         clearError: true,
       );
     } catch (e) {
+      final d = _describeError(e,
+          fallback: 'Impossible de charger les abonnements pour le moment. '
+              'Réessayez plus tard.');
       state = state.copyWith(
         isLoading: false,
-        error: 'Impossible de charger les abonnements : $e',
+        error: d.message,
+        actionBlocked: d.blocking,
       );
     }
   }
@@ -196,7 +279,11 @@ class BillingController extends StateNotifier<BillingState> {
   // --------------------------------------------------------------------------
 
   Future<void> startPurchase(IapProduct product) async {
-    state = state.copyWith(purchaseInProgress: true, clearError: true);
+    state = state.copyWith(
+      purchaseInProgress: true,
+      purchasingSku: product.plan.code,
+      clearError: true,
+    );
     try {
       final ok = await _iap.purchase(product.productDetails);
       if (!ok) {
@@ -205,19 +292,28 @@ class BillingController extends StateNotifier<BillingState> {
         // y en a une.
         state = state.copyWith(
           purchaseInProgress: false,
-          error: 'Le store n\'a pas accepté la demande d\'achat. Réessayez.',
+          clearPurchasingSku: true,
+          error: 'Le store n\'a pas pu ouvrir la fenêtre d\'achat. Réessayez.',
         );
       }
     } catch (e) {
+      final d = _describeError(e,
+          fallback: 'Impossible de démarrer l\'achat. Réessayez.');
       state = state.copyWith(
         purchaseInProgress: false,
-        error: 'Erreur au déclenchement de l\'achat : $e',
+        clearPurchasingSku: true,
+        error: d.message,
+        actionBlocked: d.blocking,
       );
     }
   }
 
   Future<void> restorePurchases() async {
-    state = state.copyWith(purchaseInProgress: true, clearError: true);
+    state = state.copyWith(
+      purchaseInProgress: true,
+      clearError: true,
+      clearPurchasingSku: true,
+    );
     try {
       await _iap.restorePurchases();
       // Les achats restaurés arrivent via purchaseStream → _onPurchasesUpdated
@@ -225,9 +321,13 @@ class BillingController extends StateNotifier<BillingState> {
       // purchaseInProgress ici, c'est le handler stream qui le fera quand
       // tous les events seront passés.
     } catch (e) {
+      final d = _describeError(e,
+          fallback: 'Impossible de restaurer vos achats. Réessayez.');
       state = state.copyWith(
         purchaseInProgress: false,
-        error: 'Impossible de restaurer vos achats : $e',
+        clearPurchasingSku: true,
+        error: d.message,
+        actionBlocked: d.blocking,
       );
     }
   }
@@ -246,9 +346,13 @@ class BillingController extends StateNotifier<BillingState> {
           break;
 
         case PurchaseStatus.error:
+          // `purchase.error.message` vient du store (souvent technique en
+          // anglais) — on ne l'affiche pas brut.
           state = state.copyWith(
             purchaseInProgress: false,
-            error: purchase.error?.message ?? 'Erreur du store.',
+            clearPurchasingSku: true,
+            error: 'L\'achat n\'a pas pu aboutir côté store. Aucun montant '
+                'n\'a été débité. Réessayez.',
           );
           if (purchase.pendingCompletePurchase) {
             await _iap.completePurchase(purchase);
@@ -259,6 +363,7 @@ class BillingController extends StateNotifier<BillingState> {
           state = state.copyWith(
             purchaseInProgress: false,
             clearError: true,
+            clearPurchasingSku: true,
           );
           if (purchase.pendingCompletePurchase) {
             await _iap.completePurchase(purchase);
@@ -299,17 +404,40 @@ class BillingController extends StateNotifier<BillingState> {
         purchaseInProgress: false,
         lastVerification: status,
         clearError: true,
+        clearPurchasingSku: true,
       );
     } catch (e) {
       // On NE complete PAS l'achat ici : si le backend a échoué (network,
       // 502...), le store va re-livrer l'achat au prochain démarrage et on
       // re-tentera la validation. Le user reste « pending » côté UI mais
       // ne perd pas son achat.
+      final api = ApiClient.toApiException(e);
+      final String message;
+      final bool blocking;
+      if (api.statusCode == 409) {
+        // Permanent : rejouer ne corrigera rien tant que l'utilisateur
+        // n'utilise pas le bon compte.
+        message = 'Votre compte $_storeName est déjà associé à un abonnement '
+            'SejourFR actif sur un autre compte. Connectez-vous à ce compte '
+            'pour y accéder, ou utilisez un autre compte $_storeName.';
+        blocking = true;
+      } else if (api.statusCode == 400 || api.statusCode == 422) {
+        message = 'Achat validé côté store, mais nous n\'avons pas pu activer '
+            'votre accès. Contactez le support si le problème persiste.';
+        blocking = true;
+      } else {
+        // Transitoire (réseau, 5xx) : la validation sera rejouée
+        // automatiquement, sans nouveau débit.
+        message = 'Achat validé côté store, mais la confirmation chez SejourFR '
+            'n\'a pas encore abouti. Votre accès sera activé automatiquement '
+            'sous peu — vous ne serez pas débité deux fois.';
+        blocking = false;
+      }
       state = state.copyWith(
         purchaseInProgress: false,
-        error: 'Achat validé côté store mais la confirmation chez SejourFR '
-            'a échoué. Vous garderez votre accès — nous rejouerons '
-            'automatiquement la validation. ($e)',
+        clearPurchasingSku: true,
+        error: message,
+        actionBlocked: blocking,
       );
     }
   }

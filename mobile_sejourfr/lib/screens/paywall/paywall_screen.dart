@@ -74,14 +74,23 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             onPressed: state.purchaseInProgress
                 ? null
                 : () => ref.read(billingControllerProvider.notifier).restorePurchases(),
-            child: Text(
-              'Restaurer',
-              style: AppFonts.jakarta(
-                size: 13,
-                weight: FontWeight.w600,
-                color: AppColors.muted,
-              ),
-            ),
+            child: (state.purchaseInProgress && state.purchasingSku == null)
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation(AppColors.muted),
+                    ),
+                  )
+                : Text(
+                    'Restaurer',
+                    style: AppFonts.jakarta(
+                      size: 13,
+                      weight: FontWeight.w600,
+                      color: AppColors.muted,
+                    ),
+                  ),
           ),
         ],
       ),
@@ -154,11 +163,15 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final cards = <Widget>[];
     for (final module in modulesToShow) {
       final product = _findProduct(state.products, module, _periodicity);
+      final loading = state.purchaseInProgress &&
+          product != null &&
+          state.purchasingSku == product.plan.code;
       cards.add(_PlanCard(
         module: module,
         product: product,
         periodicity: _periodicity,
-        disabled: state.purchaseInProgress,
+        disabled: state.purchaseInProgress || state.actionBlocked,
+        loading: loading,
         onPurchase: product == null
             ? null
             : () => ref
@@ -247,6 +260,7 @@ class _PlanCard extends StatelessWidget {
     required this.product,
     required this.periodicity,
     required this.disabled,
+    required this.loading,
     required this.onPurchase,
   });
 
@@ -254,6 +268,7 @@ class _PlanCard extends StatelessWidget {
   final IapProduct? product;
   final PlanPeriodicity periodicity;
   final bool disabled;
+  final bool loading;
   final VoidCallback? onPurchase;
 
   Color get _accent => module == PlanModuleTarget.civique
@@ -339,6 +354,7 @@ class _PlanCard extends StatelessWidget {
                 ? 'Indisponible sur cette plateforme'
                 : 'Souscrire ${module.label}',
             onPressed: (disabled || onPurchase == null) ? null : onPurchase,
+            isLoading: loading,
             variant: module == PlanModuleTarget.civique
                 ? AppButtonVariant.primary
                 : AppButtonVariant.danger,
