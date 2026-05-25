@@ -139,6 +139,21 @@ function HistoriqueInner() {
     );
     const exams = finishedQcm.filter((a) => a.type === "MOCK_EXAM");
     const totalSessions = finishedQcm.length + productions.length;
+    // Répartition des examens par nature : complets (examen blanc complet) vs
+    // sous-examens (CO/CE/Structure TCF, ou examen de thème civique).
+    const natures = { complet: 0, co: 0, ce: 0, structure: 0, theme: 0 };
+    for (const a of exams) {
+      if (a.epreuve === "TCF_COMPLET") natures.complet++;
+      else if (a.epreuve === "TCF_CO") natures.co++;
+      else if (a.epreuve === "TCF_CE") natures.ce++;
+      else if (a.epreuve === "TCF_STRUCTURE") natures.structure++;
+      else if (a.module === "CIVIQUE") {
+        // Examen blanc complet civique = issu d'un template ; sinon examen de thème.
+        if (a.examTemplateId) natures.complet++;
+        else natures.theme++;
+      } else natures.complet++;
+    }
+
     if (totalSessions === 0) {
       return {
         total: 0,
@@ -150,6 +165,7 @@ function HistoriqueInner() {
         passRate: null as number | null,
         bestLabel: null as string | null,
         bestDetail: null as string | null,
+        natures,
       };
     }
     const passed = exams.filter((a) => {
@@ -185,6 +201,7 @@ function HistoriqueInner() {
       passRate,
       bestLabel,
       bestDetail,
+      natures,
     };
   }, [attempts, moduleView]);
 
@@ -239,6 +256,8 @@ function HistoriqueInner() {
             <span className="hub-summary-lbl">Meilleur score</span>
           </div>
         </div>
+
+        <NatureChips natures={stats.natures} />
 
         <div className="hub-section-label">§ EXAMENS BLANCS</div>
         <div className="hub-cats">
@@ -368,6 +387,8 @@ function HistoriqueInner() {
           trend={stats.bestDetail ?? "À jouer"}
         />
       </section>
+
+      <NatureChips natures={stats.natures} />
 
       {/* ============ FILTERS (examens du module : période + recherche) ============ */}
       <section className="filters">
@@ -502,6 +523,49 @@ function StatCard({
       <div className="stat-label">{label}</div>
       <div className="stat-value">{value}</div>
       {trend && <div className="stat-trend">{trend}</div>}
+    </div>
+  );
+}
+
+// ============================================================================
+// NATURE CHIPS — répartition des examens par nature
+// ============================================================================
+function NatureChips({
+  natures,
+}: {
+  natures: { complet: number; co: number; ce: number; structure: number; theme: number };
+}) {
+  const subs = (
+    [
+      ["co", "CO"],
+      ["ce", "CE"],
+      ["structure", "Structure"],
+      ["theme", "Par thème"],
+    ] as const
+  )
+    .map(([k, l]) => ({ k, l, n: natures[k] }))
+    .filter((s) => s.n > 0);
+  const totalSub = subs.reduce((sum, s) => sum + s.n, 0);
+
+  const chips: string[] = [];
+  if (natures.complet > 0) {
+    chips.push(`${natures.complet} complet${natures.complet > 1 ? "s" : ""}`);
+  }
+  // Si trop de natures de sous-examens, on résume en un seul chip.
+  if (subs.length > 3) {
+    chips.push(`${totalSub} sous-examen${totalSub > 1 ? "s" : ""}`);
+  } else {
+    for (const s of subs) chips.push(`${s.n} ${s.l}`);
+  }
+  if (chips.length === 0) return null;
+
+  return (
+    <div className="nature-chips">
+      {chips.map((c) => (
+        <span key={c} className="nature-chip">
+          {c}
+        </span>
+      ))}
     </div>
   );
 }
@@ -780,6 +844,13 @@ const hubStyles = `
   }
   @media (max-width: 680px) {
     .hub-summary { grid-template-columns: repeat(2, 1fr); }
+  }
+  .nature-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 26px; }
+  .nature-chip {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.04em; color: var(--color-ink-2);
+    background: var(--color-paper-2); border: 1px solid var(--color-line);
+    padding: 6px 11px; border-radius: 100px;
   }
   .hub-section-label {
     font-family: var(--font-mono); font-size: 10px; font-weight: 700;
