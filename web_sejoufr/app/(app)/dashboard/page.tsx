@@ -1,34 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import {useEffect, useMemo, useState} from "react";
 import {
-  ArrowRight,
-  BookOpen,
-  FileCheck2,
-  Headphones,
-  History,
-  Landmark,
-  Mic,
-  PenLine,
-  RotateCcw,
-  Scale,
-  ShieldCheck,
-  Users,
+    ArrowRight,
+    BookOpen,
+    FileCheck2,
+    Headphones,
+    History,
+    Landmark,
+    Mic,
+    PenLine,
+    RotateCcw,
+    Scale,
+    ShieldCheck,
+    Sparkles,
+    TrendingUp,
+    Users,
 } from "lucide-react";
+import {type ProductionKind, ProductionMobileSheet,} from "@/app/_components/ProductionMobileSheet";
+import {attemptApi, statsApi, themeApi, userContentApi} from "@/lib/api";
+import {useAuth} from "@/lib/auth-context";
 import {
-  type ProductionKind,
-  ProductionMobileSheet,
-} from "@/app/_components/ProductionMobileSheet";
-import { attemptApi, statsApi, themeApi, userContentApi } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
-import {
-  type AttemptSummaryResponse,
-  isProductionAttempt,
-  type Module as ModuleEnum,
-  type TargetProcedure,
-  type ThemeUserResponse,
-  type UserStatsResponse,
+    type AttemptSummaryResponse,
+    isProductionAttempt,
+    type Module as ModuleEnum,
+    type TargetProcedure,
+    type ThemeUserResponse,
+    type UserStatsResponse,
 } from "@/lib/types";
 
 type StatsByModule = Partial<Record<ModuleEnum, UserStatsResponse | null>>;
@@ -39,450 +38,584 @@ const CIVIQUE_ICONS = [ShieldCheck, Landmark, Scale, History, Users];
 const CIVIQUE_TONES = ["blue", "green", "amber", "purple", "red"];
 
 export default function DashboardPage() {
-  const { user, status } = useAuth();
+    const {user, status} = useAuth();
 
-  const [stats, setStats] = useState<StatsByModule>({});
-  const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
-  const [wrongCount, setWrongCount] = useState<number>(0);
-  const [civiqueThemes, setCiviqueThemes] = useState<ThemeUserResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [productionSheet, setProductionSheet] = useState<ProductionKind | null>(null);
-  // Onglet "Choisir un entraînement" : civique vs TCF. Défaut = civique si
-  // l'utilisateur ne fait que le civique (pas d'accès TCF), sinon TCF.
-  const [trainTab, setTrainTab] = useState<"CIVIQUE" | "TCF">("TCF");
+    const [stats, setStats] = useState<StatsByModule>({});
+    const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
+    const [wrongCount, setWrongCount] = useState<number>(0);
+    const [civiqueThemes, setCiviqueThemes] = useState<ThemeUserResponse[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [productionSheet, setProductionSheet] = useState<ProductionKind | null>(null);
+    // Onglet "Choisir un entraînement" : civique vs TCF. Défaut = civique si
+    // l'utilisateur ne fait que le civique (pas d'accès TCF), sinon TCF.
+    const [trainTab, setTrainTab] = useState<"CIVIQUE" | "TCF">("TCF");
 
-  useEffect(() => {
-    if (user && user.hasTcf === false) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTrainTab("CIVIQUE");
-    }
-  }, [user]);
+    useEffect(() => {
+        if (user && user.hasTcf === false) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setTrainTab("CIVIQUE");
+        }
+    }, [user]);
 
-  useEffect(() => {
-    if (status !== "authenticated" || !user) return;
-    let cancelled = false;
-    (async () => {
-      const result: StatsByModule = {};
-      const promises: Array<Promise<unknown>> = [];
-      if (user.hasCivique !== false) {
-        promises.push(
-          statsApi
-            .get("CIVIQUE")
-            .then((s) => {
-              result.CIVIQUE = s;
-            })
-            .catch(() => {
-              result.CIVIQUE = null;
-            }),
-        );
-      }
-      if (user.hasTcf !== false) {
-        promises.push(
-          statsApi
-            .get("TCF")
-            .then((s) => {
-              result.TCF = s;
-            })
-            .catch(() => {
-              result.TCF = null;
-            }),
-        );
-      }
-      const attemptsP = attemptApi
-        .listMine({ limit: 30 })
-        .catch((): AttemptSummaryResponse[] => []);
-      const wrongP = userContentApi
-        .wrong()
-        .then((q) => q.length)
-        .catch(() => 0);
-      // Liste canonique des thèmes civiques (même source que /entrainement et le
-      // mobile) — byTheme des stats ne contient que les thèmes déjà travaillés.
-      const civThemesP =
-        user.hasCivique !== false
-          ? themeApi.list("CIVIQUE").catch((): ThemeUserResponse[] => [])
-          : Promise.resolve<ThemeUserResponse[]>([]);
+    useEffect(() => {
+        if (status !== "authenticated" || !user) return;
+        let cancelled = false;
+        (async () => {
+            const result: StatsByModule = {};
+            const promises: Array<Promise<unknown>> = [];
+            if (user.hasCivique !== false) {
+                promises.push(
+                    statsApi
+                        .get("CIVIQUE")
+                        .then((s) => {
+                            result.CIVIQUE = s;
+                        })
+                        .catch(() => {
+                            result.CIVIQUE = null;
+                        }),
+                );
+            }
+            if (user.hasTcf !== false) {
+                promises.push(
+                    statsApi
+                        .get("TCF")
+                        .then((s) => {
+                            result.TCF = s;
+                        })
+                        .catch(() => {
+                            result.TCF = null;
+                        }),
+                );
+            }
+            const attemptsP = attemptApi
+                .listMine({limit: 30})
+                .catch((): AttemptSummaryResponse[] => []);
+            const wrongP = userContentApi
+                .wrong()
+                .then((q) => q.length)
+                .catch(() => 0);
+            // Liste canonique des thèmes civiques (même source que /entrainement et le
+            // mobile) — byTheme des stats ne contient que les thèmes déjà travaillés.
+            const civThemesP =
+                user.hasCivique !== false
+                    ? themeApi.list("CIVIQUE").catch((): ThemeUserResponse[] => [])
+                    : Promise.resolve<ThemeUserResponse[]>([]);
 
-      const [, atts, w, civThemes] = await Promise.all([
-        Promise.all(promises),
-        attemptsP,
-        wrongP,
-        civThemesP,
-      ]);
-      if (cancelled) return;
-      setStats(result);
-      setAttempts(atts);
-      setWrongCount(w);
-      setCiviqueThemes(civThemes);
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [status, user]);
+            const [, atts, w, civThemes] = await Promise.all([
+                Promise.all(promises),
+                attemptsP,
+                wrongP,
+                civThemesP,
+            ]);
+            if (cancelled) return;
+            setStats(result);
+            setAttempts(atts);
+            setWrongCount(w);
+            setCiviqueThemes(civThemes);
+            setLoading(false);
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [status, user]);
 
-  const inProgressAttempt = useMemo(
-    () => attempts.find((a) => !a.finishedAt) ?? null,
-    [attempts],
-  );
-
-  const totalQuestionsAnswered = useMemo(() => {
-    return (stats.CIVIQUE?.questionsAnswered ?? 0) + (stats.TCF?.questionsAnswered ?? 0);
-  }, [stats]);
-
-  const totalCorrect = useMemo(() => {
-    return (stats.CIVIQUE?.questionsCorrect ?? 0) + (stats.TCF?.questionsCorrect ?? 0);
-  }, [stats]);
-
-  const overallSuccessPct = useMemo(() => {
-    if (totalQuestionsAnswered === 0) return 0;
-    return Math.round((totalCorrect / totalQuestionsAnswered) * 100);
-  }, [totalCorrect, totalQuestionsAnswered]);
-
-  const mockExamsFinished = useMemo(
-    () => attempts.filter((a) => a.type === "MOCK_EXAM" && a.finishedAt).length,
-    [attempts],
-  );
-
-  const lastFiveCiviqueAvg = useMemo(() => {
-    const slice = attempts
-      .filter(
-        (a) =>
-          a.type === "MOCK_EXAM" &&
-          a.module === "CIVIQUE" &&
-          a.finishedAt &&
-          a.score !== null &&
-          a.score !== undefined,
-      )
-      .slice(0, 5);
-    if (slice.length === 0) return null;
-    return slice.reduce((sum, a) => sum + (a.score ?? 0), 0) / slice.length;
-  }, [attempts]);
-
-  const bannerCopy = useMemo(
-    () =>
-      buildBannerCopy({
-        user: user
-          ? { firstName: user.firstName, targetProcedure: user.targetProcedure ?? null }
-          : null,
-        avgScore: lastFiveCiviqueAvg,
-      }),
-    [user, lastFiveCiviqueAvg],
-  );
-
-  const recentActivity = useMemo(() => attempts.slice(0, 4), [attempts]);
-
-  if (status === "loading") return <DashSkeleton />;
-  if (!user) {
-    return (
-      <div className="dash-empty">
-        <p>
-          Session expirée.{" "}
-          <Link href="/connexion" className="dash-empty-link">
-            Se reconnecter
-          </Link>
-        </p>
-        <style>{emptyStyle}</style>
-      </div>
+    const inProgressAttempt = useMemo(
+        () => attempts.find((a) => !a.finishedAt) ?? null,
+        [attempts],
     );
-  }
 
-  const initial =
-    user.firstName?.[0]?.toUpperCase() ?? user.email[0].toUpperCase();
-  const objective = `${tcfLevelLabel(user.targetProcedure)} · ${procedureNiceLabel(user.targetProcedure)}`;
+    const totalQuestionsAnswered = useMemo(() => {
+        return (stats.CIVIQUE?.questionsAnswered ?? 0) + (stats.TCF?.questionsAnswered ?? 0);
+    }, [stats]);
 
-  return (
-    <main className="dash">
-      {/* ---- Topbar : salutation + chip utilisateur ---- */}
-      <header className="dash-top">
-        <div className="dash-greeting">
-          <h1>
-            Bonjour {user.firstName ?? "à vous"} <span aria-hidden>👋</span>
-          </h1>
-          <p>Continue ta préparation à l&apos;examen civique et au TCF IRN.</p>
-        </div>
-        <div className="dash-userchip">
-          <span className="dash-avatar">{initial}</span>
-          <div>
-            <strong>{user.isPremium ? "Compte Premium" : "Compte découverte"}</strong>
-            <span className="dash-userchip-sub">Objectif : {objective}</span>
-          </div>
-        </div>
-      </header>
+    const totalCorrect = useMemo(() => {
+        return (stats.CIVIQUE?.questionsCorrect ?? 0) + (stats.TCF?.questionsCorrect ?? 0);
+    }, [stats]);
 
-      {/* ---- Hero + carte score ---- */}
-      <section className="dash-hero">
-        <div className="dash-hero-text">
-          <h2>Prépare ton examen comme en conditions réelles</h2>
-          <p>
-            Entraîne-toi sur le TCF IRN, passe des examens blancs et révise
-            l&apos;examen civique. Ta progression est synchronisée avec
-            l&apos;app mobile.
-          </p>
-          <div className="dash-hero-actions">
-            <Link href="/examens-blancs" className="btn btn-lg">
-              Lancer un examen blanc
-              <ArrowRight size={18} className="arrow" aria-hidden />
-            </Link>
-            <Link
-              href={inProgressAttempt ? `/sessions/${inProgressAttempt.id}` : "/entrainement"}
-              className="btn btn-ghost btn-lg"
-            >
-              {inProgressAttempt ? "Reprendre ma session" : "Continuer mon entraînement"}
-            </Link>
-          </div>
-        </div>
+    const overallSuccessPct = useMemo(() => {
+        if (totalQuestionsAnswered === 0) return 0;
+        return Math.round((totalCorrect / totalQuestionsAnswered) * 100);
+    }, [totalCorrect, totalQuestionsAnswered]);
 
-        <div className="dash-score">
-          <span className="dash-score-eyebrow">Objectif visé</span>
-          <div className="dash-score-level">{tcfLevelLabel(user.targetProcedure)}</div>
-          <p className="dash-score-path">{procedureNiceLabel(user.targetProcedure)}</p>
-          <div className="dash-progress">
-            <div className="dash-progress-fill" style={{ width: `${overallSuccessPct}%` }} />
-          </div>
-          <small>{overallSuccessPct}% de maîtrise globale</small>
-        </div>
-      </section>
+    const mockExamsFinished = useMemo(
+        () => attempts.filter((a) => a.type === "MOCK_EXAM" && a.finishedAt).length,
+        [attempts],
+    );
 
-      {/* ---- Grille entraînement (onglets civique / TCF) ---- */}
-      <div className="dash-section-title">
-        <h2>Choisir un entraînement</h2>
-        <Link href={`/entrainement?module=${trainTab}`}>Tout voir →</Link>
-      </div>
-      <div className="dash-tabs" role="tablist" aria-label="Module d'entraînement">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={trainTab === "CIVIQUE"}
-          className={`dash-tab ${trainTab === "CIVIQUE" ? "is-active" : ""}`}
-          onClick={() => setTrainTab("CIVIQUE")}
-        >
-          Examen civique
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={trainTab === "TCF"}
-          className={`dash-tab ${trainTab === "TCF" ? "is-active" : ""}`}
-          onClick={() => setTrainTab("TCF")}
-        >
-          TCF IRN
-        </button>
-      </div>
+    const lastFiveCiviqueAvg = useMemo(() => {
+        const slice = attempts
+            .filter(
+                (a) =>
+                    a.type === "MOCK_EXAM" &&
+                    a.module === "CIVIQUE" &&
+                    a.finishedAt &&
+                    a.score !== null &&
+                    a.score !== undefined,
+            )
+            .slice(0, 5);
+        if (slice.length === 0) return null;
+        return slice.reduce((sum, a) => sum + (a.score ?? 0), 0) / slice.length;
+    }, [attempts]);
 
-      {trainTab === "TCF" ? (
-        <section className="dash-modules">
-          <Link href="/entrainement?module=TCF" className="dash-module">
-            <span className="dash-module-icon tone-blue" aria-hidden>
-              <Headphones size={22} strokeWidth={1.8} />
-            </span>
-            <h3>Compréhension orale</h3>
-            <p>QCM audio chronométrés, correction immédiate.</p>
-            <div className="dash-tags">
-              <span className="dash-tag">TCF</span>
-              <span className="dash-tag">QCM</span>
-            </div>
-          </Link>
+    const bannerCopy = useMemo(
+        () =>
+            buildBannerCopy({
+                user: user
+                    ? {firstName: user.firstName, targetProcedure: user.targetProcedure ?? null}
+                    : null,
+                avgScore: lastFiveCiviqueAvg,
+            }),
+        [user, lastFiveCiviqueAvg],
+    );
 
-          <Link href="/entrainement?module=TCF" className="dash-module">
-            <span className="dash-module-icon tone-green" aria-hidden>
-              <BookOpen size={22} strokeWidth={1.8} />
-            </span>
-            <h3>Compréhension écrite</h3>
-            <p>Textes, annonces et mails du quotidien.</p>
-            <div className="dash-tags">
-              <span className="dash-tag">TCF</span>
-              <span className="dash-tag">QCM</span>
-            </div>
-          </Link>
+    const recentActivity = useMemo(() => attempts.slice(0, 4), [attempts]);
 
-          <button type="button" className="dash-module" onClick={() => setProductionSheet("EE")}>
-            <span className="dash-module-icon tone-amber" aria-hidden>
-              <PenLine size={22} strokeWidth={1.8} />
-            </span>
-            <h3>Expression écrite</h3>
-            <p>3 tâches corrigées par IA, niveau CECRL.</p>
-            <div className="dash-tags">
-              <span className="dash-tag">IA</span>
-              <span className="dash-tag dash-tag-mobile">Sur mobile</span>
-            </div>
-          </button>
-
-          <button type="button" className="dash-module" onClick={() => setProductionSheet("EO")}>
-            <span className="dash-module-icon tone-purple" aria-hidden>
-              <Mic size={22} strokeWidth={1.8} />
-            </span>
-            <h3>Expression orale</h3>
-            <p>Enregistre-toi, transcription et feedback détaillé.</p>
-            <div className="dash-tags">
-              <span className="dash-tag">IA</span>
-              <span className="dash-tag dash-tag-mobile">Sur mobile</span>
-            </div>
-          </button>
-        </section>
-      ) : (
-        <section className="dash-modules">
-          {civiqueThemes.length === 0 ? (
-            <Link href="/entrainement?module=CIVIQUE" className="dash-module">
-              <span className="dash-module-icon tone-blue" aria-hidden>
-                <ShieldCheck size={22} strokeWidth={1.8} />
-              </span>
-              <h3>Entraînement civique</h3>
-              <p>Principes, institutions, droits, histoire et société.</p>
-              <div className="dash-tags">
-                <span className="dash-tag">Civique</span>
-                <span className="dash-tag">QCM</span>
-              </div>
-            </Link>
-          ) : (
-            civiqueThemes.map((t, i) => {
-              const Icon = CIVIQUE_ICONS[i % CIVIQUE_ICONS.length];
-              const tone = CIVIQUE_TONES[i % CIVIQUE_TONES.length];
-              return (
-                <Link
-                  key={t.id}
-                  href={`/entrainement/civique/${t.id}`}
-                  className="dash-module"
-                >
-                  <span className={`dash-module-icon tone-${tone}`} aria-hidden>
-                    <Icon size={22} strokeWidth={1.8} />
-                  </span>
-                  <h3>{t.name}</h3>
-                  <p>Questions à choix multiple, correction immédiate.</p>
-                  <div className="dash-tags">
-                    <span className="dash-tag">Civique</span>
-                    <span className="dash-tag">QCM</span>
-                  </div>
-                </Link>
-              );
-            })
-          )}
-        </section>
-      )}
-
-      {/* ---- Examens recommandés + progression ---- */}
-      <div className="dash-content">
-        <section>
-          <div className="dash-section-title">
-            <h2>Examens blancs recommandés</h2>
-            <Link href="/historique">Historique →</Link>
-          </div>
-          <div className="dash-reco">
-            <article className="dash-reco-card">
-              <span className="dash-reco-icon tone-red" aria-hidden>
-                <FileCheck2 size={20} strokeWidth={1.8} />
-              </span>
-              <div className="dash-reco-body">
-                <h3>Examen blanc TCF IRN</h3>
-                <p>Compréhension orale et écrite, score global CECRL.</p>
-              </div>
-              <Link href="/examens-blancs" className="btn dash-reco-btn">
-                Commencer
-              </Link>
-            </article>
-
-            <article className="dash-reco-card">
-              <span className="dash-reco-icon tone-green" aria-hidden>
-                <ShieldCheck size={20} strokeWidth={1.8} />
-              </span>
-              <div className="dash-reco-body">
-                <h3>Examen civique — simulation</h3>
-                <p>Institutions, valeurs de la République, vie en France.</p>
-              </div>
-              <Link href="/examens-blancs" className="btn btn-ghost dash-reco-btn">
-                Réviser
-              </Link>
-            </article>
-
-            <article className="dash-reco-card">
-              <span className="dash-reco-icon tone-blue" aria-hidden>
-                <RotateCcw size={20} strokeWidth={1.8} />
-              </span>
-              <div className="dash-reco-body">
-                <h3>Mes erreurs</h3>
+    if (status === "loading") return <DashSkeleton/>;
+    if (!user) {
+        return (
+            <div className="dash-empty">
                 <p>
-                  {wrongCount > 0
-                    ? `${wrongCount} question${wrongCount > 1 ? "s" : ""} à retravailler.`
-                    : "Aucune erreur en attente — beau parcours."}
+                    Session expirée.{" "}
+                    <Link href="/connexion" className="dash-empty-link">
+                        Se reconnecter
+                    </Link>
                 </p>
-              </div>
-              <Link href="/revision" className="btn btn-ghost dash-reco-btn">
-                Réviser
-              </Link>
-            </article>
-          </div>
-        </section>
+                <style>{emptyStyle}</style>
+            </div>
+        );
+    }
 
-        <aside className="dash-aside">
-          <div className="dash-section-title">
-            <h2>Progression</h2>
-            <Link href="/statistiques">Détails →</Link>
-          </div>
-          <div className="dash-stats">
-            <div className="dash-stat">
-              <span>Examens terminés</span>
-              <strong>{mockExamsFinished}</strong>
-            </div>
-            <div className="dash-stat">
-              <span>Questions résolues</span>
-              <strong>{totalQuestionsAnswered}</strong>
-            </div>
-            <div className="dash-stat">
-              <span>Taux de réussite</span>
-              <strong>{overallSuccessPct}%</strong>
-            </div>
-          </div>
+    const initial =
+        user.firstName?.[0]?.toUpperCase() ?? user.email[0].toUpperCase();
+    const objective = `${tcfLevelLabel(user.targetProcedure)} · ${procedureNiceLabel(user.targetProcedure)}`;
 
-          <div className="dash-activity-section">
-            <div className="dash-section-title">
-              <h2>Activité récente</h2>
-            </div>
-            <div className="dash-activity">
-              {loading ? (
-                <div className="dash-activity-skel" />
-              ) : recentActivity.length === 0 ? (
-                <p className="dash-activity-empty">
-                  Aucune activité pour l&apos;instant. Lance un entraînement pour
-                  démarrer.
-                </p>
-              ) : (
-                recentActivity.map((a) => (
-                  <div className="dash-activity-item" key={a.id}>
-                    <span className="dash-dot" aria-hidden />
-                    <div className="dash-activity-body">
-                      <strong>{activityLabel(a)}</strong>
-                      <span>{activityDetail(a)}</span>
+    return (
+        <main className="dash">
+            {/* ============================================================
+          MOBILE — structure type app (< 900px). Desktop conservé
+          intact dans .dash-d ci-dessous.
+          ============================================================ */}
+            <div className="dash-m">
+                <div className="dash-m-hello">
+                    <h1>
+                        Bonjour {user.firstName ?? "à vous"} <span aria-hidden>👋</span>
+                    </h1>
+                    <p>
+                        Continue ta préparation à l&apos;examen civique et au TCF IRN. Ta
+                        progression est synchronisée avec l&apos;app mobile.
+                    </p>
+                </div>
+
+                <section className="dash-m-hero">
+                    <h2>Objectif : réussir ton examen</h2>
+                    <p>
+                        Entraîne-toi, passe des examens blancs et obtiens des corrections
+                        IA pour l&apos;écrit et l&apos;oral.
+                    </p>
+                    <div className="dash-m-hero-actions">
+                        <Link href="/examens-blancs" className="dash-m-cta dash-m-cta-primary">
+                            Lancer un examen blanc
+                            <ArrowRight size={17} aria-hidden/>
+                        </Link>
+                        <Link
+                            href={inProgressAttempt ? `/sessions/${inProgressAttempt.id}` : "/entrainement"}
+                            className="dash-m-cta dash-m-cta-ghost"
+                        >
+                            {inProgressAttempt ? "Reprendre ma session" : "Continuer l'entraînement"}
+                        </Link>
                     </div>
-                  </div>
-                ))
-              )}
+                    <div className="dash-m-summary">
+                        <div className="dash-m-sumbox">
+                            <strong>{tcfLevelLabel(user.targetProcedure)}</strong>
+                            <span>Niveau visé</span>
+                        </div>
+                        <div className="dash-m-sumbox">
+                            <strong>{overallSuccessPct}%</strong>
+                            <span>Maîtrise globale</span>
+                        </div>
+                    </div>
+                </section>
+
+                <div>
+                    <div className="dash-section-title">
+                        <h2>Accès rapide</h2>
+                    </div>
+                    <div className="dash-m-cards">
+                        {user.hasTcf !== false && (
+                            <article className="dash-m-card">
+                                <div className="dash-m-card-row">
+                  <span className="dash-m-card-icon tone-blue" aria-hidden>
+                    <Headphones size={23} strokeWidth={1.8}/>
+                  </span>
+                                    <div className="dash-m-card-main">
+                                        <h3>TCF IRN</h3>
+                                        <p>CO, CE, expression écrite et orale, score CECRL.</p>
+                                    </div>
+                                </div>
+                                <Link href="/entrainement?module=TCF" className="dash-m-card-btn">
+                                    Ouvrir le TCF
+                                </Link>
+                            </article>
+                        )}
+
+                        {user.hasCivique !== false && (
+                            <article className="dash-m-card">
+                                <div className="dash-m-card-row">
+                  <span className="dash-m-card-icon tone-green" aria-hidden>
+                    <ShieldCheck size={23} strokeWidth={1.8}/>
+                  </span>
+                                    <div className="dash-m-card-main">
+                                        <h3>Examen civique</h3>
+                                        <p>Institutions, valeurs de la République, droits et devoirs.</p>
+                                    </div>
+                                </div>
+                                <Link href="/entrainement?module=CIVIQUE" className="dash-m-card-btn">
+                                    Réviser
+                                </Link>
+                            </article>
+                        )}
+
+                        {user.hasTcf !== false && (
+                            <article className="dash-m-card">
+                                <div className="dash-m-card-row">
+                  <span className="dash-m-card-icon tone-purple" aria-hidden>
+                    <Sparkles size={22} strokeWidth={1.8}/>
+                  </span>
+                                    <div className="dash-m-card-main">
+                                        <h3>Corrections IA</h3>
+                                        <p>Analyse de tes écrits et oraux avec feedback détaillé.</p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="dash-m-card-btn"
+                                    onClick={() => setProductionSheet("EE")}
+                                >
+                                    Voir les corrections
+                                </button>
+                            </article>
+                        )}
+                    </div>
+                </div>
+
+                <div>
+                    <div className="dash-section-title">
+                        <h2>Plus</h2>
+                    </div>
+                    <div className="dash-m-more">
+                        <Link href="/examens-blancs">
+                            <FileCheck2 size={17} aria-hidden/> Examens blancs
+                        </Link>
+                        <Link href="/statistiques">
+                            <TrendingUp size={17} aria-hidden/> Progression
+                        </Link>
+                        <Link href="/revision">
+                            <RotateCcw size={17} aria-hidden/> Mes erreurs
+                            {wrongCount > 0 ? ` (${wrongCount})` : ""}
+                        </Link>
+                        <Link href="/profil">
+                            <Users size={17} aria-hidden/> Mon profil
+                        </Link>
+                    </div>
+                </div>
             </div>
-          </div>
-        </aside>
-      </div>
 
-      {/* ---- Bannière objectif / Premium ---- */}
-      <section className="dash-banner">
-        <div>
-          <h3>{bannerCopy.title}</h3>
-          <p>{bannerCopy.body}</p>
-        </div>
-        <Link
-          href={user.isPremium ? "/statistiques" : "/paiement"}
-          className="btn btn-red dash-banner-btn"
-        >
-          {user.isPremium ? "Voir mes faiblesses" : "Passer Premium"}
-        </Link>
-      </section>
+            {/* ============================================================
+          DESKTOP — layout riche existant (>= 900px).
+          ============================================================ */}
+            <div className="dash-d">
+                {/* ---- Topbar : salutation + chip utilisateur ---- */}
+                <header className="dash-top">
+                    <div className="dash-greeting">
+                        <h1>
+                            Bonjour {user.firstName ?? "à vous"} <span aria-hidden>👋</span>
+                        </h1>
+                        <p>Continue ta préparation à l&apos;examen civique et au TCF IRN.</p>
+                    </div>
+                    <div className="dash-userchip">
+                        <span className="dash-avatar">{initial}</span>
+                        <div>
+                            <strong>{user.isPremium ? "Compte Premium" : "Compte découverte"}</strong>
+                            <span className="dash-userchip-sub">Objectif : {objective}</span>
+                        </div>
+                    </div>
+                </header>
 
-      <ProductionMobileSheet
-        open={productionSheet !== null}
-        kind={productionSheet}
-        onClose={() => setProductionSheet(null)}
-      />
+                {/* ---- Hero + carte score ---- */}
+                <section className="dash-hero">
+                    <div className="dash-hero-text">
+                        <h2>Prépare ton examen comme en conditions réelles</h2>
+                        <p>
+                            Entraîne-toi sur le TCF IRN, passe des examens blancs et révise
+                            l&apos;examen civique. Ta progression est synchronisée avec
+                            l&apos;app mobile.
+                        </p>
+                        <div className="dash-hero-actions">
+                            <Link href="/examens-blancs" className="btn btn-lg">
+                                Lancer un examen blanc
+                                <ArrowRight size={18} className="arrow" aria-hidden/>
+                            </Link>
+                            <Link
+                                href={inProgressAttempt ? `/sessions/${inProgressAttempt.id}` : "/entrainement"}
+                                className="btn btn-ghost btn-lg"
+                            >
+                                {inProgressAttempt ? "Reprendre ma session" : "Continuer mon entraînement"}
+                            </Link>
+                        </div>
+                    </div>
 
-      <style>{styles}</style>
-    </main>
-  );
+                    <div className="dash-score">
+                        <span className="dash-score-eyebrow">Objectif visé</span>
+                        <div className="dash-score-level">{tcfLevelLabel(user.targetProcedure)}</div>
+                        <p className="dash-score-path">{procedureNiceLabel(user.targetProcedure)}</p>
+                        <div className="dash-progress">
+                            <div className="dash-progress-fill" style={{width: `${overallSuccessPct}%`}}/>
+                        </div>
+                        <small>{overallSuccessPct}% de maîtrise globale</small>
+                    </div>
+                </section>
+
+                {/* ---- Grille entraînement (onglets civique / TCF) ---- */}
+                <div className="dash-section-title">
+                    <h2>Choisir un entraînement</h2>
+                    <Link href={`/entrainement?module=${trainTab}`}>Tout voir →</Link>
+                </div>
+                <div className="dash-tabs" role="tablist" aria-label="Module d'entraînement">
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={trainTab === "CIVIQUE"}
+                        className={`dash-tab ${trainTab === "CIVIQUE" ? "is-active" : ""}`}
+                        onClick={() => setTrainTab("CIVIQUE")}
+                    >
+                        Examen civique
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={trainTab === "TCF"}
+                        className={`dash-tab ${trainTab === "TCF" ? "is-active" : ""}`}
+                        onClick={() => setTrainTab("TCF")}
+                    >
+                        TCF IRN
+                    </button>
+                </div>
+
+                {trainTab === "TCF" ? (
+                    <section className="dash-modules">
+                        <Link href="/entrainement/tcf/co" className="dash-module">
+            <span className="dash-module-icon tone-blue" aria-hidden>
+              <Headphones size={22} strokeWidth={1.8}/>
+            </span>
+                            <h3>Compréhension orale</h3>
+                            <p>QCM audio chronométrés, correction immédiate.</p>
+                            <div className="dash-tags">
+                                <span className="dash-tag">TCF</span>
+                                <span className="dash-tag">QCM</span>
+                            </div>
+                        </Link>
+
+                        <Link href="/entrainement/tcf/ce" className="dash-module">
+            <span className="dash-module-icon tone-green" aria-hidden>
+              <BookOpen size={22} strokeWidth={1.8}/>
+            </span>
+                            <h3>Compréhension écrite</h3>
+                            <p>Textes, annonces et mails du quotidien.</p>
+                            <div className="dash-tags">
+                                <span className="dash-tag">TCF</span>
+                                <span className="dash-tag">QCM</span>
+                            </div>
+                        </Link>
+
+                        <button type="button" className="dash-module" onClick={() => setProductionSheet("EE")}>
+            <span className="dash-module-icon tone-amber" aria-hidden>
+              <PenLine size={22} strokeWidth={1.8}/>
+            </span>
+                            <h3>Expression écrite</h3>
+                            <p>3 tâches corrigées par IA, niveau CECRL.</p>
+                            <div className="dash-tags">
+                                <span className="dash-tag">IA</span>
+                                <span className="dash-tag dash-tag-mobile">Sur mobile</span>
+                            </div>
+                        </button>
+
+                        <button type="button" className="dash-module" onClick={() => setProductionSheet("EO")}>
+            <span className="dash-module-icon tone-purple" aria-hidden>
+              <Mic size={22} strokeWidth={1.8}/>
+            </span>
+                            <h3>Expression orale</h3>
+                            <p>Enregistre-toi, transcription et feedback détaillé.</p>
+                            <div className="dash-tags">
+                                <span className="dash-tag">IA</span>
+                                <span className="dash-tag dash-tag-mobile">Sur mobile</span>
+                            </div>
+                        </button>
+                    </section>
+                ) : (
+                    <section className="dash-modules">
+                        {civiqueThemes.length === 0 ? (
+                            <Link href="/entrainement?module=CIVIQUE" className="dash-module">
+              <span className="dash-module-icon tone-blue" aria-hidden>
+                <ShieldCheck size={22} strokeWidth={1.8}/>
+              </span>
+                                <h3>Entraînement civique</h3>
+                                <p>Principes, institutions, droits, histoire et société.</p>
+                                <div className="dash-tags">
+                                    <span className="dash-tag">Civique</span>
+                                    <span className="dash-tag">QCM</span>
+                                </div>
+                            </Link>
+                        ) : (
+                            civiqueThemes.map((t, i) => {
+                                const Icon = CIVIQUE_ICONS[i % CIVIQUE_ICONS.length];
+                                const tone = CIVIQUE_TONES[i % CIVIQUE_TONES.length];
+                                return (
+                                    <Link
+                                        key={t.id}
+                                        href={`/entrainement/civique/${t.id}`}
+                                        className="dash-module"
+                                    >
+                  <span className={`dash-module-icon tone-${tone}`} aria-hidden>
+                    <Icon size={22} strokeWidth={1.8}/>
+                  </span>
+                                        <h3>{t.name}</h3>
+                                        <p>Questions à choix multiple, correction immédiate.</p>
+                                        <div className="dash-tags">
+                                            <span className="dash-tag">Civique</span>
+                                            <span className="dash-tag">QCM</span>
+                                        </div>
+                                    </Link>
+                                );
+                            })
+                        )}
+                    </section>
+                )}
+
+                {/* ---- Examens recommandés + progression ---- */}
+                <div className="dash-content">
+                    <section>
+                        <div className="dash-section-title">
+                            <h2>Examens blancs recommandés</h2>
+                            <Link href="/historique">Historique →</Link>
+                        </div>
+                        <div className="dash-reco">
+                            <article className="dash-reco-card">
+              <span className="dash-reco-icon tone-red" aria-hidden>
+                <FileCheck2 size={20} strokeWidth={1.8}/>
+              </span>
+                                <div className="dash-reco-body">
+                                    <h3>Examen blanc TCF IRN</h3>
+                                    <p>Compréhension orale et écrite, score global CECRL.</p>
+                                </div>
+                                <Link href="/examens-blancs" className="btn dash-reco-btn">
+                                    Commencer
+                                </Link>
+                            </article>
+
+                            <article className="dash-reco-card">
+              <span className="dash-reco-icon tone-green" aria-hidden>
+                <ShieldCheck size={20} strokeWidth={1.8}/>
+              </span>
+                                <div className="dash-reco-body">
+                                    <h3>Examen civique — simulation</h3>
+                                    <p>Institutions, valeurs de la République, vie en France.</p>
+                                </div>
+                                <Link href="/examens-blancs" className="btn btn-ghost dash-reco-btn">
+                                    Réviser
+                                </Link>
+                            </article>
+
+                            <article className="dash-reco-card">
+              <span className="dash-reco-icon tone-blue" aria-hidden>
+                <RotateCcw size={20} strokeWidth={1.8}/>
+              </span>
+                                <div className="dash-reco-body">
+                                    <h3>Mes erreurs</h3>
+                                    <p>
+                                        {wrongCount > 0
+                                            ? `${wrongCount} question${wrongCount > 1 ? "s" : ""} à retravailler.`
+                                            : "Aucune erreur en attente — beau parcours."}
+                                    </p>
+                                </div>
+                                <Link href="/revision" className="btn btn-ghost dash-reco-btn">
+                                    Réviser
+                                </Link>
+                            </article>
+                        </div>
+                    </section>
+
+                    <aside className="dash-aside">
+                        <div className="dash-section-title">
+                            <h2>Progression</h2>
+                            <Link href="/statistiques">Détails →</Link>
+                        </div>
+                        <div className="dash-stats">
+                            <div className="dash-stat">
+                                <span>Examens terminés</span>
+                                <strong>{mockExamsFinished}</strong>
+                            </div>
+                            <div className="dash-stat">
+                                <span>Questions résolues</span>
+                                <strong>{totalQuestionsAnswered}</strong>
+                            </div>
+                            <div className="dash-stat">
+                                <span>Taux de réussite</span>
+                                <strong>{overallSuccessPct}%</strong>
+                            </div>
+                        </div>
+
+                        <div className="dash-activity-section">
+                            <div className="dash-section-title">
+                                <h2>Activité récente</h2>
+                            </div>
+                            <div className="dash-activity">
+                                {loading ? (
+                                    <div className="dash-activity-skel"/>
+                                ) : recentActivity.length === 0 ? (
+                                    <p className="dash-activity-empty">
+                                        Aucune activité pour l&apos;instant. Lance un entraînement pour
+                                        démarrer.
+                                    </p>
+                                ) : (
+                                    recentActivity.map((a) => (
+                                        <div className="dash-activity-item" key={a.id}>
+                                            <span className="dash-dot" aria-hidden/>
+                                            <div className="dash-activity-body">
+                                                <strong>{activityLabel(a)}</strong>
+                                                <span>{activityDetail(a)}</span>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+
+                {/* ---- Bannière objectif / Premium ---- */}
+                <section className="dash-banner">
+                    <div>
+                        <h3>{bannerCopy.title}</h3>
+                        <p>{bannerCopy.body}</p>
+                    </div>
+                    <Link
+                        href={user.isPremium ? "/statistiques" : "/paiement"}
+                        className="btn btn-red dash-banner-btn"
+                    >
+                        {user.isPremium ? "Voir mes faiblesses" : "Passer Premium"}
+                    </Link>
+                </section>
+            </div>
+
+            <ProductionMobileSheet
+                open={productionSheet !== null}
+                kind={productionSheet}
+                onClose={() => setProductionSheet(null)}
+            />
+
+            <style>{styles}</style>
+        </main>
+    );
 }
 
 // ============================================================================
@@ -490,79 +623,79 @@ export default function DashboardPage() {
 // ============================================================================
 
 function procedureNiceLabel(p: TargetProcedure | null | undefined): string {
-  switch (p) {
-    case "NAT":
-      return "Naturalisation";
-    case "CR":
-      return "Carte de résident";
-    case "CSP":
-      return "Carte de séjour";
-    default:
-      return "Parcours à définir";
-  }
+    switch (p) {
+        case "NAT":
+            return "Naturalisation";
+        case "CR":
+            return "Carte de résident";
+        case "CSP":
+            return "Carte de séjour";
+        default:
+            return "Parcours à définir";
+    }
 }
 
 function tcfLevelLabel(p: TargetProcedure | null | undefined): string {
-  switch (p) {
-    case "NAT":
-      return "B2";
-    case "CR":
-      return "B1";
-    case "CSP":
-      return "A2";
-    default:
-      return "—";
-  }
+    switch (p) {
+        case "NAT":
+            return "B2";
+        case "CR":
+            return "B1";
+        case "CSP":
+            return "A2";
+        default:
+            return "—";
+    }
 }
 
 function buildBannerCopy({
-  user,
-  avgScore,
-}: {
-  user: { firstName: string; targetProcedure: TargetProcedure | null } | null;
-  avgScore: number | null;
+                             user,
+                             avgScore,
+                         }: {
+    user: { firstName: string; targetProcedure: TargetProcedure | null } | null;
+    avgScore: number | null;
 }): { title: string; body: string } {
-  if (!user || avgScore === null) {
+    if (!user || avgScore === null) {
+        return {
+            title: "Fixe ton prochain objectif.",
+            body: "Commence par un examen blanc pour te situer, puis attaque l'entraînement par thématique. Tes premières questions sont gratuites.",
+        };
+    }
+    const gap = 32 - avgScore;
+    if (gap <= 0) {
+        return {
+            title: "Tu es au-dessus du seuil. Maintiens le cap.",
+            body: `Score moyen sur tes 5 derniers examens blancs civiques : ${avgScore.toFixed(1)}/40. Continue à varier les thèmes pour ne pas reculer.`,
+        };
+    }
     return {
-      title: "Fixe ton prochain objectif.",
-      body: "Commence par un examen blanc pour te situer, puis attaque l'entraînement par thématique. Tes premières questions sont gratuites.",
+        title: `Tu es à ${gap.toFixed(1)} points du seuil du civique.`,
+        body: `Score moyen sur tes 5 derniers examens blancs : ${avgScore.toFixed(1)}/40. Le seuil officiel est de 32/40. Trois sessions ciblées devraient suffire.`,
     };
-  }
-  const gap = 32 - avgScore;
-  if (gap <= 0) {
-    return {
-      title: "Tu es au-dessus du seuil. Maintiens le cap.",
-      body: `Score moyen sur tes 5 derniers examens blancs civiques : ${avgScore.toFixed(1)}/40. Continue à varier les thèmes pour ne pas reculer.`,
-    };
-  }
-  return {
-    title: `Tu es à ${gap.toFixed(1)} points du seuil du civique.`,
-    body: `Score moyen sur tes 5 derniers examens blancs : ${avgScore.toFixed(1)}/40. Le seuil officiel est de 32/40. Trois sessions ciblées devraient suffire.`,
-  };
 }
 
 function activityLabel(a: AttemptSummaryResponse): string {
-  if (isProductionAttempt(a)) {
-    if (a.epreuve === "TCF_COMPLET") return "Examen blanc EO + EE";
-    if (a.epreuve === "TCF_EO") return "Expression orale";
-    return "Expression écrite";
-  }
-  const moduleLabel = a.module === "CIVIQUE" ? "Civique" : "TCF";
-  if (a.type === "MOCK_EXAM") return `Examen blanc ${moduleLabel}`;
-  return `Entraînement ${moduleLabel}`;
+    if (isProductionAttempt(a)) {
+        if (a.epreuve === "TCF_COMPLET") return "Examen blanc EO + EE";
+        if (a.epreuve === "TCF_EO") return "Expression orale";
+        return "Expression écrite";
+    }
+    const moduleLabel = a.module === "CIVIQUE" ? "Civique" : "TCF";
+    if (a.type === "MOCK_EXAM") return `Examen blanc ${moduleLabel}`;
+    return `Entraînement ${moduleLabel}`;
 }
 
 function activityDetail(a: AttemptSummaryResponse): string {
-  const date = new Date(a.startedAt).toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "short",
-  });
-  if (!a.finishedAt) return `En cours · ${date}`;
-  if (a.score !== null && a.score !== undefined) {
-    const suffix = a.type === "MOCK_EXAM" && a.module === "CIVIQUE" ? "/40" : "%";
-    return `${a.score}${suffix} · ${date}`;
-  }
-  return `Terminé · ${date}`;
+    const date = new Date(a.startedAt).toLocaleDateString("fr-FR", {
+        day: "2-digit",
+        month: "short",
+    });
+    if (!a.finishedAt) return `En cours · ${date}`;
+    if (a.score !== null && a.score !== undefined) {
+        const suffix = a.type === "MOCK_EXAM" && a.module === "CIVIQUE" ? "/40" : "%";
+        return `${a.score}${suffix} · ${date}`;
+    }
+    return `Terminé · ${date}`;
 }
 
 // ============================================================================
@@ -570,16 +703,16 @@ function activityDetail(a: AttemptSummaryResponse): string {
 // ============================================================================
 
 function DashSkeleton() {
-  return (
-    <div className="dash-skel">
-      <div className="dash-skel-bar" style={{ width: "40%", height: 28 }} />
-      <div className="dash-skel-bar" style={{ width: "100%", height: 180 }} />
-      <div className="dash-skel-grid">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="dash-skel-bar" style={{ height: 130 }} />
-        ))}
-      </div>
-      <style>{`
+    return (
+        <div className="dash-skel">
+            <div className="dash-skel-bar" style={{width: "40%", height: 28}}/>
+            <div className="dash-skel-bar" style={{width: "100%", height: 180}}/>
+            <div className="dash-skel-grid">
+                {[0, 1, 2, 3].map((i) => (
+                    <div key={i} className="dash-skel-bar" style={{height: 130}}/>
+                ))}
+            </div>
+            <style>{`
         .dash-skel { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
         .dash-skel-bar {
           background: linear-gradient(90deg, #EEF0F8 25%, #F6F7FB 50%, #EEF0F8 75%);
@@ -594,8 +727,8 @@ function DashSkeleton() {
           100% { background-position: -200% 0; }
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 }
 
 const emptyStyle = `
@@ -620,6 +753,181 @@ const styles = `
     display: flex;
     flex-direction: column;
     gap: 28px;
+  }
+
+  /* ============================================================
+     Bascule mobile (structure app) / desktop (layout riche).
+     Mobile par défaut ; desktop riche à partir de 900px.
+     ============================================================ */
+  .dash-d { display: none; }
+  .dash-m {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    width: 100%;
+    max-width: 560px;
+    margin: 0 auto;
+    padding-top: 46px; /* dégage le burger flottant (.ms-toggle, top:12 + 44px) */
+  }
+
+  .dash-m-hello h1 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(24px, 6.5vw, 28px);
+    letter-spacing: -0.02em;
+    color: var(--color-ink);
+    margin: 0;
+  }
+  .dash-m-hello p {
+    margin: 6px 0 0;
+    color: var(--color-muted);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .dash-m-hero {
+    border-radius: 24px;
+    padding: 22px;
+    color: #fff;
+    background: linear-gradient(150deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
+    box-shadow: 0 18px 40px -20px rgba(30, 58, 140, 0.55);
+  }
+  .dash-m-hero h2 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 23px;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin: 0 0 10px;
+  }
+  .dash-m-hero p {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 13.5px;
+    line-height: 1.55;
+    margin: 0 0 18px;
+  }
+  .dash-m-hero-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .dash-m-cta {
+    border: 0;
+    border-radius: 14px;
+    padding: 13px 16px;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-align: center;
+  }
+  .dash-m-cta-primary { background: #fff; color: var(--color-ink); }
+  .dash-m-cta-ghost {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+  }
+
+  .dash-m-summary {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .dash-m-sumbox {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 16px;
+    padding: 14px;
+  }
+  .dash-m-sumbox strong {
+    display: block;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 24px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .dash-m-sumbox span {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.78);
+  }
+
+  .dash-m-cards { display: flex; flex-direction: column; gap: 12px; }
+  .dash-m-card {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 20px;
+    padding: 16px;
+    box-shadow: 0 10px 26px -18px rgba(15, 23, 42, 0.2);
+  }
+  .dash-m-card-row { display: flex; align-items: center; gap: 13px; }
+  .dash-m-card-icon {
+    width: 48px; height: 48px;
+    flex: none;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+  }
+  .dash-m-card-main { flex: 1; min-width: 0; }
+  .dash-m-card h3 {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--color-ink);
+    margin: 0 0 4px;
+  }
+  .dash-m-card p {
+    color: var(--color-muted);
+    font-size: 13px;
+    line-height: 1.45;
+    margin: 0;
+  }
+  .dash-m-card-btn {
+    width: 100%;
+    margin-top: 14px;
+    background: var(--color-ink);
+    color: #fff;
+    border: 0;
+    border-radius: 12px;
+    padding: 12px;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .dash-m-more {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .dash-m-more a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid var(--color-line);
+    color: var(--color-ink);
+    padding: 14px;
+    border-radius: 16px;
+    font-family: var(--font-sans);
+    font-size: 13.5px;
+    font-weight: 700;
+    box-shadow: 0 8px 20px -16px rgba(15, 23, 42, 0.18);
+  }
+  .dash-m-more a svg { color: var(--color-blue); flex: none; }
+
+  @media (min-width: 900px) {
+    .dash-m { display: none; }
+    .dash-d { display: flex; flex-direction: column; gap: 32px; }
   }
 
   /* ---- Topbar ---- */
