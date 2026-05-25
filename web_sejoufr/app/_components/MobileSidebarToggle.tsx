@@ -103,7 +103,16 @@ export function MobileSidebarToggle() {
         >
           <X size={18} aria-hidden />
         </button>
-        <div className="ms-drawer-inner">
+        <div
+          className="ms-drawer-inner"
+          onClick={(e) => {
+            // usePathname() ignore les query params : cliquer un lien vers la
+            // même route (ex. /revision?tab=favoris) ou la route courante ne
+            // déclenche pas l'auto-close par pathname. On ferme donc dès qu'un
+            // lien ou bouton du drawer est cliqué, quel que soit le cas.
+            if ((e.target as HTMLElement).closest("a, button")) setOpen(false);
+          }}
+        >
           <AppSidebar />
         </div>
       </div>
