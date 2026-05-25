@@ -959,7 +959,8 @@ const styles = `
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 22px;
-    margin-bottom: 26px;
+    /* Laisse respirer le ruban des cartes (positionné en top: -14px). */
+    margin: 14px 0 26px;
   }
   .pay-cards.is-single {
     grid-template-columns: 1fr;
@@ -977,7 +978,6 @@ const styles = `
     background: #fff;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
     transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
   }
   .plan-card:hover {
