@@ -219,13 +219,21 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
         [statsByModule],
     );
 
-    // Synthèse du module courant pour les "summary boxes" du hero (façon template).
+    // Synthèse du module courant pour les "summary boxes" du hero. Toutes les
+    // valeurs sont réelles : score moyen depuis les stats, thèmes maîtrisés sur
+    // le total des thèmes du module (pas seulement ceux déjà touchés), et nombre
+    // de questions au programme (somme des questionCount des thèmes).
     const heroStats = useMemo(() => {
         const s = statsByModule[filter];
         const answered = s?.questionsAnswered ?? 0;
         const correct = s?.questionsCorrect ?? 0;
         const byTheme = s?.byTheme ?? [];
         const mastered = byTheme.filter((t) => t.total > 0 && t.correct / t.total >= 0.8).length;
+        const moduleThemes = themes[filter] ?? [];
+        const totalThemes = moduleThemes.length;
+        const poolQuestions = moduleThemes.reduce((sum, t) => sum + (t.questionCount ?? 0), 0);
+        // Niveau TCF visé = dérivé du parcours civique (correspondance officielle :
+        // CSP→A2, CR→B1, NAT→B2). Le backend /me n'expose pas targetLevel.
         const tcfLevelOf = (p: string | null | undefined) =>
             p === "NAT" ? "B2" : p === "CR" ? "B1" : p === "CSP" ? "A2" : "—";
         const objective =
@@ -235,10 +243,10 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
         return {
             objective: isGuest ? "—" : objective || "—",
             mastery: isGuest || answered === 0 ? "—" : `${Math.round((correct / answered) * 100)}%`,
-            themes: isGuest ? "—" : `${mastered}/${byTheme.length}`,
-            questions: isGuest ? "—" : String(answered),
+            themes: isGuest ? "—" : totalThemes > 0 ? `${mastered}/${totalThemes}` : "—",
+            questions: poolQuestions > 0 ? String(poolQuestions) : "—",
         };
-    }, [statsByModule, filter, isGuest, user]);
+    }, [statsByModule, themes, filter, isGuest, user]);
 
 
     // Exams blancs du module courant (onglet "Examens blancs").
