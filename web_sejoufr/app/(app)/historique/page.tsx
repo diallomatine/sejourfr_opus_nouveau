@@ -143,6 +143,8 @@ function HistoriqueInner() {
       return {
         total: 0,
         examsCount: 0,
+        examsFinished: 0,
+        examsPassed: 0,
         trainCount: 0,
         prodCount: 0,
         passRate: null as number | null,
@@ -176,6 +178,8 @@ function HistoriqueInner() {
     return {
       total: totalSessions,
       examsCount: base.filter((a) => a.type === "MOCK_EXAM" && !isProductionAttempt(a)).length,
+      examsFinished: exams.length,
+      examsPassed: passed,
       trainCount: base.filter((a) => a.type === "TRAINING" && !isProductionAttempt(a)).length,
       prodCount: productions.length,
       passRate,
@@ -214,6 +218,27 @@ function HistoriqueInner() {
         <p className="hub-intro">
           Consultez vos examens blancs et sessions IA passés.
         </p>
+
+        <div className="hub-summary">
+          <div className="hub-summary-item">
+            <span className="hub-summary-val">{stats.examsFinished}</span>
+            <span className="hub-summary-lbl">Examens passés</span>
+          </div>
+          <div className="hub-summary-item">
+            <span className="hub-summary-val hub-summary-val-green">{stats.examsPassed}</span>
+            <span className="hub-summary-lbl">Réussis</span>
+          </div>
+          <div className="hub-summary-item">
+            <span className="hub-summary-val">
+              {stats.passRate != null ? `${stats.passRate}%` : "—"}
+            </span>
+            <span className="hub-summary-lbl">Taux de réussite</span>
+          </div>
+          <div className="hub-summary-item">
+            <span className="hub-summary-val">{stats.bestLabel ?? "—"}</span>
+            <span className="hub-summary-lbl">Meilleur score</span>
+          </div>
+        </div>
 
         <div className="hub-section-label">§ EXAMENS BLANCS</div>
         <div className="hub-cats">
@@ -733,7 +758,28 @@ const hubStyles = `
   .breadcrumb a:hover { text-decoration: underline; }
   .hub-intro {
     color: var(--color-muted); font-size: 14px; line-height: 1.55;
-    margin: 0 0 22px; max-width: 640px;
+    margin: 0 0 18px; max-width: 640px;
+  }
+  .hub-summary {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    margin-bottom: 26px;
+  }
+  .hub-summary-item {
+    background: #fff; border: 1px solid var(--color-line); border-radius: 14px;
+    padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .hub-summary-val {
+    font-family: var(--font-display); font-weight: 600; font-size: 26px;
+    line-height: 1; color: var(--color-ink); letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .hub-summary-val-green { color: var(--color-green); }
+  .hub-summary-lbl {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-muted);
+  }
+  @media (max-width: 680px) {
+    .hub-summary { grid-template-columns: repeat(2, 1fr); }
   }
   .hub-section-label {
     font-family: var(--font-mono); font-size: 10px; font-weight: 700;
