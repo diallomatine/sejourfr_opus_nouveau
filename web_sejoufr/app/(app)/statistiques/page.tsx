@@ -833,7 +833,7 @@ const styles = `
     display: grid;
     grid-template-columns: 1fr;
     gap: 22px;
-    background: linear-gradient(135deg, #0E5B43 0%, var(--color-blue) 100%);
+    background: linear-gradient(135deg, var(--color-blue) 0%, #3355B5 100%);
     color: #fff;
     border-radius: 20px;
     padding: 24px;
