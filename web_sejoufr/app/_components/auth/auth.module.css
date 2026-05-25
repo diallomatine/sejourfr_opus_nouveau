@@ -1,0 +1,576 @@
+/* ============================================================================
+   Shell d'auth partagé (connexion / inscription / mot de passe oublié / reset).
+   Mobile-first : colonne unique (formulaire seul), le panneau visuel
+   n'apparaît qu'à partir de 980px. Réutilise les globals .field / .field-input
+   / .field-label / .form-error / .cocarde.
+   ============================================================================ */
+
+.wrap {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr;
+  background: #fff;
+  /* Filet de sécurité : aucune colonne ne doit déborder horizontalement. */
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* ---- Colonne formulaire ---------------------------------------------------- */
+.formSide {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 20px 48px;
+  background: #fff;
+  /* Empêche le blowout de grille : sans min-width:0, un contenu à large
+     min-content (texte mono long) force la track 1fr à s'élargir → scroll X. */
+  min-width: 0;
+}
+.inner {
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: 100px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+.eyebrowDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.eyebrowBlue {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+.eyebrowBlue .eyebrowDot {
+  background: var(--color-blue);
+  box-shadow: 0 0 0 3px rgba(30, 58, 140, 0.18);
+}
+.eyebrowGreen {
+  background: rgba(22, 143, 91, 0.1);
+  color: var(--color-green);
+}
+.eyebrowGreen .eyebrowDot {
+  background: var(--color-green);
+  box-shadow: 0 0 0 3px rgba(22, 143, 91, 0.18);
+}
+
+.h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(30px, 6vw, 44px);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  margin: 0 0 12px;
+  color: var(--color-ink);
+}
+.h1 em {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--color-blue);
+}
+.sub {
+  color: var(--color-muted);
+  font-size: 15.5px;
+  line-height: 1.55;
+  margin: 0 0 28px;
+  max-width: 420px;
+}
+
+/* ---- Formulaire ------------------------------------------------------------ */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.row2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.pwdRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 7px;
+}
+.pwdForgot {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--color-blue);
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.pwdForgot:hover {
+  color: var(--color-blue-dark);
+  text-decoration: underline;
+}
+
+/* Champ mot de passe avec bouton afficher/masquer */
+.pwdWrap {
+  position: relative;
+}
+.pwdWrap input {
+  padding-right: 44px;
+}
+.pwdToggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--color-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+}
+.pwdToggle:hover {
+  color: var(--color-blue);
+  background: var(--color-blue-soft);
+}
+
+/* Cases à cocher */
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13px;
+  color: var(--color-ink-2);
+  line-height: 1.5;
+  cursor: pointer;
+}
+.check input {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: var(--color-blue);
+  flex-shrink: 0;
+}
+.check a {
+  color: var(--color-blue);
+  font-weight: 600;
+  text-decoration: none;
+}
+.check a:hover {
+  text-decoration: underline;
+}
+
+/* Sélecteur de démarche (CSP / CR / NAT) */
+.mentionGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.mentionOpt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1.5px solid var(--color-line);
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s;
+}
+.mentionOpt:hover {
+  border-color: var(--color-blue);
+  background: var(--color-blue-soft);
+}
+.mentionOpt input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.mentionCode {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-blue);
+  letter-spacing: 0.08em;
+}
+.mentionName {
+  font-size: 12.5px;
+  color: var(--color-muted);
+  line-height: 1.3;
+}
+.mentionTcf {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  color: var(--color-muted-2);
+}
+.mentionTcf strong {
+  color: var(--color-red);
+  font-weight: 700;
+}
+.mentionActive {
+  border-color: var(--color-blue);
+  background: var(--color-blue-light);
+}
+.mentionActive .mentionCode {
+  color: var(--color-blue-dark);
+}
+.mentionActive .mentionName {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+/* Bouton de soumission (pleine largeur) */
+.submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  padding: 15px 22px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+  margin-top: 4px;
+}
+.submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.submitArrow {
+  transition: transform 0.15s;
+}
+.submit:hover:not(:disabled) .submitArrow {
+  transform: translateX(3px);
+}
+.submitBlue {
+  background: var(--color-blue);
+}
+.submitBlue:hover:not(:disabled) {
+  background: var(--color-blue-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -10px rgba(30, 58, 140, 0.4);
+}
+.submitRed {
+  background: var(--color-red);
+}
+.submitRed:hover:not(:disabled) {
+  background: var(--color-red-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -10px rgba(225, 55, 47, 0.4);
+}
+
+/* Lien de bascule connexion <-> inscription */
+.switchLine {
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--color-muted);
+  margin: 0;
+}
+.switchLineTop {
+  padding-top: 18px;
+  border-top: 1px solid var(--color-line-2);
+}
+.switchLink {
+  font-weight: 700;
+  text-decoration: none;
+}
+.switchLink:hover {
+  text-decoration: underline;
+}
+.switchLinkRed {
+  color: var(--color-red);
+}
+.switchLinkBlue {
+  color: var(--color-blue);
+}
+
+.legal {
+  margin-top: 28px;
+  max-width: 100%;
+  font-size: 11.5px;
+  color: var(--color-muted-2);
+  text-align: center;
+  line-height: 1.5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+/* ---- Lien retour + variante bouton outline --------------------------------- */
+.backLink {
+  text-align: center;
+  margin: 0;
+  padding-top: 4px;
+  font-size: 13.5px;
+}
+.backLink a {
+  color: var(--color-muted);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.backLink a:hover {
+  color: var(--color-blue);
+}
+.submitOutline {
+  background: #fff;
+  color: var(--color-ink);
+  border: 1px solid var(--color-line);
+}
+.submitOutline:hover:not(:disabled) {
+  background: var(--color-paper);
+  border-color: var(--color-blue);
+  color: var(--color-blue);
+  box-shadow: none;
+  transform: none;
+}
+
+/* ---- Bloc état (succès envoi / mdp modifié / lien invalide) ---------------- */
+.notice {
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+}
+.noticeSuccess {
+  background: linear-gradient(135deg, rgba(22, 143, 91, 0.08), #fff);
+  border: 1px solid rgba(22, 143, 91, 0.25);
+}
+.noticeError {
+  background: var(--color-red-light);
+  border: 1px solid rgba(225, 55, 47, 0.3);
+}
+.noticeIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  margin-bottom: 14px;
+  background: var(--color-green);
+  box-shadow: 0 8px 20px -8px rgba(22, 143, 91, 0.5);
+}
+.noticeTitle {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 21px;
+  color: var(--color-ink);
+  letter-spacing: -0.015em;
+  margin: 0 0 6px;
+}
+.noticeText {
+  color: var(--color-muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+  margin: 0 0 20px;
+}
+.noticeText:last-child {
+  margin-bottom: 0;
+}
+.noticeText strong {
+  color: var(--color-ink);
+  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.noticeActions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.retry {
+  background: none;
+  border: none;
+  color: var(--color-blue);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px;
+}
+.retry:hover {
+  text-decoration: underline;
+}
+
+/* ---- Panneau visuel (caché en mobile) -------------------------------------- */
+.visualSide {
+  display: none;
+  position: relative;
+  overflow: hidden;
+  padding: 56px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
+}
+.visualBg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background:
+    radial-gradient(circle at 100% 0%, var(--color-red) 0%, transparent 35%),
+    radial-gradient(circle at 0% 100%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
+}
+.visualContent {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.visualTop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.65);
+  font-weight: 600;
+}
+.visualTopBar {
+  width: 32px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.quote {
+  margin: 56px 0;
+  padding: 0;
+}
+.quoteMark {
+  font-family: var(--font-display);
+  font-size: 96px;
+  line-height: 0.5;
+  color: rgba(255, 255, 255, 0.18);
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.quoteText {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(22px, 2.4vw, 30px);
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  color: #fff;
+  margin: 0 0 28px;
+  max-width: 480px;
+}
+.author {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+  flex-shrink: 0;
+}
+.avatarBlue {
+  background: linear-gradient(135deg, var(--color-green), var(--color-blue));
+}
+.avatarRed {
+  background: linear-gradient(135deg, var(--color-red), var(--color-amber));
+}
+.authorName {
+  font-weight: 700;
+  font-size: 15px;
+}
+.authorMeta {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.12em;
+  margin-top: 2px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  padding-top: 32px;
+}
+.statNum {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(26px, 2.8vw, 32px);
+  letter-spacing: -0.025em;
+  line-height: 1;
+  color: #fff;
+  margin-bottom: 6px;
+}
+.statLabel {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ============================================================================
+   Desktop : 2 colonnes + panneau visuel
+   ============================================================================ */
+@media (min-width: 540px) {
+  .row2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 980px) {
+  .wrap {
+    grid-template-columns: 1fr 1fr;
+  }
+  .formSide {
+    padding: 28px 48px 48px;
+  }
+  .inner {
+    justify-content: center;
+  }
+  .visualSide {
+    display: flex;
+    flex-direction: column;
+  }
+}

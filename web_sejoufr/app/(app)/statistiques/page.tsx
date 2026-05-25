@@ -14,8 +14,6 @@ import {
   type UserStatsResponse,
 } from "@/lib/types";
 
-const HEATMAP_DAYS = 30;
-
 export default function StatistiquesPage() {
     const router = useRouter();
     const {user, status} = useAuth();
@@ -35,6 +33,7 @@ export default function StatistiquesPage() {
     useEffect(() => {
         if (status !== "authenticated") return;
         let cancelled = false;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setLoading(true);
         Promise.all([
             statsApi.get(module).catch((e: unknown) => {
@@ -87,9 +86,6 @@ export default function StatistiquesPage() {
             0,
         );
     }, [stats]);
-
-    // ========== Heatmap data ==========
-    const heatmap = useMemo(() => buildHeatmap(attempts), [attempts]);
 
     // ========== Themes sorted weak-first ==========
     // On classe par score de maîtrise croissant : un thème jamais touché ou plein
@@ -176,19 +172,54 @@ export default function StatistiquesPage() {
     return (
         <main className="st">
             {/* ============ TOPBAR ============ */}
-            <header className="topbar">
-                <div>
+            <header className="st-hero">
+                <div className="st-hero-main">
                     <div className="breadcrumb">
-                        ACCUEIL <span className="sep">/</span> STATISTIQUES
+                        ACCUEIL <span className="sep">/</span> PROGRESSION
                     </div>
                     <h1>
-                        Votre <em>progression</em> en détail.
+                        Ma <em>progression</em>
                     </h1>
+                    <p>
+                        Suis ton évolution : maîtrise par thème, points faibles et
+                        erreurs à retravailler, sur l&apos;examen civique et le TCF.
+                    </p>
+                    <div className="st-hero-actions">
+                        <Link href="/examens-blancs" className="st-hero-btn">
+                            Lancer un examen blanc
+                        </Link>
+                        <Link href="/revision" className="st-hero-btn st-hero-btn-ghost">
+                            Refaire mes erreurs
+                        </Link>
+                    </div>
                 </div>
-                <div className="topbar-actions">
-                    <Link href="/revision" className="btn-outline">
-                        Mes erreurs →
-                    </Link>
+                <div className="st-summary">
+                    <div className="summary-box">
+                        <strong>
+                            {module === "TCF"
+                                ? user?.targetProcedure === "NAT"
+                                    ? "B2"
+                                    : user?.targetProcedure === "CR"
+                                        ? "B1"
+                                        : user?.targetProcedure === "CSP"
+                                            ? "A2"
+                                            : "—"
+                                : (user?.targetProcedure ?? "—")}
+                        </strong>
+                        <span>Objectif {module === "TCF" ? "TCF" : "civique"}</span>
+                    </div>
+                    <div className="summary-box">
+                        <strong>{loading || !stats ? "—" : `${globalMastery.pct}%`}</strong>
+                        <span>Maîtrise</span>
+                    </div>
+                    <div className="summary-box">
+                        <strong>{loading || !stats ? "—" : String(stats.questionsAnswered)}</strong>
+                        <span>Questions</span>
+                    </div>
+                    <div className="summary-box">
+                        <strong>{loading || !stats ? "—" : String(totalWrong)}</strong>
+                        <span>À revoir</span>
+                    </div>
                 </div>
             </header>
 
@@ -308,49 +339,6 @@ export default function StatistiquesPage() {
 
             {!loading && stats && stats.questionsAnswered > 0 && (
                 <>
-                    {/* ============ HEATMAP ============ */}
-                    <section className="card">
-                        <div className="card-head">
-                            <div>
-                                <h3>Calendrier de pratique</h3>
-                                <p>
-                                    {HEATMAP_DAYS} derniers jours · plus une case est foncée, plus
-                                    vous avez pratiqué.
-                                </p>
-                            </div>
-                            <div className="heatmap-legend">
-                                <span>MOINS</span>
-                                {HEATMAP_TONES.map((t, i) => (
-                                    <span
-                                        key={i}
-                                        className="heatmap-legend-cell"
-                                        style={{background: t}}
-                                    />
-                                ))}
-                                <span>PLUS</span>
-                            </div>
-                        </div>
-                        <div className="heatmap-grid">
-                            {heatmap.cells.map((c, i) => (
-                                <div
-                                    key={i}
-                                    className="heatmap-cell"
-                                    style={{
-                                        background: HEATMAP_TONES[c.intensity],
-                                        ...(c.isToday
-                                            ? {boxShadow: "0 0 0 2px var(--color-red)"}
-                                            : {}),
-                                    }}
-                                    title={`${c.label} · ${c.count} session${c.count > 1 ? "s" : ""}`}
-                                />
-                            ))}
-                        </div>
-                        <div className="heatmap-footer">
-                            <span>IL Y A {HEATMAP_DAYS} JOURS</span>
-                            <span>AUJOURD&apos;HUI</span>
-                        </div>
-                    </section>
-
                     {/* ============ ROW 2 COLS ============ */}
                     <section className="row-2">
                         {/* Weakest themes */}
@@ -524,7 +512,14 @@ function DonutChart({
 }) {
     const R = 40;
     const CIRC = 2 * Math.PI * R;
-    let offset = 0;
+    // Offsets cumulés précalculés : on évite de réassigner une variable pendant
+    // le rendu (règle React Compiler). `arcs` est une const, on ne fait que push.
+    const arcs: { themeId: string; pct: number; len: number; offset: number }[] = [];
+    for (const s of segments) {
+        const len = (s.pct / 100) * CIRC;
+        const last = arcs[arcs.length - 1];
+        arcs.push({ themeId: s.themeId, pct: s.pct, len, offset: last ? last.offset + last.len : 0 });
+    }
     return (
         <svg viewBox="0 0 100 100" className="donut-svg">
             <circle
@@ -535,25 +530,20 @@ function DonutChart({
                 stroke="var(--color-line-2)"
                 strokeWidth="16"
             />
-            {segments.map((s, i) => {
-                const len = (s.pct / 100) * CIRC;
-                const seg = (
-                    <circle
-                        key={s.themeId}
-                        cx="50"
-                        cy="50"
-                        r={R}
-                        fill="none"
-                        stroke={DONUT_COLORS[i] ?? "#9CA2BD"}
-                        strokeWidth="16"
-                        strokeDasharray={`${len} ${CIRC}`}
-                        strokeDashoffset={-offset}
-                        transform="rotate(-90 50 50)"
-                    />
-                );
-                offset += len;
-                return seg;
-            })}
+            {arcs.map((s, i) => (
+                <circle
+                    key={s.themeId}
+                    cx="50"
+                    cy="50"
+                    r={R}
+                    fill="none"
+                    stroke={DONUT_COLORS[i] ?? "#9CA2BD"}
+                    strokeWidth="16"
+                    strokeDasharray={`${s.len} ${CIRC}`}
+                    strokeDashoffset={-s.offset}
+                    transform="rotate(-90 50 50)"
+                />
+            ))}
             <text
                 x="50"
                 y="48"
@@ -730,44 +720,6 @@ function computeStreak(attempts: AttemptSummaryResponse[]): number {
     return streak;
 }
 
-const HEATMAP_TONES = [
-    "#EEF0F8", // 0 sessions
-    "#D5DCEF", // 1
-    "#A8B5E0", // 2
-    "#1E3A8C", // 3
-    "#15296B", // 4+
-];
-
-function buildHeatmap(attempts: AttemptSummaryResponse[]): {
-    cells: { count: number; intensity: number; isToday: boolean; label: string }[];
-} {
-    const map = new Map<string, number>();
-    for (const a of attempts) {
-        const k = new Date(a.startedAt).toISOString().slice(0, 10);
-        map.set(k, (map.get(k) ?? 0) + 1);
-    }
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const cells: { count: number; intensity: number; isToday: boolean; label: string }[] = [];
-    for (let i = HEATMAP_DAYS - 1; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(today.getDate() - i);
-        const k = d.toISOString().slice(0, 10);
-        const count = map.get(k) ?? 0;
-        const intensity = Math.min(4, count);
-        cells.push({
-            count,
-            intensity,
-            isToday: i === 0,
-            label: d.toLocaleDateString("fr-FR", {
-                day: "numeric",
-                month: "short",
-            }),
-        });
-    }
-    return {cells};
-}
-
 // ============================================================================
 // EMPTY / SKELETON
 // ============================================================================
@@ -876,6 +828,71 @@ const styles = `
   .st { padding: 24px 36px 64px; max-width: 1320px; }
   @media (max-width: 760px) { .st { padding: 20px 16px 56px; } }
 
+  /* ========== HERO PROGRESSION (façon template progression-page) ========== */
+  .st-hero {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 22px;
+    background: linear-gradient(135deg, var(--color-blue) 0%, #3355B5 100%);
+    color: #fff;
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 22px;
+  }
+  .st-hero .breadcrumb { color: rgba(255, 255, 255, 0.7); }
+  .st-hero-main h1 {
+    font-family: var(--font-display);
+    font-size: clamp(24px, 3.4vw, 32px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+    margin: 8px 0 0;
+    color: #fff;
+  }
+  .st-hero-main h1 em { font-style: italic; font-weight: 500; opacity: 0.92; }
+  .st-hero-main p {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 14.5px;
+    line-height: 1.6;
+    margin: 10px 0 0;
+    max-width: 540px;
+  }
+  .st-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+  .st-hero-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 11px 20px; border-radius: 10px;
+    font-family: var(--font-sans); font-size: 14px; font-weight: 700;
+    background: #fff; color: var(--color-blue);
+    text-decoration: none; border: 1px solid transparent;
+    transition: transform 0.15s, background 0.15s;
+  }
+  .st-hero-btn:hover { transform: translateY(-1px); background: #F1F5F9; }
+  .st-hero-btn-ghost {
+    background: transparent; color: #fff;
+    border-color: rgba(255, 255, 255, 0.4);
+  }
+  .st-hero-btn-ghost:hover { background: rgba(255, 255, 255, 0.12); }
+  .st-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; }
+  .st-summary .summary-box {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .st-summary .summary-box strong {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 24px;
+    line-height: 1;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+  }
+  .st-summary .summary-box span { font-size: 11.5px; color: rgba(255, 255, 255, 0.7); }
+  @media (min-width: 900px) {
+    .st-hero { grid-template-columns: 1.4fr 1fr; align-items: center; padding: 30px; }
+  }
+
   /* ========== TOPBAR ========== */
   .topbar {
     display: flex; justify-content: space-between; align-items: flex-start;
@@ -938,7 +955,9 @@ const styles = `
     margin-bottom: 18px;
   }
   .filter-tabs {
-    display: inline-flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
     background: #fff;
     border: 1px solid var(--color-line);
     border-radius: 12px;
@@ -946,15 +965,16 @@ const styles = `
     gap: 2px;
   }
   .tab {
-    padding: 8px 18px;
+    padding: 10px 18px;
     background: transparent;
     border: none;
     border-radius: 8px;
     font-family: inherit;
-    font-size: 13px;
+    font-size: 13.5px;
     font-weight: 600;
     color: var(--color-muted);
     cursor: pointer;
+    text-align: center;
     transition: all 0.15s;
   }
   .tab:hover { color: var(--color-ink); }
@@ -1062,40 +1082,6 @@ const styles = `
     letter-spacing: -0.01em;
   }
   .card-head p { margin: 0; color: var(--color-muted); font-size: 13px; }
-
-  /* ========== HEATMAP ========== */
-  .heatmap-grid {
-    display: grid;
-    grid-template-columns: repeat(${HEATMAP_DAYS}, 1fr);
-    gap: 5px;
-    margin-bottom: 14px;
-  }
-  .heatmap-cell {
-    aspect-ratio: 1;
-    border-radius: 4px;
-    transition: transform 0.1s;
-  }
-  .heatmap-cell:hover { transform: scale(1.18); }
-  .heatmap-footer {
-    display: flex; justify-content: space-between;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--color-muted);
-    letter-spacing: 0.1em;
-  }
-  .heatmap-legend {
-    display: flex; align-items: center; gap: 6px;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--color-muted);
-    letter-spacing: 0.1em;
-  }
-  .heatmap-legend-cell {
-    width: 12px; height: 12px; border-radius: 3px;
-  }
-  @media (max-width: 600px) {
-    .heatmap-grid { grid-template-columns: repeat(15, 1fr); }
-  }
 
   /* ========== ROW 2 COLS ========== */
   .row-2 {

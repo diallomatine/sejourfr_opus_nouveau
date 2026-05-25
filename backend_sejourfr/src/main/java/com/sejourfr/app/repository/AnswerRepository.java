@@ -17,15 +17,21 @@ public interface AnswerRepository extends JpaRepository<Answer, UUID> {
     // Stats globales utilisateur
     // ------------------------------------------------------------------------
 
+    // Questions DISTINCTES répondues (et non lignes de réponses brutes) : refaire
+    // 2× la même question ne doit pas gonfler le compteur. Cohérent avec
+    // aggregateByTheme — la somme des `answered`/`correct` par thème égale ces
+    // totaux globaux.
     @Query("""
-        SELECT COUNT(a) FROM Answer a
+        SELECT COUNT(DISTINCT a.attemptQuestion.question.id) FROM Answer a
         WHERE a.attemptQuestion.attempt.user.id = :userId
           AND a.attemptQuestion.attempt.module = :module
         """)
     long countAnsweredByUserAndModule(@Param("userId") UUID userId, @Param("module") Module module);
 
+    // Question comptée "correcte" si réussie au moins une fois dans le module
+    // (même sémantique distincte que aggregateByTheme).
     @Query("""
-        SELECT COUNT(a) FROM Answer a
+        SELECT COUNT(DISTINCT a.attemptQuestion.question.id) FROM Answer a
         WHERE a.attemptQuestion.attempt.user.id = :userId
           AND a.attemptQuestion.attempt.module = :module
           AND a.correct = true

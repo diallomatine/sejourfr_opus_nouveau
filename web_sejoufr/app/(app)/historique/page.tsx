@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { Mic, PenLine, Smartphone } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { Landmark, Languages, Mic, PenLine, Smartphone } from "lucide-react";
 import {
   type ProductionKind,
   ProductionMobileSheet,
@@ -12,26 +13,40 @@ import { useAuth } from "@/lib/auth-context";
 import {
   type AttemptSummaryResponse,
   isProductionAttempt,
+  type Module as ModuleEnum,
 } from "@/lib/types";
 
 type TypeFilter = "ALL" | "EXAM" | "TRAIN" | "PROD";
 type PeriodFilter = "7D" | "30D" | "ALL";
 
 export default function HistoriquePage() {
+  return (
+    <Suspense fallback={<HistoriqueSkeleton />}>
+      <HistoriqueInner />
+    </Suspense>
+  );
+}
+
+function HistoriqueInner() {
   const { user, status } = useAuth();
+  const searchParams = useSearchParams();
+  const moduleParam = searchParams.get("module");
+  const moduleView: ModuleEnum | null =
+    moduleParam === "TCF" ? "TCF" : moduleParam === "CIVIQUE" ? "CIVIQUE" : null;
 
   const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
-  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("30D");
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("ALL");
   const [query, setQuery] = useState("");
   const [productionSheet, setProductionSheet] = useState<ProductionKind | null>(null);
 
   useEffect(() => {
     if (status !== "authenticated") return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     attemptApi
       .listMine({ limit: 100 })
@@ -57,6 +72,7 @@ export default function HistoriquePage() {
 
   // ========== FILTRES ==========
   const filtered = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
     const periodMs =
       periodFilter === "7D"
@@ -69,6 +85,13 @@ export default function HistoriquePage() {
     return [...attempts]
       .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
       .filter((a) => {
+        // En mode liste (catégorie choisie) : uniquement les examens de ce
+        // module (sous-examens thème/module + examens blancs complets),
+        // jamais les entraînements/lots.
+        if (moduleView) {
+          if (a.module !== moduleView) return false;
+          if (a.type !== "MOCK_EXAM") return false;
+        }
         const isProd = isProductionAttempt(a);
         // type
         // EXAM = MOCK_EXAM QCM uniquement (les productions EO/EE sont TRAINING).
@@ -99,7 +122,7 @@ export default function HistoriquePage() {
         }
         return true;
       });
-  }, [attempts, typeFilter, periodFilter, query]);
+  }, [attempts, moduleView, typeFilter, periodFilter, query]);
 
   // ========== STATS GLOBALES ==========
   // Les productions EO/EE n'ont ni totalQuestions ni score : elles sont
@@ -107,22 +130,42 @@ export default function HistoriquePage() {
   // separement dans le total. On considere une production "finie" si elle a
   // un finishedAt (le score IA est sur une autre route).
   const stats = useMemo(() => {
-    const qcm = attempts.filter((a) => !isProductionAttempt(a));
-    const productions = attempts.filter((a) => isProductionAttempt(a));
+    // En mode liste, les stats résument le module choisi (examens de ce module).
+    const base = moduleView ? attempts.filter((a) => a.module === moduleView) : attempts;
+    const qcm = base.filter((a) => !isProductionAttempt(a));
+    const productions = base.filter((a) => isProductionAttempt(a));
     const finishedQcm = qcm.filter(
       (a) => a.finishedAt && a.score !== null && a.score !== undefined,
     );
     const exams = finishedQcm.filter((a) => a.type === "MOCK_EXAM");
     const totalSessions = finishedQcm.length + productions.length;
+    // Répartition des examens par nature : complets (examen blanc complet) vs
+    // sous-examens (CO/CE/Structure TCF, ou examen de thème civique).
+    const natures = { complet: 0, co: 0, ce: 0, structure: 0, theme: 0 };
+    for (const a of exams) {
+      if (a.epreuve === "TCF_COMPLET") natures.complet++;
+      else if (a.epreuve === "TCF_CO") natures.co++;
+      else if (a.epreuve === "TCF_CE") natures.ce++;
+      else if (a.epreuve === "TCF_STRUCTURE") natures.structure++;
+      else if (a.module === "CIVIQUE") {
+        // Examen blanc complet civique = issu d'un template ; sinon examen de thème.
+        if (a.examTemplateId) natures.complet++;
+        else natures.theme++;
+      } else natures.complet++;
+    }
+
     if (totalSessions === 0) {
       return {
         total: 0,
         examsCount: 0,
+        examsFinished: 0,
+        examsPassed: 0,
         trainCount: 0,
         prodCount: 0,
         passRate: null as number | null,
         bestLabel: null as string | null,
         bestDetail: null as string | null,
+        natures,
       };
     }
     const passed = exams.filter((a) => {
@@ -150,14 +193,17 @@ export default function HistoriquePage() {
       : null;
     return {
       total: totalSessions,
-      examsCount: attempts.filter((a) => a.type === "MOCK_EXAM" && !isProductionAttempt(a)).length,
-      trainCount: attempts.filter((a) => a.type === "TRAINING" && !isProductionAttempt(a)).length,
+      examsCount: base.filter((a) => a.type === "MOCK_EXAM" && !isProductionAttempt(a)).length,
+      examsFinished: exams.length,
+      examsPassed: passed,
+      trainCount: base.filter((a) => a.type === "TRAINING" && !isProductionAttempt(a)).length,
       prodCount: productions.length,
       passRate,
       bestLabel,
       bestDetail,
+      natures,
     };
-  }, [attempts]);
+  }, [attempts, moduleView]);
 
   if (status === "loading") return <HistoriqueSkeleton />;
   if (!user) {
@@ -172,21 +218,135 @@ export default function HistoriquePage() {
     );
   }
 
+  // ============ HUB (façon "Mes historiques" mobile) ============
+  if (!moduleView) {
+    return (
+      <main className="hi">
+        <header className="topbar">
+          <div>
+            <div className="breadcrumb">
+              ACCUEIL <span className="sep">/</span> HISTORIQUE
+            </div>
+            <h1>
+              Mes <em>historiques</em>.
+            </h1>
+          </div>
+        </header>
+        <p className="hub-intro">
+          Consultez vos examens blancs et sessions IA passés.
+        </p>
+
+        <div className="hub-summary">
+          <div className="hub-summary-item">
+            <span className="hub-summary-val">{stats.examsFinished}</span>
+            <span className="hub-summary-lbl">Examens passés</span>
+          </div>
+          <div className="hub-summary-item">
+            <span className="hub-summary-val hub-summary-val-green">{stats.examsPassed}</span>
+            <span className="hub-summary-lbl">Réussis</span>
+          </div>
+          <div className="hub-summary-item">
+            <span className="hub-summary-val">
+              {stats.passRate != null ? `${stats.passRate}%` : "—"}
+            </span>
+            <span className="hub-summary-lbl">Taux de réussite</span>
+          </div>
+          <div className="hub-summary-item">
+            <span className="hub-summary-val">{stats.bestLabel ?? "—"}</span>
+            <span className="hub-summary-lbl">Meilleur score</span>
+          </div>
+        </div>
+
+        <NatureChips natures={stats.natures} />
+
+        <div className="hub-section-label">§ EXAMENS BLANCS</div>
+        <div className="hub-cats">
+          <Link href="/historique?module=CIVIQUE" className="hub-cat">
+            <span className="hub-cat-ico ico-blue" aria-hidden>
+              <Landmark size={22} />
+            </span>
+            <span className="hub-cat-body">
+              <span className="hub-cat-title">Examens civique</span>
+              <span className="hub-cat-sub">
+                40 questions tous thèmes, seuil 32. Score et progression dans le temps.
+              </span>
+            </span>
+            <span className="hub-cat-arrow" aria-hidden>›</span>
+          </Link>
+          <Link href="/historique?module=TCF" className="hub-cat">
+            <span className="hub-cat-ico ico-red" aria-hidden>
+              <Languages size={22} />
+            </span>
+            <span className="hub-cat-body">
+              <span className="hub-cat-title">Examens TCF</span>
+              <span className="hub-cat-sub">
+                CO et CE en conditions réelles, score pondéré par niveau (A2 → B2).
+              </span>
+            </span>
+            <span className="hub-cat-arrow" aria-hidden>›</span>
+          </Link>
+        </div>
+
+        <div className="hub-section-label">§ SESSIONS IA</div>
+        <div className="hub-cats">
+          <button type="button" className="hub-cat" onClick={() => setProductionSheet("EE")}>
+            <span className="hub-cat-ico ico-green" aria-hidden>
+              <PenLine size={22} />
+            </span>
+            <span className="hub-cat-body">
+              <span className="hub-cat-title">Expression écrite</span>
+              <span className="hub-cat-sub">
+                Rédactions notées par IA, niveau CECRL et feedback détaillé. Sur l&apos;app mobile.
+              </span>
+            </span>
+            <span className="hub-cat-arrow" aria-hidden>
+              <Smartphone size={16} />
+            </span>
+          </button>
+          <button type="button" className="hub-cat" onClick={() => setProductionSheet("EO")}>
+            <span className="hub-cat-ico ico-red" aria-hidden>
+              <Mic size={22} />
+            </span>
+            <span className="hub-cat-body">
+              <span className="hub-cat-title">Expression orale</span>
+              <span className="hub-cat-sub">
+                Enregistrements transcrits par Whisper et évalués par IA. Sur l&apos;app mobile.
+              </span>
+            </span>
+            <span className="hub-cat-arrow" aria-hidden>
+              <Smartphone size={16} />
+            </span>
+          </button>
+        </div>
+
+        <ProductionMobileSheet
+          open={productionSheet !== null}
+          kind={productionSheet}
+          onClose={() => setProductionSheet(null)}
+        />
+        <style>{styles}{hubStyles}</style>
+      </main>
+    );
+  }
+
+  // ============ MODE LISTE (catégorie choisie) ============
+  const moduleLabel = moduleView === "TCF" ? "TCF" : "civique";
   return (
     <main className="hi">
       {/* ============ TOPBAR ============ */}
       <header className="topbar">
         <div>
           <div className="breadcrumb">
-            ACCUEIL <span className="sep">/</span> HISTORIQUE
+            <Link href="/historique">HISTORIQUE</Link>{" "}
+            <span className="sep">/</span> EXAMENS {moduleLabel.toUpperCase()}
           </div>
           <h1>
-            Toutes vos <em>sessions</em>.
+            Examens <em>{moduleLabel}</em>.
           </h1>
         </div>
         <div className="topbar-actions">
-          <Link href="/revision" className="btn-outline">
-            Mes erreurs →
+          <Link href="/historique" className="btn-outline">
+            ← Mes historiques
           </Link>
         </div>
       </header>
@@ -228,33 +388,10 @@ export default function HistoriquePage() {
         />
       </section>
 
-      {/* ============ FILTERS ============ */}
-      <section className="filters">
-        <div className="filter-tabs" role="tablist" aria-label="Type de session">
-          {(
-            [
-              ["ALL", "Tout"],
-              ["EXAM", "Examens"],
-              ["TRAIN", "Entraînements"],
-              ["PROD", "Productions"],
-            ] as const
-          ).map(([k, lbl]) => (
-            <button
-              key={k}
-              type="button"
-              role="tab"
-              aria-selected={typeFilter === k}
-              className={`tab ${typeFilter === k ? "is-active" : ""}`}
-              onClick={() => setTypeFilter(k)}
-            >
-              {lbl}
-              {typeFilter === k && filtered.length > 0 && (
-                <span className="tab-count">{filtered.length}</span>
-              )}
-            </button>
-          ))}
-        </div>
+      <NatureChips natures={stats.natures} />
 
+      {/* ============ FILTERS (examens du module : période + recherche) ============ */}
+      <section className="filters">
         <div className="period-chips">
           {(
             [
@@ -359,7 +496,7 @@ export default function HistoriquePage() {
         onClose={() => setProductionSheet(null)}
       />
 
-      <style>{styles}</style>
+      <style>{styles}{hubStyles}</style>
     </main>
   );
 }
@@ -386,6 +523,49 @@ function StatCard({
       <div className="stat-label">{label}</div>
       <div className="stat-value">{value}</div>
       {trend && <div className="stat-trend">{trend}</div>}
+    </div>
+  );
+}
+
+// ============================================================================
+// NATURE CHIPS — répartition des examens par nature
+// ============================================================================
+function NatureChips({
+  natures,
+}: {
+  natures: { complet: number; co: number; ce: number; structure: number; theme: number };
+}) {
+  const subs = (
+    [
+      ["co", "CO"],
+      ["ce", "CE"],
+      ["structure", "Structure"],
+      ["theme", "Par thème"],
+    ] as const
+  )
+    .map(([k, l]) => ({ k, l, n: natures[k] }))
+    .filter((s) => s.n > 0);
+  const totalSub = subs.reduce((sum, s) => sum + s.n, 0);
+
+  const chips: string[] = [];
+  if (natures.complet > 0) {
+    chips.push(`${natures.complet} complet${natures.complet > 1 ? "s" : ""}`);
+  }
+  // Si trop de natures de sous-examens, on résume en un seul chip.
+  if (subs.length > 3) {
+    chips.push(`${totalSub} sous-examen${totalSub > 1 ? "s" : ""}`);
+  } else {
+    for (const s of subs) chips.push(`${s.n} ${s.l}`);
+  }
+  if (chips.length === 0) return null;
+
+  return (
+    <div className="nature-chips">
+      {chips.map((c) => (
+        <span key={c} className="nature-chip">
+          {c}
+        </span>
+      ))}
     </div>
   );
 }
@@ -634,6 +814,75 @@ const gateStyles = `
     padding: 36px;
   }
   .hi-gate-cta { color: var(--color-blue); font-weight: 700; text-decoration: none; }
+`;
+
+// Hub "Mes historiques" : sections + cartes catégories (façon mobile).
+const hubStyles = `
+  .breadcrumb a { color: var(--color-blue); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+  .hub-intro {
+    color: var(--color-muted); font-size: 14px; line-height: 1.55;
+    margin: 0 0 18px; max-width: 640px;
+  }
+  .hub-summary {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    margin-bottom: 26px;
+  }
+  .hub-summary-item {
+    background: #fff; border: 1px solid var(--color-line); border-radius: 14px;
+    padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .hub-summary-val {
+    font-family: var(--font-display); font-weight: 600; font-size: 26px;
+    line-height: 1; color: var(--color-ink); letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .hub-summary-val-green { color: var(--color-green); }
+  .hub-summary-lbl {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-muted);
+  }
+  @media (max-width: 680px) {
+    .hub-summary { grid-template-columns: repeat(2, 1fr); }
+  }
+  .nature-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 26px; }
+  .nature-chip {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.04em; color: var(--color-ink-2);
+    background: var(--color-paper-2); border: 1px solid var(--color-line);
+    padding: 6px 11px; border-radius: 100px;
+  }
+  .hub-section-label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.2em; color: var(--color-muted);
+    margin: 0 0 10px;
+  }
+  .hub-cats { display: flex; flex-direction: column; gap: 10px; margin-bottom: 26px; }
+  .hub-cat {
+    display: flex; align-items: center; gap: 14px;
+    width: 100%; text-align: left; font-family: inherit; cursor: pointer;
+    background: #fff; border: 1px solid var(--color-line); border-radius: 14px;
+    padding: 14px; text-decoration: none;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  }
+  .hub-cat:hover {
+    transform: translateY(-2px); border-color: var(--color-blue);
+    box-shadow: 0 14px 32px -20px rgba(30,58,140,0.3);
+  }
+  .hub-cat-ico {
+    width: 42px; height: 42px; flex-shrink: 0; border-radius: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .hub-cat-ico.ico-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .hub-cat-ico.ico-red { background: var(--color-red-light); color: var(--color-red); }
+  .hub-cat-ico.ico-green { background: rgba(22,143,91,0.12); color: var(--color-green); }
+  .hub-cat-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .hub-cat-title { font-family: var(--font-sans); font-weight: 700; font-size: 14.5px; color: var(--color-ink); }
+  .hub-cat-sub { font-size: 12.5px; color: var(--color-muted); line-height: 1.4; }
+  .hub-cat-arrow {
+    flex-shrink: 0; color: var(--color-muted-2); font-size: 20px;
+    display: inline-flex; align-items: center;
+  }
 `;
 
 // ============================================================================

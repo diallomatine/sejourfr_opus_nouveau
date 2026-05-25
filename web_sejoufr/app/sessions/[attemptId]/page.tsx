@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { use, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, use, useEffect, useState } from "react";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import {
   QuestionRunner,
@@ -36,6 +37,22 @@ const GUEST_BACKEND: RunnerBackend = {
   // pour cacher les fonctionnalités réservées aux comptes.
 };
 
+/** Chemin de retour après un lot, dérivé du module/épreuve de l'attempt :
+ *  civique → détail du thème, TCF → page lots de l'épreuve × niveau. */
+function lotReturnPath(attempt: AttemptResponse): string | null {
+  const q = attempt.questions[0]?.question;
+  if (!q) return null;
+  if (attempt.module === "CIVIQUE") {
+    return q.themeId ? `/entrainement/civique/${q.themeId}` : null;
+  }
+  const code = q.questionType?.toLowerCase();
+  const level = q.difficulty?.toLowerCase();
+  if (code && level && (code === "co" || code === "ce" || code === "structure")) {
+    return `/entrainement/tcf/${code}/${level}`;
+  }
+  return null;
+}
+
 /**
  * Page générique d'une session : training ou examen blanc. Le type de
  * l'attempt détermine le mode du runner et la carte de résultat à afficher.
@@ -45,6 +62,14 @@ const GUEST_BACKEND: RunnerBackend = {
  *  - visiteur guest → publicAttemptApi.getById (IP must match) + démo limitée
  */
 export default function SessionRunnerPage({ params }: PageProps) {
+  return (
+    <Suspense fallback={<div className="sess-loading" />}>
+      <SessionRunnerGate params={params} />
+    </Suspense>
+  );
+}
+
+function SessionRunnerGate({ params }: PageProps) {
   const { status } = useAuth();
   if (status === "loading") return <div className="sess-loading" />;
   if (status === "authenticated") {
@@ -61,6 +86,10 @@ function SessionRunnerInner({ params }: PageProps) {
   const { attemptId } = use(params);
   const { user, status } = useAuth();
   const isPremium = user?.isPremium ?? false;
+  const searchParams = useSearchParams();
+  /** Numéro de lot quand la session est un lot d'entraînement (batch fixe, pas d'extension). */
+  const lotParam = searchParams.get("lot");
+  const lotNumero = lotParam && /^\d+$/.test(lotParam) ? Number(lotParam) : null;
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [sessionMode, setSessionMode] = useState<SessionMode>("auth");
@@ -164,6 +193,8 @@ function SessionRunnerInner({ params }: PageProps) {
   if (phase === "result" && attempt) {
     const isExam = attempt.type === "MOCK_EXAM";
     const isGuest = sessionMode === "guest";
+    const lotReturnHref =
+      lotNumero != null && !isGuest ? (lotReturnPath(attempt) ?? undefined) : undefined;
     return (
       <main className="sess">
         {isExam ? (
@@ -178,6 +209,7 @@ function SessionRunnerInner({ params }: PageProps) {
               attempt={attempt}
               isPremium={isPremium}
               variant={openedAsFinished ? "resume" : "primary"}
+              lotReturnHref={lotReturnHref}
             />
             {isGuest && <GuestResultCta />}
           </>
@@ -190,13 +222,16 @@ function SessionRunnerInner({ params }: PageProps) {
   if (phase === "running" && attempt) {
     const isExam = attempt.type === "MOCK_EXAM";
     const isGuest = sessionMode === "guest";
+    // Un lot = batch fixe déterministe : pas d'extension, même pour un premium.
+    const isLot = lotNumero != null && !isExam && !isGuest;
     // En training auth premium : extension auto. En guest : pas d'extension
-    // (un seul batch de 20Q par démo). En exam : pas d'extension, mais timer.
-    const canExtend = !isExam && isPremium && !isGuest;
+    // (un seul batch de 20Q par démo). En exam / lot : pas d'extension.
+    const canExtend = !isExam && isPremium && !isGuest && !isLot;
     const firstThemeId = attempt.questions[0]?.question.themeId;
     const allSameTheme =
       firstThemeId !== undefined &&
       attempt.questions.every((q) => q.question.themeId === firstThemeId);
+    const lotQuitHref = isLot ? lotReturnPath(attempt) : null;
 
     return (
       <QuestionRunner
@@ -220,9 +255,13 @@ function SessionRunnerInner({ params }: PageProps) {
               : "Entraînement · Démo"
             : isExam
               ? "Examen blanc"
-              : "Entraînement"
+              : isLot
+                ? `Lot ${lotNumero}`
+                : "Entraînement"
         }
-        quitHref={isExam ? "/examens-blancs" : "/entrainement"}
+        quitHref={
+          isExam ? "/examens-blancs" : (lotQuitHref ?? "/entrainement")
+        }
         timeLimitSeconds={isExam ? attempt.timeLimitSeconds : undefined}
         startedAt={isExam ? attempt.startedAt : undefined}
         backend={isGuest ? GUEST_BACKEND : undefined}

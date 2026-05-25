@@ -82,6 +82,7 @@ export default function GoogleSignInButton({
     if (!clientId) return;
     if (typeof window === "undefined") return;
     if (window.google?.accounts?.id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setScriptReady(true);
       return;
     }
@@ -102,35 +103,59 @@ export default function GoogleSignInButton({
     document.head.appendChild(script);
   }, [clientId]);
 
+  // Callbacks gardés dans une ref : ils changent d'identité à chaque render de
+  // la page parente (ex: onSuccess={() => router.push(...)}), mais on ne veut
+  // PAS ré-exécuter initialize()/renderButton pour autant.
+  const cbRef = useRef({ loginWithGoogle, onSuccess, onError });
+  useEffect(() => {
+    cbRef.current = { loginWithGoogle, onSuccess, onError };
+  }, [loginWithGoogle, onSuccess, onError]);
+
+  // initialize() est une config globale GIS : on ne l'appelle qu'une fois par
+  // montage (le garde survit au double-invoke de StrictMode en dev). Sinon GIS
+  // log "initialize() is called multiple times".
+  const initedRef = useRef(false);
+
   useEffect(() => {
     if (!clientId) return;
     if (!scriptReady) return;
     if (!hostRef.current) return;
     if (!window.google?.accounts?.id) return;
 
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      ux_mode: "popup",
-      callback: async (resp) => {
-        if (!resp.credential) {
-          onError?.("Aucun token reçu de Google.");
-          return;
-        }
-        try {
-          await loginWithGoogle(resp.credential);
-          onSuccess?.();
-        } catch (err) {
-          if (err instanceof ApiException) {
-            onError?.(err.message);
-          } else {
-            onError?.("Connexion Google impossible. Réessayez.");
+    if (!initedRef.current) {
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        ux_mode: "popup",
+        callback: async (resp) => {
+          if (!resp.credential) {
+            cbRef.current.onError?.("Aucun token reçu de Google.");
+            return;
           }
-        }
-      },
-    });
+          try {
+            await cbRef.current.loginWithGoogle(resp.credential);
+            cbRef.current.onSuccess?.();
+          } catch (err) {
+            if (err instanceof ApiException) {
+              cbRef.current.onError?.(err.message);
+            } else {
+              cbRef.current.onError?.("Connexion Google impossible. Réessayez.");
+            }
+          }
+        },
+      });
+      initedRef.current = true;
+    }
 
     // Vider l'hote avant render (en cas de re-mount).
     hostRef.current.innerHTML = "";
+    // Largeur explicite mesurée sur le conteneur (bornée 200–400 px par GIS) :
+    // sans ça, GIS rend l'iframe à sa largeur par défaut au 1er chargement, ce
+    // qui déborde sur mobile (scroll horizontal qui disparaît au refresh).
+    const measured =
+      hostRef.current.clientWidth ||
+      hostRef.current.parentElement?.clientWidth ||
+      0;
+    const width = measured > 0 ? Math.min(400, Math.max(200, Math.floor(measured))) : undefined;
     window.google.accounts.id.renderButton(hostRef.current, {
       type: "standard",
       theme: "outline",
@@ -139,8 +164,9 @@ export default function GoogleSignInButton({
       shape: "rectangular",
       logo_alignment: "left",
       locale: "fr",
+      width,
     });
-  }, [clientId, scriptReady, loginWithGoogle, onSuccess, onError, variant]);
+  }, [clientId, scriptReady, variant]);
 
   if (!clientId) {
     // En dev sans cles configurees, on n'affiche rien plutot que de polluer
@@ -162,10 +188,17 @@ export default function GoogleSignInButton({
           align-items: stretch;
           gap: 18px;
           margin-top: 18px;
+          max-width: 100%;
+          overflow: hidden;
         }
         .google-signin > div:last-child {
           display: flex;
           justify-content: center;
+          max-width: 100%;
+          overflow: hidden;
+        }
+        .google-signin iframe {
+          max-width: 100% !important;
         }
         .google-signin-divider {
           position: relative;

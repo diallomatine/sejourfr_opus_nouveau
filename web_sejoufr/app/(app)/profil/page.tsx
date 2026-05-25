@@ -9,12 +9,12 @@ import type { TargetProcedure } from "@/lib/types";
 const EXAM_DATE_KEY = "sejourfr.examDate";
 
 /**
- * Page profil : vue d'ensemble du compte avec sections en settings-list.
- *  - Le parcours (CSP/CR/NAT) se modifie sur /parcours
- *  - Le mot de passe via /mot-de-passe-oublie (en attendant /api/me/change-password)
- *  - firstName/lastName non éditable pour l'instant (pas d'endpoint /api/me/profile)
- *  - Suppression de compte = stub modal (en attendant DELETE /api/me/account)
- *  - Date d'examen stockée en localStorage (synchro avec le dashboard)
+ * Page profil au format "profil-page" du template : hero sombre + carte compte,
+ * 2 colonnes (infos perso + abonnement), paramètres du compte (cartes), 2 colonnes
+ * (activité + conseil). Branchée sur la vraie data, sans inventer d'activité chiffrée.
+ *  - Parcours (CSP/CR/NAT) → /parcours · Mot de passe → /mot-de-passe-oublie
+ *  - Édition nom/email + suppression compte = modales "bientôt" (endpoints à venir)
+ *  - Date d'examen en localStorage (synchro dashboard)
  */
 export default function ProfilPage() {
   const router = useRouter();
@@ -27,6 +27,7 @@ export default function ProfilPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const v = window.localStorage.getItem(EXAM_DATE_KEY);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (v) setExamDate(v);
   }, []);
 
@@ -62,161 +63,220 @@ export default function ProfilPage() {
   const initials =
     (user.firstName?.[0] ?? user.email[0] ?? "?").toUpperCase() +
     (user.lastName?.[0]?.toUpperCase() ?? "");
+  const proc = user.targetProcedure ? PROCEDURE_INFO[user.targetProcedure] : null;
+  const tcfLevel = proc?.tcfLevel ?? "—";
 
   const planLabel = user.isPremium
     ? user.hasTcf
       ? "Intégral · Civique + TCF"
-      : "Civique"
-    : "Démo";
+      : "Premium Civique"
+    : "Découverte";
   const planSub = user.isPremium
     ? user.premiumEndsAt
       ? `Valide jusqu'au ${formatDate(user.premiumEndsAt)}`
-      : "Plan actif"
+      : "Abonnement actif"
     : "20 questions et 1 examen blanc gratuits par module";
 
   return (
     <main className="pr">
-      {/* ============ TOPBAR ============ */}
-      <header className="topbar">
-        <div>
+      {/* ---- Hero ---- */}
+      <section className="pr-hero">
+        <div className="pr-hero-main">
           <div className="breadcrumb">
             ACCUEIL <span className="sep">/</span> PROFIL
           </div>
-          <h1>
-            Votre <em>compte</em>.
-          </h1>
-        </div>
-        <div className="topbar-actions">
-          <button
-            type="button"
-            className="btn-outline"
-            onClick={() => setShowLogoutConfirm(true)}
-          >
-            Déconnexion
-          </button>
-        </div>
-      </header>
-
-      {/* ============ IDENTITY ============ */}
-      <section className="identity-card">
-        <div className="identity-avatar" aria-hidden>
-          {initials}
-        </div>
-        <div className="identity-info">
-          <h2 className="identity-name">{fullName}</h2>
-          <div className="identity-email">{user.email}</div>
-          <div className="identity-badges">
-            <span className={`plan-pill plan-pill-${user.isPremium ? "primary" : "neutral"}`}>
-              {planLabel}
-            </span>
-            {user.targetProcedure && (
-              <span className="proc-pill">
-                Parcours · {user.targetProcedure}
-              </span>
-            )}
+          <h1>Mon <em>profil</em></h1>
+          <p>
+            Gère ton compte, ton objectif d&apos;examen, ton abonnement et tes
+            paramètres de sécurité.
+          </p>
+          <div className="pr-hero-actions">
+            <button
+              type="button"
+              className="pr-hero-btn"
+              onClick={() => setShowEditNameSoon(true)}
+            >
+              Modifier mon profil
+            </button>
+            <Link href="/paiement" className="pr-hero-btn pr-hero-btn-ghost">
+              {user.isPremium ? "Gérer mon abonnement" : "Passer Premium"}
+            </Link>
           </div>
+        </div>
+
+        <div className="pr-score">
+          <div className="pr-score-head">
+            <span className="pr-avatar">{initials}</span>
+            <div>
+              <div className="pr-score-name">{user.firstName ?? fullName}</div>
+              <div className="pr-score-plan">{planLabel}</div>
+            </div>
+          </div>
+          <div className="pr-score-meta">
+            Objectif&nbsp;: {proc ? proc.title : "à définir"}
+          </div>
+          <div className="pr-score-meta">Niveau de français visé&nbsp;: {tcfLevel}</div>
         </div>
       </section>
 
-      {/* ============ PARCOURS ============ */}
-      <SettingsGroup title="Démarche">
-        <SettingsRow
-          name="Parcours visé"
-          value={
-            user.targetProcedure
-              ? PROCEDURE_INFO[user.targetProcedure].title
-              : "Pas encore défini"
-          }
-          accent={user.targetProcedure ? null : "warning"}
-          href={`/parcours?from=/profil`}
-          chevron
-        />
-        <SettingsRow
-          name="Niveau de français visé"
-          value={
-            user.targetProcedure
-              ? PROCEDURE_INFO[user.targetProcedure].tcfLevel
-              : "—"
-          }
-          valueTone="red"
-        />
-        <SettingsRow
-          name="Date d'examen prévue"
-          value={examDate ? formatDate(examDate) : "Non définie"}
-          accent={examDate ? null : "muted"}
-          actionLabel={examDate ? "Modifier" : "Définir"}
-          onAction={() => router.push("/dashboard")}
-        />
-      </SettingsGroup>
+      {/* ---- Infos perso + abonnement ---- */}
+      <div className="pr-cols">
+        <section className="pr-panel">
+          <div className="pr-panel-head">
+            <h2>Informations personnelles</h2>
+            <button type="button" className="pr-link-btn" onClick={() => setShowEditNameSoon(true)}>
+              Modifier
+            </button>
+          </div>
+          <div className="pr-info">
+            <div className="pr-stat">
+              <span>Nom complet</span>
+              <strong>{fullName}</strong>
+            </div>
+            <div className="pr-stat">
+              <span>Adresse e-mail</span>
+              <strong className="pr-mono">{user.email}</strong>
+            </div>
+            <div className="pr-stat">
+              <span>Objectif</span>
+              <strong>{proc ? proc.title : "Pas encore défini"}</strong>
+            </div>
+            <div className="pr-stat">
+              <span>Niveau visé</span>
+              <strong>{tcfLevel}</strong>
+            </div>
+          </div>
+        </section>
 
-      {/* ============ INFOS PERSONNELLES ============ */}
-      <SettingsGroup title="Informations personnelles">
-        <SettingsRow
-          name="Nom complet"
-          value={fullName}
-          actionLabel="Modifier"
-          onAction={() => setShowEditNameSoon(true)}
-        />
-        <SettingsRow
-          name="Adresse e-mail"
-          value={user.email}
-          actionLabel="Modifier"
-          onAction={() => setShowEditNameSoon(true)}
-        />
-        <SettingsRow
-          name="Mot de passe"
-          value="•••••••••"
-          actionLabel="Modifier"
-          href="/mot-de-passe-oublie"
-        />
-        <SettingsRow
-          name="Identifiant utilisateur"
-          value={user.id}
-          mono
-        />
-      </SettingsGroup>
+        <aside className="pr-panel">
+          <h2 className="pr-panel-title">Abonnement</h2>
+          <div className="pr-tips">
+            <div className="pr-tip">
+              <span className="pr-tip-emoji" aria-hidden>⭐</span>
+              <p><strong>Offre actuelle :</strong> {planLabel}.</p>
+            </div>
+            <div className="pr-tip">
+              <span className="pr-tip-emoji" aria-hidden>🤖</span>
+              <p>{planSub}.</p>
+            </div>
+            <div className="pr-tip">
+              <span className="pr-tip-emoji" aria-hidden>🔐</span>
+              <p><strong>Gestion :</strong> paiement et accès gérés en ligne en toute sécurité.</p>
+            </div>
+          </div>
+          <Link href="/paiement" className="pr-panel-cta">
+            {user.isPremium ? "Gérer mon abonnement" : "Passer Premium"}
+          </Link>
+        </aside>
+      </div>
 
-      {/* ============ ABONNEMENT ============ */}
-      <SettingsGroup title="Abonnement">
-        <SettingsRow
-          name="Plan actuel"
-          value={planLabel}
-          valueTone={user.isPremium ? "blue" : "muted"}
-          valueStrong
-        />
-        <SettingsRow name="Détails" value={planSub} />
-        {user.isPremium && user.premiumEndsAt && (
-          <SettingsRow
-            name="Renouvellement"
-            value="Sans renouvellement automatique"
-            valueTone="muted"
-          />
-        )}
-        <SettingsRow
-          name={user.isPremium ? "Gérer mon abonnement" : "Passer Premium"}
-          value=""
-          accent={user.isPremium ? null : "primary"}
-          href="/paiement"
-          chevron
-        />
-      </SettingsGroup>
+      {/* ---- Paramètres du compte ---- */}
+      <div className="pr-section-title">
+        <h2>Paramètres du compte</h2>
+      </div>
+      <section className="pr-cards">
+        <Link href="/parcours?from=/profil" className="pr-card">
+          <div className="pr-card-head">
+            <span className="pr-card-icon tone-amber" aria-hidden>🎯</span>
+            <span className="pr-card-badge">{tcfLevel}</span>
+          </div>
+          <h3>Objectif d&apos;examen</h3>
+          <p>CSP, CR ou naturalisation — et le niveau de français correspondant.</p>
+          <span className="pr-card-cta">Modifier</span>
+        </Link>
 
-      {/* ============ ZONE DANGER ============ */}
-      <SettingsGroup title="Zone danger" danger>
-        <SettingsRow
-          name="Supprimer mon compte"
-          value="Toutes vos données et votre progression"
-          valueTone="muted"
-          accent="danger"
-          onAction={() => setShowDeleteSoon(true)}
-          actionLabel="Supprimer"
-        />
-      </SettingsGroup>
+        <Link href="/dashboard" className="pr-card">
+          <div className="pr-card-head">
+            <span className="pr-card-icon tone-blue" aria-hidden>📅</span>
+            <span className="pr-card-badge">{examDate ? "Définie" : "À définir"}</span>
+          </div>
+          <h3>Date d&apos;examen</h3>
+          <p>{examDate ? `Prévue le ${formatDate(examDate)}.` : "Fixe ta date pour suivre ton compte à rebours."}</p>
+          <span className="pr-card-cta">{examDate ? "Modifier" : "Définir"}</span>
+        </Link>
 
-      {/* FOOTNOTE */}
+        <Link href="/mot-de-passe-oublie" className="pr-card">
+          <div className="pr-card-head">
+            <span className="pr-card-icon tone-green" aria-hidden>🔒</span>
+            <span className="pr-card-badge">Sécurité</span>
+          </div>
+          <h3>Connexion</h3>
+          <p>Réinitialise ton mot de passe. Connexion Google/Apple gérée à part.</p>
+          <span className="pr-card-cta">Gérer</span>
+        </Link>
+
+        <button type="button" className="pr-card pr-card-danger" onClick={() => setShowDeleteSoon(true)}>
+          <div className="pr-card-head">
+            <span className="pr-card-icon tone-red" aria-hidden>🗑️</span>
+            <span className="pr-card-badge">RGPD</span>
+          </div>
+          <h3>Données personnelles</h3>
+          <p>Supprimer mon historique et fermer mon compte, conformément au RGPD.</p>
+          <span className="pr-card-cta">Ouvrir</span>
+        </button>
+      </section>
+
+      {/* ---- Activité + conseil ---- */}
+      <div className="pr-cols">
+        <section className="pr-panel">
+          <div className="pr-panel-head">
+            <h2>Mon activité</h2>
+            <Link href="/historique" className="pr-link-btn">Historique complet →</Link>
+          </div>
+          <Link href="/historique" className="pr-mock-row">
+            <span className="pr-card-icon tone-blue" aria-hidden>📝</span>
+            <div className="pr-mock-body">
+              <h3>Mes examens blancs</h3>
+              <p>Scores et progression de tous tes examens passés.</p>
+            </div>
+            <span className="pr-mock-btn">Voir</span>
+          </Link>
+          <Link href="/statistiques" className="pr-mock-row">
+            <span className="pr-card-icon tone-green" aria-hidden>📈</span>
+            <div className="pr-mock-body">
+              <h3>Ma progression</h3>
+              <p>Maîtrise par thème et points à renforcer.</p>
+            </div>
+            <span className="pr-mock-btn">Détails</span>
+          </Link>
+          <Link href="/revision" className="pr-mock-row">
+            <span className="pr-card-icon tone-amber" aria-hidden>🔁</span>
+            <div className="pr-mock-body">
+              <h3>Mes erreurs</h3>
+              <p>Revois les questions ratées et tes favoris.</p>
+            </div>
+            <span className="pr-mock-btn">Revoir</span>
+          </Link>
+        </section>
+
+        <aside className="pr-panel">
+          <h2 className="pr-panel-title">Conseil personnalisé</h2>
+          <div className="pr-tips">
+            <div className="pr-tip">
+              <span className="pr-tip-emoji" aria-hidden>🎯</span>
+              <p>Ton objectif&nbsp;: {proc ? proc.title : "à définir"}. Vise le niveau {tcfLevel}.</p>
+            </div>
+            <div className="pr-tip">
+              <span className="pr-tip-emoji" aria-hidden>📅</span>
+              <p>Garde un rythme simple&nbsp;: 15 à 20 minutes par jour suffisent pour progresser.</p>
+            </div>
+            <div className="pr-tip">
+              <span className="pr-tip-emoji" aria-hidden>🚀</span>
+              <p>Alterne civique et TCF pour ne pas perdre le fil de ta préparation.</p>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      {/* ---- Déconnexion ---- */}
       <div className="pr-footnote">
-        Besoin d&apos;aide ? <Link href="/#faq">Consultez la FAQ</Link> ou
-        écrivez-nous à <a href="mailto:hello@sejourfr.fr">hello@sejourfr.fr</a>.
+        <button type="button" className="pr-logout" onClick={() => setShowLogoutConfirm(true)}>
+          Se déconnecter
+        </button>
+        <span>
+          Besoin d&apos;aide ? <Link href="/faq">Consultez la FAQ</Link> ou écrivez à{" "}
+          <a href="mailto:hello@sejourfr.fr">hello@sejourfr.fr</a>.
+        </span>
       </div>
 
       {/* MODALS */}
@@ -233,9 +293,7 @@ export default function ProfilPage() {
       {showDeleteSoon && (
         <ConfirmModal
           title="Suppression du compte"
-          body={
-            "Cette fonctionnalité arrive bientôt. En attendant, envoyez-nous un email à hello@sejourfr.fr depuis l'adresse de votre compte et nous procéderons à la suppression manuellement, conformément au RGPD."
-          }
+          body="Cette fonctionnalité arrive bientôt. En attendant, envoyez-nous un email à hello@sejourfr.fr depuis l'adresse de votre compte et nous procéderons à la suppression manuellement, conformément au RGPD."
           confirmLabel="J'ai compris"
           confirmTone="neutral"
           onConfirm={() => setShowDeleteSoon(false)}
@@ -258,105 +316,6 @@ export default function ProfilPage() {
       <style>{styles}</style>
     </main>
   );
-}
-
-// ============================================================================
-// SETTINGS GROUP
-// ============================================================================
-function SettingsGroup({
-  title,
-  children,
-  danger,
-}: {
-  title: string;
-  children: React.ReactNode;
-  danger?: boolean;
-}) {
-  return (
-    <section className={`settings-group ${danger ? "is-danger" : ""}`}>
-      <div className={`settings-group-title ${danger ? "is-danger" : ""}`}>
-        {title}
-      </div>
-      <div className={`settings-list ${danger ? "is-danger" : ""}`}>
-        {children}
-      </div>
-    </section>
-  );
-}
-
-// ============================================================================
-// SETTINGS ROW
-// ============================================================================
-function SettingsRow({
-  name,
-  value,
-  valueTone,
-  valueStrong,
-  mono,
-  accent,
-  href,
-  onAction,
-  actionLabel,
-  chevron,
-}: {
-  name: string;
-  value: string;
-  valueTone?: "blue" | "red" | "muted";
-  valueStrong?: boolean;
-  mono?: boolean;
-  accent?: "primary" | "danger" | "warning" | "muted" | null;
-  href?: string;
-  onAction?: () => void;
-  actionLabel?: string;
-  chevron?: boolean;
-}) {
-  const valueEl = (
-    <span
-      className={`row-value ${valueTone ? `row-value-${valueTone}` : ""} ${mono ? "is-mono" : ""}`}
-    >
-      {valueStrong ? <strong>{value}</strong> : value}
-    </span>
-  );
-
-  const actionEl = actionLabel ? (
-    <span className={`row-action row-action-${accent ?? "default"}`}>
-      {actionLabel}
-    </span>
-  ) : chevron ? (
-    <span className="row-chevron">›</span>
-  ) : null;
-
-  const isClickable = !!href || !!onAction;
-
-  const inner = (
-    <>
-      <span className="row-name">{name}</span>
-      <span className="row-value-wrap">
-        {valueEl}
-        {actionEl}
-      </span>
-    </>
-  );
-
-  if (href) {
-    return (
-      <Link href={href} className={`settings-row ${isClickable ? "is-clickable" : ""}`}>
-        {inner}
-      </Link>
-    );
-  }
-  if (onAction) {
-    return (
-      <button
-        type="button"
-        className={`settings-row ${isClickable ? "is-clickable" : ""}`}
-        onClick={onAction}
-      >
-        {inner}
-      </button>
-    );
-  }
-  return <div className="settings-row">{inner}</div>;
 }
 
 // ============================================================================
@@ -469,268 +428,169 @@ const gateStyles = `
 // STYLES
 // ============================================================================
 const styles = `
-  .pr { padding: 24px 36px 64px; max-width: 900px; }
-  @media (max-width: 760px) { .pr { padding: 20px 16px 56px; } }
+  .pr { padding: 24px 36px 64px; max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 26px; }
+  @media (max-width: 760px) { .pr { padding: 20px 16px 56px; gap: 22px; } }
 
-  /* ========== TOPBAR ========== */
-  .topbar {
-    display: flex; justify-content: space-between; align-items: flex-start;
-    gap: 16px; flex-wrap: wrap;
-    margin-bottom: 26px;
+  /* ---- Hero ---- */
+  .pr-hero {
+    display: grid; grid-template-columns: 1fr; gap: 22px;
+    background: linear-gradient(135deg, var(--color-blue) 0%, #3355B5 100%);
+    color: #fff; border-radius: 20px; padding: 24px;
   }
-  .breadcrumb {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--color-muted);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 6px;
+  .pr-hero .breadcrumb {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: rgba(255,255,255,0.7); margin-bottom: 6px;
   }
-  .breadcrumb .sep { margin: 0 6px; opacity: 0.5; }
-  .topbar h1 {
-    font-family: var(--font-display);
-    font-size: clamp(24px, 3.2vw, 32px);
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    margin: 0;
-    line-height: 1.15;
+  .pr-hero .breadcrumb .sep { margin: 0 6px; opacity: 0.5; }
+  .pr-hero-main h1 {
+    font-family: var(--font-display); font-weight: 600; font-size: clamp(24px, 3.4vw, 32px);
+    letter-spacing: -0.02em; line-height: 1.12; margin: 0; color: #fff;
   }
-  .topbar h1 em {
-    color: var(--color-blue);
-    font-style: italic;
-    font-weight: 500;
+  .pr-hero-main h1 em { font-style: italic; font-weight: 500; opacity: 0.92; }
+  .pr-hero-main p { color: rgba(255,255,255,0.82); font-size: 14.5px; line-height: 1.6; margin: 10px 0 0; max-width: 520px; }
+  .pr-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+  .pr-hero-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 11px 20px; border-radius: 10px;
+    font-family: var(--font-sans); font-size: 14px; font-weight: 700;
+    background: #fff; color: var(--color-ink); text-decoration: none;
+    border: 1px solid transparent; cursor: pointer; transition: transform 0.15s, background 0.15s;
   }
-  .topbar-actions { display: flex; gap: 10px; align-items: center; }
-  .btn-outline {
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    padding: 10px 16px; border-radius: 10px;
-    font-size: 13px; font-weight: 600;
-    text-decoration: none;
-    border: 1px solid var(--color-line);
-    background: #fff;
-    color: var(--color-ink);
-    transition: all 0.15s;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .btn-outline:hover { border-color: var(--color-blue); color: var(--color-blue); }
+  .pr-hero-btn:hover { transform: translateY(-1px); background: #F1F5F9; }
+  .pr-hero-btn-ghost { background: transparent; color: #fff; border-color: rgba(255,255,255,0.4); }
+  .pr-hero-btn-ghost:hover { background: rgba(255,255,255,0.12); }
 
-  /* ========== IDENTITY ========== */
-  .identity-card {
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 22px;
-    padding: 28px;
-    display: flex;
-    align-items: center;
-    gap: 22px;
-    margin-bottom: 26px;
-    position: relative;
-    overflow: hidden;
+  .pr-score {
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 10px;
+    justify-content: center;
   }
-  .identity-card::before {
-    content: '';
-    position: absolute;
-    width: 220px; height: 220px;
-    border-radius: 50%;
-    background: radial-gradient(circle, var(--color-blue-light) 0%, transparent 70%);
-    top: -90px; right: -60px;
-    opacity: 0.6;
-    pointer-events: none;
+  .pr-score-head { display: flex; align-items: center; gap: 14px; }
+  .pr-avatar {
+    width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+    background: #fff; color: var(--color-ink);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 600; font-size: 22px;
   }
-  .identity-avatar {
-    width: 80px; height: 80px;
-    background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-red) 100%);
-    color: #fff;
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 28px;
-    letter-spacing: -0.02em;
-    flex-shrink: 0;
-    box-shadow: 0 12px 28px -10px rgba(30, 58, 140, 0.4);
-    position: relative;
-    z-index: 1;
-  }
-  .identity-info {
-    min-width: 0;
-    position: relative;
-    z-index: 1;
-  }
-  .identity-name {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 22px;
-    margin: 0 0 4px;
-    letter-spacing: -0.015em;
-    color: var(--color-ink);
-    line-height: 1.2;
-  }
-  .identity-email {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    color: var(--color-muted);
-    word-break: break-all;
-    margin-bottom: 10px;
-  }
-  .identity-badges {
-    display: flex; flex-wrap: wrap; gap: 6px;
-  }
-  .plan-pill {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    padding: 4px 10px;
-    border-radius: 100px;
-    font-weight: 700;
-    text-transform: uppercase;
-  }
-  .plan-pill-primary { background: var(--color-blue); color: #fff; }
-  .plan-pill-neutral { background: var(--color-paper-2); color: var(--color-muted); }
-  .proc-pill {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    padding: 4px 10px;
-    border-radius: 100px;
-    font-weight: 700;
-    background: var(--color-red-light);
-    color: var(--color-red);
-    text-transform: uppercase;
-  }
-  @media (max-width: 560px) {
-    .identity-card {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 16px;
-      padding: 22px;
-    }
-    .identity-avatar { width: 64px; height: 64px; font-size: 22px; }
-  }
+  .pr-score-name { font-family: var(--font-display); font-weight: 600; font-size: 20px; color: #fff; }
+  .pr-score-plan { font-size: 13px; color: rgba(255,255,255,0.8); margin-top: 2px; }
+  .pr-score-meta { font-size: 13px; color: rgba(255,255,255,0.82); }
 
-  /* ========== SETTINGS GROUP ========== */
-  .settings-group {
-    margin-bottom: 22px;
+  /* ---- Colonnes ---- */
+  .pr-cols { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  .pr-panel { background: #fff; border: 1px solid var(--color-line); border-radius: 16px; padding: 20px; }
+  .pr-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .pr-panel-head h2, .pr-panel-title {
+    font-family: var(--font-display); font-weight: 600; font-size: 18px;
+    letter-spacing: -0.015em; color: var(--color-ink); margin: 0;
   }
-  .settings-group-title {
-    font-family: var(--font-mono);
-    font-size: 10.5px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--color-muted);
-    font-weight: 600;
-    margin-bottom: 10px;
-    padding: 0 4px;
+  .pr-panel-title { margin-bottom: 14px; }
+  .pr-link-btn {
+    background: none; border: none; cursor: pointer; padding: 0;
+    font-family: var(--font-sans); font-size: 13px; font-weight: 600;
+    color: var(--color-blue); text-decoration: none;
   }
-  .settings-group-title.is-danger { color: var(--color-red); }
-  .settings-list {
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 14px;
-    overflow: hidden;
-  }
-  .settings-list.is-danger {
-    border-color: rgba(225, 55, 47, 0.3);
-  }
+  .pr-link-btn:hover { text-decoration: underline; }
 
-  .settings-row {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 14px;
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--color-line-2);
-    background: transparent;
-    text-decoration: none;
-    color: inherit;
-    width: 100%;
-    border-left: none; border-right: none; border-top: none;
-    font-family: inherit;
-    text-align: left;
-    transition: background 0.12s;
+  .pr-info { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .pr-stat {
+    background: var(--color-paper); border: 1px solid var(--color-line-2); border-radius: 12px;
+    padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0;
   }
-  .settings-list > .settings-row:last-child {
-    border-bottom: none;
-  }
-  .settings-row.is-clickable {
-    cursor: pointer;
-  }
-  .settings-row.is-clickable:hover {
+  .pr-stat span { font-size: 11px; color: var(--color-muted); font-family: var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; }
+  .pr-stat strong { font-size: 14.5px; font-weight: 700; color: var(--color-ink); word-break: break-word; }
+  .pr-stat .pr-mono { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
+
+  .pr-tips { display: flex; flex-direction: column; gap: 14px; }
+  .pr-tip { display: flex; gap: 12px; align-items: flex-start; }
+  .pr-tip-emoji {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 16px;
     background: var(--color-blue-soft);
   }
-  .settings-list.is-danger .settings-row.is-clickable:hover {
-    background: var(--color-red-light);
+  .pr-tip p { font-size: 13px; color: var(--color-ink-2); line-height: 1.5; margin: 0; }
+  .pr-tip strong { color: var(--color-ink); font-weight: 700; }
+  .pr-panel-cta {
+    display: block; width: 100%; margin-top: 18px; text-align: center;
+    padding: 11px; border-radius: 10px; background: var(--color-blue); color: #fff;
+    font-family: var(--font-sans); font-weight: 700; font-size: 13.5px; text-decoration: none;
+    transition: background 0.15s;
+  }
+  .pr-panel-cta:hover { background: var(--color-blue-dark); }
+
+  /* ---- Titre de section ---- */
+  .pr-section-title h2 {
+    font-family: var(--font-display); font-weight: 600; font-size: 19px;
+    letter-spacing: -0.015em; color: var(--color-ink); margin: 0;
   }
 
-  .row-name {
-    font-size: 13.5px;
-    font-weight: 600;
-    color: var(--color-ink);
-    flex-shrink: 0;
+  /* ---- Cartes paramètres ---- */
+  .pr-cards { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  .pr-card {
+    text-align: left; background: #fff; border: 1px solid var(--color-line);
+    border-radius: 16px; padding: 18px; cursor: pointer; text-decoration: none;
+    font-family: inherit; display: flex; flex-direction: column;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
   }
-  .row-value-wrap {
-    display: flex; align-items: center; gap: 10px;
-    min-width: 0;
-    flex-wrap: nowrap;
+  .pr-card:hover { transform: translateY(-3px); border-color: var(--color-blue); box-shadow: 0 16px 38px -22px rgba(30,58,140,0.28); }
+  .pr-card-danger:hover { border-color: var(--color-red); box-shadow: 0 16px 38px -22px rgba(225,55,47,0.28); }
+  .pr-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .pr-card-icon {
+    width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 18px;
   }
-  .row-value {
-    font-size: 13px;
-    color: var(--color-muted);
-    text-align: right;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 280px;
+  .pr-card-badge {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--color-muted); background: var(--color-paper-2);
+    padding: 4px 9px; border-radius: 8px;
   }
-  .row-value.is-mono {
-    font-family: var(--font-mono);
-    font-size: 11.5px;
-    letter-spacing: 0.04em;
-  }
-  .row-value-blue { color: var(--color-blue); }
-  .row-value-blue strong { color: var(--color-blue); }
-  .row-value-red { color: var(--color-red); font-weight: 700; }
-  .row-value-muted { color: var(--color-muted-2); }
-  .row-value strong { color: var(--color-ink); font-weight: 700; }
+  .pr-card h3 { font-family: var(--font-sans); font-weight: 700; font-size: 15px; color: var(--color-ink); margin: 0 0 4px; }
+  .pr-card p { font-size: 12.5px; color: var(--color-muted); line-height: 1.5; margin: 0 0 12px; flex: 1; }
+  .pr-card-cta { font-size: 13px; font-weight: 700; color: var(--color-blue); }
+  .pr-card-danger .pr-card-cta { color: var(--color-red); }
 
-  .row-action {
-    font-size: 12.5px;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-  .row-action-default { color: var(--color-blue); }
-  .row-action-primary { color: var(--color-blue); }
-  .row-action-danger { color: var(--color-red); }
-  .row-action-warning { color: var(--color-amber); }
-  .row-action-muted { color: var(--color-muted); }
-  .row-chevron {
-    color: var(--color-muted-2);
-    font-size: 18px;
-    flex-shrink: 0;
-  }
+  .tone-blue { background: var(--color-blue-light); }
+  .tone-green { background: rgba(22,143,91,0.12); }
+  .tone-amber { background: rgba(232,163,23,0.16); }
+  .tone-red { background: var(--color-red-light); }
 
-  @media (max-width: 560px) {
-    .settings-row {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 4px;
-    }
-    .row-value-wrap {
-      justify-content: space-between;
-      width: 100%;
-    }
-    .row-value { text-align: left; max-width: none; }
+  /* ---- Activité (mock-rows) ---- */
+  .pr-mock-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--color-line-2); text-decoration: none;
   }
+  .pr-mock-row:last-child { border-bottom: none; }
+  .pr-mock-body { flex: 1; min-width: 0; }
+  .pr-mock-body h3 { font-family: var(--font-sans); font-weight: 700; font-size: 14px; color: var(--color-ink); margin: 0 0 2px; }
+  .pr-mock-body p { font-size: 12.5px; color: var(--color-muted); line-height: 1.45; margin: 0; }
+  .pr-mock-btn {
+    flex-shrink: 0; padding: 8px 14px; border-radius: 9px; background: var(--color-blue); color: #fff;
+    font-family: var(--font-sans); font-weight: 700; font-size: 12.5px; transition: background 0.15s;
+  }
+  .pr-mock-row:hover .pr-mock-btn { background: var(--color-blue-dark); }
 
-  /* ========== FOOTNOTE ========== */
+  /* ---- Footnote / logout ---- */
   .pr-footnote {
-    text-align: center;
-    margin-top: 32px;
-    font-size: 12.5px;
-    color: var(--color-muted);
-    line-height: 1.55;
+    display: flex; flex-direction: column; gap: 12px; align-items: flex-start;
+    font-size: 13px; color: var(--color-muted); line-height: 1.5;
   }
-  .pr-footnote a { color: var(--color-blue); text-decoration: none; }
+  .pr-footnote a { color: var(--color-blue); font-weight: 600; text-decoration: none; }
   .pr-footnote a:hover { text-decoration: underline; }
+  .pr-logout {
+    padding: 10px 18px; border-radius: 10px; border: 1px solid var(--color-line);
+    background: #fff; color: var(--color-red); font-family: var(--font-sans);
+    font-size: 13.5px; font-weight: 700; cursor: pointer; transition: all 0.15s;
+  }
+  .pr-logout:hover { border-color: var(--color-red); background: var(--color-red-light); }
+
+  @media (min-width: 560px) {
+    .pr-cards { grid-template-columns: 1fr 1fr; }
+  }
+  @media (min-width: 900px) {
+    .pr-hero { grid-template-columns: 1.5fr 1fr; align-items: stretch; padding: 30px; }
+    .pr-cols { grid-template-columns: 1.6fr 1fr; }
+    .pr-cards { grid-template-columns: repeat(4, 1fr); }
+  }
 `;
 
 const modalStyles = `

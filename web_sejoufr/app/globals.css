@@ -236,7 +236,10 @@ a {
   border: 1px solid var(--color-line);
   border-radius: 10px;
   padding: 13px 14px;
-  font-size: 15px;
+  /* 16px minimum : en dessous, iOS Safari zoome au focus du champ, ce qui
+     permet un scroll horizontal sur mobile. 16px le neutralise sans avoir à
+     désactiver le pinch-zoom (mauvais pour l'accessibilité). */
+  font-size: 16px;
   color: var(--color-ink);
   transition: all 0.15s;
   width: 100%;
@@ -487,6 +490,9 @@ a {
   backdrop-filter: blur(2px);
   z-index: 80;
   animation: ms-overlay-in 0.18s ease-out;
+  /* Empêche le scroll/geste sur l'overlay de défiler la page derrière. */
+  overscroll-behavior: contain;
+  touch-action: none;
 }
 @keyframes ms-overlay-in {
   from { opacity: 0; }
@@ -556,6 +562,10 @@ a {
   gap: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  /* Le scroll interne du drawer ne doit pas "chaîner" vers la page derrière
+     quand on atteint le haut/bas (scroll bleed mobile). */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .ms-drawer-inner .app-brand {
   border-bottom: 1px solid var(--color-line-2);
