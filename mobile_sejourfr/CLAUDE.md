@@ -722,10 +722,13 @@ refresh user).
 
 **SKUs** : convention `<MODULE>_<PERIODICITY>` (ex: `CIVIQUE_MONTHLY`,
 `INTEGRAL_QUARTERLY`). Doit matcher EXACTEMENT :
-- Le `Plan.code` côté backend (table `plans`, cf. migration V106).
-- Le Product ID dans App Store Connect → Subscriptions.
-- Le Product ID dans Google Play Console → In-app products.
+- Le `Plan.code` côté backend (table `plans`, cf. migration V106) — en MAJ.
+- Le Product ID dans App Store Connect → Subscriptions — **MAJUSCULES** (= `Plan.code`).
+- Le Product ID dans Google Play Console → In-app products — **MINUSCULES**.
 
+⚠ **Google n'accepte que des Product IDs en minuscules.** `_skuFor()` minuscule
+donc le `Plan.code` pour la source GOOGLE (`plan.code.toLowerCase()`), et
+`plans.google_product_id` doit être posé en minuscules (Apple reste en MAJ).
 Sans cet alignement, `loadProducts` retourne les SKUs dans `notFoundIDs` et
 les cards correspondantes ne s'affichent pas.
 

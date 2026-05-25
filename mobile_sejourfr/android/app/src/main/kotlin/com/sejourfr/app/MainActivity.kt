@@ -1,4 +1,4 @@
-package com.example.sejourfr_mobile
+package com.sejourfr.app
 
 import io.flutter.embedding.android.FlutterActivity
 

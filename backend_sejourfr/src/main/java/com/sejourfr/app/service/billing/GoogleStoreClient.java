@@ -20,7 +20,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
 
@@ -69,10 +72,12 @@ public class GoogleStoreClient {
             NetHttpTransport httpTransport = GoogleNetHttpTransport.newTrustedTransport();
             GsonFactory jsonFactory = GsonFactory.getDefaultInstance();
 
-            GoogleCredentials credentials = GoogleCredentials
-                    .fromStream(new ByteArrayInputStream(
-                            properties.getServiceAccountJson().getBytes(StandardCharsets.UTF_8)))
-                    .createScoped(Collections.singletonList(AndroidPublisherScopes.ANDROIDPUBLISHER));
+            final GoogleCredentials credentials;
+            try (InputStream sa = resolveServiceAccountJson()) {
+                credentials = GoogleCredentials
+                        .fromStream(sa)
+                        .createScoped(Collections.singletonList(AndroidPublisherScopes.ANDROIDPUBLISHER));
+            }
 
             this.androidPublisher = new AndroidPublisher.Builder(
                     httpTransport, jsonFactory, new HttpCredentialsAdapter(credentials))
@@ -89,8 +94,30 @@ public class GoogleStoreClient {
                     properties.getPackageName(), properties.getPubSubAudience()
             );
         } catch (IOException | GeneralSecurityException e) {
-            log.error("Échec init Google Play : {}", e.getMessage());
+            // Stack trace incluse : une init qui échoue dégrade en 503 silencieux,
+            // la trace est précieuse pour diagnostiquer (clé/chemin/JSON malformé).
+            log.error("Échec init Google Play : {}", e.getMessage(), e);
         }
+    }
+
+    /**
+     * Le contenu attendu est le <b>JSON brut</b> de la clé de Service Account.
+     * On tolère aussi qu'on passe un <b>chemin de fichier</b> (.json) : pratique
+     * en dev pour pointer directement la clé téléchargée sans inliner tout le
+     * JSON (et sans risquer la troncature multi-ligne du .env).
+     */
+    private InputStream resolveServiceAccountJson() throws IOException {
+        String raw = properties.getServiceAccountJson().trim();
+        if (raw.startsWith("{")) {
+            return new ByteArrayInputStream(raw.getBytes(StandardCharsets.UTF_8));
+        }
+        Path path = Path.of(raw);
+        if (Files.isRegularFile(path)) {
+            return Files.newInputStream(path);
+        }
+        // Ni JSON inline ni fichier existant : on laisse Gson lever une erreur
+        // explicite sur le contenu brut.
+        return new ByteArrayInputStream(raw.getBytes(StandardCharsets.UTF_8));
     }
 
     public boolean isReady() {
