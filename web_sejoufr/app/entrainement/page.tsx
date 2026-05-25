@@ -254,7 +254,6 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
         () => examsForFilter.filter((e) => !e.free),
         [examsForFilter],
     );
-    const isPremiumForFilter = filter === "CIVIQUE" ? isPremiumCivique : isPremiumTcf;
 
     // CTAs pour les locked exams : tarifs si connecté, inscription si guest.
     const upsellHref = isGuest ? "/connexion" : "/paiement";
@@ -399,16 +398,14 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
                         const onClick =
                             it.kind === "prod"
                                 ? () => setProductionSheet(it.prod ?? "EO")
-                                : filter === "CIVIQUE" && it.theme
-                                    ? () => router.push(`/entrainement/civique/${it.theme!.id}`)
-                                    : filter === "TCF" && it.theme
-                                        ? () => router.push(`/entrainement/tcf/${it.theme!.code.toLowerCase()}`)
+                                : filter === "TCF"
+                                    // it.key = "co" | "ce" (les codes thèmes backend sont
+                                    // TCF_CO/TCF_CE, donc on route par la clé, pas par theme.code).
+                                    ? () => router.push(`/entrainement/tcf/${it.key}`)
+                                    : it.theme
+                                        ? () => router.push(`/entrainement/civique/${it.theme!.id}`)
                                         : () =>
-                                              startTraining(
-                                                  isPremiumForFilter && it.theme
-                                                      ? {module: filter, themeId: it.theme.id, label: it.theme.id}
-                                                      : {module: filter, label: `__mixed_${filter}`},
-                                              );
+                                              startTraining({module: filter, label: `__mixed_${filter}`});
                         const starting =
                             it.kind === "theme"
                                 ? startingThemeId === it.theme?.id ||
