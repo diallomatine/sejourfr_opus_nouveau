@@ -48,6 +48,7 @@ function ExamsConnectedHome() {
   useEffect(() => {
     if (status !== "authenticated") return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     Promise.all([
       examApi.list().catch((e: unknown) => {
@@ -142,53 +143,42 @@ function ExamsConnectedHome() {
 
   return (
     <main className="ebh">
-      {/* ============ TOPBAR ============ */}
-      <header className="topbar">
-        <div>
+      {/* ============ HERO ============ */}
+      <header className="eb-hero">
+        <div className="eb-hero-main">
           <div className="breadcrumb">
             ACCUEIL <span className="sep">/</span> EXAMENS BLANCS
           </div>
           <h1>
             Préparez-vous en <em>conditions réelles</em>.
           </h1>
+          <p>
+            Examens blancs chronométrés, au format et au seuil officiels — Civique
+            40 questions, TCF avec diagnostic CECRL A2 / B1 / B2.
+          </p>
+          <div className="eb-hero-actions">
+            <Link href="/historique" className="eb-hero-btn eb-hero-btn-ghost">
+              Mes résultats →
+            </Link>
+          </div>
         </div>
-        <div className="topbar-actions">
-          <Link href="/historique" className="btn-outline">
-            Mes résultats →
-          </Link>
+        <div className="eb-summary">
+          <div className="summary-box">
+            <strong>{examStats.total}</strong>
+            <span>Examens passés</span>
+          </div>
+          <div className="summary-box">
+            <strong>{examStats.total > 0 ? `${examStats.passRate}%` : "—"}</strong>
+            <span>Réussite</span>
+          </div>
+          <div className="summary-box">
+            <strong>{examStats.bestLabel ?? "—"}</strong>
+            <span>Meilleur score</span>
+          </div>
         </div>
       </header>
 
       {error && <div className="form-error ebh-error">{error}</div>}
-
-      {/* ============ STATS ============ */}
-      <section className="stats-grid">
-        <StatCard
-          tone="blue"
-          icon={<ShieldIcon />}
-          label="EXAMENS PASSÉS"
-          value={String(examStats.total)}
-          trend={examStats.breakdown}
-        />
-        <StatCard
-          tone="green"
-          icon={<CheckIcon />}
-          label="TAUX DE RÉUSSITE"
-          value={examStats.total > 0 ? `${examStats.passRate}%` : "—"}
-          trend={
-            examStats.total > 0
-              ? `${examStats.passed} réussites sur ${examStats.total}`
-              : "Pas encore d'examen"
-          }
-        />
-        <StatCard
-          tone="amber"
-          icon={<TrophyIcon />}
-          label="MEILLEUR SCORE"
-          value={examStats.bestLabel ?? "—"}
-          trend={examStats.bestDetail ?? "À débloquer"}
-        />
-      </section>
 
       {/* ============ MODULE TILES ============ */}
       <section className="tiles">
@@ -266,32 +256,6 @@ function ModuleTile({
 }
 
 // ============================================================================
-// STAT CARD
-// ============================================================================
-function StatCard({
-  tone,
-  icon,
-  label,
-  value,
-  trend,
-}: {
-  tone: "blue" | "red" | "green" | "amber";
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  trend?: string;
-}) {
-  return (
-    <div className="stat-card">
-      <div className={`stat-icon stat-icon-${tone}`}>{icon}</div>
-      <div className="stat-label">{label}</div>
-      <div className="stat-value">{value}</div>
-      {trend && <div className="stat-trend">{trend}</div>}
-    </div>
-  );
-}
-
-// ============================================================================
 // HELPERS
 // ============================================================================
 const SHORT_MONTHS = ["janv", "févr", "mars", "avr", "mai", "juin", "juil", "août", "sept", "oct", "nov", "déc"];
@@ -321,6 +285,7 @@ function ExamsGuestHome() {
 
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     publicExamApi
       .list()
@@ -702,16 +667,6 @@ const ShieldIcon = () => (
     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
   </I>
 );
-const CheckIcon = () => (
-  <I>
-    <polyline points="20 6 9 17 4 12" />
-  </I>
-);
-const TrophyIcon = () => (
-  <I>
-    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-  </I>
-);
 
 // ============================================================================
 // STYLES
@@ -720,93 +675,66 @@ const styles = `
   .ebh { padding: 24px 36px 64px; max-width: 1320px; }
   @media (max-width: 760px) { .ebh { padding: 20px 16px 56px; } }
 
-  /* ========== TOPBAR ========== */
-  .topbar {
-    display: flex; justify-content: space-between; align-items: flex-start;
-    gap: 16px; flex-wrap: wrap;
-    margin-bottom: 26px;
+  /* ========== HERO ========== */
+  .eb-hero {
+    display: grid; grid-template-columns: 1fr; gap: 22px;
+    background: linear-gradient(135deg, var(--color-blue) 0%, #3355B5 100%);
+    color: #fff; border-radius: 20px; padding: 30px; margin-bottom: 22px;
   }
   .breadcrumb {
     font-family: var(--font-mono);
     font-size: 11px;
-    color: var(--color-muted);
+    color: rgba(255, 255, 255, 0.7);
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
   .breadcrumb .sep { margin: 0 6px; opacity: 0.5; }
-  .topbar h1 {
+  .eb-hero-main h1 {
     font-family: var(--font-display);
-    font-size: clamp(24px, 3.2vw, 32px);
+    font-size: clamp(24px, 3.4vw, 32px);
     font-weight: 600;
     letter-spacing: -0.02em;
+    line-height: 1.12;
     margin: 0;
-    line-height: 1.15;
+    color: #fff;
   }
-  .topbar h1 em {
-    color: var(--color-blue);
-    font-style: italic;
-    font-weight: 500;
+  .eb-hero-main h1 em { font-style: italic; font-weight: 500; opacity: 0.92; }
+  .eb-hero-main p {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 14.5px; line-height: 1.6;
+    margin: 10px 0 0; max-width: 540px;
   }
-  .topbar-actions { display: flex; gap: 10px; align-items: center; }
-  .btn-outline {
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    padding: 10px 16px; border-radius: 10px;
-    font-size: 13px; font-weight: 600;
-    text-decoration: none;
-    border: 1px solid var(--color-line);
-    background: #fff;
-    color: var(--color-ink);
-    transition: all 0.15s;
+  .eb-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+  .eb-hero-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 11px 20px; border-radius: 10px;
+    font-family: var(--font-sans); font-size: 14px; font-weight: 700;
+    background: #fff; color: var(--color-blue);
+    text-decoration: none; border: 1px solid transparent;
+    transition: transform 0.15s, background 0.15s;
   }
-  .btn-outline:hover { border-color: var(--color-blue); color: var(--color-blue); }
+  .eb-hero-btn:hover { transform: translateY(-1px); background: #F1F5F9; }
+  .eb-hero-btn-ghost { background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+  .eb-hero-btn-ghost:hover { background: rgba(255, 255, 255, 0.12); }
+  .eb-summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-content: start; }
+  .eb-summary .summary-box {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .eb-summary .summary-box strong {
+    font-family: var(--font-display); font-weight: 600; font-size: 24px;
+    line-height: 1; color: #fff; font-variant-numeric: tabular-nums;
+  }
+  .eb-summary .summary-box span { font-size: 11.5px; color: rgba(255, 255, 255, 0.7); }
+  @media (min-width: 900px) {
+    .eb-hero { grid-template-columns: 1.5fr 1fr; align-items: center; padding: 32px; }
+  }
 
   .ebh-error { margin-bottom: 18px; }
-
-  /* ========== STATS ========== */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-bottom: 26px;
-  }
-  .stat-card {
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 16px;
-    padding: 18px;
-  }
-  .stat-icon {
-    width: 36px; height: 36px;
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: 14px;
-  }
-  .stat-icon-blue { background: var(--color-blue-light); color: var(--color-blue); }
-  .stat-icon-red { background: var(--color-red-light); color: var(--color-red); }
-  .stat-icon-green { background: rgba(22, 143, 91, 0.1); color: var(--color-green); }
-  .stat-icon-amber { background: rgba(232, 163, 23, 0.12); color: var(--color-amber); }
-  .stat-label {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-muted);
-    margin-bottom: 6px;
-    font-weight: 600;
-  }
-  .stat-value {
-    font-family: var(--font-display);
-    font-size: 30px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
-    color: var(--color-ink);
-  }
-  .stat-trend { font-size: 12px; margin-top: 6px; color: var(--color-muted); }
-  @media (max-width: 760px) {
-    .stats-grid { grid-template-columns: 1fr; }
-  }
 
   /* ========== TILES — 2 grosses tuiles cliquables ========== */
   .tiles {
