@@ -434,7 +434,7 @@ const styles = `
   /* ---- Hero ---- */
   .pr-hero {
     display: grid; grid-template-columns: 1fr; gap: 22px;
-    background: linear-gradient(135deg, var(--color-ink) 0%, #475569 100%);
+    background: linear-gradient(135deg, var(--color-blue) 0%, #3355B5 100%);
     color: #fff; border-radius: 20px; padding: 24px;
   }
   .pr-hero .breadcrumb {
@@ -512,11 +512,11 @@ const styles = `
   .pr-tip strong { color: var(--color-ink); font-weight: 700; }
   .pr-panel-cta {
     display: block; width: 100%; margin-top: 18px; text-align: center;
-    padding: 11px; border-radius: 10px; background: var(--color-ink); color: #fff;
+    padding: 11px; border-radius: 10px; background: var(--color-blue); color: #fff;
     font-family: var(--font-sans); font-weight: 700; font-size: 13.5px; text-decoration: none;
     transition: background 0.15s;
   }
-  .pr-panel-cta:hover { background: var(--color-ink-2); }
+  .pr-panel-cta:hover { background: var(--color-blue-dark); }
 
   /* ---- Titre de section ---- */
   .pr-section-title h2 {
@@ -564,10 +564,10 @@ const styles = `
   .pr-mock-body h3 { font-family: var(--font-sans); font-weight: 700; font-size: 14px; color: var(--color-ink); margin: 0 0 2px; }
   .pr-mock-body p { font-size: 12.5px; color: var(--color-muted); line-height: 1.45; margin: 0; }
   .pr-mock-btn {
-    flex-shrink: 0; padding: 8px 14px; border-radius: 9px; background: var(--color-ink); color: #fff;
+    flex-shrink: 0; padding: 8px 14px; border-radius: 9px; background: var(--color-blue); color: #fff;
     font-family: var(--font-sans); font-weight: 700; font-size: 12.5px; transition: background 0.15s;
   }
-  .pr-mock-row:hover .pr-mock-btn { background: var(--color-ink-2); }
+  .pr-mock-row:hover .pr-mock-btn { background: var(--color-blue-dark); }
 
   /* ---- Footnote / logout ---- */
   .pr-footnote {
