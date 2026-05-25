@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {useRouter, useSearchParams} from "next/navigation";
 import {Suspense, useEffect, useMemo, useState} from "react";
-import {BookOpen, Headphones, Landmark, Lock, Mic, PenLine} from "lucide-react";
+import {BookOpen, Headphones, Landmark, Lock, Mic, PenLine, SpellCheck} from "lucide-react";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {
@@ -289,6 +289,12 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
                     tone: "green", badge: "CE", icon: "ce", title: "Compréhension écrite",
                     desc: "Textes courts, annonces, e-mails, consignes et documents simples.",
                     tags: ["25 questions", "35 min"], cta: "Commencer",
+                },
+                {
+                    key: "structure", kind: "theme", theme: tcf.find((t) => t.code === "STRUCTURE") ?? null,
+                    tone: "red", badge: "STR", icon: "structure", title: "Structure de la langue",
+                    desc: "Grammaire et lexique en contexte. Bonus d'entraînement, hors TCF IRN.",
+                    tags: ["25 questions", "20 min"], cta: "Commencer",
                 },
                 {
                     key: "ee", kind: "prod", prod: "EE", tone: "amber", badge: "EE", icon: "ee",
@@ -842,9 +848,10 @@ function HubModuleCard({
     const Icon =
         icon === "co" ? Headphones
             : icon === "ce" ? BookOpen
-                : icon === "ee" ? PenLine
-                    : icon === "eo" ? Mic
-                        : Landmark;
+                : icon === "structure" ? SpellCheck
+                    : icon === "ee" ? PenLine
+                        : icon === "eo" ? Mic
+                            : Landmark;
     return (
         <article className="hub-card">
             <div className="hub-card-head">
