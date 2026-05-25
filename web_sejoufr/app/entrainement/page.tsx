@@ -401,12 +401,14 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
                                 ? () => setProductionSheet(it.prod ?? "EO")
                                 : filter === "CIVIQUE" && it.theme
                                     ? () => router.push(`/entrainement/civique/${it.theme!.id}`)
-                                    : () =>
-                                          startTraining(
-                                              isPremiumForFilter && it.theme
-                                                  ? {module: filter, themeId: it.theme.id, label: it.theme.id}
-                                                  : {module: filter, label: `__mixed_${filter}`},
-                                          );
+                                    : filter === "TCF" && it.theme
+                                        ? () => router.push(`/entrainement/tcf/${it.theme!.code.toLowerCase()}`)
+                                        : () =>
+                                              startTraining(
+                                                  isPremiumForFilter && it.theme
+                                                      ? {module: filter, themeId: it.theme.id, label: it.theme.id}
+                                                      : {module: filter, label: `__mixed_${filter}`},
+                                              );
                         const starting =
                             it.kind === "theme"
                                 ? startingThemeId === it.theme?.id ||

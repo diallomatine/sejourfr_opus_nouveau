@@ -1,0 +1,356 @@
+/* Styles partagés des pages détail de module (thème civique + épreuve TCF QCM).
+   L'accent (bleu civique / rouge TCF) est piloté par data-accent sur .root. */
+
+.root {
+  --md-accent: var(--color-blue);
+  --md-accent-dark: var(--color-blue-dark);
+  --md-accent-light: var(--color-blue-light);
+  --md-accent-soft: var(--color-blue-soft);
+  --md-grad-end: #3355b5;
+  padding: 24px 36px 64px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.root[data-accent="red"] {
+  --md-accent: var(--color-red);
+  --md-accent-dark: var(--color-red-dark);
+  --md-accent-light: var(--color-red-light);
+  --md-accent-soft: var(--color-red-light);
+  --md-grad-end: #ec5b53;
+}
+@media (max-width: 760px) {
+  .root {
+    padding: 20px 16px 56px;
+  }
+}
+
+.gate {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--color-muted);
+  padding: 36px;
+}
+.gateCta {
+  color: var(--color-blue);
+  font-weight: 700;
+}
+
+.breadcrumb {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-bottom: 16px;
+}
+.breadcrumb a {
+  color: var(--md-accent);
+}
+.breadcrumb :global(.sep) {
+  margin: 0 6px;
+  opacity: 0.5;
+}
+.breadcrumb strong {
+  color: var(--color-ink);
+}
+
+.hero {
+  background: linear-gradient(135deg, var(--md-accent) 0%, var(--md-grad-end) 100%);
+  color: #fff;
+  border-radius: 20px;
+  padding: 28px;
+  margin-bottom: 22px;
+}
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+.hero h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(24px, 4vw, 32px);
+  letter-spacing: -0.02em;
+  margin: 8px 0 0;
+}
+.hero p {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 14.5px;
+  line-height: 1.55;
+  margin: 10px 0 0;
+  max-width: 540px;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.tab {
+  border: 1px solid var(--color-line);
+  background: #fff;
+  padding: 12px;
+  border-radius: 12px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-muted);
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.tab:hover {
+  border-color: var(--md-accent);
+  color: var(--md-accent);
+}
+.tabActive {
+  background: var(--md-accent-soft);
+  color: var(--md-accent);
+  border-color: var(--md-accent);
+}
+
+.error {
+  margin-bottom: 16px;
+}
+.empty {
+  color: var(--color-muted);
+  font-size: 14.5px;
+  padding: 24px 0;
+}
+.intro {
+  color: var(--color-muted);
+  font-size: 14px;
+  margin: 0 0 16px;
+}
+.intro strong {
+  color: var(--color-ink);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.lot,
+.exam,
+.levelCard {
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  padding: 16px;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+}
+.lot:hover:not(:disabled),
+.examNext:hover,
+.examDone:hover,
+.levelCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--md-accent);
+  box-shadow: 0 14px 32px -20px rgba(30, 58, 140, 0.3);
+}
+.lot:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.lotDone {
+  background: var(--md-accent-soft);
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cardNum {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--color-ink);
+}
+.lotScore,
+.examBadge {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 100px;
+}
+.lotScore {
+  background: var(--md-accent-light);
+  color: var(--md-accent-dark);
+}
+.badgeOk {
+  background: rgba(22, 143, 91, 0.14);
+  color: var(--color-green);
+}
+.badgeKo {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+.cardMeta {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin: 0;
+}
+.cardCta {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--md-accent);
+}
+
+.examLocked {
+  border-style: dashed;
+}
+.examNext {
+  border-color: var(--md-accent);
+  border-style: dashed;
+}
+.lockChip {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 100px;
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
+/* Cartes de niveau (onglet Séries TCF) */
+.levelChip {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 14px;
+  color: #fff;
+  flex-shrink: 0;
+}
+.levelCard {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+.levelBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.levelTitle {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--color-ink);
+}
+.levelSub {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+.levelArrow {
+  flex-shrink: 0;
+  color: var(--color-muted-2);
+  font-size: 22px;
+}
+
+.errlist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.err {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  padding: 14px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.err:hover {
+  transform: translateY(-2px);
+  border-color: var(--md-accent);
+  box-shadow: 0 12px 28px -20px rgba(30, 58, 140, 0.3);
+}
+.errChip {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+}
+.err p {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--color-ink-2);
+  line-height: 1.45;
+}
+.errArrow {
+  flex-shrink: 0;
+  color: var(--color-muted-2);
+  font-size: 20px;
+}
+.errCta {
+  align-self: flex-start;
+  margin-top: 6px;
+  color: var(--md-accent);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.skel {
+  height: 110px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, #eef0f8 25%, #f6f7fb 50%, #eef0f8 75%);
+  background-size: 200% 100%;
+  animation: md-sh 1.3s ease-in-out infinite;
+}
+@keyframes md-sh {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (min-width: 620px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (min-width: 960px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

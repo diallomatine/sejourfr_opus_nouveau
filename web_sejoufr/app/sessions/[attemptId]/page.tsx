@@ -37,6 +37,22 @@ const GUEST_BACKEND: RunnerBackend = {
   // pour cacher les fonctionnalités réservées aux comptes.
 };
 
+/** Chemin de retour après un lot, dérivé du module/épreuve de l'attempt :
+ *  civique → détail du thème, TCF → page lots de l'épreuve × niveau. */
+function lotReturnPath(attempt: AttemptResponse): string | null {
+  const q = attempt.questions[0]?.question;
+  if (!q) return null;
+  if (attempt.module === "CIVIQUE") {
+    return q.themeId ? `/entrainement/civique/${q.themeId}` : null;
+  }
+  const code = q.questionType?.toLowerCase();
+  const level = q.difficulty?.toLowerCase();
+  if (code && level && (code === "co" || code === "ce" || code === "structure")) {
+    return `/entrainement/tcf/${code}/${level}`;
+  }
+  return null;
+}
+
 /**
  * Page générique d'une session : training ou examen blanc. Le type de
  * l'attempt détermine le mode du runner et la carte de résultat à afficher.
@@ -177,11 +193,8 @@ function SessionRunnerInner({ params }: PageProps) {
   if (phase === "result" && attempt) {
     const isExam = attempt.type === "MOCK_EXAM";
     const isGuest = sessionMode === "guest";
-    const lotThemeId = attempt.questions[0]?.question.themeId;
     const lotReturnHref =
-      lotNumero != null && !isGuest && attempt.module === "CIVIQUE" && lotThemeId
-        ? `/entrainement/civique/${lotThemeId}`
-        : undefined;
+      lotNumero != null && !isGuest ? (lotReturnPath(attempt) ?? undefined) : undefined;
     return (
       <main className="sess">
         {isExam ? (
@@ -218,10 +231,7 @@ function SessionRunnerInner({ params }: PageProps) {
     const allSameTheme =
       firstThemeId !== undefined &&
       attempt.questions.every((q) => q.question.themeId === firstThemeId);
-    const lotQuitHref =
-      isLot && attempt.module === "CIVIQUE" && firstThemeId
-        ? `/entrainement/civique/${firstThemeId}`
-        : null;
+    const lotQuitHref = isLot ? lotReturnPath(attempt) : null;
 
     return (
       <QuestionRunner

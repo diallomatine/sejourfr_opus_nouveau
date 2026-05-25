@@ -291,6 +291,28 @@ Chantier découpé en vagues :
   est null). Bandeau onboarding sur dashboard si pas de parcours choisi.
   `TargetPathBanner` pointe désormais vers `/parcours?from=<courant>` pour
   édition directe + retour au contexte. Sidebar enrichie avec "Mon profil".
+- **Vague 5** ✅ — Pages détail de module (parité écrans mobiles
+  `module_detail/`). Un clic sur un module depuis `/entrainement` ouvre un
+  écran détail à onglets, branché sur le runner existant :
+  - **Civique** `/entrainement/civique/[themeId]` — onglets **Lots / Examens /
+    Erreurs**. Lots → `TRAINING {themeId, lotNumero}` → runner mode lot.
+    Examens → 10 slots (abonné = tous lançables, gratuit = slot 1 seul, 2+ →
+    paywall), `MOCK_EXAM {themeId}` (20 Q/20 min/seuil 16). Erreurs → liste
+    cliquable → `QuestionDetailModal`.
+  - **TCF QCM** `/entrainement/tcf/[code]` (code = `co`/`ce`) — onglets
+    **Séries / Examens / Erreurs**. Séries = 3 cartes niveau (A2/B1/B2) →
+    `/entrainement/tcf/[code]/[level]` (lots du niveau via
+    `lotApi.listTcf(questionType, difficulty)`, lot gated premium → paywall
+    INTEGRAL). Examens → `MOCK_EXAM {moduleExamQuestionType}` (25 Q,
+    20 min CO / 35 min CE, score /50). EE/EO restent sur le
+    `ProductionMobileSheet` (productions mobiles uniquement).
+  - **Composants partagés** `app/_components/module_detail/` :
+    `parts.tsx` (ModuleDetailShell/Hero/Tabs, LotsGrid, ExamSlots, ErrorsList,
+    SkeletonGrid) + `ModuleDetail.module.css` (accent bleu/rouge via
+    `data-accent`). `QuestionDetailModal` extrait de `/revision`.
+  - **Runner mode lot** : `/sessions/[id]?lot=<numero>` force le batch fixe
+    (pas d'extension premium), eyebrow "Lot N", retour au détail via
+    `lotReturnPath(attempt)` (civique → thème, TCF → épreuve×niveau).
 
 ### Endpoints backend manquants (à créer si besoin)
 
