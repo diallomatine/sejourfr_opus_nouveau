@@ -250,17 +250,26 @@ function PaiementInner() {
 
     return (
         <main className="pay">
-            <header className="topbar">
-                <div>
-                    <div className="breadcrumb">
-                        ACCUEIL <span className="sep">/</span>{" "}
-                        <Link href="/profil" className="breadcrumb-link">
-                            PROFIL
-                        </Link>{" "}
-                        <span className="sep">/</span> ABONNEMENT
-                    </div>
-                    <h1>{titleFor(currentPlan, user.firstName ?? null)}</h1>
-                    <p className="topbar-sub">{leadFor(currentPlan)}</p>
+            <header className="pay-hero">
+                <div className="breadcrumb">
+                    ACCUEIL <span className="sep">/</span>{" "}
+                    <Link href="/profil" className="breadcrumb-link">
+                        PROFIL
+                    </Link>{" "}
+                    <span className="sep">/</span> ABONNEMENT
+                </div>
+                <h1>{titleFor(currentPlan, user.firstName ?? null)}</h1>
+                <p className="pay-hero-sub">{leadFor(currentPlan)}</p>
+                <div className="pay-hero-chips">
+                    <span className="pay-hero-chip">
+                        <LockIcon /> Paiement sécurisé Stripe
+                    </span>
+                    <span className="pay-hero-chip">
+                        <CalendarIcon /> Annulable à tout moment
+                    </span>
+                    <span className="pay-hero-chip">
+                        <CheckIcon /> Sans engagement
+                    </span>
                 </div>
             </header>
 
@@ -700,44 +709,64 @@ const styles = `
   .pay { padding: 24px 36px 64px; max-width: 1100px; }
   @media (max-width: 760px) { .pay { padding: 20px 16px 56px; } }
 
-  /* ========== TOPBAR ========== */
-  .topbar { margin-bottom: 26px; }
+  /* ========== HERO ========== */
+  .pay-hero {
+    background: linear-gradient(135deg, var(--color-blue) 0%, #3355B5 100%);
+    color: #fff;
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 26px;
+  }
+  @media (max-width: 760px) { .pay-hero { padding: 22px; } }
   .breadcrumb {
     font-family: var(--font-mono);
     font-size: 11px;
-    color: var(--color-muted);
+    color: rgba(255, 255, 255, 0.7);
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
   .breadcrumb-link {
-    color: var(--color-muted);
+    color: rgba(255, 255, 255, 0.85);
     text-decoration: none;
     transition: color 0.15s;
   }
-  .breadcrumb-link:hover { color: var(--color-blue); }
+  .breadcrumb-link:hover { color: #fff; }
   .breadcrumb .sep { margin: 0 6px; opacity: 0.5; }
-  .topbar h1 {
+  .pay-hero h1 {
     font-family: var(--font-display);
-    font-size: clamp(24px, 3.5vw, 36px);
+    font-size: clamp(24px, 3.5vw, 34px);
     font-weight: 600;
     letter-spacing: -0.02em;
     margin: 0 0 10px;
     line-height: 1.12;
-    max-width: 700px;
+    max-width: 640px;
+    color: #fff;
   }
-  .topbar h1 em {
-    color: var(--color-blue);
+  .pay-hero h1 em {
     font-style: italic;
     font-weight: 500;
+    opacity: 0.92;
   }
-  .topbar-sub {
+  .pay-hero-sub {
     margin: 0;
-    color: var(--color-muted);
-    font-size: 15.5px;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 15px;
     line-height: 1.55;
-    max-width: 620px;
+    max-width: 600px;
   }
+  .pay-hero-chips {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    margin-top: 18px;
+  }
+  .pay-hero-chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12.5px; font-weight: 600; color: #fff;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 7px 12px; border-radius: 100px;
+  }
+  .pay-hero-chip svg { width: 15px; height: 15px; }
 
   /* ========== PERIODICITY TOGGLE ========== */
   .period-toggle {
