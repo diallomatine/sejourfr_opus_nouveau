@@ -9,6 +9,7 @@ import {
   userContentApi,
 } from "@/lib/api";
 import {
+  orderedChoices,
   questionTypeLabel,
   type AnswerResultResponse,
   type AttemptQuestionResponse,
@@ -350,7 +351,7 @@ export function QuestionRunner({
 
       if (["1", "2", "3", "4"].includes(e.key)) {
         const idx = Number(e.key) - 1;
-        const choice = current.question.choices[idx];
+        const choice = orderedChoices(current.question.choices)[idx];
         if (choice && !hasFeedback) {
           e.preventDefault();
           toggleChoice(choice.id);
@@ -481,13 +482,16 @@ export function QuestionRunner({
 
         {/* CHOICES */}
         <div className="qr-options" role="radiogroup">
-          {q.choices.map((c, i) => {
+          {orderedChoices(q.choices).map((c, i) => {
             // TCF CO en mode FULL_AUDIO : le contenu de la réponse est dans
-            // l'audio, le label se réduit à une lettre ("A" ou "Réponse A").
-            // On masque le texte redondant et on numérote la pastille par
-            // position (A, B, C, D dans l'ordre), comme énoncé dans l'audio.
+            // l'audio, le label se réduit à une lettre ("A" ou "Réponse A") qui
+            // est la clé de réponse citée par l'explication. On affiche cette
+            // lettre dans la pastille et on masque le texte redondant ; les choix
+            // sont déjà triés A→D par orderedChoices.
             const letterOnly = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
-            const letter = String.fromCharCode(65 + i);
+            const letter = letterOnly
+              ? letterOnly[1].toUpperCase()
+              : String.fromCharCode(65 + i);
             const isSel = selected.includes(c.id);
             const isThisCorrect = showCorrection && correctIds.includes(c.id);
             const isWrongPick = showCorrection && isSel && !isCorrect;

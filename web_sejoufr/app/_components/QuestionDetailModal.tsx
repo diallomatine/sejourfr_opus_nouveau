@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ApiException, userContentApi } from "@/lib/api";
-import { type QuestionReviewResponse, questionTypeLabel } from "@/lib/types";
+import { orderedChoices, type QuestionReviewResponse, questionTypeLabel } from "@/lib/types";
 import { MediaView } from "@/app/_components/MediaView";
 
 /**
@@ -129,11 +129,14 @@ export function QuestionDetailModal({
         <h2 className="rvd-statement">{question.statement}</h2>
 
         <div className="rvd-choices">
-          {question.choices.map((c, i) => {
-            // FULL_AUDIO : label réduit à une lettre → on masque le texte
-            // redondant et on numérote la pastille par position (A, B, C, D).
+          {orderedChoices(question.choices).map((c, i) => {
+            // FULL_AUDIO : label réduit à une lettre (clé citée par
+            // l'explication) → on l'affiche dans la pastille, on masque le
+            // texte redondant ; les choix sont déjà triés A→D.
             const letterOnly = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
-            const letter = String.fromCharCode(65 + i);
+            const letter = letterOnly
+              ? letterOnly[1].toUpperCase()
+              : String.fromCharCode(65 + i);
             return (
               <div key={c.id} className={`rvd-choice ${c.correct ? "is-correct" : ""}`}>
                 <span className="rvd-letter">{letter}</span>
