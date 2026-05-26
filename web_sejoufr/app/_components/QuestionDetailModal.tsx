@@ -130,12 +130,10 @@ export function QuestionDetailModal({
 
         <div className="rvd-choices">
           {question.choices.map((c, i) => {
-            // FULL_AUDIO : label réduit à une lettre → on l'affiche dans la
-            // pastille et on masque le texte redondant.
+            // FULL_AUDIO : label réduit à une lettre → on masque le texte
+            // redondant et on numérote la pastille par position (A, B, C, D).
             const letterOnly = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
-            const letter = letterOnly
-              ? letterOnly[1].toUpperCase()
-              : String.fromCharCode(65 + i);
+            const letter = String.fromCharCode(65 + i);
             return (
               <div key={c.id} className={`rvd-choice ${c.correct ? "is-correct" : ""}`}>
                 <span className="rvd-letter">{letter}</span>

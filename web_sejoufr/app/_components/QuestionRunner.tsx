@@ -484,12 +484,10 @@ export function QuestionRunner({
           {q.choices.map((c, i) => {
             // TCF CO en mode FULL_AUDIO : le contenu de la réponse est dans
             // l'audio, le label se réduit à une lettre ("A" ou "Réponse A").
-            // On l'affiche dans la pastille (pour matcher ce qui est entendu)
-            // et on masque le texte redondant.
+            // On masque le texte redondant et on numérote la pastille par
+            // position (A, B, C, D dans l'ordre), comme énoncé dans l'audio.
             const letterOnly = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
-            const letter = letterOnly
-              ? letterOnly[1].toUpperCase()
-              : String.fromCharCode(65 + i);
+            const letter = String.fromCharCode(65 + i);
             const isSel = selected.includes(c.id);
             const isThisCorrect = showCorrection && correctIds.includes(c.id);
             const isWrongPick = showCorrection && isSel && !isCorrect;
