@@ -399,15 +399,26 @@ WHERE code IN ('CIVIQUE_MONTHLY', 'CIVIQUE_QUARTERLY', 'CIVIQUE_YEARLY',
 (ou via l'admin `/plans`). Si `google_product_id` est NULL ou ≠ du store, le SKU
 revient en `notFoundIDs` et la card ne s'affiche pas.
 
-### Étape 8 — Android natif : OAuth Client + SHA-1
+### Étape 8 — Android natif : OAuth Client + SHA-1 (pour Google Sign-In)
 
 Dans **console.cloud.google.com → APIs & Services → Credentials → Create
 credentials → OAuth client ID → Android** : renseigne le **package name**
-(`com.sejourfr.app`) et le **SHA-1** des keystores **debug ET release**.
-⚠ Le SHA-1 **release** est obligatoire, sinon le billing échoue sur un build signé.
+(`com.sejourfr.app`) et **3 empreintes SHA-1** :
+
+| SHA-1 | Source | Sert pour |
+|---|---|---|
+| debug | `~/.android/debug.keystore` | `flutter run` en dev |
+| upload/release | ta clé `.jks` (`keytool -list -v -keystore …`) | builds release locaux |
+| **Play App Signing** | **Play Console → Intégrité de l'app → Certificat de la clé de signature** | **builds installés depuis Play** |
+
+> ⚠ **Piège majeur** : avec un `.aab`, Google **re-signe** l'app avec sa propre
+> clé Play App Signing (≠ ta clé release). Le build installé depuis Play a donc
+> un SHA-1 **différent**. Si tu n'enregistres pas le SHA-1 **Play App Signing**,
+> Google Sign-In échoue (`DEVELOPER_ERROR` / code 10) dès le premier test interne,
+> alors que ça marchait en local. (Ce SHA-1 sert au Sign-In/OAuth, pas au billing.)
 
 ```bash
-# Récupérer le SHA-1 (debug)
+# SHA-1 du keystore debug
 keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey \
   -storepass android -keypass android
 ```

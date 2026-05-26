@@ -312,8 +312,12 @@ backend.
   référence ce fichier. Activer aussi la capability sur l'App ID dans Apple Developer Portal.
 
 **Config native Android** : rien à modifier dans le code. La config se fait dans Google Cloud
-Console : ajouter un OAuth Client Android avec le package name + SHA-1 du keystore (debug et
-release). Le package `google_sign_in` détecte tout via le `serverClientId` qu'on lui passe.
+Console : ajouter un OAuth Client Android avec le package name + **3 SHA-1** : keystore debug,
+keystore release (upload), **et la clé Play App Signing** (Play Console → Intégrité de l'app →
+certificat de la clé de signature). ⚠ Avec un `.aab`, Google re-signe l'app → le build installé
+depuis Play a le SHA-1 Play App Signing, pas celui de ta clé release : sans lui, Google Sign-In
+échoue (`DEVELOPER_ERROR`/code 10) en test interne alors que ça marche en local. Le package
+`google_sign_in` détecte tout via le `serverClientId` qu'on lui passe.
 
 **Activer le social sign-in** : remplir `GOOGLE_SERVER_CLIENT_ID` (et `GOOGLE_IOS_CLIENT_ID`
 sur iOS) dans `mobile_sejourfr/.env` (cf. § Démarrage local). Sans valeurs, les boutons
