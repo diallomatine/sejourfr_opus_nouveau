@@ -16,6 +16,7 @@ import { ArticleProgressBar } from "@/components/blog/ArticleProgressBar";
 import { RelatedArticles } from "@/components/blog/RelatedArticles";
 import { NewsletterCTA } from "@/components/blog/NewsletterCTA";
 import { SITE } from "@/lib/site";
+import { safeJsonLd } from "@/lib/security";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -96,7 +97,7 @@ export default async function BlogArticlePage({ params }: PageProps) {
       <article className="blog-article container-x">
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
         />
         <ArticleHeader article={article} />
 

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { ApiException, userContentApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { safeInternalPath } from "@/lib/security";
 import type { TargetProcedure } from "@/lib/types";
 
 /**
@@ -74,7 +75,8 @@ const PATHS: PathInfo[] = [
 function ParcoursForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const fromParam = searchParams.get("from");
+  // Chemin interne sûr uniquement (anti open-redirect via ?from=//evil.com).
+  const fromParam = safeInternalPath(searchParams.get("from"), "/profil");
   const { user, status, refreshUser } = useAuth();
 
   const [selected, setSelected] = useState<TargetProcedure | null>(null);

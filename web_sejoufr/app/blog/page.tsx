@@ -6,6 +6,7 @@ import { BlogCategoryDropdown } from "@/components/blog/BlogCategoryDropdown";
 import { NewsletterCTA } from "@/components/blog/NewsletterCTA";
 import { listArticles } from "@/lib/blog/articles";
 import { SITE } from "@/lib/site";
+import { safeJsonLd } from "@/lib/security";
 
 const PAGE_DESCRIPTION =
   "Articles, guides et actualités juridiques pour réussir votre examen civique, votre demande de titre de séjour et votre naturalisation française.";
@@ -48,7 +49,7 @@ export default function BlogIndexPage() {
     <div className="blog-index container-x">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
 
       <header className="blog-index-header">

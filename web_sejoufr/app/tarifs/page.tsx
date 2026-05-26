@@ -6,6 +6,7 @@ import { PricingComparison } from "@/components/pricing/PricingComparison";
 import { PricingFAQ } from "@/components/pricing/PricingFAQ";
 import { billingApi } from "@/lib/api";
 import { SITE } from "@/lib/site";
+import { safeJsonLd } from "@/lib/security";
 import type { PlanPublicResponse } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -65,7 +66,7 @@ export default async function TarifsPage() {
       <main className="container-x tarifs-page">
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
         />
         <PricingHero />
         <PricingPlans plans={plans} />

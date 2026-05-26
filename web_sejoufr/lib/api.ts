@@ -52,7 +52,10 @@ export const tokenStorage = {
         localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
         localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
         // Cookie léger pour permettre au middleware/SSR de connaître l'état.
-        document.cookie = `${ACCESS_TOKEN_KEY}=${tokens.accessToken}; path=/; max-age=${tokens.expiresInSeconds}; SameSite=Lax`;
+        // `Secure` en prod (HTTPS) pour ne jamais transiter en clair ; omis en
+        // dev (http://localhost) sinon le navigateur refuse le cookie.
+        const secure = window.location.protocol === "https:" ? "; Secure" : "";
+        document.cookie = `${ACCESS_TOKEN_KEY}=${tokens.accessToken}; path=/; max-age=${tokens.expiresInSeconds}; SameSite=Lax${secure}`;
     },
     clear() {
         if (typeof window === "undefined") return;

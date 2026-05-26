@@ -6,6 +6,7 @@ import {
   getAllFaqItems,
 } from "@/content/faq/faq-data";
 import { SITE } from "@/lib/site";
+import { safeJsonLd } from "@/lib/security";
 
 export const metadata: Metadata = {
   title: "FAQ — Examen civique, naturalisation et titre de séjour | SejourFR",
@@ -49,7 +50,7 @@ export default function FAQPage() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
       <main>
         <FAQContent />

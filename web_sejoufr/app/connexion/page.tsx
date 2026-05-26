@@ -9,6 +9,7 @@ import { PasswordInput } from "@/app/_components/auth/PasswordInput";
 import styles from "@/app/_components/auth/auth.module.css";
 import { ApiException } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { safeInternalPath } from "@/lib/security";
 
 export default function ConnexionPage() {
   return (
@@ -22,7 +23,7 @@ function ConnexionInner() {
   const router = useRouter();
   const search = useSearchParams();
   const { login, status, user } = useAuth();
-  const nextHref = search.get("next") ?? "/dashboard";
+  const nextHref = safeInternalPath(search.get("next"), "/dashboard");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
