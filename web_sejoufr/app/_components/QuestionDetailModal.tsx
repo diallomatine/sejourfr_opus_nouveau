@@ -130,11 +130,16 @@ export function QuestionDetailModal({
 
         <div className="rvd-choices">
           {question.choices.map((c, i) => {
-            const letter = String.fromCharCode(65 + i);
+            // FULL_AUDIO : label réduit à une lettre → on l'affiche dans la
+            // pastille et on masque le texte redondant.
+            const letterOnly = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
+            const letter = letterOnly
+              ? letterOnly[1].toUpperCase()
+              : String.fromCharCode(65 + i);
             return (
               <div key={c.id} className={`rvd-choice ${c.correct ? "is-correct" : ""}`}>
                 <span className="rvd-letter">{letter}</span>
-                <span className="rvd-choice-label">{c.label}</span>
+                <span className="rvd-choice-label">{letterOnly ? "" : c.label}</span>
                 {c.correct && (
                   <span className="rvd-check" aria-label="Bonne réponse">
                     <svg viewBox="0 0 16 16" width="16" height="16">

@@ -66,7 +66,16 @@ class ChoiceTile extends StatelessWidget {
       letterColor = AppColors.white;
     }
 
-    final letter = String.fromCharCode('A'.codeUnitAt(0) + index);
+    // Questions TCF CO en mode FULL_AUDIO : le contenu de la réponse est dans
+    // l'audio, le label en base n'est qu'une lettre (A/B/C/D). Dans ce cas on
+    // affiche cette lettre directement dans la pastille — pas de second texte
+    // redondant — pour que l'utilisateur retrouve la réponse entendue.
+    final letterLabel = choice.label.trim();
+    final isLetterOnly =
+        letterLabel.length == 1 && RegExp(r'^[A-Za-z]$').hasMatch(letterLabel);
+    final letter = isLetterOnly
+        ? letterLabel.toUpperCase()
+        : String.fromCharCode('A'.codeUnitAt(0) + index);
 
     return Material(
       color: background,
@@ -104,15 +113,17 @@ class ChoiceTile extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  choice.label,
-                  style: AppFonts.jakarta(
-                    size: 14,
-                    weight: FontWeight.w500,
-                    color: textColor,
-                    height: 1.35,
-                  ),
-                ),
+                child: isLetterOnly
+                    ? const SizedBox.shrink()
+                    : Text(
+                        choice.label,
+                        style: AppFonts.jakarta(
+                          size: 14,
+                          weight: FontWeight.w500,
+                          color: textColor,
+                          height: 1.35,
+                        ),
+                      ),
               ),
               if (trailing != null) ...[
                 const SizedBox(width: 8),
