@@ -99,7 +99,7 @@ public class AppleStoreClient {
                     rootCAs.size()
             );
         } catch (IOException e) {
-            log.error("Échec chargement root certs Apple : {}", e.getMessage());
+            log.error("Échec chargement root certs Apple : {}", e.getMessage(), e);
         } catch (RuntimeException e) {
             // Clé p8 malformée, certs invalides, etc. On ne casse pas le boot :
             // le bean reste non-ready (isReady() == false) → endpoints en 503.
@@ -108,7 +108,7 @@ public class AppleStoreClient {
             log.error(
                     "Init Apple App Store échouée ({}) — endpoints IAP iOS en 503. "
                             + "Vérifie sejourfr.apple.private-key (contenu PEM du .p8 ou chemin vers le fichier).",
-                    e.getMessage()
+                    e.getMessage(), e
             );
         }
     }

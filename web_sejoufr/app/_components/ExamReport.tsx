@@ -192,7 +192,12 @@ function ReportRow({
 
           <div className="rpt-choices">
             {q.choices.map((c, i) => {
-              const letter = String.fromCharCode(65 + i);
+              // FULL_AUDIO : label réduit à une lettre → on l'affiche dans la
+              // pastille et on masque le texte redondant.
+              const letterOnly = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
+              const letter = letterOnly
+                ? letterOnly[1].toUpperCase()
+                : String.fromCharCode(65 + i);
               const wasSelected = aq.selectedChoiceIds.includes(c.id);
               const isCorrect = c.correct === true;
               const isWrongPick = wasSelected && !isCorrect;
@@ -206,7 +211,7 @@ function ReportRow({
               return (
                 <div key={c.id} className={cls}>
                   <span className="rpt-letter">{letter}</span>
-                  <span className="rpt-choice-label">{c.label}</span>
+                  <span className="rpt-choice-label">{letterOnly ? "" : c.label}</span>
                   {isCorrect && (
                     <span className="rpt-icon-good" aria-label="Bonne réponse">
                       ✓

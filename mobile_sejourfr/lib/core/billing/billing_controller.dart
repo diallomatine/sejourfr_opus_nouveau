@@ -271,6 +271,14 @@ class BillingController extends StateNotifier<BillingState> {
     if (plan.target == null || plan.periodicity == null || plan.price <= 0) {
       return null;
     }
+    // Google Play impose des Product IDs en MINUSCULES (Apple/Stripe tolèrent
+    // les majuscules). Le code Plan canonique est en MAJ (CIVIQUE_MONTHLY) → on
+    // le minuscule pour Google. Conséquence : `plans.google_product_id` en base
+    // ET les Product IDs créés dans la Play Console doivent être en minuscules
+    // (civique_monthly, …), sinon le SKU revient en notFoundIDs.
+    if (source == SubscriptionSource.google) {
+      return plan.code.toLowerCase();
+    }
     return plan.code;
   }
 

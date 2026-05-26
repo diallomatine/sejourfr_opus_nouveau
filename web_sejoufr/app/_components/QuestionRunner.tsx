@@ -482,7 +482,14 @@ export function QuestionRunner({
         {/* CHOICES */}
         <div className="qr-options" role="radiogroup">
           {q.choices.map((c, i) => {
-            const letter = String.fromCharCode(65 + i);
+            // TCF CO en mode FULL_AUDIO : le contenu de la réponse est dans
+            // l'audio, le label se réduit à une lettre ("A" ou "Réponse A").
+            // On l'affiche dans la pastille (pour matcher ce qui est entendu)
+            // et on masque le texte redondant.
+            const letterOnly = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
+            const letter = letterOnly
+              ? letterOnly[1].toUpperCase()
+              : String.fromCharCode(65 + i);
             const isSel = selected.includes(c.id);
             const isThisCorrect = showCorrection && correctIds.includes(c.id);
             const isWrongPick = showCorrection && isSel && !isCorrect;
@@ -506,7 +513,7 @@ export function QuestionRunner({
                 disabled={state.submitting || hasFeedback}
               >
                 <span className="qr-opt-letter">{letter}</span>
-                <span className="qr-opt-label">{c.label}</span>
+                <span className="qr-opt-label">{letterOnly ? "" : c.label}</span>
                 {isThisCorrect && (
                   <span className="qr-opt-icon" aria-hidden>
                     <CheckIcon />

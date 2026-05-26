@@ -230,6 +230,12 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
         const byTheme = s?.byTheme ?? [];
         const mastered = byTheme.filter((t) => t.total > 0 && t.correct / t.total >= 0.8).length;
         const totalThemes = (themes[filter] ?? []).length;
+        // Total des questions DISPONIBLES dans le module (banque entière), pas
+        // seulement celles déjà vues — somme des questionCount des thèmes.
+        const totalQuestions = (themes[filter] ?? []).reduce(
+            (sum, t) => sum + (t.questionCount ?? 0),
+            0,
+        );
         // Niveau TCF visé = dérivé du parcours civique (correspondance officielle :
         // CSP→A2, CR→B1, NAT→B2). Le backend /me n'expose pas targetLevel.
         const tcfLevelOf = (p: string | null | undefined) =>
@@ -242,7 +248,7 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
             objective: isGuest ? "—" : objective || "—",
             mastery: isGuest || answered === 0 ? "—" : `${Math.round((correct / answered) * 100)}%`,
             themes: isGuest ? "—" : totalThemes > 0 ? `${mastered}/${totalThemes}` : "—",
-            questions: isGuest ? "—" : String(answered),
+            questions: isGuest ? "—" : totalQuestions > 0 ? String(totalQuestions) : "—",
         };
     }, [statsByModule, themes, filter, isGuest, user]);
 
@@ -277,24 +283,31 @@ function EntrainementHub({user}: { user: AuthenticatedUser | null }) {
     const moduleItems = useMemo<ModuleItem[]>(() => {
         if (filter === "TCF") {
             const tcf = themes.TCF;
+            // Les codes thèmes backend sont préfixés (TCF_CO/TCF_CE/TCF_STRUCTURE).
+            const co = tcf.find((t) => t.code === "TCF_CO") ?? null;
+            const ce = tcf.find((t) => t.code === "TCF_CE") ?? null;
+            const structure = tcf.find((t) => t.code === "TCF_STRUCTURE") ?? null;
+            // Tag = total de questions DISPONIBLES de l'épreuve (banque entière).
+            const qTag = (t: ThemeUserResponse | null) =>
+                t?.questionCount ? `${t.questionCount} questions` : "QCM";
             return [
                 {
-                    key: "co", kind: "theme", theme: tcf.find((t) => t.code === "CO") ?? null,
+                    key: "co", kind: "theme", theme: co,
                     tone: "blue", badge: "CO", icon: "co", title: "Compréhension orale",
                     desc: "Écoute des audios, réponds aux QCM et améliore ta rapidité.",
-                    tags: ["25 questions", "20 min"], cta: "Commencer",
+                    tags: [qTag(co), "20 min"], cta: "Commencer",
                 },
                 {
-                    key: "ce", kind: "theme", theme: tcf.find((t) => t.code === "CE") ?? null,
+                    key: "ce", kind: "theme", theme: ce,
                     tone: "green", badge: "CE", icon: "ce", title: "Compréhension écrite",
                     desc: "Textes courts, annonces, e-mails, consignes et documents simples.",
-                    tags: ["25 questions", "35 min"], cta: "Commencer",
+                    tags: [qTag(ce), "35 min"], cta: "Commencer",
                 },
                 {
-                    key: "structure", kind: "theme", theme: tcf.find((t) => t.code === "STRUCTURE") ?? null,
+                    key: "structure", kind: "theme", theme: structure,
                     tone: "red", badge: "STR", icon: "structure", title: "Structure de la langue",
                     desc: "Grammaire et lexique en contexte. Bonus d'entraînement, hors TCF IRN.",
-                    tags: ["25 questions", "20 min"], cta: "Commencer",
+                    tags: [qTag(structure), "20 min"], cta: "Commencer",
                 },
                 {
                     key: "ee", kind: "prod", prod: "EE", tone: "amber", badge: "EE", icon: "ee",

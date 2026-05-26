@@ -312,8 +312,12 @@ backend.
   référence ce fichier. Activer aussi la capability sur l'App ID dans Apple Developer Portal.
 
 **Config native Android** : rien à modifier dans le code. La config se fait dans Google Cloud
-Console : ajouter un OAuth Client Android avec le package name + SHA-1 du keystore (debug et
-release). Le package `google_sign_in` détecte tout via le `serverClientId` qu'on lui passe.
+Console : ajouter un OAuth Client Android avec le package name + **3 SHA-1** : keystore debug,
+keystore release (upload), **et la clé Play App Signing** (Play Console → Intégrité de l'app →
+certificat de la clé de signature). ⚠ Avec un `.aab`, Google re-signe l'app → le build installé
+depuis Play a le SHA-1 Play App Signing, pas celui de ta clé release : sans lui, Google Sign-In
+échoue (`DEVELOPER_ERROR`/code 10) en test interne alors que ça marche en local. Le package
+`google_sign_in` détecte tout via le `serverClientId` qu'on lui passe.
 
 **Activer le social sign-in** : remplir `GOOGLE_SERVER_CLIENT_ID` (et `GOOGLE_IOS_CLIENT_ID`
 sur iOS) dans `mobile_sejourfr/.env` (cf. § Démarrage local). Sans valeurs, les boutons
@@ -722,10 +726,13 @@ refresh user).
 
 **SKUs** : convention `<MODULE>_<PERIODICITY>` (ex: `CIVIQUE_MONTHLY`,
 `INTEGRAL_QUARTERLY`). Doit matcher EXACTEMENT :
-- Le `Plan.code` côté backend (table `plans`, cf. migration V106).
-- Le Product ID dans App Store Connect → Subscriptions.
-- Le Product ID dans Google Play Console → In-app products.
+- Le `Plan.code` côté backend (table `plans`, cf. migration V106) — en MAJ.
+- Le Product ID dans App Store Connect → Subscriptions — **MAJUSCULES** (= `Plan.code`).
+- Le Product ID dans Google Play Console → In-app products — **MINUSCULES**.
 
+⚠ **Google n'accepte que des Product IDs en minuscules.** `_skuFor()` minuscule
+donc le `Plan.code` pour la source GOOGLE (`plan.code.toLowerCase()`), et
+`plans.google_product_id` doit être posé en minuscules (Apple reste en MAJ).
 Sans cet alignement, `loadProducts` retourne les SKUs dans `notFoundIDs` et
 les cards correspondantes ne s'affichent pas.
 
