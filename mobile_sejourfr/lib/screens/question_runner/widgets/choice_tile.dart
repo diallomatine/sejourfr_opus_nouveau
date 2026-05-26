@@ -67,9 +67,10 @@ class ChoiceTile extends StatelessWidget {
     }
 
     // Questions TCF CO en mode FULL_AUDIO : le contenu de la réponse est dans
-    // l'audio, le label en base n'est qu'une lettre (A/B/C/D). Dans ce cas on
-    // affiche cette lettre directement dans la pastille — pas de second texte
-    // redondant — pour que l'utilisateur retrouve la réponse entendue.
+    // l'audio, le label en base n'est qu'une lettre (A/B/C/D) — c'est la clé de
+    // réponse citée par l'audio ET par l'explication. On affiche donc cette
+    // lettre dans la pastille (pas l'index), et on masque le texte redondant.
+    // Le runner trie ces choix par label pour qu'ils sortent A→D dans l'ordre.
     final letterLabel = choice.label.trim();
     final isLetterOnly =
         letterLabel.length == 1 && RegExp(r'^[A-Za-z]$').hasMatch(letterLabel);

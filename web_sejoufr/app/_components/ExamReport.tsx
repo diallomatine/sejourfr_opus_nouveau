@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { orderedChoices } from "@/lib/types";
 import type {
   AttemptQuestionResponse,
   AttemptResponse,
@@ -191,9 +192,10 @@ function ReportRow({
           )}
 
           <div className="rpt-choices">
-            {q.choices.map((c, i) => {
-              // FULL_AUDIO : label réduit à une lettre → on l'affiche dans la
-              // pastille et on masque le texte redondant.
+            {orderedChoices(q.choices).map((c, i) => {
+              // FULL_AUDIO : label réduit à une lettre (clé citée par
+              // l'explication) → on l'affiche dans la pastille, on masque le
+              // texte redondant ; les choix sont déjà triés A→D.
               const letterOnly = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
               const letter = letterOnly
                 ? letterOnly[1].toUpperCase()

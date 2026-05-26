@@ -122,6 +122,7 @@ git commit -m "feat: ma nouvelle fonctionnalité"
 git push origin develop
 
 # === Sur le serveur ===
+sudo -u sejourfr git -C /opt/sejourfr/repo reset --hard origin/develop
 # Pull la nouvelle version
 sudo -u sejourfr git -C /opt/sejourfr/repo pull
 

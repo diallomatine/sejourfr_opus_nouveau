@@ -79,19 +79,34 @@ public class GoogleSubscriptionService {
     @Transactional
     public UserSubscription activateFromReceipt(
             UUID userId, String expectedProductId, String purchaseToken) {
-        SubscriptionPurchaseV2 state = fetchSubscriptionOrThrow(purchaseToken);
-
-        SubscriptionPurchaseLineItem lineItem = pickPrimaryLineItem(state, expectedProductId);
-        Plan plan = lookupPlanOrThrow(lineItem.getProductId());
-        User user = userManager.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User introuvable: " + userId));
-
-        UserSubscription sub = upsert(user, plan, lineItem, state, purchaseToken);
         log.info(
-                "Google verify-receipt OK user={} productId={} purchaseToken={} status={} endsAt={}",
-                userId, lineItem.getProductId(), purchaseToken, sub.getStatus(), sub.getEndsAt()
+                "Google verify-receipt START user={} expectedProductId={} purchaseToken={}",
+                userId, expectedProductId, purchaseToken
         );
-        return sub;
+        try {
+            SubscriptionPurchaseV2 state = fetchSubscriptionOrThrow(purchaseToken);
+
+            SubscriptionPurchaseLineItem lineItem = pickPrimaryLineItem(state, expectedProductId);
+            Plan plan = lookupPlanOrThrow(lineItem.getProductId());
+            User user = userManager.findById(userId)
+                    .orElseThrow(() -> new EntityNotFoundException("User introuvable: " + userId));
+
+            UserSubscription sub = upsert(user, plan, lineItem, state, purchaseToken);
+            log.info(
+                    "Google verify-receipt OK user={} productId={} purchaseToken={} status={} endsAt={}",
+                    userId, lineItem.getProductId(), purchaseToken, sub.getStatus(), sub.getEndsAt()
+            );
+            return sub;
+        } catch (ResponseStatusException e) {
+            // Rend visible côté serveur la raison exacte du refus (sinon le 400
+            // est muet dans les logs et seul un message générique remonte à l'app).
+            log.warn(
+                    "Google verify-receipt REFUSÉ user={} expectedProductId={} purchaseToken={} → {} {}",
+                    userId, expectedProductId, purchaseToken,
+                    e.getStatusCode(), e.getReason()
+            );
+            throw e;
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -250,6 +265,11 @@ public class GoogleSubscriptionService {
         try {
             return googleStoreClient.getSubscriptionV2(purchaseToken);
         } catch (IOException e) {
+            // L'exception Google (GoogleJsonResponseException) porte le vrai motif
+            // (403 permissions SA, 404 token/package, API non activée…) — on la
+            // trace en entier, c'est la donnée clé pour diagnostiquer.
+            log.warn("Google getSubscriptionV2 a échoué (purchaseToken={}) : {}",
+                    purchaseToken, e.getMessage(), e);
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Reçu Google invalide ou inaccessible : " + e.getMessage(),

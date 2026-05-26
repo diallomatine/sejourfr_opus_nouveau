@@ -159,13 +159,15 @@ class _RunnerView extends ConsumerWidget {
                   ],
                   _StatementBlock(text: question.statement),
                   const SizedBox(height: 20),
-                  ...List.generate(question.choices.length, (i) {
-                    final c = question.choices[i];
+                  ...() {
+                    final choices = _orderedChoices(question.choices);
+                    return List.generate(choices.length, (i) {
+                    final c = choices[i];
                     final isSelected = selected.contains(c.id);
                     final showCorr = state.hasResult && isTraining;
                     final isCorrect = state.lastResult?.correctChoiceIds.contains(c.id);
                     return Padding(
-                      padding: EdgeInsets.only(bottom: i == question.choices.length - 1 ? 0 : 10),
+                      padding: EdgeInsets.only(bottom: i == choices.length - 1 ? 0 : 10),
                       child: ChoiceTile(
                         choice: c,
                         index: i,
@@ -176,7 +178,8 @@ class _RunnerView extends ConsumerWidget {
                             ref.read(runnerControllerProvider(attemptId).notifier).toggleChoice(c.id),
                       ),
                     );
-                  }),
+                  });
+                  }(),
                   if (state.hasResult && isTraining) ...[
                     const SizedBox(height: 20),
                     ExplanationBox(
@@ -266,6 +269,20 @@ class _RunnerView extends ConsumerWidget {
       _navigateToResult(context, ref, attempt);
     }
   }
+}
+
+/// Pour les questions TCF CO FULL_AUDIO (tous les labels sont une seule lettre
+/// A/B/C/D), on trie les choix par label pour qu'ils s'affichent dans l'ordre
+/// A→D — la lettre du label étant la clé de réponse citée par l'audio et
+/// l'explication. Les questions normales gardent leur ordre d'origine.
+final _singleLetter = RegExp(r'^[A-Za-z]$');
+
+List<ChoiceDto> _orderedChoices(List<ChoiceDto> choices) {
+  final allLetters = choices.isNotEmpty &&
+      choices.every((c) => _singleLetter.hasMatch(c.label.trim()));
+  if (!allLetters) return choices;
+  return [...choices]..sort((a, b) =>
+      a.label.trim().toUpperCase().compareTo(b.label.trim().toUpperCase()));
 }
 
 class _ProgressHeader extends StatelessWidget {

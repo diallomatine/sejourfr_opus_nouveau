@@ -107,7 +107,7 @@ public class GoogleStoreClient {
      * JSON (et sans risquer la troncature multi-ligne du .env).
      */
     private InputStream resolveServiceAccountJson() throws IOException {
-        String raw = properties.getServiceAccountJson().trim();
+        String raw = stripWrapping(properties.getServiceAccountJson().trim());
         if (raw.startsWith("{")) {
             return new ByteArrayInputStream(raw.getBytes(StandardCharsets.UTF_8));
         }
@@ -118,6 +118,30 @@ public class GoogleStoreClient {
         // Ni JSON inline ni fichier existant : on laisse Gson lever une erreur
         // explicite sur le contenu brut.
         return new ByteArrayInputStream(raw.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Retire un éventuel BOM UTF-8 et une paire de quotes résiduelles
+     * (simples ou doubles) qui enrobent la valeur. {@code systemd}
+     * {@code EnvironmentFile=} ne retire PAS toujours les quotes du
+     * {@code .env} (contrairement à un shell) : sans ce nettoyage, la valeur
+     * arrive sous la forme {@code '{"type":...}'} et le {@code startsWith("{")}
+     * échoue → le JSON est pris pour un chemin de fichier puis parsé tel quel
+     * (« malformed JSON at line 1 column 2 »).
+     */
+    private static String stripWrapping(String value) {
+        String out = value;
+        if (out.startsWith("\uFEFF")) {
+            out = out.substring(1).trim();
+        }
+        if (out.length() >= 2) {
+            char first = out.charAt(0);
+            char last = out.charAt(out.length() - 1);
+            if ((first == '\'' && last == '\'') || (first == '"' && last == '"')) {
+                out = out.substring(1, out.length() - 1).trim();
+            }
+        }
+        return out;
     }
 
     public boolean isReady() {
