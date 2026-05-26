@@ -33,7 +33,8 @@ APPLE_APP_ID=1234567890
 APPLE_ENVIRONMENT=PRODUCTION          # SANDBOX tant que tu testes en TestFlight
 
 # --- Google (Android IAP) ---
-GOOGLE_PLAY_SERVICE_ACCOUNT_JSON='{"type":"service_account",...}'
+# ✅ Recommandé : pointer un FICHIER, pas inliner le JSON (cf. piège ci-dessous).
+GOOGLE_PLAY_SERVICE_ACCOUNT_JSON=/etc/sejourfr/google-sa.json
 GOOGLE_PLAY_PACKAGE_NAME=com.sejourfr.app
 GOOGLE_PUBSUB_AUDIENCE=https://api.sejourfr.fr/api/billing/webhooks/google
 GOOGLE_PUBSUB_SA_EMAIL=pubsub-pusher@<project>.iam.gserviceaccount.com
@@ -43,7 +44,22 @@ Points de vigilance VPS :
 
 - **`APPLE_PRIVATE_KEY`** : contenu du `.p8` sur **une seule ligne** avec des `\n` littéraux
   (pas de vrais retours à la ligne, sinon systemd casse le parsing).
-- **`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`** : le JSON brut entre quotes simples, sur une ligne.
+- **`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`** : deux modes acceptés par `GoogleStoreClient` —
+  soit le **JSON brut** (commence par `{`), soit un **chemin de fichier** `.json`.
+  ⚠ **Piège systemd** : `EnvironmentFile=` ne déquote PAS comme un shell. Mettre le JSON
+  inline entre quotes simples (`'{"type":...}'`) laisse souvent les quotes DANS la valeur →
+  Java reçoit `'{...}'`, ne reconnaît pas un JSON, le prend pour un chemin → Gson lève
+  `malformed JSON at line 1 column 2`. **Donc : poser le JSON dans un fichier dédié et ne
+  mettre que son chemin dans le `.env`** :
+
+  ```bash
+  sudo install -m 600 -o sejourfr -g sejourfr /dev/stdin /etc/sejourfr/google-sa.json <<'JSON'
+  {"type":"service_account", ... }
+  JSON
+  ```
+
+  (`GoogleStoreClient` tolère désormais aussi un BOM ou une paire de quotes résiduelles si le
+  JSON est tout de même inliné, mais le fichier reste la voie la plus sûre.)
 - Tant qu'un bloc est vide ou faux, l'endpoint correspondant renvoie **503 volontairement**
   (ce n'est pas un bug — c'est ton premier signal de diagnostic).
 
@@ -82,15 +98,27 @@ psql -h localhost -U sejourfr -d sejourfr
 ```
 
 ```sql
+-- Apple : Product IDs en MAJUSCULES (= Plan.code, ex. CIVIQUE_MONTHLY)
 UPDATE plans
 SET apple_product_id = code
 WHERE code LIKE 'CIVIQUE_%'
    OR code LIKE 'INTEGRAL_%';
+-- Google : Product IDs en MINUSCULES. Google Play n'accepte QUE des Product IDs
+-- minuscules, et le mobile (_skuFor) envoie plan.code.toLowerCase() → la valeur
+-- en base DOIT être minuscule (civique_monthly, …), sinon verify-receipt lève
+-- 400 « Aucun Plan configuré pour googleProductId=civique_monthly »
+-- (la comparaison Postgres est sensible à la casse).
 UPDATE plans
-SET google_product_id = code
+SET google_product_id = LOWER(code)
 WHERE code LIKE 'CIVIQUE_%'
    OR code LIKE 'INTEGRAL_%';
 ```
+
+⚠ Le `LOWER(code)` ci-dessus n'est correct que si tes Product IDs **créés dans
+Play Console** sont exactement `civique_monthly`, `integral_quarterly`, etc. Si
+tu les as nommés autrement, pose `google_product_id` sur la valeur réelle de la
+Play Console (toujours en minuscules). Le `google_product_id` doit matcher au
+caractère près ce que Play renvoie dans `lineItem.productId`.
 
 Marche parce que la convention recommandée est `apple_product_id == plans.code`
 (ex. `CIVIQUE_MONTHLY`). Ces IDs doivent matcher **exactement** ce que tu crées dans App Store
@@ -128,6 +156,7 @@ Check le plus parlant : `GET /api/billing/plans` (public) et vérifier que les
 |--------------------------------------|-----------------------------------------------------------------------------------------------------|
 | `/api/billing/*` → **503**           | une variable `APPLE_*` / `GOOGLE_*` vide ou mal formée dans `backend.env`                           |
 | Card absente du paywall mobile       | colonne `apple/google_product_id` NULL en base, ou ID ≠ store                                       |
+| Card OK + achat OK mais **« nous n'avons pas pu activer votre accès »** (verify-receipt 400) | `plans.google_product_id` ≠ ce que Play renvoie : doit être en **minuscules** (`LOWER(code)`), pas `code` en MAJ. La card s'affiche quand même car le mobile dérive le SKU de `plan.code.toLowerCase()`, mais verify-receipt cherche via `google_product_id`. RTDN affiche alors « aucune subscription locale ». |
 | Webhook Apple/Google ignoré          | signature JWS / Bearer JWT invalide → vérifier `GOOGLE_PUBSUB_AUDIENCE` et `GOOGLE_PUBSUB_SA_EMAIL` |
 | Bean Apple reste 503 malgré les vars | cert `AppleRootCA-G3.cer` absent du jar (rebuild requis)                                            |
 
