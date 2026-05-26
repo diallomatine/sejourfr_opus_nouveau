@@ -85,26 +85,40 @@ public class AppleSubscriptionService {
     @Transactional
     public UserSubscription activateFromReceipt(
             UUID userId, String expectedProductId, String signedTransactionInfo) {
-        JWSTransactionDecodedPayload tx = decodeTransaction(signedTransactionInfo);
-
-        if (!expectedProductId.equals(tx.getProductId())) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Le productId du reçu (" + tx.getProductId()
-                            + ") ne correspond pas à celui annoncé (" + expectedProductId + ")."
-            );
-        }
-
-        Plan plan = lookupPlanOrThrow(tx.getProductId());
-        User user = userManager.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User introuvable: " + userId));
-
-        UserSubscription sub = upsert(user, plan, tx, /* renewalInfo */ null);
         log.info(
-                "Apple verify-receipt OK user={} productId={} originalTxId={} endsAt={}",
-                userId, tx.getProductId(), tx.getOriginalTransactionId(), sub.getEndsAt()
+                "Apple verify-receipt START user={} expectedProductId={}",
+                userId, expectedProductId
         );
-        return sub;
+        try {
+            JWSTransactionDecodedPayload tx = decodeTransaction(signedTransactionInfo);
+
+            if (!expectedProductId.equals(tx.getProductId())) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Le productId du reçu (" + tx.getProductId()
+                                + ") ne correspond pas à celui annoncé (" + expectedProductId + ")."
+                );
+            }
+
+            Plan plan = lookupPlanOrThrow(tx.getProductId());
+            User user = userManager.findById(userId)
+                    .orElseThrow(() -> new EntityNotFoundException("User introuvable: " + userId));
+
+            UserSubscription sub = upsert(user, plan, tx, /* renewalInfo */ null);
+            log.info(
+                    "Apple verify-receipt OK user={} productId={} originalTxId={} endsAt={}",
+                    userId, tx.getProductId(), tx.getOriginalTransactionId(), sub.getEndsAt()
+            );
+            return sub;
+        } catch (ResponseStatusException e) {
+            // Rend visible la raison exacte du refus (sinon le 400 est muet côté
+            // serveur et seul un message générique remonte à l'app).
+            log.warn(
+                    "Apple verify-receipt REFUSÉ user={} expectedProductId={} → {} {}",
+                    userId, expectedProductId, e.getStatusCode(), e.getReason()
+            );
+            throw e;
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -187,6 +201,10 @@ public class AppleSubscriptionService {
         try {
             return appleStoreClient.verifyTransaction(signedTransactionInfo);
         } catch (VerificationException e) {
+            // Motif fréquent : APPLE_BUNDLE_ID ou APPLE_ENVIRONMENT qui ne
+            // matchent pas le reçu (bundle réel de l'app / Sandbox vs Production),
+            // ou chaîne de certifs racine incomplète. On trace tout.
+            log.warn("Apple verifyTransaction a échoué : {}", e.getMessage(), e);
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Signature JWS Apple invalide : " + e.getMessage(),

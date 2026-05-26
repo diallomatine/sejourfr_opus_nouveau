@@ -90,8 +90,15 @@ du jar via la procédure §6 du mémo (`scp` → `systemctl stop` → `mv app.ja
 ## 3. Les Product IDs en base — Postgres sur le VPS
 
 Les SKUs ne sont **pas** en config : ils vivent dans `plans`, colonnes `apple_product_id` /
-`google_product_id`, NULL au départ. Tant qu'elles sont NULL, **la card ne s'affiche pas dans
-le paywall mobile** (le SKU revient dans `notFoundIDs`).
+`google_product_id`. Tant qu'elles sont NULL, verify-receipt lève
+400 « Aucun Plan configuré pour {apple,google}ProductId=… » (le backend retrouve le Plan via
+ces colonnes lors de la validation du reçu).
+
+> ✅ **Depuis la migration `V132__plans_store_product_ids_values.sql`, ces colonnes sont
+> remplies automatiquement** pour les 6 SKUs récurrents (`apple_product_id = code` en MAJ,
+> `google_product_id = LOWER(code)` en min). Plus besoin du SQL manuel ci-dessous au
+> déploiement standard — il ne reste utile que si tes Product IDs store **diffèrent** du
+> `Plan.code` (nommage custom dans App Store Connect / Play Console).
 
 ```bash
 psql -h localhost -U sejourfr -d sejourfr
