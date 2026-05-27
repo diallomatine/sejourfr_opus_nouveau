@@ -97,10 +97,11 @@ lib/
     │       ├── exam_timer.dart    Chrono décompte
     │       └── explanation_box.dart Bloc correction post-réponse
     ├── tcf_production/            EO + EE (productions évaluées par IA)
-    │   ├── tcf_expression_screen.dart   Écran consolidé /tcf/eo + /tcf/ee : 3 onglets
-    │   │                                Entraînement / Examens / Corrections + sous-onglets
-    │   │                                Tâche 1/2/3. Entraînement = carrousel de sujets
-    │   │                                (production_tasks) + consigne + exemples (modèles, audio EO) + panneau prod.
+    │   ├── tcf_expression_screen.dart   2 écrans : TcfExpressionScreen (hub /tcf/eo|ee :
+    │   │                                carte examen blanc + 3 tâches + historique) et
+    │   │                                TcfTaskTrainingScreen (/tcf/{eo,ee}/tache/:n : toggle
+    │   │                                Sujets/Exemples + liste ; tap sujet → fiche consigne+plan
+    │   │                                → Enregistrer/Rédiger ou Refaire/Voir le rapport).
     │   ├── tcf_production_module.dart   Enum TcfProductionModule (EO/EE) partagé écran + briefing
     │   ├── audio_recorder_service.dart  record 6 + permission_handler + audio_session
     │   ├── draft_service.dart           Brouillon EE en SharedPreferences
@@ -377,10 +378,9 @@ un `ConsumerStatefulWidget` avec un **en-tête fixe** (topbar + onglets, ne scro
 - **TCF** = 4 modules officiels IRN + 1 bonus, **tous** avec un écran détail :
   - CO → `/tcf/co`, CE → `/tcf/ce` → `TcfQcmDetailScreen` → CTA "Commencer l'entraînement"
     → `POST /api/attempts` + push runner.
-  - EE → `/tcf/ee`, EO → `/tcf/eo` → `TcfExpressionScreen` : onglets Entraînement /
-    Examens / Corrections + sous-onglets Tâche 1/2/3. Entraînement = carrousel de
-    situations + exemples ; tap "Enregistrer"/"Rédiger" → briefing de la situation
-    choisie (cf. § TCF Expression plus bas).
+  - EE → `/tcf/ee`, EO → `/tcf/eo` → `TcfExpressionScreen` : hub d'épreuve (carte examen
+    blanc + 3 tâches + historique). Tap une tâche → `TcfTaskTrainingScreen` (sujets +
+    exemples). Cf. § TCF Expression plus bas.
   - **Structure de la langue** → `/tcf/structure` → `TcfQcmDetailScreen` avec
     `TcfQcmModule.structure` (`questionType = STRUCTURE`). Bannière `_ModuleNoticeBanner`
     rendue sous le titre pour rappeler que le module n'est pas évalué au TCF IRN. Mêmes
@@ -410,9 +410,9 @@ bottom nav) :
     Tap question → `showQuestionDetailSheet` partagé.
 - `/tcf/co` et `/tcf/ce` → `TcfQcmDetailScreen` avec l'enum `TcfQcmModule.{co,ce}` qui porte
   l'intitulé, l'icône, le `QuestionType` et le label de durée.
-- `/tcf/eo` et `/tcf/ee` → `TcfExpressionScreen` avec l'enum
-  `TcfProductionModule.{eo,ee}` (dans `tcf_production/tcf_production_module.dart`). Écran
-  consolidé à 3 onglets + sous-onglets Tâche 1/2/3 (cf. § TCF Expression).
+- `/tcf/eo` et `/tcf/ee` → `TcfExpressionScreen` (hub) ; `/tcf/{eo,ee}/tache/:n` →
+  `TcfTaskTrainingScreen`. Enum `TcfProductionModule.{eo,ee}` dans
+  `tcf_production/tcf_production_module.dart` (cf. § TCF Expression).
 
 Layout uniforme (`widgets/module_detail_widgets.dart`) :
 1. `ModuleDetailTopBar` (back + icône décorative).
@@ -507,38 +507,31 @@ contiennent que du texte, mais l'architecture est prête pour le TCF complet.
 Module distinct du runner QCM : l'utilisateur **produit** un audio (EO) ou un texte (EE), envoyé au backend
 qui le transcrit (Whisper) + le note (Claude) en 10-15 s. Cf. `CLAUDE.md` racine pour le pipeline backend.
 
-**Écran consolidé `TcfExpressionScreen`** (`tcf_expression_screen.dart`, routes `/tcf/eo`
-et `/tcf/ee`) — remplace l'ancien couple `TcfProductionDetailScreen` +
-`TcfProductionTaskSubjectsScreen` (supprimés). 3 onglets globaux **Entraînement /
-Examens / Corrections** + 3 sous-onglets **Tâche 1/2/3** (dans Entraînement).
+**Deux écrans** (`tcf_expression_screen.dart`, remplacent l'ancien couple
+`TcfProductionDetailScreen` + `TcfProductionTaskSubjectsScreen` supprimés). Accent **rouge**
+partout (section TCF). Design calme, sans onglets globaux ni bottom-nav (cf. maquette
+`tcf_eo_training_screen.html`).
 
-**Deux modes d'entrée** :
-- **Onglet Entraînement** (sous-onglet Tâche N) → entraînement guidé **single-task**.
-  Le carrousel de **sujets** = les lignes `production_tasks` du couple (épreuve, tâche),
-  tous niveaux confondus (`listTasks(epreuve)` filtré client-side par `tacheNumero`). Tap
-  sujet → la carte **Consigne** inline reflète le sujet (consigne + contexte + badge
-  durée/mots). La carte **Exemples** est alimentée séparément par les **modèles de la
-  catégorie** (`GET /api/production-examples?epreuve=…&tacheNumero=…`) — indépendants du
-  sujet choisi ; tap → modal avec texte + `explications` (commentaire pédagogique) + audio
-  EO (`just_audio`, si publié). Le panneau bas (`_ProductionPanel`) lance
-  `startSingle(task)` + push le briefing existant (`/tcf/expression-orale/t/0` ou
-  `…-ecrite/t/0`). Pas de pré-blocage premium : le quota gratuit (2/épreuve) renvoie 403 →
-  `showPaywallSheet`.
-- **Onglet Examens** → session **3 tâches enchaînées**, fidèle au vrai TCF :
-  **aucune correction n'est visible entre T1/T2/T3**. Après T3, on push directement le bilan
-  détaillé (`HistorySessionScreen` en mode `?live=1`) qui pollera les évaluations IA jusqu'à ce
-  qu'elles soient toutes EVALUATED/FAILED, puis le user peut tapoter chaque ligne pour voir le
-  détail complet de l'évaluation Claude (donut + critères + feedback + transcription).
+1. **`TcfExpressionScreen`** — hub d'épreuve (`/tcf/eo`, `/tcf/ee`). Un seul scroll :
+   - Carte **« Lancer un examen blanc »** (fond teinté rouge + CTA `Commencer`) → premium
+     check → `showProductionExamBriefingSheet` → `start(niveau)` (session 3 tâches) → briefing.
+   - **« S'entraîner par tâche »** : 3 lignes (`_TaskRow`, pastille colorée T1 vert / T2 ambre /
+     T3 rouge + titre + sous-titre + nb de sujets) → push `/tcf/{eo,ee}/tache/N`.
+   - **« Historique »** (+ Tout voir → `…/historique`) : stats (examens passés, niveau estimé) +
+     dernier examen blanc (`_LastExamCard`, scores T1/T2/T3 → push `…/sessions/{id}`) + dernier
+     entraînement libre (→ push `…/resultats/{id}`). Données via `_hubProvider`.
 
-**Onglet Examens — slots remplis (parité avec TCF QCM CO/CE)** : 10 slots numérotés. Le provider
-`_examsHistoryProvider` (dans `tcf_expression_screen.dart`) regroupe les
-submissions du user par `attemptId` et ne garde **que les attempts à ≥3 submissions** (single-task
-exclus). Slot 1 = plus ancien examen. Tap slot vide → briefing + start nouvelle session. Tap
-slot fait → bottom sheet `_ProductionExamActionSheet` : "Voir les détails" (push
-`/sessions/{attemptId}`, mode historique) ou "Reprendre" (briefing + start). Badge slot : niveau
-CECRL plancher des 3 submissions, teinté rouge/ambre/bleu/vert selon le palier. Si l'éval IA
-tourne encore (badge `…`, sous-titre "évaluation en cours"), c'est qu'on est revenu sur le détail
-avant la fin du pipeline — tap → bilan détaillé qui poll.
+2. **`TcfTaskTrainingScreen`** (`/tcf/{eo,ee}/tache/:n`) — entraînement d'une tâche :
+   **toggle « Sujets / Exemples »** (`_SubToggle`) → **liste verticale**. Les **sujets** =
+   lignes `production_tasks` du (épreuve, tâche), tous niveaux confondus, marquées
+   **faite/non-faite** (`listMine` → map `production_task_id → dernière submission`). Tap sujet
+   → fiche (`_SubjectSheet`) : consigne + plan d'aide en points (`_planFor`), puis
+   **Enregistrer/Rédiger** (`startSingle(task)` + briefing `/tcf/expression-{orale,ecrite}/t/0`)
+   si non fait, ou **Refaire / Voir le rapport** si déjà fait. Segment **Exemples** = les
+   **modèles** (`GET /api/production-examples?…`) ; tap → modal texte + `explications` + audio EO.
+
+L'**examen blanc** (session 3 tâches enchaînées) reste fidèle au vrai TCF : **aucune correction
+entre T1/T2/T3** ; après T3 → bilan détaillé (`HistorySessionScreen` `?live=1`, polling IA).
 
 **Routes EO** (idem EE en remplaçant `expression-orale` par `expression-ecrite`) :
 - `/tcf/expression-orale` → **redirige** vers `/tcf/eo` (l'ancien `ProductionHubScreen` est

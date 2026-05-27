@@ -93,6 +93,7 @@ class ProductionExamBriefingSheet extends StatelessWidget {
                   AppButton(
                     label: 'Commencer maintenant',
                     icon: Icons.play_arrow_rounded,
+                    variant: AppButtonVariant.danger,
                     isLoading: starting,
                     onPressed: starting
                         ? null

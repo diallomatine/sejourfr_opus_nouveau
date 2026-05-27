@@ -58,12 +58,13 @@ class AppRoutes {
   static const tcfCoDetail = '/tcf/co';
   static const tcfCeDetail = '/tcf/ce';
   static const tcfStructureDetail = '/tcf/structure';
-  // Écran consolidé d'entraînement Expression (onglets Entraînement / Examens
-  // / Corrections + sous-onglets Tâche 1/2/3). Cf. `TcfExpressionScreen`. La
-  // sélection d'un sujet se fait via le carrousel de situations — il n'y a plus
-  // d'écran « sujets » séparé.
+  // Hub d'épreuve Expression (`TcfExpressionScreen`) : carte examen blanc + 3
+  // tâches + historique. Tap une tâche → `TcfTaskTrainingScreen` (sujets +
+  // exemples) sur les routes `…/tache/:tacheNumero`.
   static const tcfEoDetail = '/tcf/eo';
   static const tcfEeDetail = '/tcf/ee';
+  static const tcfEoTaskTraining = '/tcf/eo/tache/:tacheNumero';
+  static const tcfEeTaskTraining = '/tcf/ee/tache/:tacheNumero';
 
   // Examen blanc complet TCF (les 4 épreuves enchaînées). 20 slots dans
   // la liste. Distinct des module exams (CO/CE seul) côté backend via
@@ -321,9 +322,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.tcfStructureDetail,
         builder: (_, __) => const TcfQcmDetailScreen(module: TcfQcmModule.structure),
       ),
-      // TCF productions : un écran consolidé par épreuve (EO, EE) avec ses
-      // onglets Entraînement / Examens / Corrections. La sélection d'un sujet
-      // vit dans le carrousel de situations de l'onglet Entraînement.
+      // TCF productions : hub d'épreuve (examen blanc + 3 tâches + historique).
       GoRoute(
         path: AppRoutes.tcfEoDetail,
         builder: (_, __) => const TcfExpressionScreen(module: TcfProductionModule.eo),
@@ -331,6 +330,21 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.tcfEeDetail,
         builder: (_, __) => const TcfExpressionScreen(module: TcfProductionModule.ee),
+      ),
+      // Entraînement d'une tâche (sujets + exemples).
+      GoRoute(
+        path: AppRoutes.tcfEoTaskTraining,
+        builder: (_, state) => TcfTaskTrainingScreen(
+          module: TcfProductionModule.eo,
+          tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1).clamp(1, 3),
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.tcfEeTaskTraining,
+        builder: (_, state) => TcfTaskTrainingScreen(
+          module: TcfProductionModule.ee,
+          tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1).clamp(1, 3),
+        ),
       ),
       // Examen blanc TCF complet (CO + CE + EE + EO en 90 min). Pushé
       // depuis la carte sombre du hub TCF. Orchestration des 4 épreuves
