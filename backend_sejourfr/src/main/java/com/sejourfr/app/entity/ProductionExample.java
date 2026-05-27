@@ -1,7 +1,10 @@
 package com.sejourfr.app.entity;
 
+import com.sejourfr.app.enums.ExampleAudioStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
@@ -46,6 +49,26 @@ public class ProductionExample {
     @Column(name = "audio_url", columnDefinition = "text")
     private String audioUrl;
 
+    /** Suivi de génération audio (EO uniquement). NONE pour les exemples EE. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "audio_status", nullable = false, length = 20)
+    private ExampleAudioStatus audioStatus = ExampleAudioStatus.NONE;
+
+    @Column(name = "audio_voice", length = 50)
+    private String audioVoice;
+
+    @Column(name = "audio_duration_sec")
+    private Integer audioDurationSec;
+
+    @Column(name = "audio_generated_at")
+    private Instant audioGeneratedAt;
+
+    @Column(name = "audio_batch_id", columnDefinition = "uuid")
+    private UUID audioBatchId;
+
+    @Column(name = "audio_error", columnDefinition = "text")
+    private String audioError;
+
     /** Plan rapide : liste de chaines affichees en check-list. */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "plan_points", columnDefinition = "jsonb")
@@ -83,6 +106,24 @@ public class ProductionExample {
     public String getAudioUrl() { return audioUrl; }
     public void setAudioUrl(String audioUrl) { this.audioUrl = audioUrl; }
 
+    public ExampleAudioStatus getAudioStatus() { return audioStatus; }
+    public void setAudioStatus(ExampleAudioStatus audioStatus) { this.audioStatus = audioStatus; }
+
+    public String getAudioVoice() { return audioVoice; }
+    public void setAudioVoice(String audioVoice) { this.audioVoice = audioVoice; }
+
+    public Integer getAudioDurationSec() { return audioDurationSec; }
+    public void setAudioDurationSec(Integer audioDurationSec) { this.audioDurationSec = audioDurationSec; }
+
+    public Instant getAudioGeneratedAt() { return audioGeneratedAt; }
+    public void setAudioGeneratedAt(Instant audioGeneratedAt) { this.audioGeneratedAt = audioGeneratedAt; }
+
+    public UUID getAudioBatchId() { return audioBatchId; }
+    public void setAudioBatchId(UUID audioBatchId) { this.audioBatchId = audioBatchId; }
+
+    public String getAudioError() { return audioError; }
+    public void setAudioError(String audioError) { this.audioError = audioError; }
+
     public List<String> getPlanPoints() { return planPoints; }
     public void setPlanPoints(List<String> planPoints) { this.planPoints = planPoints; }
 
@@ -91,4 +132,7 @@ public class ProductionExample {
 
     public int getDisplayOrder() { return displayOrder; }
     public void setDisplayOrder(int displayOrder) { this.displayOrder = displayOrder; }
+
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

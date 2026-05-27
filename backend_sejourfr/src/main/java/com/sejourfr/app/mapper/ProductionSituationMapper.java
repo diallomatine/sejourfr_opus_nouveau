@@ -6,6 +6,7 @@ import com.sejourfr.app.dto.ProductionSituationMediaDto;
 import com.sejourfr.app.entity.ProductionExample;
 import com.sejourfr.app.entity.ProductionSituation;
 import com.sejourfr.app.entity.ProductionSituationMedia;
+import com.sejourfr.app.enums.ExampleAudioStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -48,12 +49,16 @@ public class ProductionSituationMapper {
     }
 
     public ProductionExampleDto toExampleDto(ProductionExample example) {
+        // L'audio n'est exposé au candidat qu'une fois PUBLISHED (validé admin).
+        String audioUrl = example.getAudioStatus() == ExampleAudioStatus.PUBLISHED
+                ? example.getAudioUrl()
+                : null;
         return new ProductionExampleDto(
                 example.getId(),
                 example.getTitre(),
                 example.getResume(),
                 example.getContenu(),
-                example.getAudioUrl(),
+                audioUrl,
                 example.getPlanPoints() != null ? example.getPlanPoints() : List.of(),
                 example.getNiveauIndicatif()
         );

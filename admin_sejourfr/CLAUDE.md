@@ -40,8 +40,10 @@ src/
 │   ├── questions/           Le plus complexe : liste + filtres + modal CRUD
 │   ├── themes/
 │   ├── conversations/       Vue split list/detail style "boîte mail"
-│   └── audioQuestions/      Génération assistée TCF CO : form + preview + audit
-│                            (modes WRITTEN_QUESTION / FULL_AUDIO — cf CLAUDE.md racine)
+│   ├── audioQuestions/      Génération assistée TCF CO : form + preview + audit
+│   │                        (modes WRITTEN_QUESTION / FULL_AUDIO — cf CLAUDE.md racine)
+│   └── exampleAudio/        Génération batch + validation des audios des exemples
+│                            EO (Expression Orale) — Azure Speech + R2 réutilisés
 ├── lib/
 │   └── queryClient.ts       Config TanStack Query
 ├── pages/
@@ -66,6 +68,7 @@ Endpoints utilisés actuellement :
 - `GET|POST|PATCH|DELETE /api/admin/conversations[/{id}[/reply|mark-read|status]]`
 - `GET /api/admin/conversations/unread-count`
 - `POST|GET|PATCH|DELETE /api/admin/audio-questions[/{id}[/preview|validate]]` + `GET /api/admin/audio-questions/generation-logs`
+- `POST /api/admin/production/examples/audio/batch-generate?size=10`, `GET …/pending/count`, `GET …/to-review`, `POST …/{id}/publish`, `POST …/{id}/regenerate` (audios exemples EO — feature `exampleAudio/`)
 - `GET /api/admin/plans`, `PATCH /api/admin/plans/{id}` (commerce — lot 4c)
 - `GET /api/admin/subscriptions?source=…&status=…&moduleAccess=…&search=…&page=…&size=…` (lot 4c)
 

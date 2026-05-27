@@ -577,6 +577,10 @@ et `TcfProductionTaskSubjectsScreen` sont **supprimés**.
   `production_situation_medias` (IMAGE/SVG), `production_examples`, + `production_submissions.situation_id`.
 - `V108` : `production_examples.situation_id → task_id` (les exemples sont des modèles de
   TÂCHE, pas de situation). Backfille les exemples déjà seedés.
+- `V109` : colonnes de suivi audio sur `production_examples` (`audio_status`, `audio_voice`,
+  `audio_duration_sec`, `audio_generated_at`, `audio_batch_id`, `audio_error`). Audio EO
+  généré par batch admin (Azure Speech + R2) ; le candidat ne voit `audioUrl` que `PUBLISHED`
+  (bouton « ▶ Écouter » de `_ExamplesCard`).
 - Seed : `V133` (EO T1/T2, EE T1) + `V134` (EO T3, EE T2/T3).
 - Endpoints lecture : `GET /api/production-tasks/{id}/situations`,
   `GET /api/production-tasks/{id}/examples`, `GET /api/production-situations/{id}`.

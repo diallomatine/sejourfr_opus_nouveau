@@ -3,11 +3,14 @@ package com.sejourfr.app.manager;
 import com.sejourfr.app.entity.ProductionExample;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.ExampleAudioStatus;
 import com.sejourfr.app.repository.ProductionExampleRepository;
 import com.sejourfr.app.repository.ProductionTaskRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -52,5 +55,26 @@ public class ProductionTaskManager {
     /** Exemples-modeles d'une tache (independants du sujet choisi). */
     public List<ProductionExample> findExamplesByTask(UUID taskId) {
         return exampleRepository.findByTaskIdOrderByDisplayOrderAsc(taskId);
+    }
+
+    public Optional<ProductionExample> findExampleById(UUID id) {
+        return exampleRepository.findById(id);
+    }
+
+    public ProductionExample saveExample(ProductionExample example) {
+        return exampleRepository.save(example);
+    }
+
+    /** Exemples EO sans audio, dans un statut relançable, les plus anciens d'abord. */
+    public List<ProductionExample> findEoExamplesNeedingAudio(Collection<ExampleAudioStatus> statuses, int limit) {
+        return exampleRepository.findNeedingAudio(EpreuveType.TCF_EO, statuses, PageRequest.of(0, limit));
+    }
+
+    public long countEoExamplesNeedingAudio(Collection<ExampleAudioStatus> statuses) {
+        return exampleRepository.countNeedingAudio(EpreuveType.TCF_EO, statuses);
+    }
+
+    public List<ProductionExample> findEoExamplesByAudioStatus(ExampleAudioStatus status) {
+        return exampleRepository.findByEpreuveAndAudioStatus(EpreuveType.TCF_EO, status);
     }
 }
