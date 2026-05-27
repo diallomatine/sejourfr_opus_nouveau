@@ -44,10 +44,6 @@ public class ProductionSubmission {
     @JoinColumn(name = "production_task_id", nullable = false)
     private ProductionTask productionTask;
 
-    /** Situation d'entrainement jouee (NULL = entrainement libre sur la tache). */
-    @Column(name = "situation_id", columnDefinition = "uuid")
-    private UUID situationId;
-
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -107,9 +103,6 @@ public class ProductionSubmission {
 
     public ProductionTask getProductionTask() { return productionTask; }
     public void setProductionTask(ProductionTask productionTask) { this.productionTask = productionTask; }
-
-    public UUID getSituationId() { return situationId; }
-    public void setSituationId(UUID situationId) { this.situationId = situationId; }
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }

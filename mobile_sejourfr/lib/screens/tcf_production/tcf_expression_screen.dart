@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -149,7 +148,7 @@ class _ExpressionHeader extends StatelessWidget {
             height: 40,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.blueLight,
+              color: AppColors.redLight,
               borderRadius: BorderRadius.circular(13),
             ),
             child: Text(
@@ -157,7 +156,7 @@ class _ExpressionHeader extends StatelessWidget {
               style: AppFonts.jakarta(
                 size: 13,
                 weight: FontWeight.w900,
-                color: AppColors.blue,
+                color: AppColors.red,
               ),
             ),
           ),
@@ -213,7 +212,7 @@ class _GlobalTabsBar extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 10),
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: AppColors.blueSoft,
+        color: AppColors.redLight,
         borderRadius: BorderRadius.circular(17),
       ),
       child: Row(
@@ -223,7 +222,7 @@ class _GlobalTabsBar extends StatelessWidget {
               child: _SegButton(
                 label: labels[t]!,
                 active: active == t,
-                activeColor: AppColors.blue,
+                activeColor: AppColors.red,
                 activeText: AppColors.white,
                 onTap: () => onChanged(t),
               ),
@@ -338,55 +337,26 @@ class _EntrainementKey {
 }
 
 class _EntrainementData {
-  const _EntrainementData({
-    required this.displayTask,
-    required this.tasksById,
-    required this.situations,
-    required this.examples,
-  });
+  const _EntrainementData({required this.subjects, required this.examples});
 
-  /// Tâche servant à afficher la durée / les bornes de mots (cohérentes entre
-  /// niveaux pour une même tâche). Null = catalogue vide.
-  final ProductionTaskDto? displayTask;
+  /// Les SUJETS de la tâche (lignes production_tasks, tous niveaux confondus).
+  /// Le candidat en choisit un et produit sa réponse.
+  final List<ProductionTaskDto> subjects;
 
-  /// Toutes les tâches (A2/B1/B2) de ce (épreuve, tâche), indexées par id —
-  /// pour retrouver la tâche propre à la situation jouée au moment du submit.
-  final Map<String, ProductionTaskDto> tasksById;
-
-  /// Les SUJETS proposés au candidat (carrousel).
-  final List<ProductionSituationDto> situations;
-
-  /// Les MODÈLES de la tâche (carte Exemples), indépendants du sujet choisi.
+  /// Les MODÈLES de la catégorie (epreuve, tacheNumero), indépendants du sujet.
   final List<ProductionExampleDto> examples;
 }
 
-/// Agrège les situations de **toutes** les tâches (A2/B1/B2) d'un (épreuve,
-/// tâche). Le niveau n'est PAS un filtre bloquant côté apprenant (l'examen TCF
-/// réel n'étiquette pas les sujets par niveau) : on montre tous les sujets et
-/// on garde le niveau du user uniquement pour choisir la tâche d'affichage.
+/// Sujets (tous niveaux confondus) + modèles d'une catégorie (épreuve, tâche).
+/// Le niveau n'est jamais un filtre bloquant côté apprenant.
 final _entrainementProvider =
     FutureProvider.autoDispose.family<_EntrainementData, _EntrainementKey>((ref, key) async {
   final repo = ref.watch(productionRepositoryProvider);
-  // Pas de filtre niveau : le backend ignore `tacheNumero` sans niveau, donc on
-  // récupère tout le catalogue de l'épreuve et on filtre la tâche côté client.
+  // Le backend ignore `tacheNumero` sans niveau : on filtre côté client.
   final all = await repo.listTasks(epreuve: key.epreuve);
-  final tasks = all.where((t) => t.tacheNumero == key.tacheNumero).toList();
-  if (tasks.isEmpty) {
-    return const _EntrainementData(displayTask: null, tasksById: {}, situations: [], examples: []);
-  }
-  final displayTask = tasks.firstWhere(
-    (t) => t.niveauCible == key.niveau,
-    orElse: () => tasks.first,
-  );
-  // Sujets + modèles agrégés sur toutes les tâches (niveaux) du couple.
-  final sitLists = await Future.wait(tasks.map((t) => repo.listSituations(t.id)));
-  final exLists = await Future.wait(tasks.map((t) => repo.listExamples(t.id)));
-  return _EntrainementData(
-    displayTask: displayTask,
-    tasksById: {for (final t in tasks) t.id: t},
-    situations: [for (final l in sitLists) ...l],
-    examples: [for (final l in exLists) ...l],
-  );
+  final subjects = all.where((t) => t.tacheNumero == key.tacheNumero).toList();
+  final examples = await repo.listExamples(epreuve: key.epreuve, tacheNumero: key.tacheNumero);
+  return _EntrainementData(subjects: subjects, examples: examples);
 });
 
 class _EntrainementTab extends ConsumerStatefulWidget {
@@ -407,12 +377,12 @@ class _EntrainementTab extends ConsumerStatefulWidget {
 
 class _EntrainementTabState extends ConsumerState<_EntrainementTab> {
   bool _starting = false;
-  String? _situationId;
+  String? _subjectId;
 
-  ProductionSituationDto _selectedSituation(List<ProductionSituationDto> situations) {
-    return situations.firstWhere(
-      (s) => s.id == _situationId,
-      orElse: () => situations.first,
+  ProductionTaskDto _selectedSubject(List<ProductionTaskDto> subjects) {
+    return subjects.firstWhere(
+      (t) => t.id == _subjectId,
+      orElse: () => subjects.first,
     );
   }
 
@@ -448,15 +418,15 @@ class _EntrainementTabState extends ConsumerState<_EntrainementTab> {
     );
   }
 
-  Future<void> _practice(ProductionTaskDto task, ProductionSituationDto situation) async {
+  Future<void> _practice(ProductionTaskDto task) async {
     if (_starting) return;
     setState(() => _starting = true);
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
     try {
       if (widget.module.isEo) {
-        await ref.read(eoSessionProvider.notifier).startSingle(task: task, situationId: situation.id);
+        await ref.read(eoSessionProvider.notifier).startSingle(task: task);
       } else {
-        await ref.read(eeSessionProvider.notifier).startSingle(task: task, situationId: situation.id);
+        await ref.read(eeSessionProvider.notifier).startSingle(task: task);
       }
       if (!mounted) return;
       context.push(widget.module.isEo
@@ -487,23 +457,21 @@ class _EntrainementTabState extends ConsumerState<_EntrainementTab> {
     )));
 
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.blue)),
+      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.red)),
       error: (e, _) => _ErrorBox(message: ApiClient.toApiException(e).message),
       data: (data) {
-        final displayTask = data.displayTask;
-        final situations = data.situations;
-        if (displayTask == null || situations.isEmpty) {
+        final subjects = data.subjects;
+        if (subjects.isEmpty) {
           return _Placeholder(
             icon: Icons.hourglass_empty_rounded,
             title: 'Bientôt disponible',
             description:
-                'Les situations d\'entraînement de cette tâche ne sont pas encore prêtes. Reviens vite !',
+                'Les sujets d\'entraînement de cette tâche ne sont pas encore prêts. Reviens vite !',
           );
         }
         final hero = _heroCopy(mod, widget.tache);
         final examples = data.examples;
-        final situation = _selectedSituation(situations);
-        final practiceTask = data.tasksById[situation.taskId] ?? displayTask;
+        final subject = _selectedSubject(subjects);
 
         return Stack(
           children: [
@@ -514,22 +482,22 @@ class _EntrainementTabState extends ConsumerState<_EntrainementTab> {
                 const SizedBox(height: 16),
                 _StatsRow(
                   values: [
-                    '${situations.length}',
+                    '${subjects.length}',
                     '${examples.length}',
-                    _durationLabel(mod, displayTask),
+                    _durationLabel(mod, subject),
                   ],
-                  labels: const ['Situations', 'Exemples', 'Cible'],
+                  labels: const ['Sujets', 'Exemples', 'Cible'],
                 ),
                 const SizedBox(height: 20),
-                _SectionHead(title: 'Situations'),
+                _SectionHead(title: 'Sujets'),
                 const SizedBox(height: 10),
-                _SituationsCarousel(
-                  situations: situations,
-                  selectedId: situation.id,
-                  onSelect: (s) => setState(() => _situationId = s.id),
+                _SubjectsCarousel(
+                  subjects: subjects,
+                  selectedId: subject.id,
+                  onSelect: (t) => setState(() => _subjectId = t.id),
                 ),
                 const SizedBox(height: 14),
-                _ConsigneCard(module: mod, task: practiceTask, situation: situation),
+                _ConsigneCard(module: mod, task: subject),
                 const SizedBox(height: 18),
                 _SectionHead(
                   title: mod.isEo ? 'Exemples de réponses' : 'Exemples rédigés',
@@ -558,7 +526,7 @@ class _EntrainementTabState extends ConsumerState<_EntrainementTab> {
               child: _ProductionPanel(
                 module: mod,
                 busy: _starting,
-                onStart: () => _practice(practiceTask, situation),
+                onStart: () => _practice(subject),
               ),
             ),
           ],
@@ -575,19 +543,19 @@ class _EntrainementTabState extends ConsumerState<_EntrainementTab> {
             '🎙️ Entraînement guidé',
             'Apprenez à vous présenter naturellement',
             'Plusieurs exemples pour une même situation, puis vous enregistrez votre propre réponse.',
-            const [AppColors.blue, AppColors.blueDark],
+            const [AppColors.red, AppColors.redDark],
           ),
         2 => (
             '🎭 Jeu de rôle guidé',
             'Apprenez à poser les bonnes questions',
             'Vous jouez une situation pratique : demander des informations, réserver, expliquer un besoin.',
-            const [AppColors.blue, AppColors.blueDark],
+            const [AppColors.red, AppColors.redDark],
           ),
         _ => (
             '💬 Donner son avis',
             'Exprimez votre opinion avec assurance',
             'Structurez un point de vue, illustrez-le d\'exemples, puis enregistrez votre réponse.',
-            const [AppColors.blue, AppColors.blueDark],
+            const [AppColors.red, AppColors.redDark],
           ),
       };
     }
@@ -781,7 +749,7 @@ class _SectionHead extends StatelessWidget {
             onTap: onSeeAll,
             child: Text(
               'Tout voir',
-              style: AppFonts.jakarta(size: 13, weight: FontWeight.w800, color: AppColors.blue),
+              style: AppFonts.jakarta(size: 13, weight: FontWeight.w800, color: AppColors.red),
             ),
           ),
       ],
@@ -848,12 +816,12 @@ class _NumberedCard extends StatelessWidget {
                   height: 38,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: AppColors.blueLight,
+                    color: AppColors.redLight,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     '$index',
-                    style: AppFonts.jakarta(size: 15, weight: FontWeight.w800, color: AppColors.blue),
+                    style: AppFonts.jakarta(size: 15, weight: FontWeight.w800, color: AppColors.red),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -880,7 +848,7 @@ class _NumberedCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 if (trailingIcon != null)
-                  Icon(trailingIcon, size: 18, color: AppColors.blue),
+                  Icon(trailingIcon, size: 18, color: AppColors.red),
                 const SizedBox(width: 4),
                 const Icon(Icons.chevron_right_rounded, color: AppColors.muted2, size: 22),
               ],
@@ -917,11 +885,10 @@ class _MutedHint extends StatelessWidget {
 /// Carte « Consigne & préparation » : consigne + badge durée/mots, rôle (jeu de
 /// rôle EO), supports visuels, déclencheur (EE) puis le plan d'aide.
 class _ConsigneCard extends StatelessWidget {
-  const _ConsigneCard({required this.module, required this.task, required this.situation});
+  const _ConsigneCard({required this.module, required this.task});
 
   final TcfProductionModule module;
   final ProductionTaskDto task;
-  final ProductionSituationDto situation;
 
   @override
   Widget build(BuildContext context) {
@@ -944,7 +911,7 @@ class _ConsigneCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  situation.isRolePlay ? 'Consigne & rôle' : 'Consigne & préparation',
+                  'Consigne & préparation',
                   style: AppFonts.jakarta(size: 18, weight: FontWeight.w800, color: AppColors.ink),
                 ),
               ),
@@ -952,10 +919,7 @@ class _ConsigneCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.ink,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
+                  decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(14)),
                   child: Text(
                     badge,
                     style: AppFonts.jakarta(size: 12, weight: FontWeight.w800, color: AppColors.white),
@@ -965,189 +929,79 @@ class _ConsigneCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          if (situation.declencheur != null) ...[
-            _DeclencheurBox(declencheur: situation.declencheur!),
-            const SizedBox(height: 14),
-          ],
           Text(
-            situation.consigne?.isNotEmpty == true ? situation.consigne! : situation.contexte,
+            task.consigne,
             style: AppFonts.jakarta(size: 14, color: AppColors.ink2, height: 1.55),
           ),
-          if (situation.isRolePlay) ...[
-            const SizedBox(height: 14),
-            if (situation.roleCandidat != null)
-              _RoleRow(label: 'Votre rôle', value: situation.roleCandidat!),
-            if (situation.objectif != null) ...[
-              const SizedBox(height: 8),
-              _RoleRow(label: 'Objectif', value: situation.objectif!),
-            ],
-          ],
-          if (situation.medias.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            _SupportsRow(medias: situation.medias),
-          ],
-          if (situation.etapes.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            for (int i = 0; i < situation.etapes.length; i++) ...[
-              _HelpItem(index: i + 1, etape: situation.etapes[i]),
-              if (i != situation.etapes.length - 1) const SizedBox(height: 10),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _DeclencheurBox extends StatelessWidget {
-  const _DeclencheurBox({required this.declencheur});
-
-  final ProductionDeclencheur declencheur;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.blueSoft,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.blueLight),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.blue,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              _avatarLetter(declencheur),
-              style: AppFonts.jakarta(size: 15, weight: FontWeight.w800, color: AppColors.white),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  declencheur.expediteur ?? 'Message reçu',
-                  style: AppFonts.jakarta(size: 13, weight: FontWeight.w800, color: AppColors.ink),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  declencheur.texte ?? '',
-                  style: AppFonts.jakarta(size: 13, color: AppColors.ink2, height: 1.45),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-String _avatarLetter(ProductionDeclencheur d) {
-  if (d.avatar != null && d.avatar!.isNotEmpty) return d.avatar!.substring(0, 1).toUpperCase();
-  if (d.expediteur != null && d.expediteur!.isNotEmpty) return d.expediteur!.substring(0, 1).toUpperCase();
-  return '?';
-}
-
-class _RoleRow extends StatelessWidget {
-  const _RoleRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.bg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+          const SizedBox(height: 16),
           Text(
-            label,
-            style: AppFonts.jakarta(size: 13, weight: FontWeight.w800, color: AppColors.ink),
+            'POUR RÉUSSIR, PENSEZ À',
+            style: AppFonts.mono(
+              size: 9.5,
+              color: AppColors.muted,
+              letterSpacing: 1.6,
+              weight: FontWeight.w700,
+            ),
           ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            style: AppFonts.jakarta(size: 12.5, color: AppColors.muted, height: 1.4),
-          ),
+          const SizedBox(height: 10),
+          for (final (i, point) in _planFor(module, task.tacheNumero).indexed) ...[
+            _HelpPoint(index: i + 1, titre: point.$1, aide: point.$2),
+            const SizedBox(height: 10),
+          ],
         ],
       ),
     );
   }
 }
 
-class _SupportsRow extends StatelessWidget {
-  const _SupportsRow({required this.medias});
-
-  final List<ProductionSituationMediaDto> medias;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 150,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.zero,
-        itemCount: medias.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, i) {
-          final m = medias[i];
-          return Container(
-            width: 170,
-            decoration: BoxDecoration(
-              color: AppColors.bg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.line),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: m.isSvg && m.inlineSvg != null
-                      ? SvgPicture.string(m.inlineSvg!, fit: BoxFit.cover)
-                      : (m.imageUrl != null
-                          ? Image.network(m.imageUrl!, fit: BoxFit.cover)
-                          : const ColoredBox(color: AppColors.line2)),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                  child: Text(
-                    m.legende ?? m.altText,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppFonts.jakarta(size: 11.5, color: AppColors.ink2, height: 1.3),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
+/// Plan d'aide stable par type de tâche (les étapes ne dépendent pas du sujet
+/// précis). Liste de (titre, aide) affichée en points clairs sous la consigne.
+List<(String, String)> _planFor(TcfProductionModule module, int tache) {
+  if (module.isEo) {
+    return switch (tache) {
+      1 => const [
+          ('Présentez-vous', 'Prénom, origine, ville et situation actuelle.'),
+          ('Parlez de votre quotidien', 'Travail ou études, famille, activités.'),
+          ('Terminez par votre projet', 'Pourquoi vous passez le TCF, vos objectifs.'),
+        ],
+      2 => const [
+          ('Posez des questions claires', 'Au moins 4 questions sur des aspects différents.'),
+          ('Réagissez à l\'interlocuteur', '« D\'accord », « Très bien », « C\'est possible quand ? »'),
+          ('Terminez l\'échange', 'Proposez une suite, puis remerciez.'),
+        ],
+      _ => const [
+          ('Annoncez votre position', '« À mon avis… », « Je pense que… »'),
+          ('Donnez deux arguments', '« D\'abord… ensuite… » avec un exemple pour chacun.'),
+          ('Concluez en nuançant', '« Cependant… », « Pour finir… »'),
+        ],
+    };
   }
+  return switch (tache) {
+    1 => const [
+        ('Répondez au message reçu', 'Acceptez ou refusez, réagissez au déclencheur.'),
+        ('Donnez les informations utiles', 'Jour, heure, lieu, détails demandés.'),
+        ('Posez une question et concluez', 'Avec une formule de fin adaptée à un ami.'),
+      ],
+    2 => const [
+        ('Plantez le décor', 'Quand, où, avec qui.'),
+        ('Racontez le déroulement', 'Au passé composé / imparfait, avec une anecdote.'),
+        ('Terminez par un bilan', 'Ce que vous en avez retenu.'),
+      ],
+    _ => const [
+        ('Annoncez votre thèse', '« Selon moi… », « Je pense que… »'),
+        ('Donnez deux arguments illustrés', 'Un exemple concret pour chacun.'),
+        ('Traitez une objection', '« Certes… toutefois… » puis concluez.'),
+      ],
+  };
 }
 
-class _HelpItem extends StatelessWidget {
-  const _HelpItem({required this.index, required this.etape});
+/// Un point du plan d'aide : pastille numérotée + titre + aide.
+class _HelpPoint extends StatelessWidget {
+  const _HelpPoint({required this.index, required this.titre, required this.aide});
 
   final int index;
-  final ProductionEtape etape;
+  final String titre;
+  final String aide;
 
   @override
   Widget build(BuildContext context) {
@@ -1162,14 +1016,17 @@ class _HelpItem extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 30,
+            height: 30,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.blueLight,
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.redLight,
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(_iconFor(etape.icon), size: 17, color: AppColors.blue),
+            child: Text(
+              '$index',
+              style: AppFonts.jakarta(size: 13, weight: FontWeight.w800, color: AppColors.red),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1177,59 +1034,20 @@ class _HelpItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$index. ${etape.titre}',
-                  style: AppFonts.jakarta(size: 13, weight: FontWeight.w800, color: AppColors.ink),
+                  titre,
+                  style: AppFonts.jakarta(size: 13.5, weight: FontWeight.w800, color: AppColors.ink),
                 ),
-                if (etape.aide != null) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    etape.aide!,
-                    style: AppFonts.jakarta(size: 12, color: AppColors.muted, height: 1.4),
-                  ),
-                ],
+                const SizedBox(height: 3),
+                Text(
+                  aide,
+                  style: AppFonts.jakarta(size: 12, color: AppColors.muted, height: 1.4),
+                ),
               ],
             ),
           ),
         ],
       ),
     );
-  }
-
-  IconData _iconFor(String? key) {
-    switch (key) {
-      case 'person':
-        return Icons.person_outline_rounded;
-      case 'work':
-        return Icons.work_outline_rounded;
-      case 'target':
-        return Icons.flag_outlined;
-      case 'wave':
-        return Icons.waving_hand_outlined;
-      case 'chat':
-        return Icons.chat_bubble_outline_rounded;
-      case 'handshake':
-        return Icons.handshake_outlined;
-      case 'id':
-        return Icons.badge_outlined;
-      case 'home':
-        return Icons.home_outlined;
-      case 'doc':
-        return Icons.description_outlined;
-      case 'question':
-        return Icons.help_outline_rounded;
-      case 'calendar':
-        return Icons.calendar_today_outlined;
-      case 'reply':
-        return Icons.reply_rounded;
-      case 'check':
-        return Icons.check_circle_outline_rounded;
-      case 'gift':
-        return Icons.card_giftcard_rounded;
-      case 'euro':
-        return Icons.euro_rounded;
-      default:
-        return Icons.bolt_outlined;
-    }
   }
 }
 
@@ -1386,7 +1204,7 @@ class _ExamensTabState extends ConsumerState<_ExamensTab> {
           label: '📝 Simulation officielle',
           title: mod.isEo ? 'Simulez l\'oral comme au vrai examen' : 'Simulez l\'écrit comme au vrai examen',
           pitch: 'Pas d\'exemples, pas d\'aide détaillée : vous répondez directement, puis l\'IA corrige.',
-          gradient: const [AppColors.ink, AppColors.blueDark],
+          gradient: const [AppColors.ink, AppColors.redDark],
         ),
         const SizedBox(height: 16),
         _StatsRow(
@@ -1702,7 +1520,7 @@ class _CorrectionsTabState extends ConsumerState<_CorrectionsTab> {
           label: '🤖 Historique IA',
           title: 'Retrouvez toutes vos corrections',
           pitch: 'Scores, transcription, points forts, erreurs et conseils restent disponibles à tout moment.',
-          gradient: const [AppColors.blueDark, AppColors.blue],
+          gradient: const [AppColors.redDark, AppColors.red],
         ),
         const SizedBox(height: 16),
         Row(
@@ -1721,7 +1539,7 @@ class _CorrectionsTabState extends ConsumerState<_CorrectionsTab> {
         async.when(
           loading: () => const Padding(
             padding: EdgeInsets.symmetric(vertical: 30),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.blue)),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.red)),
           ),
           error: (e, _) => _ErrorBox(message: ApiClient.toApiException(e).message),
           data: (subs) {
@@ -1761,7 +1579,7 @@ class _FilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: active ? AppColors.blue : AppColors.line2,
+          color: active ? AppColors.red : AppColors.line2,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
@@ -1916,8 +1734,8 @@ class _Placeholder extends StatelessWidget {
               width: 64,
               height: 64,
               alignment: Alignment.center,
-              decoration: BoxDecoration(color: AppColors.blueLight, borderRadius: BorderRadius.circular(20)),
-              child: Icon(icon, color: AppColors.blue, size: 28),
+              decoration: BoxDecoration(color: AppColors.redLight, borderRadius: BorderRadius.circular(20)),
+              child: Icon(icon, color: AppColors.red, size: 28),
             ),
             const SizedBox(height: 16),
             Text(
@@ -2065,7 +1883,7 @@ class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
-                          color: _ready ? AppColors.blue : AppColors.muted2,
+                          color: _ready ? AppColors.red : AppColors.muted2,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
@@ -2098,7 +1916,7 @@ class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
                   ],
                   const SizedBox(height: 18),
                   Text(
-                    'Transcription',
+                    widget.module.isEo ? 'Transcription' : 'Texte du modèle',
                     style: AppFonts.mono(
                       size: 10,
                       color: AppColors.muted,
@@ -2112,13 +1930,37 @@ class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
                     decoration: BoxDecoration(
                       color: AppColors.bg,
                       borderRadius: BorderRadius.circular(16),
-                      border: const Border(left: BorderSide(color: AppColors.blue, width: 4)),
+                      border: const Border(left: BorderSide(color: AppColors.red, width: 4)),
                     ),
                     child: Text(
                       ex.contenu,
                       style: AppFonts.jakarta(size: 14, color: AppColors.ink2, height: 1.6),
                     ),
                   ),
+                  if (ex.explications != null && ex.explications!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.redLight,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.redLight),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.lightbulb_outline_rounded, size: 18, color: AppColors.red),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              ex.explications!,
+                              style: AppFonts.jakarta(size: 13, color: AppColors.ink2, height: 1.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   if (ex.planPoints.isNotEmpty) ...[
                     const SizedBox(height: 18),
                     Text(
@@ -2199,19 +2041,19 @@ class _AllItemsSheet extends StatelessWidget {
 // Carrousel de situations + panneau de production
 // ============================================================================
 
-/// Carrousel horizontal des sujets : pastille numérotée + titre + contexte
-/// court. Le sujet sélectionné est surligné ; la carte « Consigne » en dessous
-/// reflète la sélection.
-class _SituationsCarousel extends StatelessWidget {
-  const _SituationsCarousel({
-    required this.situations,
+/// Carrousel horizontal des sujets (lignes production_tasks). Pastille
+/// numérotée + énoncé du sujet (consigne). Le sujet sélectionné est surligné ;
+/// la carte « Consigne » en dessous reflète la sélection.
+class _SubjectsCarousel extends StatelessWidget {
+  const _SubjectsCarousel({
+    required this.subjects,
     required this.selectedId,
     required this.onSelect,
   });
 
-  final List<ProductionSituationDto> situations;
+  final List<ProductionTaskDto> subjects;
   final String selectedId;
-  final ValueChanged<ProductionSituationDto> onSelect;
+  final ValueChanged<ProductionTaskDto> onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -2220,70 +2062,56 @@ class _SituationsCarousel extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.zero,
-        itemCount: situations.length,
+        itemCount: subjects.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (_, i) {
-          final s = situations[i];
-          final active = s.id == selectedId;
+          final t = subjects[i];
+          final active = t.id == selectedId;
           return GestureDetector(
-            onTap: () => onSelect(s),
+            onTap: () => onSelect(t),
             child: Container(
               width: 244,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: active ? AppColors.blueSoft : AppColors.white,
+                color: active ? AppColors.redLight : AppColors.white,
                 borderRadius: BorderRadius.circular(22),
                 border: Border.all(
-                  color: active ? AppColors.blue : AppColors.line,
+                  color: active ? AppColors.red : AppColors.line,
                   width: active ? 2 : 1,
                 ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 30,
-                        height: 30,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: active ? AppColors.blue : AppColors.blueLight,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '${i + 1}',
-                          style: AppFonts.jakarta(
-                            size: 13,
-                            weight: FontWeight.w800,
-                            color: active ? AppColors.white : AppColors.blue,
-                          ),
-                        ),
+                  Container(
+                    width: 30,
+                    height: 30,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: active ? AppColors.red : AppColors.redLight,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${i + 1}',
+                      style: AppFonts.jakarta(
+                        size: 13,
+                        weight: FontWeight.w800,
+                        color: active ? AppColors.white : AppColors.red,
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          s.titre,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppFonts.jakarta(
-                            size: 15,
-                            weight: FontWeight.w800,
-                            color: AppColors.ink,
-                            height: 1.2,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Expanded(
                     child: Text(
-                      s.contexte,
-                      maxLines: 3,
+                      t.consigne,
+                      maxLines: 4,
                       overflow: TextOverflow.ellipsis,
-                      style: AppFonts.jakarta(size: 13, color: AppColors.muted, height: 1.4),
+                      style: AppFonts.jakarta(
+                        size: 13.5,
+                        weight: FontWeight.w600,
+                        color: AppColors.ink,
+                        height: 1.35,
+                      ),
                     ),
                   ),
                 ],
@@ -2330,12 +2158,12 @@ class _ProductionPanel extends StatelessWidget {
             height: 44,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: isEo ? AppColors.redLight : AppColors.blueLight,
+              color: AppColors.redLight,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
               isEo ? Icons.mic_rounded : Icons.edit_note_rounded,
-              color: isEo ? AppColors.red : AppColors.blue,
+              color: AppColors.red,
               size: 22,
             ),
           ),
@@ -2365,7 +2193,7 @@ class _ProductionPanel extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
               decoration: BoxDecoration(
-                color: AppColors.blue,
+                color: AppColors.red,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: busy

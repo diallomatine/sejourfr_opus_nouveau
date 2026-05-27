@@ -12,6 +12,7 @@ public record ProductionExampleDto(
         String titre,
         String resume,
         String contenu,
+        String explications,
         String audioUrl,
         List<String> planPoints,
         String niveauIndicatif

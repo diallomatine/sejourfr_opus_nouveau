@@ -81,7 +81,6 @@ class ProductionSubmissionDto {
     required this.statut,
     required this.submittedAt,
     required this.retryCount,
-    this.situationId,
     this.tacheNumero,
     this.mediaUrl,
     this.texteSoumis,
@@ -95,9 +94,6 @@ class ProductionSubmissionDto {
   final String id;
   final String? attemptId;
   final String? productionTaskId;
-
-  /// Situation d'entrainement jouee (NULL si entrainement libre sur la tache).
-  final String? situationId;
 
   /// Numero de tache (1, 2 ou 3) de la production_task associee. Renseigne
   /// par le backend depuis Hibernate ; utilise par le hub d'entrainement
@@ -132,7 +128,6 @@ class ProductionSubmissionDto {
         id: json['id'] as String,
         attemptId: json['attemptId'] as String?,
         productionTaskId: json['productionTaskId'] as String?,
-        situationId: json['situationId'] as String?,
         tacheNumero: (json['tacheNumero'] as num?)?.toInt(),
         statut: SubmissionStatut.fromWire(json['statut'] as String),
         mediaUrl: json['mediaUrl'] as String?,
@@ -253,75 +248,16 @@ class CorrectionExample {
       );
 }
 
-/// EE : message declencheur affiche avant la zone de redaction.
-class ProductionDeclencheur {
-  ProductionDeclencheur({this.expediteur, this.avatar, this.texte});
-
-  final String? expediteur;
-  final String? avatar;
-  final String? texte;
-
-  factory ProductionDeclencheur.fromJson(Map<String, dynamic> json) => ProductionDeclencheur(
-        expediteur: json['expediteur'] as String?,
-        avatar: json['avatar'] as String?,
-        texte: json['texte'] as String?,
-      );
-}
-
-/// Une etape du plan d'aide (help-item) : icone + titre + texte d'aide.
-class ProductionEtape {
-  ProductionEtape({this.icon, required this.titre, this.aide});
-
-  final String? icon;
-  final String titre;
-  final String? aide;
-
-  factory ProductionEtape.fromJson(Map<String, dynamic> json) => ProductionEtape(
-        icon: json['icon'] as String?,
-        titre: json['titre'] as String? ?? '',
-        aide: json['aide'] as String?,
-      );
-}
-
-/// Support visuel d'une situation : type IMAGE (imageUrl) ou SVG (inlineSvg).
-class ProductionSituationMediaDto {
-  ProductionSituationMediaDto({
-    required this.id,
-    required this.type,
-    required this.altText,
-    this.imageUrl,
-    this.inlineSvg,
-    this.legende,
-  });
-
-  final String id;
-
-  /// "IMAGE" | "SVG".
-  final String type;
-  final String? imageUrl;
-  final String? inlineSvg;
-  final String? legende;
-  final String altText;
-
-  bool get isSvg => type == 'SVG';
-
-  factory ProductionSituationMediaDto.fromJson(Map<String, dynamic> json) => ProductionSituationMediaDto(
-        id: json['id'] as String,
-        type: json['type'] as String,
-        imageUrl: json['imageUrl'] as String?,
-        inlineSvg: json['inlineSvg'] as String?,
-        legende: json['legende'] as String?,
-        altText: json['altText'] as String? ?? '',
-      );
-}
-
-/// Reponse modele d'une situation. `audioUrl` renseigne pour l'EO, null pour l'EE.
+/// Reponse modele rattachee a une tache (modele illustratif). `audioUrl`
+/// renseigne pour l'EO une fois l'audio publie, null sinon. `explications` =
+/// commentaire pedagogique affiche sous le contenu.
 class ProductionExampleDto {
   ProductionExampleDto({
     required this.id,
     required this.titre,
     required this.contenu,
     this.resume,
+    this.explications,
     this.audioUrl,
     this.planPoints = const [],
     this.niveauIndicatif,
@@ -331,6 +267,7 @@ class ProductionExampleDto {
   final String titre;
   final String? resume;
   final String contenu;
+  final String? explications;
   final String? audioUrl;
   final List<String> planPoints;
   final String? niveauIndicatif;
@@ -342,64 +279,10 @@ class ProductionExampleDto {
         titre: json['titre'] as String,
         resume: json['resume'] as String?,
         contenu: json['contenu'] as String,
+        explications: json['explications'] as String?,
         audioUrl: json['audioUrl'] as String?,
         planPoints:
             ((json['planPoints'] as List?) ?? const []).map((e) => e.toString()).toList(),
         niveauIndicatif: json['niveauIndicatif'] as String?,
-      );
-}
-
-/// Scenario concret d'entrainement rattache a une tache, supports + exemples
-/// imbriques. Miroir de ProductionSituationDto.java.
-class ProductionSituationDto {
-  ProductionSituationDto({
-    required this.id,
-    required this.taskId,
-    required this.titre,
-    required this.contexte,
-    this.consigne,
-    this.roleCandidat,
-    this.roleExaminateur,
-    this.objectif,
-    this.declencheur,
-    this.niveauIndicatif,
-    this.etapes = const [],
-    this.medias = const [],
-  });
-
-  final String id;
-  final String taskId;
-  final String titre;
-  final String contexte;
-  final String? consigne;
-  final String? roleCandidat;
-  final String? roleExaminateur;
-  final String? objectif;
-  final ProductionDeclencheur? declencheur;
-  final String? niveauIndicatif;
-  final List<ProductionEtape> etapes;
-  final List<ProductionSituationMediaDto> medias;
-
-  bool get isRolePlay => roleCandidat != null || roleExaminateur != null;
-
-  factory ProductionSituationDto.fromJson(Map<String, dynamic> json) => ProductionSituationDto(
-        id: json['id'] as String,
-        taskId: json['taskId'] as String,
-        titre: json['titre'] as String,
-        contexte: json['contexte'] as String,
-        consigne: json['consigne'] as String?,
-        roleCandidat: json['roleCandidat'] as String?,
-        roleExaminateur: json['roleExaminateur'] as String?,
-        objectif: json['objectif'] as String?,
-        declencheur: json['declencheur'] == null
-            ? null
-            : ProductionDeclencheur.fromJson(json['declencheur'] as Map<String, dynamic>),
-        niveauIndicatif: json['niveauIndicatif'] as String?,
-        etapes: ((json['etapes'] as List?) ?? const [])
-            .map((e) => ProductionEtape.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        medias: ((json['medias'] as List?) ?? const [])
-            .map((e) => ProductionSituationMediaDto.fromJson(e as Map<String, dynamic>))
-            .toList(),
       );
 }

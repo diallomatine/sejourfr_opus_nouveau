@@ -16,24 +16,18 @@ class EoSessionState {
     required this.attempt,
     required this.tasks,
     required this.submissions,
-    this.situationId,
   });
 
   const EoSessionState.empty()
       : niveau = null,
         attempt = null,
         tasks = const [],
-        submissions = const {},
-        situationId = null;
+        submissions = const {};
 
   final String? niveau;
   final Attempt? attempt;
   final List<ProductionTaskDto> tasks;
   final Map<int, ProductionSubmissionDto> submissions;
-
-  /// Situation d'entrainement jouee (single-task depuis l'onglet Entrainement).
-  /// Null en mode examen 3-taches et en examen blanc complet.
-  final String? situationId;
 
   bool get isStarted => attempt != null && tasks.isNotEmpty;
   int get totalTasks => tasks.length;
@@ -47,14 +41,12 @@ class EoSessionState {
     Attempt? attempt,
     List<ProductionTaskDto>? tasks,
     Map<int, ProductionSubmissionDto>? submissions,
-    String? situationId,
   }) =>
       EoSessionState(
         niveau: niveau ?? this.niveau,
         attempt: attempt ?? this.attempt,
         tasks: tasks ?? this.tasks,
         submissions: submissions ?? this.submissions,
-        situationId: situationId ?? this.situationId,
       );
 }
 
@@ -92,7 +84,7 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
   /// chainage T+1, les ecrans existants (briefing/recording/finished/results)
   /// fonctionnent en mode degrade et le results screen detecte totalTasks==1
   /// pour proposer "Retour aux taches" au lieu de "Voir mon bilan".
-  Future<void> startSingle({required ProductionTaskDto task, String? situationId}) async {
+  Future<void> startSingle({required ProductionTaskDto task}) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final attempt = await _repo.startProductionAttempt(epreuve: EpreuveType.tcfEo);
@@ -101,7 +93,6 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
         attempt: attempt,
         tasks: [task],
         submissions: const {},
-        situationId: situationId,
       );
     });
   }
@@ -163,7 +154,6 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
       attemptId: current.attempt!.id,
       audioFile: audioFile,
       mimeType: mimeType,
-      situationId: current.situationId,
     );
     final updated = {...current.submissions, taskIndex: submission};
     state = AsyncData(current.copyWith(submissions: updated));

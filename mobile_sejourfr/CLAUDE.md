@@ -99,8 +99,8 @@ lib/
     ├── tcf_production/            EO + EE (productions évaluées par IA)
     │   ├── tcf_expression_screen.dart   Écran consolidé /tcf/eo + /tcf/ee : 3 onglets
     │   │                                Entraînement / Examens / Corrections + sous-onglets
-    │   │                                Tâche 1/2/3. Entraînement = carrousel de situations +
-    │   │                                consigne/plan d'aide + exemples (audio EO) + panneau prod.
+    │   │                                Tâche 1/2/3. Entraînement = carrousel de sujets
+    │   │                                (production_tasks) + consigne + exemples (modèles, audio EO) + panneau prod.
     │   ├── tcf_production_module.dart   Enum TcfProductionModule (EO/EE) partagé écran + briefing
     │   ├── audio_recorder_service.dart  record 6 + permission_handler + audio_session
     │   ├── draft_service.dart           Brouillon EE en SharedPreferences
@@ -514,18 +514,16 @@ Examens / Corrections** + 3 sous-onglets **Tâche 1/2/3** (dans Entraînement).
 
 **Deux modes d'entrée** :
 - **Onglet Entraînement** (sous-onglet Tâche N) → entraînement guidé **single-task**.
-  L'écran agrège les **situations** (= les SUJETS à traiter, ex. « Vous êtes mécanicien,
-  présentez-vous ») de toutes les tâches A2/B1/B2 du couple (épreuve, tâche) via
-  `GET /api/production-tasks/{id}/situations`, et les affiche en carrousel. La situation
-  sélectionnée déplie sa consigne + plan d'aide (`etapes`), ses supports (`medias`, SVG
-  inline via `flutter_svg`) et son `declencheur` (EE). La carte **Exemples** est alimentée
-  séparément par les **modèles de la TÂCHE** (`GET /api/production-tasks/{id}/examples`,
-  audio EO via `just_audio`) — indépendants du sujet choisi (ex. « un boulanger qui se
-  présente »). Le panneau bas
-  (`_ProductionPanel`) lance `startSingle(task, situationId)` + push le briefing existant
-  (`/tcf/expression-orale/t/0` ou `…-ecrite/t/0`). Le `situationId` est propagé jusqu'au
-  submit (`production_submissions.situation_id` côté backend). Pas de pré-blocage premium :
-  le quota gratuit (2/épreuve) renvoie 403 → `showPaywallSheet`.
+  Le carrousel de **sujets** = les lignes `production_tasks` du couple (épreuve, tâche),
+  tous niveaux confondus (`listTasks(epreuve)` filtré client-side par `tacheNumero`). Tap
+  sujet → la carte **Consigne** inline reflète le sujet (consigne + contexte + badge
+  durée/mots). La carte **Exemples** est alimentée séparément par les **modèles de la
+  catégorie** (`GET /api/production-examples?epreuve=…&tacheNumero=…`) — indépendants du
+  sujet choisi ; tap → modal avec texte + `explications` (commentaire pédagogique) + audio
+  EO (`just_audio`, si publié). Le panneau bas (`_ProductionPanel`) lance
+  `startSingle(task)` + push le briefing existant (`/tcf/expression-orale/t/0` ou
+  `…-ecrite/t/0`). Pas de pré-blocage premium : le quota gratuit (2/épreuve) renvoie 403 →
+  `showPaywallSheet`.
 - **Onglet Examens** → session **3 tâches enchaînées**, fidèle au vrai TCF :
   **aucune correction n'est visible entre T1/T2/T3**. Après T3, on push directement le bilan
   détaillé (`HistorySessionScreen` en mode `?live=1`) qui pollera les évaluations IA jusqu'à ce
@@ -558,32 +556,31 @@ avant la fin du pipeline — tap → bilan détaillé qui poll.
   submission (correction IA complète) — push en single-task après soumission, ou depuis le
   bilan en tap d'une ligne.
 
-**Distinction situations / exemples (sémantique clé)** : une `production_situation` = un
-**SUJET** imposé que le candidat traite (il produit SA réponse) ; un `production_example` =
-un **MODÈLE** illustratif rattaché à la **tâche** (`task_id`, pas à une situation), que le
-candidat consulte. Changer de sujet dans le carrousel change la consigne, **pas** la liste
-des exemples. Cf. migration `V108` (bascule `examples.situation_id → task_id`).
+**Modélisation (sémantique clé)** : `production_tasks` = les **SUJETS** d'entraînement —
+plusieurs lignes par (épreuve, tacheNumero), chacune un sujet concret (ex. « Vous êtes
+mécanicien, présentez-vous »). Le candidat en choisit un et produit sa réponse, corrigée par
+l'IA. `production_examples` = des **MODÈLES** illustratifs rattachés à la tâche (`task_id`)
++ un champ `explications` (commentaire pédagogique) ; ils se listent par (épreuve,
+tacheNumero) et ne dépendent **pas** du sujet choisi. **Les situations ont été supprimées**
+(plus de `production_situations` / `_situation_medias` / supports visuels ni plan d'aide
+`etapes`/`declencheur`).
 
-**Sélection d'un sujet** — vit dans l'onglet Entraînement de `TcfExpressionScreen` via le
-carrousel de **situations** (plus d'écran « sujets » séparé). Tap situation → sélection → panneau bas lance
-`startSingle(task, situationId)` + briefing existant. **Adaptation assumée** : le panneau de
-production ne réenregistre/ré-rédige pas inline (la maquette le suggère) — il réutilise le
-flux briefing → enregistrement (EO) / `ee_briefing_writing_screen` (EE) déjà éprouvé, en y
-injectant la situation choisie. L'ancien `ProductionHubScreen`, `TcfProductionDetailScreen`
-et `TcfProductionTaskSubjectsScreen` sont **supprimés**.
+**Adaptation assumée** : le panneau de production ne réenregistre/ré-rédige pas inline — il
+réutilise le flux briefing → enregistrement (EO) / `ee_briefing_writing_screen` (EE) déjà
+éprouvé, sur le sujet (task) sélectionné. L'ancien `ProductionHubScreen`,
+`TcfProductionDetailScreen` et `TcfProductionTaskSubjectsScreen` sont **supprimés**.
 
 **Backend du contenu d'entraînement** (cf. CLAUDE.md racine) :
-- `V107` : `production_situations` (+ `etapes`/`declencheur` JSONB, `niveau_indicatif`),
-  `production_situation_medias` (IMAGE/SVG), `production_examples`, + `production_submissions.situation_id`.
-- `V108` : `production_examples.situation_id → task_id` (les exemples sont des modèles de
-  TÂCHE, pas de situation). Backfille les exemples déjà seedés.
-- `V109` : colonnes de suivi audio sur `production_examples` (`audio_status`, `audio_voice`,
-  `audio_duration_sec`, `audio_generated_at`, `audio_batch_id`, `audio_error`). Audio EO
-  généré par batch admin (Azure Speech + R2) ; le candidat ne voit `audioUrl` que `PUBLISHED`
-  (bouton « ▶ Écouter » de `_ExamplesCard`).
-- Seed : `V133` (EO T1/T2, EE T1) + `V134` (EO T3, EE T2/T3).
-- Endpoints lecture : `GET /api/production-tasks/{id}/situations`,
-  `GET /api/production-tasks/{id}/examples`, `GET /api/production-situations/{id}`.
+- `V107`→`V109` (historiques) : avaient créé `production_situations` + supports + colonnes
+  audio sur `production_examples`.
+- `V135` : **supprime** `production_situations` + `production_situation_medias` + la colonne
+  `production_submissions.situation_id`, et ajoute `production_examples.explications`.
+- Seed : `V133`/`V134` (situations historiques, droppées) puis `V136` (sujets EO T1 variés +
+  ré-seed des exemples avec `explications`, rattachés par catégorie).
+- Audio EO des exemples : batch admin (Azure Speech + R2) ; le candidat ne voit `audioUrl`
+  que `PUBLISHED` (bouton « ▶ Écouter » dans le modal exemple).
+- Endpoints lecture : `GET /api/production-tasks?epreuve=…&tacheNumero=…` (sujets),
+  `GET /api/production-tasks/{id}` (détail sujet), `GET /api/production-examples?epreuve=…&tacheNumero=…` (modèles).
 - La correction IA réutilise le pipeline existant (Whisper + Claude).
 
 **Flow EO (3 écrans + résultats)** — inchangé en single-task, le SessionController a juste 1 tâche :

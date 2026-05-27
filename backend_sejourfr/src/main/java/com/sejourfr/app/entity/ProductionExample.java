@@ -46,6 +46,10 @@ public class ProductionExample {
     @Column(nullable = false, columnDefinition = "text")
     private String contenu;
 
+    /** Commentaire pedagogique affiche sous le contenu pour orienter le candidat. */
+    @Column(columnDefinition = "text")
+    private String explications;
+
     @Column(name = "audio_url", columnDefinition = "text")
     private String audioUrl;
 
@@ -102,6 +106,9 @@ public class ProductionExample {
 
     public String getContenu() { return contenu; }
     public void setContenu(String contenu) { this.contenu = contenu; }
+
+    public String getExplications() { return explications; }
+    public void setExplications(String explications) { this.explications = explications; }
 
     public String getAudioUrl() { return audioUrl; }
     public void setAudioUrl(String audioUrl) { this.audioUrl = audioUrl; }

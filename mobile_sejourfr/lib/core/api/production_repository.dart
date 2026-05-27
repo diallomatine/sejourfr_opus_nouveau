@@ -80,29 +80,16 @@ class ProductionRepository {
     return ProductionTaskDto.fromJson(res.data!);
   }
 
-  /// Situations d'entrainement actives d'une tache (supports + exemples imbriques).
-  ///   GET /api/production-tasks/{taskId}/situations
-  Future<List<ProductionSituationDto>> listSituations(String taskId) async {
+  /// Exemples-modeles d'une categorie (epreuve, tacheNumero), independants du
+  /// sujet choisi.
+  ///   GET /api/production-examples?epreuve=...&tacheNumero=...
+  Future<List<ProductionExampleDto>> listExamples({
+    required EpreuveType epreuve,
+    required int tacheNumero,
+  }) async {
     final res = await _client.dio.get<List<dynamic>>(
-      '/api/production-tasks/$taskId/situations',
-    );
-    return (res.data ?? [])
-        .map((e) => ProductionSituationDto.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-
-  /// Detail complet d'une situation (sujet + supports), sans les exemples.
-  ///   GET /api/production-situations/{id}
-  Future<ProductionSituationDto> getSituation(String id) async {
-    final res = await _client.dio.get<Map<String, dynamic>>('/api/production-situations/$id');
-    return ProductionSituationDto.fromJson(res.data!);
-  }
-
-  /// Exemples-modeles d'une tache (independants du sujet choisi).
-  ///   GET /api/production-tasks/{taskId}/examples
-  Future<List<ProductionExampleDto>> listExamples(String taskId) async {
-    final res = await _client.dio.get<List<dynamic>>(
-      '/api/production-tasks/$taskId/examples',
+      '/api/production-examples',
+      queryParameters: {'epreuve': epreuve.wire, 'tacheNumero': tacheNumero},
     );
     return (res.data ?? [])
         .map((e) => ProductionExampleDto.fromJson(e as Map<String, dynamic>))
@@ -115,7 +102,6 @@ class ProductionRepository {
     required String productionTaskId,
     required String attemptId,
     required String texte,
-    String? situationId,
   }) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
       '/api/production-submissions',
@@ -123,7 +109,6 @@ class ProductionRepository {
         'productionTaskId': productionTaskId,
         'attemptId': attemptId,
         'texte': texte,
-        if (situationId != null) 'situationId': situationId,
       },
       options: Options(
         contentType: Headers.jsonContentType,
@@ -141,7 +126,6 @@ class ProductionRepository {
     required String attemptId,
     required File audioFile,
     String? mimeType,
-    String? situationId,
   }) async {
     final filename = audioFile.path.split('/').last;
     // Si mimeType est fourni on l'utilise, sinon dio infere depuis l'extension
@@ -150,7 +134,6 @@ class ProductionRepository {
     final formData = FormData.fromMap({
       'productionTaskId': productionTaskId,
       'attemptId': attemptId,
-      if (situationId != null) 'situationId': situationId,
       'audio': await MultipartFile.fromFile(
         audioFile.path,
         filename: filename,

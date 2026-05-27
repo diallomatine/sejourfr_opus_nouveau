@@ -13,8 +13,6 @@ import java.util.UUID;
 public record SubmitProductionTextRequest(
         @NotNull UUID productionTaskId,
         @NotNull UUID attemptId,
-        @NotBlank String texte,
-        /** Situation d'entrainement jouee (optionnel : NULL en entrainement libre). */
-        UUID situationId
+        @NotBlank String texte
 ) {
 }

@@ -16,8 +16,24 @@ import java.util.UUID;
 @Repository
 public interface ProductionExampleRepository extends JpaRepository<ProductionExample, UUID> {
 
-    /** Modèles d'une tâche (indépendants du sujet choisi). */
+    /** Modèles rattachés à une tâche précise. */
     List<ProductionExample> findByTaskIdOrderByDisplayOrderAsc(UUID taskId);
+
+    /**
+     * Modèles d'une catégorie (epreuve, tacheNumero) : ils illustrent le type de
+     * tâche, indépendamment du sujet choisi par le candidat.
+     */
+    @Query("""
+            SELECT e FROM ProductionExample e
+            WHERE e.taskId IN (
+              SELECT t.id FROM ProductionTask t
+              WHERE t.epreuve = :epreuve AND t.tacheNumero = :tacheNumero
+            )
+            ORDER BY e.displayOrder ASC
+            """)
+    List<ProductionExample> findByEpreuveAndTache(
+            @Param("epreuve") EpreuveType epreuve,
+            @Param("tacheNumero") short tacheNumero);
 
     /**
      * Exemples d'une épreuve donnée (TCF_EO pour l'audio) sans audio encore

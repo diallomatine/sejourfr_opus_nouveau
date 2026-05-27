@@ -52,9 +52,9 @@ public class ProductionTaskManager {
         return repository.findByEpreuveAndActiveTrueOrderByNiveauCibleAscTacheNumeroAsc(epreuve);
     }
 
-    /** Exemples-modeles d'une tache (independants du sujet choisi). */
-    public List<ProductionExample> findExamplesByTask(UUID taskId) {
-        return exampleRepository.findByTaskIdOrderByDisplayOrderAsc(taskId);
+    /** Exemples-modeles d'une categorie (epreuve, tacheNumero). */
+    public List<ProductionExample> findExamplesByEpreuveAndTache(EpreuveType epreuve, short tacheNumero) {
+        return exampleRepository.findByEpreuveAndTache(epreuve, tacheNumero);
     }
 
     public Optional<ProductionExample> findExampleById(UUID id) {

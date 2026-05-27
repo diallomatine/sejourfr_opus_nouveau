@@ -14,8 +14,6 @@ public record ProductionSubmissionDto(
         UUID id,
         UUID attemptId,
         UUID productionTaskId,
-        /** Situation d'entrainement jouee (NULL si entrainement libre sur la tache). */
-        UUID situationId,
         /** Numero de tache (1, 2 ou 3) de la production_task associee. Sert au hub
          *  d'entrainement a regrouper la derniere submission par numero. */
         Short tacheNumero,
