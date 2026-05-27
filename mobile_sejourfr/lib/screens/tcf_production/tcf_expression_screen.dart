@@ -311,11 +311,12 @@ class _TaskRow extends StatelessWidget {
     final meta = _taskMeta(module, tache);
     final (bg, fg) = _taskColors(tache);
     return Container(
-      margin: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.line),
+        boxShadow: _cardShadow,
       ),
       clipBehavior: Clip.antiAlias,
       child: Material(
@@ -323,7 +324,7 @@ class _TaskRow extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
             child: Row(
               children: [
                 Container(
@@ -1508,6 +1509,11 @@ String _formatDate(DateTime d) {
 // Onglets + contenu de l'écran par tâche
 // ============================================================================
 
+/// Ombre douce partagée : léger relief pour fluidifier les cartes blanches.
+const _cardShadow = [
+  BoxShadow(color: Color(0x0A0F1839), blurRadius: 12, offset: Offset(0, 4)),
+];
+
 /// Onglets « Exercices / Exemples » (segment blanc actif, façon iOS).
 class _TaskTabs extends StatelessWidget {
   const _TaskTabs({required this.active, required this.onChanged});
@@ -1579,7 +1585,7 @@ class _IntroCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-          color: AppColors.redLight, borderRadius: BorderRadius.circular(14)),
+          color: AppColors.redLight, borderRadius: BorderRadius.circular(16)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1673,8 +1679,9 @@ class _RandomCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.line2),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.line),
+        boxShadow: _cardShadow,
       ),
       child: Row(
         children: [
@@ -1745,11 +1752,12 @@ class _ExerciseRow extends StatelessWidget {
     final (nbg, nfg) = _niveauColors(task.niveauCible);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.line),
+        boxShadow: _cardShadow,
       ),
       clipBehavior: Clip.antiAlias,
       child: Material(
@@ -1757,7 +1765,7 @@ class _ExerciseRow extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 11, 14, 12),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1852,12 +1860,13 @@ class _FeaturedExampleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final (nbg, nfg) = _niveauColors(example.niveauIndicatif);
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.line),
+        boxShadow: _cardShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1943,10 +1952,10 @@ class _OutlineBtn extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 9),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(color: AppColors.line)),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1974,7 +1983,7 @@ class _StrategyCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(top: 8),
       decoration: BoxDecoration(
-          color: AppColors.redLight, borderRadius: BorderRadius.circular(14)),
+          color: AppColors.redLight, borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
       child: Material(
         color: Colors.transparent,
