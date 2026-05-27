@@ -62,7 +62,7 @@ public class ProductionEvaluationService {
      */
     public ProductionSubmission submitAndEvaluate(
             UUID userId, UUID taskId, UUID attemptId,
-            MultipartFile audio, String texte) {
+            MultipartFile audio, String texte, UUID situationId) {
 
         User user = userManager.findById(userId)
             .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
@@ -91,6 +91,7 @@ public class ProductionEvaluationService {
         submission.setUser(user);
         submission.setAttempt(attempt);
         submission.setProductionTask(task);
+        submission.setSituationId(situationId);
         submission.setStatut(SubmissionStatut.SUBMITTED);
 
         if (estOral) {

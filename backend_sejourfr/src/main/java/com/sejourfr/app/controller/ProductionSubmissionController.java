@@ -35,8 +35,9 @@ public class ProductionSubmissionController {
     public ProductionSubmissionDto submitAudio(
             @RequestPart("audio") MultipartFile audio,
             @RequestParam("productionTaskId") UUID productionTaskId,
-            @RequestParam("attemptId") UUID attemptId) {
-        return productionSubmissionService.submitAudio(productionTaskId, attemptId, audio);
+            @RequestParam("attemptId") UUID attemptId,
+            @RequestParam(value = "situationId", required = false) UUID situationId) {
+        return productionSubmissionService.submitAudio(productionTaskId, attemptId, audio, situationId);
     }
 
     /** EE : texte JSON. */

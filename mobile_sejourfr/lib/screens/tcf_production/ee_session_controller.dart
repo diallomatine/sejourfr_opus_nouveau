@@ -14,19 +14,25 @@ class EeSessionState {
     required this.attempt,
     required this.tasks,
     required this.submissions,
+    this.situationId,
   });
 
   const EeSessionState.empty()
       : niveau = null,
         attempt = null,
         tasks = const [],
-        submissions = const {};
+        submissions = const {},
+        situationId = null;
 
   final String? niveau;
   final Attempt? attempt;
   final List<ProductionTaskDto> tasks;
   // taskIndex -> submission. Une entree quand l'utilisateur a soumis cette tache.
   final Map<int, ProductionSubmissionDto> submissions;
+
+  /// Situation d'entrainement jouee (single-task depuis l'onglet Entrainement).
+  /// Null en mode examen 3-taches et en examen blanc complet.
+  final String? situationId;
 
   bool get isStarted => attempt != null && tasks.isNotEmpty;
   int get totalTasks => tasks.length;
@@ -42,12 +48,14 @@ class EeSessionState {
     Attempt? attempt,
     List<ProductionTaskDto>? tasks,
     Map<int, ProductionSubmissionDto>? submissions,
+    String? situationId,
   }) =>
       EeSessionState(
         niveau: niveau ?? this.niveau,
         attempt: attempt ?? this.attempt,
         tasks: tasks ?? this.tasks,
         submissions: submissions ?? this.submissions,
+        situationId: situationId ?? this.situationId,
       );
 }
 
@@ -88,7 +96,7 @@ class EeSessionNotifier extends StateNotifier<AsyncValue<EeSessionState>> {
 
   /// Demarre une session "single-task" (mode entrainement libre depuis le hub).
   /// Voir EoSessionNotifier.startSingle pour le contrat detaille.
-  Future<void> startSingle({required ProductionTaskDto task}) async {
+  Future<void> startSingle({required ProductionTaskDto task, String? situationId}) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       final attempt = await _repo.startProductionAttempt(epreuve: EpreuveType.tcfEe);
@@ -97,6 +105,7 @@ class EeSessionNotifier extends StateNotifier<AsyncValue<EeSessionState>> {
         attempt: attempt,
         tasks: [task],
         submissions: const {},
+        situationId: situationId,
       );
     });
   }
@@ -165,6 +174,7 @@ class EeSessionNotifier extends StateNotifier<AsyncValue<EeSessionState>> {
       productionTaskId: task.id,
       attemptId: attemptId,
       texte: texte,
+      situationId: current.situationId,
     );
     final updated = {...current.submissions, taskIndex: submission};
     state = AsyncData(current.copyWith(submissions: updated));

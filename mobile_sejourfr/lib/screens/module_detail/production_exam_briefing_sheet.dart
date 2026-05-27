@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/models/enums.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
-import 'tcf_production_detail_screen.dart' show TcfProductionModule;
+import '../tcf_production/tcf_production_module.dart' show TcfProductionModule;
 
 /// Briefing avant le démarrage d'un examen complet TCF (3 tâches EE ou EO
 /// enchaînées). Bottomsheet modal — miroir du `ModuleExamBriefingSheet` des

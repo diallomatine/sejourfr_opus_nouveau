@@ -81,9 +81,10 @@ lib/
     │   ├── tcf_qcm_detail_screen.dart         Détail TCF CO/CE/Structure (enum TcfQcmModule) — onglet Séries = cards niveau
     │   ├── tcf_level_lots_screen.dart         Liste des lots pour un (module CO/CE/Structure, niveau A2/B1/B2)
     │   ├── tcf_lot_result_screen.dart         Bilan affiché à la fin d'un lot (score circle + résumé + CTAs)
-    │   ├── tcf_production_detail_screen.dart  Détail TCF EE/EO (enum TcfProductionModule) — onglet Tâches = 3 cards T1/T2/T3
-    │   ├── tcf_production_task_subjects_screen.dart  Liste des sujets d'une tâche EE/EO (push briefing au tap)
+    │   ├── production_exam_briefing_sheet.dart  Briefing modal examen 3-tâches EE/EO (enum vit dans tcf_production/)
     │   └── widgets/module_detail_widgets.dart Layout partagé (topbar, hero, stats, score card)
+    │   (NB : TCF EE/EO n'a plus d'écran "détail" ni "sujets" ici — remplacés par
+    │    tcf_production/tcf_expression_screen.dart, cf. plus bas)
     ├── exam/                      Écrans de résultat et rapport d'examen blanc (le setup a été supprimé,
     │                              le tirage d'examen blanc se fera depuis la carte sombre des hubs)
     ├── question_runner/           Le runner partagé (le cœur de l'app)
@@ -96,6 +97,11 @@ lib/
     │       ├── exam_timer.dart    Chrono décompte
     │       └── explanation_box.dart Bloc correction post-réponse
     ├── tcf_production/            EO + EE (productions évaluées par IA)
+    │   ├── tcf_expression_screen.dart   Écran consolidé /tcf/eo + /tcf/ee : 3 onglets
+    │   │                                Entraînement / Examens / Corrections + sous-onglets
+    │   │                                Tâche 1/2/3. Entraînement = carrousel de situations +
+    │   │                                consigne/plan d'aide + exemples (audio EO) + panneau prod.
+    │   ├── tcf_production_module.dart   Enum TcfProductionModule (EO/EE) partagé écran + briefing
     │   ├── audio_recorder_service.dart  record 6 + permission_handler + audio_session
     │   ├── draft_service.dart           Brouillon EE en SharedPreferences
     │   ├── ee_session_controller.dart   Session EE (1 ou 3 tâches, attempt parent partagé)
@@ -371,10 +377,10 @@ un `ConsumerStatefulWidget` avec un **en-tête fixe** (topbar + onglets, ne scro
 - **TCF** = 4 modules officiels IRN + 1 bonus, **tous** avec un écran détail :
   - CO → `/tcf/co`, CE → `/tcf/ce` → `TcfQcmDetailScreen` → CTA "Commencer l'entraînement"
     → `POST /api/attempts` + push runner.
-  - EE → `/tcf/ee`, EO → `/tcf/eo` → `TcfProductionDetailScreen` → onglet Tâches = 3 cards
-    T1/T2/T3 + CTA "Voir les tâches" (raccourci T1). Tap card → push
-    `TcfProductionTaskSubjectsScreen` (sujets de la tâche choisie) → tap sujet → briefing.
-    Plus de hub intermédiaire (cf. § ProductionHubScreen supprimé plus bas).
+  - EE → `/tcf/ee`, EO → `/tcf/eo` → `TcfExpressionScreen` : onglets Entraînement /
+    Examens / Corrections + sous-onglets Tâche 1/2/3. Entraînement = carrousel de
+    situations + exemples ; tap "Enregistrer"/"Rédiger" → briefing de la situation
+    choisie (cf. § TCF Expression plus bas).
   - **Structure de la langue** → `/tcf/structure` → `TcfQcmDetailScreen` avec
     `TcfQcmModule.structure` (`questionType = STRUCTURE`). Bannière `_ModuleNoticeBanner`
     rendue sous le titre pour rappeler que le module n'est pas évalué au TCF IRN. Mêmes
@@ -404,10 +410,9 @@ bottom nav) :
     Tap question → `showQuestionDetailSheet` partagé.
 - `/tcf/co` et `/tcf/ce` → `TcfQcmDetailScreen` avec l'enum `TcfQcmModule.{co,ce}` qui porte
   l'intitulé, l'icône, le `QuestionType` et le label de durée.
-- `/tcf/eo` et `/tcf/ee` → `TcfProductionDetailScreen` avec l'enum
-  `TcfProductionModule.{eo,ee}` qui porte l'intitulé, l'icône, le label de durée et le CTA.
-  L'onglet Tâches affiche 3 cards T1/T2/T3 et push directement la sélection des sujets
-  (`TcfProductionTaskSubjectsScreen`) — pas de hub intermédiaire.
+- `/tcf/eo` et `/tcf/ee` → `TcfExpressionScreen` avec l'enum
+  `TcfProductionModule.{eo,ee}` (dans `tcf_production/tcf_production_module.dart`). Écran
+  consolidé à 3 onglets + sous-onglets Tâche 1/2/3 (cf. § TCF Expression).
 
 Layout uniforme (`widgets/module_detail_widgets.dart`) :
 1. `ModuleDetailTopBar` (back + icône décorative).
@@ -502,21 +507,33 @@ contiennent que du texte, mais l'architecture est prête pour le TCF complet.
 Module distinct du runner QCM : l'utilisateur **produit** un audio (EO) ou un texte (EE), envoyé au backend
 qui le transcrit (Whisper) + le note (Claude) en 10-15 s. Cf. `CLAUDE.md` racine pour le pipeline backend.
 
+**Écran consolidé `TcfExpressionScreen`** (`tcf_expression_screen.dart`, routes `/tcf/eo`
+et `/tcf/ee`) — remplace l'ancien couple `TcfProductionDetailScreen` +
+`TcfProductionTaskSubjectsScreen` (supprimés). 3 onglets globaux **Entraînement /
+Examens / Corrections** + 3 sous-onglets **Tâche 1/2/3** (dans Entraînement).
+
 **Deux modes d'entrée** :
-- **Onglet Tâches** du détail module → entraînement libre **single-task** (les 3 cards
-  T1/T2/T3 vivent directement sur `TcfProductionDetailScreen`, plus de hub intermédiaire).
-  Tap card → push `TcfProductionTaskSubjectsScreen(tacheNumero)` → liste des sujets de la
-  tâche → tap sujet → `startSingle(task)` + briefing. **EO T1 = consigne fixe** : le
-  subjects screen auto-démarre et `pushReplacement` le briefing (évite que le back depuis
-  briefing y revienne, cf. patch dédié).
-- **Onglet Examens** du détail module → session **3 tâches enchaînées**, fidèle au vrai TCF :
+- **Onglet Entraînement** (sous-onglet Tâche N) → entraînement guidé **single-task**.
+  L'écran agrège les **situations** (= les SUJETS à traiter, ex. « Vous êtes mécanicien,
+  présentez-vous ») de toutes les tâches A2/B1/B2 du couple (épreuve, tâche) via
+  `GET /api/production-tasks/{id}/situations`, et les affiche en carrousel. La situation
+  sélectionnée déplie sa consigne + plan d'aide (`etapes`), ses supports (`medias`, SVG
+  inline via `flutter_svg`) et son `declencheur` (EE). La carte **Exemples** est alimentée
+  séparément par les **modèles de la TÂCHE** (`GET /api/production-tasks/{id}/examples`,
+  audio EO via `just_audio`) — indépendants du sujet choisi (ex. « un boulanger qui se
+  présente »). Le panneau bas
+  (`_ProductionPanel`) lance `startSingle(task, situationId)` + push le briefing existant
+  (`/tcf/expression-orale/t/0` ou `…-ecrite/t/0`). Le `situationId` est propagé jusqu'au
+  submit (`production_submissions.situation_id` côté backend). Pas de pré-blocage premium :
+  le quota gratuit (2/épreuve) renvoie 403 → `showPaywallSheet`.
+- **Onglet Examens** → session **3 tâches enchaînées**, fidèle au vrai TCF :
   **aucune correction n'est visible entre T1/T2/T3**. Après T3, on push directement le bilan
   détaillé (`HistorySessionScreen` en mode `?live=1`) qui pollera les évaluations IA jusqu'à ce
   qu'elles soient toutes EVALUATED/FAILED, puis le user peut tapoter chaque ligne pour voir le
   détail complet de l'évaluation Claude (donut + critères + feedback + transcription).
 
 **Onglet Examens — slots remplis (parité avec TCF QCM CO/CE)** : 10 slots numérotés. Le provider
-`_productionExamsHistoryProvider` (dans `tcf_production_detail_screen.dart`) regroupe les
+`_examsHistoryProvider` (dans `tcf_expression_screen.dart`) regroupe les
 submissions du user par `attemptId` et ne garde **que les attempts à ≥3 submissions** (single-task
 exclus). Slot 1 = plus ancien examen. Tap slot vide → briefing + start nouvelle session. Tap
 slot fait → bottom sheet `_ProductionExamActionSheet` : "Voir les détails" (push
@@ -541,18 +558,29 @@ avant la fin du pipeline — tap → bilan détaillé qui poll.
   submission (correction IA complète) — push en single-task après soumission, ou depuis le
   bilan en tap d'une ligne.
 
-**Sélection des sujets** (`tcf_production_task_subjects_screen.dart`) — appelée depuis
-l'onglet Tâches du détail module :
-- Fetch les sujets de (`epreuve`, `tacheNumero`, niveau du user) via
-  `/api/production-tasks?epreuve=...&niveau=...&tacheNumero=...`. Affichage en lots de 5
-  si > 15 sujets, sinon liste plate.
-- **T1 EO** = consigne fixe (présentation) : l'écran auto-démarre `startSingle(tasks.first)`
-  et `pushReplacement` directement vers le briefing (transit pur, jamais sur la pile).
-- T2/T3 et toutes les tâches EE : liste des sujets visible. Tap → `startSingle(task)` +
-  `context.push` briefing (back depuis briefing revient à la liste pour changer de sujet).
-- **L'ancien `ProductionHubScreen`** (qui hébergeait 3 cards T1/T2/T3 + dernière note) a
-  été supprimé : sa fonction est désormais portée par l'onglet Tâches de
-  `TcfProductionDetailScreen`, et la sélection fine vit dans le subjects screen.
+**Distinction situations / exemples (sémantique clé)** : une `production_situation` = un
+**SUJET** imposé que le candidat traite (il produit SA réponse) ; un `production_example` =
+un **MODÈLE** illustratif rattaché à la **tâche** (`task_id`, pas à une situation), que le
+candidat consulte. Changer de sujet dans le carrousel change la consigne, **pas** la liste
+des exemples. Cf. migration `V108` (bascule `examples.situation_id → task_id`).
+
+**Sélection d'un sujet** — vit dans l'onglet Entraînement de `TcfExpressionScreen` via le
+carrousel de **situations** (plus d'écran « sujets » séparé). Tap situation → sélection → panneau bas lance
+`startSingle(task, situationId)` + briefing existant. **Adaptation assumée** : le panneau de
+production ne réenregistre/ré-rédige pas inline (la maquette le suggère) — il réutilise le
+flux briefing → enregistrement (EO) / `ee_briefing_writing_screen` (EE) déjà éprouvé, en y
+injectant la situation choisie. L'ancien `ProductionHubScreen`, `TcfProductionDetailScreen`
+et `TcfProductionTaskSubjectsScreen` sont **supprimés**.
+
+**Backend du contenu d'entraînement** (cf. CLAUDE.md racine) :
+- `V107` : `production_situations` (+ `etapes`/`declencheur` JSONB, `niveau_indicatif`),
+  `production_situation_medias` (IMAGE/SVG), `production_examples`, + `production_submissions.situation_id`.
+- `V108` : `production_examples.situation_id → task_id` (les exemples sont des modèles de
+  TÂCHE, pas de situation). Backfille les exemples déjà seedés.
+- Seed : `V133` (EO T1/T2, EE T1) + `V134` (EO T3, EE T2/T3).
+- Endpoints lecture : `GET /api/production-tasks/{id}/situations`,
+  `GET /api/production-tasks/{id}/examples`, `GET /api/production-situations/{id}`.
+- La correction IA réutilise le pipeline existant (Whisper + Claude).
 
 **Flow EO (3 écrans + résultats)** — inchangé en single-task, le SessionController a juste 1 tâche :
 1. **Briefing** (`eo_briefing_screen.dart`) : consigne + conseils + CTA "Commencer" qui demande la permission

@@ -1,7 +1,9 @@
 package com.sejourfr.app.manager;
 
+import com.sejourfr.app.entity.ProductionExample;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.repository.ProductionExampleRepository;
 import com.sejourfr.app.repository.ProductionTaskRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -11,14 +13,16 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Couche d'acces aux donnees pour {@link ProductionTask}.
- * Seule classe autorisee a appeler {@link ProductionTaskRepository}.
+ * Couche d'acces aux donnees pour {@link ProductionTask} et ses exemples-modeles
+ * ({@link ProductionExample}, rattaches a la tache). Seule classe autorisee a
+ * appeler les repositories correspondants.
  */
 @Component
 @RequiredArgsConstructor
 public class ProductionTaskManager {
 
     private final ProductionTaskRepository repository;
+    private final ProductionExampleRepository exampleRepository;
 
     public Optional<ProductionTask> findById(UUID id) {
         return repository.findById(id);
@@ -43,5 +47,10 @@ public class ProductionTaskManager {
                     epreuve, niveauCible);
         }
         return repository.findByEpreuveAndActiveTrueOrderByNiveauCibleAscTacheNumeroAsc(epreuve);
+    }
+
+    /** Exemples-modeles d'une tache (independants du sujet choisi). */
+    public List<ProductionExample> findExamplesByTask(UUID taskId) {
+        return exampleRepository.findByTaskIdOrderByDisplayOrderAsc(taskId);
     }
 }

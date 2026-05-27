@@ -269,19 +269,13 @@ class _ResultsBody extends ConsumerWidget {
                   )
                 : _isSingleTask
                     ? AppButton(
-                        label: 'Retour aux sujets',
+                        label: 'Retour à l\'entraînement',
                         icon: Icons.grid_view_rounded,
                         onPressed: () {
-                          // Retour à la liste des sujets de la tâche
-                          // qu'on vient de faire (TcfProductionTaskSubjectsScreen).
-                          final tacheNumero = submission.tacheNumero ??
-                              session?.taskAt(taskIndex)?.tacheNumero ??
-                              1;
+                          // Retour à l'écran d'entraînement Expression écrite
+                          // (onglet Entraînement, carrousel de situations).
                           ref.read(eeSessionProvider.notifier).reset();
-                          context.go(
-                            AppRoutes.tcfEeTaskSubjects
-                                .replaceFirst(':tacheNumero', '$tacheNumero'),
-                          );
+                          context.go(AppRoutes.tcfEeDetail);
                         },
                       )
                     : AppButton(

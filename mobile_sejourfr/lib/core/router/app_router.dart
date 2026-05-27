@@ -15,8 +15,8 @@ import '../../screens/module_detail/civique_theme_detail_screen.dart';
 import '../../screens/module_detail/tcf_full_exams_screen.dart';
 import '../../screens/module_detail/tcf_level_lots_screen.dart';
 import '../../screens/module_detail/tcf_lot_result_screen.dart';
-import '../../screens/module_detail/tcf_production_detail_screen.dart';
-import '../../screens/module_detail/tcf_production_task_subjects_screen.dart';
+import '../../screens/tcf_production/tcf_expression_screen.dart';
+import '../../screens/tcf_production/tcf_production_module.dart';
 import '../../screens/module_detail/tcf_qcm_detail_screen.dart';
 import '../../screens/onboarding/onboarding_screen.dart';
 import '../../screens/help/contact_screen.dart';
@@ -58,14 +58,12 @@ class AppRoutes {
   static const tcfCoDetail = '/tcf/co';
   static const tcfCeDetail = '/tcf/ce';
   static const tcfStructureDetail = '/tcf/structure';
+  // Écran consolidé d'entraînement Expression (onglets Entraînement / Examens
+  // / Corrections + sous-onglets Tâche 1/2/3). Cf. `TcfExpressionScreen`. La
+  // sélection d'un sujet se fait via le carrousel de situations — il n'y a plus
+  // d'écran « sujets » séparé.
   static const tcfEoDetail = '/tcf/eo';
   static const tcfEeDetail = '/tcf/ee';
-
-  // Sujets d'une tâche EE ou EO (route hors shell). tacheNumero ∈ {1,2,3}.
-  // Cf. `TcfProductionTaskSubjectsScreen` — affichage groupé par lots de 5
-  // si > 15 sujets, sinon liste plate. Bypass pour EO T1 (consigne fixe).
-  static const tcfEoTaskSubjects = '/tcf/eo/tache/:tacheNumero';
-  static const tcfEeTaskSubjects = '/tcf/ee/tache/:tacheNumero';
 
   // Examen blanc complet TCF (les 4 épreuves enchaînées). 20 slots dans
   // la liste. Distinct des module exams (CO/CE seul) côté backend via
@@ -323,39 +321,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.tcfStructureDetail,
         builder: (_, __) => const TcfQcmDetailScreen(module: TcfQcmModule.structure),
       ),
-      // TCF productions : un détail par épreuve (EO, EE). L'onglet Tâches
-      // du détail expose les 3 cards T1/T2/T3 et push directement la
-      // sélection des sujets (`TcfProductionTaskSubjectsScreen`) — il n'y
-      // a plus d'écran hub intermédiaire.
+      // TCF productions : un écran consolidé par épreuve (EO, EE) avec ses
+      // onglets Entraînement / Examens / Corrections. La sélection d'un sujet
+      // vit dans le carrousel de situations de l'onglet Entraînement.
       GoRoute(
         path: AppRoutes.tcfEoDetail,
-        builder: (_, __) => const TcfProductionDetailScreen(module: TcfProductionModule.eo),
+        builder: (_, __) => const TcfExpressionScreen(module: TcfProductionModule.eo),
       ),
       GoRoute(
         path: AppRoutes.tcfEeDetail,
-        builder: (_, __) => const TcfProductionDetailScreen(module: TcfProductionModule.ee),
-      ),
-      // Sujets d'une tâche EE / EO. Pushé depuis l'onglet Tâches du détail
-      // production quand l'utilisateur tape une card tâche.
-      GoRoute(
-        path: AppRoutes.tcfEoTaskSubjects,
-        builder: (_, state) {
-          final n = int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1;
-          return TcfProductionTaskSubjectsScreen(
-            epreuve: EpreuveType.tcfEo,
-            tacheNumero: n.clamp(1, 3),
-          );
-        },
-      ),
-      GoRoute(
-        path: AppRoutes.tcfEeTaskSubjects,
-        builder: (_, state) {
-          final n = int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1;
-          return TcfProductionTaskSubjectsScreen(
-            epreuve: EpreuveType.tcfEe,
-            tacheNumero: n.clamp(1, 3),
-          );
-        },
+        builder: (_, __) => const TcfExpressionScreen(module: TcfProductionModule.ee),
       ),
       // Examen blanc TCF complet (CO + CE + EE + EO en 90 min). Pushé
       // depuis la carte sombre du hub TCF. Orchestration des 4 épreuves

@@ -2,11 +2,13 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.ProductionSubmissionDto;
 import com.sejourfr.app.dto.SubmitProductionTextRequest;
+import com.sejourfr.app.entity.ProductionSituation;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
+import com.sejourfr.app.manager.ProductionSituationManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.mapper.ProductionSubmissionMapper;
@@ -39,18 +41,21 @@ public class ProductionSubmissionService {
     private final ProductionEvaluationService evaluationService;
     private final ProductionSubmissionManager submissionManager;
     private final ProductionTaskManager taskManager;
+    private final ProductionSituationManager situationManager;
     private final ProductionSubmissionMapper mapper;
     private final CurrentUser currentUser;
     private final SubscriptionService subscriptionService;
 
-    public ProductionSubmissionDto submitAudio(UUID productionTaskId, UUID attemptId, MultipartFile audio) {
+    public ProductionSubmissionDto submitAudio(UUID productionTaskId, UUID attemptId,
+                                               MultipartFile audio, UUID situationId) {
         UUID userId = currentUser.getId();
         ProductionTask task = loadActiveTask(productionTaskId);
         assertEpreuve(task, EpreuveType.TCF_EO);
+        validateSituation(situationId, productionTaskId);
         enforceQuota(userId, task.getEpreuve());
 
         ProductionSubmission saved = evaluationService.submitAndEvaluate(
-                userId, productionTaskId, attemptId, audio, null);
+                userId, productionTaskId, attemptId, audio, null, situationId);
         return mapper.toDtoWithSignedAudio(saved);
     }
 
@@ -58,10 +63,11 @@ public class ProductionSubmissionService {
         UUID userId = currentUser.getId();
         ProductionTask task = loadActiveTask(req.productionTaskId());
         assertEpreuve(task, EpreuveType.TCF_EE);
+        validateSituation(req.situationId(), req.productionTaskId());
         enforceQuota(userId, task.getEpreuve());
 
         ProductionSubmission saved = evaluationService.submitAndEvaluate(
-                userId, req.productionTaskId(), req.attemptId(), null, req.texte());
+                userId, req.productionTaskId(), req.attemptId(), null, req.texte(), req.situationId());
         return mapper.toDto(saved);
     }
 
@@ -109,6 +115,19 @@ public class ProductionSubmissionService {
     private ProductionTask loadActiveTask(UUID taskId) {
         return taskManager.findActiveById(taskId)
                 .orElseThrow(() -> new NotFoundException("Tache introuvable : " + taskId));
+    }
+
+    /**
+     * La situation est optionnelle (entrainement libre). Si fournie, elle doit
+     * exister, etre active, et appartenir a la tache soumise (anti-incoherence).
+     */
+    private void validateSituation(UUID situationId, UUID taskId) {
+        if (situationId == null) return;
+        ProductionSituation situation = situationManager.findActiveById(situationId)
+                .orElseThrow(() -> new NotFoundException("Situation introuvable : " + situationId));
+        if (!situation.getTaskId().equals(taskId)) {
+            throw new BusinessException("La situation " + situationId + " n'appartient pas a la tache " + taskId + ".");
+        }
     }
 
     private void assertEpreuve(ProductionTask task, EpreuveType expected) {
