@@ -406,18 +406,8 @@ class _EntrainementTab extends ConsumerStatefulWidget {
 }
 
 class _EntrainementTabState extends ConsumerState<_EntrainementTab> {
-  String? _situationId;
-  String? _exampleId;
   bool _starting = false;
-
-  final AudioPlayer _audio = AudioPlayer();
-  String? _playingExampleId;
-
-  @override
-  void dispose() {
-    _audio.dispose();
-    super.dispose();
-  }
+  String? _situationId;
 
   ProductionSituationDto _selectedSituation(List<ProductionSituationDto> situations) {
     return situations.firstWhere(
@@ -426,30 +416,36 @@ class _EntrainementTabState extends ConsumerState<_EntrainementTab> {
     );
   }
 
-  ProductionExampleDto? _selectedExample(List<ProductionExampleDto> examples) {
-    if (examples.isEmpty) return null;
-    return examples.firstWhere(
-      (e) => e.id == _exampleId,
-      orElse: () => examples.first,
+  void _openExample(ProductionExampleDto example, TcfProductionModule module) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ExampleDetailSheet(module: module, example: example),
     );
   }
 
-  Future<void> _toggleAudio(ProductionExampleDto example) async {
-    if (!example.hasAudio) return;
-    if (_playingExampleId == example.id) {
-      await _audio.stop();
-      setState(() => _playingExampleId = null);
-      return;
-    }
-    try {
-      await _audio.stop();
-      await _audio.setUrl(example.audioUrl!);
-      setState(() => _playingExampleId = example.id);
-      await _audio.play();
-      if (mounted) setState(() => _playingExampleId = null);
-    } catch (_) {
-      if (mounted) setState(() => _playingExampleId = null);
-    }
+  void _openAllExamples(List<ProductionExampleDto> examples, TcfProductionModule module) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => _AllItemsSheet(
+        title: module.isEo ? 'Tous les exemples' : 'Tous les modèles',
+        count: examples.length,
+        children: [
+          for (int i = 0; i < examples.length; i++)
+            _ExampleCard(
+              index: i + 1,
+              example: examples[i],
+              onTap: () {
+                Navigator.of(sheetCtx).pop();
+                _openExample(examples[i], module);
+              },
+            ),
+        ],
+      ),
+    );
   }
 
   Future<void> _practice(ProductionTaskDto task, ProductionSituationDto situation) async {
@@ -504,12 +500,10 @@ class _EntrainementTabState extends ConsumerState<_EntrainementTab> {
                 'Les situations d\'entraînement de cette tâche ne sont pas encore prêtes. Reviens vite !',
           );
         }
-        final situation = _selectedSituation(situations);
-        final example = _selectedExample(data.examples);
-        // La production se lance sur la tâche propre à la situation choisie
-        // (son niveau), pas forcément celle d'affichage.
-        final practiceTask = data.tasksById[situation.taskId] ?? displayTask;
         final hero = _heroCopy(mod, widget.tache);
+        final examples = data.examples;
+        final situation = _selectedSituation(situations);
+        final practiceTask = data.tasksById[situation.taskId] ?? displayTask;
 
         return Stack(
           children: [
@@ -521,33 +515,40 @@ class _EntrainementTabState extends ConsumerState<_EntrainementTab> {
                 _StatsRow(
                   values: [
                     '${situations.length}',
-                    '${data.examples.length}',
+                    '${examples.length}',
                     _durationLabel(mod, displayTask),
                   ],
                   labels: const ['Situations', 'Exemples', 'Cible'],
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 20),
                 _SectionHead(title: 'Situations'),
                 const SizedBox(height: 10),
                 _SituationsCarousel(
                   situations: situations,
                   selectedId: situation.id,
-                  onSelect: (s) => setState(() {
-                    _situationId = s.id;
-                    _exampleId = null;
-                  }),
+                  onSelect: (s) => setState(() => _situationId = s.id),
                 ),
                 const SizedBox(height: 14),
-                _ConsigneCard(module: mod, task: displayTask, situation: situation),
-                const SizedBox(height: 14),
-                _ExamplesCard(
-                  module: mod,
-                  examples: data.examples,
-                  selected: example,
-                  playingId: _playingExampleId,
-                  onSelectExample: (e) => setState(() => _exampleId = e.id),
-                  onToggleAudio: _toggleAudio,
+                _ConsigneCard(module: mod, task: practiceTask, situation: situation),
+                const SizedBox(height: 18),
+                _SectionHead(
+                  title: mod.isEo ? 'Exemples de réponses' : 'Exemples rédigés',
+                  onSeeAll: examples.length > 3 ? () => _openAllExamples(examples, mod) : null,
                 ),
+                const SizedBox(height: 10),
+                if (examples.isEmpty)
+                  _MutedHint(
+                    text: mod.isEo
+                        ? 'Les exemples audio arriveront bientôt pour cette tâche.'
+                        : 'Les exemples rédigés arriveront bientôt pour cette tâche.',
+                  )
+                else
+                  for (int i = 0; i < examples.length && i < 3; i++)
+                    _ExampleCard(
+                      index: i + 1,
+                      example: examples[i],
+                      onTap: () => _openExample(examples[i], mod),
+                    ),
               ],
             ),
             Positioned(
@@ -760,109 +761,154 @@ class _StatCell extends StatelessWidget {
 }
 
 class _SectionHead extends StatelessWidget {
-  const _SectionHead({required this.title});
+  const _SectionHead({required this.title, this.onSeeAll});
 
   final String title;
+  final VoidCallback? onSeeAll;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: AppFonts.jakarta(size: 17, weight: FontWeight.w800, color: AppColors.ink)
-          .copyWith(letterSpacing: -0.2),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: AppFonts.jakarta(size: 17, weight: FontWeight.w800, color: AppColors.ink)
+              .copyWith(letterSpacing: -0.2),
+        ),
+        if (onSeeAll != null)
+          GestureDetector(
+            onTap: onSeeAll,
+            child: Text(
+              'Tout voir',
+              style: AppFonts.jakarta(size: 13, weight: FontWeight.w800, color: AppColors.blue),
+            ),
+          ),
+      ],
     );
   }
 }
 
-class _SituationsCarousel extends StatelessWidget {
-  const _SituationsCarousel({
-    required this.situations,
-    required this.selectedId,
-    required this.onSelect,
-  });
+/// Carte d'un exemple-modèle : pastille numérotée + titre + résumé + pastille
+/// audio si dispo. Tap → modal détail (`_ExampleDetailSheet`).
+class _ExampleCard extends StatelessWidget {
+  const _ExampleCard({required this.index, required this.example, required this.onTap});
 
-  final List<ProductionSituationDto> situations;
-  final String selectedId;
-  final ValueChanged<ProductionSituationDto> onSelect;
+  final int index;
+  final ProductionExampleDto example;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 138,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.zero,
-        itemCount: situations.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (_, i) {
-          final s = situations[i];
-          final active = s.id == selectedId;
-          return GestureDetector(
-            onTap: () => onSelect(s),
-            child: Container(
-              width: 244,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: active ? AppColors.blueSoft : AppColors.white,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                  color: active ? AppColors.blue : AppColors.line,
-                  width: active ? 2 : 1,
+    return _NumberedCard(
+      index: index,
+      title: example.titre,
+      subtitle: example.resume ?? example.contenu,
+      trailingIcon: example.hasAudio ? Icons.volume_up_rounded : null,
+      onTap: onTap,
+    );
+  }
+}
+
+class _NumberedCard extends StatelessWidget {
+  const _NumberedCard({
+    required this.index,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.trailingIcon,
+  });
+
+  final int index;
+  final String title;
+  final String subtitle;
+  final IconData? trailingIcon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.blueLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$index',
+                    style: AppFonts.jakarta(size: 15, weight: FontWeight.w800, color: AppColors.blue),
+                  ),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: Text(
-                          s.titre,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppFonts.jakarta(
-                            size: 15,
-                            weight: FontWeight.w800,
-                            color: AppColors.ink,
-                            height: 1.25,
-                          ),
-                        ),
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppFonts.jakarta(size: 14.5, weight: FontWeight.w800, color: AppColors.ink),
                       ),
-                      if (s.niveauIndicatif != null) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: AppColors.blueLight,
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            s.niveauIndicatif!,
-                            style: AppFonts.jakarta(
-                              size: 11,
-                              weight: FontWeight.w800,
-                              color: AppColors.blue,
-                            ),
-                          ),
-                        ),
-                      ],
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppFonts.jakarta(size: 12.5, color: AppColors.muted, height: 1.4),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  Expanded(
-                    child: Text(
-                      s.contexte,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppFonts.jakarta(size: 13, color: AppColors.muted, height: 1.4),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                if (trailingIcon != null)
+                  Icon(trailingIcon, size: 18, color: AppColors.blue),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right_rounded, color: AppColors.muted2, size: 22),
+              ],
             ),
-          );
-        },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MutedHint extends StatelessWidget {
+  const _MutedHint({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.bg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Text(
+        text,
+        style: AppFonts.jakarta(size: 12.5, color: AppColors.muted, height: 1.4),
       ),
     );
   }
@@ -1187,252 +1233,6 @@ class _HelpItem extends StatelessWidget {
   }
 }
 
-/// Carte « Exemples de réponses » : previews horizontales (titre + résumé +
-/// Ouvrir / Écouter) puis le contenu de l'exemple ouvert et son plan rapide.
-class _ExamplesCard extends StatelessWidget {
-  const _ExamplesCard({
-    required this.module,
-    required this.examples,
-    required this.selected,
-    required this.playingId,
-    required this.onSelectExample,
-    required this.onToggleAudio,
-  });
-
-  final TcfProductionModule module;
-  final List<ProductionExampleDto> examples;
-  final ProductionExampleDto? selected;
-  final String? playingId;
-  final ValueChanged<ProductionExampleDto> onSelectExample;
-  final ValueChanged<ProductionExampleDto> onToggleAudio;
-
-  @override
-  Widget build(BuildContext context) {
-    if (examples.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            module.isEo ? 'Exemples de réponses' : 'Exemples rédigés',
-            style: AppFonts.jakarta(size: 17, weight: FontWeight.w800, color: AppColors.ink),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            height: 132,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.zero,
-              itemCount: examples.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, i) {
-                final ex = examples[i];
-                final active = ex.id == selected?.id;
-                return _ExamplePreview(
-                  index: i + 1,
-                  example: ex,
-                  active: active,
-                  showAudio: module.isEo && ex.hasAudio,
-                  playing: playingId == ex.id,
-                  onOpen: () => onSelectExample(ex),
-                  onAudio: () => onToggleAudio(ex),
-                );
-              },
-            ),
-          ),
-          if (selected != null) ...[
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.bg,
-                borderRadius: BorderRadius.circular(16),
-                border: const Border(left: BorderSide(color: AppColors.blue, width: 4)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          selected!.titre,
-                          style: AppFonts.jakarta(size: 13, weight: FontWeight.w800, color: AppColors.ink),
-                        ),
-                      ),
-                      Text(
-                        'Exemple ${examples.indexOf(selected!) + 1}/${examples.length}',
-                        style: AppFonts.mono(
-                          size: 9.5,
-                          color: AppColors.muted,
-                          letterSpacing: 1.2,
-                          weight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    selected!.contenu,
-                    style: AppFonts.jakarta(size: 14, color: AppColors.ink2, height: 1.6),
-                  ),
-                ],
-              ),
-            ),
-            if (selected!.planPoints.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Plan rapide',
-                style: AppFonts.jakarta(size: 15, weight: FontWeight.w800, color: AppColors.ink),
-              ),
-              const SizedBox(height: 10),
-              for (final p in selected!.planPoints) _PlanRow(text: p),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ExamplePreview extends StatelessWidget {
-  const _ExamplePreview({
-    required this.index,
-    required this.example,
-    required this.active,
-    required this.showAudio,
-    required this.playing,
-    required this.onOpen,
-    required this.onAudio,
-  });
-
-  final int index;
-  final ProductionExampleDto example;
-  final bool active;
-  final bool showAudio;
-  final bool playing;
-  final VoidCallback onOpen;
-  final VoidCallback onAudio;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 224,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: active ? AppColors.blueSoft : AppColors.bg,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: active ? AppColors.blue : AppColors.line,
-          width: active ? 2 : 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  example.titre,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppFonts.jakarta(size: 14, weight: FontWeight.w800, color: AppColors.ink),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.blueLight,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  '$index',
-                  style: AppFonts.jakarta(size: 11, weight: FontWeight.w800, color: AppColors.blue),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: Text(
-              example.resume ?? example.contenu,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppFonts.jakarta(size: 12, color: AppColors.muted, height: 1.4),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _MiniBtn(label: 'Ouvrir', filled: true, onTap: onOpen),
-              if (showAudio) ...[
-                const SizedBox(width: 8),
-                _MiniBtn(
-                  label: playing ? 'Stop' : 'Écouter',
-                  icon: playing ? Icons.stop_rounded : Icons.play_arrow_rounded,
-                  filled: false,
-                  onTap: onAudio,
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniBtn extends StatelessWidget {
-  const _MiniBtn({required this.label, required this.filled, required this.onTap, this.icon});
-
-  final String label;
-  final bool filled;
-  final IconData? icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-        decoration: BoxDecoration(
-          color: filled ? AppColors.blue : AppColors.white,
-          borderRadius: BorderRadius.circular(999),
-          border: filled ? null : Border.all(color: AppColors.blueLight),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 14, color: filled ? AppColors.white : AppColors.blue),
-              const SizedBox(width: 4),
-            ],
-            Text(
-              label,
-              style: AppFonts.jakarta(
-                size: 11.5,
-                weight: FontWeight.w800,
-                color: filled ? AppColors.white : AppColors.blue,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _PlanRow extends StatelessWidget {
   const _PlanRow({required this.text});
 
@@ -1471,98 +1271,6 @@ class _PlanRow extends StatelessWidget {
 /// Panneau fixe en bas de l'onglet Entraînement : invite à produire (micro pour
 /// l'EO, rédaction pour l'EE). Le tap démarre une session single-task sur la
 /// situation choisie et pousse le flux briefing → enregistrement/écriture.
-class _ProductionPanel extends StatelessWidget {
-  const _ProductionPanel({
-    required this.module,
-    required this.busy,
-    required this.onStart,
-  });
-
-  final TcfProductionModule module;
-  final bool busy;
-  final VoidCallback onStart;
-
-  @override
-  Widget build(BuildContext context) {
-    final isEo = module.isEo;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.line),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.ink.withValues(alpha: 0.1),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: isEo ? AppColors.redLight : AppColors.blueLight,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(
-              isEo ? Icons.mic_rounded : Icons.edit_note_rounded,
-              color: isEo ? AppColors.red : AppColors.blue,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  isEo ? 'À vous de parler' : 'À vous d\'écrire',
-                  style: AppFonts.jakarta(size: 14, weight: FontWeight.w800, color: AppColors.ink),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  isEo
-                      ? 'Enregistrez votre réponse pour cette situation.'
-                      : 'Rédigez votre réponse pour cette situation.',
-                  style: AppFonts.jakarta(size: 11.5, color: AppColors.muted, height: 1.3),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: busy ? null : onStart,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-              decoration: BoxDecoration(
-                color: AppColors.blue,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: busy
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.white),
-                    )
-                  : Text(
-                      isEo ? 'Enregistrer' : 'Rédiger',
-                      style: AppFonts.jakarta(size: 13, weight: FontWeight.w800, color: AppColors.white),
-                    ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ============================================================================
 // Onglet EXAMENS — 10 slots de sessions 3-tâches
 // ============================================================================
@@ -2243,6 +1951,436 @@ class _ErrorBox extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(color: AppColors.redLight, borderRadius: BorderRadius.circular(12)),
         child: Text(message, style: AppFonts.jakarta(size: 12.5, color: AppColors.redDark)),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// Modals (sujet, exemple, "tout voir")
+// ============================================================================
+
+class _SheetHandle extends StatelessWidget {
+  const _SheetHandle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 6),
+      child: Center(
+        child: Container(
+          width: 38,
+          height: 4,
+          decoration: BoxDecoration(color: AppColors.line, borderRadius: BorderRadius.circular(2)),
+        ),
+      ),
+    );
+  }
+}
+
+/// Modal détail d'un exemple-modèle : lecture audio (EO) + texte (transcription)
+/// + plan rapide.
+class _ExampleDetailSheet extends StatefulWidget {
+  const _ExampleDetailSheet({required this.module, required this.example});
+
+  final TcfProductionModule module;
+  final ProductionExampleDto example;
+
+  @override
+  State<_ExampleDetailSheet> createState() => _ExampleDetailSheetState();
+}
+
+class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
+  final AudioPlayer _player = AudioPlayer();
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final url = widget.example.audioUrl;
+    if (url != null && url.isNotEmpty) {
+      _player.setUrl(url).then((_) {
+        if (mounted) setState(() => _ready = true);
+      }).catchError((_) {});
+      _player.playerStateStream.listen((_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    if (_player.playing) {
+      await _player.pause();
+    } else {
+      if (_player.processingState == ProcessingState.completed) {
+        await _player.seek(Duration.zero);
+      }
+      await _player.play();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ex = widget.example;
+    final playing = _player.playing;
+    return DraggableScrollableSheet(
+      initialChildSize: 0.82,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, controller) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        child: Column(
+          children: [
+            const _SheetHandle(),
+            Expanded(
+              child: ListView(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+                children: [
+                  Text(
+                    ex.titre,
+                    style: AppFonts.jakarta(size: 19, weight: FontWeight.w800, color: AppColors.ink),
+                  ),
+                  if (ex.resume != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      ex.resume!,
+                      style: AppFonts.jakarta(size: 13, color: AppColors.muted, height: 1.4),
+                    ),
+                  ],
+                  if (ex.hasAudio) ...[
+                    const SizedBox(height: 16),
+                    GestureDetector(
+                      onTap: _ready ? _toggle : null,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: _ready ? AppColors.blue : AppColors.muted2,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                              color: AppColors.white,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              playing ? 'Pause' : 'Écouter le modèle',
+                              style: AppFonts.jakarta(
+                                size: 14,
+                                weight: FontWeight.w800,
+                                color: AppColors.white,
+                              ),
+                            ),
+                            const Spacer(),
+                            if (!_ready)
+                              const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  Text(
+                    'Transcription',
+                    style: AppFonts.mono(
+                      size: 10,
+                      color: AppColors.muted,
+                      letterSpacing: 1.4,
+                      weight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.bg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: const Border(left: BorderSide(color: AppColors.blue, width: 4)),
+                    ),
+                    child: Text(
+                      ex.contenu,
+                      style: AppFonts.jakarta(size: 14, color: AppColors.ink2, height: 1.6),
+                    ),
+                  ),
+                  if (ex.planPoints.isNotEmpty) ...[
+                    const SizedBox(height: 18),
+                    Text(
+                      'Plan rapide',
+                      style: AppFonts.jakarta(size: 15, weight: FontWeight.w800, color: AppColors.ink),
+                    ),
+                    const SizedBox(height: 10),
+                    for (final p in ex.planPoints) _PlanRow(text: p),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Modal "tout voir" : liste complète de cartes (situations ou exemples).
+class _AllItemsSheet extends StatelessWidget {
+  const _AllItemsSheet({
+    required this.title,
+    required this.count,
+    required this.children,
+  });
+
+  final String title;
+  final int count;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, controller) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.bg,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        child: Column(
+          children: [
+            const _SheetHandle(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 4, 18, 10),
+              child: Row(
+                children: [
+                  Text(
+                    title,
+                    style: AppFonts.jakarta(size: 17, weight: FontWeight.w800, color: AppColors.ink),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '$count',
+                    style: AppFonts.mono(size: 12, color: AppColors.muted, weight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                children: children,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// Carrousel de situations + panneau de production
+// ============================================================================
+
+/// Carrousel horizontal des sujets : pastille numérotée + titre + contexte
+/// court. Le sujet sélectionné est surligné ; la carte « Consigne » en dessous
+/// reflète la sélection.
+class _SituationsCarousel extends StatelessWidget {
+  const _SituationsCarousel({
+    required this.situations,
+    required this.selectedId,
+    required this.onSelect,
+  });
+
+  final List<ProductionSituationDto> situations;
+  final String selectedId;
+  final ValueChanged<ProductionSituationDto> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 150,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        itemCount: situations.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (_, i) {
+          final s = situations[i];
+          final active = s.id == selectedId;
+          return GestureDetector(
+            onTap: () => onSelect(s),
+            child: Container(
+              width: 244,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: active ? AppColors.blueSoft : AppColors.white,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: active ? AppColors.blue : AppColors.line,
+                  width: active ? 2 : 1,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 30,
+                        height: 30,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: active ? AppColors.blue : AppColors.blueLight,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${i + 1}',
+                          style: AppFonts.jakarta(
+                            size: 13,
+                            weight: FontWeight.w800,
+                            color: active ? AppColors.white : AppColors.blue,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          s.titre,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppFonts.jakarta(
+                            size: 15,
+                            weight: FontWeight.w800,
+                            color: AppColors.ink,
+                            height: 1.2,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    child: Text(
+                      s.contexte,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppFonts.jakarta(size: 13, color: AppColors.muted, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Panneau fixe en bas de l'onglet Entraînement : lance la production
+/// (enregistrement EO / rédaction EE) sur le sujet sélectionné.
+class _ProductionPanel extends StatelessWidget {
+  const _ProductionPanel({required this.module, required this.busy, required this.onStart});
+
+  final TcfProductionModule module;
+  final bool busy;
+  final VoidCallback onStart;
+
+  @override
+  Widget build(BuildContext context) {
+    final isEo = module.isEo;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.line),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.ink.withValues(alpha: 0.1),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: isEo ? AppColors.redLight : AppColors.blueLight,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              isEo ? Icons.mic_rounded : Icons.edit_note_rounded,
+              color: isEo ? AppColors.red : AppColors.blue,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  isEo ? 'À vous de parler' : 'À vous d\'écrire',
+                  style: AppFonts.jakarta(size: 14, weight: FontWeight.w800, color: AppColors.ink),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isEo
+                      ? 'Enregistrez votre réponse pour ce sujet.'
+                      : 'Rédigez votre réponse pour ce sujet.',
+                  style: AppFonts.jakarta(size: 11.5, color: AppColors.muted, height: 1.3),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: busy ? null : onStart,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+              decoration: BoxDecoration(
+                color: AppColors.blue,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: busy
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.white),
+                    )
+                  : Text(
+                      isEo ? 'Enregistrer' : 'Rédiger',
+                      style: AppFonts.jakarta(size: 13, weight: FontWeight.w800, color: AppColors.white),
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }
