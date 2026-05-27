@@ -11,9 +11,9 @@ import '../../core/widgets/app_button.dart';
 import 'audio_recorder_service.dart';
 import 'eo_session_controller.dart';
 import 'widgets/consigne_card.dart';
+import 'widgets/preparation_points.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
-import 'widgets/tips_card.dart';
 
 /// Briefing EO (Ecran 01 du mockup). Charge la session, affiche la consigne
 /// de la tache courante + conseils, et lance l'enregistrement au tap "Commencer".
@@ -28,26 +28,6 @@ class EoBriefingScreen extends ConsumerStatefulWidget {
 
 class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
   bool _requestingPerm = false;
-
-  static const _tipsByTache = <int, List<String>>{
-    1: [
-      'Repondez de maniere naturelle',
-      'Developpez vos reponses',
-      'Parlez clairement et a votre rythme',
-    ],
-    2: [
-      "Mettez-vous dans la situation",
-      'Posez 3 a 4 questions claires',
-      'Utilisez des formules de politesse',
-      'Restez concentre sur l\'objectif',
-    ],
-    3: [
-      'Donnez votre opinion des le debut',
-      'Appuyez votre avis avec 2 arguments',
-      'Illustrez par un exemple concret',
-      'Conclus en quelques mots',
-    ],
-  };
 
   String _niveauForUser() {
     final auth = ref.read(authControllerProvider);
@@ -73,7 +53,13 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
               niveau: _niveauForUser(),
             );
       } else {
-        ref.read(eoSessionProvider.notifier).start(niveau: _niveauForUser());
+        // Une session déjà en cours (ex: sujet unique lancé via startSingle
+        // depuis la fiche) est respectée — on ne la remplace pas par un
+        // examen 3-tâches. On ne démarre que s'il n'y a rien (deep-link).
+        final current = ref.read(eoSessionProvider).value;
+        if (current == null || !current.isStarted || current.isCompleted) {
+          ref.read(eoSessionProvider.notifier).start(niveau: _niveauForUser());
+        }
       }
     });
   }
@@ -184,9 +170,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
                       subTitleHero: task.displayTitle,
                       subtitle: _durationLabel(task.dureeMaxSec),
                     ),
-                    TipsCard(
-                      tips: _tipsByTache[task.tacheNumero] ?? const <String>[],
-                    ),
+                    PreparationCard(isEo: true, tache: task.tacheNumero),
                   ],
                 ),
               ),

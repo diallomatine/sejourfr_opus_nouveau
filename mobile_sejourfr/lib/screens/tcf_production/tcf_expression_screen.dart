@@ -16,6 +16,7 @@ import '../module_detail/production_exam_briefing_sheet.dart';
 import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
 import 'tcf_production_module.dart';
+import 'widgets/preparation_points.dart';
 
 // ============================================================================
 // HUB d'épreuve (/tcf/eo, /tcf/ee)
@@ -724,30 +725,9 @@ class TcfTaskTrainingScreen extends ConsumerStatefulWidget {
 
 class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
   bool _starting = false;
-  int _subTab = 0; // 0 = Sujets, 1 = Exemples
-
-  void _openSubject(ProductionTaskDto subject, ProductionSubmissionDto? last) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) => _SubjectSheet(
-        module: widget.module,
-        task: subject,
-        last: last,
-        onPractice: () {
-          Navigator.of(sheetCtx).pop();
-          _practice(subject);
-        },
-        onReport: last == null
-            ? null
-            : () {
-                Navigator.of(sheetCtx).pop();
-                _openReport(last);
-              },
-      ),
-    );
-  }
+  int _tab = 0; // 0 = Exercices (sujets), 1 = Exemples
+  int _filter = 0; // 0 = Tous, 1 = À faire, 2 = Faits
+  bool _showAll = false;
 
   void _openExample(ProductionExampleDto example) {
     showModalBottomSheet<void>(
@@ -757,14 +737,6 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
       builder: (_) =>
           _ExampleDetailSheet(module: widget.module, example: example),
     );
-  }
-
-  void _openReport(ProductionSubmissionDto sub) {
-    final base = widget.module.isEo
-        ? '/tcf/expression-orale/resultats'
-        : '/tcf/expression-ecrite/resultats';
-    final tache = sub.tacheNumero ?? widget.tache;
-    context.push('$base/${sub.id}?taskIndex=${tache - 1}&history=1');
   }
 
   Future<void> _practice(ProductionTaskDto task) async {
@@ -794,6 +766,102 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
     } finally {
       if (mounted) setState(() => _starting = false);
     }
+  }
+
+  void _startRandom(List<ProductionTaskDto> subjects,
+      Map<String, ProductionSubmissionDto> done) {
+    final todo = subjects.where((t) => !done.containsKey(t.id)).toList();
+    final pool = todo.isNotEmpty ? todo : subjects;
+    pool.shuffle();
+    _practice(pool.first);
+  }
+
+  void _openPlan() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _PlanSheet(module: widget.module, tache: widget.tache),
+    );
+  }
+
+  void _openReport(ProductionSubmissionDto sub) {
+    final base = widget.module.isEo
+        ? '/tcf/expression-orale/resultats'
+        : '/tcf/expression-ecrite/resultats';
+    final tache = sub.tacheNumero ?? widget.tache;
+    context.push('$base/${sub.id}?taskIndex=${tache - 1}&history=1');
+  }
+
+  void _openDoneSheet(ProductionTaskDto task, ProductionSubmissionDto last) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final note = last.evaluation?.noteSurVingt;
+        return SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+            decoration: const BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _SheetHandle(),
+                Text(
+                  task.displayTitle,
+                  style: AppFonts.jakarta(
+                      size: 16, weight: FontWeight.w800, color: AppColors.ink),
+                ),
+                if (note != null) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded,
+                          size: 13, color: AppColors.green),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Dernière note : ${_formatNote(note)}/20',
+                        style: AppFonts.jakarta(
+                            size: 12.5,
+                            color: AppColors.green,
+                            weight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 16),
+                AppButton(
+                  label: 'Voir le détail',
+                  icon: Icons.description_outlined,
+                  variant: AppButtonVariant.ghost,
+                  height: 46,
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _openReport(last);
+                  },
+                ),
+                const SizedBox(height: 8),
+                AppButton(
+                  label: 'Reprendre',
+                  icon: Icons.refresh_rounded,
+                  variant: AppButtonVariant.danger,
+                  height: 46,
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _practice(task);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -832,39 +900,18 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
                               'Les sujets de cette tâche ne sont pas encore prêts. Reviens vite !',
                         );
                       }
-                      final examples = data.examples;
                       return ListView(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
                         children: [
-                          _SubToggle(
-                            active: _subTab,
-                            sujetsLabel: 'Sujets · ${subjects.length}',
-                            exemplesLabel: 'Exemples · ${examples.length}',
-                            onChanged: (i) => setState(() => _subTab = i),
+                          _TaskTabs(
+                            active: _tab,
+                            onChanged: (i) => setState(() => _tab = i),
                           ),
                           const SizedBox(height: 14),
-                          if (_subTab == 0)
-                            for (int i = 0; i < subjects.length; i++)
-                              _SubjectRow(
-                                index: i + 1,
-                                task: subjects[i],
-                                last: data.lastByTaskId[subjects[i].id],
-                                onTap: () => _openSubject(subjects[i],
-                                    data.lastByTaskId[subjects[i].id]),
-                              )
-                          else if (examples.isEmpty)
-                            _MutedHint(
-                              text: mod.isEo
-                                  ? 'Les exemples audio arriveront bientôt pour cette tâche.'
-                                  : 'Les exemples rédigés arriveront bientôt pour cette tâche.',
-                            )
+                          if (_tab == 0)
+                            ..._buildExercices(mod, data)
                           else
-                            for (int i = 0; i < examples.length; i++)
-                              _ExampleRow(
-                                index: i + 1,
-                                example: examples[i],
-                                onTap: () => _openExample(examples[i]),
-                              ),
+                            ..._buildExemples(mod, data.examples),
                         ],
                       );
                     },
@@ -877,6 +924,102 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
         ),
       ),
     );
+  }
+
+  List<Widget> _buildExercices(TcfProductionModule mod, _TaskData data) {
+    final subjects = data.subjects;
+    final done = data.lastByTaskId;
+    final doneCount = subjects.where((t) => done.containsKey(t.id)).length;
+    final List<ProductionTaskDto> filtered = switch (_filter) {
+      1 => subjects.where((t) => !done.containsKey(t.id)).toList(),
+      2 => subjects.where((t) => done.containsKey(t.id)).toList(),
+      _ => subjects,
+    };
+    final visible = _showAll ? filtered : filtered.take(6).toList();
+    final remaining = filtered.length - visible.length;
+    return [
+      _IntroCard(text: _introFor(mod, widget.tache)),
+      const SizedBox(height: 12),
+      _FilterChips(
+        active: _filter,
+        total: subjects.length,
+        todo: subjects.length - doneCount,
+        done: doneCount,
+        onChanged: (i) => setState(() {
+          _filter = i;
+          _showAll = false;
+        }),
+      ),
+      const SizedBox(height: 12),
+      _RandomCard(onStart: () => _startRandom(subjects, done)),
+      const SizedBox(height: 12),
+      for (int i = 0; i < visible.length; i++)
+        _ExerciseRow(
+          index: i + 1,
+          task: visible[i],
+          last: done[visible[i].id],
+          onTap: () {
+            final last = done[visible[i].id];
+            if (last != null) {
+              _openDoneSheet(visible[i], last);
+            } else {
+              _practice(visible[i]);
+            }
+          },
+        ),
+      if (filtered.isEmpty) _MutedHint(text: 'Aucun sujet dans ce filtre.'),
+      if (remaining > 0)
+        _ShowMoreButton(
+          label: 'Voir les $remaining autres',
+          onTap: () => setState(() => _showAll = true),
+        ),
+    ];
+  }
+
+  List<Widget> _buildExemples(
+      TcfProductionModule mod, List<ProductionExampleDto> examples) {
+    return [
+      if (examples.isEmpty)
+        _MutedHint(
+          text: mod.isEo
+              ? 'Les exemples audio arriveront bientôt pour cette tâche.'
+              : 'Les exemples rédigés arriveront bientôt pour cette tâche.',
+        )
+      else ...[
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 10),
+          child: Text(
+            'Modèles corrigés, avec stratégie et formules-clés.',
+            style:
+                AppFonts.jakarta(size: 12, color: AppColors.muted, height: 1.4),
+          ),
+        ),
+        for (final ex in examples)
+          _FeaturedExampleCard(example: ex, onOpen: () => _openExample(ex)),
+      ],
+      const SizedBox(height: 4),
+      _StrategyCard(onTap: _openPlan),
+    ];
+  }
+
+  String _introFor(TcfProductionModule mod, int tache) {
+    if (mod.isEo) {
+      return switch (tache) {
+        1 =>
+          'Présentez-vous clairement : identité, parcours, loisirs et projets. Parlez 2 à 3 minutes.',
+        2 =>
+          'Obtenez une information en posant des questions à l\'examinateur. Pensez à varier les formules.',
+        _ =>
+          'Donnez votre opinion et défendez-la avec deux arguments illustrés d\'exemples.',
+      };
+    }
+    return switch (tache) {
+      1 => 'Répondez au message reçu : soyez clair et complet en 60-120 mots.',
+      2 =>
+        'Racontez une expérience au passé : contexte, déroulement, puis bilan.',
+      _ =>
+        'Donnez un avis argumenté : thèse, deux arguments illustrés, et une objection.',
+    };
   }
 
   void _back(BuildContext context) {
@@ -950,448 +1093,6 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-class _SubToggle extends StatelessWidget {
-  const _SubToggle({
-    required this.active,
-    required this.sujetsLabel,
-    required this.exemplesLabel,
-    required this.onChanged,
-  });
-
-  final int active;
-  final String sujetsLabel;
-  final String exemplesLabel;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(5),
-      decoration: BoxDecoration(
-          color: AppColors.line2, borderRadius: BorderRadius.circular(16)),
-      child: Row(
-        children: [
-          Expanded(
-              child: _SegButton(
-                  label: sujetsLabel,
-                  active: active == 0,
-                  onTap: () => onChanged(0))),
-          Expanded(
-              child: _SegButton(
-                  label: exemplesLabel,
-                  active: active == 1,
-                  onTap: () => onChanged(1))),
-        ],
-      ),
-    );
-  }
-}
-
-class _SegButton extends StatelessWidget {
-  const _SegButton(
-      {required this.label, required this.active, required this.onTap});
-
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: active ? AppColors.red : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: AppFonts.jakarta(
-              size: 13,
-              weight: FontWeight.w800,
-              color: active ? AppColors.white : AppColors.muted),
-        ),
-      ),
-    );
-  }
-}
-
-class _SubjectRow extends StatelessWidget {
-  const _SubjectRow(
-      {required this.index,
-      required this.task,
-      required this.last,
-      required this.onTap});
-
-  final int index;
-  final ProductionTaskDto task;
-  final ProductionSubmissionDto? last;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final done = last != null;
-    final niveau = last?.evaluation?.niveauCecrl;
-    final color = niveau != null ? _colorForLevel(niveau) : AppColors.red;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-            color: done ? color.withValues(alpha: 0.35) : AppColors.line),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                      color: done ? color : AppColors.redLight,
-                      borderRadius: BorderRadius.circular(12)),
-                  child: Text('$index',
-                      style: AppFonts.jakarta(
-                          size: 14,
-                          weight: FontWeight.w800,
-                          color: done ? AppColors.white : AppColors.red)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        task.consigne,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppFonts.jakarta(
-                            size: 13.5,
-                            weight: FontWeight.w600,
-                            color: AppColors.ink,
-                            height: 1.3),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        done
-                            ? (niveau != null
-                                ? '✓ Fait · ${niveau.displayName}'
-                                : '✓ Fait · évaluation…')
-                            : 'À faire',
-                        style: AppFonts.jakarta(
-                            size: 11.5,
-                            weight: FontWeight.w700,
-                            color: done ? color : AppColors.muted),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(Icons.chevron_right_rounded,
-                    color: AppColors.muted2, size: 22),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ExampleRow extends StatelessWidget {
-  const _ExampleRow(
-      {required this.index, required this.example, required this.onTap});
-
-  final int index;
-  final ProductionExampleDto example;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.line)),
-      clipBehavior: Clip.antiAlias,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                      color: AppColors.redLight,
-                      borderRadius: BorderRadius.circular(12)),
-                  child: Text('$index',
-                      style: AppFonts.jakarta(
-                          size: 14,
-                          weight: FontWeight.w800,
-                          color: AppColors.red)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(example.titre,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppFonts.jakarta(
-                              size: 14,
-                              weight: FontWeight.w800,
-                              color: AppColors.ink)),
-                      const SizedBox(height: 3),
-                      Text(example.resume ?? example.contenu,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppFonts.jakarta(
-                              size: 12.5,
-                              color: AppColors.muted,
-                              height: 1.35)),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (example.hasAudio)
-                  const Icon(Icons.volume_up_rounded,
-                      size: 18, color: AppColors.red),
-                const SizedBox(width: 4),
-                const Icon(Icons.chevron_right_rounded,
-                    color: AppColors.muted2, size: 22),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Fiche d'un sujet : consigne + plan d'aide, puis action selon l'état.
-class _SubjectSheet extends StatelessWidget {
-  const _SubjectSheet({
-    required this.module,
-    required this.task,
-    required this.last,
-    required this.onPractice,
-    this.onReport,
-  });
-
-  final TcfProductionModule module;
-  final ProductionTaskDto task;
-  final ProductionSubmissionDto? last;
-  final VoidCallback onPractice;
-  final VoidCallback? onReport;
-
-  @override
-  Widget build(BuildContext context) {
-    final done = last != null;
-    return DraggableScrollableSheet(
-      initialChildSize: 0.86,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      expand: false,
-      builder: (_, controller) => Container(
-        decoration: const BoxDecoration(
-            color: AppColors.bg,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
-        child: Column(
-          children: [
-            const _SheetHandle(),
-            Expanded(
-              child: ListView(
-                controller: controller,
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-                children: [
-                  _ConsigneCard(module: module, task: task),
-                  const SizedBox(height: 16),
-                  if (done) ...[
-                    _LastResultBanner(last: last!),
-                    const SizedBox(height: 14),
-                    AppButton(
-                        label: 'Refaire ce sujet',
-                        icon: Icons.refresh_rounded,
-                        variant: AppButtonVariant.danger,
-                        onPressed: onPractice),
-                    if (onReport != null) ...[
-                      const SizedBox(height: 8),
-                      AppButton(
-                          label: 'Voir le rapport détaillé',
-                          icon: Icons.description_outlined,
-                          variant: AppButtonVariant.ghost,
-                          onPressed: onReport!),
-                    ],
-                  ] else
-                    AppButton(
-                      label: module.isEo
-                          ? "M'enregistrer sur ce sujet"
-                          : 'Rédiger ma réponse',
-                      icon:
-                          module.isEo ? Icons.mic_rounded : Icons.edit_rounded,
-                      variant: AppButtonVariant.danger,
-                      onPressed: onPractice,
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ConsigneCard extends StatelessWidget {
-  const _ConsigneCard({required this.module, required this.task});
-
-  final TcfProductionModule module;
-  final ProductionTaskDto task;
-
-  @override
-  Widget build(BuildContext context) {
-    final badge = module.isEo
-        ? (task.dureeMaxSec != null
-            ? '${(task.dureeMaxSec! / 60).ceil()} min'
-            : null)
-        : (task.motsMin != null && task.motsMax != null
-            ? '${task.motsMin}-${task.motsMax} mots'
-            : null);
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-      decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.line)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                  child: Text('Consigne & préparation',
-                      style: AppFonts.jakarta(
-                          size: 18,
-                          weight: FontWeight.w800,
-                          color: AppColors.ink))),
-              if (badge != null) ...[
-                const SizedBox(width: 12),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                      color: AppColors.ink,
-                      borderRadius: BorderRadius.circular(14)),
-                  child: Text(badge,
-                      style: AppFonts.jakarta(
-                          size: 12,
-                          weight: FontWeight.w800,
-                          color: AppColors.white)),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(task.consigne,
-              style: AppFonts.jakarta(
-                  size: 14, color: AppColors.ink2, height: 1.55)),
-          const SizedBox(height: 16),
-          Text('POUR RÉUSSIR, PENSEZ À',
-              style: AppFonts.mono(
-                  size: 9.5,
-                  color: AppColors.muted,
-                  letterSpacing: 1.6,
-                  weight: FontWeight.w700)),
-          const SizedBox(height: 10),
-          for (final (i, point)
-              in _planFor(module, task.tacheNumero).indexed) ...[
-            _HelpPoint(index: i + 1, titre: point.$1, aide: point.$2),
-            const SizedBox(height: 10),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _HelpPoint extends StatelessWidget {
-  const _HelpPoint(
-      {required this.index, required this.titre, required this.aide});
-
-  final int index;
-  final String titre;
-  final String aide;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-          color: AppColors.bg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.line)),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-                color: AppColors.redLight,
-                borderRadius: BorderRadius.circular(10)),
-            child: Text('$index',
-                style: AppFonts.jakarta(
-                    size: 13, weight: FontWeight.w800, color: AppColors.red)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(titre,
-                    style: AppFonts.jakarta(
-                        size: 13.5,
-                        weight: FontWeight.w800,
-                        color: AppColors.ink)),
-                const SizedBox(height: 3),
-                Text(aide,
-                    style: AppFonts.jakarta(
-                        size: 12, color: AppColors.muted, height: 1.4)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _PlanRow extends StatelessWidget {
   const _PlanRow({required this.text});
 
@@ -1419,50 +1120,6 @@ class _PlanRow extends StatelessWidget {
               child: Text(text,
                   style: AppFonts.jakarta(
                       size: 13, color: AppColors.ink2, height: 1.4))),
-        ],
-      ),
-    );
-  }
-}
-
-class _LastResultBanner extends StatelessWidget {
-  const _LastResultBanner({required this.last});
-
-  final ProductionSubmissionDto last;
-
-  @override
-  Widget build(BuildContext context) {
-    final niveau = last.evaluation?.niveauCecrl;
-    final note = last.evaluation?.noteSurVingt;
-    final color = niveau != null ? _colorForLevel(niveau) : AppColors.muted;
-    final subtitle = niveau != null
-        ? '${niveau.displayName}${note != null ? " · ${_formatNote(note)}/20" : ""} · ${_formatDate(last.submittedAt)}'
-        : 'Évaluation en cours… · ${_formatDate(last.submittedAt)}';
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.3))),
-      child: Row(
-        children: [
-          Icon(Icons.history_rounded, color: color, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Dernier passage',
-                    style: AppFonts.jakarta(
-                        size: 13,
-                        weight: FontWeight.w800,
-                        color: AppColors.ink)),
-                const SizedBox(height: 2),
-                Text(subtitle,
-                    style: AppFonts.jakarta(size: 12, color: AppColors.muted)),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -1812,72 +1469,6 @@ class _ExamSession {
   }
 }
 
-List<(String, String)> _planFor(TcfProductionModule module, int tache) {
-  if (module.isEo) {
-    return switch (tache) {
-      1 => const [
-          ('Présentez-vous', 'Prénom, origine, ville et situation actuelle.'),
-          (
-            'Parlez de votre quotidien',
-            'Travail ou études, famille, activités.'
-          ),
-          (
-            'Terminez par votre projet',
-            'Pourquoi vous passez le TCF, vos objectifs.'
-          ),
-        ],
-      2 => const [
-          (
-            'Posez des questions claires',
-            'Au moins 4 questions sur des aspects différents.'
-          ),
-          (
-            'Réagissez à l\'interlocuteur',
-            '« D\'accord », « Très bien », « C\'est possible quand ? »'
-          ),
-          ('Terminez l\'échange', 'Proposez une suite, puis remerciez.'),
-        ],
-      _ => const [
-          ('Annoncez votre position', '« À mon avis… », « Je pense que… »'),
-          (
-            'Donnez deux arguments',
-            '« D\'abord… ensuite… » avec un exemple pour chacun.'
-          ),
-          ('Concluez en nuançant', '« Cependant… », « Pour finir… »'),
-        ],
-    };
-  }
-  return switch (tache) {
-    1 => const [
-        (
-          'Répondez au message reçu',
-          'Acceptez ou refusez, réagissez au déclencheur.'
-        ),
-        (
-          'Donnez les informations utiles',
-          'Jour, heure, lieu, détails demandés.'
-        ),
-        (
-          'Posez une question et concluez',
-          'Avec une formule de fin adaptée à un ami.'
-        ),
-      ],
-    2 => const [
-        ('Plantez le décor', 'Quand, où, avec qui.'),
-        (
-          'Racontez le déroulement',
-          'Au passé composé / imparfait, avec une anecdote.'
-        ),
-        ('Terminez par un bilan', 'Ce que vous en avez retenu.'),
-      ],
-    _ => const [
-        ('Annoncez votre thèse', '« Selon moi… », « Je pense que… »'),
-        ('Donnez deux arguments illustrés', 'Un exemple concret pour chacun.'),
-        ('Traitez une objection', '« Certes… toutefois… » puis concluez.'),
-      ],
-  };
-}
-
 Color _colorForLevel(NiveauCecrl level) {
   switch (level) {
     case NiveauCecrl.a1NonAtteint:
@@ -1911,4 +1502,580 @@ String _formatDate(DateTime d) {
     'déc.',
   ];
   return '${d.day} ${months[d.month - 1]} ${d.year}';
+}
+
+// ============================================================================
+// Onglets + contenu de l'écran par tâche
+// ============================================================================
+
+/// Onglets « Exercices / Exemples » (segment blanc actif, façon iOS).
+class _TaskTabs extends StatelessWidget {
+  const _TaskTabs({required this.active, required this.onChanged});
+
+  final int active;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+          color: AppColors.line2, borderRadius: BorderRadius.circular(12)),
+      child: Row(
+        children: [
+          Expanded(child: _tab(0, Icons.list_rounded, 'Exercices')),
+          Expanded(child: _tab(1, Icons.menu_book_rounded, 'Exemples')),
+        ],
+      ),
+    );
+  }
+
+  Widget _tab(int i, IconData icon, String label) {
+    final on = active == i;
+    return GestureDetector(
+      onTap: () => onChanged(i),
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: on ? AppColors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
+          boxShadow: on
+              ? [
+                  BoxShadow(
+                      color: AppColors.ink.withValues(alpha: 0.06),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1))
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: on ? AppColors.red : AppColors.muted),
+            const SizedBox(width: 6),
+            Text(label,
+                style: AppFonts.jakarta(
+                    size: 12.5,
+                    weight: FontWeight.w700,
+                    color: on ? AppColors.ink : AppColors.muted)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Encart « Comment ça marche » (fond teinté rouge léger).
+class _IntroCard extends StatelessWidget {
+  const _IntroCard({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+          color: AppColors.redLight, borderRadius: BorderRadius.circular(14)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded,
+              size: 18, color: AppColors.redDark),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Comment ça marche',
+                    style: AppFonts.jakarta(
+                        size: 12,
+                        weight: FontWeight.w800,
+                        color: AppColors.redDark)),
+                const SizedBox(height: 3),
+                Text(text,
+                    style: AppFonts.jakarta(
+                        size: 12, color: AppColors.ink2, height: 1.5)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Chips de filtre Tous / À faire / Faits.
+class _FilterChips extends StatelessWidget {
+  const _FilterChips({
+    required this.active,
+    required this.total,
+    required this.todo,
+    required this.done,
+    required this.onChanged,
+  });
+
+  final int active;
+  final int total;
+  final int todo;
+  final int done;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = ['Tous · $total', 'À faire · $todo', 'Faits · $done'];
+    return SizedBox(
+      height: 32,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        itemCount: labels.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, i) {
+          final on = active == i;
+          return GestureDetector(
+            onTap: () => onChanged(i),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 13),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: on ? AppColors.red : AppColors.white,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: on ? AppColors.red : AppColors.line),
+              ),
+              child: Text(
+                labels[i],
+                style: AppFonts.jakarta(
+                    size: 12,
+                    weight: FontWeight.w700,
+                    color: on ? AppColors.white : AppColors.muted),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Carte « Sujet aléatoire » (bord pointillé).
+class _RandomCard extends StatelessWidget {
+  const _RandomCard({required this.onStart});
+
+  final VoidCallback onStart;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.line2),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+                color: AppColors.redLight, shape: BoxShape.circle),
+            child: const Icon(Icons.casino_rounded,
+                size: 20, color: AppColors.red),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Sujet aléatoire',
+                    style: AppFonts.jakarta(
+                        size: 14,
+                        weight: FontWeight.w700,
+                        color: AppColors.ink)),
+                const SizedBox(height: 1),
+                Text('Comme à l\'examen, sans le voir',
+                    style: AppFonts.jakarta(size: 12, color: AppColors.muted)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: onStart,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                  color: AppColors.red,
+                  borderRadius: BorderRadius.circular(10)),
+              child: Text('Démarrer',
+                  style: AppFonts.jakarta(
+                      size: 12.5,
+                      weight: FontWeight.w800,
+                      color: AppColors.white)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Ligne d'exercice (sujet) : numéro + niveau + statut + énoncé.
+class _ExerciseRow extends StatelessWidget {
+  const _ExerciseRow(
+      {required this.index,
+      required this.task,
+      required this.last,
+      required this.onTap});
+
+  final int index;
+  final ProductionTaskDto task;
+  final ProductionSubmissionDto? last;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final done = last != null;
+    final note = last?.evaluation?.noteSurVingt;
+    final (nbg, nfg) = _niveauColors(task.niveauCible);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 11, 14, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(index.toString().padLeft(2, '0'),
+                        style: AppFonts.mono(
+                            size: 11,
+                            color: AppColors.muted2,
+                            weight: FontWeight.w700)),
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                          color: nbg, borderRadius: BorderRadius.circular(999)),
+                      child: Text(task.niveauCible,
+                          style: AppFonts.jakarta(
+                              size: 10, weight: FontWeight.w800, color: nfg)),
+                    ),
+                    const SizedBox(width: 8),
+                    if (done)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.check_circle_rounded,
+                              size: 13, color: AppColors.green),
+                          const SizedBox(width: 3),
+                          Text(
+                              note != null ? '${_formatNote(note)}/20' : 'Fait',
+                              style: AppFonts.jakarta(
+                                  size: 10.5,
+                                  weight: FontWeight.w700,
+                                  color: AppColors.green)),
+                        ],
+                      )
+                    else
+                      Text('Nouveau',
+                          style: AppFonts.jakarta(
+                              size: 10.5, color: AppColors.muted2)),
+                    const Spacer(),
+                    const Icon(Icons.chevron_right_rounded,
+                        size: 18, color: AppColors.muted2),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  task.consigne,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppFonts.jakarta(
+                      size: 13, color: AppColors.ink, height: 1.45),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShowMoreButton extends StatelessWidget {
+  const _ShowMoreButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: TextButton.icon(
+        onPressed: onTap,
+        icon: Text(label,
+            style: AppFonts.jakarta(
+                size: 13, weight: FontWeight.w700, color: AppColors.red)),
+        label: const Icon(Icons.keyboard_arrow_down_rounded,
+            size: 18, color: AppColors.red),
+      ),
+    );
+  }
+}
+
+/// Carte « exemple corrigé » mise en avant (onglet Exemples).
+class _FeaturedExampleCard extends StatelessWidget {
+  const _FeaturedExampleCard({required this.example, required this.onOpen});
+
+  final ProductionExampleDto example;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final (nbg, nfg) = _niveauColors(example.niveauIndicatif);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome_rounded,
+                  size: 14, color: AppColors.red),
+              const SizedBox(width: 6),
+              Text('EXEMPLE CORRIGÉ',
+                  style: AppFonts.mono(
+                      size: 9.5,
+                      color: AppColors.red,
+                      letterSpacing: 0.8,
+                      weight: FontWeight.w700)),
+              const Spacer(),
+              if (example.niveauIndicatif != null)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                      color: nbg, borderRadius: BorderRadius.circular(999)),
+                  child: Text(example.niveauIndicatif!,
+                      style: AppFonts.jakarta(
+                          size: 10, weight: FontWeight.w800, color: nfg)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(example.titre,
+              style: AppFonts.jakarta(
+                  size: 13.5,
+                  weight: FontWeight.w700,
+                  color: AppColors.ink,
+                  height: 1.4)),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+                color: AppColors.bg, borderRadius: BorderRadius.circular(10)),
+            child: Text(
+              example.resume ?? example.contenu,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AppFonts.jakarta(
+                  size: 12, color: AppColors.muted, height: 1.45),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                  child: _OutlineBtn(
+                      icon: Icons.description_outlined,
+                      label: 'Voir le corrigé',
+                      onTap: onOpen)),
+              if (example.hasAudio) ...[
+                const SizedBox(width: 6),
+                Expanded(
+                    child: _OutlineBtn(
+                        icon: Icons.headphones_rounded,
+                        label: 'Écouter',
+                        onTap: onOpen)),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OutlineBtn extends StatelessWidget {
+  const _OutlineBtn(
+      {required this.icon, required this.label, required this.onTap});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.line)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: AppColors.ink),
+            const SizedBox(width: 5),
+            Text(label,
+                style: AppFonts.jakarta(
+                    size: 12, weight: FontWeight.w700, color: AppColors.ink)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Carte « Méthode & formules-clés » → ouvre le plan d'aide.
+class _StrategyCard extends StatelessWidget {
+  const _StrategyCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      decoration: BoxDecoration(
+          color: AppColors.redLight, borderRadius: BorderRadius.circular(14)),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                      color: AppColors.red.withValues(alpha: 0.15),
+                      shape: BoxShape.circle),
+                  child: const Icon(Icons.lightbulb_outline_rounded,
+                      size: 18, color: AppColors.redDark),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Méthode & formules-clés',
+                          style: AppFonts.jakarta(
+                              size: 12.5,
+                              weight: FontWeight.w800,
+                              color: AppColors.redDark)),
+                      const SizedBox(height: 1),
+                      Text('Le plan en 3 points',
+                          style: AppFonts.jakarta(
+                              size: 11, color: AppColors.redDark)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded,
+                    size: 18, color: AppColors.redDark),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Sheet de méthode : le plan d'aide en points (source `PreparationPoints`).
+class _PlanSheet extends StatelessWidget {
+  const _PlanSheet({required this.module, required this.tache});
+
+  final TcfProductionModule module;
+  final int tache;
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.4,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (_, controller) => Container(
+        decoration: const BoxDecoration(
+            color: AppColors.bg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+        child: Column(
+          children: [
+            const _SheetHandle(),
+            Expanded(
+              child: ListView(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                children: [
+                  Text('Méthode & formules-clés',
+                      style: AppFonts.jakarta(
+                          size: 18,
+                          weight: FontWeight.w800,
+                          color: AppColors.ink)),
+                  const SizedBox(height: 14),
+                  PreparationPoints(isEo: module.isEo, tache: tache),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Couleurs du badge niveau (A2 vert, B1 ambre, B2 rouge).
+(Color, Color) _niveauColors(String? niveau) {
+  switch (niveau) {
+    case 'A2':
+      return (AppColors.green.withValues(alpha: 0.14), AppColors.green);
+    case 'B1':
+      return (AppColors.amber.withValues(alpha: 0.18), AppColors.amber);
+    case 'B2':
+      return (AppColors.red.withValues(alpha: 0.12), AppColors.red);
+    default:
+      return (AppColors.line2, AppColors.muted);
+  }
 }

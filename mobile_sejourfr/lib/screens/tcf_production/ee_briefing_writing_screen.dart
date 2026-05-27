@@ -18,9 +18,9 @@ import 'widgets/consigne_card.dart';
 import 'widgets/criteres_card.dart';
 import 'widgets/evaluation_loading_view.dart';
 import 'widgets/mots_card.dart';
+import 'widgets/preparation_points.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
-import 'widgets/tips_card.dart';
 import 'widgets/writing_zone.dart';
 
 /// Briefing + zone d'ecriture combines (un seul long scroll), aligne sur
@@ -44,29 +44,6 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
   bool _draftLoaded = false;
   String? _loadedForTaskId;
   bool _wasFocused = false;
-
-  /// Conseils generiques EE par numero de tache (texte calque sur le mockup).
-  static const _tipsByTache = <int, List<String>>{
-    1: [
-      'Adresse-toi directement au destinataire',
-      'Sois clair sur les 2-3 informations à transmettre',
-      'Utilise un ton adapté (amical, formel)',
-      'Relis ton message avant de valider',
-    ],
-    2: [
-      'Raconte une expérience réelle et intéressante',
-      'Organise ton récit (début, événements, fin)',
-      'Utilise des connecteurs temporels',
-      'Exprime tes sentiments et tes réactions',
-      'Relis ton texte avant de valider',
-    ],
-    3: [
-      'Donne une opinion claire dès le début',
-      'Appuie ta position avec 2 arguments concrets',
-      'Illustre par un exemple personnel ou observé',
-      'Conclus en reformulant ton avis',
-    ],
-  };
 
   static const _criteresEE = [
     'Pertinence et développement du contenu',
@@ -102,7 +79,13 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
               niveau: _niveauForUser(),
             );
       } else {
-        ref.read(eeSessionProvider.notifier).start(niveau: _niveauForUser());
+        // Une session déjà en cours (ex: sujet unique lancé via startSingle
+        // depuis la fiche) est respectée — on ne la remplace pas par un
+        // examen 3-tâches. On ne démarre que s'il n'y a rien (deep-link).
+        final current = ref.read(eeSessionProvider).value;
+        if (current == null || !current.isStarted || current.isCompleted) {
+          ref.read(eeSessionProvider.notifier).start(niveau: _niveauForUser());
+        }
       }
     });
   }
@@ -369,7 +352,6 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
             onSaveDraftAndQuit: () => _saveDraftAndQuit(context, task),
             onClear: () => _clearText(task),
             submitError: _submitError,
-            tips: _tipsByTache[task.tacheNumero] ?? const <String>[],
             criteres: _criteresEE,
           );
         },
@@ -392,7 +374,6 @@ class _Content extends StatelessWidget {
     required this.onSaveDraftAndQuit,
     required this.onClear,
     required this.wordCount,
-    required this.tips,
     required this.criteres,
     this.submitError,
   });
@@ -409,7 +390,6 @@ class _Content extends StatelessWidget {
   final VoidCallback onSaveDraftAndQuit;
   final VoidCallback onClear;
   final int wordCount;
-  final List<String> tips;
   final List<String> criteres;
   final String? submitError;
 
@@ -441,12 +421,11 @@ class _Content extends StatelessWidget {
                 subTitleHero: task.displayTitle,
                 subtitle: 'Longueur attendue : ${task.motsMin ?? 0} à ${task.motsMax ?? 0} mots',
               ),
-              if (tips.isNotEmpty)
-                TipsCard(
-                  key: const ValueKey('ee-tips'),
-                  tips: tips,
-                  title: 'Conseils pour réussir',
-                ),
+              PreparationCard(
+                key: const ValueKey('ee-prep'),
+                isEo: false,
+                tache: task.tacheNumero,
+              ),
               MotsCard(
                 key: const ValueKey('ee-mots'),
                 current: wordCount,

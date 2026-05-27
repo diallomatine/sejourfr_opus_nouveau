@@ -57,7 +57,11 @@ class ApiClient {
   void _onResponse(Response response, ResponseInterceptorHandler handler) {
     final status = response.statusCode ?? 0;
     if (status >= 400) {
-      handler.reject(_toDioException(response));
+      // `validateStatus` laisse passer les 4xx comme des réponses "réussies".
+      // Le 2e argument `true` (callFollowingErrorInterceptor) est indispensable :
+      // sans lui, le rejet court-circuite `_onError` → ni refresh ni forceLogout,
+      // et le 401 « Authentification requise » remonte tel quel à l'écran.
+      handler.reject(_toDioException(response), true);
       return;
     }
     handler.next(response);
