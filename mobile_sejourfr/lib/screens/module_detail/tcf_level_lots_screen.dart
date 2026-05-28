@@ -175,16 +175,6 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
                   eyebrow: 'Module TCF · ${mod.title}',
                   title: meta.label,
                 ),
-                const SizedBox(height: 22),
-                ModuleDetailHero(
-                  icon: mod.icon,
-                  headline: _heroHeadline(lotsAsync, meta.indicativeLotSize),
-                  description: meta.subtitle,
-                  // Hero rouge — convention SejourFR : tous les hero TCF en
-                  // rouge. La couleur de niveau (`meta.accent`) reste utilisée
-                  // pour les pastilles de lot et le score ring.
-                  gradient: const [AppColors.red, AppColors.redDark],
-                ),
                 const SizedBox(height: 16),
                 ModuleDetailStats(
                   items: [
@@ -265,14 +255,6 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
     return AppColors.red;
   }
 
-  String _heroHeadline(AsyncValue<List<LotDto>> lotsAsync, int lotSize) {
-    return lotsAsync.maybeWhen(
-      data: (lots) => lots.isEmpty
-          ? 'Aucun lot pour ce niveau'
-          : '${lots.length} lot${lots.length > 1 ? "s" : ""} de $lotSize questions',
-      orElse: () => 'Chargement des lots…',
-    );
-  }
 }
 
 class _Loading extends StatelessWidget {
