@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
 
-/// Bandeau « Lancer un examen blanc » bleu du hub TCF QCM (CO/CE/Structure).
-/// Eyebrow mono + titre Jakarta + sous-titre + CTA bleu.
+/// Bandeau « Lancer un examen blanc » du hub TCF QCM (CO/CE/Structure),
+/// même accent rouge que le hub EE/EO. Eyebrow mono + titre Jakarta +
+/// sous-titre + CTA rouge.
 class QcmExamHero extends StatelessWidget {
   const QcmExamHero({
     super.key,
@@ -30,7 +31,7 @@ class QcmExamHero extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.blueLight,
+        color: AppColors.redLight,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -38,13 +39,13 @@ class QcmExamHero extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 15, color: AppColors.blueDark),
+              Icon(icon, size: 15, color: AppColors.redDark),
               const SizedBox(width: 6),
               Text(
                 'EXAMEN COMPLET · ${examSubtitle.toUpperCase()}',
                 style: AppFonts.mono(
                   size: 10,
-                  color: AppColors.blueDark,
+                  color: AppColors.redDark,
                   letterSpacing: 1.2,
                   weight: FontWeight.w700,
                 ),
@@ -75,7 +76,7 @@ class QcmExamHero extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
               decoration: BoxDecoration(
-                color: AppColors.blue,
+                color: AppColors.red,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
