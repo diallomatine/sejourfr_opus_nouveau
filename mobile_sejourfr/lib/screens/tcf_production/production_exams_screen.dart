@@ -106,17 +106,18 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
 
   /// Slot 1 = plus ancien (`exams` est trié DESC par `lastSubmittedAt`).
   int _slotOf(ExamSession exam) {
-    final exams =
-        ref.read(expressionHubProvider(widget.module.epreuve)).valueOrNull?.exams
-            ?? const <ExamSession>[];
+    final exams = ref
+            .read(expressionHubProvider(widget.module.epreuve))
+            .valueOrNull
+            ?.exams ??
+        const <ExamSession>[];
     final ordered = exams.reversed.toList();
     return ordered.indexWhere((e) => e.attemptId == exam.attemptId) + 1;
   }
 
   void _openSession(ExamSession exam) {
-    final base = widget.module.isEo
-        ? '/tcf/expression-orale'
-        : '/tcf/expression-ecrite';
+    final base =
+        widget.module.isEo ? '/tcf/expression-orale' : '/tcf/expression-ecrite';
     context.push('$base/sessions/${exam.attemptId}');
   }
 
@@ -143,12 +144,11 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
                 Expanded(
                   child: async.when(
                     loading: () => const Center(
-                        child:
-                            CircularProgressIndicator(color: AppColors.red)),
+                        child: CircularProgressIndicator(color: AppColors.red)),
                     error: (e, _) => _ErrorBox(
                       message: ApiClient.toApiException(e).message,
-                      onRetry: () => ref
-                          .invalidate(expressionHubProvider(widget.module.epreuve)),
+                      onRetry: () => ref.invalidate(
+                          expressionHubProvider(widget.module.epreuve)),
                     ),
                     data: (data) {
                       final exams = data.exams;
@@ -159,7 +159,9 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
                         onRefresh: () async {
                           ref.invalidate(
                               expressionHubProvider(widget.module.epreuve));
-                          await ref.read(expressionHubProvider(widget.module.epreuve).future);
+                          await ref.read(
+                              expressionHubProvider(widget.module.epreuve)
+                                  .future);
                         },
                         child: ListView(
                           padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
@@ -167,7 +169,8 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
                             _StatsRow(exams: exams),
                             const SizedBox(height: 18),
                             Padding(
-                              padding: const EdgeInsets.only(left: 4, bottom: 10),
+                              padding:
+                                  const EdgeInsets.only(left: 4, bottom: 10),
                               child: Row(
                                 children: [
                                   Text('Tes examens',
@@ -176,8 +179,7 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
                                           weight: FontWeight.w800,
                                           color: AppColors.ink)),
                                   const Spacer(),
-                                  Text(
-                                      '$_examSlotsCount disponibles',
+                                  Text('$_examSlotsCount disponibles',
                                       style: AppFonts.mono(
                                           size: 10,
                                           color: AppColors.muted,
@@ -241,10 +243,8 @@ class _Header extends StatelessWidget {
                         weight: FontWeight.w700,
                         color: AppColors.ink)),
                 const SizedBox(height: 1),
-                Text(
-                    '${module.title} · 3 tâches enchaînées comme le jour J',
-                    style: AppFonts.jakarta(
-                        size: 12, color: AppColors.muted)),
+                Text('${module.title} · 3 tâches enchaînées comme le jour J',
+                    style: AppFonts.jakarta(size: 12, color: AppColors.muted)),
               ],
             ),
           ),
@@ -446,8 +446,8 @@ class _ExamSlotCard extends StatelessWidget {
                         done
                             ? '${_formatLongDate(exam!.lastSubmittedAt)} · ${_doneStatus(exam!)}'
                             : 'Disponible · 3 tâches enchaînées',
-                        style: AppFonts.jakarta(
-                            size: 12, color: AppColors.muted),
+                        style:
+                            AppFonts.jakarta(size: 12, color: AppColors.muted),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -457,17 +457,15 @@ class _ExamSlotCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 if (done && niveau != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: accent.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(niveau.displayName,
                         style: AppFonts.jakarta(
-                            size: 11,
-                            weight: FontWeight.w800,
-                            color: accent)),
+                            size: 11, weight: FontWeight.w800, color: accent)),
                   )
                 else if (done)
                   const Icon(Icons.hourglass_top_rounded,
@@ -577,26 +575,29 @@ class _SheetButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: background,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onPressed,
+    return SizedBox(
+      width: double.infinity,
+      child: Material(
+        color: background,
         borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 13),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: foreground),
-              const SizedBox(width: 8),
-              Text(label,
-                  style: AppFonts.jakarta(
-                      size: 14,
-                      weight: FontWeight.w800,
-                      color: foreground)),
-            ],
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 13),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 18, color: foreground),
+                const SizedBox(width: 8),
+                Text(label,
+                    style: AppFonts.jakarta(
+                        size: 14,
+                        weight: FontWeight.w800,
+                        color: foreground)),
+              ],
+            ),
           ),
         ),
       ),
@@ -635,9 +636,7 @@ class _ErrorBox extends StatelessWidget {
           const SizedBox(height: 8),
           Text('Impossible de charger les examens',
               style: AppFonts.jakarta(
-                  size: 14,
-                  weight: FontWeight.w700,
-                  color: AppColors.ink)),
+                  size: 14, weight: FontWeight.w700, color: AppColors.ink)),
           const SizedBox(height: 6),
           Text(message,
               textAlign: TextAlign.center,
@@ -648,9 +647,7 @@ class _ErrorBox extends StatelessWidget {
             icon: const Icon(Icons.refresh_rounded, color: AppColors.red),
             label: Text('Réessayer',
                 style: AppFonts.jakarta(
-                    size: 13,
-                    weight: FontWeight.w700,
-                    color: AppColors.red)),
+                    size: 13, weight: FontWeight.w700, color: AppColors.red)),
           ),
         ],
       ),
@@ -680,8 +677,18 @@ String _formatScore(double n) {
 
 String _formatLongDate(DateTime d) {
   const months = [
-    'janv.', 'févr.', 'mars', 'avril', 'mai', 'juin',
-    'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+    'janv.',
+    'févr.',
+    'mars',
+    'avril',
+    'mai',
+    'juin',
+    'juil.',
+    'août',
+    'sept.',
+    'oct.',
+    'nov.',
+    'déc.',
   ];
   return '${d.day} ${months[d.month - 1]} ${d.year}';
 }
