@@ -13,7 +13,8 @@ import '../../core/widgets/app_card.dart';
 import '../../core/widgets/eyebrow.dart';
 
 /// Provider qui charge l'attempt finalisé (avec ses questions + corrections).
-final examAttemptProvider = FutureProvider.autoDispose.family<Attempt, String>((ref, id) {
+final examAttemptProvider =
+    FutureProvider.autoDispose.family<Attempt, String>((ref, id) {
   return ref.watch(attemptsRepositoryProvider).getById(id);
 });
 
@@ -75,7 +76,9 @@ class _ResultView extends StatelessWidget {
     final percent = total == 0 ? 0 : ((score / total) * 100).round();
     final errors = total - score;
 
-    final duration = attempt.finishedAt != null ? attempt.finishedAt!.difference(attempt.startedAt) : null;
+    final duration = attempt.finishedAt != null
+        ? attempt.finishedAt!.difference(attempt.startedAt)
+        : null;
 
     final breakdown = _computeBreakdown(attempt);
 
@@ -241,7 +244,9 @@ class _CiviqueHero extends StatelessWidget {
             height: 64,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: passed ? AppColors.green.withValues(alpha: 0.12) : AppColors.redLight,
+              color: passed
+                  ? AppColors.green.withValues(alpha: 0.12)
+                  : AppColors.redLight,
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -287,7 +292,9 @@ class _CiviqueHero extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            passed ? (isExam ? 'Réussite confirmée' : 'Session terminée') : 'Pas encore',
+            passed
+                ? (isExam ? 'Réussite confirmée' : 'Session terminée')
+                : 'Pas encore',
             style: AppFonts.jakarta(
               size: 15,
               weight: FontWeight.w700,
@@ -655,7 +662,8 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_outlined, color: AppColors.red, size: 40),
+            const Icon(Icons.cloud_off_outlined,
+                color: AppColors.red, size: 40),
             const SizedBox(height: 12),
             Text(
               message,

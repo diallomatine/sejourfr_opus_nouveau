@@ -151,20 +151,6 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _showSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: AppColors.ink,
-        behavior: SnackBarBehavior.floating,
-        content: Text(
-          'Bientôt disponible',
-          style: AppFonts.jakarta(color: AppColors.white, size: 13),
-        ),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
     final result = await showDialog<bool>(
       context: context,

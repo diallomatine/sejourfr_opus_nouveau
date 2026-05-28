@@ -158,9 +158,6 @@ class _WritingZoneState extends State<WritingZone>
 
   int get _charCount => widget.controller.text.length;
 
-  int get _charCountNoSpaces =>
-      widget.controller.text.replaceAll(RegExp(r'\s'), '').length;
-
   int get _sentenceCount {
     final text = widget.controller.text.trim();
     if (text.isEmpty) return 0;
