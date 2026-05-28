@@ -20,7 +20,7 @@ import '../tcf_production/widgets/flag_badge.dart';
 import '../tcf_production/widgets/module_screen_header.dart';
 import 'civique_exam_briefing_sheet.dart';
 import 'civique_hub_data.dart';
-import 'widgets/civique_exams/civique_exam_action_sheet.dart';
+import 'widgets/exam_done_sheet.dart';
 import 'widgets/civique_exams/civique_exam_slot_builder.dart';
 import 'widgets/civique_exams/civique_exams_stats_row.dart';
 
@@ -114,22 +114,30 @@ class _CiviqueThemeExamsScreenState
     );
   }
 
-  void _openExamResult(AttemptSummary attempt) {
-    context.push(AppRoutes.examResult.replaceFirst(':attemptId', attempt.id));
+  /// Pousse le rapport Q-par-Q (`ExamReportScreen`) — même destination
+  /// que « Voir le détail » des lots.
+  void _openExamReport(AttemptSummary attempt) {
+    context.push(AppRoutes.examReport.replaceFirst(':attemptId', attempt.id));
   }
 
-  void _showExamSheet(AttemptSummary attempt, ThemeDto theme) {
+  void _showExamSheet(AttemptSummary attempt, ThemeDto theme, int slot) {
+    final score = attempt.score;
+    final total = attempt.totalQuestions;
+    final subtitle =
+        (score != null && total > 0) ? 'Dernier score : $score / $total' : null;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (sheetCtx) => CiviqueExamActionSheet(
-        attempt: attempt,
-        onViewDetails: () {
+      builder: (sheetCtx) => ExamDoneSheet(
+        title: 'Examen blanc $slot',
+        subtitle: subtitle,
+        accent: AppColors.blue,
+        onViewDetail: () {
           Navigator.of(sheetCtx).pop();
-          _openExamResult(attempt);
+          _openExamReport(attempt);
         },
-        onRetake: () {
+        onResume: () {
           Navigator.of(sheetCtx).pop();
           _openBriefing(theme);
         },
@@ -342,7 +350,7 @@ class _CiviqueThemeExamsScreenState
     final isLocked = _isLocked(number);
     final isNext = number == nextSlot && number <= _examSlotsCount;
     final action = attempt != null
-        ? () => _showExamSheet(attempt, theme)
+        ? () => _showExamSheet(attempt, theme, number)
         : _onEmptyTap(number, theme);
     return CiviqueExamSlotBuilder(
       number: number,

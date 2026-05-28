@@ -19,7 +19,7 @@ import '../tcf_production/widgets/module_screen_header.dart';
 import 'qcm_hub_data.dart';
 import 'tcf_module_exam_briefing_screen.dart';
 import 'tcf_qcm_detail_screen.dart' show TcfQcmModule;
-import 'widgets/qcm_exams/qcm_exam_action_sheet.dart';
+import 'widgets/exam_done_sheet.dart';
 import 'widgets/qcm_exams/qcm_exams_stats_row.dart';
 
 const int _examSlotsCount = 10;
@@ -65,22 +65,30 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
     showModuleExamBriefingSheet(context, widget.module);
   }
 
-  void _openExamResult(AttemptSummary attempt) {
-    context.push(AppRoutes.examResult.replaceFirst(':attemptId', attempt.id));
+  /// Pousse le rapport Q-par-Q (`ExamReportScreen`) — même destination
+  /// que « Voir le détail » des lots.
+  void _openExamReport(AttemptSummary attempt) {
+    context.push(AppRoutes.examReport.replaceFirst(':attemptId', attempt.id));
   }
 
-  void _showExamSheet(AttemptSummary attempt) {
+  void _showExamSheet(AttemptSummary attempt, int slot) {
+    final score = attempt.score;
+    final total = attempt.totalQuestions;
+    final subtitle =
+        (score != null && total > 0) ? 'Dernier score : $score / $total' : null;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (sheetCtx) => QcmExamActionSheet(
-        attempt: attempt,
-        onViewDetails: () {
+      builder: (sheetCtx) => ExamDoneSheet(
+        title: 'Examen blanc $slot',
+        subtitle: subtitle,
+        accent: AppColors.blue,
+        onViewDetail: () {
           Navigator.of(sheetCtx).pop();
-          _openExamResult(attempt);
+          _openExamReport(attempt);
         },
-        onRetake: () {
+        onResume: () {
           Navigator.of(sheetCtx).pop();
           _openBriefing();
         },
@@ -313,8 +321,8 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
         fg: AppColors.blueDark,
       ),
       secondaryStatus: secondaryStatus,
-      onTap: done ? () => _showExamSheet(attempt) : _onEmptyTap(number),
-      onAction: done ? () => _showExamSheet(attempt) : _onEmptyTap(number),
+      onTap: done ? () => _showExamSheet(attempt, number) : _onEmptyTap(number),
+      onAction: done ? () => _showExamSheet(attempt, number) : _onEmptyTap(number),
     );
   }
 
