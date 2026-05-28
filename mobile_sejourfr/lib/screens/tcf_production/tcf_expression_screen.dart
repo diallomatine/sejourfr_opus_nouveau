@@ -555,7 +555,8 @@ class _LastExamCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          child: Row(
+          child: IntrinsicHeight(
+            child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Container(width: 5, color: accent),
@@ -609,6 +610,7 @@ class _LastExamCard extends StatelessWidget {
               ),
             ],
           ),
+          ),
         ),
       ),
     );
@@ -659,7 +661,8 @@ class _RecentSingleRow extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          child: Row(
+          child: IntrinsicHeight(
+            child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Container(width: 5, color: accent),
@@ -704,6 +707,7 @@ class _RecentSingleRow extends StatelessWidget {
                 ),
               ),
             ],
+          ),
           ),
         ),
       ),
