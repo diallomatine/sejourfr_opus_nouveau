@@ -5,16 +5,15 @@ import 'package:just_audio/just_audio.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
-import '../../core/auth/auth_controller.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/paywall_sheet.dart';
-import '../module_detail/production_exam_briefing_sheet.dart';
 import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
+import 'expression_hub_data.dart';
 import 'tcf_production_module.dart';
 import 'widgets/preparation_points.dart';
 import 'widgets/task_palette.dart';
@@ -35,123 +34,17 @@ class TcfExpressionScreen extends ConsumerStatefulWidget {
       _TcfExpressionScreenState();
 }
 
-class _HubData {
-  const _HubData(
-      {required this.countByTache, required this.exams, required this.singles});
-
-  /// Nombre de sujets par numéro de tâche.
-  final Map<int, int> countByTache;
-
-  /// Sessions d'examen blanc (≥3 submissions), les plus récentes d'abord.
-  final List<_ExamSession> exams;
-
-  /// Dernières productions en entraînement libre (single-task), récentes d'abord.
-  final List<ProductionSubmissionDto> singles;
-}
-
-final _hubProvider = FutureProvider.autoDispose
-    .family<_HubData, EpreuveType>((ref, epreuve) async {
-  final repo = ref.watch(productionRepositoryProvider);
-  final tasks = await repo.listTasks(epreuve: epreuve);
-  final countByTache = <int, int>{};
-  for (final t in tasks) {
-    countByTache[t.tacheNumero] = (countByTache[t.tacheNumero] ?? 0) + 1;
-  }
-
-  final subs = await repo.listMine(epreuve: epreuve, limit: 200);
-  final byAttempt = <String, List<ProductionSubmissionDto>>{};
-  for (final s in subs) {
-    final id = s.attemptId;
-    if (id == null) continue;
-    byAttempt.putIfAbsent(id, () => []).add(s);
-  }
-  final exams = <_ExamSession>[];
-  final singles = <ProductionSubmissionDto>[];
-  for (final entry in byAttempt.entries) {
-    if (entry.value.length >= 3) {
-      exams.add(_ExamSession(attemptId: entry.key, submissions: entry.value));
-    } else {
-      singles.addAll(entry.value);
-    }
-  }
-  exams.sort((a, b) => b.lastSubmittedAt.compareTo(a.lastSubmittedAt));
-  singles.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
-  return _HubData(countByTache: countByTache, exams: exams, singles: singles);
-});
+// HubData / ExamSession / expressionHubProvider sont extraits dans
+// expression_hub_data.dart (réutilisés par ProductionExamsScreen).
 
 class _TcfExpressionScreenState extends ConsumerState<TcfExpressionScreen> {
-  bool _starting = false;
-
-  bool _isPremium() {
-    final auth = ref.read(authControllerProvider);
-    return auth is AuthAuthenticated &&
-        auth.user.canAccessModule(AppModule.tcf);
-  }
-
   void _openExamBriefing() {
-    final exams =
-        ref.read(_hubProvider(widget.module.epreuve)).valueOrNull?.exams
-            ?? const <_ExamSession>[];
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) => _ExamSlotsSheet(
-        module: widget.module,
-        exams: exams,
-        onStartEmpty: () {
-          Navigator.of(sheetCtx).pop();
-          _startNewExamBlanc();
-        },
-        onOpenDone: (exam) {
-          Navigator.of(sheetCtx).pop();
-          _openExamSession(exam);
-        },
-      ),
-    );
-  }
-
-  void _startNewExamBlanc() {
-    if (!_isPremium()) {
-      showPaywallSheet(context);
-      return;
-    }
-    showProductionExamBriefingSheet(
-      context,
-      module: widget.module,
-      starting: _starting,
-      onStart: _startFullExam,
-    );
-  }
-
-  Future<void> _startFullExam() async {
-    if (_starting) return;
-    final auth = ref.read(authControllerProvider);
-    final niveau = auth is AuthAuthenticated
-        ? (auth.user.targetProcedure?.tcfLevel ?? 'B1')
-        : 'B1';
-    setState(() => _starting = true);
-    ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
-    try {
-      if (widget.module.isEo) {
-        await ref.read(eoSessionProvider.notifier).start(niveau: niveau);
-        if (!mounted) return;
-        context.push('/tcf/expression-orale/t/0');
-      } else {
-        await ref.read(eeSessionProvider.notifier).start(niveau: niveau);
-        if (!mounted) return;
-        context.push('/tcf/expression-ecrite/t/0');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(ApiClient.toApiException(e).message),
-            backgroundColor: AppColors.red),
-      );
-    } finally {
-      if (mounted) setState(() => _starting = false);
-    }
+    // L'ancien briefing-direct est remplacé par une page dédiée listant
+    // les 10 slots d'examens blancs avec stats — cf. ProductionExamsScreen.
+    final route = widget.module.isEo
+        ? '/tcf/expression-orale/examens'
+        : '/tcf/expression-ecrite/examens';
+    context.push(route);
   }
 
   void _openTask(int tache) {
@@ -164,7 +57,7 @@ class _TcfExpressionScreenState extends ConsumerState<TcfExpressionScreen> {
     context.push('$base/historique');
   }
 
-  void _openExamSession(_ExamSession s) {
+  void _openExamSession(ExamSession s) {
     final base =
         widget.module.isEo ? '/tcf/expression-orale' : '/tcf/expression-ecrite';
     context.push('$base/sessions/${s.attemptId}');
@@ -181,7 +74,7 @@ class _TcfExpressionScreenState extends ConsumerState<TcfExpressionScreen> {
   @override
   Widget build(BuildContext context) {
     final mod = widget.module;
-    final async = ref.watch(_hubProvider(mod.epreuve));
+    final async = ref.watch(expressionHubProvider(mod.epreuve));
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -222,7 +115,6 @@ class _TcfExpressionScreenState extends ConsumerState<TcfExpressionScreen> {
                 ),
               ],
             ),
-            if (_starting) const Positioned.fill(child: _BusyOverlay()),
           ],
         ),
       ),
@@ -397,18 +289,18 @@ class _TaskRow extends StatelessWidget {
 
 /// Bloc « Historique » : stats + dernier examen blanc + dernier entraînement.
 /// Fusion examens + sujets, triée par date décroissante, limitée à [limit].
-/// Renvoie une liste d'`Object` (mix `_ExamSession` / `ProductionSubmissionDto`)
+/// Renvoie une liste d'`Object` (mix `ExamSession` / `ProductionSubmissionDto`)
 /// que `_History` dispatche par type à l'affichage.
-List<Object> _recentMerged(_HubData data, int limit) {
+List<Object> _recentMerged(HubData data, int limit) {
   final entries = <Object>[
     ...data.exams,
     ...data.singles,
   ];
   entries.sort((a, b) {
-    final wa = a is _ExamSession
+    final wa = a is ExamSession
         ? a.lastSubmittedAt
         : (a as ProductionSubmissionDto).submittedAt;
-    final wb = b is _ExamSession
+    final wb = b is ExamSession
         ? b.lastSubmittedAt
         : (b as ProductionSubmissionDto).submittedAt;
     return wb.compareTo(wa);
@@ -424,9 +316,9 @@ class _History extends StatelessWidget {
     required this.onSingle,
   });
 
-  final _HubData data;
+  final HubData data;
   final VoidCallback onSeeAll;
-  final ValueChanged<_ExamSession> onExam;
+  final ValueChanged<ExamSession> onExam;
   final ValueChanged<ProductionSubmissionDto> onSingle;
 
   @override
@@ -492,7 +384,7 @@ class _History extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             child: switch (entry) {
-              _ExamSession e =>
+              ExamSession e =>
                 _LastExamCard(session: e, onTap: () => onExam(e)),
               ProductionSubmissionDto s =>
                 _RecentSingleRow(submission: s, onTap: () => onSingle(s)),
@@ -539,7 +431,7 @@ class _HubStat extends StatelessWidget {
 class _LastExamCard extends StatelessWidget {
   const _LastExamCard({required this.session, required this.onTap});
 
-  final _ExamSession session;
+  final ExamSession session;
   final VoidCallback onTap;
 
   @override
@@ -1482,31 +1374,6 @@ class _ErrorBox extends StatelessWidget {
   }
 }
 
-// ============================================================================
-// Données examen blanc + helpers
-// ============================================================================
-
-class _ExamSession {
-  _ExamSession({required this.attemptId, required this.submissions});
-
-  final String attemptId;
-  final List<ProductionSubmissionDto> submissions;
-
-  DateTime get lastSubmittedAt => submissions
-      .map((s) => s.submittedAt)
-      .reduce((a, b) => a.isAfter(b) ? a : b);
-
-  NiveauCecrl? get niveauPlancher {
-    NiveauCecrl? floor;
-    for (final s in submissions) {
-      final n = s.evaluation?.niveauCecrl;
-      if (n == null) continue;
-      if (floor == null || n.scaleIndex < floor.scaleIndex) floor = n;
-    }
-    return floor;
-  }
-}
-
 ({String title, String subtitle}) _taskMeta(
     TcfProductionModule module, int tache) {
   if (module.isEo) {
@@ -2127,224 +1994,6 @@ class _PlanSheet extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-/// Sheet « Examens blancs » du hub EE/EO : 10 slots numérotés, façon TCF
-/// Complet. Slot vide → lance le briefing. Slot fait → ouvre la session.
-const int _examSlotsCount = 10;
-
-class _ExamSlotsSheet extends StatelessWidget {
-  const _ExamSlotsSheet({
-    required this.module,
-    required this.exams,
-    required this.onStartEmpty,
-    required this.onOpenDone,
-  });
-
-  final TcfProductionModule module;
-  final List<_ExamSession> exams;
-  final VoidCallback onStartEmpty;
-  final ValueChanged<_ExamSession> onOpenDone;
-
-  @override
-  Widget build(BuildContext context) {
-    // Plus ancien en slot 1 (numérotation stable dans le temps) — mêmes
-    // règles que TcfFullExamsView.
-    final ordered = exams.reversed.toList();
-    return DraggableScrollableSheet(
-      initialChildSize: 0.85,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      expand: false,
-      builder: (_, controller) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.bg,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-        ),
-        child: Column(
-          children: [
-            const _SheetHandle(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 4, 14, 6),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Examens blancs',
-                          style: AppFonts.jakarta(
-                            size: 18,
-                            weight: FontWeight.w800,
-                            color: AppColors.ink,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${module.title} · $_examSlotsCount sessions disponibles',
-                          style: AppFonts.jakarta(
-                              size: 12, color: AppColors.muted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded,
-                        color: AppColors.muted, size: 22),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 6),
-            Expanded(
-              child: ListView.separated(
-                controller: controller,
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-                itemCount: _examSlotsCount,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (_, i) {
-                  final exam = i < ordered.length ? ordered[i] : null;
-                  return _ExamSlotCard(
-                    slot: i + 1,
-                    exam: exam,
-                    onTapEmpty: onStartEmpty,
-                    onTapDone: onOpenDone,
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ExamSlotCard extends StatelessWidget {
-  const _ExamSlotCard({
-    required this.slot,
-    required this.exam,
-    required this.onTapEmpty,
-    required this.onTapDone,
-  });
-
-  final int slot;
-  final _ExamSession? exam;
-  final VoidCallback onTapEmpty;
-  final ValueChanged<_ExamSession> onTapDone;
-
-  @override
-  Widget build(BuildContext context) {
-    final done = exam != null;
-    final niveau = exam?.niveauPlancher;
-    final accent = done
-        ? (niveau != null ? _colorForLevel(niveau) : AppColors.blue)
-        : AppColors.muted2;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: done ? accent.withValues(alpha: 0.06) : AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: done ? accent.withValues(alpha: 0.28) : AppColors.line,
-        ),
-        boxShadow: _cardShadow,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: done ? () => onTapDone(exam!) : onTapEmpty,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: done ? accent : AppColors.line2,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '$slot',
-                    style: AppFonts.jakarta(
-                      size: 14,
-                      weight: FontWeight.w800,
-                      color: done ? AppColors.white : AppColors.muted,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Examen blanc $slot',
-                        style: AppFonts.jakarta(
-                          size: 14.5,
-                          weight: FontWeight.w800,
-                          color: AppColors.ink,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        done
-                            ? '${_formatDate(exam!.lastSubmittedAt)} · ${_doneStatus(exam!)}'
-                            : 'Disponible · 3 tâches enchaînées',
-                        style: AppFonts.jakarta(
-                            size: 12, color: AppColors.muted),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (done && niveau != null)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      niveau.displayName,
-                      style: AppFonts.jakarta(
-                        size: 11,
-                        weight: FontWeight.w800,
-                        color: accent,
-                      ),
-                    ),
-                  )
-                else if (done)
-                  const Icon(Icons.hourglass_top_rounded,
-                      size: 18, color: AppColors.muted2)
-                else
-                  const Icon(Icons.play_arrow_rounded,
-                      size: 22, color: AppColors.muted2),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Une session est « En cours d'évaluation » tant qu'au moins une submission
-  /// n'a pas son `evaluation` ; sinon « Terminé ».
-  String _doneStatus(_ExamSession s) {
-    final allEvaluated =
-        s.submissions.every((sub) => sub.evaluation?.niveauCecrl != null);
-    return allEvaluated ? 'Terminé' : 'Évaluation IA en cours';
   }
 }
 

@@ -41,6 +41,7 @@ import '../../screens/tcf_production/eo_finished_screen.dart';
 import '../../screens/tcf_production/eo_recording_screen.dart';
 import '../../screens/tcf_production/eo_results_screen.dart';
 import '../../screens/tcf_production/history_session_screen.dart';
+import '../../screens/tcf_production/production_exams_screen.dart';
 import '../../screens/tcf_production/production_history_screen.dart';
 import '../auth/auth_controller.dart';
 import '../models/enums.dart';
@@ -428,6 +429,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         redirect: (_, state) => state.uri.path == AppRoutes.tcfExpressionOrale ? AppRoutes.tcfEoDetail : null,
         routes: [
           GoRoute(
+            path: 'examens',
+            builder: (_, __) => const ProductionExamsScreen(
+                module: TcfProductionModule.eo),
+          ),
+          GoRoute(
             path: 'historique',
             builder: (_, __) => const ProductionHistoryScreen(epreuve: EpreuveType.tcfEo),
           ),
@@ -488,6 +494,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         redirect: (_, state) =>
             state.uri.path == AppRoutes.tcfExpressionEcrite ? AppRoutes.tcfEeDetail : null,
         routes: [
+          GoRoute(
+            path: 'examens',
+            builder: (_, __) => const ProductionExamsScreen(
+                module: TcfProductionModule.ee),
+          ),
           GoRoute(
             path: 'historique',
             builder: (_, __) => const ProductionHistoryScreen(epreuve: EpreuveType.tcfEe),
