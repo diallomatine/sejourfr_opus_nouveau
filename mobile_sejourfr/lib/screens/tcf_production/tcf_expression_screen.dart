@@ -89,6 +89,29 @@ class _TcfExpressionScreenState extends ConsumerState<TcfExpressionScreen> {
   }
 
   void _openExamBriefing() {
+    final exams =
+        ref.read(_hubProvider(widget.module.epreuve)).valueOrNull?.exams
+            ?? const <_ExamSession>[];
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => _ExamSlotsSheet(
+        module: widget.module,
+        exams: exams,
+        onStartEmpty: () {
+          Navigator.of(sheetCtx).pop();
+          _startNewExamBlanc();
+        },
+        onOpenDone: (exam) {
+          Navigator.of(sheetCtx).pop();
+          _openExamSession(exam);
+        },
+      ),
+    );
+  }
+
+  void _startNewExamBlanc() {
     if (!_isPremium()) {
       showPaywallSheet(context);
       return;
@@ -2104,6 +2127,224 @@ class _PlanSheet extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Sheet « Examens blancs » du hub EE/EO : 10 slots numérotés, façon TCF
+/// Complet. Slot vide → lance le briefing. Slot fait → ouvre la session.
+const int _examSlotsCount = 10;
+
+class _ExamSlotsSheet extends StatelessWidget {
+  const _ExamSlotsSheet({
+    required this.module,
+    required this.exams,
+    required this.onStartEmpty,
+    required this.onOpenDone,
+  });
+
+  final TcfProductionModule module;
+  final List<_ExamSession> exams;
+  final VoidCallback onStartEmpty;
+  final ValueChanged<_ExamSession> onOpenDone;
+
+  @override
+  Widget build(BuildContext context) {
+    // Plus ancien en slot 1 (numérotation stable dans le temps) — mêmes
+    // règles que TcfFullExamsView.
+    final ordered = exams.reversed.toList();
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, controller) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.bg,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        child: Column(
+          children: [
+            const _SheetHandle(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 4, 14, 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Examens blancs',
+                          style: AppFonts.jakarta(
+                            size: 18,
+                            weight: FontWeight.w800,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${module.title} · $_examSlotsCount sessions disponibles',
+                          style: AppFonts.jakarta(
+                              size: 12, color: AppColors.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded,
+                        color: AppColors.muted, size: 22),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Expanded(
+              child: ListView.separated(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                itemCount: _examSlotsCount,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (_, i) {
+                  final exam = i < ordered.length ? ordered[i] : null;
+                  return _ExamSlotCard(
+                    slot: i + 1,
+                    exam: exam,
+                    onTapEmpty: onStartEmpty,
+                    onTapDone: onOpenDone,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExamSlotCard extends StatelessWidget {
+  const _ExamSlotCard({
+    required this.slot,
+    required this.exam,
+    required this.onTapEmpty,
+    required this.onTapDone,
+  });
+
+  final int slot;
+  final _ExamSession? exam;
+  final VoidCallback onTapEmpty;
+  final ValueChanged<_ExamSession> onTapDone;
+
+  @override
+  Widget build(BuildContext context) {
+    final done = exam != null;
+    final niveau = exam?.niveauPlancher;
+    final accent = done
+        ? (niveau != null ? _colorForLevel(niveau) : AppColors.blue)
+        : AppColors.muted2;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: done ? accent.withValues(alpha: 0.06) : AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: done ? accent.withValues(alpha: 0.28) : AppColors.line,
+        ),
+        boxShadow: _cardShadow,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: done ? () => onTapDone(exam!) : onTapEmpty,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: done ? accent : AppColors.line2,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$slot',
+                    style: AppFonts.jakarta(
+                      size: 14,
+                      weight: FontWeight.w800,
+                      color: done ? AppColors.white : AppColors.muted,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Examen blanc $slot',
+                        style: AppFonts.jakarta(
+                          size: 14.5,
+                          weight: FontWeight.w800,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        done
+                            ? '${_formatDate(exam!.lastSubmittedAt)} · ${_doneStatus(exam!)}'
+                            : 'Disponible · 3 tâches enchaînées',
+                        style: AppFonts.jakarta(
+                            size: 12, color: AppColors.muted),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (done && niveau != null)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      niveau.displayName,
+                      style: AppFonts.jakarta(
+                        size: 11,
+                        weight: FontWeight.w800,
+                        color: accent,
+                      ),
+                    ),
+                  )
+                else if (done)
+                  const Icon(Icons.hourglass_top_rounded,
+                      size: 18, color: AppColors.muted2)
+                else
+                  const Icon(Icons.play_arrow_rounded,
+                      size: 22, color: AppColors.muted2),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Une session est « En cours d'évaluation » tant qu'au moins une submission
+  /// n'a pas son `evaluation` ; sinon « Terminé ».
+  String _doneStatus(_ExamSession s) {
+    final allEvaluated =
+        s.submissions.every((sub) => sub.evaluation?.niveauCecrl != null);
+    return allEvaluated ? 'Terminé' : 'Évaluation IA en cours';
   }
 }
 
