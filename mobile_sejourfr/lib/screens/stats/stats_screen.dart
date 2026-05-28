@@ -760,11 +760,36 @@ class _TcfHeroNoExam extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
-        AppButton(
-          label: 'Lancer un examen blanc',
-          icon: Icons.play_arrow_rounded,
-          variant: AppButtonVariant.primary,
-          onPressed: () => context.push(AppRoutes.tcfFullExams),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Material(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => context.push(AppRoutes.tcfFullExams),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 11),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.play_arrow_rounded,
+                        size: 16, color: AppColors.redDark),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Lancer un examen blanc',
+                      style: AppFonts.jakarta(
+                        size: 13,
+                        weight: FontWeight.w800,
+                        color: AppColors.redDark,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ],
     );
