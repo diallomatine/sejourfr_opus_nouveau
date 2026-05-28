@@ -84,12 +84,13 @@ class _IconBtn extends StatelessWidget {
   }
 }
 
-/// Hero plein large « Examen blanc complet » — fond teinté, eyebrow mono,
-/// titre, description, CTA filled. Réutilisé par les 2 hubs : Civique
+/// Hero plein large « Examen blanc complet » — carte avec **dégradé** plein
+/// (style readiness hero du menu Progression), texte blanc, CTA pill blanche
+/// qui ressort sur le fond coloré. Réutilisé par les 2 hubs : Civique
 /// (rouge, défaut) et TCF (bleu via accent override).
 ///
-/// `accentLight` = fond de la carte. `accent` = texte eyebrow, titre,
-/// description et fond du CTA.
+/// `accent` = bout foncé du dégradé (= couleur du shadow, foreground texte
+/// du CTA). `accentStart` = bout clair du dégradé.
 class ExamBlancHero extends StatelessWidget {
   const ExamBlancHero({
     super.key,
@@ -100,6 +101,7 @@ class ExamBlancHero extends StatelessWidget {
     required this.onTap,
     this.accent = AppColors.redDark,
     this.accentLight = AppColors.redLight,
+    this.accentStart = AppColors.red,
   });
 
   final String eyebrow;
@@ -108,31 +110,45 @@ class ExamBlancHero extends StatelessWidget {
   final String ctaLabel;
   final VoidCallback onTap;
   final Color accent;
+
+  /// Conservé pour compat — non utilisé depuis le passage au dégradé plein.
   final Color accentLight;
+  final Color accentStart;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
           decoration: BoxDecoration(
-            color: accentLight,
-            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [accentStart, accent],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: 0.32),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.rocket_launch_rounded,
                     size: 14,
-                    color: accent,
+                    color: AppColors.white,
                   ),
                   const SizedBox(width: 6),
                   Flexible(
@@ -140,7 +156,7 @@ class ExamBlancHero extends StatelessWidget {
                       eyebrow.toUpperCase(),
                       style: AppFonts.mono(
                         size: 10,
-                        color: accent,
+                        color: AppColors.white.withValues(alpha: 0.9),
                         letterSpacing: 1.4,
                         weight: FontWeight.w700,
                       ),
@@ -150,13 +166,13 @@ class ExamBlancHero extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text(
                 title,
                 style: AppFonts.jakarta(
-                  size: 18,
+                  size: 19,
                   weight: FontWeight.w800,
-                  color: accent,
+                  color: AppColors.white,
                 ).copyWith(letterSpacing: -0.3),
               ),
               const SizedBox(height: 6),
@@ -164,12 +180,16 @@ class ExamBlancHero extends StatelessWidget {
                 description,
                 style: AppFonts.jakarta(
                   size: 13,
-                  color: accent.withValues(alpha: 0.85),
+                  color: AppColors.white.withValues(alpha: 0.85),
                   height: 1.45,
                 ),
               ),
-              const SizedBox(height: 14),
-              _HeroCta(label: ctaLabel, onTap: onTap, accent: accent),
+              const SizedBox(height: 16),
+              _HeroCta(
+                label: ctaLabel,
+                onTap: onTap,
+                accent: accent,
+              ),
             ],
           ),
         ),
@@ -179,8 +199,11 @@ class ExamBlancHero extends StatelessWidget {
 }
 
 class _HeroCta extends StatelessWidget {
-  const _HeroCta(
-      {required this.label, required this.onTap, required this.accent});
+  const _HeroCta({
+    required this.label,
+    required this.onTap,
+    required this.accent,
+  });
 
   final String label;
   final VoidCallback onTap;
@@ -191,29 +214,28 @@ class _HeroCta extends StatelessWidget {
     return Align(
       alignment: Alignment.centerLeft,
       child: Material(
-        color: accent,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: onTap,
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   Icons.play_arrow_rounded,
                   size: 16,
-                  color: AppColors.white,
+                  color: accent,
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 5),
                 Text(
                   label,
                   style: AppFonts.jakarta(
                     size: 13,
-                    weight: FontWeight.w700,
-                    color: AppColors.white,
+                    weight: FontWeight.w800,
+                    color: accent,
                   ),
                 ),
               ],
@@ -423,8 +445,7 @@ class EpreuveCard extends StatelessWidget {
                                         color: AppColors.line2,
                                       ),
                                       FractionallySizedBox(
-                                        widthFactor:
-                                            progress!.clamp(0.0, 1.0),
+                                        widthFactor: progress!.clamp(0.0, 1.0),
                                         child: Container(
                                           height: 3,
                                           color: iconColor,

@@ -142,10 +142,21 @@ class _ExamenHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
       decoration: BoxDecoration(
-        color: AppColors.redLight,
-        borderRadius: BorderRadius.circular(18),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.red, AppColors.redDark],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.redDark.withValues(alpha: 0.32),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -153,52 +164,55 @@ class _ExamenHero extends StatelessWidget {
           Row(
             children: [
               Icon(module.isEo ? Icons.mic_rounded : Icons.edit_note_rounded,
-                  size: 15, color: AppColors.redDark),
+                  size: 14, color: AppColors.white),
               const SizedBox(width: 6),
               Text(
                 'EXAMEN COMPLET · ${module.durationLabel} MIN',
                 style: AppFonts.mono(
                     size: 10,
-                    color: AppColors.redDark,
+                    color: AppColors.white.withValues(alpha: 0.9),
                     letterSpacing: 1.2,
                     weight: FontWeight.w700),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             'Lancer un examen blanc',
             style: AppFonts.jakarta(
-                size: 17, weight: FontWeight.w800, color: AppColors.ink),
+                size: 19, weight: FontWeight.w800, color: AppColors.white)
+              .copyWith(letterSpacing: -0.3),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             module.isEo
                 ? 'Les 3 tâches enchaînées comme le jour J, avec enregistrement.'
                 : 'Les 3 tâches enchaînées comme le jour J, à rédiger.',
-            style:
-                AppFonts.jakarta(size: 13, color: AppColors.ink2, height: 1.5),
+            style: AppFonts.jakarta(
+                size: 13,
+                color: AppColors.white.withValues(alpha: 0.85),
+                height: 1.45),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           GestureDetector(
             onTap: onStart,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
               decoration: BoxDecoration(
-                  color: AppColors.red,
+                  color: AppColors.white,
                   borderRadius: BorderRadius.circular(12)),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.play_arrow_rounded,
-                      size: 18, color: AppColors.white),
-                  const SizedBox(width: 6),
+                      size: 16, color: AppColors.redDark),
+                  const SizedBox(width: 5),
                   Text(
                     'Commencer',
                     style: AppFonts.jakarta(
-                        size: 13.5,
+                        size: 13,
                         weight: FontWeight.w800,
-                        color: AppColors.white),
+                        color: AppColors.redDark),
                   ),
                 ],
               ),

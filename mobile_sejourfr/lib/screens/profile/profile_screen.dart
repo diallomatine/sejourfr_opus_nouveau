@@ -23,19 +23,25 @@ import '../../core/widgets/sejourfr_logo.dart';
 /// loading/error sans casser le rendu du profil — si une seule des 4 requêtes
 /// échoue, on dégrade en "—" sur la cellule concernée plutôt que de bloquer.
 final _civiqueStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
-  return ref.watch(userContentRepositoryProvider).stats(module: AppModule.civique);
+  return ref
+      .watch(userContentRepositoryProvider)
+      .stats(module: AppModule.civique);
 });
 
 final _tcfStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
   return ref.watch(userContentRepositoryProvider).stats(module: AppModule.tcf);
 });
 
-final _tcfProgressionProvider = FutureProvider.autoDispose<ProgressionSummary>((ref) {
-  return ref.watch(userContentRepositoryProvider).progression(module: AppModule.tcf);
+final _tcfProgressionProvider =
+    FutureProvider.autoDispose<ProgressionSummary>((ref) {
+  return ref
+      .watch(userContentRepositoryProvider)
+      .progression(module: AppModule.tcf);
 });
 
 final _tcfExamsCountProvider = FutureProvider.autoDispose<int>((ref) async {
-  final list = await ref.watch(fullTcfExamRepositoryProvider).listMine(limit: 100);
+  final list =
+      await ref.watch(fullTcfExamRepositoryProvider).listMine(limit: 100);
   return list.where((e) => e.status == FullTcfExamStatus.completed).length;
 });
 
@@ -82,7 +88,8 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: 14),
             _TargetCard(
               user: user,
-              onTap: () => context.push('${AppRoutes.targetPath}?from=$fromHere'),
+              onTap: () =>
+                  context.push('${AppRoutes.targetPath}?from=$fromHere'),
             ),
             const SizedBox(height: 24),
             const _SectionLabel('Préparation'),
@@ -458,11 +465,15 @@ class _StatsRow extends ConsumerWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _StatCell(value: viewedLabel, label: 'Questions vues')),
+              Expanded(
+                  child:
+                      _StatCell(value: viewedLabel, label: 'Questions vues')),
               _StatDivider(),
-              Expanded(child: _StatCell(value: examsLabel, label: 'Examens TCF')),
+              Expanded(
+                  child: _StatCell(value: examsLabel, label: 'Examens TCF')),
               _StatDivider(),
-              Expanded(child: _StatCell(value: levelLabel, label: 'Dernier niveau')),
+              Expanded(
+                  child: _StatCell(value: levelLabel, label: 'Dernier niveau')),
             ],
           ),
         ],
@@ -563,8 +574,9 @@ class _PlanCard extends StatelessWidget {
                 ? 'Plan Civique'
                 : 'Plan TCF';
 
-    final endLabel =
-        user.premiumEndsAt == null ? null : 'Renouvellement le ${_formatDate(user.premiumEndsAt!)}';
+    final endLabel = user.premiumEndsAt == null
+        ? null
+        : 'Renouvellement le ${_formatDate(user.premiumEndsAt!)}';
 
     // Plan gratuit / démo → on rend la carte tappable et on ouvre la
     // PaywallSheet partagée (CTA "Gérer mon accès sur le site" qui pousse
@@ -580,11 +592,15 @@ class _PlanCard extends StatelessWidget {
             height: 46,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: isPremium ? AppColors.amber.withValues(alpha: 0.14) : AppColors.line2,
+              color: isPremium
+                  ? AppColors.amber.withValues(alpha: 0.14)
+                  : AppColors.line2,
               borderRadius: BorderRadius.circular(13),
             ),
             child: Icon(
-              isPremium ? Icons.workspace_premium_rounded : Icons.lock_outline_rounded,
+              isPremium
+                  ? Icons.workspace_premium_rounded
+                  : Icons.lock_outline_rounded,
               size: 22,
               color: isPremium ? AppColors.amber : AppColors.muted,
             ),
@@ -613,7 +629,9 @@ class _PlanCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   endLabel ??
-                      (isPremium ? 'Accès complet aux modules.' : 'Appuie pour débloquer tous les modules.'),
+                      (isPremium
+                          ? 'Accès complet aux modules.'
+                          : 'Appuie pour débloquer tous les modules.'),
                   style: AppFonts.jakarta(
                     size: 12,
                     color: AppColors.muted,
@@ -624,7 +642,9 @@ class _PlanCard extends StatelessWidget {
               ],
             ),
           ),
-          if (!isPremium) const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.muted2),
+          if (!isPremium)
+            const Icon(Icons.arrow_forward_ios,
+                size: 12, color: AppColors.muted2),
         ],
       ),
     );
@@ -769,8 +789,11 @@ class _TargetCard extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 6,
                       children: [
-                        AppTag(label: 'Civique ${target.wire}', tone: TagTone.blue),
-                        AppTag(label: 'TCF ${target.tcfLevel}', tone: TagTone.red),
+                        AppTag(
+                            label: 'Civique ${target.wire}',
+                            tone: TagTone.blue),
+                        AppTag(
+                            label: 'TCF ${target.tcfLevel}', tone: TagTone.red),
                       ],
                     ),
                   ],

@@ -68,6 +68,7 @@ class CiviqueScreen extends ConsumerWidget {
                 ctaLabel: 'Lancer l\'examen blanc',
                 accent: AppColors.blueDark,
                 accentLight: AppColors.blueLight,
+                accentStart: AppColors.blue,
                 onTap: () {
                   ref.read(selectedModuleProvider.notifier).state =
                       AppModule.civique;
