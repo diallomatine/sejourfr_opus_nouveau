@@ -397,7 +397,7 @@ class _Content extends StatelessWidget {
       task.motsMin != null &&
       task.motsMax != null &&
       wordCount >= task.motsMin! &&
-      wordCount <= task.motsMax!;
+      wordCount <= (task.motsMax! * 1.2).floor();
 
   @override
   Widget build(BuildContext context) {

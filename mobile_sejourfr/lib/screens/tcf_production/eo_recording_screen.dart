@@ -176,12 +176,18 @@ class _EoRecordingScreenState extends ConsumerState<EoRecordingScreen> {
                       _TimerBig(
                         elapsed: rec.elapsed,
                         max: rec.maxDuration,
+                        minSec: task.dureeMinSec ?? 120,
                       ),
                       const SizedBox(height: 12),
                       RecordingWaveform(amplitude: rec.lastAmplitude),
                       const SizedBox(height: 18),
                       const _RecStatusPill(),
                       const SizedBox(height: 18),
+                      _ObjectifCallout(
+                        dureeMaxSec: task.dureeMaxSec ?? rec.maxDuration.inSeconds,
+                        dureeMinSec: task.dureeMinSec ?? 120,
+                      ),
+                      const SizedBox(height: 10),
                       const _ConseilCallout(
                         text: 'Prenez votre temps, respirez et parlez naturellement.',
                       ),
@@ -209,15 +215,29 @@ class _EoRecordingScreenState extends ConsumerState<EoRecordingScreen> {
 }
 
 class _TimerBig extends StatelessWidget {
-  const _TimerBig({required this.elapsed, required this.max});
+  const _TimerBig({
+    required this.elapsed,
+    required this.max,
+    required this.minSec,
+  });
 
   final Duration elapsed;
   final Duration max;
+
+  /// Minimum conseillé en secondes (typiquement 120 = 2 min).
+  final int minSec;
 
   String _fmt(Duration d) {
     final m = d.inMinutes.toString().padLeft(2, '0');
     final s = (d.inSeconds % 60).toString().padLeft(2, '0');
     return '$m:$s';
+  }
+
+  Color get _timerColor {
+    final secs = elapsed.inSeconds;
+    if (secs < minSec) return AppColors.red;
+    if (secs < max.inSeconds) return AppColors.amber;
+    return AppColors.green;
   }
 
   @override
@@ -229,7 +249,7 @@ class _TimerBig extends StatelessWidget {
           style: AppFonts.jakarta(
             size: 56,
             weight: FontWeight.w700,
-            color: AppColors.ink,
+            color: _timerColor,
             height: 1.0,
           ).copyWith(letterSpacing: -1.0),
         ),
@@ -306,6 +326,36 @@ class _RecStatusPillState extends State<_RecStatusPill> with SingleTickerProvide
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ObjectifCallout extends StatelessWidget {
+  const _ObjectifCallout({required this.dureeMaxSec, required this.dureeMinSec});
+
+  final int dureeMaxSec;
+  final int dureeMinSec;
+
+  @override
+  Widget build(BuildContext context) {
+    final minMin = dureeMinSec ~/ 60;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.amber.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.amber.withValues(alpha: 0.28)),
+      ),
+      child: Text(
+        'Objectif : $dureeMaxSec s · minimum conseillé $minMin min',
+        textAlign: TextAlign.center,
+        style: AppFonts.jakarta(
+          size: 12,
+          weight: FontWeight.w600,
+          color: AppColors.amber,
+        ),
       ),
     );
   }

@@ -20,6 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -81,12 +85,23 @@ public class AiEvaluationService {
         }
 
         ProductionInput input = loadInput(sub, task);
+        Integer dureeSec = task.getEpreuve() == EpreuveType.TCF_EO ? sub.getMediaDurationSec() : null;
         String systemPrompt = promptBuilder.buildSystemPrompt(task.getEpreuve());
-        String userPrompt = promptBuilder.buildUserPrompt(task, input.production(), input.litteral());
+        String userPrompt = promptBuilder.buildUserPrompt(task, input.production(), input.litteral(), dureeSec);
 
         EvaluationLlmClient.Outcome outcome = llmClient.evaluate(systemPrompt, userPrompt);
 
-        Map<String, Object> feedback = outcome.feedback();
+        // Avertissements construits cote serveur (longueur/duree), injectes dans
+        // le feedback expose au front. L'IA ne les produit pas elle-meme.
+        Map<String, Object> feedback = new LinkedHashMap<>(outcome.feedback());
+        List<String> avertissements = buildAvertissements(sub, task);
+        if (!avertissements.isEmpty()) {
+            feedback.put("avertissements", avertissements);
+        }
+        // Joint le `label` de la grille a chaque score (le LLM ne renvoie que le
+        // `code`). Source unique = production_tasks.criteres_evaluation : evite
+        // au mobile de maintenir une table parallele code→libelle qui derive.
+        enrichScoresWithLabels(feedback, task);
         BigDecimal noteSur20 = extractNote(feedback);
         NiveauCecrl niveau = extractNiveau(feedback);
 
@@ -109,6 +124,83 @@ public class AiEvaluationService {
         log.info("AiEvaluation persistee submission={} note={} niveau={} model={}",
                 submissionId, noteSur20, niveau, llmClient.getModelName());
         return eval;
+    }
+
+    /**
+     * Avertissements affiches a l'utilisateur (construits serveur, hors IA) :
+     * <ul>
+     *   <li>EE : depassement modere de la limite de mots (tolerance) ;</li>
+     *   <li>EO : duree parlee sous la cible / sous le minimum (2 min).</li>
+     * </ul>
+     */
+    private List<String> buildAvertissements(ProductionSubmission sub, ProductionTask task) {
+        List<String> out = new ArrayList<>();
+        if (task.getEpreuve() == EpreuveType.TCF_EE) {
+            Integer mots = sub.getMotsCount();
+            Integer max = task.getMotsMax();
+            if (mots != null && max != null && mots > max) {
+                out.add("Votre texte depasse legerement la limite (" + mots
+                    + " mots pour un maximum de " + max + "). A l'examen, restez dans les bornes.");
+            }
+            return out;
+        }
+        // TCF_EO
+        Integer duree = sub.getMediaDurationSec();
+        Integer cible = task.getDureeMaxSec();
+        Integer min = task.getDureeMinSec();
+        if (duree != null && cible != null && duree < cible) {
+            if (min != null && duree < min) {
+                out.add("Votre enregistrement est court (" + duree + " s, soit environ "
+                    + formatMinutes(duree) + "). Le minimum recommande est de 2 minutes et l'objectif "
+                    + cible + " s (~" + formatMinutes(cible) + "). Une production trop courte limite la "
+                    + "demonstration de vos competences : votre note en tient compte. Rapprochez-vous "
+                    + "de 3 minutes la prochaine fois.");
+            } else {
+                out.add("Vous avez parle " + duree + " s ; l'objectif est " + cible + " s (~"
+                    + formatMinutes(cible) + "). Developpez davantage pour viser le niveau superieur.");
+            }
+        }
+        return out;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void enrichScoresWithLabels(Map<String, Object> feedback, ProductionTask task) {
+        Object scoresObj = feedback.get("scores_criteres");
+        Object grilleObj = task.getCriteresEvaluation() != null
+                ? task.getCriteresEvaluation().get("criteres")
+                : null;
+        if (!(scoresObj instanceof List<?> scores) || !(grilleObj instanceof List<?> grille)) return;
+        Map<String, String> labelByCode = new HashMap<>();
+        for (Object g : grille) {
+            if (g instanceof Map<?, ?> m) {
+                Object code = m.get("code");
+                Object label = m.get("label");
+                if (code != null && label != null) {
+                    labelByCode.put(code.toString(), label.toString());
+                }
+            }
+        }
+        if (labelByCode.isEmpty()) return;
+        for (Object s : scores) {
+            if (s instanceof Map<?, ?> rawMap) {
+                Map<String, Object> sm = (Map<String, Object>) rawMap;
+                Object existing = sm.get("label");
+                if (existing == null || existing.toString().isBlank()) {
+                    Object code = sm.get("code");
+                    if (code != null) {
+                        String lbl = labelByCode.get(code.toString());
+                        if (lbl != null) sm.put("label", lbl);
+                    }
+                }
+            }
+        }
+    }
+
+    private static String formatMinutes(int sec) {
+        int m = sec / 60;
+        int s = sec % 60;
+        if (m == 0) return s + " s";
+        return s == 0 ? m + " min" : m + " min " + s + " s";
     }
 
     private ProductionInput loadInput(ProductionSubmission sub, ProductionTask task) {

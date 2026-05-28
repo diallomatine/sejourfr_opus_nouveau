@@ -218,16 +218,39 @@ public class ProductionEvaluationService {
         }
     }
 
+    /**
+     * Validation des mots EE selon les bornes officielles de la tache :
+     * <ul>
+     *   <li>mots &lt; {@code mots_min} → bloque (trop court) ;</li>
+     *   <li>{@code mots_min} ≤ mots ≤ {@code mots_max} → OK ;</li>
+     *   <li>{@code mots_max} &lt; mots ≤ {@code mots_max} × 1.2 → toleré (un
+     *       avertissement de depassement modere est ajoute a la correction par
+     *       {@link AiEvaluationService}) ;</li>
+     *   <li>mots &gt; {@code mots_max} × 1.2 → bloque (trop long).</li>
+     * </ul>
+     * Contrairement a l'EO (jamais bloquante), l'EE bloque hors-bornes : le
+     * front desactive deja le bouton, c'est un garde-fou serveur.
+     */
     private void validateTextWordCount(int mots, ProductionTask task) {
         int plancher = Math.max(props.getMinTextWords(),
             task.getMotsMin() != null ? task.getMotsMin() : 0);
-        int plafond = Math.min(props.getMaxTextWords(),
-            task.getMotsMax() != null ? task.getMotsMax() : Integer.MAX_VALUE);
         if (mots < plancher) {
-            throw new BusinessException("Texte trop court : " + mots + " mots (minimum " + plancher + ").");
+            throw new BusinessException(
+                "Votre texte est trop court : " + mots + " mots, il en faut au moins "
+                + plancher + " pour cette tache.");
         }
-        if (mots > plafond) {
-            throw new BusinessException("Texte trop long : " + mots + " mots (maximum " + plafond + ").");
+        if (task.getMotsMax() != null) {
+            int plafondTolere = (int) Math.floor(task.getMotsMax() * 1.2);
+            if (mots > plafondTolere) {
+                throw new BusinessException(
+                    "Votre texte est trop long : " + mots + " mots pour un maximum de "
+                    + task.getMotsMax() + ". Reduisez-le avant de soumettre.");
+            }
+        }
+        // Garde-fou absolu anti-payload geant, independant de la tache.
+        if (mots > props.getMaxTextWords()) {
+            throw new BusinessException(
+                "Votre texte est trop long : " + mots + " mots (maximum " + props.getMaxTextWords() + ").");
         }
     }
 

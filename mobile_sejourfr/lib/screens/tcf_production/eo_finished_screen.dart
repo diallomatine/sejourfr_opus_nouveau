@@ -230,6 +230,10 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
                     ),
                     const SizedBox(height: 22),
                     _PlaybackBar(filePath: rec.filePath!),
+                    if (rec.elapsed.inSeconds < 120) ...[
+                      const SizedBox(height: 12),
+                      const _ShortRecordingHint(),
+                    ],
                     const SizedBox(height: 16),
                     _NextInfoCard(),
                     if (_submitError != null) ...[
@@ -259,6 +263,40 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ShortRecordingHint extends StatelessWidget {
+  const _ShortRecordingHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.amber.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.amber.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.tips_and_updates_outlined, size: 18, color: AppColors.amber),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Astuce : visez 2-3 minutes pour une meilleure note — vous pouvez tout de même envoyer.',
+              style: AppFonts.jakarta(
+                size: 13,
+                color: AppColors.ink,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

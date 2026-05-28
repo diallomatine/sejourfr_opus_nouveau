@@ -1453,9 +1453,9 @@ class _ExamSession {
     };
   }
   return switch (tache) {
-    1 => (title: 'Message', subtitle: 'Répondre à un message · 60-120 mots'),
-    2 => (title: 'Récit', subtitle: 'Raconter une expérience · 120-150 mots'),
-    _ => (title: 'Opinion', subtitle: 'Avis argumenté · 150-180 mots'),
+    1 => (title: 'Message', subtitle: 'Répondre à un message · 30-60 mots'),
+    2 => (title: 'Récit', subtitle: 'Raconter une expérience · 40-90 mots'),
+    _ => (title: 'Opinion', subtitle: 'Avis argumenté · 40-90 mots'),
   };
 }
 

@@ -12,6 +12,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'ee_session_controller.dart';
+import 'widgets/avertissements_card.dart';
 import 'widgets/correction_example.dart';
 import 'widgets/criterion_row.dart';
 import 'widgets/donut_chart_score.dart';
@@ -217,6 +218,9 @@ class _ResultsBody extends ConsumerWidget {
               DonutChartScore(
                 noteSur20: eval.noteSurVingt?.toDouble(),
                 niveau: eval.niveauCecrl,
+              ),
+              AvertissementsCard(
+                avertissements: eval.feedback.avertissements,
               ),
               if (eval.feedback.scoresCriteres.isNotEmpty)
                 _CriteresCard(criteres: eval.feedback.scoresCriteres),

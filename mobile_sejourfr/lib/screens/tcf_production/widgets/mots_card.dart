@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 
-/// Carte "Nombre de mots" fond ambre-light, icone clock, info a gauche + pill
-/// blanc compteur a droite. Style constant (ne change pas selon l'etat) :
-/// c'est dans `WritingZone` qu'on signale dans/hors plage.
-/// Equivalent de `.mots-card` du mockup HTML.
+/// Carte "Nombre de mots" avec code-couleur dynamique selon la plage :
+///   current < min            → ROUGE (hors plage basse)
+///   min ≤ current ≤ max      → VERT (dans la plage)
+///   max < current ≤ max*1.2  → ORANGE (légèrement au-dessus)
+///   current > max*1.2        → ROUGE (trop long)
 class MotsCard extends StatelessWidget {
   const MotsCard({
     super.key,
@@ -18,21 +19,55 @@ class MotsCard extends StatelessWidget {
   final int min;
   final int max;
 
-  static const _ambreText = Color(0xFFB5780E);
+  _MotsState get _state {
+    if (max <= 0) return _MotsState.below;
+    final tolerance = (max * 1.2).floor();
+    if (current < min) return _MotsState.below;
+    if (current <= max) return _MotsState.inRange;
+    if (current <= tolerance) return _MotsState.overTolerance;
+    return _MotsState.tooLong;
+  }
+
+  ({Color accent, Color bg, Color border}) get _colors {
+    switch (_state) {
+      case _MotsState.inRange:
+        return (
+          accent: AppColors.green,
+          bg: AppColors.green.withValues(alpha: 0.10),
+          border: AppColors.green.withValues(alpha: 0.30),
+        );
+      case _MotsState.overTolerance:
+        return (
+          accent: AppColors.amber,
+          bg: AppColors.amber.withValues(alpha: 0.12),
+          border: AppColors.amber.withValues(alpha: 0.30),
+        );
+      case _MotsState.below:
+      case _MotsState.tooLong:
+        return (
+          accent: AppColors.red,
+          bg: AppColors.red.withValues(alpha: 0.08),
+          border: AppColors.red.withValues(alpha: 0.25),
+        );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final c = _colors;
+    final isBold = _state == _MotsState.below || _state == _MotsState.tooLong;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
-        color: AppColors.amber.withValues(alpha: 0.12),
+        color: c.bg,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: c.border),
       ),
       child: Row(
         children: [
-          Icon(Icons.schedule_rounded, size: 18, color: _ambreText),
+          Icon(Icons.schedule_rounded, size: 18, color: c.accent),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -43,12 +78,12 @@ class MotsCard extends StatelessWidget {
                   style: AppFonts.jakarta(
                     size: 13,
                     weight: FontWeight.w700,
-                    color: _ambreText,
+                    color: c.accent,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '$min à $max mots attendus',
+                  'Min $min / Max $max',
                   style: AppFonts.jakarta(
                     size: 12,
                     color: AppColors.muted,
@@ -62,14 +97,14 @@ class MotsCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.white,
               borderRadius: BorderRadius.circular(100),
-              border: Border.all(color: _ambreText.withValues(alpha: 0.3)),
+              border: Border.all(color: c.border),
             ),
             child: Text(
               '$current mots',
               style: AppFonts.jakarta(
                 size: 13,
-                weight: FontWeight.w700,
-                color: _ambreText,
+                weight: isBold ? FontWeight.w800 : FontWeight.w700,
+                color: c.accent,
               ),
             ),
           ),
@@ -78,3 +113,5 @@ class MotsCard extends StatelessWidget {
     );
   }
 }
+
+enum _MotsState { below, inRange, overTolerance, tooLong }

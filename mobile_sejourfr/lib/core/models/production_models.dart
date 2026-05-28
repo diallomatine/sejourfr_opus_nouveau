@@ -15,6 +15,7 @@ class ProductionTaskDto {
     required this.niveauCible,
     required this.consigne,
     this.contexte,
+    this.dureeMinSec,
     this.dureeMaxSec,
     this.motsMin,
     this.motsMax,
@@ -31,6 +32,9 @@ class ProductionTaskDto {
 
   final String consigne;
   final String? contexte;
+
+  /// EO uniquement : duree minimum conseillée en secondes (backend = 120 s).
+  final int? dureeMinSec;
 
   /// EO uniquement : duree max d'enregistrement en secondes.
   final int? dureeMaxSec;
@@ -67,6 +71,7 @@ class ProductionTaskDto {
         niveauCible: json['niveauCible'] as String,
         consigne: json['consigne'] as String,
         contexte: json['contexte'] as String?,
+        dureeMinSec: (json['dureeMinSec'] as num?)?.toInt(),
         dureeMaxSec: (json['dureeMaxSec'] as num?)?.toInt(),
         motsMin: (json['motsMin'] as num?)?.toInt(),
         motsMax: (json['motsMax'] as num?)?.toInt(),
@@ -185,6 +190,7 @@ class EvaluationFeedback {
     this.pointsAAmeliorer = const [],
     this.suggestions = const [],
     this.exemplesCorriges = const [],
+    this.avertissements = const [],
   });
 
   final double? noteGlobale;
@@ -194,6 +200,7 @@ class EvaluationFeedback {
   final List<String> pointsAAmeliorer;
   final List<String> suggestions;
   final List<CorrectionExample> exemplesCorriges;
+  final List<String> avertissements;
 
   factory EvaluationFeedback.fromJson(Map<String, dynamic> json) {
     return EvaluationFeedback(
@@ -208,6 +215,7 @@ class EvaluationFeedback {
       exemplesCorriges: ((json['exemples_corriges'] as List?) ?? const [])
           .map((e) => CorrectionExample.fromJson(e as Map<String, dynamic>))
           .toList(),
+      avertissements: ((json['avertissements'] as List?) ?? const []).map((e) => e.toString()).toList(),
     );
   }
 }
@@ -215,19 +223,30 @@ class EvaluationFeedback {
 class CriterionScore {
   CriterionScore({
     required this.code,
+    this.label,
     required this.noteSurVingt,
     required this.commentaire,
   });
 
   final String code;
+
+  /// Libelle lisible joint cote serveur depuis la grille de la tache.
+  /// Null pour les anciennes evaluations : le widget retombe sur une table
+  /// locale dans `CriterionRow._labelForCode`.
+  final String? label;
   final double noteSurVingt;
   final String commentaire;
 
-  factory CriterionScore.fromJson(Map<String, dynamic> json) => CriterionScore(
-        code: json['code'] as String,
-        noteSurVingt: (json['note_sur_20'] as num).toDouble(),
-        commentaire: json['commentaire'] as String? ?? '',
-      );
+  factory CriterionScore.fromJson(Map<String, dynamic> json) {
+    final raw = json['label'] as String?;
+    final cleaned = raw == null || raw.trim().isEmpty ? null : raw.trim();
+    return CriterionScore(
+      code: json['code'] as String,
+      label: cleaned,
+      noteSurVingt: (json['note_sur_20'] as num).toDouble(),
+      commentaire: json['commentaire'] as String? ?? '',
+    );
+  }
 }
 
 class CorrectionExample {

@@ -45,6 +45,8 @@ class CriterionRow extends StatelessWidget {
     }
   }
 
+  /// Le backend joint desormais `label` depuis la grille de la tache. On le
+  /// privilegie ; cette table sert de fallback pour les anciennes evaluations.
   String _labelForCode(String code) {
     switch (code) {
       case 'pertinence':
@@ -52,14 +54,18 @@ class CriterionRow extends StatelessWidget {
       case 'grammaire':
         return 'Correction grammaticale';
       case 'vocabulaire':
-        return 'Richesse du vocabulaire';
+      case 'lexique':
+        return 'Richesse lexicale';
       case 'coherence':
       case 'organisation':
-        return 'Organisation et coherence';
+        return 'Cohérence du discours';
       case 'orthographe':
         return 'Orthographe et ponctuation';
       case 'prononciation':
         return 'Prononciation';
+      case 'clarte_orale':
+      case 'fluidite':
+        return 'Clarté et fluidité';
       default:
         return code;
     }
@@ -93,7 +99,7 @@ class CriterionRow extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  _labelForCode(criterion.code),
+                  criterion.label ?? _labelForCode(criterion.code),
                   style: AppFonts.jakarta(
                     size: 14,
                     weight: FontWeight.w600,

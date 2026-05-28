@@ -49,9 +49,16 @@ public class ProductionTask {
     @Column(columnDefinition = "text")
     private String contexte;
 
-    /** Pour les taches EO uniquement (NULL sinon). */
+    /** Pour les taches EO uniquement (NULL sinon). Cible officielle. */
     @Column(name = "duree_max_sec")
     private Integer dureeMaxSec;
+
+    /**
+     * Seuil minimal acceptable EO (NULL sinon). En dessous, la production n'est
+     * pas bloquee mais minoree + avertie (cf. AiEvaluationService).
+     */
+    @Column(name = "duree_min_sec")
+    private Integer dureeMinSec;
 
     /** Pour les taches EE uniquement (NULL sinon). */
     @Column(name = "mots_min")
@@ -96,6 +103,9 @@ public class ProductionTask {
 
     public Integer getDureeMaxSec() { return dureeMaxSec; }
     public void setDureeMaxSec(Integer dureeMaxSec) { this.dureeMaxSec = dureeMaxSec; }
+
+    public Integer getDureeMinSec() { return dureeMinSec; }
+    public void setDureeMinSec(Integer dureeMinSec) { this.dureeMinSec = dureeMinSec; }
 
     public Integer getMotsMin() { return motsMin; }
     public void setMotsMin(Integer motsMin) { this.motsMin = motsMin; }

@@ -92,7 +92,7 @@ public class ProductionEvaluationProperties {
         private int maxRetries = 2;
         private long retryBackoffMs = 1000L;
         /** Versionne dans ai_evaluations.prompt_version. */
-        private String promptVersion = "v1.1";
+        private String promptVersion = "v1.2";
         /** Tarification USD / 1M tokens (mai 2026, Sonnet 4-5). */
         private double costPerMillionInputTokens = 3.0;
         private double costPerMillionOutputTokens = 15.0;
@@ -151,7 +151,7 @@ public class ProductionEvaluationProperties {
         private int timeoutSec = 60;
         private int maxRetries = 2;
         private long retryBackoffMs = 1000L;
-        private String promptVersion = "v1.1";
+        private String promptVersion = "v1.2";
         /** Tarification USD / 1M tokens (mai 2026, gpt-4o-mini). */
         private double costPerMillionInputTokens = 0.15;
         private double costPerMillionOutputTokens = 0.60;
