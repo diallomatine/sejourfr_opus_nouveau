@@ -38,6 +38,26 @@ class ProductionHistoryScreen extends ConsumerWidget {
       ? '/tcf/expression-orale/sessions/$attemptId'
       : '/tcf/expression-ecrite/sessions/$attemptId';
 
+  /// Route vers le rapport detaille d'une submission unique (entrainement libre).
+  String _singleReportRoute(ProductionSubmissionDto sub) {
+    final base = epreuve == EpreuveType.tcfEo
+        ? '/tcf/expression-orale/resultats'
+        : '/tcf/expression-ecrite/resultats';
+    final tache = sub.tacheNumero ?? 1;
+    return '$base/${sub.id}?taskIndex=${tache - 1}&history=1';
+  }
+
+  /// Une session 1-tache (entrainement libre) ouvre directement le rapport de
+  /// la tache ; une session multi-tache (examen blanc) ouvre la vue session.
+  void _openSession(
+      BuildContext context, List<ProductionSubmissionDto> subs, String attemptId) {
+    if (subs.length == 1) {
+      context.push(_singleReportRoute(subs.first));
+    } else {
+      context.push(_sessionRoute(attemptId));
+    }
+  }
+
   /// "Nouvelle tache" : retour au hub pour choisir T1/T2/T3.
   void _goToHub(BuildContext context) {
     if (context.canPop()) {
@@ -105,7 +125,7 @@ class ProductionHistoryScreen extends ConsumerWidget {
                       for (final entry in sessions)
                         HistorySessionCard(
                           submissions: entry.value,
-                          onTap: () => context.push(_sessionRoute(entry.key)),
+                          onTap: () => _openSession(context, entry.value, entry.key),
                         ),
                     ],
                   ),
