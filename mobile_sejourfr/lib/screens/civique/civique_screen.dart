@@ -2,16 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/api/user_content_repository.dart';
 import '../../core/auth/auth_controller.dart';
+import '../../core/models/attempt_models.dart';
+import '../../core/models/attempt_summary.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/question_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
-import '../hub/widgets/hub_widgets.dart';
-import 'civique_exam_blanc_view.dart';
+import '../../core/widgets/paywall_sheet.dart';
+import '../hub/widgets/hub_home_widgets.dart';
+import '../module_detail/civique_exam_briefing_sheet.dart';
+import 'widgets/civique_mastery_card.dart';
 
 final _civiqueThemesProvider =
     FutureProvider.autoDispose<List<ThemeDto>>((ref) {
@@ -19,187 +24,217 @@ final _civiqueThemesProvider =
 });
 
 final _civiqueStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
-  return ref.watch(userContentRepositoryProvider).stats(module: AppModule.civique);
+  return ref
+      .watch(userContentRepositoryProvider)
+      .stats(module: AppModule.civique);
 });
 
-/// Hub Civique : en-tête fixe (topbar + onglets Entraînement / Examens)
-/// au-dessus du corps switché. L'onglet Examens embarque
-/// `CiviqueExamBlancView` (les 20 slots d'examens blancs).
-class CiviqueScreen extends ConsumerStatefulWidget {
+/// Hub Civique : home en single scroll. Header titre dynamique + hero
+/// examen blanc 40 Q + N thèmes (cartes verticales) + maîtrise globale.
+/// Plus d'onglets — l'examen blanc complet civique reste accessible via
+/// l'écran routé dédié au tap du hero (briefing + 40 Q tous thèmes).
+class CiviqueScreen extends ConsumerWidget {
   const CiviqueScreen({super.key});
-
-  @override
-  ConsumerState<CiviqueScreen> createState() => _CiviqueScreenState();
-}
-
-class _CiviqueScreenState extends ConsumerState<CiviqueScreen> {
-  HubTab _tab = HubTab.entrainement;
-
-  @override
-  Widget build(BuildContext context) {
-    final auth = ref.watch(authControllerProvider);
-    final user = auth is AuthAuthenticated ? auth.user : null;
-    final badgeText = switch (user?.targetProcedure) {
-      TargetProcedure.csp => 'CSP',
-      TargetProcedure.cr => 'CR',
-      TargetProcedure.nat => 'NAT',
-      null => 'CIV',
-    };
-
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
-              child: Column(
-                children: [
-                  HubTopBar(badgeText: badgeText, badgeColor: AppColors.blue),
-                  const SizedBox(height: 16),
-                  HubTabsBar(
-                    current: _tab,
-                    activeColor: AppColors.blue,
-                    onChanged: (t) => setState(() => _tab = t),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: _tab == HubTab.entrainement
-                  ? const _CiviqueTrainingTab()
-                  : const CiviqueExamBlancView(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CiviqueTrainingTab extends ConsumerWidget {
-  const _CiviqueTrainingTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
     final user = auth is AuthAuthenticated ? auth.user : null;
-    final themes = ref.watch(_civiqueThemesProvider);
-    final stats = ref.watch(_civiqueStatsProvider);
-
     final target = user?.targetProcedure;
-    final objectiveValue = target?.shortLabel ?? 'Définis ton parcours';
+    final themesAsync = ref.watch(_civiqueThemesProvider);
+    final statsAsync = ref.watch(_civiqueStatsProvider);
 
-    // Couverture du programme = % des questions actives déjà tentées au
-    // moins une fois. Aligné avec la barre par thème de l'écran Progression
-    // qui distingue couverture (vues/total) et précision (justes/vues).
-    // Une mastery agrégée correct/total mélangeait les deux et démotivait
-    // les débuts (cf. discussion 2026-05-22).
-    final percent = stats.maybeWhen(
-      data: (s) {
-        if (s.byTheme.isEmpty) return 0;
-        final answered = s.byTheme.fold<int>(0, (sum, t) => sum + t.answered);
-        final total = s.byTheme.fold<int>(0, (sum, t) => sum + t.total);
-        return total == 0 ? 0 : ((answered / total) * 100).round();
-      },
-      orElse: () => 0,
-    );
-
-    // Compteurs absolus + précision globale. Le hint affiche les chiffres
-    // bruts ("71/263 questions vues") plutôt qu'un second % — le pool
-    // d'environ 250-300 questions de l'app fait que la barre couverture
-    // monte vite en %, et un user prudent peut trouver "27 %" exagéré.
-    // Les chiffres absolus collent mieux au ressenti.
-    final coverageSummary = stats.maybeWhen(
-      data: (s) {
-        final answered = s.byTheme.fold<int>(0, (sum, t) => sum + t.answered);
-        final correct = s.byTheme.fold<int>(0, (sum, t) => sum + t.correct);
-        final total = s.byTheme.fold<int>(0, (sum, t) => sum + t.total);
-        if (total == 0) return null;
-        if (answered == 0) {
-          return (answered: 0, total: total, precision: null as int?);
-        }
-        return (
-          answered: answered,
-          total: total,
-          precision: (correct / answered * 100).round() as int?,
-        );
-      },
-      orElse: () => null,
-    );
-
-    void openThemeDetail(ThemeDto theme) {
-      ref.read(selectedModuleProvider.notifier).state = AppModule.civique;
-      context.push(
-        AppRoutes.civiqueThemeDetail.replaceFirst(':themeId', theme.id),
-      );
-    }
-
-    return RefreshIndicator(
-      color: AppColors.blue,
-      onRefresh: () async {
-        ref.invalidate(_civiqueThemesProvider);
-        ref.invalidate(_civiqueStatsProvider);
-        await Future.wait([
-          ref.read(_civiqueThemesProvider.future),
-          ref.read(_civiqueStatsProvider.future),
-        ]);
-      },
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
-        children: [
-          const HubHero(
-                eyebrow: 'Examen civique',
-                titleTop: 'Prépare ton',
-                titleBottom: 'entretien citoyen',
-                description:
-                    'Principes, institutions, droits et devoirs, histoire et société — toutes les questions officielles.',
-                colors: [AppColors.blue, AppColors.blueDark],
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        child: RefreshIndicator(
+          color: AppColors.blue,
+          onRefresh: () async {
+            ref.invalidate(_civiqueThemesProvider);
+            ref.invalidate(_civiqueStatsProvider);
+            await Future.wait([
+              ref.read(_civiqueThemesProvider.future),
+              ref.read(_civiqueStatsProvider.future),
+            ]);
+          },
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+            children: [
+              HubHomeHeader(
+                title: 'Préparer le civique',
+                subtitle: _headerSubtitle(target, themesAsync),
               ),
               const SizedBox(height: 14),
-              HubProgressCard(
-                objectiveLabel: 'Objectif actuel',
-                objectiveValue: objectiveValue,
-                percent: percent,
-                accent: AppColors.blue,
-                hint: coverageSummary == null || coverageSummary.answered == 0
-                    ? 'Commence par un thème pour voir ta progression.'
-                    : coverageSummary.precision == null
-                        ? '${coverageSummary.answered}/${coverageSummary.total} questions vues.'
-                        : '${coverageSummary.answered}/${coverageSummary.total} questions vues · '
-                            '${coverageSummary.precision} % de bonnes réponses.',
+              ExamBlancHero(
+                eyebrow: 'Examen blanc · 40 questions',
+                title: 'Simuler l\'entretien',
+                description:
+                    '40 questions tous thèmes, en 45 minutes. Seuil : 32/40.',
+                ctaLabel: 'Lancer l\'examen blanc',
+                onTap: () => _openCiviqueExamBlanc(context, ref),
               ),
-              const SizedBox(height: 22),
-              const HubSectionTitle('Modules d\'entraînement'),
-              const SizedBox(height: 12),
-              themes.when(
+              const SizedBox(height: 18),
+              themesAsync.when(
                 loading: () => const _ThemesLoading(),
                 error: (e, _) => _ThemesError(message: e.toString()),
                 data: (list) {
                   final sorted = [...list]
                     ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
-                  // Map themeId → stats du user pour brancher la barre
-                  // couverture sur la donnée réelle. Stats peut être en
-                  // loading/error → fallback null.
-                  final statsByTheme = stats.maybeWhen(
+                  final statsByTheme = statsAsync.maybeWhen(
                     data: (s) => {for (final ts in s.byTheme) ts.themeId: ts},
                     orElse: () => const <String, ThemeStats>{},
                   );
                   return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      SectionLabel(
+                        "S'entraîner par thème",
+                        trailing: SectionCounter('${sorted.length} thèmes'),
+                      ),
+                      const SizedBox(height: 10),
                       for (final t in sorted)
-                        _civiqueModuleCard(
+                        _themeCard(
+                          context,
+                          ref,
                           t,
                           statsByTheme[t.id],
-                          onTap: () => openThemeDetail(t),
+                          target,
                         ),
                     ],
                   );
                 },
               ),
+              const SizedBox(height: 18),
+              SectionLabel(
+                'Ma progression',
+                trailing: SectionLink(
+                  label: 'Détails',
+                  onTap: () => context.push(AppRoutes.progress),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _MasteryBlock(),
             ],
           ),
+        ),
+      ),
     );
+  }
+
+  String _headerSubtitle(
+    TargetProcedure? target,
+    AsyncValue<List<ThemeDto>> themesAsync,
+  ) {
+    final count = themesAsync.maybeWhen(
+      data: (l) => l.length,
+      orElse: () => null,
+    );
+    final left = target?.shortLabel ?? 'Civique';
+    if (count == null) return '$left · Examen 40 questions';
+    return '$left · $count thèmes · Examen 40 Q';
+  }
+
+  Widget _themeCard(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeDto theme,
+    ThemeStats? stats,
+    TargetProcedure? target,
+  ) {
+    final hasStarted = stats != null && stats.answered > 0;
+    final ratio = !hasStarted || theme.questionCount == 0
+        ? 0.0
+        : (stats.answered / theme.questionCount).clamp(0.0, 1.0);
+    final iconColor = _accentForOrder(theme.displayOrder);
+    final iconBg = _accentBgForOrder(theme.displayOrder);
+
+    return EpreuveCard(
+      icon: _iconForTheme(theme.code),
+      iconColor: iconColor,
+      iconBg: iconBg,
+      title: theme.name,
+      subtitle: '${theme.questionCount} questions',
+      pillLabel: target?.wire,
+      progress: ratio,
+      onTap: () {
+        ref.read(selectedModuleProvider.notifier).state = AppModule.civique;
+        context.push(
+          AppRoutes.civiqueThemeDetail.replaceFirst(':themeId', theme.id),
+        );
+      },
+    );
+  }
+
+  /// Démarre un examen blanc civique (40 Q tous thèmes, 45 min). Le briefing
+  /// modal s'ouvre, puis tap CTA → POST `/api/attempts {type:MOCK_EXAM,
+  /// module:CIVIQUE}` → push runner. Reprise d'un attempt en cours pour les
+  /// non-abonnés, paywall si déjà consommé.
+  void _openCiviqueExamBlanc(BuildContext context, WidgetRef ref) {
+    final auth = ref.read(authControllerProvider);
+    final isPremium = auth is AuthAuthenticated &&
+        auth.user.canAccessModule(AppModule.civique);
+    ref.read(selectedModuleProvider.notifier).state = AppModule.civique;
+
+    Future<void> startExam() async {
+      try {
+        final attempt = await ref.read(attemptsRepositoryProvider).start(
+              StartAttemptRequest(
+                type: AttemptType.mockExam,
+                module: AppModule.civique,
+              ),
+            );
+        if (!context.mounted) return;
+        context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
+      } catch (e) {
+        if (!context.mounted) return;
+        final err = ApiClient.toApiException(e);
+        if (err.isForbidden) {
+          showPaywallSheet(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(err.message),
+              backgroundColor: AppColors.red,
+            ),
+          );
+        }
+      }
+    }
+
+    if (!isPremium) {
+      // Non-abonné : 1 examen blanc gratuit. On reprend l'attempt en cours
+      // si présent, sinon paywall si déjà fini, sinon briefing+start.
+      // Pour éviter un nouvel appel réseau ici on déclenche directement le
+      // briefing — le backend gère le 403 paywall via `startExam` ci-dessus.
+      Future<List<AttemptSummary>> historyFut = ref
+          .read(attemptsRepositoryProvider)
+          .listMine(
+            type: AttemptType.mockExam,
+            module: AppModule.civique,
+            limit: 50,
+          );
+      historyFut.then((all) {
+        if (!context.mounted) return;
+        final history = all.where((a) => !a.isThemeScoped).toList();
+        final inProgress = history.where((a) => !a.isFinished).toList();
+        if (inProgress.isNotEmpty) {
+          context.push(
+            AppRoutes.runner.replaceFirst(':attemptId', inProgress.first.id),
+          );
+          return;
+        }
+        if (history.any((a) => a.isFinished)) {
+          showPaywallSheet(context);
+          return;
+        }
+        showCiviqueExamBriefingSheet(context, onStart: startExam);
+      }).catchError((_) {
+        if (!context.mounted) return;
+        showCiviqueExamBriefingSheet(context, onStart: startExam);
+      });
+      return;
+    }
+    showCiviqueExamBriefingSheet(context, onStart: startExam);
   }
 
   IconData _iconForTheme(String code) {
@@ -244,42 +279,37 @@ class _CiviqueTrainingTab extends ConsumerWidget {
       case 2:
         return AppColors.redLight;
       case 3:
-        return AppColors.amber.withValues(alpha: 0.12);
+        return AppColors.amber.withValues(alpha: 0.18);
       case 4:
-        return AppColors.green.withValues(alpha: 0.12);
+        return AppColors.green.withValues(alpha: 0.15);
       default:
         return AppColors.blueLight;
     }
   }
+}
 
-  /// Construit la card d'un thème civique avec sa barre de couverture du
-  /// pool (basée sur les stats user). Le label rappelle aussi la précision
-  /// sur ce que le user a déjà tenté pour reproduire la même lecture que
-  /// l'écran Progression.
-  HubModuleCard _civiqueModuleCard(
-    ThemeDto theme,
-    ThemeStats? stats, {
-    required VoidCallback onTap,
-  }) {
-    final hasStarted = stats != null && stats.answered > 0;
-    final ratio = hasStarted ? stats.progress.clamp(0.0, 1.0) : 0.0;
-    final precision = hasStarted ? (stats.successRate * 100).round() : null;
-    final coverageLabel = !hasStarted
-        ? null
-        : precision == null
-            ? '${stats.answered}/${theme.questionCount} vues'
-            : '${stats.answered}/${theme.questionCount} vues · $precision % justes';
-
-    return HubModuleCard(
-      icon: _iconForTheme(theme.code),
-      iconColor: _accentForOrder(theme.displayOrder),
-      iconBg: _accentBgForOrder(theme.displayOrder),
-      title: theme.name,
-      description: theme.description ?? 'Questions officielles du programme',
-      meta: '${theme.questionCount} questions',
-      coverageRatio: hasStarted ? ratio : null,
-      coverageLabel: coverageLabel,
-      onTap: onTap,
+/// Carte « Maîtrise globale » Civique — % bonnes réponses + couverture.
+class _MasteryBlock extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(_civiqueStatsProvider);
+    final s = async.valueOrNull;
+    if (s == null) {
+      return const CiviqueMasteryCard(
+        answered: 0,
+        total: 0,
+        precisionPercent: null,
+      );
+    }
+    final answered = s.byTheme.fold<int>(0, (sum, t) => sum + t.answered);
+    final correct = s.byTheme.fold<int>(0, (sum, t) => sum + t.correct);
+    final total = s.byTheme.fold<int>(0, (sum, t) => sum + t.total);
+    final precision =
+        answered == 0 ? null : (correct / answered * 100).round();
+    return CiviqueMasteryCard(
+      answered: answered,
+      total: total,
+      precisionPercent: precision,
     );
   }
 }

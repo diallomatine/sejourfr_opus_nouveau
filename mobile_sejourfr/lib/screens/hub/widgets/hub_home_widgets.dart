@@ -1,0 +1,467 @@
+import 'package:flutter/material.dart';
+
+import '../../../core/theme/app_theme.dart';
+
+/// En-tête plat de la home des hubs Civique / TCF :
+/// menu (icône) à gauche, titre + sous-titre au centre, slot trailing
+/// (typiquement une cloche notifications) à droite.
+///
+/// Calqué sur le pattern de `ModuleScreenHeader` mais sans bouton back —
+/// on est dans la bottom-nav, pas dans une route empilée.
+class HubHomeHeader extends StatelessWidget {
+  const HubHomeHeader({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    this.onLeftTap,
+    this.onRightTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final VoidCallback? onLeftTap;
+  final VoidCallback? onRightTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _IconBtn(
+          icon: Icons.menu_rounded,
+          color: AppColors.ink,
+          onTap: onLeftTap,
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: AppFonts.jakarta(
+                  size: 17,
+                  weight: FontWeight.w800,
+                  color: AppColors.ink,
+                ).copyWith(letterSpacing: -0.3),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: AppFonts.jakarta(size: 12, color: AppColors.muted),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+        _IconBtn(
+          icon: Icons.notifications_outlined,
+          color: AppColors.muted,
+          onTap: onRightTap,
+        ),
+      ],
+    );
+  }
+}
+
+class _IconBtn extends StatelessWidget {
+  const _IconBtn({
+    required this.icon,
+    required this.color,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkResponse(
+      onTap: onTap,
+      radius: 22,
+      child: SizedBox(
+        width: 36,
+        height: 36,
+        child: Icon(icon, size: 22, color: color),
+      ),
+    );
+  }
+}
+
+/// Hero plein large « Examen blanc complet » — fond rouge clair, eyebrow
+/// mono, titre, description, CTA filled rouge. Réutilisé par les 2 hubs
+/// (tap → push la route examens du module).
+class ExamBlancHero extends StatelessWidget {
+  const ExamBlancHero({
+    super.key,
+    required this.eyebrow,
+    required this.title,
+    required this.description,
+    required this.ctaLabel,
+    required this.onTap,
+  });
+
+  final String eyebrow;
+  final String title;
+  final String description;
+  final String ctaLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+          decoration: BoxDecoration(
+            color: AppColors.redLight,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.rocket_launch_rounded,
+                    size: 14,
+                    color: AppColors.redDark,
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      eyebrow.toUpperCase(),
+                      style: AppFonts.mono(
+                        size: 10,
+                        color: AppColors.redDark,
+                        letterSpacing: 1.4,
+                        weight: FontWeight.w700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: AppFonts.jakarta(
+                  size: 18,
+                  weight: FontWeight.w800,
+                  color: AppColors.redDark,
+                ).copyWith(letterSpacing: -0.3),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                description,
+                style: AppFonts.jakarta(
+                  size: 13,
+                  color: AppColors.redDark.withValues(alpha: 0.85),
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _HeroCta(label: ctaLabel, onTap: onTap),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroCta extends StatelessWidget {
+  const _HeroCta({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Material(
+        color: AppColors.redDark,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.play_arrow_rounded,
+                  size: 16,
+                  color: AppColors.white,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: AppFonts.jakarta(
+                    size: 13,
+                    weight: FontWeight.w700,
+                    color: AppColors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Étiquette de section (« S'entraîner par épreuve », « Ma progression »)
+/// avec compteur ou lien optionnel à droite.
+class SectionLabel extends StatelessWidget {
+  const SectionLabel(this.label, {super.key, this.trailing});
+
+  final String label;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: AppFonts.jakarta(
+              size: 13.5,
+              weight: FontWeight.w700,
+              color: AppColors.muted,
+            ),
+          ),
+        ),
+        if (trailing != null) trailing!,
+      ],
+    );
+  }
+}
+
+/// Compteur droite des sections, ex. « 5 modules ».
+class SectionCounter extends StatelessWidget {
+  const SectionCounter(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: AppFonts.jakarta(size: 11.5, color: AppColors.muted2),
+    );
+  }
+}
+
+/// Lien droite des sections, ex. « Détails ».
+class SectionLink extends StatelessWidget {
+  const SectionLink({super.key, required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Text(
+          label,
+          style: AppFonts.jakarta(
+            size: 12,
+            weight: FontWeight.w700,
+            color: AppColors.blue,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Carte module verticale (CO / CE / Structure / EE / EO ou thème civique) :
+/// icône colorée 44×44 + radius 12, titre + pill niveau optionnelle, sous-titre,
+/// barre de progression 3 px + % à droite, chevron.
+///
+/// Pattern aligné sur la maquette `tcf_modules_home_screen.html` :
+/// densité serrée, ombres légères. Sert à la fois aux épreuves TCF et
+/// aux thèmes civique.
+class EpreuveCard extends StatelessWidget {
+  const EpreuveCard({
+    super.key,
+    required this.icon,
+    required this.iconColor,
+    required this.iconBg,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.pillLabel,
+    this.progress,
+    this.locked = false,
+  });
+
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBg;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  /// Label pill à droite du titre (ex. "B1", "CSP", "BONUS"). Couleur tirée
+  /// de [iconColor] pour rester cohérent avec l'icône.
+  final String? pillLabel;
+
+  /// Progression en 0..1. Null = pas de barre rendue. 0.0 = barre rendue
+  /// mais vide (utile pour signaler "rien commencé").
+  final double? progress;
+
+  final bool locked;
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = progress == null ? null : (progress! * 100).round();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.line),
+        boxShadow: AppShadows.card,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: iconBg,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(icon, size: 22, color: iconColor),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: AppFonts.jakarta(
+                                  size: 14.5,
+                                  weight: FontWeight.w700,
+                                  color: AppColors.ink,
+                                ).copyWith(letterSpacing: -0.2),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (pillLabel != null) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                pillLabel!,
+                                style: AppFonts.jakarta(
+                                  size: 11,
+                                  weight: FontWeight.w800,
+                                  color: iconColor,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: AppFonts.jakarta(
+                            size: 12,
+                            color: AppColors.muted,
+                            height: 1.35,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (progress != null) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(99),
+                                  child: Stack(
+                                    children: [
+                                      Container(
+                                        height: 3,
+                                        color: AppColors.line2,
+                                      ),
+                                      FractionallySizedBox(
+                                        widthFactor:
+                                            progress!.clamp(0.0, 1.0),
+                                        child: Container(
+                                          height: 3,
+                                          color: iconColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '$percent%',
+                                style: AppFonts.jakarta(
+                                  size: 10,
+                                  color: AppColors.muted2,
+                                  weight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    locked
+                        ? Icons.lock_outline_rounded
+                        : Icons.chevron_right_rounded,
+                    size: locked ? 16 : 20,
+                    color: AppColors.muted2,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

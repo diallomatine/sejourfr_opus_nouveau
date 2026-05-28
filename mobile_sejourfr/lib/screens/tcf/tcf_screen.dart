@@ -10,292 +10,249 @@ import '../../core/models/question_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
-import '../hub/widgets/hub_widgets.dart';
-import '../module_detail/tcf_full_exams_screen.dart';
+import '../hub/widgets/hub_home_widgets.dart';
+import 'widgets/cecrl_progress_card.dart';
+import 'widgets/stats_row.dart';
 
+/// Stats par thème (CO / CE / STRUCTURE) — sert à brancher la barre de
+/// progression de chaque card module sur la donnée réelle.
 final _tcfStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
   return ref.watch(userContentRepositoryProvider).stats(module: AppModule.tcf);
 });
 
-/// Thèmes TCF (CO / CE / STRUCTURE) — sert à connaître le `questionCount`
-/// réel par module pour afficher un meta dynamique et calculer la
-/// couverture user de chaque card QCM. Autodispose : se rafraîchit avec
-/// le pull-to-refresh du hub.
+/// Thèmes TCF — sert à connaître le `questionCount` réel pour calculer la
+/// couverture user de chaque card QCM (answered / questionCount).
 final _tcfThemesProvider = FutureProvider.autoDispose<List<ThemeDto>>((ref) {
   return ref.watch(themesRepositoryProvider).list(module: AppModule.tcf);
 });
 
-/// Hub TCF : en-tête fixe (topbar + onglets Entraînement / Examens) au-dessus
-/// du corps switché. L'onglet Examens embarque `TcfFullExamsView` (les 20
-/// slots d'examens blancs complets).
-class TcfScreen extends ConsumerStatefulWidget {
+/// Résumé de progression TCF — porte le niveau global estimé (dernier
+/// examen blanc complet) et le niveau cible CECRL.
+final _tcfProgressionProvider =
+    FutureProvider.autoDispose<ProgressionSummary>((ref) {
+  return ref
+      .watch(userContentRepositoryProvider)
+      .progression(module: AppModule.tcf);
+});
+
+/// Hub TCF : home en single scroll. Header titre dynamique + hero examen
+/// blanc complet + 5 épreuves (CO/CE/Structure/EE/EO) + niveau global CECRL
+/// + 3 stats. Plus d'onglets, plus de tabs — la maquette `tcf_modules_home_screen.html`
+/// privilégie une liste verticale unique.
+class TcfScreen extends ConsumerWidget {
   const TcfScreen({super.key});
 
   @override
-  ConsumerState<TcfScreen> createState() => _TcfScreenState();
-}
-
-class _TcfScreenState extends ConsumerState<TcfScreen> {
-  HubTab _tab = HubTab.entrainement;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
     final user = auth is AuthAuthenticated ? auth.user : null;
-    final badgeText = user?.targetProcedure?.tcfLevel ?? 'TCF';
+    final target = user?.targetProcedure;
+    final targetLevel = target?.tcfLevel;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
-              child: Column(
-                children: [
-                  HubTopBar(badgeText: badgeText, badgeColor: AppColors.red),
-                  const SizedBox(height: 16),
-                  HubTabsBar(
-                    current: _tab,
-                    activeColor: AppColors.red,
-                    onChanged: (t) => setState(() => _tab = t),
-                  ),
-                ],
+        child: RefreshIndicator(
+          color: AppColors.red,
+          onRefresh: () async {
+            ref.invalidate(_tcfStatsProvider);
+            ref.invalidate(_tcfThemesProvider);
+            ref.invalidate(_tcfProgressionProvider);
+            await Future.wait([
+              ref.read(_tcfStatsProvider.future),
+              ref.read(_tcfThemesProvider.future),
+              ref.read(_tcfProgressionProvider.future),
+            ]);
+          },
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+            children: [
+              HubHomeHeader(
+                title: 'Préparer le TCF',
+                subtitle: targetLevel == null
+                    ? 'IRN · 5 modules · 1h 35'
+                    : 'IRN · 5 modules · objectif $targetLevel',
               ),
-            ),
-            Expanded(
-              child: _tab == HubTab.entrainement
-                  ? const _TcfTrainingTab()
-                  : const TcfFullExamsView(),
-            ),
-          ],
+              const SizedBox(height: 14),
+              ExamBlancHero(
+                eyebrow: 'Examen blanc complet · 1h 35',
+                title: 'Simuler le jour J',
+                description:
+                    'Les 4 épreuves enchaînées comme à l\'examen réel.',
+                ctaLabel: 'Lancer l\'examen blanc',
+                onTap: () => context.push(AppRoutes.tcfFullExams),
+              ),
+              const SizedBox(height: 18),
+              SectionLabel(
+                "S'entraîner par épreuve",
+                trailing: const SectionCounter('5 modules'),
+              ),
+              const SizedBox(height: 10),
+              _ModulesList(targetLevel: targetLevel),
+              const SizedBox(height: 18),
+              SectionLabel(
+                'Ma progression',
+                trailing: SectionLink(
+                  label: 'Détails',
+                  onTap: () => context.push(AppRoutes.progress),
+                ),
+              ),
+              const SizedBox(height: 10),
+              _ProgressionBlock(target: target),
+              const SizedBox(height: 10),
+              _StatsBlock(),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _TcfTrainingTab extends ConsumerWidget {
-  const _TcfTrainingTab();
+/// Liste des 5 cartes modules TCF : CO, CE, Structure (bonus), EE, EO.
+class _ModulesList extends ConsumerWidget {
+  const _ModulesList({required this.targetLevel});
+
+  final String? targetLevel;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authControllerProvider);
-    final user = auth is AuthAuthenticated ? auth.user : null;
-    final stats = ref.watch(_tcfStatsProvider);
+    final themesAsync = ref.watch(_tcfThemesProvider);
+    final statsAsync = ref.watch(_tcfStatsProvider);
 
-    final target = user?.targetProcedure;
-    final level = target?.tcfLevel;
-    final objectiveValue =
-        level == null ? 'Définis ton niveau cible' : 'Niveau $level visé';
-
-    // Couverture du programme = % des questions actives TCF déjà tentées au
-    // moins une fois (CO + CE + Structure agrégés). Aligné avec la barre par
-    // thème de l'écran Progression. Une mastery agrégée correct/total
-    // mélangeait couverture et précision (cf. discussion 2026-05-22).
-    final percent = stats.maybeWhen(
-      data: (s) {
-        if (s.byTheme.isEmpty) return 0;
-        final answered = s.byTheme.fold<int>(0, (sum, t) => sum + t.answered);
-        final total = s.byTheme.fold<int>(0, (sum, t) => sum + t.total);
-        return total == 0 ? 0 : ((answered / total) * 100).round();
-      },
-      orElse: () => 0,
+    final themesByCode = themesAsync.maybeWhen(
+      data: (list) => {for (final t in list) t.code: t},
+      orElse: () => const <String, ThemeDto>{},
+    );
+    final statsByThemeId = statsAsync.maybeWhen(
+      data: (s) => {for (final ts in s.byTheme) ts.themeId: ts},
+      orElse: () => const <String, ThemeStats>{},
     );
 
-    // Compteurs absolus + précision (cf. note côté civique_screen) : le
-    // pool ~260 questions du module fait monter la barre couverture en
-    // % rapidement, on affiche le chiffre brut dans le hint pour ne pas
-    // donner une impression d'avancement exagérée.
-    final coverageSummary = stats.maybeWhen(
-      data: (s) {
-        final answered = s.byTheme.fold<int>(0, (sum, t) => sum + t.answered);
-        final correct = s.byTheme.fold<int>(0, (sum, t) => sum + t.correct);
-        final total = s.byTheme.fold<int>(0, (sum, t) => sum + t.total);
-        if (total == 0) return null;
-        if (answered == 0) {
-          return (answered: 0, total: total, precision: null as int?);
-        }
-        return (
-          answered: answered,
-          total: total,
-          precision: (correct / answered * 100).round() as int?,
-        );
-      },
-      orElse: () => null,
-    );
+    double? qcmProgress(String code) {
+      final theme = themesByCode[code];
+      if (theme == null) return null;
+      final stats = statsByThemeId[theme.id];
+      if (stats == null || stats.total == 0) return 0.0;
+      return (stats.answered / stats.total).clamp(0.0, 1.0);
+    }
 
-    void openDetail(String route) {
+    void open(String route) {
       ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
       context.push(route);
     }
 
-    return RefreshIndicator(
-      color: AppColors.red,
-      onRefresh: () async {
-        ref.invalidate(_tcfStatsProvider);
-        ref.invalidate(_tcfThemesProvider);
-        await Future.wait([
-          ref.read(_tcfStatsProvider.future),
-          ref.read(_tcfThemesProvider.future),
-        ]);
-      },
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
-        children: [
-          const HubHero(
-                eyebrow: 'Entraînement officiel',
-                titleTop: 'Prépare ton',
-                titleBottom: 'TCF IRN',
-                description:
-                    'Compréhension orale et écrite, expression orale et écrite avec correction IA.',
-                colors: [AppColors.red, AppColors.redDark],
-              ),
-              const SizedBox(height: 14),
-              HubProgressCard(
-                objectiveLabel: 'Objectif actuel',
-                objectiveValue: objectiveValue,
-                percent: percent,
-                accent: AppColors.red,
-                hint: coverageSummary == null || coverageSummary.answered == 0
-                    ? 'Commence par une épreuve pour voir ta progression.'
-                    : coverageSummary.precision == null
-                        ? '${coverageSummary.answered}/${coverageSummary.total} questions vues.'
-                        : '${coverageSummary.answered}/${coverageSummary.total} questions vues · '
-                            '${coverageSummary.precision} % de bonnes réponses.',
-              ),
-              const SizedBox(height: 22),
-              const HubSectionTitle('Modules d\'entraînement'),
-              const SizedBox(height: 12),
-              _qcmTcfModuleCard(
-                ref: ref,
-                code: 'TCF_CO',
-                icon: Icons.headphones_rounded,
-                iconColor: AppColors.blue,
-                iconBg: AppColors.blueLight,
-                title: 'Compréhension orale',
-                description: 'Dialogues, annonces et messages audio',
-                duration: '≈ 20 MIN',
-                route: AppRoutes.tcfCoDetail,
-                openDetail: openDetail,
-              ),
-              _qcmTcfModuleCard(
-                ref: ref,
-                code: 'TCF_CE',
-                icon: Icons.menu_book_rounded,
-                iconColor: AppColors.amber,
-                iconBg: AppColors.amber.withValues(alpha: 0.12),
-                title: 'Compréhension écrite',
-                description: 'Textes courts et structure de la langue',
-                duration: '≈ 35 MIN',
-                route: AppRoutes.tcfCeDetail,
-                openDetail: openDetail,
-              ),
-              HubModuleCard(
-                icon: Icons.edit_note_rounded,
-                iconColor: AppColors.green,
-                iconBg: AppColors.green.withValues(alpha: 0.12),
-                title: 'Expression écrite',
-                description:
-                    '3 tâches corrigées par IA avec feedback détaillé',
-                meta: '3 TÂCHES · ≈ 30 MIN',
-                aiTag: true,
-                onTap: () => openDetail(AppRoutes.tcfEeDetail),
-              ),
-              HubModuleCard(
-                icon: Icons.mic_rounded,
-                iconColor: AppColors.red,
-                iconBg: AppColors.redLight,
-                title: 'Expression orale',
-                description: 'Parle, enregistre, reçois ton niveau CECRL',
-                meta: '3 TÂCHES · ≈ 10 MIN',
-                aiTag: true,
-                onTap: () => openDetail(AppRoutes.tcfEoDetail),
-              ),
-              // Module bonus : grammaire / lexique. Pas dans le TCF IRN
-              // officiel, mais utile en entraînement de fond. Bannière
-              // d'info rendue dans le détail via `TcfQcmModule.structure.notice`.
-              _qcmTcfModuleCard(
-                ref: ref,
-                code: 'TCF_STRUCTURE',
-                icon: Icons.spellcheck_rounded,
-                iconColor: AppColors.ink2,
-                iconBg: AppColors.line2,
-                title: 'Structure de la langue',
-                description: 'Grammaire et lexique — non évalué au TCF IRN',
-                duration: '≈ 20 MIN',
-                route: AppRoutes.tcfStructureDetail,
-                openDetail: openDetail,
-                bonusLabel: 'BONUS',
-              ),
-            ],
-          ),
+    return Column(
+      children: [
+        EpreuveCard(
+          icon: Icons.headphones_rounded,
+          iconColor: AppColors.blue,
+          iconBg: AppColors.blueLight,
+          title: 'Compréhension orale',
+          subtitle: '25 QCM · 20 min · audio',
+          pillLabel: targetLevel,
+          progress: qcmProgress('TCF_CO'),
+          onTap: () => open(AppRoutes.tcfCoDetail),
+        ),
+        EpreuveCard(
+          icon: Icons.menu_book_rounded,
+          iconColor: AppColors.green,
+          iconBg: AppColors.green.withValues(alpha: 0.15),
+          title: 'Compréhension écrite',
+          subtitle: '25 QCM · 35 min · textes',
+          pillLabel: targetLevel,
+          progress: qcmProgress('TCF_CE'),
+          onTap: () => open(AppRoutes.tcfCeDetail),
+        ),
+        EpreuveCard(
+          icon: Icons.spellcheck_rounded,
+          iconColor: AppColors.amber,
+          iconBg: AppColors.amber.withValues(alpha: 0.18),
+          title: 'Structure de la langue',
+          subtitle: 'Grammaire et lexique · bonus',
+          pillLabel: 'BONUS',
+          progress: qcmProgress('TCF_STRUCTURE'),
+          onTap: () => open(AppRoutes.tcfStructureDetail),
+        ),
+        EpreuveCard(
+          icon: Icons.edit_note_rounded,
+          iconColor: AppColors.ink2,
+          iconBg: AppColors.line2,
+          title: 'Expression écrite',
+          subtitle: '3 exercices · 30 min · rédaction',
+          pillLabel: targetLevel,
+          // TODO: brancher sur la couverture des tâches EE quand l'API
+          //  exposera un compte de submissions terminées par tâche.
+          progress: 0.0,
+          onTap: () => open(AppRoutes.tcfEeDetail),
+        ),
+        EpreuveCard(
+          icon: Icons.mic_rounded,
+          iconColor: AppColors.redDark,
+          iconBg: AppColors.redLight,
+          title: 'Expression orale',
+          subtitle: '3 tâches · 10 min · oral',
+          pillLabel: targetLevel,
+          // TODO: idem — couverture des tâches EO non encore exposée.
+          progress: 0.0,
+          onTap: () => open(AppRoutes.tcfEoDetail),
+        ),
+      ],
     );
   }
 }
 
-/// Construit une `HubModuleCard` QCM (CO / CE / Structure) avec compte de
-/// questions dynamique (depuis le `Theme.questionCount` côté backend) et
-/// barre de couverture user. Aligné avec la barre par thème de l'écran
-/// Progression : barre = `answered/total`, label = "X/Y vues · Z% justes".
-///
-/// EE / EO n'utilisent pas cette helper — ces épreuves n'ont pas de notion
-/// de pool de questions, leurs cards restent statiques avec un meta tâche.
-HubModuleCard _qcmTcfModuleCard({
-  required WidgetRef ref,
-  required String code,
-  required IconData icon,
-  required Color iconColor,
-  required Color iconBg,
-  required String title,
-  required String description,
-  required String duration,
-  required String route,
-  required void Function(String) openDetail,
-  String? bonusLabel,
-}) {
-  final themesAsync = ref.watch(_tcfThemesProvider);
-  final statsAsync = ref.watch(_tcfStatsProvider);
+/// Carte « Niveau global estimé » alimentée par `/api/me/progression`.
+class _ProgressionBlock extends ConsumerWidget {
+  const _ProgressionBlock({required this.target});
 
-  final theme = themesAsync.maybeWhen(
-    data: (list) => list.where((t) => t.code == code).firstOrNull,
-    orElse: () => null,
-  );
-  final stats = statsAsync.maybeWhen(
-    data: (s) => theme == null
-        ? null
-        : s.byTheme.where((t) => t.themeId == theme.id).firstOrNull,
-    orElse: () => null,
-  );
+  final TargetProcedure? target;
 
-  final total = theme?.questionCount;
-  final answered = stats?.answered ?? 0;
-  final hasStarted = stats != null && answered > 0;
-  final ratio = hasStarted && total != null && total > 0
-      ? (answered / total).clamp(0.0, 1.0)
-      : 0.0;
-  final precision = hasStarted ? (stats.successRate * 100).round() : null;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(_tcfProgressionProvider);
+    final tcf = async.valueOrNull?.tcf;
+    final current = tcf?.lastFullExam?.finalLevel;
+    final targetCecrl = tcf?.targetLevel ?? _cecrlForTarget(target);
+    final suffix = switch (target) {
+      TargetProcedure.csp => 'séjour',
+      TargetProcedure.cr => 'résident',
+      TargetProcedure.nat => 'naturalisation',
+      null => null,
+    };
 
-  final metaQuestions = total == null ? '…' : '$total QUESTIONS';
-  final meta = bonusLabel == null
-      ? '$metaQuestions · $duration'
-      : '$bonusLabel · $metaQuestions · $duration';
+    return CecrlProgressCard(
+      current: current,
+      target: targetCecrl,
+      targetSuffix: suffix,
+    );
+  }
 
-  final coverageLabel = !hasStarted || total == null
-      ? null
-      : precision == null
-          ? '$answered/$total vues'
-          : '$answered/$total vues · $precision % justes';
+  /// Fallback quand le backend n'a pas encore résolu `targetLevel` côté
+  /// `/api/me/progression` (rare, surtout pendant le boot).
+  NiveauCecrl? _cecrlForTarget(TargetProcedure? p) => switch (p) {
+        TargetProcedure.csp => NiveauCecrl.a2,
+        TargetProcedure.cr => NiveauCecrl.b1,
+        TargetProcedure.nat => NiveauCecrl.b2,
+        null => null,
+      };
+}
 
-  return HubModuleCard(
-    icon: icon,
-    iconColor: iconColor,
-    iconBg: iconBg,
-    title: title,
-    description: description,
-    meta: meta,
-    coverageRatio: hasStarted ? ratio : null,
-    coverageLabel: coverageLabel,
-    onTap: () => openDetail(route),
-  );
+/// 3 mini-cards stats (Séances / Pratique / Jours actifs). Seul le compteur
+/// de séances est branché — les deux autres sont des TODO en attendant que
+/// le backend expose `practiceMinutes` et `activeDaysCount` sur `/api/me/stats`.
+class _StatsBlock extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(_tcfStatsProvider);
+    final attempts = async.maybeWhen(
+      data: (s) => s.attemptsTotal,
+      orElse: () => null,
+    );
+    return StatsRow(
+      sessions: attempts == null ? null : '$attempts',
+      practice: null,
+      activeDays: null,
+    );
+  }
 }

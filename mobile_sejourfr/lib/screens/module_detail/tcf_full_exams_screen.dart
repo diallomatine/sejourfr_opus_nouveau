@@ -36,9 +36,9 @@ final _fullExamsHistoryProvider =
 const int _fullExamSlotsCount = 20;
 
 /// Écran plein des examens blancs TCF complets, avec topbar + back. Atteint
-/// depuis le hero Progression, l'historique et le bilan (`AppRoutes.tcfFullExams`).
-/// Dans le hub TCF, c'est `TcfFullExamsView` (le corps) qui est embarqué sous
-/// l'onglet Examens — pas cet écran.
+/// depuis le hero Progression, l'historique, le bilan et le hero examen blanc
+/// du hub TCF (`AppRoutes.tcfFullExams`). `TcfFullExamsView` (le corps) est
+/// le bloc réutilisable des 20 slots.
 class TcfFullExamsScreen extends StatelessWidget {
   const TcfFullExamsScreen({super.key});
 
@@ -69,9 +69,8 @@ class TcfFullExamsScreen extends StatelessWidget {
   }
 }
 
-/// Corps de l'onglet « Examens » du hub TCF : 20 slots d'examens blancs
-/// complets. Embarqué dans `TcfScreen` (le hub fournit l'en-tête) et réutilisé
-/// par `TcfFullExamsScreen` (qui ajoute une topbar avec back).
+/// Corps réutilisable des 20 slots d'examens blancs TCF complets. Rendu sous
+/// la topbar de `TcfFullExamsScreen` (route `/tcf/examens-blancs`).
 class TcfFullExamsView extends ConsumerWidget {
   const TcfFullExamsView({super.key});
 

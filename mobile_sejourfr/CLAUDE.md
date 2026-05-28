@@ -70,12 +70,16 @@ lib/
     ├── shell/
     │   └── main_shell.dart        Bottom nav 5 onglets : Accueil · Civique · TCF · Progression · Profil
     ├── hub/
-    │   └── widgets/hub_widgets.dart  Widgets partagés des 2 hubs (topbar, hero, progress, module card, exam card)
+    │   └── widgets/hub_home_widgets.dart  Widgets partagés des 2 home hubs
+    │                                     (HubHomeHeader, ExamBlancHero, EpreuveCard, SectionLabel/Counter/Link)
     ├── civique/
-    │   ├── civique_screen.dart    Hub Civique : onglets Entraînement / Examens (hero bleu + 5 thèmes / 20 slots)
-    │   └── civique_exam_blanc_view.dart  Corps de l'onglet Examens civique (20 slots MOCK_EXAM)
+    │   ├── civique_screen.dart                Home Civique (single scroll : header + hero + thèmes + maîtrise)
+    │   └── widgets/civique_mastery_card.dart  Carte maîtrise globale civique (% justes + couverture)
     ├── tcf/
-    │   └── tcf_screen.dart        Hub TCF : onglets Entraînement / Examens (4 modules CO/CE/EE IA/EO IA / 20 slots)
+    │   ├── tcf_screen.dart                    Home TCF (single scroll : header + hero + 5 épreuves + CECRL + stats)
+    │   └── widgets/
+    │       ├── cecrl_progress_card.dart       Niveau global estimé + objectif + barre 6 segments A1→C2
+    │       └── stats_row.dart                 3 mini-cards stats (Séances / Pratique / Jours actifs)
     ├── module_detail/             Écran détail intermédiaire entre hub et runner / sujets de tâche
     │   ├── civique_theme_detail_screen.dart   Hub d'un thème civique (single scroll, pattern QCM)
     │   ├── civique_theme_exams_screen.dart    Page « Examens blancs » d'un thème (10 slots 20 Q)
@@ -239,7 +243,7 @@ change un DTO, mettre à jour le model Dart correspondant.
 **Hygiène (rappel transverse, cf. CLAUDE.md racine)**
 
 - Si un widget apparaît 2 fois dans 2 écrans, **l'extraire** dans `core/widgets/` (générique) ou
-  `screens/<area>/widgets/` (local à un domaine). Ex: `screens/hub/widgets/hub_widgets.dart` et
+  `screens/<area>/widgets/` (local à un domaine). Ex: `screens/hub/widgets/hub_home_widgets.dart` et
   `core/widgets/paywall_sheet.dart` ont été extraits dès qu'une 2ᵉ surface en avait besoin.
 - Quand un écran est remplacé par une nouvelle archi, supprimer dans la foulée : le fichier, les
   routes (`AppRoutes`), les imports, et tous les CTA `context.go(...)` qui pointaient dessus. Pas
@@ -342,36 +346,47 @@ ont été **supprimés** : un tap module dans un hub démarre directement un att
 vivent désormais dans `core/widgets/paywall_sheet.dart` avec le bottom sheet `PaywallSheet` réutilisable.
 
 Les 2 hubs (`screens/civique/civique_screen.dart` et `screens/tcf/tcf_screen.dart`) partagent une
-structure visuelle identique implémentée dans `screens/hub/widgets/hub_widgets.dart`. Chaque hub est
-un `ConsumerStatefulWidget` avec un **en-tête fixe** (topbar + onglets, ne scrolle pas) au-dessus d'un
-**corps switché par onglet** (calqué sur le segmented control de l'écran Progression) :
+structure visuelle identique implémentée dans `screens/hub/widgets/hub_home_widgets.dart`. Chaque hub
+est un `ConsumerWidget` en **single scroll** (plus d'onglets internes : les anciens segments
+*Entraînement / Examens blancs* ont été refondus pour matcher la maquette
+`tcf_modules_home_screen.html` — home unique avec hero examen blanc + liste verticale des épreuves
++ bloc progression).
 
-- `HubTopBar` : icône notifications à gauche, pastille de niveau/parcours à droite (bleue sur Civique
-  affiche CSP/CR/NAT, rouge sur TCF affiche A2/B1/B2 d'après `user.targetProcedure`).
-- `HubTabsBar` (enum `HubTab { entrainement, examens }`) : deux onglets **Entraînement / Examens**,
-  couleur active = accent du hub. Le state `_tab` vit sur le hub ; `Expanded` rend le corps de
-  l'onglet courant.
-  - **Entraînement** : `_CiviqueTrainingTab` / `_TcfTrainingTab` (hero + progress + cards modules,
-    chacun avec son propre `RefreshIndicator`).
-  - **Examens** : embarque directement la vue des 20 slots d'examens blancs — `CiviqueExamBlancView`
-    (Civique : POST `/api/attempts {type:MOCK_EXAM, module:CIVIQUE}`, 40 Q / 45 min / seuil 32 → runner)
-    ou `TcfFullExamsView` (TCF : POST `/api/full-tcf-exams` → `/tcf/examen-blanc/:parentId`). Le
-    briefing modal (`showCiviqueExamBriefingSheet` / `showTcfFullExamBriefingSheet`) s'ouvre au tap
-    d'un slot vide.
-- `HubHero` : bandeau gradient (bleu sur Civique, rouge sur TCF) avec eyebrow mono, titre Jakarta gras
-  sur 2 lignes, description.
-- `HubProgressCard` : objectif (libellé du parcours / niveau visé) + % de maîtrise calculé sur les
-  stats `byTheme` (correct / total).
-- `HubModuleCard` : icône colorée + titre + description + meta + chevron. Flag `aiTag: true` pour
-  EE/EO. Flag `locked: true` réservé aux modules premium futurs.
+Sections successives (mêmes briques sur les 2 hubs) :
 
-**Vues d'examens blancs** (corps de l'onglet Examens, sans topbar propre) :
-- `CiviqueExamBlancView` (`civique/civique_exam_blanc_view.dart`) — n'est plus un écran routé : l'ancien
-  `CiviqueExamBlancScreen` + la route `/civique/examens-blancs` ont été **supprimés** (l'examen civique
-  vit uniquement dans l'onglet Examens du hub).
-- `TcfFullExamsView` (`module_detail/tcf_full_exams_screen.dart`) — embarquée dans le hub TCF, **et**
-  enveloppée par `TcfFullExamsScreen` (topbar + back) qui reste routé sur `/tcf/examens-blancs` car
-  encore atteint depuis le hero Progression, l'historique et le bilan.
+- `HubHomeHeader` : titre + sous-titre dynamiques (ex. « Préparer le TCF » + « IRN · 5 modules ·
+  objectif B1 »). Bouton menu à gauche + cloche notifications à droite (placeholders, pas d'action
+  branchée).
+- `ExamBlancHero` : carte rouge teintée (`redLight` + `redDark`), eyebrow mono « EXAMEN BLANC
+  COMPLET · 1H 35 », titre, description, CTA filled rouge. Tap → push la route examens du module.
+  - TCF : push `AppRoutes.tcfFullExams` (`TcfFullExamsScreen` → 20 slots).
+  - Civique : ouvre `showCiviqueExamBriefingSheet` puis POST `/api/attempts {type:MOCK_EXAM,
+    module:CIVIQUE}` → runner. Pour les non-abonnés on resume l'attempt en cours ou on tombe
+    sur le paywall si l'examen gratuit a été consommé.
+- `SectionLabel` (« S'entraîner par épreuve / par thème ») + `SectionCounter` (« 5 modules »).
+- Liste verticale d'`EpreuveCard` : icône colorée 44×44, titre + pill niveau (CSP/CR/NAT ou
+  A2/B1/B2 selon `user.targetProcedure`), sous-titre court, **barre 3 px** + % à droite, chevron.
+  - TCF : 5 cartes (CO bleu, CE vert, Structure ambre — pill « BONUS », EE gris neutre, EO rouge).
+    Barre = couverture user `answered/questionCount` du thème côté backend (`/api/me/stats`).
+    EE/EO ont `progress: 0.0` en attendant que l'API expose un compte de submissions terminées
+    par tâche (TODO inline).
+  - Civique : N thèmes chargés via `/api/themes?module=CIVIQUE`, couleurs alternées
+    (bleu/rouge/ambre/vert selon `displayOrder`).
+- `SectionLabel('Ma progression')` + `SectionLink('Détails')` → push `/progress`.
+- TCF : `CecrlProgressCard` (niveau actuel = `progression.lastFullExam.finalLevel` du dernier
+  examen blanc complet ; objectif = `progression.tcf.targetLevel`, fallback dérivé de
+  `targetProcedure`). Barre 6 segments A1→C2 colorée jusqu'au niveau courant.
+- TCF uniquement : `StatsRow` (3 mini-cards). Seules les Séances sont branchées
+  (`stats.attemptsTotal`) — Pratique (minutes) et Jours actifs sont en `—` tant que le backend
+  ne les expose pas (TODO).
+- Civique : `CiviqueMasteryCard` à la place du CECRL (Civique n'a pas de niveau CECRL) — affiche
+  % de bonnes réponses sur questions tentées + couverture brute `answered/total`. Pas de stats row.
+
+**Lien examen blanc complet TCF** : `TcfFullExamsScreen` (route `/tcf/examens-blancs`) reste
+l'écran unique des 20 slots, atteint depuis le hero du hub TCF, le hero Progression, l'historique
+et le bilan. `TcfFullExamsView` est le corps réutilisable qu'il enveloppe avec une topbar back.
+L'ancien `civique_exam_blanc_view.dart` a été **supprimé** (plus utilisé après la refonte sans
+onglets) ; pour Civique, le tap du hero démarre directement un MOCK_EXAM via le briefing modal.
 
 **Modules affichés :**
 - **Civique** = les 5 thèmes officiels chargés via `/api/themes?module=CIVIQUE` (Principes &
