@@ -48,7 +48,7 @@ class CiviqueScreen extends ConsumerWidget {
       backgroundColor: AppColors.bg,
       body: SafeArea(
         child: RefreshIndicator(
-          color: AppColors.red,
+          color: AppColors.blue,
           onRefresh: () async {
             ref.invalidate(_civiqueThemesProvider);
             ref.invalidate(_civiqueStatsProvider);
@@ -71,6 +71,8 @@ class CiviqueScreen extends ConsumerWidget {
                 description:
                     '40 questions tous thèmes, en 45 minutes. Seuil : 32/40.',
                 ctaLabel: 'Lancer l\'examen blanc',
+                accent: AppColors.blueDark,
+                accentLight: AppColors.blueLight,
                 onTap: () => _openCiviqueExamBlanc(context, ref),
               ),
               const SizedBox(height: 18),

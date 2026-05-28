@@ -59,23 +59,31 @@ class AttemptSummary {
 
   bool get isFinished => finishedAt != null;
 
-  bool get isPassed => score != null && passThreshold != null && score! >= passThreshold!;
+  bool get isPassed =>
+      score != null && passThreshold != null && score! >= passThreshold!;
 
-  bool get isFailed => isFinished && passThreshold != null && score! < passThreshold!;
+  bool get isFailed =>
+      isFinished && passThreshold != null && score! < passThreshold!;
 
   /// Durée en secondes entre le démarrage et la finalisation (null si pas fini).
-  int? get durationSeconds => finishedAt == null ? null : finishedAt!.difference(startedAt).inSeconds;
+  int? get durationSeconds =>
+      finishedAt == null ? null : finishedAt!.difference(startedAt).inSeconds;
 
   factory AttemptSummary.fromJson(Map<String, dynamic> json) => AttemptSummary(
         id: json['id'] as String,
-        type: AttemptType.values.firstWhere((e) => e.wire == json['type'] as String),
+        type: AttemptType.values
+            .firstWhere((e) => e.wire == json['type'] as String),
         module: AppModule.fromWire(json['module'] as String),
         totalQuestions: (json['totalQuestions'] as num).toInt(),
         startedAt: DateTime.parse(json['startedAt'] as String),
-        finishedAt: json['finishedAt'] == null ? null : DateTime.parse(json['finishedAt'] as String),
+        finishedAt: json['finishedAt'] == null
+            ? null
+            : DateTime.parse(json['finishedAt'] as String),
         score: (json['score'] as num?)?.toInt(),
         passThreshold: (json['passThreshold'] as num?)?.toInt(),
-        difficulty: json['difficulty'] == null ? null : Difficulty.fromWire(json['difficulty'] as String),
+        difficulty: json['difficulty'] == null
+            ? null
+            : Difficulty.fromWire(json['difficulty'] as String),
         examTemplateId: json['examTemplateId'] as String?,
         examTemplateSlug: json['examTemplateSlug'] as String?,
         examTemplateName: json['examTemplateName'] as String?,

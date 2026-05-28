@@ -80,8 +80,6 @@ class TcfScreen extends ConsumerWidget {
                 description:
                     'Les 4 épreuves enchaînées comme à l\'examen réel.',
                 ctaLabel: 'Lancer l\'examen blanc',
-                accent: AppColors.blueDark,
-                accentLight: AppColors.blueLight,
                 onTap: () => context.push(AppRoutes.tcfFullExams),
               ),
               const SizedBox(height: 18),
