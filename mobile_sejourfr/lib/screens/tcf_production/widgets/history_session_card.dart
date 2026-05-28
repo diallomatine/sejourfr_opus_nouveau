@@ -4,6 +4,43 @@ import '../../../core/models/enums.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
 import 'level_pill.dart';
+import 'task_palette.dart';
+
+/// Pastille circulaire en tête de carte d'historique : numéro de tâche (T1
+/// vert / T2 ambre / T3 rouge) pour une session mono-tâche, icône d'examen
+/// (cercle bleu) pour une session multi-tâches (examen blanc complet).
+class _Pastille extends StatelessWidget {
+  const _Pastille({required this.submissions});
+
+  final List<ProductionSubmissionDto> submissions;
+
+  @override
+  Widget build(BuildContext context) {
+    final isExam = submissions.length >= 2;
+    if (isExam) {
+      return Container(
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(
+            color: AppColors.blueLight, shape: BoxShape.circle),
+        child: const Icon(Icons.assignment_turned_in_rounded,
+            size: 20, color: AppColors.blue),
+      );
+    }
+    final tache = submissions.first.tacheNumero ?? 1;
+    final (bg, fg) = taskPalette(tache);
+    return Container(
+      width: 40,
+      height: 40,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+      child: Text('$tache',
+          style: AppFonts.jakarta(
+              size: 14, weight: FontWeight.w800, color: fg)),
+    );
+  }
+}
 
 /// Carte de session dans l'historique : date + moyenne + niveau global + mini-pills par tache.
 /// Tap -> bilan complet de la session.
@@ -129,6 +166,8 @@ class HistorySessionCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    _Pastille(submissions: submissions),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

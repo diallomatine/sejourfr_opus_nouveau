@@ -17,6 +17,7 @@ import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
 import 'tcf_production_module.dart';
 import 'widgets/preparation_points.dart';
+import 'widgets/task_palette.dart';
 
 // ============================================================================
 // HUB d'épreuve (/tcf/eo, /tcf/ee)
@@ -1499,16 +1500,7 @@ class _ExamSession {
   };
 }
 
-(Color, Color) _taskColors(int tache) {
-  switch (tache) {
-    case 1:
-      return (AppColors.green.withValues(alpha: 0.14), AppColors.green);
-    case 2:
-      return (AppColors.amber.withValues(alpha: 0.18), AppColors.amber);
-    default:
-      return (AppColors.red.withValues(alpha: 0.12), AppColors.red);
-  }
-}
+(Color, Color) _taskColors(int tache) => taskPalette(tache);
 
 Color _colorForLevel(NiveauCecrl level) {
   switch (level) {

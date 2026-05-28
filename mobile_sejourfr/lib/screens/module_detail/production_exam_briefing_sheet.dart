@@ -106,9 +106,8 @@ class ProductionExamBriefingSheet extends StatelessWidget {
                   AppButton(
                     label: 'Annuler',
                     variant: AppButtonVariant.ghost,
-                    onPressed: starting
-                        ? null
-                        : () => Navigator.of(context).pop(),
+                    onPressed:
+                        starting ? null : () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
@@ -155,17 +154,17 @@ const _eeTasks = <_ExamTask>[
   _ExamTask(
     index: 1,
     label: 'Message simple',
-    detail: 'Email, invitation, annulation · 60-120 mots',
+    detail: 'Email, invitation, annulation · 30-60 mots',
   ),
   _ExamTask(
     index: 2,
     label: 'Récit',
-    detail: 'Expérience personnelle · 120-150 mots',
+    detail: 'Expérience personnelle · 40-90 mots',
   ),
   _ExamTask(
     index: 3,
     label: 'Opinion',
-    detail: 'Argumentation simple · 120-180 mots',
+    detail: 'Argumentation simple · 40-90 mots',
   ),
 ];
 
