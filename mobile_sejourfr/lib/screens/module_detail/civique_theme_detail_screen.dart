@@ -20,6 +20,7 @@ import 'civique_hub_data.dart';
 import 'widgets/civique_hub/civique_exam_hero.dart';
 import 'widgets/civique_hub/civique_history_section.dart';
 import 'widgets/civique_hub/civique_lot_row.dart';
+import 'widgets/lot_done_sheet.dart';
 import 'widgets/qcm_hub/qcm_section_label.dart';
 
 /// Plafond du nombre de lots rendus inline dans la section « S'entraîner par
@@ -49,6 +50,54 @@ class _CiviqueThemeDetailScreenState
     final auth = ref.read(authControllerProvider);
     return auth is AuthAuthenticated &&
         auth.user.canAccessModule(AppModule.civique);
+  }
+
+  /// Tap sur un lot : si déjà fait → sheet « Voir le détail » / « Reprendre »,
+  /// sinon → démarrage direct.
+  void _onLotTap(ThemeDto theme, LotDto lot) {
+    if (lot.alreadyAttempted) {
+      _openLotDoneSheet(theme, lot);
+    } else {
+      _startLot(theme, lot);
+    }
+  }
+
+  void _openLotDoneSheet(ThemeDto theme, LotDto lot) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => LotDoneSheet(
+        lot: lot,
+        accent: AppColors.blue,
+        onViewDetail: () {
+          Navigator.of(sheetCtx).pop();
+          _openLotReport(lot);
+        },
+        onResume: () {
+          Navigator.of(sheetCtx).pop();
+          _startLot(theme, lot);
+        },
+      ),
+    );
+  }
+
+  /// « Comme un examen » : pousse le rapport Q-par-Q `ExamReportScreen`.
+  /// Nécessite que le backend retourne `lot.lastAttemptId`.
+  void _openLotReport(LotDto lot) {
+    final id = lot.lastAttemptId;
+    if (id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Détail indisponible — le serveur n\'a pas encore fourni la référence.',
+              style: AppFonts.jakarta(size: 13, color: AppColors.white)),
+          backgroundColor: AppColors.red,
+        ),
+      );
+      return;
+    }
+    context.push(AppRoutes.examReport.replaceFirst(':attemptId', id));
   }
 
   /// Lance un lot précis (15 Q du thème). Lot 1 = découverte gratuite par
@@ -177,7 +226,7 @@ class _CiviqueThemeDetailScreenState
                 lots: lots,
                 isPremium: isPremium,
                 showAll: _showAllLots,
-                onTap: (lot) => _startLot(theme, lot),
+                onTap: (lot) => _onLotTap(theme, lot),
                 onToggleShowAll: () => setState(() => _showAllLots = true),
               ),
             ),
