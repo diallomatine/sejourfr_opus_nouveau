@@ -8,6 +8,7 @@ import '../../core/api/repositories.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/format_date.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/paywall_sheet.dart';
@@ -15,6 +16,7 @@ import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
 import 'expression_hub_data.dart';
 import 'tcf_production_module.dart';
+import 'widgets/module_screen_header.dart';
 import 'widgets/preparation_points.dart';
 import 'widgets/task_palette.dart';
 
@@ -85,7 +87,7 @@ class _TcfExpressionScreenState extends ConsumerState<TcfExpressionScreen> {
             ListView(
               padding: const EdgeInsets.only(bottom: 28),
               children: [
-                _AppHeader(
+                ModuleScreenHeader(
                   title: mod.title,
                   subtitle: 'TCF IRN · ${mod.isEo ? "Oral" : "Écrit"}',
                   onBack: () => _back(context),
@@ -232,7 +234,7 @@ class _TaskRow extends StatelessWidget {
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.line),
-        boxShadow: _cardShadow,
+        boxShadow: AppShadows.card,
       ),
       clipBehavior: Clip.antiAlias,
       child: Material(
@@ -480,7 +482,7 @@ class _LastExamCard extends StatelessWidget {
                                   weight: FontWeight.w700,
                                   color: AppColors.ink)),
                           const SizedBox(height: 1),
-                          Text(_formatDate(session.lastSubmittedAt),
+                          Text(formatLongDate(session.lastSubmittedAt),
                               style: AppFonts.jakarta(
                                   size: 11, color: AppColors.muted)),
                         ],
@@ -584,7 +586,7 @@ class _RecentSingleRow extends StatelessWidget {
                               weight: FontWeight.w700,
                               color: AppColors.ink)),
                       const SizedBox(height: 1),
-                      Text(_formatDate(submission.submittedAt),
+                      Text(formatLongDate(submission.submittedAt),
                           style: AppFonts.jakarta(
                               size: 11, color: AppColors.muted)),
                     ],
@@ -836,7 +838,7 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
           children: [
             Column(
               children: [
-                _AppHeader(
+                ModuleScreenHeader(
                   title: meta.title,
                   subtitle: 'Tâche ${widget.tache} · ${meta.subtitle}',
                   onBack: () => _back(context),
@@ -991,48 +993,6 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
 // ============================================================================
 // Widgets partagés
 // ============================================================================
-
-class _AppHeader extends StatelessWidget {
-  const _AppHeader(
-      {required this.title, required this.subtitle, required this.onBack});
-
-  final String title;
-  final String subtitle;
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(8, 6, 16, 10),
-      color: AppColors.white,
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.ink),
-            visualDensity: VisualDensity.compact,
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(title,
-                    style: AppFonts.jakarta(
-                        size: 17,
-                        weight: FontWeight.w700,
-                        color: AppColors.ink)),
-                const SizedBox(height: 1),
-                Text(subtitle,
-                    style: AppFonts.jakarta(size: 12, color: AppColors.muted)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.text);
@@ -1409,32 +1369,9 @@ Color _colorForLevel(NiveauCecrl level) {
 
 String _formatNote(double n) => n.toStringAsFixed(1).replaceAll('.', ',');
 
-String _formatDate(DateTime d) {
-  const months = [
-    'janv.',
-    'févr.',
-    'mars',
-    'avril',
-    'mai',
-    'juin',
-    'juil.',
-    'août',
-    'sept.',
-    'oct.',
-    'nov.',
-    'déc.',
-  ];
-  return '${d.day} ${months[d.month - 1]} ${d.year}';
-}
-
 // ============================================================================
 // Onglets + contenu de l'écran par tâche
 // ============================================================================
-
-/// Ombre douce partagée : léger relief pour fluidifier les cartes blanches.
-const _cardShadow = [
-  BoxShadow(color: Color(0x0A0F1839), blurRadius: 12, offset: Offset(0, 4)),
-];
 
 /// Onglets « Exercices / Exemples » (segment blanc actif, façon iOS).
 class _TaskTabs extends StatelessWidget {
@@ -1603,7 +1540,7 @@ class _RandomCard extends StatelessWidget {
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.line),
-        boxShadow: _cardShadow,
+        boxShadow: AppShadows.card,
       ),
       child: Row(
         children: [
@@ -1679,7 +1616,7 @@ class _ExerciseRow extends StatelessWidget {
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.line),
-        boxShadow: _cardShadow,
+        boxShadow: AppShadows.card,
       ),
       clipBehavior: Clip.antiAlias,
       child: Material(
@@ -1788,7 +1725,7 @@ class _FeaturedExampleCard extends StatelessWidget {
         color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.line),
-        boxShadow: _cardShadow,
+        boxShadow: AppShadows.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

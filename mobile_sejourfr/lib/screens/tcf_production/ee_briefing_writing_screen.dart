@@ -30,10 +30,12 @@ class EeBriefingWritingScreen extends ConsumerStatefulWidget {
   final int taskIndex;
 
   @override
-  ConsumerState<EeBriefingWritingScreen> createState() => _EeBriefingWritingScreenState();
+  ConsumerState<EeBriefingWritingScreen> createState() =>
+      _EeBriefingWritingScreenState();
 }
 
-class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScreen> {
+class _EeBriefingWritingScreenState
+    extends ConsumerState<EeBriefingWritingScreen> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _writingFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
@@ -92,7 +94,8 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
   void _onFocusChanged() {
     if (!mounted) return;
     final isNowFocused = _writingFocusNode.hasFocus;
-    final justBlurredWithText = _wasFocused && !isNowFocused && _controller.text.trim().isNotEmpty;
+    final justBlurredWithText =
+        _wasFocused && !isNowFocused && _controller.text.trim().isNotEmpty;
     _wasFocused = isNowFocused;
     // On differe le setState a la frame suivante pour ne pas casser la
     // sequence de focus → keyboard (le reflow synchrone des cards qui
@@ -181,7 +184,8 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
       }
       if (!mounted) return;
       final session = ref.read(eeSessionProvider).value;
-      final hasNext = session != null && widget.taskIndex + 1 < session.totalTasks;
+      final hasNext =
+          session != null && widget.taskIndex + 1 < session.totalTasks;
       if (hasNext) {
         context.pushReplacement(
           withCurrentQuery(
@@ -222,7 +226,8 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
       if (!mounted) return;
       final session = ref.read(eeSessionProvider).value;
       final isExamMode = session != null && session.totalTasks > 1;
-      final hasNext = session != null && widget.taskIndex + 1 < session.totalTasks;
+      final hasNext =
+          session != null && widget.taskIndex + 1 < session.totalTasks;
       if (isExamMode) {
         // Mode session 3-tâches (onglet Examens) : pas d'évaluation visible
         // entre T1/T2/T3, fidèle au vrai TCF. On enchaîne directement le
@@ -260,7 +265,8 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
     }
   }
 
-  Future<void> _saveDraftAndQuit(BuildContext context, ProductionTaskDto task) async {
+  Future<void> _saveDraftAndQuit(
+      BuildContext context, ProductionTaskDto task) async {
     if (_controller.text.trim().isNotEmpty) {
       await ref.read(eeDraftServiceProvider).save(task.id, _controller.text);
     }
@@ -298,9 +304,8 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
     // examen blanc complet où on retourne au progress de l'examen.
     final goState = GoRouterState.of(context);
     final fullExamId = goState.uri.queryParameters['fullExamId'];
-    final fallbackRoute = fullExamId != null
-        ? '/tcf/examen-blanc/$fullExamId'
-        : '/tcf/ee';
+    final fallbackRoute =
+        fullExamId != null ? '/tcf/examen-blanc/$fullExamId' : '/tcf/ee';
     return Scaffold(
       backgroundColor: AppColors.white,
       resizeToAvoidBottomInset: true,
@@ -325,7 +330,9 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
                     niveau: _niveauForUser(),
                   );
             } else {
-              ref.read(eeSessionProvider.notifier).start(niveau: _niveauForUser());
+              ref
+                  .read(eeSessionProvider.notifier)
+                  .start(niveau: _niveauForUser());
             }
           },
         ),
@@ -419,7 +426,8 @@ class _Content extends StatelessWidget {
                 key: const ValueKey('ee-consigne'),
                 consigne: task.consigne,
                 subTitleHero: task.displayTitle,
-                subtitle: 'Longueur attendue : ${task.motsMin ?? 0} à ${task.motsMax ?? 0} mots',
+                subtitle:
+                    'Longueur attendue : ${task.motsMin ?? 0} à ${task.motsMax ?? 0} mots',
               ),
               PreparationCard(
                 key: const ValueKey('ee-prep'),
@@ -520,12 +528,14 @@ class _InlineError extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline_rounded, size: 18, color: AppColors.red),
+          const Icon(Icons.error_outline_rounded,
+              size: 18, color: AppColors.red),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: AppFonts.jakarta(size: 13, color: AppColors.red, height: 1.4),
+              style:
+                  AppFonts.jakarta(size: 13, color: AppColors.red, height: 1.4),
             ),
           ),
         ],
@@ -547,7 +557,8 @@ class _ErrorBox extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline_rounded, size: 32, color: AppColors.red),
+          const Icon(Icons.error_outline_rounded,
+              size: 32, color: AppColors.red),
           const SizedBox(height: 8),
           Text(
             'Impossible de démarrer la session.',

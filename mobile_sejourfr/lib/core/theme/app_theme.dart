@@ -26,6 +26,18 @@ class AppColors {
   static const amber = Color(0xFFE8A317);
 }
 
+/// Ombres réutilisables partagées entre les cartes du produit.
+class AppShadows {
+  /// Ombre douce sous les cartes blanches (hubs TCF, Civique, EE/EO).
+  static const card = <BoxShadow>[
+    BoxShadow(
+      color: Color(0x0A0F1839),
+      blurRadius: 12,
+      offset: Offset(0, 4),
+    ),
+  ];
+}
+
 /// Helpers pour les polices Google Fonts.
 class AppFonts {
   static TextStyle jakarta({
