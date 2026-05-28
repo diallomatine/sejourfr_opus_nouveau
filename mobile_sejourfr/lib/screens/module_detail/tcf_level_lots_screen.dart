@@ -81,7 +81,48 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
 
   bool _isPremium() {
     final auth = ref.read(authControllerProvider);
-    return auth is AuthAuthenticated && auth.user.canAccessModule(AppModule.tcf);
+    return auth is AuthAuthenticated &&
+        auth.user.canAccessModule(AppModule.tcf);
+  }
+
+  /// Tap sur un lot : si déjà fait → sheet `Voir le détail` / `Reprendre`,
+  /// sinon → démarrage direct comme avant.
+  void _onLotTap(LotDto lot) {
+    if (lot.alreadyAttempted && lot.lastAttemptId != null) {
+      _openLotDoneSheet(lot);
+    } else {
+      _startLot(lot);
+    }
+  }
+
+  void _openLotDoneSheet(LotDto lot) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => _LotDoneSheet(
+        lot: lot,
+        accent: _levelMetas[widget.level]!.accent,
+        onViewDetail: () {
+          Navigator.of(sheetCtx).pop();
+          _openLotResult(lot);
+        },
+        onResume: () {
+          Navigator.of(sheetCtx).pop();
+          _startLot(lot);
+        },
+      ),
+    );
+  }
+
+  void _openLotResult(LotDto lot) {
+    final id = lot.lastAttemptId;
+    if (id == null) return;
+    final path = AppRoutes.tcfLotResult.replaceFirst(':attemptId', id);
+    context.push(
+      '$path?moduleKey=${widget.module.routeKey}'
+      '&level=${widget.level.wire.toLowerCase()}',
+    );
   }
 
   Future<void> _startLot(LotDto lot) async {
@@ -111,7 +152,8 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
       // On annote le push avec le contexte du lot : le runner relira ces
       // query params à la fin pour pousser vers `TcfLotResultScreen` au
       // lieu d'afficher le dialog de fin d'entraînement standard.
-      final runnerPath = AppRoutes.runner.replaceFirst(':attemptId', attempt.id);
+      final runnerPath =
+          AppRoutes.runner.replaceFirst(':attemptId', attempt.id);
       context.push(
         '$runnerPath?from=tcfLot'
         '&moduleKey=${widget.module.routeKey}'
@@ -124,7 +166,8 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
         showPaywallSheet(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(apiErr.message), backgroundColor: AppColors.red),
+          SnackBar(
+              content: Text(apiErr.message), backgroundColor: AppColors.red),
         );
       }
     } finally {
@@ -222,10 +265,11 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
                             // Lot 1 = découverte gratuite par (module, niveau) ;
                             // Lot 2+ réservés aux abonnés TCF.
                             locked: !isPremium && lot.numero > 1,
-                            scoreBadge:
-                                lot.lastScore == null ? null : '${lot.lastScore}/${lot.totalQuestions}',
+                            scoreBadge: lot.lastScore == null
+                                ? null
+                                : '${lot.lastScore}/${lot.totalQuestions}',
                             scoreColor: _colorForScore(lot),
-                            onTap: () => _startLot(lot),
+                            onTap: () => _onLotTap(lot),
                           ),
                       ],
                     );
@@ -254,7 +298,6 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
     if (ratio >= 0.4) return AppColors.amber;
     return AppColors.red;
   }
-
 }
 
 class _Loading extends StatelessWidget {
@@ -341,3 +384,129 @@ class _Empty extends StatelessWidget {
     );
   }
 }
+
+
+// ============================================================================
+// Sheet « Lot déjà fait » : Voir le détail / Reprendre
+// ============================================================================
+
+class _LotDoneSheet extends StatelessWidget {
+  const _LotDoneSheet({
+    required this.lot,
+    required this.accent,
+    required this.onViewDetail,
+    required this.onResume,
+  });
+
+  final LotDto lot;
+  final Color accent;
+  final VoidCallback onViewDetail;
+  final VoidCallback onResume;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = lot.lastScore;
+    final total = lot.totalQuestions;
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.line2,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Text(
+                'Lot ${lot.numero}',
+                style: AppFonts.jakarta(
+                    size: 18, weight: FontWeight.w800, color: AppColors.ink),
+              ),
+              const SizedBox(height: 4),
+              if (score != null)
+                Text(
+                  'Dernier score : $score / $total',
+                  style: AppFonts.jakarta(size: 12.5, color: AppColors.muted),
+                ),
+              const SizedBox(height: 18),
+              _LotSheetButton(
+                label: 'Voir le détail',
+                icon: Icons.description_outlined,
+                background: accent.withValues(alpha: 0.10),
+                foreground: accent,
+                onPressed: onViewDetail,
+              ),
+              const SizedBox(height: 10),
+              _LotSheetButton(
+                label: 'Reprendre',
+                icon: Icons.refresh_rounded,
+                background: AppColors.red,
+                foreground: AppColors.white,
+                onPressed: onResume,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LotSheetButton extends StatelessWidget {
+  const _LotSheetButton({
+    required this.label,
+    required this.icon,
+    required this.background,
+    required this.foreground,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color background;
+  final Color foreground;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: Material(
+        color: background,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 13),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 18, color: foreground),
+                const SizedBox(width: 8),
+                Text(label,
+                    style: AppFonts.jakarta(
+                        size: 14,
+                        weight: FontWeight.w800,
+                        color: foreground)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+

@@ -20,6 +20,7 @@ class LotDto {
     required this.totalQuestions,
     this.lastScore,
     this.lastAttemptedAt,
+    this.lastAttemptId,
   });
 
   final int numero;
@@ -27,6 +28,10 @@ class LotDto {
   final int totalQuestions;
   final int? lastScore;
   final DateTime? lastAttemptedAt;
+
+  /// Id du dernier attempt fini sur ce lot, exposé par le backend pour
+  /// permettre au mobile d'ouvrir directement le bilan correspondant.
+  final String? lastAttemptId;
 
   bool get alreadyAttempted => lastScore != null;
 
@@ -40,5 +45,6 @@ class LotDto {
         lastAttemptedAt: json['lastAttemptedAt'] == null
             ? null
             : DateTime.parse(json['lastAttemptedAt'] as String),
+        lastAttemptId: json['lastAttemptId'] as String?,
       );
 }

@@ -190,7 +190,8 @@ public class LotService {
                 difficulty,
                 size,
                 last != null ? last.getScore() : null,
-                last != null ? last.getFinishedAt() : null
+                last != null ? last.getFinishedAt() : null,
+                last != null ? last.getId() : null
         );
     }
 
