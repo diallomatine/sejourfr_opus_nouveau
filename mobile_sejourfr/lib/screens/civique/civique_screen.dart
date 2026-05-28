@@ -110,7 +110,11 @@ class CiviqueScreen extends ConsumerWidget {
                 'Ma progression',
                 trailing: SectionLink(
                   label: 'Détails',
-                  onTap: () => context.push(AppRoutes.progress),
+                  onTap: () {
+                    ref.read(selectedModuleProvider.notifier).state =
+                        AppModule.civique;
+                    context.go(AppRoutes.progress);
+                  },
                 ),
               ),
               const SizedBox(height: 10),
