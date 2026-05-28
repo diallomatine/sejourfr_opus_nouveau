@@ -16,7 +16,6 @@ import 'draft_service.dart';
 import 'ee_session_controller.dart';
 import 'widgets/consigne_card.dart';
 import 'widgets/criteres_card.dart';
-import 'widgets/evaluation_loading_view.dart';
 import 'widgets/mots_card.dart';
 import 'widgets/preparation_points.dart';
 import 'widgets/production_app_header.dart';
@@ -289,12 +288,10 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
 
   @override
   Widget build(BuildContext context) {
-    if (_submitting) {
-      return const Scaffold(
-        body: EvaluationLoadingView(includeTranscription: false),
-      );
-    }
-
+    // Pendant le submit on garde l'écran visible avec un loading inline sur le
+    // bouton ; un écran loading plein écran ici donnerait l'illusion d'un
+    // double push une fois l'écran de résultats (avec son propre loading de
+    // polling) monté.
     final sessionAsync = ref.watch(eeSessionProvider);
     // Fallback back-arrow contextuel : si `canPop` est faux (deep link,
     // pushReplacement chain, etc.), on retombe sur le détail EE sauf en mode
@@ -352,6 +349,7 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
             onSaveDraftAndQuit: () => _saveDraftAndQuit(context, task),
             onClear: () => _clearText(task),
             submitError: _submitError,
+            submitting: _submitting,
             criteres: _criteresEE,
           );
         },
@@ -375,6 +373,7 @@ class _Content extends StatelessWidget {
     required this.onClear,
     required this.wordCount,
     required this.criteres,
+    required this.submitting,
     this.submitError,
   });
 
@@ -391,6 +390,7 @@ class _Content extends StatelessWidget {
   final VoidCallback onClear;
   final int wordCount;
   final List<String> criteres;
+  final bool submitting;
   final String? submitError;
 
   bool get _inRange =>
@@ -470,7 +470,8 @@ class _Content extends StatelessWidget {
                   AppButton(
                     label: 'Valider ma rédaction',
                     icon: Icons.send_rounded,
-                    onPressed: _inRange ? onSubmit : null,
+                    isLoading: submitting,
+                    onPressed: (_inRange && !submitting) ? onSubmit : null,
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton(

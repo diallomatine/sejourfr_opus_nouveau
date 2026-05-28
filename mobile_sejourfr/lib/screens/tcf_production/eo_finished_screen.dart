@@ -13,7 +13,6 @@ import '../../core/widgets/app_button.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'audio_recorder_service.dart';
 import 'eo_session_controller.dart';
-import 'widgets/evaluation_loading_view.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
 
@@ -149,12 +148,10 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_submitting) {
-      return const Scaffold(
-        body: EvaluationLoadingView(includeTranscription: true),
-      );
-    }
-
+    // Pendant le submit on garde l'écran visible avec un loading inline sur le
+    // bouton ; un écran loading plein écran ici donnerait l'illusion d'un
+    // double push une fois l'écran de résultats (avec son propre loading de
+    // polling) monté.
     final session = ref.watch(eoSessionProvider).value;
     final task = session?.taskAt(widget.taskIndex);
     final rec = ref.watch(recordingControllerProvider);
@@ -257,7 +254,8 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
                 child: AppButton(
                   label: 'Voir mon evaluation',
                   icon: Icons.auto_awesome_rounded,
-                  onPressed: () => _submit(context),
+                  isLoading: _submitting,
+                  onPressed: _submitting ? null : () => _submit(context),
                 ),
               ),
             ),

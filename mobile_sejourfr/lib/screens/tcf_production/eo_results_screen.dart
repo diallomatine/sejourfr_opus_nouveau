@@ -183,6 +183,7 @@ class _Body extends ConsumerWidget {
       ref.read(eoSessionProvider.notifier).reset();
       ref.invalidate(fullTcfExamProvider(fullExamId!));
       context.go('/tcf/examen-blanc/$fullExamId');
+
       return;
     }
     // Hors examen blanc complet : ce CTA n'est plus atteignable en mode
