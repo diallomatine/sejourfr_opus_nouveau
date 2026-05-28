@@ -372,22 +372,6 @@ class _TaskRow extends StatelessWidget {
 }
 
 /// Bloc « Historique » : stats + dernier examen blanc + dernier entraînement.
-/// Couleur d'accent par type de carte d'historique : T1 vert, T2 ambre,
-/// T3 rouge, examen complet bleu. Source : la palette des tâches du hub.
-Color _historyAccent({required bool isExam, int? tache}) {
-  if (isExam) return AppColors.blue;
-  switch (tache) {
-    case 1:
-      return AppColors.green;
-    case 2:
-      return AppColors.amber;
-    case 3:
-      return AppColors.red;
-    default:
-      return AppColors.muted2;
-  }
-}
-
 /// Fusion examens + sujets, triée par date décroissante, limitée à [limit].
 /// Renvoie une liste d'`Object` (mix `_ExamSession` / `ProductionSubmissionDto`)
 /// que `_History` dispatche par type à l'affichage.
@@ -544,7 +528,6 @@ class _LastExamCard extends StatelessWidget {
       if (s.tacheNumero != null && n != null) notes[s.tacheNumero!] = n;
     }
 
-    final accent = _historyAccent(isExam: true);
     return Container(
       decoration: BoxDecoration(
           color: AppColors.white,
@@ -555,23 +538,27 @@ class _LastExamCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          child: IntrinsicHeight(
-            child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(width: 5, color: accent),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                  child: Column(
-                    children: [
-                      Row(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                          color: AppColors.blueLight, shape: BoxShape.circle),
+                      child: const Icon(Icons.assignment_turned_in_rounded,
+                          size: 18, color: AppColors.blue),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Examen blanc complet',
+                          Text('Examen blanc complet',
                               style: AppFonts.jakarta(
                                   size: 13.5,
                                   weight: FontWeight.w700,
@@ -595,21 +582,17 @@ class _LastExamCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          for (int t = 1; t <= 3; t++) ...[
-                            if (t != 1) const SizedBox(width: 6),
-                            Expanded(child: _MiniScore(tache: t, note: notes[t])),
-                          ],
-                        ],
-                      ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    for (int t = 1; t <= 3; t++) ...[
+                      if (t != 1) const SizedBox(width: 6),
+                      Expanded(child: _MiniScore(tache: t, note: notes[t])),
                     ],
-                  ),
+                  ],
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
           ),
         ),
       ),
@@ -650,7 +633,7 @@ class _RecentSingleRow extends StatelessWidget {
     final tache = submission.tacheNumero ?? 1;
     final niveau = submission.evaluation?.niveauCecrl;
     final color = niveau != null ? _colorForLevel(niveau) : AppColors.muted;
-    final accent = _historyAccent(isExam: false, tache: tache);
+    final (badgeBg, badgeFg) = _taskColors(tache);
     return Container(
       decoration: BoxDecoration(
           color: AppColors.white,
@@ -661,21 +644,25 @@ class _RecentSingleRow extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          child: IntrinsicHeight(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
             child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(width: 5, color: accent),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                  child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(color: badgeBg, shape: BoxShape.circle),
+                  child: Text('$tache',
+                      style: AppFonts.jakarta(
+                          size: 13, weight: FontWeight.w800, color: badgeFg)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Tâche $tache · entraînement libre',
+                      Text('Tâche $tache · entraînement libre',
                           style: AppFonts.jakarta(
                               size: 13,
                               weight: FontWeight.w700,
@@ -700,14 +687,10 @@ class _RecentSingleRow extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                 ],
-                      const Icon(Icons.chevron_right_rounded,
-                          color: AppColors.muted2, size: 20),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+                const Icon(Icons.chevron_right_rounded,
+                    color: AppColors.muted2, size: 20),
+              ],
+            ),
           ),
         ),
       ),
