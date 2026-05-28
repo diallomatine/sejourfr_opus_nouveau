@@ -144,7 +144,7 @@ class _ExamenHero extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.redLight,
+        color: AppColors.blueLight,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -153,13 +153,13 @@ class _ExamenHero extends StatelessWidget {
           Row(
             children: [
               Icon(module.isEo ? Icons.mic_rounded : Icons.edit_note_rounded,
-                  size: 15, color: AppColors.redDark),
+                  size: 15, color: AppColors.blueDark),
               const SizedBox(width: 6),
               Text(
                 'EXAMEN COMPLET · ${module.durationLabel} MIN',
                 style: AppFonts.mono(
                     size: 10,
-                    color: AppColors.redDark,
+                    color: AppColors.blueDark,
                     letterSpacing: 1.2,
                     weight: FontWeight.w700),
               ),
@@ -185,7 +185,7 @@ class _ExamenHero extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
               decoration: BoxDecoration(
-                  color: AppColors.red,
+                  color: AppColors.blue,
                   borderRadius: BorderRadius.circular(12)),
               child: Row(
                 mainAxisSize: MainAxisSize.min,

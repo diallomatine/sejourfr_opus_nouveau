@@ -84,9 +84,12 @@ class _IconBtn extends StatelessWidget {
   }
 }
 
-/// Hero plein large « Examen blanc complet » — fond rouge clair, eyebrow
-/// mono, titre, description, CTA filled rouge. Réutilisé par les 2 hubs
-/// (tap → push la route examens du module).
+/// Hero plein large « Examen blanc complet » — fond teinté, eyebrow mono,
+/// titre, description, CTA filled. Réutilisé par les 2 hubs : Civique
+/// (rouge, défaut) et TCF (bleu via accent override).
+///
+/// `accentLight` = fond de la carte. `accent` = texte eyebrow, titre,
+/// description et fond du CTA.
 class ExamBlancHero extends StatelessWidget {
   const ExamBlancHero({
     super.key,
@@ -95,6 +98,8 @@ class ExamBlancHero extends StatelessWidget {
     required this.description,
     required this.ctaLabel,
     required this.onTap,
+    this.accent = AppColors.redDark,
+    this.accentLight = AppColors.redLight,
   });
 
   final String eyebrow;
@@ -102,6 +107,8 @@ class ExamBlancHero extends StatelessWidget {
   final String description;
   final String ctaLabel;
   final VoidCallback onTap;
+  final Color accent;
+  final Color accentLight;
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +121,7 @@ class ExamBlancHero extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
           decoration: BoxDecoration(
-            color: AppColors.redLight,
+            color: accentLight,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -125,7 +132,7 @@ class ExamBlancHero extends StatelessWidget {
                   Icon(
                     Icons.rocket_launch_rounded,
                     size: 14,
-                    color: AppColors.redDark,
+                    color: accent,
                   ),
                   const SizedBox(width: 6),
                   Flexible(
@@ -133,7 +140,7 @@ class ExamBlancHero extends StatelessWidget {
                       eyebrow.toUpperCase(),
                       style: AppFonts.mono(
                         size: 10,
-                        color: AppColors.redDark,
+                        color: accent,
                         letterSpacing: 1.4,
                         weight: FontWeight.w700,
                       ),
@@ -149,7 +156,7 @@ class ExamBlancHero extends StatelessWidget {
                 style: AppFonts.jakarta(
                   size: 18,
                   weight: FontWeight.w800,
-                  color: AppColors.redDark,
+                  color: accent,
                 ).copyWith(letterSpacing: -0.3),
               ),
               const SizedBox(height: 6),
@@ -157,12 +164,12 @@ class ExamBlancHero extends StatelessWidget {
                 description,
                 style: AppFonts.jakarta(
                   size: 13,
-                  color: AppColors.redDark.withValues(alpha: 0.85),
+                  color: accent.withValues(alpha: 0.85),
                   height: 1.45,
                 ),
               ),
               const SizedBox(height: 14),
-              _HeroCta(label: ctaLabel, onTap: onTap),
+              _HeroCta(label: ctaLabel, onTap: onTap, accent: accent),
             ],
           ),
         ),
@@ -172,17 +179,19 @@ class ExamBlancHero extends StatelessWidget {
 }
 
 class _HeroCta extends StatelessWidget {
-  const _HeroCta({required this.label, required this.onTap});
+  const _HeroCta(
+      {required this.label, required this.onTap, required this.accent});
 
   final String label;
   final VoidCallback onTap;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.centerLeft,
       child: Material(
-        color: AppColors.redDark,
+        color: accent,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
