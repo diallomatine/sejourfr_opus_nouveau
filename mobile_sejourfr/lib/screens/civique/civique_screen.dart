@@ -2,20 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/api/user_content_repository.dart';
 import '../../core/auth/auth_controller.dart';
-import '../../core/models/attempt_models.dart';
-import '../../core/models/attempt_summary.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/question_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
-import '../../core/widgets/paywall_sheet.dart';
 import '../hub/widgets/hub_home_widgets.dart';
-import '../module_detail/civique_exam_briefing_sheet.dart';
 import 'widgets/civique_mastery_card.dart';
 
 final _civiqueThemesProvider =
@@ -73,7 +68,11 @@ class CiviqueScreen extends ConsumerWidget {
                 ctaLabel: 'Lancer l\'examen blanc',
                 accent: AppColors.blueDark,
                 accentLight: AppColors.blueLight,
-                onTap: () => _openCiviqueExamBlanc(context, ref),
+                onTap: () {
+                  ref.read(selectedModuleProvider.notifier).state =
+                      AppModule.civique;
+                  context.push(AppRoutes.civiqueExamsBlanc);
+                },
               ),
               const SizedBox(height: 18),
               themesAsync.when(
@@ -165,78 +164,6 @@ class CiviqueScreen extends ConsumerWidget {
         );
       },
     );
-  }
-
-  /// Démarre un examen blanc civique (40 Q tous thèmes, 45 min). Le briefing
-  /// modal s'ouvre, puis tap CTA → POST `/api/attempts {type:MOCK_EXAM,
-  /// module:CIVIQUE}` → push runner. Reprise d'un attempt en cours pour les
-  /// non-abonnés, paywall si déjà consommé.
-  void _openCiviqueExamBlanc(BuildContext context, WidgetRef ref) {
-    final auth = ref.read(authControllerProvider);
-    final isPremium = auth is AuthAuthenticated &&
-        auth.user.canAccessModule(AppModule.civique);
-    ref.read(selectedModuleProvider.notifier).state = AppModule.civique;
-
-    Future<void> startExam() async {
-      try {
-        final attempt = await ref.read(attemptsRepositoryProvider).start(
-              StartAttemptRequest(
-                type: AttemptType.mockExam,
-                module: AppModule.civique,
-              ),
-            );
-        if (!context.mounted) return;
-        context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
-      } catch (e) {
-        if (!context.mounted) return;
-        final err = ApiClient.toApiException(e);
-        if (err.isForbidden) {
-          showPaywallSheet(context);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(err.message),
-              backgroundColor: AppColors.red,
-            ),
-          );
-        }
-      }
-    }
-
-    if (!isPremium) {
-      // Non-abonné : 1 examen blanc gratuit. On reprend l'attempt en cours
-      // si présent, sinon paywall si déjà fini, sinon briefing+start.
-      // Pour éviter un nouvel appel réseau ici on déclenche directement le
-      // briefing — le backend gère le 403 paywall via `startExam` ci-dessus.
-      Future<List<AttemptSummary>> historyFut = ref
-          .read(attemptsRepositoryProvider)
-          .listMine(
-            type: AttemptType.mockExam,
-            module: AppModule.civique,
-            limit: 50,
-          );
-      historyFut.then((all) {
-        if (!context.mounted) return;
-        final history = all.where((a) => !a.isThemeScoped).toList();
-        final inProgress = history.where((a) => !a.isFinished).toList();
-        if (inProgress.isNotEmpty) {
-          context.push(
-            AppRoutes.runner.replaceFirst(':attemptId', inProgress.first.id),
-          );
-          return;
-        }
-        if (history.any((a) => a.isFinished)) {
-          showPaywallSheet(context);
-          return;
-        }
-        showCiviqueExamBriefingSheet(context, onStart: startExam);
-      }).catchError((_) {
-        if (!context.mounted) return;
-        showCiviqueExamBriefingSheet(context, onStart: startExam);
-      });
-      return;
-    }
-    showCiviqueExamBriefingSheet(context, onStart: startExam);
   }
 
   IconData _iconForTheme(String code) {

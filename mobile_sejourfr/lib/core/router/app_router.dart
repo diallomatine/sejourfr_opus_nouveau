@@ -9,6 +9,7 @@ import 'package:sejourfr_mobile/screens/history/tcf_exam_history_screen.dart';
 import '../../screens/auth/forgot_password_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
+import '../../screens/civique/civique_full_exams_screen.dart';
 import '../../screens/civique/civique_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/module_detail/civique_theme_detail_screen.dart';
@@ -56,6 +57,11 @@ class AppRoutes {
   static const forgotPassword = '/forgot-password';
   static const home = '/';
   static const civique = '/civique';
+  // Page « Examens blancs » civique GLOBAUX (20 slots de 40 Q tous thèmes,
+  // 45 min, seuil 32/40). Pushée depuis le hero du hub Civique. Distincte
+  // des examens thématiques (20 Q d'un seul thème, route
+  // `/civique/theme/:themeId/examens`).
+  static const civiqueExamsBlanc = '/civique/examens-blancs';
   static const civiqueThemeDetail = '/civique/theme/:themeId';
   // Page « Examens blancs » d'un thème civique (10 slots de 20 Q / 20 min /
   // seuil 16). Pushé depuis le hero rouge du détail thème.
@@ -305,6 +311,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           final attemptId = state.pathParameters['attemptId']!;
           return RunnerScreen(attemptId: attemptId);
         },
+      ),
+
+      // Page « Examens blancs » civique GLOBAUX (20 slots, 40 Q tous thèmes).
+      // Pushée depuis le hero du hub Civique. Hors shell pour cohérence avec
+      // `tcfFullExams` (même UX 20 slots côté TCF).
+      GoRoute(
+        path: AppRoutes.civiqueExamsBlanc,
+        builder: (_, __) => const CiviqueFullExamsScreen(),
       ),
 
       // Écrans détail module (hors shell — pas de bottom nav).
