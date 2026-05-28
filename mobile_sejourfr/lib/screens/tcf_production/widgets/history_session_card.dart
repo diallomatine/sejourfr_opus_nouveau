@@ -100,6 +100,10 @@ class HistorySessionCard extends StatelessWidget {
     return s.toStringAsFixed(1).replaceAll('.', ',');
   }
 
+  String _title() => submissions.length >= 2
+      ? 'Examen blanc complet'
+      : 'Tâche ${submissions.first.tacheNumero ?? 1} · entraînement libre';
+
   @override
   Widget build(BuildContext context) {
     final avg = _avgScore();
@@ -107,6 +111,7 @@ class HistorySessionCard extends StatelessWidget {
     final date = _lastSubmittedAt();
     final completed = submissions.where((s) => s.evaluation != null).length;
     final total = submissions.length;
+    final isMulti = submissions.length >= 2;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -114,107 +119,115 @@ class HistorySessionCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
             decoration: BoxDecoration(
               color: AppColors.white,
               border: Border.all(color: AppColors.line),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.blue.withValues(alpha: 0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
+                  color: AppColors.ink.withValues(alpha: 0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: Column(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
+                _Pastille(submissions: submissions),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _title(),
+                              style: AppFonts.jakarta(
+                                size: 14,
+                                weight: FontWeight.w700,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                          ),
+                          if (isMulti && completed < total) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.amber.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                'Incomplet',
+                                style: AppFonts.jakarta(
+                                  size: 10.5,
+                                  weight: FontWeight.w700,
+                                  color: AppColors.amber,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
                         _formatDate(date),
                         style: AppFonts.jakarta(
-                          size: 12.5,
-                          weight: FontWeight.w600,
+                          size: 11.5,
                           color: AppColors.muted,
                         ),
                       ),
-                    ),
-                    if (completed < total)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.amber.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(100),
-                        ),
-                        child: Text(
-                          'Incomplete',
-                          style: AppFonts.jakarta(
-                            size: 11,
-                            weight: FontWeight.w700,
-                            color: const Color(0xFFB5780E),
-                          ),
+                      const SizedBox(height: 10),
+                      RichText(
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: avg == null ? '—' : _formatScore(avg),
+                              style: AppFonts.fraunces(
+                                size: 24,
+                                weight: FontWeight.w700,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                            TextSpan(
+                              text: '/20',
+                              style: AppFonts.jakarta(
+                                size: 13,
+                                weight: FontWeight.w500,
+                                color: AppColors.muted2,
+                              ),
+                            ),
+                            TextSpan(
+                              text: '  moyenne · $completed/$total évaluée'
+                                  '${total > 1 ? "s" : ""}',
+                              style: AppFonts.jakarta(
+                                size: 12,
+                                color: AppColors.muted,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                const SizedBox(width: 8),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    _Pastille(submissions: submissions),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          RichText(
-                            text: TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: avg == null ? '—' : _formatScore(avg),
-                                  style: AppFonts.fraunces(
-                                    size: 28,
-                                    weight: FontWeight.w700,
-                                    color: AppColors.ink,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: '/20',
-                                  style: AppFonts.jakarta(
-                                    size: 14,
-                                    weight: FontWeight.w500,
-                                    color: AppColors.muted2,
-                                  ),
-                                ),
-                                TextSpan(
-                                  text: '   moyenne',
-                                  style: AppFonts.jakarta(
-                                    size: 12,
-                                    color: AppColors.muted,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '$completed / $total taches evaluees',
-                            style: AppFonts.jakarta(
-                              size: 12,
-                              color: AppColors.muted,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                     if (niveau != null) LevelPill(level: niveau),
-                    const SizedBox(width: 6),
-                    const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.muted),
+                    const SizedBox(height: 8),
+                    const Icon(Icons.chevron_right_rounded,
+                        size: 20, color: AppColors.muted2),
                   ],
                 ),
               ],
