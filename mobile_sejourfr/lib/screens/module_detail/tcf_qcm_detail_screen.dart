@@ -4,20 +4,15 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
-import '../../core/api/user_content_repository.dart';
-import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/models/attempt_summary.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/question_models.dart';
+import '../../core/providers/lots_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
-import '../../core/widgets/app_button.dart';
-import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/question_detail_sheet.dart';
-import 'tcf_module_exam_briefing_screen.dart';
-import 'widgets/module_detail_widgets.dart';
 
 /// Identifie le module TCF QCM exposé via `/tcf/co`, `/tcf/ce` ou
 /// `/tcf/structure`. EE/EO ont leur propre détail.
@@ -37,6 +32,7 @@ enum TcfQcmModule {
         'plus les niveaux : la travailler régulièrement sécurise ton palier CECRL.',
     icon: Icons.headphones_rounded,
     durationLabel: '≈ 20 min',
+    examSubtitle: '25 questions · 20 min',
   ),
   ce(
     routeKey: 'ce',
@@ -50,6 +46,7 @@ enum TcfQcmModule {
         'aisance écrite au TCF.',
     icon: Icons.menu_book_rounded,
     durationLabel: '≈ 35 min',
+    examSubtitle: '25 questions · 35 min',
   ),
   structure(
     routeKey: 'structure',
@@ -63,6 +60,7 @@ enum TcfQcmModule {
         'gagner des points sur CE, EE et EO.',
     icon: Icons.spellcheck_rounded,
     durationLabel: '≈ 20 min',
+    examSubtitle: '25 questions · 20 min',
     notice:
         'Module non évalué dans le TCF IRN officiel. Cet entraînement reste très utile pour consolider ta grammaire et progresser sur les autres épreuves.',
   );
@@ -77,28 +75,22 @@ enum TcfQcmModule {
     required this.description,
     required this.icon,
     required this.durationLabel,
+    required this.examSubtitle,
     this.notice,
   });
 
   final String routeKey;
   final QuestionType questionType;
-
-  /// Code du `Theme` côté backend ("TCF_CO" / "TCF_CE" / "TCF_STRUCTURE") —
-  /// sert à retrouver le `questionCount` réel via `themesRepository.list()`
-  /// pour afficher le pool exact à la place d'une valeur en dur.
   final String themeCode;
-
   final String eyebrow;
   final String title;
-
-  /// Nom commun affiché derrière le compte de questions dans le hero
-  /// ("questions audio", "textes à analyser", etc.). Le compteur dynamique
-  /// est préfixé en runtime via le pool actif côté backend.
   final String headlineNoun;
-
   final String description;
   final IconData icon;
   final String durationLabel;
+
+  /// Sous-titre affiché dans le hero examen blanc (ex: "25 questions · 20 min").
+  final String examSubtitle;
 
   /// Message d'avertissement affiché en haut du détail (juste sous le titre)
   /// quand ce module n'est pas une épreuve officielle TCF IRN. `null` pour
@@ -106,30 +98,22 @@ enum TcfQcmModule {
   final String? notice;
 }
 
-/// Thèmes TCF en base — sert à dériver le `questionCount` (= taille du pool
-/// actif) par module pour afficher le vrai compte dans le hero et la
-/// stats card "Questions". Autodispose pour rafraîchir au refresh.
-final _tcfThemesProvider = FutureProvider.autoDispose<List<ThemeDto>>((ref) {
-  return ref.watch(themesRepositoryProvider).list(module: AppModule.tcf);
-});
+// ============================================================================
+// Providers locaux
+// ============================================================================
 
-final _tcfStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
-  return ref.watch(userContentRepositoryProvider).stats(module: AppModule.tcf);
-});
-
-/// Historique des examens module (CO ou CE) du user. Family indexée par
-/// QuestionType pour distinguer les deux épreuves.
-final _moduleExamsHistoryProvider =
-    FutureProvider.autoDispose.family<List<AttemptSummary>, QuestionType>((ref, questionType) {
+/// Historique des examens module du user (hub). Family indexée par QuestionType.
+final _hubExamsHistoryProvider =
+    FutureProvider.autoDispose.family<List<AttemptSummary>, QuestionType>((ref, qt) {
   return ref.watch(attemptsRepositoryProvider).listMine(
         type: AttemptType.mockExam,
         module: AppModule.tcf,
-        moduleExamQuestionType: questionType,
+        moduleExamQuestionType: qt,
         limit: 20,
       );
 });
 
-/// Questions ratées de l'utilisateur sur une épreuve (CO ou CE). Family
+/// Questions ratées de l'utilisateur sur une épreuve (CO/CE/STRUCTURE). Family
 /// indexée par QuestionType.
 final _wrongQuestionsProvider =
     FutureProvider.autoDispose.family<List<QuestionDto>, QuestionType>((ref, questionType) {
@@ -139,54 +123,13 @@ final _wrongQuestionsProvider =
       );
 });
 
-enum _DetailTab { series, exams, errors }
+// ============================================================================
+// Hub refondé — TcfQcmDetailScreen
+// ============================================================================
 
-/// Carte de niveau exposée dans l'onglet Séries. Tap → push l'écran lots.
-class _SeriesLevel {
-  const _SeriesLevel({
-    required this.difficulty,
-    required this.label,
-    required this.subtitle,
-    required this.lotSize,
-    required this.accent,
-    required this.accentBg,
-  });
-
-  final Difficulty difficulty;
-  final String label;
-  final String subtitle;
-  final int lotSize;
-  final Color accent;
-  final Color accentBg;
-}
-
-const _seriesLevels = <_SeriesLevel>[
-  _SeriesLevel(
-    difficulty: Difficulty.a2,
-    label: 'Niveau débutant',
-    subtitle: 'Bases — 15 questions par lot',
-    lotSize: 15,
-    accent: AppColors.green,
-    accentBg: Color(0xFFE6F4EC),
-  ),
-  _SeriesLevel(
-    difficulty: Difficulty.b1,
-    label: 'Niveau intermédiaire',
-    subtitle: 'Intermédiaire — 20 questions par lot',
-    lotSize: 20,
-    accent: AppColors.amber,
-    accentBg: Color(0xFFFEF3DD),
-  ),
-  _SeriesLevel(
-    difficulty: Difficulty.b2,
-    label: 'Niveau avancée',
-    subtitle: 'Challenge — 25 questions par lot',
-    lotSize: 25,
-    accent: AppColors.red,
-    accentBg: AppColors.redLight,
-  ),
-];
-
+/// Hub d'épreuve pour les modules TCF QCM (CO, CE, Structure).
+/// Pas d'onglets — un seul scroll : topbar, bannière notice (si applicable),
+/// hero examen blanc bleu, section niveaux, historique, card erreurs.
 class TcfQcmDetailScreen extends ConsumerStatefulWidget {
   const TcfQcmDetailScreen({super.key, required this.module});
 
@@ -197,652 +140,688 @@ class TcfQcmDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
-  bool _starting = false;
-  _DetailTab _tab = _DetailTab.series;
-
-  bool _isPremium() {
-    final auth = ref.read(authControllerProvider);
-    return auth is AuthAuthenticated && auth.user.canAccessModule(AppModule.tcf);
-  }
-
-  void _openLevel(_SeriesLevel level) {
+  void _openLevel(Difficulty level) {
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
     final route = AppRoutes.tcfLevelLots
         .replaceFirst(':moduleKey', widget.module.routeKey)
-        .replaceFirst(':level', level.difficulty.wire.toLowerCase());
+        .replaceFirst(':level', level.wire.toLowerCase());
     context.push(route);
   }
 
-  /// Ouvre le briefing en bottomsheet modal avant le démarrage d'un examen
-  /// module. Le sheet rappelle les consignes (durée, audio unique, pas de
-  /// retour arrière) puis appelle le POST /api/attempts au tap "Commencer
-  /// maintenant". Réservé premium : 403 → paywall depuis le sheet.
-  void _openExamBriefing() {
-    if (_starting) return;
-    if (!_isPremium()) {
-      // 1 examen blanc gratuit par sous-module (= un par questionType TCF).
-      // Si le user a déjà passé un examen sur ce module, c'est une relance
-      // → paywall.
-      final history =
-          ref.read(_moduleExamsHistoryProvider(widget.module.questionType)).valueOrNull ?? const [];
-      if (history.any((a) => a.isFinished)) {
-        showPaywallSheet(context);
-        return;
-      }
+  void _openExamsPage() {
+    context.push('/tcf/${widget.module.routeKey}/examens');
+  }
+
+  void _openErrorsPage() {
+    context.push('/tcf/${widget.module.routeKey}/erreurs');
+  }
+
+  void _openExamResult(AttemptSummary attempt) {
+    context.push(AppRoutes.examResult.replaceFirst(':attemptId', attempt.id));
+  }
+
+  void _back() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/');
     }
-    ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
-    showModuleExamBriefingSheet(context, widget.module);
   }
 
   @override
   Widget build(BuildContext context) {
     final mod = widget.module;
-    final statsAsync = ref.watch(_tcfStatsProvider);
 
-    final auth = ref.watch(authControllerProvider);
-    final target = auth is AuthAuthenticated ? auth.user.targetProcedure?.tcfLevel : null;
-    final niveauLabel = target == null ? 'A2-B2' : 'Cible $target';
+    // Lot counts pour A2/B1/B2 en parallèle
+    final lotsA2 = ref.watch(lotsProvider(LotsKey(questionType: mod.questionType, difficulty: Difficulty.a2)));
+    final lotsB1 = ref.watch(lotsProvider(LotsKey(questionType: mod.questionType, difficulty: Difficulty.b1)));
+    final lotsB2 = ref.watch(lotsProvider(LotsKey(questionType: mod.questionType, difficulty: Difficulty.b2)));
 
-    // Pool actif du module = `questionCount` du thème correspondant côté
-    // backend (40 pour CO, 136 pour CE, 87 pour Structure aujourd'hui, mais
-    // ça évolue à chaque seed). Null pendant le fetch → fallback "…".
-    final themesAsync = ref.watch(_tcfThemesProvider);
-    final theme = themesAsync.maybeWhen(
-      data: (themes) => themes.where((t) => t.code == mod.themeCode).firstOrNull,
-      orElse: () => null,
-    );
-    final poolSize = theme?.questionCount;
-    final headline = poolSize == null ? 'Plein de ${mod.headlineNoun}' : '$poolSize ${mod.headlineNoun}';
-    final questionsStatValue = poolSize == null ? '…' : '$poolSize';
+    int? countA2 = lotsA2.valueOrNull?.length;
+    int? countB1 = lotsB1.valueOrNull?.length;
+    int? countB2 = lotsB2.valueOrNull?.length;
 
-    // Stats user spécifiques à CE module (filtrées par themeId — pas
-    // l'agrégat global TCF qui mélangerait CO/CE/Structure).
-    final themeStats = statsAsync.maybeWhen(
-      data: (s) => theme == null ? null : s.byTheme.where((t) => t.themeId == theme.id).firstOrNull,
-      orElse: () => null,
-    );
-    final answered = themeStats?.answered ?? 0;
-    final correctCount = themeStats?.correct ?? 0;
+    // Historique (top 3 récents)
+    final historyAsync = ref.watch(_hubExamsHistoryProvider(mod.questionType));
+
+    // Erreurs — compte pour la card discrète
+    final wrongAsync = ref.watch(_wrongQuestionsProvider(mod.questionType));
+    final wrongCount = wrongAsync.valueOrNull?.length;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
-        child: Stack(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 32),
           children: [
-            ListView(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
-              children: [
-                ModuleDetailTopBar(
-                  onBack: () => context.pop(),
-                  icon: mod.icon,
-                  iconColor: AppColors.red,
-                  iconBg: AppColors.redLight,
-                ),
-                const SizedBox(height: 22),
-                ModuleDetailTitle(eyebrow: mod.eyebrow, title: mod.title),
-                if (mod.notice != null) ...[
-                  const SizedBox(height: 16),
-                  _ModuleNoticeBanner(message: mod.notice!),
-                ],
-                const SizedBox(height: 22),
-                ModuleDetailHero(
-                  icon: mod.icon,
-                  headline: headline,
-                  description: mod.description,
-                  gradient: const [AppColors.red, AppColors.redDark],
-                ),
-                const SizedBox(height: 16),
-                ModuleDetailStats(
-                  items: [
-                    (value: questionsStatValue, label: 'Questions'),
-                    (value: mod.durationLabel, label: 'Durée'),
-                    (value: niveauLabel, label: 'Niveau'),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                ModuleDetailScoreCard(
-                  answered: answered,
-                  correct: correctCount,
-                  total: poolSize ?? 0,
-                  accent: AppColors.red,
-                ),
-                const SizedBox(height: 18),
-                ModuleDetailTabs(
-                  labels: const ['Séries', 'Examens', 'Erreurs'],
-                  activeIndex: _tab.index,
-                  // Onglet Erreurs réservé aux abonnés TCF.
-                  lockedIndices: _isPremium() ? const {} : const {2},
-                  onChanged: (i) {
-                    final target = _DetailTab.values[i];
-                    if (target == _DetailTab.errors && !_isPremium()) {
-                      showPaywallSheet(context);
-                      return;
-                    }
-                    setState(() => _tab = target);
-                  },
-                  accent: AppColors.red,
-                ),
-                const SizedBox(height: 14),
-                _TabContent(
-                  tab: _tab,
-                  module: mod,
-                  onLevelTap: _openLevel,
-                  onStartExam: _openExamBriefing,
-                  examStarting: _starting,
-                ),
-              ],
+            _AppHeader(
+              title: mod.title,
+              subtitle: 'TCF IRN · QCM',
+              onBack: _back,
             ),
-            if (_starting)
-              const Positioned.fill(
-                child: ModuleDetailStartingOverlay(accent: AppColors.red),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TabContent extends StatelessWidget {
-  const _TabContent({
-    required this.tab,
-    required this.module,
-    required this.onLevelTap,
-    required this.onStartExam,
-    required this.examStarting,
-  });
-
-  final _DetailTab tab;
-  final TcfQcmModule module;
-  final ValueChanged<_SeriesLevel> onLevelTap;
-  final VoidCallback onStartExam;
-  final bool examStarting;
-
-  @override
-  Widget build(BuildContext context) {
-    switch (tab) {
-      case _DetailTab.series:
-        return Column(
-          children: [
-            for (final level in _seriesLevels) _LevelCard(level: level, onTap: () => onLevelTap(level)),
-          ],
-        );
-      case _DetailTab.exams:
-        return _ExamsTab(
-          module: module,
-          onStartExam: onStartExam,
-          starting: examStarting,
-        );
-      case _DetailTab.errors:
-        return _ErrorsTab(module: module);
-    }
-  }
-}
-
-const int _examSlotsCount = 10;
-
-/// Onglet Examens : 10 slots numérotés. Les premiers slots sont remplis avec
-/// les attempts finis du user (ordre chronologique), les slots restants sont
-/// disponibles. Tap slot vide → lance un nouvel examen. Tap slot fait →
-/// bottomsheet "Voir détails" / "Reprendre".
-class _ExamsTab extends ConsumerWidget {
-  const _ExamsTab({
-    required this.module,
-    required this.onStartExam,
-    required this.starting,
-  });
-
-  final TcfQcmModule module;
-  final VoidCallback onStartExam;
-  final bool starting;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final asyncHistory = ref.watch(_moduleExamsHistoryProvider(module.questionType));
-    final examDuration = module.questionType == QuestionType.co ? '20 min' : '35 min';
-    final auth = ref.watch(authControllerProvider);
-    final isPremium = auth is AuthAuthenticated && auth.user.canAccessModule(AppModule.tcf);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Intro card : pitch de l'examen module.
-        Container(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.line),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'EXAMEN BLANC ${module.title.toUpperCase()}',
-                style: AppFonts.mono(
-                  size: 9.5,
-                  color: AppColors.muted,
-                  letterSpacing: 1.8,
-                  weight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '25 questions A2 → B1 → B2, en $examDuration. Score pondéré par niveau (max 50 pts).',
-                style: AppFonts.jakarta(
-                  size: 13,
-                  color: AppColors.ink2,
-                  height: 1.45,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: const [
-                  _Chip(text: '25 questions'),
-                  _Chip(text: 'A2 → B1 → B2'),
-                  _Chip(text: 'Score pondéré /50'),
-                ],
+            if (mod.notice != null) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: _ModuleNoticeBanner(message: mod.notice!),
               ),
             ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Text(
-              'Tes examens',
-              style: AppFonts.jakarta(
-                size: 14,
-                weight: FontWeight.w800,
-                color: AppColors.ink,
-              ).copyWith(letterSpacing: -0.2),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: _ExamenHeroBlue(module: mod, onStart: _openExamsPage),
             ),
-            const Spacer(),
-            Text(
-              '$_examSlotsCount disponibles',
-              style: AppFonts.mono(
-                size: 10,
-                color: AppColors.muted,
-                letterSpacing: 1.4,
-                weight: FontWeight.w600,
+            const SizedBox(height: 16),
+            const _SectionLabel('S\'entraîner par niveau'),
+            _LevelRow(
+              levelLabel: 'A2',
+              title: 'Niveau A2',
+              subtitle: 'Débutant · ${countA2 != null ? "$countA2 lots" : "—"}',
+              accent: AppColors.green,
+              accentBg: AppColors.green.withValues(alpha: 0.14),
+              onTap: () => _openLevel(Difficulty.a2),
+              lotCount: countA2,
+            ),
+            _LevelRow(
+              levelLabel: 'B1',
+              title: 'Niveau B1',
+              subtitle: 'Intermédiaire · ${countB1 != null ? "$countB1 lots" : "—"}',
+              accent: AppColors.amber,
+              accentBg: AppColors.amber.withValues(alpha: 0.14),
+              onTap: () => _openLevel(Difficulty.b1),
+              lotCount: countB1,
+            ),
+            _LevelRow(
+              levelLabel: 'B2',
+              title: 'Niveau B2',
+              subtitle: 'Avancé · ${countB2 != null ? "$countB2 lots" : "—"}',
+              accent: AppColors.red,
+              accentBg: AppColors.red.withValues(alpha: 0.12),
+              onTap: () => _openLevel(Difficulty.b2),
+              lotCount: countB2,
+            ),
+            const SizedBox(height: 8),
+            historyAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (history) => _HistorySection(
+                history: history,
+                onSeeAll: _openExamsPage,
+                onTap: _openExamResult,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+              child: _ErrorsCard(
+                wrongCount: wrongCount,
+                onTap: _openErrorsPage,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 10),
-        asyncHistory.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
-            child: Center(
-              child: SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.red),
-              ),
-            ),
-          ),
-          error: (e, _) => _ErrorBox(message: ApiClient.toApiException(e).message),
-          data: (history) {
-            // L'historique vient triée DESC par startedAt — on inverse pour
-            // que le slot 1 corresponde au plus ancien attempt (logique
-            // "Examen 1 = premier passé").
-            final finished = history.where((a) => a.isFinished).toList().reversed.toList();
-            return Column(
-              children: [
-                for (int i = 0; i < _examSlotsCount; i++)
-                  _ExamSlotCard(
-                    slot: i + 1,
-                    attempt: i < finished.length ? finished[i] : null,
-                    // Slot 1 gratuit pour découvrir le module ; slots 2+ locked.
-                    locked: !isPremium && (i + 1) > 1,
-                    onTapEmpty: starting
-                        ? null
-                        : (!isPremium && (i + 1) > 1)
-                            ? () => showPaywallSheet(context)
-                            : onStartExam,
-                    onTapDone: (attempt) => _showExamSheet(context, attempt, onStartExam),
-                  ),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  void _showExamSheet(
-    BuildContext context,
-    AttemptSummary attempt,
-    VoidCallback onRetake,
-  ) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (sheetCtx) => _ExamActionSheet(
-        attempt: attempt,
-        onViewDetails: () {
-          Navigator.of(sheetCtx).pop();
-          // Push depuis le context parent (l'écran) — le sheetCtx est en
-          // train d'être disposé après le pop.
-          context.push(
-            AppRoutes.examResult.replaceFirst(':attemptId', attempt.id),
-          );
-        },
-        onRetake: () {
-          Navigator.of(sheetCtx).pop();
-          onRetake();
-        },
       ),
     );
   }
 }
 
-/// Une carte slot d'examen (1 à 10). Visuellement : numéro de slot à
-/// gauche, titre + sous-titre, badge score (si fait) ou pastille
-/// "Disponible" (si vide).
-class _ExamSlotCard extends StatelessWidget {
-  const _ExamSlotCard({
-    required this.slot,
-    required this.attempt,
-    required this.onTapEmpty,
-    required this.onTapDone,
-    this.locked = false,
+// ============================================================================
+// Header
+// ============================================================================
+
+class _AppHeader extends StatelessWidget {
+  const _AppHeader({
+    required this.title,
+    required this.subtitle,
+    required this.onBack,
   });
 
-  final int slot;
-  final AttemptSummary? attempt;
-  final VoidCallback? onTapEmpty;
-  final ValueChanged<AttemptSummary> onTapDone;
-  final bool locked;
-
-  @override
-  Widget build(BuildContext context) {
-    final done = attempt != null;
-    final color = _scoreColor(attempt);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: done ? color.withValues(alpha: 0.05) : AppColors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: done ? color.withValues(alpha: 0.3) : AppColors.line,
-        ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: done ? () => onTapDone(attempt!) : onTapEmpty,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: done ? color : AppColors.line2,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '$slot',
-                      style: AppFonts.jakarta(
-                        size: 14,
-                        weight: FontWeight.w800,
-                        color: done ? AppColors.white : AppColors.muted,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Examen $slot',
-                          style: AppFonts.jakarta(
-                            size: 14.5,
-                            weight: FontWeight.w800,
-                            color: AppColors.ink,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          done ? _formatDoneSubtitle(attempt!) : 'Disponible · 25 questions',
-                          style: AppFonts.jakarta(
-                            size: 12,
-                            color: AppColors.muted,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  if (locked)
-                    Container(
-                      width: 30,
-                      height: 30,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.line2,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.lock_outline_rounded,
-                        size: 15,
-                        color: AppColors.muted,
-                      ),
-                    )
-                  else if (done)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        '${attempt!.weightedScore ?? 0}/${attempt!.maxWeightedScore ?? 50}',
-                        style: AppFonts.jakarta(
-                          size: 12,
-                          weight: FontWeight.w800,
-                          color: AppColors.white,
-                        ),
-                      ),
-                    )
-                  else
-                    const Icon(
-                      Icons.play_arrow_rounded,
-                      color: AppColors.muted2,
-                      size: 22,
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _scoreColor(AttemptSummary? a) {
-    if (a == null || a.weightedScore == null || a.maxWeightedScore == null || a.maxWeightedScore! == 0) {
-      return AppColors.muted;
-    }
-    final pct = a.weightedScore! / a.maxWeightedScore! * 100;
-    if (pct >= 70) return AppColors.green;
-    if (pct >= 40) return AppColors.amber;
-    return AppColors.red;
-  }
-
-  String _formatDoneSubtitle(AttemptSummary a) {
-    const months = [
-      'janv.',
-      'févr.',
-      'mars',
-      'avril',
-      'mai',
-      'juin',
-      'juil.',
-      'août',
-      'sept.',
-      'oct.',
-      'nov.',
-      'déc.',
-    ];
-    final d = a.finishedAt!;
-    return '${d.day} ${months[d.month - 1]} ${d.year} · ${a.score ?? 0}/${a.totalQuestions}';
-  }
-}
-
-class _ExamActionSheet extends StatelessWidget {
-  const _ExamActionSheet({
-    required this.attempt,
-    required this.onViewDetails,
-    required this.onRetake,
-  });
-
-  final AttemptSummary attempt;
-  final VoidCallback onViewDetails;
-  final VoidCallback onRetake;
+  final String title;
+  final String subtitle;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 12, 22, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 38,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.line,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                'Examen passé',
-                style: AppFonts.fraunces(size: 22, weight: FontWeight.w600),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Score : ${attempt.weightedScore ?? 0}/${attempt.maxWeightedScore ?? 50} · ${attempt.score ?? 0}/${attempt.totalQuestions} bonnes réponses',
-                textAlign: TextAlign.center,
-                style: AppFonts.jakarta(size: 13, color: AppColors.muted),
-              ),
-              const SizedBox(height: 20),
-              AppButton(
-                label: 'Voir les détails',
-                icon: Icons.visibility_outlined,
-                onPressed: onViewDetails,
-              ),
-              const SizedBox(height: 8),
-              AppButton(
-                label: 'Reprendre (questions différentes)',
-                icon: Icons.refresh_rounded,
-                variant: AppButtonVariant.ghost,
-                onPressed: onRetake,
-              ),
-            ],
+      padding: const EdgeInsets.fromLTRB(8, 6, 16, 10),
+      color: AppColors.white,
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.ink),
+            visualDensity: VisualDensity.compact,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorsTab extends ConsumerWidget {
-  const _ErrorsTab({required this.module});
-
-  final TcfQcmModule module;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final asyncWrong = ref.watch(_wrongQuestionsProvider(module.questionType));
-
-    return asyncWrong.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 30),
-        child: Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(strokeWidth: 2.4, color: AppColors.red),
-          ),
-        ),
-      ),
-      error: (e, _) => _ErrorBox(message: ApiClient.toApiException(e).message),
-      data: (wrongs) {
-        if (wrongs.isEmpty) {
-          return ModuleDetailTabPlaceholder(
-            icon: Icons.verified_outlined,
-            title: 'Aucune erreur récente',
-            description:
-                'Bravo — pas de question ratée sur ${module.title} pour l\'instant. Continue les lots pour rester au top.',
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppColors.red.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    '${wrongs.length} ERREUR${wrongs.length > 1 ? "S" : ""}',
-                    style: AppFonts.mono(
-                      size: 9.5,
-                      color: AppColors.red,
-                      letterSpacing: 1.6,
-                      weight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const Spacer(),
                 Text(
-                  module.title,
+                  title,
+                  style: AppFonts.jakarta(size: 17, weight: FontWeight.w700, color: AppColors.ink),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  subtitle,
                   style: AppFonts.jakarta(size: 12, color: AppColors.muted),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            for (final q in wrongs) _WrongQuestionCard(question: q),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
     );
   }
 }
 
-/// Card review-style : filet rouge à gauche, chip niveau + type, statement
-/// en preview, thème en bas. Tap → bottomsheet avec le détail complet.
-class _WrongQuestionCard extends ConsumerWidget {
-  const _WrongQuestionCard({required this.question});
+// ============================================================================
+// Hero examen blanc — accent BLEU (CO/CE/Structure)
+// ============================================================================
+
+class _ExamenHeroBlue extends StatelessWidget {
+  const _ExamenHeroBlue({required this.module, required this.onStart});
+
+  final TcfQcmModule module;
+  final VoidCallback onStart;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.blueLight,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(module.icon, size: 15, color: AppColors.blueDark),
+              const SizedBox(width: 6),
+              Text(
+                'EXAMEN COMPLET · ${module.examSubtitle.toUpperCase()}',
+                style: AppFonts.mono(
+                  size: 10,
+                  color: AppColors.blueDark,
+                  letterSpacing: 1.2,
+                  weight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Lancer un examen blanc',
+            style: AppFonts.jakarta(size: 17, weight: FontWeight.w800, color: AppColors.ink),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Conditions réelles : ${module.examSubtitle.toLowerCase()}, progression A2 → B1 → B2.',
+            style: AppFonts.jakarta(size: 13, color: AppColors.ink2, height: 1.5),
+          ),
+          const SizedBox(height: 14),
+          GestureDetector(
+            onTap: onStart,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+              decoration: BoxDecoration(
+                color: AppColors.blue,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.play_arrow_rounded, size: 18, color: AppColors.white),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Commencer',
+                    style: AppFonts.jakarta(size: 13.5, weight: FontWeight.w800, color: AppColors.white),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// Section label
+// ============================================================================
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 4, 18, 10),
+      child: Text(
+        text,
+        style: AppFonts.jakarta(size: 13, weight: FontWeight.w700, color: AppColors.muted),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// Ligne niveau (A2 / B1 / B2)
+// ============================================================================
+
+class _LevelRow extends StatelessWidget {
+  const _LevelRow({
+    required this.levelLabel,
+    required this.title,
+    required this.subtitle,
+    required this.accent,
+    required this.accentBg,
+    required this.onTap,
+    required this.lotCount,
+  });
+
+  final String levelLabel;
+  final String title;
+  final String subtitle;
+  final Color accent;
+  final Color accentBg;
+  final VoidCallback onTap;
+  final int? lotCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.line),
+        boxShadow: _cardShadow,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(color: accentBg, shape: BoxShape.circle),
+                  child: Text(
+                    levelLabel,
+                    style: AppFonts.jakarta(size: 13, weight: FontWeight.w800, color: accent),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: AppFonts.jakarta(size: 14, weight: FontWeight.w700, color: AppColors.ink),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        subtitle,
+                        style: AppFonts.jakarta(size: 12, color: AppColors.muted),
+                      ),
+                    ],
+                  ),
+                ),
+                if (lotCount != null) ...[
+                  Text(
+                    '$lotCount lots',
+                    style: AppFonts.jakarta(size: 11, color: AppColors.muted2),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                const Icon(Icons.chevron_right_rounded, color: AppColors.muted2, size: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// Section Historique (top 3 récents)
+// ============================================================================
+
+class _HistorySection extends StatelessWidget {
+  const _HistorySection({
+    required this.history,
+    required this.onSeeAll,
+    required this.onTap,
+  });
+
+  final List<AttemptSummary> history;
+  final VoidCallback onSeeAll;
+  final ValueChanged<AttemptSummary> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final finished = history.where((a) => a.isFinished).toList();
+    if (finished.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.bg,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.line),
+          ),
+          child: Text(
+            'Aucun examen passé. Lance un examen blanc ou entraîne-toi par niveau.',
+            style: AppFonts.jakarta(size: 12.5, color: AppColors.muted, height: 1.4),
+          ),
+        ),
+      );
+    }
+
+    final recent = finished.take(3).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
+          child: Row(
+            children: [
+              Text(
+                'Historique',
+                style: AppFonts.jakarta(size: 13, weight: FontWeight.w700, color: AppColors.muted),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: onSeeAll,
+                child: Text(
+                  'Tout voir',
+                  style: AppFonts.jakarta(size: 12, weight: FontWeight.w700, color: AppColors.blue),
+                ),
+              ),
+            ],
+          ),
+        ),
+        for (final attempt in recent)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            child: _HistoryRow(attempt: attempt, onTap: () => onTap(attempt)),
+          ),
+      ],
+    );
+  }
+}
+
+class _HistoryRow extends StatelessWidget {
+  const _HistoryRow({required this.attempt, required this.onTap});
+
+  final AttemptSummary attempt;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = attempt.weightedScore;
+    final maxScore = attempt.maxWeightedScore;
+    final scoreColor = _scoreColor(score, maxScore);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(color: AppColors.blueLight, shape: BoxShape.circle),
+                  child: const Icon(Icons.assignment_turned_in_rounded, size: 18, color: AppColors.blue),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Examen complet',
+                        style: AppFonts.jakarta(size: 13.5, weight: FontWeight.w700, color: AppColors.ink),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        _formatDate(attempt.finishedAt ?? attempt.startedAt),
+                        style: AppFonts.jakarta(size: 11, color: AppColors.muted),
+                      ),
+                    ],
+                  ),
+                ),
+                if (score != null && maxScore != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: scoreColor.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$score/$maxScore',
+                      style: AppFonts.jakarta(size: 11, weight: FontWeight.w800, color: scoreColor),
+                    ),
+                  ),
+                const SizedBox(width: 6),
+                const Icon(Icons.chevron_right_rounded, color: AppColors.muted2, size: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _scoreColor(int? score, int? max) {
+    if (score == null || max == null || max == 0) return AppColors.muted;
+    final pct = score / max * 100;
+    if (pct >= 70) return AppColors.green;
+    if (pct >= 40) return AppColors.amber;
+    return AppColors.red;
+  }
+}
+
+// ============================================================================
+// Card Erreurs
+// ============================================================================
+
+class _ErrorsCard extends StatelessWidget {
+  const _ErrorsCard({required this.wrongCount, required this.onTap});
+
+  final int? wrongCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = wrongCount == null
+        ? 'Revoir tes questions ratées'
+        : wrongCount! == 0
+            ? 'Aucune erreur pour l\'instant'
+            : '$wrongCount question${wrongCount! > 1 ? "s" : ""} à revoir';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.line),
+        boxShadow: _cardShadow,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.amber.withValues(alpha: 0.14),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.warning_amber_rounded, size: 20, color: AppColors.amber),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Erreurs à revoir',
+                        style: AppFonts.jakarta(size: 14, weight: FontWeight.w700, color: AppColors.ink),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        subtitle,
+                        style: AppFonts.jakarta(size: 12, color: AppColors.muted),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: AppColors.muted2, size: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// Bannière notice (module Structure)
+// ============================================================================
+
+class _ModuleNoticeBanner extends StatelessWidget {
+  const _ModuleNoticeBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.blueLight),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.blueLight,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.info_outline_rounded, color: AppColors.blue, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'À SAVOIR',
+                  style: AppFonts.mono(size: 9.5, color: AppColors.blue, letterSpacing: 1.8, weight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  message,
+                  style: AppFonts.jakarta(size: 12.5, color: AppColors.ink2, height: 1.45),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// Widgets partagés entre hub et sous-pages
+// ============================================================================
+
+/// Ombre douce partagée entre les cards du hub.
+const _cardShadow = [
+  BoxShadow(color: Color(0x0A0F1839), blurRadius: 12, offset: Offset(0, 4)),
+];
+
+String _formatDate(DateTime d) {
+  const months = [
+    'janv.', 'févr.', 'mars', 'avril', 'mai', 'juin',
+    'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
+  ];
+  return '${d.day} ${months[d.month - 1]} ${d.year}';
+}
+
+// ============================================================================
+// Mini widgets réutilisés par TcfQcmExamsScreen et TcfQcmErrorsScreen
+// ============================================================================
+
+/// Tag mini de question (niveau / type).
+class QuestionMiniTag extends StatelessWidget {
+  const QuestionMiniTag({super.key, required this.label, required this.fg, required this.bg});
+
+  final String label;
+  final Color fg;
+  final Color bg;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+      child: Text(
+        label,
+        style: AppFonts.jakarta(size: 10, weight: FontWeight.w800, color: fg),
+      ),
+    );
+  }
+}
+
+/// Card revue d'une question ratée — filet ambre à gauche, chip niveau,
+/// statement preview, thème en bas. Tap → reviewQuestion + bottomsheet.
+class WrongQuestionCard extends ConsumerWidget {
+  const WrongQuestionCard({super.key, required this.question});
 
   final QuestionDto question;
 
@@ -869,7 +848,7 @@ class _WrongQuestionCard extends ConsumerWidget {
                   Container(
                     width: 4,
                     decoration: const BoxDecoration(
-                      color: AppColors.red,
+                      color: AppColors.amber,
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(14),
                         bottomLeft: Radius.circular(14),
@@ -889,20 +868,16 @@ class _WrongQuestionCard extends ConsumerWidget {
                                 height: 26,
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                  color: AppColors.redLight,
+                                  color: AppColors.amber.withValues(alpha: 0.14),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Icon(
-                                  Icons.close_rounded,
-                                  size: 14,
-                                  color: AppColors.red,
-                                ),
+                                child: const Icon(Icons.close_rounded, size: 14, color: AppColors.amber),
                               ),
                               const SizedBox(width: 10),
                               QuestionMiniTag(
                                 label: question.difficulty.wire,
-                                fg: AppColors.red,
-                                bg: AppColors.redLight,
+                                fg: AppColors.amber,
+                                bg: AppColors.amber.withValues(alpha: 0.12),
                               ),
                               const SizedBox(width: 6),
                               QuestionMiniTag(
@@ -911,42 +886,25 @@ class _WrongQuestionCard extends ConsumerWidget {
                                 bg: AppColors.blueLight,
                               ),
                               const Spacer(),
-                              const Icon(
-                                Icons.chevron_right_rounded,
-                                color: AppColors.muted2,
-                                size: 20,
-                              ),
+                              const Icon(Icons.chevron_right_rounded, color: AppColors.muted2, size: 20),
                             ],
                           ),
                           const SizedBox(height: 12),
                           Text(
                             question.statement,
-                            style: AppFonts.jakarta(
-                              size: 14,
-                              weight: FontWeight.w600,
-                              height: 1.4,
-                              color: AppColors.ink,
-                            ),
+                            style: AppFonts.jakarta(size: 14, weight: FontWeight.w600, height: 1.4, color: AppColors.ink),
                             maxLines: 3,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 10),
                           Row(
                             children: [
-                              const Icon(
-                                Icons.bookmarks_outlined,
-                                size: 12,
-                                color: AppColors.muted2,
-                              ),
+                              const Icon(Icons.bookmarks_outlined, size: 12, color: AppColors.muted2),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
                                   question.themeName,
-                                  style: AppFonts.mono(
-                                    size: 10,
-                                    color: AppColors.muted,
-                                    letterSpacing: 1.1,
-                                  ),
+                                  style: AppFonts.mono(size: 10, color: AppColors.muted, letterSpacing: 1.1),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -967,9 +925,6 @@ class _WrongQuestionCard extends ConsumerWidget {
   }
 
   Future<void> _openDetail(BuildContext context, WidgetRef ref) async {
-    // Le card ne porte que la version "preview" de la question (sans
-    // correct flags ni explication). On fetche la version review avant
-    // d'ouvrir le sheet partagé.
     final messenger = ScaffoldMessenger.of(context);
     try {
       final detailed = await ref.read(userContentRepositoryProvider).reviewQuestion(question.id);
@@ -986,205 +941,9 @@ class _WrongQuestionCard extends ConsumerWidget {
   }
 }
 
-/// Card cliquable d'un niveau (A2/B1/B2) dans l'onglet Séries. Tap → push
-/// `TcfLevelLotsScreen`. Le chip niveau coloré à gauche reprend la couleur
-/// d'accent du niveau.
-class _LevelCard extends StatelessWidget {
-  const _LevelCard({required this.level, required this.onTap});
-
-  final _SeriesLevel level;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.line),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.ink.withValues(alpha: 0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-              child: Row(
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: level.accent,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      level.difficulty.wire,
-                      style: AppFonts.jakarta(
-                        size: 16,
-                        weight: FontWeight.w800,
-                        color: AppColors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          level.label,
-                          style: AppFonts.jakarta(
-                            size: 16,
-                            weight: FontWeight.w800,
-                            color: AppColors.ink,
-                          ).copyWith(letterSpacing: -0.2),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          level.subtitle,
-                          style: AppFonts.jakarta(
-                            size: 12.5,
-                            color: AppColors.muted,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    width: 36,
-                    height: 36,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: level.accentBg,
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: Icon(
-                      Icons.chevron_right_rounded,
-                      color: level.accent,
-                      size: 20,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Petit chip mono utilisé dans l'intro de l'onglet Examens.
-class _Chip extends StatelessWidget {
-  const _Chip({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.line2,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        text,
-        style: AppFonts.mono(
-          size: 9.5,
-          color: AppColors.ink2,
-          letterSpacing: 1.2,
-          weight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-/// Bannière d'avertissement rendue sous le titre du détail quand le module
-/// n'est pas une épreuve officielle TCF IRN (cf. `TcfQcmModule.structure`).
-class _ModuleNoticeBanner extends StatelessWidget {
-  const _ModuleNoticeBanner({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-      decoration: BoxDecoration(
-        color: AppColors.blueSoft,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.blueLight),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.blueLight,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.info_outline_rounded,
-              color: AppColors.blue,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'À SAVOIR',
-                  style: AppFonts.mono(
-                    size: 9.5,
-                    color: AppColors.blue,
-                    letterSpacing: 1.8,
-                    weight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  message,
-                  style: AppFonts.jakarta(
-                    size: 12.5,
-                    color: AppColors.ink2,
-                    height: 1.45,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Box d'erreur réseau / API affichée dans les onglets Examens et Erreurs.
-class _ErrorBox extends StatelessWidget {
-  const _ErrorBox({required this.message});
+/// Box erreur réseau.
+class QcmErrorBox extends StatelessWidget {
+  const QcmErrorBox({super.key, required this.message});
 
   final String message;
 
@@ -1196,10 +955,7 @@ class _ErrorBox extends StatelessWidget {
         color: AppColors.redLight,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
-        message,
-        style: AppFonts.jakarta(size: 12, color: AppColors.redDark),
-      ),
+      child: Text(message, style: AppFonts.jakarta(size: 12, color: AppColors.redDark)),
     );
   }
 }

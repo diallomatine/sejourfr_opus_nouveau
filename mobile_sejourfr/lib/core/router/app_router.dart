@@ -18,6 +18,8 @@ import '../../screens/module_detail/tcf_lot_result_screen.dart';
 import '../../screens/tcf_production/tcf_expression_screen.dart';
 import '../../screens/tcf_production/tcf_production_module.dart';
 import '../../screens/module_detail/tcf_qcm_detail_screen.dart';
+import '../../screens/module_detail/tcf_qcm_exams_screen.dart';
+import '../../screens/module_detail/tcf_qcm_errors_screen.dart';
 import '../../screens/onboarding/onboarding_screen.dart';
 import '../../screens/help/contact_screen.dart';
 import '../../screens/help/help_center_screen.dart';
@@ -59,6 +61,13 @@ class AppRoutes {
   static const tcfCoDetail = '/tcf/co';
   static const tcfCeDetail = '/tcf/ce';
   static const tcfStructureDetail = '/tcf/structure';
+  // Sous-routes des hubs QCM (CO, CE, Structure) : examens blancs + erreurs.
+  static const tcfCoExams = '/tcf/co/examens';
+  static const tcfCoErrors = '/tcf/co/erreurs';
+  static const tcfCeExams = '/tcf/ce/examens';
+  static const tcfCeErrors = '/tcf/ce/erreurs';
+  static const tcfStructureExams = '/tcf/structure/examens';
+  static const tcfStructureErrors = '/tcf/structure/erreurs';
   // Hub d'épreuve Expression (`TcfExpressionScreen`) : carte examen blanc + 3
   // tâches + historique. Tap une tâche → `TcfTaskTrainingScreen` (sujets +
   // exemples) sur les routes `…/tache/:tacheNumero`.
@@ -306,22 +315,51 @@ final routerProvider = Provider<GoRouter>((ref) {
           themeId: state.pathParameters['themeId']!,
         ),
       ),
-      // TCF QCM : un détail par épreuve (CO, CE) → push runner après attempt.
+      // TCF QCM CO — hub + sous-routes examens/erreurs.
       GoRoute(
         path: AppRoutes.tcfCoDetail,
         builder: (_, __) => const TcfQcmDetailScreen(module: TcfQcmModule.co),
+        routes: [
+          GoRoute(
+            path: 'examens',
+            builder: (_, __) => const TcfQcmExamsScreen(module: TcfQcmModule.co),
+          ),
+          GoRoute(
+            path: 'erreurs',
+            builder: (_, __) => const TcfQcmErrorsScreen(module: TcfQcmModule.co),
+          ),
+        ],
       ),
+      // TCF QCM CE — hub + sous-routes examens/erreurs.
       GoRoute(
         path: AppRoutes.tcfCeDetail,
         builder: (_, __) => const TcfQcmDetailScreen(module: TcfQcmModule.ce),
+        routes: [
+          GoRoute(
+            path: 'examens',
+            builder: (_, __) => const TcfQcmExamsScreen(module: TcfQcmModule.ce),
+          ),
+          GoRoute(
+            path: 'erreurs',
+            builder: (_, __) => const TcfQcmErrorsScreen(module: TcfQcmModule.ce),
+          ),
+        ],
       ),
-      // Structure de la langue : QCM grammaire / lexique. Non évalué dans le
-      // TCF IRN officiel — gardé comme entraînement complémentaire. Mêmes
-      // onglets Séries / Examens / Erreurs que CO et CE, avec une bannière
-      // d'info rendue par TcfQcmDetailScreen quand `module.notice != null`.
+      // TCF Structure de la langue — QCM grammaire / lexique. Non évalué dans
+      // le TCF IRN officiel — bannière `_ModuleNoticeBanner` rendue par le hub.
       GoRoute(
         path: AppRoutes.tcfStructureDetail,
         builder: (_, __) => const TcfQcmDetailScreen(module: TcfQcmModule.structure),
+        routes: [
+          GoRoute(
+            path: 'examens',
+            builder: (_, __) => const TcfQcmExamsScreen(module: TcfQcmModule.structure),
+          ),
+          GoRoute(
+            path: 'erreurs',
+            builder: (_, __) => const TcfQcmErrorsScreen(module: TcfQcmModule.structure),
+          ),
+        ],
       ),
       // TCF productions : hub d'épreuve (examen blanc + 3 tâches + historique).
       GoRoute(

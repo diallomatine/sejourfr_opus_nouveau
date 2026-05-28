@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 
-/// Bandeau "Evaluation terminee" : fond succes-light + rond plein succes avec
+/// Bandeau "Evaluation terminée" : fond succes-light + rond plein succes avec
 /// check blanc + titre/sous-titre. Equivalent de `.results-eval-banner`.
 class ResultsEvalBanner extends StatelessWidget {
   const ResultsEvalBanner({
@@ -34,7 +34,8 @@ class ResultsEvalBanner extends StatelessWidget {
               color: AppColors.green,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check_rounded, size: 20, color: AppColors.white),
+            child: const Icon(Icons.check_rounded,
+                size: 20, color: AppColors.white),
           ),
           const SizedBox(width: 12),
           Expanded(
