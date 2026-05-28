@@ -88,7 +88,7 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
   /// Tap sur un lot : si déjà fait → sheet `Voir le détail` / `Reprendre`,
   /// sinon → démarrage direct comme avant.
   void _onLotTap(LotDto lot) {
-    if (lot.alreadyAttempted && lot.lastAttemptId != null) {
+    if (lot.alreadyAttempted) {
       _openLotDoneSheet(lot);
     } else {
       _startLot(lot);
@@ -105,7 +105,7 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
         accent: _levelMetas[widget.level]!.accent,
         onViewDetail: () {
           Navigator.of(sheetCtx).pop();
-          _openLotResult(lot);
+          _openLotReport(lot);
         },
         onResume: () {
           Navigator.of(sheetCtx).pop();
@@ -115,14 +115,23 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
     );
   }
 
-  void _openLotResult(LotDto lot) {
+  /// « Comme un examen » : on pousse le rapport Q-par-Q (`ExamReportScreen`)
+  /// plutôt que le bilan synthétique `TcfLotResultScreen`. Nécessite que le
+  /// backend retourne `lot.lastAttemptId` (cf. LotDto/LotService).
+  void _openLotReport(LotDto lot) {
     final id = lot.lastAttemptId;
-    if (id == null) return;
-    final path = AppRoutes.tcfLotResult.replaceFirst(':attemptId', id);
-    context.push(
-      '$path?moduleKey=${widget.module.routeKey}'
-      '&level=${widget.level.wire.toLowerCase()}',
-    );
+    if (id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Détail indisponible — le serveur n\'a pas encore fourni la référence.',
+              style: AppFonts.jakarta(size: 13, color: AppColors.white)),
+          backgroundColor: AppColors.red,
+        ),
+      );
+      return;
+    }
+    context.push(AppRoutes.examReport.replaceFirst(':attemptId', id));
   }
 
   Future<void> _startLot(LotDto lot) async {
@@ -385,7 +394,6 @@ class _Empty extends StatelessWidget {
   }
 }
 
-
 // ============================================================================
 // Sheet « Lot déjà fait » : Voir le détail / Reprendre
 // ============================================================================
@@ -498,9 +506,7 @@ class _LotSheetButton extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(label,
                     style: AppFonts.jakarta(
-                        size: 14,
-                        weight: FontWeight.w800,
-                        color: foreground)),
+                        size: 14, weight: FontWeight.w800, color: foreground)),
               ],
             ),
           ),
@@ -509,4 +515,3 @@ class _LotSheetButton extends StatelessWidget {
     );
   }
 }
-
