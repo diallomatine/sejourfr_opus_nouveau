@@ -53,7 +53,8 @@ class WritingZone extends StatefulWidget {
   State<WritingZone> createState() => _WritingZoneState();
 }
 
-class _WritingZoneState extends State<WritingZone> with SingleTickerProviderStateMixin {
+class _WritingZoneState extends State<WritingZone>
+    with SingleTickerProviderStateMixin {
   FocusNode? _internalFocusNode;
   late final AnimationController _statusAnimController;
 
@@ -76,7 +77,9 @@ class _WritingZoneState extends State<WritingZone> with SingleTickerProviderStat
   void didUpdateWidget(covariant WritingZone oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Petite animation quand on entre dans la plage
-    if (oldWidget.wordCount != widget.wordCount && _inRange && !_wasInRange(oldWidget.wordCount)) {
+    if (oldWidget.wordCount != widget.wordCount &&
+        _inRange &&
+        !_wasInRange(oldWidget.wordCount)) {
       _statusAnimController.forward(from: 0);
     }
   }
@@ -98,11 +101,14 @@ class _WritingZoneState extends State<WritingZone> with SingleTickerProviderStat
     super.dispose();
   }
 
-  bool get _inRange => widget.wordCount >= widget.minWords && widget.wordCount <= widget.maxWords;
+  bool get _inRange =>
+      widget.wordCount >= widget.minWords &&
+      widget.wordCount <= widget.maxWords;
 
   bool get _overMax => widget.wordCount > widget.maxWords;
 
-  bool get _underMin => widget.wordCount > 0 && widget.wordCount < widget.minWords;
+  bool get _underMin =>
+      widget.wordCount > 0 && widget.wordCount < widget.minWords;
 
   /// Progression 0..1 :
   ///  - 0 -> 0.6 : vers minWords
@@ -152,7 +158,8 @@ class _WritingZoneState extends State<WritingZone> with SingleTickerProviderStat
 
   int get _charCount => widget.controller.text.length;
 
-  int get _charCountNoSpaces => widget.controller.text.replaceAll(RegExp(r'\s'), '').length;
+  int get _charCountNoSpaces =>
+      widget.controller.text.replaceAll(RegExp(r'\s'), '').length;
 
   int get _sentenceCount {
     final text = widget.controller.text.trim();
@@ -420,7 +427,8 @@ class _WritingZoneState extends State<WritingZone> with SingleTickerProviderStat
         boxShadow: focused
             ? [
                 BoxShadow(
-                  color: (_overMax ? AppColors.red : AppColors.blue).withValues(alpha: 0.08),
+                  color: (_overMax ? AppColors.red : AppColors.blue)
+                      .withValues(alpha: 0.08),
                   blurRadius: 12,
                   offset: const Offset(0, 2),
                 ),
@@ -489,7 +497,8 @@ class _WritingZoneState extends State<WritingZone> with SingleTickerProviderStat
                 if (_sentenceCount > 0)
                   _StatChip(
                     icon: Icons.format_quote_rounded,
-                    label: '$_sentenceCount ${_sentenceCount > 1 ? "phrases" : "phrase"}',
+                    label:
+                        '$_sentenceCount ${_sentenceCount > 1 ? "phrases" : "phrase"}',
                   ),
                 if (_readingTimeSec > 0)
                   _StatChip(

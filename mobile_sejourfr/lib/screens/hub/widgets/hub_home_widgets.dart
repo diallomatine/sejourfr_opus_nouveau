@@ -13,25 +13,17 @@ class HubHomeHeader extends StatelessWidget {
     super.key,
     required this.title,
     required this.subtitle,
-    this.onLeftTap,
     this.onRightTap,
   });
 
   final String title;
   final String subtitle;
-  final VoidCallback? onLeftTap;
   final VoidCallback? onRightTap;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _IconBtn(
-          icon: Icons.menu_rounded,
-          color: AppColors.ink,
-          onTap: onLeftTap,
-        ),
-        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
