@@ -48,7 +48,7 @@ class CiviqueScreen extends ConsumerWidget {
       backgroundColor: AppColors.bg,
       body: SafeArea(
         child: RefreshIndicator(
-          color: AppColors.blue,
+          color: AppColors.red,
           onRefresh: () async {
             ref.invalidate(_civiqueThemesProvider);
             ref.invalidate(_civiqueStatsProvider);
