@@ -17,6 +17,7 @@ import com.stripe.model.StripeObject;
 import com.stripe.model.Subscription;
 import com.stripe.model.SubscriptionItem;
 import com.stripe.model.checkout.Session;
+import com.stripe.param.SubscriptionUpdateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -68,6 +69,40 @@ public class StripeSubscriptionService {
             case SUBSCRIPTION_DELETED -> handleSubscriptionDeleted(event);
             case CHARGE_REFUNDED -> handleChargeRefunded(event);
             default -> log.debug("Stripe event ignoré : {}", type);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    // Cancel à la demande de l'utilisateur (initié côté app, pas webhook)
+    // ------------------------------------------------------------------------
+
+    /**
+     * Demande à Stripe de poser {@code cancel_at_period_end=true} sur la
+     * subscription. L'accès Premium reste ouvert jusqu'à
+     * {@code current_period_end} puis bascule EXPIRED automatiquement (Stripe
+     * envoie {@code customer.subscription.updated} immédiatement avec le flag,
+     * puis {@code customer.subscription.deleted} à la fin de période — les
+     * deux sont déjà gérés par {@link #dispatch}).
+     *
+     * <p>Idempotent côté Stripe : rappeler sur une subscription déjà annulée
+     * est un no-op (le flag reste à true).
+     */
+    public void cancelAtPeriodEnd(String stripeSubscriptionId) {
+        try {
+            Subscription subscription = Subscription.retrieve(stripeSubscriptionId);
+            subscription.update(
+                    SubscriptionUpdateParams.builder()
+                            .setCancelAtPeriodEnd(true)
+                            .build()
+            );
+            log.info("Stripe cancel_at_period_end posé sur sub={}", stripeSubscriptionId);
+        } catch (StripeException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "Stripe n'a pas pu enregistrer la résiliation pour le moment. "
+                            + "Réessayez dans un instant.",
+                    e
+            );
         }
     }
 

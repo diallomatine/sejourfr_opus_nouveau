@@ -217,6 +217,17 @@ masque le bouton d'achat IAP. Pareil dans l'autre sens.
 - `GET /api/billing/subscription-status` — authentifié, statut agrégé.
 - `POST /api/billing/verify-receipt` — authentifié, l'app mobile soumet un reçu
   Apple/Google après achat. Backend re-vérifie côté store avant d'écrire.
+- `POST /api/billing/cancel` — authentifié, résiliation de l'abonnement courant.
+  Routing selon `source` via `SubscriptionCancellationService` : Stripe →
+  `cancel_at_period_end=true` côté API + statut local CANCELED (réponse
+  `action=DONE`) ; Apple/Google → réponse `action=REDIRECT` vers
+  `apps.apple.com/account/subscriptions` ou `play.google.com/store/account/subscriptions`
+  (les stores n'autorisent pas l'annulation serveur). Le statut local Apple/Google
+  N'EST PAS modifié — c'est le webhook qui tranche quand l'user confirme côté store.
+- `POST /api/admin/subscriptions/{id}/cancel` — admin (ROLE_ADMIN), même routing
+  via `cancelSubscriptionById`. Rejette en 409 si statut non cancellable
+  (CANCELED / EXPIRED / REFUNDED). Pour Apple/Google l'admin reçoit le `REDIRECT`
+  comme l'user — à charge pour le support de transmettre l'URL au client.
 - `POST /api/billing/webhook` — Stripe (signé HMAC).
 - `POST /api/billing/webhooks/apple` — Apple ASSN V2 (JWS signé, à vérifier).
 - `POST /api/billing/webhooks/google` — Google RTDN via Pub/Sub.

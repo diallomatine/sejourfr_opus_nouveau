@@ -25,6 +25,7 @@ import '../../screens/onboarding/onboarding_screen.dart';
 import '../../screens/help/contact_screen.dart';
 import '../../screens/help/help_center_screen.dart';
 import '../../screens/help/in_app_webview_screen.dart';
+import '../../screens/profile/manage_subscription_screen.dart';
 import '../../screens/profile/mes_historiques_screen.dart';
 import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
@@ -128,6 +129,11 @@ class AppRoutes {
 
   // Édition des informations personnelles (firstName/lastName/email/password).
   static const personalInfo = '/profile/personal-info';
+
+  // Gestion de l'abonnement Premium en cours (détails + résiliation). Le
+  // routing serveur/store est décidé côté backend selon la source (Stripe,
+  // Apple, Google).
+  static const manageSubscription = '/profile/abonnement';
 
   // TCF Expression orale / ecrite (Lot A : briefing seul, soumission a venir).
   static const tcfExpressionOrale = '/tcf/expression-orale';
@@ -264,6 +270,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.personalInfo,
         builder: (_, __) => const PersonalInfoScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.manageSubscription,
+        builder: (_, __) => const ManageSubscriptionScreen(),
       ),
       GoRoute(
         path: AppRoutes.examReport,

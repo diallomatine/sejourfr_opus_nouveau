@@ -71,6 +71,8 @@ Endpoints utilisés actuellement :
 - `POST /api/admin/production/examples/audio/batch-generate?size=10`, `GET …/pending/count`, `GET …/to-review`, `POST …/{id}/publish`, `POST …/{id}/regenerate` (audios exemples EO — feature `exampleAudio/`)
 - `GET /api/admin/plans`, `PATCH /api/admin/plans/{id}` (commerce — lot 4c)
 - `GET /api/admin/subscriptions?source=…&status=…&moduleAccess=…&search=…&page=…&size=…` (lot 4c)
+- `POST /api/admin/subscriptions/{id}/cancel` — annulation manuelle (support).
+  Stripe → DONE ; Apple/Google → REDIRECT (l'admin copie l'URL pour la transmettre).
 
 **Authentification** : JWT Bearer dans l'en-tête `Authorization`. Le refresh est automatique côté `http.ts` quand une requête prend un 401 — pas besoin de le gérer dans les composants.
 
@@ -145,6 +147,11 @@ Pas encore d'API côté backend, donc pas implémenté ici :
   pagination prev/next. Tri par updatedAt desc. Modal détail montrant tous
   les transactionIds, dates, plan, montant. Trois sources possibles : Stripe
   (web), Apple (iOS), Google (Android) — cf. CLAUDE.md racine pour le schéma.
+  Modal détail : bouton **Résilier l'abonnement** (variant danger) actif uniquement
+  pour les statuts ACTIVE/TRIAL/IN_GRACE. Appelle `subscriptionsApi.cancel(id)` →
+  invalide `["adminSubscriptions"]`. Bandeau de feedback en bas de modal :
+  vert pour DONE (Stripe), ambre pour REDIRECT (Apple/Google) avec l'URL à
+  copier-coller au client, rouge si erreur.
 
 ## Pistes d'évolution
 

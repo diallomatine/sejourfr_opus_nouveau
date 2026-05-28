@@ -794,6 +794,22 @@ vers `https://sejourfr.fr/paiement`. Supprimé — Apple aurait rejeté l'app
 au review (3.1.1). Si on a besoin de référencer une URL web pour les CGV,
 utiliser `url_launcher` ponctuellement, jamais pour le paiement.
 
+**Résiliation** : écran `screens/profile/manage_subscription_screen.dart`
+accessible via tap sur la `_PlanCard` du profil quand l'user est Premium
+(route `AppRoutes.manageSubscription = /profile/abonnement`). Affiche
+plan + source + date de renouvellement + CTA rouge « Résilier mon
+abonnement » avec confirmation. Appelle directement `BillingRepository.cancel()`
+(pas via `BillingController`, dont l'état est dédié aux achats IAP) puis
+gère la réponse :
+- `action=DONE` (Stripe) : `AuthController.refreshSubscriptionStatus()`
+  pour propager `autoRenew=false` + status CANCELED sur la PlanCard,
+  SnackBar de confirmation.
+- `action=REDIRECT` (Apple/Google) : ouvre `redirectUrl` via `url_launcher`
+  en `LaunchMode.externalApplication`. Sur iOS l'URL
+  `https://apps.apple.com/account/subscriptions` ouvre directement les
+  Settings → Subscriptions ; sur Android, redirige vers la fiche Play.
+  Le statut local ne bascule QUE quand le webhook du store confirme.
+
 ## Roadmap (ce qui n'est pas encore fait)
 
 - **Chrono global examen blanc** : `time_limit_seconds = 5400` (90 min) est posé sur le parent backend

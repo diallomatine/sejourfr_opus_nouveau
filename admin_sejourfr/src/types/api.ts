@@ -649,3 +649,13 @@ export interface AdminSubscriptionFilters {
   page?: number;
   size?: number;
 }
+
+/** Réponse de POST /api/billing/cancel et /api/admin/subscriptions/{id}/cancel.
+ * - DONE : Stripe a enregistré la résiliation côté serveur.
+ * - REDIRECT : Apple/Google n'autorisent pas l'annulation serveur ; le
+ *   redirectUrl est la page de gestion du store à transmettre au client. */
+export interface CancelSubscriptionResponse {
+  action: "DONE" | "REDIRECT";
+  message: string;
+  redirectUrl: string | null;
+}

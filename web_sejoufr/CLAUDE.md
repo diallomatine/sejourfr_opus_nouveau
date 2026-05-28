@@ -41,6 +41,7 @@ Backend Spring Boot Java 21 séparé, qui tourne sur `http://localhost:8080`.
 | GET     | `/api/billing/plans`                   | liste plans actifs (publique, ISR 30min)  | non  |
 | GET     | `/api/billing/payment-link?planCode=…` | Checkout Session Stripe (mode subscription) | oui  |
 | GET     | `/api/billing/subscription-status`     | statut Premium agrégé (Stripe + Apple + Google) | oui  |
+| POST    | `/api/billing/cancel`                  | résiliation de l'abonnement courant  | oui  |
 
 ### Enums Spring miroirs côté TS (dans `lib/types.ts`)
 
@@ -256,6 +257,25 @@ Intégral × mensuel / trimestriel / annuel.
 
 **Backend** : géré dans le lot 4 (cf. `CLAUDE.md` racine — Stripe Subscription
 mode, `customer.subscription.*` webhooks, `plans.stripe_price_id` en DB).
+
+## Résiliation d'abonnement
+
+Page `app/(app)/profil/abonnement/page.tsx` (route `/profil/abonnement`)
+accessible depuis le CTA « Gérer mon abonnement » du `/profil` quand
+`user.isPremium`. La page fetch `billingApi.getSubscriptionStatus()` au
+montage et affiche plan + source + date + CTA **Résilier mon abonnement**
+en rouge avec confirmation modal locale.
+
+Routing décidé côté backend selon la source :
+- **Stripe** → `action=DONE`. On appelle `useAuth().refreshUser()` puis
+  re-fetch le status pour refléter `status=CANCELED` immédiatement.
+- **Apple/Google** → `action=REDIRECT`. On ouvre `redirectUrl` dans un
+  nouvel onglet (`window.open(..., '_blank', 'noopener,noreferrer')`).
+  Le statut local ne bascule qu'à réception du webhook du store.
+
+Helpers ajoutés à `billingApi` (`lib/api.ts`) : `getSubscriptionStatus()`
+et `cancel()`. Types miroirs `SubscriptionStatusResponse` et
+`CancelSubscriptionResponse` dans `lib/types.ts`.
 
 ## Stratégie produit — parité fonctionnelle avec le mobile
 

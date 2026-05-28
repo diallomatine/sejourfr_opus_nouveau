@@ -269,6 +269,37 @@ class VerifyReceiptRequest {
       };
 }
 
+/// Réponse de `POST /api/billing/cancel`. Deux variantes :
+/// - `done` : Stripe a enregistré la résiliation côté serveur. L'app affiche
+///   [message] et rafraîchit le statut. Premium reste ouvert jusqu'à `endsAt`.
+/// - `redirect` : Apple/Google n'autorisent pas l'annulation serveur. L'app
+///   ouvre [redirectUrl] (page de gestion d'abonnement du store) et le statut
+///   ne change pas tant que l'user n'a pas confirmé côté store (le webhook
+///   du store mettra à jour ensuite).
+class CancelSubscriptionResponse {
+  CancelSubscriptionResponse({
+    required this.action,
+    required this.message,
+    this.redirectUrl,
+  });
+
+  /// `DONE` ou `REDIRECT`.
+  final String action;
+  final String message;
+  final String? redirectUrl;
+
+  bool get isDone => action == 'DONE';
+  bool get isRedirect => action == 'REDIRECT';
+
+  factory CancelSubscriptionResponse.fromJson(Map<String, dynamic> json) {
+    return CancelSubscriptionResponse(
+      action: json['action'] as String,
+      message: json['message'] as String? ?? '',
+      redirectUrl: json['redirectUrl'] as String?,
+    );
+  }
+}
+
 /// Mapping helper : depuis un AppModule UI → PlanModuleTarget pour le paywall.
 extension AppModulePaywall on AppModule {
   PlanModuleTarget get paywallTarget => switch (this) {

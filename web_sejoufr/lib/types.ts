@@ -364,3 +364,42 @@ export interface ApiError {
   timestamp?: string;
   fieldErrors?: Record<string, string>;
 }
+
+// ============================================================================
+// Billing : statut Premium + résiliation
+// ============================================================================
+
+export type SubscriptionSource = "STRIPE" | "APPLE" | "GOOGLE";
+
+export type SubscriptionStatus =
+  | "ACTIVE"
+  | "TRIAL"
+  | "IN_GRACE"
+  | "PENDING"
+  | "CANCELED"
+  | "EXPIRED"
+  | "REFUNDED";
+
+/** Statut Premium agrégé toutes sources (Stripe + Apple + Google). Renvoyé
+ * par `GET /api/billing/subscription-status`. Source de vérité unique côté
+ * backend — le client NE décide PAS du Premium. */
+export interface SubscriptionStatusResponse {
+  isPremium: boolean;
+  source: SubscriptionSource | null;
+  productId: string | null;
+  expiresAt: string | null;
+  status: SubscriptionStatus | null;
+  moduleAccess: ModuleAccess;
+  autoRenew: boolean;
+}
+
+/** Réponse de `POST /api/billing/cancel`. Deux variantes :
+ * - `DONE` : Stripe a enregistré la résiliation côté serveur (Premium reste
+ *   ouvert jusqu'à `expiresAt`).
+ * - `REDIRECT` : Apple/Google n'autorisent pas l'annulation serveur ; le
+ *   `redirectUrl` pointe vers la page de gestion d'abonnement du store. */
+export interface CancelSubscriptionResponse {
+  action: "DONE" | "REDIRECT";
+  message: string;
+  redirectUrl: string | null;
+}

@@ -98,7 +98,10 @@ export default function ProfilPage() {
             >
               Modifier mon profil
             </button>
-            <Link href="/paiement" className="pr-hero-btn pr-hero-btn-ghost">
+            <Link
+              href={user.isPremium ? "/profil/abonnement" : "/paiement"}
+              className="pr-hero-btn pr-hero-btn-ghost"
+            >
               {user.isPremium ? "Gérer mon abonnement" : "Passer Premium"}
             </Link>
           </div>
@@ -164,7 +167,10 @@ export default function ProfilPage() {
               <p><strong>Gestion :</strong> paiement et accès gérés en ligne en toute sécurité.</p>
             </div>
           </div>
-          <Link href="/paiement" className="pr-panel-cta">
+          <Link
+            href={user.isPremium ? "/profil/abonnement" : "/paiement"}
+            className="pr-panel-cta"
+          >
             {user.isPremium ? "Gérer mon abonnement" : "Passer Premium"}
           </Link>
         </aside>

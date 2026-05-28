@@ -564,12 +564,13 @@ class _PlanCard extends StatelessWidget {
         ? null
         : 'Renouvellement le ${_formatDate(user.premiumEndsAt!)}';
 
-    // Plan gratuit / démo → on rend la carte tappable et on ouvre la
-    // PaywallSheet partagée (CTA "Gérer mon accès sur le site" qui pousse
-    // vers le site web — paiement Stripe hors stores pour éviter la
-    // commission Apple/Google, cf. CLAUDE.md racine).
+    // Premium → tap pousse l'écran « Mon abonnement » (détails + résiliation).
+    // Gratuit/démo → ouvre la PaywallSheet partagée (l'app vend désormais via
+    // IAP natif Apple/Google, cf. CLAUDE.md mobile § In-App Purchase).
     return AppCard(
-      onTap: isPremium ? null : () => showPaywallSheet(context),
+      onTap: isPremium
+          ? () => context.push(AppRoutes.manageSubscription)
+          : () => showPaywallSheet(context),
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
@@ -628,9 +629,8 @@ class _PlanCard extends StatelessWidget {
               ],
             ),
           ),
-          if (!isPremium)
-            const Icon(Icons.arrow_forward_ios,
-                size: 12, color: AppColors.muted2),
+          const Icon(Icons.arrow_forward_ios,
+              size: 12, color: AppColors.muted2),
         ],
       ),
     );
