@@ -10,6 +10,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../tcf_production/widgets/module_screen_header.dart';
 import 'qcm_hub_data.dart';
+import 'widgets/exam_done_sheet.dart';
 import 'widgets/qcm_hub/qcm_exam_hero.dart';
 import 'widgets/qcm_hub/qcm_history_section.dart';
 import 'widgets/qcm_hub/qcm_level_row.dart';
@@ -135,8 +136,33 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
     context.push('/tcf/${widget.module.routeKey}/examens');
   }
 
-  void _openExamResult(AttemptSummary attempt) {
-    context.push(AppRoutes.examResult.replaceFirst(':attemptId', attempt.id));
+  /// Tap sur un examen de l'historique : ouvre le sheet « Voir le détail
+  /// (rapport Q-par-Q) » / « Reprendre (nouveau briefing) », en miroir des
+  /// lots. Plus de saut direct vers le bilan synthétique.
+  void _showExamSheet(AttemptSummary attempt) {
+    final score = attempt.score;
+    final total = attempt.totalQuestions;
+    final subtitle =
+        (score != null && total > 0) ? 'Dernier score : $score / $total' : null;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => ExamDoneSheet(
+        title: 'Examen blanc',
+        subtitle: subtitle,
+        accent: AppColors.blue,
+        onViewDetail: () {
+          Navigator.of(sheetCtx).pop();
+          context.push(
+              AppRoutes.examReport.replaceFirst(':attemptId', attempt.id));
+        },
+        onResume: () {
+          Navigator.of(sheetCtx).pop();
+          _openExamsPage();
+        },
+      ),
+    );
   }
 
   void _back() {
@@ -232,7 +258,7 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
               data: (history) => QcmHistorySection(
                 history: history,
                 onSeeAll: _openExamsPage,
-                onTap: _openExamResult,
+                onTap: _showExamSheet,
               ),
             ),
           ],

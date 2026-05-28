@@ -20,6 +20,7 @@ import 'civique_hub_data.dart';
 import 'widgets/civique_hub/civique_exam_hero.dart';
 import 'widgets/civique_hub/civique_history_section.dart';
 import 'widgets/civique_hub/civique_lot_row.dart';
+import 'widgets/exam_done_sheet.dart';
 import 'widgets/lot_done_sheet.dart';
 import 'widgets/qcm_hub/qcm_section_label.dart';
 
@@ -146,8 +147,35 @@ class _CiviqueThemeDetailScreenState
     );
   }
 
-  void _openExamResult(AttemptSummary attempt) {
-    context.push(AppRoutes.examResult.replaceFirst(':attemptId', attempt.id));
+  /// Tap sur un examen de l'historique : ouvre le sheet « Voir le détail » /
+  /// « Reprendre », en miroir des lots. Plus de saut direct vers le bilan.
+  void _showExamSheet(AttemptSummary attempt) {
+    final score = attempt.score;
+    final total = attempt.totalQuestions;
+    final subtitle =
+        (score != null && total > 0) ? 'Dernier score : $score / $total' : null;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => ExamDoneSheet(
+        title: 'Examen blanc',
+        subtitle: subtitle,
+        accent: AppColors.blue,
+        onViewDetail: () {
+          Navigator.of(sheetCtx).pop();
+          context.push(
+              AppRoutes.examReport.replaceFirst(':attemptId', attempt.id));
+        },
+        onResume: () {
+          Navigator.of(sheetCtx).pop();
+          context.push(
+            AppRoutes.civiqueThemeExams
+                .replaceFirst(':themeId', widget.themeId),
+          );
+        },
+      ),
+    );
   }
 
   void _back() {
@@ -237,7 +265,7 @@ class _CiviqueThemeDetailScreenState
               data: (history) => CiviqueHistorySection(
                 history: history,
                 onSeeAll: () => _openExamsPage(theme),
-                onTap: _openExamResult,
+                onTap: _showExamSheet,
               ),
             ),
           ],
