@@ -77,7 +77,9 @@ lib/
     ├── tcf/
     │   └── tcf_screen.dart        Hub TCF : onglets Entraînement / Examens (4 modules CO/CE/EE IA/EO IA / 20 slots)
     ├── module_detail/             Écran détail intermédiaire entre hub et runner / sujets de tâche
-    │   ├── civique_theme_detail_screen.dart   Détail d'un thème civique (par themeId)
+    │   ├── civique_theme_detail_screen.dart   Hub d'un thème civique (single scroll, pattern QCM)
+    │   ├── civique_theme_exams_screen.dart    Page « Examens blancs » d'un thème (10 slots 20 Q)
+    │   ├── civique_hub_data.dart              Providers partagés hub thème + page examens civique
     │   ├── tcf_qcm_detail_screen.dart         Détail TCF CO/CE/Structure (enum TcfQcmModule) — onglet Séries = cards niveau
     │   ├── tcf_level_lots_screen.dart         Liste des lots pour un (module CO/CE/Structure, niveau A2/B1/B2)
     │   ├── tcf_lot_result_screen.dart         Bilan affiché à la fin d'un lot (score circle + résumé + CTAs)
@@ -392,22 +394,28 @@ un `ConsumerStatefulWidget` avec un **en-tête fixe** (topbar + onglets, ne scro
 
 **Écran détail (lot 3 + 3 bis)** — vit dans `screens/module_detail/`. Routes hors shell (pas de
 bottom nav) :
-- `/civique/theme/:themeId` → `CiviqueThemeDetailScreen` (fetch theme via `themesRepository`,
-  cherche les stats du thème dans `byTheme[themeId]`). **3 onglets** (Lots / Examens / Erreurs)
-  calqués sur le pattern TCF QCM :
-  - **Lots** : liste des lots civique (15 Q chacun) du thème via `civiqueLotsProvider(themeId)` →
-    `GET /api/lots?module=CIVIQUE&themeId=...`. Tap lot → `POST /api/attempts {type:TRAINING,
-    module:CIVIQUE, themeId, lotNumero}` puis push runner. Backend trace via `lot_theme_id` +
-    `lot_numero` (cf. migration V089 + CLAUDE.md racine § Lots).
-  - **Examens** : **10 slots d'examens civique scopés à ce thème** (20 Q du thème, 20 min,
-    seuil 16/20). Provider `_civiqueThemeExamsHistoryProvider(themeId)` →
-    `GET /api/me/attempts?type=MOCK_EXAM&module=CIVIQUE&themeId=...`. Backend distingue
-    cette variante en posant `lot_theme_id` sur l'attempt lors du POST (cf.
-    `AttemptService` branche `CIVIQUE_THEME_EXAM`). Distinct de l'examen blanc complet
-    civique (40 Q tous thèmes, 45 min, seuil 32) qui vit sur l'onglet Examens du hub.
-  - **Erreurs** : 20 dernières questions ratées du user sur **ce thème précis**, via
-    `_civiqueWrongProvider(themeId)` → `GET /api/me/questions/wrong?module=CIVIQUE&themeId=...`.
-    Tap question → `showQuestionDetailSheet` partagé.
+- `/civique/theme/:themeId` → `CiviqueThemeDetailScreen` — **refondu** au pattern TCF QCM
+  (single scroll, plus d'onglets segmentés). Header + hero rouge « Lancer un examen blanc »
+  + section « S'entraîner par lot » + historique des 3 derniers examens du thème.
+  Sous-widgets dans `widgets/civique_hub/` (civique_exam_hero / civique_lot_row /
+  civique_history_section). Providers partagés dans `civique_hub_data.dart`
+  (`civiqueThemesProvider`, `civiqueStatsProvider`, `civiqueThemeExamsHistoryProvider`),
+  miroir de `qcm_hub_data.dart`. Civique n'a pas la notion de niveau (vs TCF A2/B1/B2) →
+  les lots sont rendus inline avec un cap de 6 + "Voir plus" pour les thèmes copieux.
+  L'onglet Erreurs a été supprimé (alignement sur le pattern QCM ; les erreurs restent
+  accessibles via `/review`). Tap lot → `POST /api/attempts {type:TRAINING,
+  module:CIVIQUE, themeId, lotNumero}` puis push runner (backend trace via `lot_theme_id`
+  + `lot_numero`, cf. migration V089 + CLAUDE.md racine § Lots). Lot 1 = découverte
+  gratuite du thème, lots 2+ paywall non-abonné.
+- `/civique/theme/:themeId/examens` → `CiviqueThemeExamsScreen` — page « Examens
+  blancs » d'un thème calquée sur `TcfQcmExamsScreen`. Header + drapeau France + 3 stats
+  (Terminés / Score moyen / Meilleur score) + barre progression + chips filtre + 10 slots
+  numérotés (20 Q du thème, 20 min, seuil 16/20). Slot 1 = découverte gratuite, slots 2-10
+  = premium. Réutilise les widgets partagés `ExamSlotCard`, `ExamProgressCard`,
+  `ExamFilterChips`, `FlagBadge`, `ModuleScreenHeader`, `ExamsErrorView` (dossier
+  `tcf_production/widgets/`), + le builder local `CiviqueExamSlotBuilder` extrait pour
+  rester sous 400 lignes. Distinct de l'examen blanc complet civique (40 Q tous thèmes,
+  45 min, seuil 32) qui vit sur l'onglet Examens du hub.
 - `/tcf/co` et `/tcf/ce` → `TcfQcmDetailScreen` avec l'enum `TcfQcmModule.{co,ce}` qui porte
   l'intitulé, l'icône, le `QuestionType` et le label de durée.
 - `/tcf/eo` et `/tcf/ee` → `TcfExpressionScreen` (hub) ; `/tcf/{eo,ee}/tache/:n` →

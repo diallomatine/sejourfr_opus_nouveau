@@ -12,6 +12,7 @@ import '../../screens/auth/register_screen.dart';
 import '../../screens/civique/civique_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/module_detail/civique_theme_detail_screen.dart';
+import '../../screens/module_detail/civique_theme_exams_screen.dart';
 import '../../screens/module_detail/tcf_full_exams_screen.dart';
 import '../../screens/module_detail/tcf_level_lots_screen.dart';
 import '../../screens/module_detail/tcf_lot_result_screen.dart';
@@ -56,6 +57,9 @@ class AppRoutes {
   static const home = '/';
   static const civique = '/civique';
   static const civiqueThemeDetail = '/civique/theme/:themeId';
+  // Page « Examens blancs » d'un thème civique (10 slots de 20 Q / 20 min /
+  // seuil 16). Pushé depuis le hero rouge du détail thème.
+  static const civiqueThemeExams = '/civique/theme/:themeId/examens';
   static const tcf = '/tcf';
   static const tcfCoDetail = '/tcf/co';
   static const tcfCeDetail = '/tcf/ce';
@@ -310,6 +314,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => CiviqueThemeDetailScreen(
           themeId: state.pathParameters['themeId']!,
         ),
+        routes: [
+          GoRoute(
+            path: 'examens',
+            builder: (_, state) => CiviqueThemeExamsScreen(
+              themeId: state.pathParameters['themeId']!,
+            ),
+          ),
+        ],
       ),
       // TCF QCM CO — hub + sous-routes examens/erreurs.
       GoRoute(

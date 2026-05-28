@@ -1,0 +1,64 @@
+import 'package:flutter/material.dart';
+
+import '../../../../core/theme/app_theme.dart';
+import '../../../tcf_production/widgets/exam_stat_card.dart';
+
+/// Rangée de 3 stats au-dessus de la liste des examens civique d'un thème :
+/// Terminés (count/total) · Score moyen · Meilleur score. Scores en /total
+/// (typiquement 20 pour un examen thème civique). Pendant de `QcmExamsStatsRow`.
+class CiviqueExamsStatsRow extends StatelessWidget {
+  const CiviqueExamsStatsRow({
+    super.key,
+    required this.doneCount,
+    required this.totalCount,
+    required this.bestScore,
+    required this.avgScore,
+    required this.maxPossible,
+  });
+
+  final int doneCount;
+  final int totalCount;
+  final int? bestScore;
+  final int? avgScore;
+  final int maxPossible;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: ExamStatCard(
+            icon: Icons.checklist_rounded,
+            iconColor: AppColors.blue,
+            value: '$doneCount',
+            suffix: '/$totalCount',
+            valueColor: AppColors.ink,
+            label: 'Terminés',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: ExamStatCard(
+            icon: Icons.adjust_rounded,
+            iconColor: AppColors.green,
+            value: avgScore == null ? '—' : '$avgScore',
+            suffix: avgScore == null ? '' : '/$maxPossible',
+            valueColor: AppColors.green,
+            label: 'Score moyen',
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: ExamStatCard(
+            icon: Icons.local_fire_department_rounded,
+            iconColor: AppColors.amber,
+            value: bestScore == null ? '—' : '$bestScore',
+            suffix: bestScore == null ? '' : '/$maxPossible',
+            valueColor: AppColors.ink,
+            label: 'Meilleur score',
+          ),
+        ),
+      ],
+    );
+  }
+}
