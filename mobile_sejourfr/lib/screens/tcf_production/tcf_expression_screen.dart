@@ -372,6 +372,26 @@ class _TaskRow extends StatelessWidget {
 }
 
 /// Bloc « Historique » : stats + dernier examen blanc + dernier entraînement.
+/// Fusion examens + sujets, triée par date décroissante, limitée à [limit].
+/// Renvoie une liste d'`Object` (mix `_ExamSession` / `ProductionSubmissionDto`)
+/// que `_History` dispatche par type à l'affichage.
+List<Object> _recentMerged(_HubData data, int limit) {
+  final entries = <Object>[
+    ...data.exams,
+    ...data.singles,
+  ];
+  entries.sort((a, b) {
+    final wa = a is _ExamSession
+        ? a.lastSubmittedAt
+        : (a as ProductionSubmissionDto).submittedAt;
+    final wb = b is _ExamSession
+        ? b.lastSubmittedAt
+        : (b as ProductionSubmissionDto).submittedAt;
+    return wb.compareTo(wa);
+  });
+  return entries.take(limit).toList();
+}
+
 class _History extends StatelessWidget {
   const _History({
     required this.data,
@@ -442,19 +462,18 @@ class _History extends StatelessWidget {
             ],
           ),
         ),
-        if (data.exams.isNotEmpty)
+        // 3 dernières activités (examens + sujets) confondues, triées par date
+        // décroissante. Le reste est accessible via « Tout voir ».
+        for (final entry in _recentMerged(data, 3))
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-            child: _LastExamCard(
-                session: data.exams.first,
-                onTap: () => onExam(data.exams.first)),
-          ),
-        if (data.singles.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-            child: _RecentSingleRow(
-                submission: data.singles.first,
-                onTap: () => onSingle(data.singles.first)),
+            child: switch (entry) {
+              _ExamSession e =>
+                _LastExamCard(session: e, onTap: () => onExam(e)),
+              ProductionSubmissionDto s =>
+                _RecentSingleRow(submission: s, onTap: () => onSingle(s)),
+              _ => const SizedBox.shrink(),
+            },
           ),
       ],
     );
