@@ -19,7 +19,6 @@ import '../../screens/tcf_production/tcf_expression_screen.dart';
 import '../../screens/tcf_production/tcf_production_module.dart';
 import '../../screens/module_detail/tcf_qcm_detail_screen.dart';
 import '../../screens/module_detail/tcf_qcm_exams_screen.dart';
-import '../../screens/module_detail/tcf_qcm_errors_screen.dart';
 import '../../screens/onboarding/onboarding_screen.dart';
 import '../../screens/help/contact_screen.dart';
 import '../../screens/help/help_center_screen.dart';
@@ -61,13 +60,10 @@ class AppRoutes {
   static const tcfCoDetail = '/tcf/co';
   static const tcfCeDetail = '/tcf/ce';
   static const tcfStructureDetail = '/tcf/structure';
-  // Sous-routes des hubs QCM (CO, CE, Structure) : examens blancs + erreurs.
+  // Sous-routes des hubs QCM (CO, CE, Structure) : examens blancs.
   static const tcfCoExams = '/tcf/co/examens';
-  static const tcfCoErrors = '/tcf/co/erreurs';
   static const tcfCeExams = '/tcf/ce/examens';
-  static const tcfCeErrors = '/tcf/ce/erreurs';
   static const tcfStructureExams = '/tcf/structure/examens';
-  static const tcfStructureErrors = '/tcf/structure/erreurs';
   // Hub d'épreuve Expression (`TcfExpressionScreen`) : carte examen blanc + 3
   // tâches + historique. Tap une tâche → `TcfTaskTrainingScreen` (sujets +
   // exemples) sur les routes `…/tache/:tacheNumero`.
@@ -324,13 +320,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: 'examens',
             builder: (_, __) => const TcfQcmExamsScreen(module: TcfQcmModule.co),
           ),
-          GoRoute(
-            path: 'erreurs',
-            builder: (_, __) => const TcfQcmErrorsScreen(module: TcfQcmModule.co),
-          ),
         ],
       ),
-      // TCF QCM CE — hub + sous-routes examens/erreurs.
+      // TCF QCM CE — hub + sous-route examens.
       GoRoute(
         path: AppRoutes.tcfCeDetail,
         builder: (_, __) => const TcfQcmDetailScreen(module: TcfQcmModule.ce),
@@ -338,10 +330,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'examens',
             builder: (_, __) => const TcfQcmExamsScreen(module: TcfQcmModule.ce),
-          ),
-          GoRoute(
-            path: 'erreurs',
-            builder: (_, __) => const TcfQcmErrorsScreen(module: TcfQcmModule.ce),
           ),
         ],
       ),
@@ -354,10 +342,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'examens',
             builder: (_, __) => const TcfQcmExamsScreen(module: TcfQcmModule.structure),
-          ),
-          GoRoute(
-            path: 'erreurs',
-            builder: (_, __) => const TcfQcmErrorsScreen(module: TcfQcmModule.structure),
           ),
         ],
       ),

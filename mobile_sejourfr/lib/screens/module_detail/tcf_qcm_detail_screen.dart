@@ -10,7 +10,6 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../tcf_production/widgets/module_screen_header.dart';
 import 'qcm_hub_data.dart';
-import 'widgets/qcm_hub/qcm_errors_card.dart';
 import 'widgets/qcm_hub/qcm_exam_hero.dart';
 import 'widgets/qcm_hub/qcm_history_section.dart';
 import 'widgets/qcm_hub/qcm_level_row.dart';
@@ -136,10 +135,6 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
     context.push('/tcf/${widget.module.routeKey}/examens');
   }
 
-  void _openErrorsPage() {
-    context.push('/tcf/${widget.module.routeKey}/erreurs');
-  }
-
   void _openExamResult(AttemptSummary attempt) {
     context.push(AppRoutes.examResult.replaceFirst(':attemptId', attempt.id));
   }
@@ -170,8 +165,6 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
     final countB2 = lotsB2.valueOrNull?.length;
 
     final historyAsync = ref.watch(qcmExamsHistoryProvider(qt));
-    final wrongAsync = ref.watch(qcmWrongQuestionsProvider(qt));
-    final wrongCount = wrongAsync.valueOrNull?.length;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -240,14 +233,6 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
                 history: history,
                 onSeeAll: _openExamsPage,
                 onTap: _openExamResult,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-              child: QcmErrorsCard(
-                wrongCount: wrongCount,
-                onTap: _openErrorsPage,
               ),
             ),
           ],
