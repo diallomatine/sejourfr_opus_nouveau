@@ -35,6 +35,10 @@ final fullExamsHistoryProvider =
 /// chronologique : slot 1 = examen le plus ancien).
 const int _fullExamSlotsCount = 20;
 
+/// Nombre de slots affichés d'emblée. Au-delà, un bouton « Voir les examens
+/// X à Y » déplie le reste (même pattern que les examens blancs Civique).
+const int _visibleByDefault = 8;
+
 /// Écran plein des examens blancs TCF complets, avec topbar + back. Atteint
 /// depuis le hero Progression, l'historique, le bilan et le hero examen blanc
 /// du hub TCF (`AppRoutes.tcfFullExams`). `TcfFullExamsView` (le corps) est
@@ -356,7 +360,7 @@ class _StatCell extends StatelessWidget {
 /// détail TCF QCM/EE/EO. Les examens passés sont triés ASC (le plus ancien
 /// occupe le slot 1) et remplissent les slots de gauche à droite. Les slots
 /// restants sont vides (clic = nouvelle session).
-class _SlotsSection extends StatelessWidget {
+class _SlotsSection extends StatefulWidget {
   const _SlotsSection({
     required this.history,
     required this.onTapDone,
@@ -368,14 +372,26 @@ class _SlotsSection extends StatelessWidget {
   final void Function(int slot) onTapEmpty;
 
   @override
+  State<_SlotsSection> createState() => _SlotsSectionState();
+}
+
+class _SlotsSectionState extends State<_SlotsSection> {
+  bool _showAll = false;
+
+  @override
   Widget build(BuildContext context) {
     // Group by slot_number (cf. V110) : dernier essai par slot. Refait le
     // slot N → nouvel attempt slot_number=N qui écrase l'ancien dans la grille.
     final bySlot = <int, FullTcfExamSummary>{};
-    for (final e in history) {
+    for (final e in widget.history) {
       if (e.slotNumber == null) continue;
       bySlot.putIfAbsent(e.slotNumber!, () => e);
     }
+
+    final visibleCount =
+        _showAll ? _fullExamSlotsCount : _visibleByDefault;
+    final hiddenCount = _fullExamSlotsCount - visibleCount;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -402,15 +418,32 @@ class _SlotsSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        for (int i = 0; i < _fullExamSlotsCount; i++) ...[
+        for (int i = 0; i < visibleCount; i++) ...[
           _ExamSlotCard(
             slot: i + 1,
             exam: bySlot[i + 1],
-            onTapDone: onTapDone,
-            onTapEmpty: () => onTapEmpty(i + 1),
+            onTapDone: widget.onTapDone,
+            onTapEmpty: () => widget.onTapEmpty(i + 1),
           ),
-          if (i != _fullExamSlotsCount - 1) const SizedBox(height: 10),
+          if (i != visibleCount - 1) const SizedBox(height: 10),
         ],
+        if (hiddenCount > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: TextButton.icon(
+              onPressed: () => setState(() => _showAll = true),
+              icon: Text(
+                'Voir les examens ${visibleCount + 1} à $_fullExamSlotsCount',
+                style: AppFonts.jakarta(
+                  size: 13,
+                  weight: FontWeight.w700,
+                  color: AppColors.red,
+                ),
+              ),
+              label: const Icon(Icons.keyboard_arrow_down_rounded,
+                  size: 18, color: AppColors.red),
+            ),
+          ),
       ],
     );
   }
