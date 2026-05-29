@@ -1,5 +1,5 @@
 -- ============================================================================
--- V110 — slot_number sur attempts MOCK_EXAM
+-- V111 — slot_number sur attempts MOCK_EXAM
 -- ============================================================================
 -- Ajoute un identifiant de « slot d'examen blanc » sur les attempts. Permet
 -- à l'UI de stabiliser la numérotation des slots dans les écrans liste
@@ -27,7 +27,7 @@ ALTER TABLE attempts
 
 -- ---------------------------------------------------------------------------
 -- Rétro-fill : numérotation chronologique ASC des MOCK_EXAM existants par
--- partition (user, module, theme, module_exam_question_type, epreuve). On
+-- partition (user, module, lot_theme_id, module_exam_question_type, epreuve). On
 -- exclut les sous-attempts EE/EO/CO/CE d'un TCF complet (parent non null) —
 -- ils ne sont pas représentés en grille de slots.
 --
@@ -38,7 +38,7 @@ ALTER TABLE attempts
 WITH numbered AS (
     SELECT id, ROW_NUMBER() OVER (
         PARTITION BY user_id, module,
-                     COALESCE(theme_id::text, ''),
+                     COALESCE(lot_theme_id::text, ''),
                      COALESCE(module_exam_question_type, ''),
                      COALESCE(epreuve, '')
         ORDER BY started_at ASC

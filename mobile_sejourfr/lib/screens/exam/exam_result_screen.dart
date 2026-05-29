@@ -35,6 +35,17 @@ class ExamResultScreen extends ConsumerStatefulWidget {
 }
 
 class _ExamResultScreenState extends ConsumerState<ExamResultScreen> {
+  // Capturé tant que le context est vivant : `ref` n'est plus utilisable dans
+  // `dispose()` (Riverpod assert l'élément déjà démonté). On passe par le
+  // container pour invalider au démontage.
+  late final ProviderContainer _container;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _container = ProviderScope.containerOf(context, listen: false);
+  }
+
   @override
   void dispose() {
     // Au pop / démontage : invalide les caches d'historique d'examens. Comme
@@ -47,10 +58,10 @@ class _ExamResultScreenState extends ConsumerState<ExamResultScreen> {
     // TCF QCM par épreuve, TCF complet). Pour les family providers, sans
     // argument, invalide TOUTES les instances — exactement ce qu'on veut
     // puisqu'on ne connaît pas la clé d'origine ici.
-    ref.invalidate(civiqueGlobalExamsProvider);
-    ref.invalidate(civiqueThemeExamsHistoryProvider);
-    ref.invalidate(qcmExamsHistoryProvider);
-    ref.invalidate(fullExamsHistoryProvider);
+    _container.invalidate(civiqueGlobalExamsProvider);
+    _container.invalidate(civiqueThemeExamsHistoryProvider);
+    _container.invalidate(qcmExamsHistoryProvider);
+    _container.invalidate(fullExamsHistoryProvider);
     super.dispose();
   }
 
