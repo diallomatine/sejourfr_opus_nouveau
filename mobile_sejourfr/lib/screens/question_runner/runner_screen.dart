@@ -6,6 +6,7 @@ import 'package:sejourfr_mobile/core/router/app_router.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
 import '../../core/models/question_models.dart';
+import '../../core/providers/lots_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
@@ -639,6 +640,12 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
   final moduleKey = goState.uri.queryParameters['moduleKey'];
   final level = goState.uri.queryParameters['level'];
   if (from == 'tcfLot' && moduleKey != null && level != null) {
+    // Comme pour les examens blancs : l'écran lots reste mounted sous le
+    // bilan (pushReplacement). On invalide AVANT le push pour que son listener
+    // actif refetch immédiatement → le score du lot qu'on vient de terminer
+    // est à jour au retour, sans pull-to-refresh. Sans argument, invalide
+    // toutes les instances du family (on ne reconstruit pas la LotsKey ici).
+    ref.invalidate(lotsProvider);
     context.pushReplacement(
       '${AppRoutes.tcfLotResult.replaceFirst(':attemptId', attempt.id)}'
       '?moduleKey=$moduleKey&level=$level',
@@ -655,6 +662,9 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
   // l'écran adapte son titre ("Bilan du lot") et garde un fallback de back
   // au cas où la stack a été reset par ailleurs.
   if (from == 'civiqueLot') {
+    // Idem TCF : la liste des lots du thème (civiqueLotsProvider) reste mounted
+    // sous le rapport — on l'invalide pour rafraîchir le score du lot au retour.
+    ref.invalidate(civiqueLotsProvider);
     final themeId = goState.uri.queryParameters['themeId'];
     final base = AppRoutes.examReport.replaceFirst(':attemptId', attempt.id);
     final qs = themeId == null
