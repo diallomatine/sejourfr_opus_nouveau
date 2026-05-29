@@ -31,6 +31,33 @@ extension BillingCycleParse on BillingCycle {
   }
 }
 
+enum PlanPurchaseType { subscription, oneTime }
+
+extension PlanPurchaseTypeParse on PlanPurchaseType {
+  static PlanPurchaseType fromString(String? raw) {
+    return raw == 'ONE_TIME'
+        ? PlanPurchaseType.oneTime
+        : PlanPurchaseType.subscription;
+  }
+}
+
+/// Libellé court de la durée d'un pass one-time (durationDays → « 6 semaines »,
+/// « 3 mois », « 1 an »). Tolérant aux valeurs proches.
+String passDurationLabel(int days) {
+  if (days <= 0) return '';
+  if (days % 365 == 0) {
+    final y = days ~/ 365;
+    return y == 1 ? '1 an' : '$y ans';
+  }
+  if (days >= 30 && days % 30 == 0) {
+    return '${days ~/ 30} mois';
+  }
+  if (days % 7 == 0) {
+    return '${days ~/ 7} semaines';
+  }
+  return '$days jours';
+}
+
 enum ModuleAccess { none, civique, tcf, integral }
 
 extension ModuleAccessParse on ModuleAccess {
@@ -175,6 +202,7 @@ class PlanPublicResponse {
     required this.originalPrice,
     required this.moduleAccess,
     required this.durationDays,
+    required this.purchaseType,
   });
 
   final String code;
@@ -184,6 +212,7 @@ class PlanPublicResponse {
   final double? originalPrice;
   final ModuleAccess moduleAccess;
   final int durationDays;
+  final PlanPurchaseType purchaseType;
 
   factory PlanPublicResponse.fromJson(Map<String, dynamic> json) {
     return PlanPublicResponse(
@@ -194,8 +223,14 @@ class PlanPublicResponse {
       originalPrice: (json['originalPrice'] as num?)?.toDouble(),
       moduleAccess: ModuleAccessParse.fromString(json['moduleAccess'] as String?),
       durationDays: (json['durationDays'] as num?)?.toInt() ?? 0,
+      purchaseType: PlanPurchaseTypeParse.fromString(json['purchaseType'] as String?),
     );
   }
+
+  bool get isOneTime => purchaseType == PlanPurchaseType.oneTime;
+
+  /// Libellé de durée pour un pass one-time (« 6 semaines », « 3 mois »…).
+  String get durationLabel => passDurationLabel(durationDays);
 
   PlanModuleTarget? get target {
     if (moduleAccess == ModuleAccess.civique) return PlanModuleTarget.civique;
@@ -218,6 +253,7 @@ class SubscriptionStatusResponse {
     this.status,
     required this.moduleAccess,
     required this.autoRenew,
+    this.oneTime = false,
   });
 
   final bool isPremium;
@@ -227,6 +263,9 @@ class SubscriptionStatusResponse {
   final SubscriptionStatus? status;
   final ModuleAccess moduleAccess;
   final bool autoRenew;
+
+  /// Accès issu d'un pass one-time (lot 5) : « Mon accès » sans résiliation.
+  final bool oneTime;
 
   factory SubscriptionStatusResponse.fromJson(Map<String, dynamic> json) {
     return SubscriptionStatusResponse(
@@ -239,6 +278,7 @@ class SubscriptionStatusResponse {
       status: SubscriptionStatusParse.tryParse(json['status'] as String?),
       moduleAccess: ModuleAccessParse.fromString(json['moduleAccess'] as String?),
       autoRenew: json['autoRenew'] as bool? ?? false,
+      oneTime: json['oneTime'] as bool? ?? false,
     );
   }
 

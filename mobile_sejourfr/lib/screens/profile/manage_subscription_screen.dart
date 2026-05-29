@@ -8,6 +8,7 @@ import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/billing_models.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/format_date.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_tag.dart';
 
@@ -236,7 +237,11 @@ class _Body extends StatelessWidget {
         const SizedBox(height: 16),
         _InfoCard(status: status, isCanceled: isCanceled),
         const SizedBox(height: 20),
-        if (!isCanceled)
+        // Pass one-time (lot 5) : rien à résilier (aucune reconduction).
+        // On affiche un pied « Mon accès » au lieu du bouton Résilier.
+        if (status.oneTime)
+          _OneTimeFootnote(expiresAt: status.expiresAt)
+        else if (!isCanceled)
           _CancelButton(
             inProgress: cancelInProgress,
             onTap: cancelInProgress ? null : onCancel,
@@ -244,6 +249,46 @@ class _Body extends StatelessWidget {
         else
           _CanceledFootnote(expiresAt: status.expiresAt),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pied « Mon accès » (pass one-time : pas de résiliation)
+// ---------------------------------------------------------------------------
+
+class _OneTimeFootnote extends StatelessWidget {
+  const _OneTimeFootnote({required this.expiresAt});
+
+  final DateTime? expiresAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final until = expiresAt == null ? null : formatLongDate(expiresAt!);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.blue.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.verified_rounded, size: 18, color: AppColors.blue),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              until == null
+                  ? 'Accès payé une fois, sans abonnement : rien à résilier.'
+                  : 'Accès payé une fois, sans abonnement : rien à résilier. '
+                      'Votre accès reste ouvert jusqu\'au $until.',
+              style: AppFonts.jakarta(
+                  size: 12.5, color: AppColors.ink2, height: 1.5),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -3,6 +3,7 @@ package com.sejourfr.app.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.ModuleAccess;
+import com.sejourfr.app.enums.PlanPurchaseType;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
 
@@ -29,14 +30,20 @@ public record SubscriptionStatusResponse(
         Instant expiresAt,
         SubscriptionStatus status,
         ModuleAccess moduleAccess,
-        boolean autoRenew
+        boolean autoRenew,
+        // True si l'accès courant vient d'un pass one-time (lot 5) : les fronts
+        // affichent « Mon accès » (date de fin + prolonger) sans option de
+        // résiliation. False pour un abonnement récurrent.
+        boolean oneTime
 ) {
     public static SubscriptionStatusResponse notPremium() {
         return new SubscriptionStatusResponse(
-                false, null, null, null, null, ModuleAccess.NONE, false);
+                false, null, null, null, null, ModuleAccess.NONE, false, false);
     }
 
     public static SubscriptionStatusResponse from(UserSubscription sub) {
+        boolean oneTime = sub.getPlan() != null
+                && sub.getPlan().getPurchaseType() == PlanPurchaseType.ONE_TIME;
         return new SubscriptionStatusResponse(
                 true,
                 sub.getSource(),
@@ -44,7 +51,8 @@ public record SubscriptionStatusResponse(
                 sub.getEndsAt(),
                 sub.getStatus(),
                 sub.getPlan().getModuleAccess(),
-                sub.isAutoRenew()
+                sub.isAutoRenew(),
+                oneTime
         );
     }
 }

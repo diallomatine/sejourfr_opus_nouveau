@@ -230,13 +230,15 @@ class BillingController extends StateNotifier<BillingState> {
         final plan = skuToPlan[pd.id];
         if (plan == null) continue;
         final target = plan.target;
-        final periodicity = plan.periodicity;
-        if (target == null || periodicity == null) continue;
+        if (target == null) continue;
+        // Abonnement : périodicité requise. Pass one-time : pas de périodicité
+        // (la durée vient de durationDays).
+        if (!plan.isOneTime && plan.periodicity == null) continue;
         products.add(IapProduct(
           plan: plan,
           productDetails: pd,
           module: target,
-          periodicity: periodicity,
+          periodicity: plan.periodicity,
         ));
       }
 
@@ -268,7 +270,12 @@ class BillingController extends StateNotifier<BillingState> {
     // Le plan FREE (pas de module ciblé / pas de périodicité / prix nul) n'a
     // aucun SKU côté store → on l'écarte pour ne pas l'envoyer à loadProducts
     // (sinon il revient en notFoundIDs).
-    if (plan.target == null || plan.periodicity == null || plan.price <= 0) {
+    if (plan.target == null || plan.price <= 0) {
+      return null;
+    }
+    // Abonnement récurrent : périodicité requise. Pass one-time : pas de
+    // périodicité (la durée vit dans durationDays).
+    if (!plan.isOneTime && plan.periodicity == null) {
       return null;
     }
     // Google Play impose des Product IDs en MINUSCULES (Apple/Stripe tolèrent
@@ -293,7 +300,11 @@ class BillingController extends StateNotifier<BillingState> {
       clearError: true,
     );
     try {
-      final ok = await _iap.purchase(product.productDetails);
+      // Pass one-time = produit consommable (ré-achetable) ; abonnement =
+      // non-consommable. Cf. IapService.
+      final ok = product.plan.isOneTime
+          ? await _iap.purchaseConsumable(product.productDetails)
+          : await _iap.purchase(product.productDetails);
       if (!ok) {
         // Le store a refusé d'ouvrir l'UI d'achat (déjà en cours, restrictions
         // parentales, etc.). L'erreur réelle remontera via purchaseStream s'il

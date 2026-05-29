@@ -150,7 +150,8 @@ class _CiviqueThemeDetailScreenState
 
   /// Démarre un examen blanc du thème (20 Q, MOCK_EXAM) sur le slot donné,
   /// puis pousse le runner. Miroir de `CiviqueThemeExamsScreen._startExam`.
-  Future<void> _startThemeExam(ThemeDto theme, {required int slotNumber}) async {
+  Future<void> _startThemeExam(ThemeDto theme,
+      {required int slotNumber}) async {
     if (_starting) return;
     setState(() => _starting = true);
     ref.read(selectedModuleProvider.notifier).state = AppModule.civique;
@@ -208,9 +209,10 @@ class _CiviqueThemeDetailScreenState
         onResume: () {
           Navigator.of(sheetCtx).pop();
           if (!_isPremium()) {
-            final history =
-                ref.read(civiqueThemeExamsHistoryProvider(theme.id)).valueOrNull ??
-                    const [];
+            final history = ref
+                    .read(civiqueThemeExamsHistoryProvider(theme.id))
+                    .valueOrNull ??
+                const [];
             if (history.any((a) => a.isFinished)) {
               showPaywallSheet(context);
               return;
@@ -252,7 +254,8 @@ class _CiviqueThemeDetailScreenState
             onBack: _back,
           ),
           data: (themes) {
-            final theme = themes.where((t) => t.id == widget.themeId).firstOrNull;
+            final theme =
+                themes.where((t) => t.id == widget.themeId).firstOrNull;
             if (theme == null) {
               return _ErrorBlock(
                 message: 'Thème introuvable.',
@@ -390,8 +393,7 @@ class _LotsList extends StatelessWidget {
         ),
       );
     }
-    final visible =
-        showAll ? lots : lots.take(_civiqueLotsInlineCap).toList();
+    final visible = showAll ? lots : lots.take(_civiqueLotsInlineCap).toList();
     final hiddenCount = lots.length - visible.length;
     return Column(
       children: [
