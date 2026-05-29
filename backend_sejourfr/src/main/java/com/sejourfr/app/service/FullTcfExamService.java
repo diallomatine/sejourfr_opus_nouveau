@@ -72,6 +72,7 @@ public class FullTcfExamService {
     private final AiEvaluationManager aiEvaluationManager;
     private final SubscriptionService subscriptionService;
     private final AttemptService attemptService;
+    private final TcfLevelEstimatorService levelEstimator;
 
     // ------------------------------------------------------------------------
     // Création
@@ -292,6 +293,9 @@ public class FullTcfExamService {
         if (finalCecrl == null && status == FullTcfExamResponse.FullTcfExamStatus.COMPLETED) {
             finalCecrl = floorOfCecrls(ordered);
         }
+        // Plafond IRN B2, y compris pour un finalCecrlLevel persisté avant le
+        // cap (données antérieures où EE/EO pouvait remonter C1/C2).
+        finalCecrl = levelEstimator.capB2(finalCecrl);
         return new FullTcfExamResponse(
                 parent.getId(),
                 parent.getStartedAt(),
@@ -312,9 +316,16 @@ public class FullTcfExamService {
     private FullTcfExamResponse.SubAttempt mapSubAttempt(Attempt sub) {
         EpreuveType e = sub.getEpreuve();
         if (e == EpreuveType.TCF_CO || e == EpreuveType.TCF_CE) {
-            NiveauCecrl level = sub.getFinishedAt() != null
-                    ? weightedScoreToCecrl(sub.getWeightedScore(), sub.getMaxWeightedScore())
-                    : null;
+            // Source de vérité : cecrl_level posé à la finalisation par
+            // TcfLevelEstimatorService. Fallback weightedScoreToCecrl pour les
+            // sous-attempts finis avant V415 (cecrl_level encore NULL).
+            NiveauCecrl level = null;
+            if (sub.getFinishedAt() != null) {
+                level = sub.getCecrlLevel() != null
+                        ? sub.getCecrlLevel()
+                        : weightedScoreToCecrl(sub.getWeightedScore(), sub.getMaxWeightedScore());
+                level = levelEstimator.capB2(level);
+            }
             return new FullTcfExamResponse.SubAttempt(
                     sub.getId(), e, sub.getFinishedAt(), level,
                     sub.getWeightedScore(), sub.getMaxWeightedScore(),
@@ -339,9 +350,13 @@ public class FullTcfExamService {
             AiEvaluation eval = aiEvaluationManager.findLatestBySubmissionId(s.getId()).orElse(null);
             if (eval == null || eval.getNiveauCecrl() == null) continue;
             evaluatedCount++;
-            floor = minCecrl(floor, eval.getNiveauCecrl());
+            floor = levelEstimator.min(floor, eval.getNiveauCecrl());
         }
-        NiveauCecrl level = evaluatedCount == EXPECTED_PRODUCTION_SUBMISSIONS ? floor : null;
+        // Plancher des 3 tâches, plafonné B2 (l'éval IA peut rendre C1/C2 ;
+        // l'IRN ne classe pas au-delà). La note brute reste stockée intacte.
+        NiveauCecrl level = evaluatedCount == EXPECTED_PRODUCTION_SUBMISSIONS
+                ? levelEstimator.capB2(floor)
+                : null;
         return new FullTcfExamResponse.SubAttempt(
                 sub.getId(), e, sub.getFinishedAt(), level,
                 null, null, evaluatedCount, failedIds);
@@ -406,15 +421,8 @@ public class FullTcfExamService {
     private NiveauCecrl floorOfCecrls(List<FullTcfExamResponse.SubAttempt> subs) {
         NiveauCecrl floor = null;
         for (FullTcfExamResponse.SubAttempt s : subs) {
-            floor = minCecrl(floor, s.cecrlLevel());
+            floor = levelEstimator.min(floor, s.cecrlLevel());
         }
         return floor;
-    }
-
-    private NiveauCecrl minCecrl(NiveauCecrl a, NiveauCecrl b) {
-        if (a == null) return b;
-        if (b == null) return a;
-        // ordinal : A1_NON_ATTEINT(0) < A1(1) < A2(2) < B1(3) < B2(4) < C1(5) < C2(6)
-        return a.ordinal() <= b.ordinal() ? a : b;
     }
 }

@@ -149,6 +149,14 @@ public class Attempt {
     @Column(name = "final_cecrl_level", length = 24)
     private NiveauCecrl finalCecrlLevel;
 
+    // Niveau CECRL estimé d'une épreuve QCM (CO/CE) — calculé à la finalisation
+    // par TcfLevelEstimatorService (score calibré + garde-fou palier), plafonné
+    // B2. Source de vérité unique relue par le full exam et le profil de niveau.
+    // NULL pour le civique, l'entraînement libre, et les attempts pré-V415.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cecrl_level", length = 24)
+    private NiveauCecrl cecrlLevel;
+
     @OneToMany(mappedBy = "attempt", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
     private List<AttemptQuestion> questions = new ArrayList<>();
@@ -267,4 +275,7 @@ public class Attempt {
 
     public NiveauCecrl getFinalCecrlLevel() { return finalCecrlLevel; }
     public void setFinalCecrlLevel(NiveauCecrl finalCecrlLevel) { this.finalCecrlLevel = finalCecrlLevel; }
+
+    public NiveauCecrl getCecrlLevel() { return cecrlLevel; }
+    public void setCecrlLevel(NiveauCecrl cecrlLevel) { this.cecrlLevel = cecrlLevel; }
 }

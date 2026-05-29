@@ -98,7 +98,12 @@ public class EvaluationPromptBuilder {
               + "ton evaluation."
             : "";
 
-        String dureeBlock = buildDureeBlock(task, dureeProductionSec);
+        // EO : débit (mots/min) en tête du bloc, puis l'éventuel rappel de durée
+        // sous-objectif. Injectés ensemble dans {DUREE_BLOCK} pour ne pas
+        // toucher au gabarit .md (pas de bump de prompt-version : contexte
+        // runtime, comme la durée).
+        String dureeBlock = buildDebitBlock(task, production, dureeProductionSec)
+                + buildDureeBlock(task, dureeProductionSec);
 
         return loadTemplate(userPath(currentVersion()))
             .replace("{MODALITE}", modalite(task.getEpreuve()))
@@ -112,6 +117,26 @@ public class EvaluationPromptBuilder {
             .replace("{PRODUCTION}", nullSafe(production))
             .replace("{LITTERAL_NOTICE}", litteralNotice)
             .replace("{DUREE_BLOCK}", dureeBlock);
+    }
+
+    /**
+     * Bloc EO « débit de parole » (mots/minute), toujours présent dès qu'on a
+     * une durée parlée. Donne au LLM un signal de fluidité chiffré ; reste
+     * indicatif (à pondérer avec le contenu réel). Vide pour l'EE ou sans durée.
+     */
+    private static String buildDebitBlock(ProductionTask task, String production, Integer dureeProductionSec) {
+        if (task.getEpreuve() != EpreuveType.TCF_EO
+                || dureeProductionSec == null || dureeProductionSec <= 0
+                || production == null || production.isBlank()) {
+            return "";
+        }
+        int mots = production.trim().split("\\s+").length;
+        int wpm = (int) Math.round(mots * 60.0 / dureeProductionSec);
+        return "DÉBIT DE PAROLE : le candidat a produit environ " + mots + " mots en "
+            + dureeProductionSec + " s, soit ~" + wpm + " mots/minute. Indicateur de fluidité "
+            + "(un débit oral naturel en français se situe ~110-150 mots/min ; nettement plus "
+            + "lent peut trahir des hésitations, très rapide peut nuire à l'intelligibilité). "
+            + "Pondère ce signal avec le contenu réel de la transcription, ne le sur-pénalise pas seul.\n";
     }
 
     /**
