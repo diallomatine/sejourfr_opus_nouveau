@@ -83,11 +83,17 @@ public class QuestionMapper {
      *                      ou Question.id (ordre stable pour la revue / favoris).
      */
     public QuestionPublicResponse toPublic(Question q, boolean revealCorrect, UUID shuffleSeedId) {
-        long seed = uuidSeed(shuffleSeedId);
         List<Choice> ordered = q.getChoices().stream()
                 .sorted(Comparator.comparingInt(Choice::getDisplayOrder))
                 .collect(Collectors.toCollection(ArrayList::new));
-        Collections.shuffle(ordered, new Random(seed));
+        // Questions audio (TCF CO) : l'audio énonce les réponses dans l'ordre
+        // displayOrder (A→B→C→D) et fige la correspondance lettre↔réponse. On
+        // ne les shuffle PAS, sinon la lettre affichée ne correspond plus à
+        // celle dite dans l'audio. Les autres questions sont mélangées de façon
+        // stable (seed = AttemptQuestion.id) pour limiter la mémorisation.
+        if (q.getAudioMode() == null) {
+            Collections.shuffle(ordered, new Random(uuidSeed(shuffleSeedId)));
+        }
 
         List<ChoicePublicResponse> choices = new ArrayList<>(ordered.size());
         for (int i = 0; i < ordered.size(); i++) {
