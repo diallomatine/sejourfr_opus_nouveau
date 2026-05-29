@@ -228,6 +228,24 @@ masque le bouton d'achat IAP. Pareil dans l'autre sens.
   via `cancelSubscriptionById`. Rejette en 409 si statut non cancellable
   (CANCELED / EXPIRED / REFUNDED). Pour Apple/Google l'admin reçoit le `REDIRECT`
   comme l'user — à charge pour le support de transmettre l'URL au client.
+
+**Emails transactionnels Premium** (`MailService.sendSubscriptionActivatedEmail`
++ `sendSubscriptionCanceledEmail`) :
+- **Activation** envoyée une fois lors de la première souscription. Triggers :
+  Stripe `handleCheckoutCompleted` quand création neuve ; Apple/Google
+  `activateFromReceipt` quand la ligne `user_subscriptions` n'existait pas
+  encore (les restaurations sur un originalTransactionId connu n'envoient pas).
+- **Résiliation** envoyée sur transition `oldStatus ≠ CANCELED → newStatus = CANCELED`.
+  Triggers : `SubscriptionCancellationService.cancelStripe` (cancel via notre
+  endpoint, le webhook qui arrive après ne renvoie pas car oldStatus est déjà
+  CANCELED) ; webhook Stripe `customer.subscription.updated` (user annule
+  directement dans Stripe), Apple `DID_CHANGE_RENEWAL_STATUS`, Google
+  `subscriptionsv2.get` → SUBSCRIPTION_STATE_CANCELED. Pas de mail sur
+  expiration naturelle ni sur refund/revoke (sémantique différente).
+- Format : HTML inline CSS (compat Gmail/Outlook), logo en image inline CID
+  depuis `backend_sejourfr/src/main/resources/static/mail/logo.png`. Envoi
+  synchrone dans la transaction qui modifie le sub ; un mail raté log warn
+  sans propager (cf. pattern existant pour reset password).
 - `POST /api/billing/webhook` — Stripe (signé HMAC).
 - `POST /api/billing/webhooks/apple` — Apple ASSN V2 (JWS signé, à vérifier).
 - `POST /api/billing/webhooks/google` — Google RTDN via Pub/Sub.

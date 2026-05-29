@@ -14,6 +14,7 @@ import com.sejourfr.app.manager.PlanManager;
 import com.sejourfr.app.manager.ProcessedExternalEventManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
+import com.sejourfr.app.service.MailService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +60,7 @@ public class GoogleSubscriptionService {
     private final UserManager userManager;
     private final UserSubscriptionManager userSubscriptionManager;
     private final ProcessedExternalEventManager processedEventManager;
+    private final MailService mailService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // ------------------------------------------------------------------------
@@ -91,11 +93,19 @@ public class GoogleSubscriptionService {
             User user = userManager.findById(userId)
                     .orElseThrow(() -> new EntityNotFoundException("User introuvable: " + userId));
 
+            // Restauration côté StoreKit/Play : verify-receipt peut être rappelé
+            // sur un purchaseToken existant. Pas de mail de bienvenue dans ce cas.
+            boolean isNew = userSubscriptionManager
+                    .findBySourceAndOriginalTransactionId(SubscriptionSource.GOOGLE, purchaseToken)
+                    .isEmpty();
             UserSubscription sub = upsert(user, plan, lineItem, state, purchaseToken);
             log.info(
-                    "Google verify-receipt OK user={} productId={} purchaseToken={} status={} endsAt={}",
-                    userId, lineItem.getProductId(), purchaseToken, sub.getStatus(), sub.getEndsAt()
+                    "Google verify-receipt OK user={} productId={} purchaseToken={} status={} endsAt={} new={}",
+                    userId, lineItem.getProductId(), purchaseToken, sub.getStatus(), sub.getEndsAt(), isNew
             );
+            if (isNew) {
+                sendActivationMail(sub);
+            }
             return sub;
         } catch (ResponseStatusException e) {
             // Rend visible côté serveur la raison exacte du refus (sinon le 400
@@ -243,6 +253,7 @@ public class GoogleSubscriptionService {
         }
 
         SubscriptionPurchaseLineItem lineItem = pickPrimaryLineItem(state, null);
+        SubscriptionStatus oldStatus = sub.getStatus();
         sub.setProductId(lineItem.getProductId());
         sub.setExternalTransactionId(state.getLatestOrderId());
         sub.setEndsAt(parseExpiry(lineItem.getExpiryTime(), sub.getEndsAt()));
@@ -250,6 +261,13 @@ public class GoogleSubscriptionService {
         sub.setStatus(mapSubscriptionState(state.getSubscriptionState(), sub.getStatus()));
 
         userSubscriptionManager.save(sub);
+
+        // Mail de résiliation UNIQUEMENT sur transition vers CANCELED. Pas
+        // d'envoi si CANCELED → CANCELED (replay RTDN ; Pub/Sub at-least-once).
+        if (oldStatus != SubscriptionStatus.CANCELED
+                && sub.getStatus() == SubscriptionStatus.CANCELED) {
+            sendCancellationMail(sub);
+        }
         log.info(
                 "Google RTDN type={} messageId={} appliqué user={} status={} endsAt={} autoRenew={}",
                 notificationType, messageId,
@@ -260,6 +278,24 @@ public class GoogleSubscriptionService {
     // ------------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------------
+
+    private void sendActivationMail(UserSubscription sub) {
+        User user = sub.getUser();
+        String planName = sub.getPlan() != null ? sub.getPlan().getName() : "Premium";
+        mailService.sendSubscriptionActivatedEmail(
+                user.getEmail(), user.getFirstName(), planName,
+                sub.getEndsAt(), sub.getSource().name()
+        );
+    }
+
+    private void sendCancellationMail(UserSubscription sub) {
+        User user = sub.getUser();
+        String planName = sub.getPlan() != null ? sub.getPlan().getName() : "Premium";
+        mailService.sendSubscriptionCanceledEmail(
+                user.getEmail(), user.getFirstName(), planName,
+                sub.getEndsAt(), sub.getSource().name()
+        );
+    }
 
     private SubscriptionPurchaseV2 fetchSubscriptionOrThrow(String purchaseToken) {
         try {

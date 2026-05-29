@@ -8,6 +8,7 @@ import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.PlanManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
+import com.sejourfr.app.service.MailService;
 import com.stripe.exception.EventDataObjectDeserializationException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Charge;
@@ -55,6 +56,7 @@ public class StripeSubscriptionService {
     private final UserManager userManager;
     private final PlanManager planManager;
     private final UserSubscriptionManager userSubscriptionManager;
+    private final MailService mailService;
 
     /**
      * Entrée unique appelée par {@code BillingService.handleWebhook}. L'event
@@ -140,11 +142,20 @@ public class StripeSubscriptionService {
             );
         }
 
-        upsertFromSubscription(userId, subscription, session.getCustomer());
+        boolean isNew = upsertFromSubscription(userId, subscription, session.getCustomer());
         log.info(
-                "Stripe checkout completed user={} sub={} status={}",
-                userId, subscriptionId, subscription.getStatus()
+                "Stripe checkout completed user={} sub={} status={} new={}",
+                userId, subscriptionId, subscription.getStatus(), isNew
         );
+
+        // Mail de bienvenue Premium UNIQUEMENT lors de la création initiale.
+        // Les renouvellements futurs passent par customer.subscription.updated
+        // et n'envoient pas de mail.
+        if (isNew) {
+            userSubscriptionManager
+                    .findBySourceAndOriginalTransactionId(SubscriptionSource.STRIPE, subscriptionId)
+                    .ifPresent(this::sendActivationMail);
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -170,6 +181,7 @@ public class StripeSubscriptionService {
         }
 
         UserSubscription sub = existing.get();
+        SubscriptionStatus oldStatus = sub.getStatus();
         applySubscriptionState(sub, subscription);
         userSubscriptionManager.save(sub);
         log.info(
@@ -177,6 +189,14 @@ public class StripeSubscriptionService {
                 type, sub.getUser().getId(), subscription.getId(),
                 sub.getStatus(), sub.getEndsAt(), sub.isAutoRenew()
         );
+
+        // Mail de résiliation UNIQUEMENT sur transition ACTIVE-like → CANCELED.
+        // Si CANCELED → CANCELED (replay webhook ou cancel déjà initié par
+        // notre /cancel endpoint), on ne renvoie pas.
+        if (oldStatus != SubscriptionStatus.CANCELED
+                && sub.getStatus() == SubscriptionStatus.CANCELED) {
+            sendCancellationMail(sub);
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -249,13 +269,18 @@ public class StripeSubscriptionService {
     /**
      * Crée la ligne {@code user_subscriptions} pour ce user + subscription
      * Stripe, ou la rafraîchit si elle existait déjà (re-checkout). Idempotent.
+     *
+     * @return {@code true} si une ligne a été créée, {@code false} si on a
+     *         rafraîchi une ligne existante. Sert à déclencher le mail de
+     *         bienvenue UNE seule fois par souscription.
      */
-    private void upsertFromSubscription(UUID userId, Subscription subscription, String customerId) {
+    private boolean upsertFromSubscription(UUID userId, Subscription subscription, String customerId) {
         UserSubscription sub = userSubscriptionManager
                 .findBySourceAndOriginalTransactionId(
                         SubscriptionSource.STRIPE, subscription.getId())
                 .orElse(null);
 
+        boolean isNew = false;
         if (sub == null) {
             User user = userManager.findById(userId)
                     .orElseThrow(() -> new ResponseStatusException(
@@ -265,6 +290,7 @@ public class StripeSubscriptionService {
             sub.setSource(SubscriptionSource.STRIPE);
             sub.setOriginalTransactionId(subscription.getId());
             sub.setStartsAt(Instant.now());
+            isNew = true;
         } else if (!sub.getUser().getId().equals(userId)) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
@@ -276,6 +302,25 @@ public class StripeSubscriptionService {
         sub.setStripeSubscriptionId(subscription.getId());
         applySubscriptionState(sub, subscription);
         userSubscriptionManager.save(sub);
+        return isNew;
+    }
+
+    private void sendActivationMail(UserSubscription sub) {
+        User user = sub.getUser();
+        String planName = sub.getPlan() != null ? sub.getPlan().getName() : "Premium";
+        mailService.sendSubscriptionActivatedEmail(
+                user.getEmail(), user.getFirstName(), planName,
+                sub.getEndsAt(), sub.getSource().name()
+        );
+    }
+
+    private void sendCancellationMail(UserSubscription sub) {
+        User user = sub.getUser();
+        String planName = sub.getPlan() != null ? sub.getPlan().getName() : "Premium";
+        mailService.sendSubscriptionCanceledEmail(
+                user.getEmail(), user.getFirstName(), planName,
+                sub.getEndsAt(), sub.getSource().name()
+        );
     }
 
     /**
