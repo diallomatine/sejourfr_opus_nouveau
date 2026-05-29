@@ -124,6 +124,15 @@ public class Attempt {
     @Column(name = "module_exam_question_type", length = 24)
     private QuestionType moduleExamQuestionType;
 
+    // Numéro de slot stable d'examen blanc dans la grille UI (TCF QCM, TCF
+    // complet, civique global, civique thématique). Cf. migration V110.
+    // - NULL pour tout sauf MOCK_EXAM standalone.
+    // - NULL aussi pour les sous-attempts d'un TCF complet (parent non null).
+    // - Plusieurs attempts peuvent partager le même slot_number (refait
+    //   successif) ; l'UI prend toujours le plus récent par slot.
+    @Column(name = "slot_number")
+    private Integer slotNumber;
+
     // Score pondéré par niveau (A2=1, B1=2, B2=3) — calculé à la finalisation
     // des examens module pour éviter de re-joindre questions à chaque lecture.
     // Reste NULL pour les autres attempts (training, examens complets, lots).
@@ -139,6 +148,14 @@ public class Attempt {
     @Enumerated(EnumType.STRING)
     @Column(name = "final_cecrl_level", length = 24)
     private NiveauCecrl finalCecrlLevel;
+
+    // Niveau CECRL estimé d'une épreuve QCM (CO/CE) — calculé à la finalisation
+    // par TcfLevelEstimatorService (score calibré + garde-fou palier), plafonné
+    // B2. Source de vérité unique relue par le full exam et le profil de niveau.
+    // NULL pour le civique, l'entraînement libre, et les attempts pré-V416.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cecrl_level", length = 24)
+    private NiveauCecrl cecrlLevel;
 
     @OneToMany(mappedBy = "attempt", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
@@ -247,6 +264,9 @@ public class Attempt {
     public QuestionType getModuleExamQuestionType() { return moduleExamQuestionType; }
     public void setModuleExamQuestionType(QuestionType moduleExamQuestionType) { this.moduleExamQuestionType = moduleExamQuestionType; }
 
+    public Integer getSlotNumber() { return slotNumber; }
+    public void setSlotNumber(Integer slotNumber) { this.slotNumber = slotNumber; }
+
     public Integer getWeightedScore() { return weightedScore; }
     public void setWeightedScore(Integer weightedScore) { this.weightedScore = weightedScore; }
 
@@ -255,4 +275,7 @@ public class Attempt {
 
     public NiveauCecrl getFinalCecrlLevel() { return finalCecrlLevel; }
     public void setFinalCecrlLevel(NiveauCecrl finalCecrlLevel) { this.finalCecrlLevel = finalCecrlLevel; }
+
+    public NiveauCecrl getCecrlLevel() { return cecrlLevel; }
+    public void setCecrlLevel(NiveauCecrl cecrlLevel) { this.cecrlLevel = cecrlLevel; }
 }

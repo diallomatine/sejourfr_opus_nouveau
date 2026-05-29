@@ -2,6 +2,7 @@ import { apiRequest } from "./http";
 import type {
   AdminSubscriptionFilters,
   AdminSubscriptionListResponse,
+  CancelSubscriptionResponse,
 } from "../types/api";
 
 export const subscriptionsApi = {
@@ -16,5 +17,12 @@ export const subscriptionsApi = {
         size: filters.size,
       },
     });
+  },
+
+  cancel(id: string) {
+    return apiRequest<CancelSubscriptionResponse>(
+      `/api/admin/subscriptions/${id}/cancel`,
+      { method: "POST" },
+    );
   },
 };

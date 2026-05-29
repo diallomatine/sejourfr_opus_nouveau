@@ -12,6 +12,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'eo_session_controller.dart';
+import 'widgets/avertissements_card.dart';
 import 'widgets/correction_example.dart';
 import 'widgets/criterion_row.dart';
 import 'widgets/donut_chart_score.dart';
@@ -21,7 +22,8 @@ import 'widgets/production_app_header.dart';
 import 'widgets/results_eval_banner.dart';
 import 'widgets/transcription_section.dart';
 
-final _eoSubmissionFetcher = FutureProvider.autoDispose.family<ProductionSubmissionDto, String>((ref, id) {
+final _eoSubmissionFetcher = FutureProvider.autoDispose
+    .family<ProductionSubmissionDto, String>((ref, id) {
   return ref.watch(productionRepositoryProvider).getSubmission(id);
 });
 
@@ -61,7 +63,8 @@ class _EoResultsScreenState extends ConsumerState<EoResultsScreen> {
         timer.cancel();
         return;
       }
-      final value = ref.read(_eoSubmissionFetcher(widget.submissionId)).valueOrNull;
+      final value =
+          ref.read(_eoSubmissionFetcher(widget.submissionId)).valueOrNull;
       if (value != null && value.statut.isFinal) {
         timer.cancel();
         return;
@@ -82,7 +85,8 @@ class _EoResultsScreenState extends ConsumerState<EoResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final session = widget.isHistory ? null : ref.watch(eoSessionProvider).value;
+    final session =
+        widget.isHistory ? null : ref.watch(eoSessionProvider).value;
     final async = ref.watch(_eoSubmissionFetcher(widget.submissionId));
 
     // Lecture des query params au niveau du screen (accès garanti au
@@ -91,9 +95,8 @@ class _EoResultsScreenState extends ConsumerState<EoResultsScreen> {
     final qp = GoRouterState.of(context).uri.queryParameters;
     final fullExamId = qp['fullExamId'];
 
-    final fallbackRoute = fullExamId != null
-        ? '/tcf/examen-blanc/$fullExamId'
-        : '/tcf/eo';
+    final fallbackRoute =
+        fullExamId != null ? '/tcf/examen-blanc/$fullExamId' : '/tcf/eo';
     return _Wrapper(
       fallbackRoute: fallbackRoute,
       body: async.when(
@@ -169,15 +172,18 @@ class _Body extends ConsumerWidget {
 
   /// Mode entrainement libre (single-task depuis le hub). Le bilan de session
   /// n'a pas de sens : on propose juste un retour au hub des taches.
-  bool get _isSingleTask => !isHistory && session != null && session!.totalTasks == 1;
+  bool get _isSingleTask =>
+      !isHistory && session != null && session!.totalTasks == 1;
 
-  String get _bilanCtaLabel => fullExamId != null ? 'Continuer l\'examen blanc' : 'Voir mon bilan';
+  String get _bilanCtaLabel =>
+      fullExamId != null ? 'Continuer l\'examen blanc' : 'Voir mon bilan';
 
   void _navigateToBilan(BuildContext context, WidgetRef ref) {
     if (fullExamId != null) {
       ref.read(eoSessionProvider.notifier).reset();
       ref.invalidate(fullTcfExamProvider(fullExamId!));
       context.go('/tcf/examen-blanc/$fullExamId');
+
       return;
     }
     // Hors examen blanc complet : ce CTA n'est plus atteignable en mode
@@ -209,6 +215,9 @@ class _Body extends ConsumerWidget {
                 noteSur20: eval.noteSurVingt?.toDouble(),
                 niveau: eval.niveauCecrl,
               ),
+              AvertissementsCard(
+                avertissements: eval.feedback.avertissements,
+              ),
               if (eval.feedback.scoresCriteres.isNotEmpty)
                 _CriteresCard(criteres: eval.feedback.scoresCriteres),
               if (eval.feedback.pointsForts.isNotEmpty)
@@ -231,7 +240,8 @@ class _Body extends ConsumerWidget {
                   title: 'Suggestion globale',
                   items: eval.feedback.suggestions,
                 ),
-              if (submission.transcription != null && submission.transcription!.isNotEmpty) ...[
+              if (submission.transcription != null &&
+                  submission.transcription!.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
                   'Transcription de votre enregistrement',
@@ -267,17 +277,13 @@ class _Body extends ConsumerWidget {
                   )
                 : _isSingleTask
                     ? AppButton(
-                        label: 'Retour aux sujets',
+                        label: 'Retour à l\'entraînement',
                         icon: Icons.grid_view_rounded,
                         onPressed: () {
-                          // Retour à la liste des sujets de la tâche
-                          // qu'on vient de faire (TcfProductionTaskSubjectsScreen).
-                          final tacheNumero =
-                              submission.tacheNumero ?? session?.taskAt(taskIndex)?.tacheNumero ?? 1;
+                          // Retour à l'écran d'entraînement Expression orale
+                          // (onglet Entraînement, carrousel de situations).
                           ref.read(eoSessionProvider.notifier).reset();
-                          context.go(
-                            AppRoutes.tcfEoTaskSubjects.replaceFirst(':tacheNumero', '$tacheNumero'),
-                          );
+                          context.go(AppRoutes.tcfEoDetail);
                         },
                       )
                     : AppButton(
@@ -299,7 +305,9 @@ class _Body extends ConsumerWidget {
 
   Future<void> _retry(BuildContext context, WidgetRef ref) async {
     try {
-      await ref.read(productionRepositoryProvider).retrySubmission(submission.id);
+      await ref
+          .read(productionRepositoryProvider)
+          .retrySubmission(submission.id);
       ref.invalidate(_eoSubmissionFetcher(submission.id));
     } catch (e) {
       if (!context.mounted) return;
@@ -366,7 +374,8 @@ class _CorrectionsCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.lightbulb_outline_rounded, size: 18, color: AppColors.amber),
+              const Icon(Icons.lightbulb_outline_rounded,
+                  size: 18, color: AppColors.amber),
               const SizedBox(width: 8),
               Text(
                 'Exemples et corrections',
@@ -399,7 +408,8 @@ class _FailedBlock extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline_rounded, size: 40, color: AppColors.red),
+          const Icon(Icons.error_outline_rounded,
+              size: 40, color: AppColors.red),
           const SizedBox(height: 12),
           Text(
             "L'evaluation n'a pas abouti",
@@ -421,7 +431,9 @@ class _FailedBlock extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           AppButton(
-            label: submission.retryCount >= 3 ? 'Plafond de retries atteint' : "Reessayer l'evaluation",
+            label: submission.retryCount >= 3
+                ? 'Plafond de retries atteint'
+                : "Reessayer l'evaluation",
             icon: Icons.refresh_rounded,
             onPressed: submission.retryCount >= 3 ? null : onRetry,
           ),

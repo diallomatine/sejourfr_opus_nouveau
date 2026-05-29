@@ -124,7 +124,7 @@ class _CiviqueBriefingBody extends StatelessWidget {
                 eyebrow,
                 style: AppFonts.mono(
                   size: 10,
-                  color: AppColors.blue,
+                  color: AppColors.blueDark,
                   letterSpacing: 1.8,
                   weight: FontWeight.w700,
                 ),
@@ -179,7 +179,7 @@ class _BriefRow extends StatelessWidget {
               color: AppColors.blueLight,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 16, color: AppColors.blue),
+            child: Icon(icon, size: 16, color: AppColors.blueDark),
           ),
           const SizedBox(width: 12),
           Expanded(

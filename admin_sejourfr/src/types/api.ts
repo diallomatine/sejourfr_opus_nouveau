@@ -524,6 +524,48 @@ export interface PendingReviewCountDto {
 }
 
 // ============================================================================
+// Audios des exemples EO (Expression Orale)
+// ============================================================================
+
+export type ExampleAudioStatus =
+  | "NONE"
+  | "PENDING"
+  | "GENERATING"
+  | "GENERATED"
+  | "PUBLISHED"
+  | "ERROR";
+
+export interface ExampleAudioDto {
+  id: string;
+  taskId: string;
+  titre: string;
+  resume: string | null;
+  contenu: string;
+  audioStatus: ExampleAudioStatus;
+  audioUrl: string | null;
+  audioVoice: string | null;
+  audioDurationSec: number | null;
+  audioGeneratedAt: string | null;
+  audioBatchId: string | null;
+  audioError: string | null;
+  createdAt: string;
+}
+
+export interface ExampleAudioBatchOutcome {
+  exampleId: string;
+  success: boolean;
+  errorMessage: string | null;
+}
+
+export interface ExampleAudioBatchResultDto {
+  batchId: string | null;
+  requested: number;
+  succeeded: number;
+  failed: number;
+  outcomes: ExampleAudioBatchOutcome[];
+}
+
+// ============================================================================
 // Plans + Abonnements (lot 4c admin)
 // ============================================================================
 
@@ -606,4 +648,14 @@ export interface AdminSubscriptionFilters {
   search?: string;
   page?: number;
   size?: number;
+}
+
+/** Réponse de POST /api/billing/cancel et /api/admin/subscriptions/{id}/cancel.
+ * - DONE : Stripe a enregistré la résiliation côté serveur.
+ * - REDIRECT : Apple/Google n'autorisent pas l'annulation serveur ; le
+ *   redirectUrl est la page de gestion du store à transmettre au client. */
+export interface CancelSubscriptionResponse {
+  action: "DONE" | "REDIRECT";
+  message: string;
+  redirectUrl: string | null;
 }

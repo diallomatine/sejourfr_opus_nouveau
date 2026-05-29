@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
+import { HttpError } from "../../api/http";
 import { subscriptionsApi } from "../../api/subscriptionsApi";
 import { Button } from "../../components/ui/Button";
 import { Input, Select } from "../../components/ui/Form";
@@ -11,6 +17,7 @@ import { Tag } from "../../components/ui/Tag";
 import type {
   AdminSubscriptionDto,
   AdminSubscriptionFilters,
+  CancelSubscriptionResponse,
   ModuleAccess,
   SubscriptionSource,
   SubscriptionStatus,
@@ -323,7 +330,52 @@ function SubscriptionDetailModal({
   sub: AdminSubscriptionDto | null;
   onClose: () => void;
 }) {
+  const queryClient = useQueryClient();
+  const [lastResult, setLastResult] = useState<CancelSubscriptionResponse | null>(
+    null,
+  );
+
+  // Reset l'état de feedback quand on bascule sur un autre abo (ou qu'on
+  // referme/rouvre la modal sur le même).
+  useEffect(() => {
+    setLastResult(null);
+  }, [sub?.id]);
+
+  const cancelMutation = useMutation({
+    mutationFn: (id: string) => subscriptionsApi.cancel(id),
+    onSuccess: (res) => {
+      setLastResult(res);
+      queryClient.invalidateQueries({ queryKey: ["adminSubscriptions"] });
+    },
+  });
+
   if (!sub) return null;
+
+  const isCancellable =
+    sub.status === "ACTIVE" || sub.status === "TRIAL" || sub.status === "IN_GRACE";
+  const isDone = lastResult?.action === "DONE";
+
+  const handleCancel = () => {
+    const msg =
+      sub.source === "STRIPE"
+        ? `Résilier l'abonnement Stripe de ${sub.userEmail} ?\n\n` +
+          `Stripe sera appelée pour poser cancel_at_period_end=true. ` +
+          `L'accès Premium restera ouvert jusqu'à l'échéance.`
+        : `Tenter la résiliation de l'abonnement ${sub.source} de ${sub.userEmail} ?\n\n` +
+          `${sub.source === "APPLE" ? "Apple" : "Google"} n'autorise pas ` +
+          `l'annulation côté serveur — l'API renverra l'URL de gestion du ` +
+          `store à transmettre au client.`;
+    if (!window.confirm(msg)) return;
+    cancelMutation.mutate(sub.id);
+  };
+
+  const copyRedirect = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // Pas de toast UI ici — l'URL reste visible dans le bandeau.
+    }
+  };
 
   return (
     <Modal
@@ -332,9 +384,24 @@ function SubscriptionDetailModal({
       title="Détail de la souscription"
       eyebrow={sub.planCode ?? "—"}
       footer={
-        <Button variant="ghost" onClick={onClose}>
-          Fermer
-        </Button>
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Fermer
+          </Button>
+          {!isDone && (
+            <Button
+              variant="danger"
+              onClick={handleCancel}
+              disabled={!isCancellable || cancelMutation.isPending}
+            >
+              {cancelMutation.isPending
+                ? "Résiliation…"
+                : isCancellable
+                  ? "Résilier l'abonnement"
+                  : "Non résiliable"}
+            </Button>
+          )}
+        </>
       }
     >
       <div className={styles.detailGrid}>
@@ -390,6 +457,38 @@ function SubscriptionDetailModal({
           <code className={styles.code}>{sub.productId ?? "—"}</code>
         </DetailRow>
       </div>
+
+      {cancelMutation.isError && (
+        <div className={`${styles.cancelFeedback} ${styles.cancelFeedbackError}`}>
+          <strong>Erreur :</strong>{" "}
+          {cancelMutation.error instanceof HttpError
+            ? cancelMutation.error.payload?.message ?? cancelMutation.error.message
+            : (cancelMutation.error as Error).message}
+        </div>
+      )}
+
+      {lastResult?.action === "DONE" && (
+        <div className={`${styles.cancelFeedback} ${styles.cancelFeedbackDone}`}>
+          <strong>Résiliation enregistrée.</strong>
+          <span>{lastResult.message}</span>
+        </div>
+      )}
+
+      {lastResult?.action === "REDIRECT" && lastResult.redirectUrl && (
+        <div className={`${styles.cancelFeedback} ${styles.cancelFeedbackRedirect}`}>
+          <strong>Action requise côté client.</strong>
+          <span>{lastResult.message}</span>
+          <div className={styles.cancelFeedbackUrl}>
+            <code className={styles.code}>{lastResult.redirectUrl}</code>
+            <Button
+              variant="ghost"
+              onClick={() => copyRedirect(lastResult.redirectUrl!)}
+            >
+              Copier
+            </Button>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }

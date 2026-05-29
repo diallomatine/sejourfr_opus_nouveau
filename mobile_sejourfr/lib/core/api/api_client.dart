@@ -57,7 +57,11 @@ class ApiClient {
   void _onResponse(Response response, ResponseInterceptorHandler handler) {
     final status = response.statusCode ?? 0;
     if (status >= 400) {
-      handler.reject(_toDioException(response));
+      // `validateStatus` laisse passer les 4xx comme des réponses "réussies".
+      // Le 2e argument `true` (callFollowingErrorInterceptor) est indispensable :
+      // sans lui, le rejet court-circuite `_onError` → ni refresh ni forceLogout,
+      // et le 401 « Authentification requise » remonte tel quel à l'écran.
+      handler.reject(_toDioException(response), true);
       return;
     }
     handler.next(response);
@@ -68,32 +72,47 @@ class ApiClient {
     ErrorInterceptorHandler handler,
   ) async {
     final status = err.response?.statusCode ?? 0;
+    final opts = err.requestOptions;
 
-    if (status == 401 &&
-        err.requestOptions.extra['retry'] != true &&
-        err.requestOptions.extra['skipRefresh'] != true) {
-      final refreshed = await _tryRefresh();
-      if (refreshed) {
-        try {
-          final newAccess = await _tokenStorage.readAccess();
-          final retried = await _dio.fetch(
-            err.requestOptions
-              ..headers['Authorization'] = 'Bearer $newAccess'
-              ..extra['retry'] = true,
-          );
-          handler.resolve(retried);
-          return;
-        } on DioException catch (e) {
-          handler.reject(e);
-          return;
+    if (status == 401 && opts.extra['skipRefresh'] != true) {
+      // Tentative de récupération via refresh (une seule fois par requête).
+      if (opts.extra['retry'] != true) {
+        final refreshed = await _tryRefresh();
+        if (refreshed) {
+          try {
+            final newAccess = await _tokenStorage.readAccess();
+            final retried = await _dio.fetch(
+              opts
+                ..headers['Authorization'] = 'Bearer $newAccess'
+                ..extra['retry'] = true,
+            );
+            handler.resolve(retried);
+            return;
+          } on DioException catch (e) {
+            // Le rejeu a aussi échoué : si c'est encore un 401, la session
+            // est morte → déconnexion globale.
+            if ((e.response?.statusCode ?? 0) == 401) {
+              await _forceLogout();
+            }
+            handler.reject(e);
+            return;
+          }
         }
-      } else {
-        await _tokenStorage.clear();
-        onUnauthorized?.call();
       }
+      // 401 non récupérable (refresh KO, ou requête déjà rejouée, ou refresh
+      // désactivé sur la requête) : session invalide → déconnexion globale.
+      // Sans ça, le 401 remonte aux écrans qui affichent "Authentification
+      // requise" au lieu de rebasculer vers l'écran de connexion.
+      await _forceLogout();
     }
 
     handler.next(err);
+  }
+
+  /// Vide les tokens et notifie l'app (→ retour écran de connexion).
+  Future<void> _forceLogout() async {
+    await _tokenStorage.clear();
+    onUnauthorized?.call();
   }
 
   // ---------------------------------------------------------------------------

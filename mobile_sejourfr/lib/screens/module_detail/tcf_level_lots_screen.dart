@@ -14,6 +14,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import 'tcf_qcm_detail_screen.dart' show TcfQcmModule;
+import 'widgets/lot_done_sheet.dart';
 import 'widgets/module_detail_widgets.dart';
 
 /// Métadonnées d'un niveau TCF : couleur d'accent, libellé, taille de lot
@@ -81,7 +82,57 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
 
   bool _isPremium() {
     final auth = ref.read(authControllerProvider);
-    return auth is AuthAuthenticated && auth.user.canAccessModule(AppModule.tcf);
+    return auth is AuthAuthenticated &&
+        auth.user.canAccessModule(AppModule.tcf);
+  }
+
+  /// Tap sur un lot : si déjà fait → sheet `Voir le détail` / `Reprendre`,
+  /// sinon → démarrage direct comme avant.
+  void _onLotTap(LotDto lot) {
+    if (lot.alreadyAttempted) {
+      _openLotDoneSheet(lot);
+    } else {
+      _startLot(lot);
+    }
+  }
+
+  void _openLotDoneSheet(LotDto lot) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => LotDoneSheet(
+        lot: lot,
+        accent: _levelMetas[widget.level]!.accent,
+        onViewDetail: () {
+          Navigator.of(sheetCtx).pop();
+          _openLotReport(lot);
+        },
+        onResume: () {
+          Navigator.of(sheetCtx).pop();
+          _startLot(lot);
+        },
+      ),
+    );
+  }
+
+  /// « Comme un examen » : on pousse le rapport Q-par-Q (`ExamReportScreen`)
+  /// plutôt que le bilan synthétique `TcfLotResultScreen`. Nécessite que le
+  /// backend retourne `lot.lastAttemptId` (cf. LotDto/LotService).
+  void _openLotReport(LotDto lot) {
+    final id = lot.lastAttemptId;
+    if (id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Détail indisponible — le serveur n\'a pas encore fourni la référence.',
+              style: AppFonts.jakarta(size: 13, color: AppColors.white)),
+          backgroundColor: AppColors.red,
+        ),
+      );
+      return;
+    }
+    context.push(AppRoutes.examReport.replaceFirst(':attemptId', id));
   }
 
   Future<void> _startLot(LotDto lot) async {
@@ -111,7 +162,8 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
       // On annote le push avec le contexte du lot : le runner relira ces
       // query params à la fin pour pousser vers `TcfLotResultScreen` au
       // lieu d'afficher le dialog de fin d'entraînement standard.
-      final runnerPath = AppRoutes.runner.replaceFirst(':attemptId', attempt.id);
+      final runnerPath =
+          AppRoutes.runner.replaceFirst(':attemptId', attempt.id);
       context.push(
         '$runnerPath?from=tcfLot'
         '&moduleKey=${widget.module.routeKey}'
@@ -124,7 +176,8 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
         showPaywallSheet(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(apiErr.message), backgroundColor: AppColors.red),
+          SnackBar(
+              content: Text(apiErr.message), backgroundColor: AppColors.red),
         );
       }
     } finally {
@@ -175,16 +228,6 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
                   eyebrow: 'Module TCF · ${mod.title}',
                   title: meta.label,
                 ),
-                const SizedBox(height: 22),
-                ModuleDetailHero(
-                  icon: mod.icon,
-                  headline: _heroHeadline(lotsAsync, meta.indicativeLotSize),
-                  description: meta.subtitle,
-                  // Hero rouge — convention SejourFR : tous les hero TCF en
-                  // rouge. La couleur de niveau (`meta.accent`) reste utilisée
-                  // pour les pastilles de lot et le score ring.
-                  gradient: const [AppColors.red, AppColors.redDark],
-                ),
                 const SizedBox(height: 16),
                 ModuleDetailStats(
                   items: [
@@ -232,10 +275,11 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
                             // Lot 1 = découverte gratuite par (module, niveau) ;
                             // Lot 2+ réservés aux abonnés TCF.
                             locked: !isPremium && lot.numero > 1,
-                            scoreBadge:
-                                lot.lastScore == null ? null : '${lot.lastScore}/${lot.totalQuestions}',
+                            scoreBadge: lot.lastScore == null
+                                ? null
+                                : '${lot.lastScore}/${lot.totalQuestions}',
                             scoreColor: _colorForScore(lot),
-                            onTap: () => _startLot(lot),
+                            onTap: () => _onLotTap(lot),
                           ),
                       ],
                     );
@@ -263,15 +307,6 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
     if (ratio >= 0.7) return AppColors.green;
     if (ratio >= 0.4) return AppColors.amber;
     return AppColors.red;
-  }
-
-  String _heroHeadline(AsyncValue<List<LotDto>> lotsAsync, int lotSize) {
-    return lotsAsync.maybeWhen(
-      data: (lots) => lots.isEmpty
-          ? 'Aucun lot pour ce niveau'
-          : '${lots.length} lot${lots.length > 1 ? "s" : ""} de $lotSize questions',
-      orElse: () => 'Chargement des lots…',
-    );
   }
 }
 

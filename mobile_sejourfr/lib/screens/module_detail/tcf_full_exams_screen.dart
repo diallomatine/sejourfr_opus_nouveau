@@ -24,7 +24,7 @@ import 'tcf_full_exam_briefing_sheet.dart';
 /// **Distinction backend** : ces examens sont conceptuellement séparés des
 /// examens module (CO seul / CE seul) — `attempts.epreuve = TCF_COMPLET`
 /// vs `attempts.module_exam_question_type`. L'historique ne se mélange jamais.
-final _fullExamsHistoryProvider =
+final fullExamsHistoryProvider =
     FutureProvider.autoDispose<List<FullTcfExamSummary>>((ref) {
   return ref.watch(fullTcfExamRepositoryProvider).listMine(limit: 50);
 });
@@ -35,10 +35,14 @@ final _fullExamsHistoryProvider =
 /// chronologique : slot 1 = examen le plus ancien).
 const int _fullExamSlotsCount = 20;
 
+/// Nombre de slots affichés d'emblée. Au-delà, un bouton « Voir les examens
+/// X à Y » déplie le reste (même pattern que les examens blancs Civique).
+const int _visibleByDefault = 8;
+
 /// Écran plein des examens blancs TCF complets, avec topbar + back. Atteint
-/// depuis le hero Progression, l'historique et le bilan (`AppRoutes.tcfFullExams`).
-/// Dans le hub TCF, c'est `TcfFullExamsView` (le corps) qui est embarqué sous
-/// l'onglet Examens — pas cet écran.
+/// depuis le hero Progression, l'historique, le bilan et le hero examen blanc
+/// du hub TCF (`AppRoutes.tcfFullExams`). `TcfFullExamsView` (le corps) est
+/// le bloc réutilisable des 20 slots.
 class TcfFullExamsScreen extends StatelessWidget {
   const TcfFullExamsScreen({super.key});
 
@@ -69,15 +73,14 @@ class TcfFullExamsScreen extends StatelessWidget {
   }
 }
 
-/// Corps de l'onglet « Examens » du hub TCF : 20 slots d'examens blancs
-/// complets. Embarqué dans `TcfScreen` (le hub fournit l'en-tête) et réutilisé
-/// par `TcfFullExamsScreen` (qui ajoute une topbar avec back).
+/// Corps réutilisable des 20 slots d'examens blancs TCF complets. Rendu sous
+/// la topbar de `TcfFullExamsScreen` (route `/tcf/examens-blancs`).
 class TcfFullExamsView extends ConsumerWidget {
   const TcfFullExamsView({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final historyAsync = ref.watch(_fullExamsHistoryProvider);
+    final historyAsync = ref.watch(fullExamsHistoryProvider);
 
     Future<void> startNew(int slot) async {
       final auth = ref.read(authControllerProvider);
@@ -93,11 +96,12 @@ class TcfFullExamsView extends ConsumerWidget {
         slot: slot,
         onStart: () async {
           try {
-            final exam =
-                await ref.read(fullTcfExamRepositoryProvider).start();
+            final exam = await ref
+                .read(fullTcfExamRepositoryProvider)
+                .start(slotNumber: slot);
             if (!context.mounted) return;
             // Force le re-fetch de l'historique quand on revient ici plus tard.
-            ref.invalidate(_fullExamsHistoryProvider);
+            ref.invalidate(fullExamsHistoryProvider);
             context.go(
               AppRoutes.tcfFullExamProgress
                   .replaceFirst(':parentId', exam.id),
@@ -129,8 +133,8 @@ class TcfFullExamsView extends ConsumerWidget {
     return RefreshIndicator(
       color: AppColors.red,
       onRefresh: () async {
-        ref.invalidate(_fullExamsHistoryProvider);
-        await ref.read(_fullExamsHistoryProvider.future);
+        ref.invalidate(fullExamsHistoryProvider);
+        await ref.read(fullExamsHistoryProvider.future);
       },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
@@ -146,7 +150,7 @@ class TcfFullExamsView extends ConsumerWidget {
             ),
             error: (e, _) => _ErrorBox(
               message: e.toString(),
-              onRetry: () => ref.invalidate(_fullExamsHistoryProvider),
+              onRetry: () => ref.invalidate(fullExamsHistoryProvider),
             ),
             data: (history) => _SlotsSection(
               history: history,
@@ -356,7 +360,7 @@ class _StatCell extends StatelessWidget {
 /// détail TCF QCM/EE/EO. Les examens passés sont triés ASC (le plus ancien
 /// occupe le slot 1) et remplissent les slots de gauche à droite. Les slots
 /// restants sont vides (clic = nouvelle session).
-class _SlotsSection extends StatelessWidget {
+class _SlotsSection extends StatefulWidget {
   const _SlotsSection({
     required this.history,
     required this.onTapDone,
@@ -368,11 +372,26 @@ class _SlotsSection extends StatelessWidget {
   final void Function(int slot) onTapEmpty;
 
   @override
+  State<_SlotsSection> createState() => _SlotsSectionState();
+}
+
+class _SlotsSectionState extends State<_SlotsSection> {
+  bool _showAll = false;
+
+  @override
   Widget build(BuildContext context) {
-    // Le backend renvoie l'historique DESC (récent en premier). On inverse
-    // pour avoir le plus ancien en slot 1 — même règle que TCF QCM (CO/CE)
-    // et EE/EO, pour que la numérotation reste stable dans le temps.
-    final ordered = history.reversed.toList();
+    // Group by slot_number (cf. V110) : dernier essai par slot. Refait le
+    // slot N → nouvel attempt slot_number=N qui écrase l'ancien dans la grille.
+    final bySlot = <int, FullTcfExamSummary>{};
+    for (final e in widget.history) {
+      if (e.slotNumber == null) continue;
+      bySlot.putIfAbsent(e.slotNumber!, () => e);
+    }
+
+    final visibleCount =
+        _showAll ? _fullExamSlotsCount : _visibleByDefault;
+    final hiddenCount = _fullExamSlotsCount - visibleCount;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -399,15 +418,32 @@ class _SlotsSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        for (int i = 0; i < _fullExamSlotsCount; i++) ...[
+        for (int i = 0; i < visibleCount; i++) ...[
           _ExamSlotCard(
             slot: i + 1,
-            exam: i < ordered.length ? ordered[i] : null,
-            onTapDone: onTapDone,
-            onTapEmpty: () => onTapEmpty(i + 1),
+            exam: bySlot[i + 1],
+            onTapDone: widget.onTapDone,
+            onTapEmpty: () => widget.onTapEmpty(i + 1),
           ),
-          if (i != _fullExamSlotsCount - 1) const SizedBox(height: 10),
+          if (i != visibleCount - 1) const SizedBox(height: 10),
         ],
+        if (hiddenCount > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: TextButton.icon(
+              onPressed: () => setState(() => _showAll = true),
+              icon: Text(
+                'Voir les examens ${visibleCount + 1} à $_fullExamSlotsCount',
+                style: AppFonts.jakarta(
+                  size: 13,
+                  weight: FontWeight.w700,
+                  color: AppColors.red,
+                ),
+              ),
+              label: const Icon(Icons.keyboard_arrow_down_rounded,
+                  size: 18, color: AppColors.red),
+            ),
+          ),
       ],
     );
   }

@@ -366,6 +366,32 @@ export const billingApi = {
             next: {revalidate: 1800},
         });
     },
+
+    /**
+     * Statut Premium agrégé toutes sources (Stripe + Apple + Google). À
+     * appeler pour afficher des détails plus précis que `AuthenticatedUser`
+     * (source, productId, autoRenew, status fin). Le statut booléen `isPremium`
+     * reste lu via `useAuth().user`.
+     */
+    getSubscriptionStatus(): Promise<import("./types").SubscriptionStatusResponse> {
+        return apiFetch<import("./types").SubscriptionStatusResponse>(
+            `/api/billing/subscription-status`,
+            {auth: true}
+        );
+    },
+
+    /**
+     * Résilie l'abonnement Premium en cours. Le backend route selon la source :
+     * - Stripe : annulation à la fin de période, réponse `action=DONE`.
+     * - Apple/Google : réponse `action=REDIRECT` avec l'URL de gestion du store
+     *   (les stores n'autorisent pas l'annulation serveur).
+     */
+    cancel(): Promise<import("./types").CancelSubscriptionResponse> {
+        return apiFetch<import("./types").CancelSubscriptionResponse>(
+            `/api/billing/cancel`,
+            {auth: true, method: "POST"}
+        );
+    },
 };
 
 // ============================================================================

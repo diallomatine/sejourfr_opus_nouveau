@@ -70,20 +70,27 @@ lib/
     ├── shell/
     │   └── main_shell.dart        Bottom nav 5 onglets : Accueil · Civique · TCF · Progression · Profil
     ├── hub/
-    │   └── widgets/hub_widgets.dart  Widgets partagés des 2 hubs (topbar, hero, progress, module card, exam card)
+    │   └── widgets/hub_home_widgets.dart  Widgets partagés des 2 home hubs
+    │                                     (HubHomeHeader, ExamBlancHero, EpreuveCard, SectionLabel/Counter/Link)
     ├── civique/
-    │   ├── civique_screen.dart    Hub Civique : onglets Entraînement / Examens (hero bleu + 5 thèmes / 20 slots)
-    │   └── civique_exam_blanc_view.dart  Corps de l'onglet Examens civique (20 slots MOCK_EXAM)
+    │   ├── civique_screen.dart                Home Civique (single scroll : header + hero + thèmes + maîtrise)
+    │   └── widgets/civique_mastery_card.dart  Carte maîtrise globale civique (% justes + couverture)
     ├── tcf/
-    │   └── tcf_screen.dart        Hub TCF : onglets Entraînement / Examens (4 modules CO/CE/EE IA/EO IA / 20 slots)
+    │   ├── tcf_screen.dart                    Home TCF (single scroll : header + hero + 5 épreuves + CECRL + stats)
+    │   └── widgets/
+    │       ├── cecrl_progress_card.dart       Niveau global estimé + objectif + barre 6 segments A1→C2
+    │       └── stats_row.dart                 3 mini-cards stats (Séances / Pratique / Jours actifs)
     ├── module_detail/             Écran détail intermédiaire entre hub et runner / sujets de tâche
-    │   ├── civique_theme_detail_screen.dart   Détail d'un thème civique (par themeId)
+    │   ├── civique_theme_detail_screen.dart   Hub d'un thème civique (single scroll, pattern QCM)
+    │   ├── civique_theme_exams_screen.dart    Page « Examens blancs » d'un thème (10 slots 20 Q)
+    │   ├── civique_hub_data.dart              Providers partagés hub thème + page examens civique
     │   ├── tcf_qcm_detail_screen.dart         Détail TCF CO/CE/Structure (enum TcfQcmModule) — onglet Séries = cards niveau
     │   ├── tcf_level_lots_screen.dart         Liste des lots pour un (module CO/CE/Structure, niveau A2/B1/B2)
     │   ├── tcf_lot_result_screen.dart         Bilan affiché à la fin d'un lot (score circle + résumé + CTAs)
-    │   ├── tcf_production_detail_screen.dart  Détail TCF EE/EO (enum TcfProductionModule) — onglet Tâches = 3 cards T1/T2/T3
-    │   ├── tcf_production_task_subjects_screen.dart  Liste des sujets d'une tâche EE/EO (push briefing au tap)
+    │   ├── production_exam_briefing_sheet.dart  Briefing modal examen 3-tâches EE/EO (enum vit dans tcf_production/)
     │   └── widgets/module_detail_widgets.dart Layout partagé (topbar, hero, stats, score card)
+    │   (NB : TCF EE/EO n'a plus d'écran "détail" ni "sujets" ici — remplacés par
+    │    tcf_production/tcf_expression_screen.dart, cf. plus bas)
     ├── exam/                      Écrans de résultat et rapport d'examen blanc (le setup a été supprimé,
     │                              le tirage d'examen blanc se fera depuis la carte sombre des hubs)
     ├── question_runner/           Le runner partagé (le cœur de l'app)
@@ -96,6 +103,12 @@ lib/
     │       ├── exam_timer.dart    Chrono décompte
     │       └── explanation_box.dart Bloc correction post-réponse
     ├── tcf_production/            EO + EE (productions évaluées par IA)
+    │   ├── tcf_expression_screen.dart   2 écrans : TcfExpressionScreen (hub /tcf/eo|ee :
+    │   │                                carte examen blanc + 3 tâches + historique) et
+    │   │                                TcfTaskTrainingScreen (/tcf/{eo,ee}/tache/:n : toggle
+    │   │                                Sujets/Exemples + liste ; tap sujet → fiche consigne+plan
+    │   │                                → Enregistrer/Rédiger ou Refaire/Voir le rapport).
+    │   ├── tcf_production_module.dart   Enum TcfProductionModule (EO/EE) partagé écran + briefing
     │   ├── audio_recorder_service.dart  record 6 + permission_handler + audio_session
     │   ├── draft_service.dart           Brouillon EE en SharedPreferences
     │   ├── ee_session_controller.dart   Session EE (1 ou 3 tâches, attempt parent partagé)
@@ -230,7 +243,7 @@ change un DTO, mettre à jour le model Dart correspondant.
 **Hygiène (rappel transverse, cf. CLAUDE.md racine)**
 
 - Si un widget apparaît 2 fois dans 2 écrans, **l'extraire** dans `core/widgets/` (générique) ou
-  `screens/<area>/widgets/` (local à un domaine). Ex: `screens/hub/widgets/hub_widgets.dart` et
+  `screens/<area>/widgets/` (local à un domaine). Ex: `screens/hub/widgets/hub_home_widgets.dart` et
   `core/widgets/paywall_sheet.dart` ont été extraits dès qu'une 2ᵉ surface en avait besoin.
 - Quand un écran est remplacé par une nouvelle archi, supprimer dans la foulée : le fichier, les
   routes (`AppRoutes`), les imports, et tous les CTA `context.go(...)` qui pointaient dessus. Pas
@@ -333,36 +346,47 @@ ont été **supprimés** : un tap module dans un hub démarre directement un att
 vivent désormais dans `core/widgets/paywall_sheet.dart` avec le bottom sheet `PaywallSheet` réutilisable.
 
 Les 2 hubs (`screens/civique/civique_screen.dart` et `screens/tcf/tcf_screen.dart`) partagent une
-structure visuelle identique implémentée dans `screens/hub/widgets/hub_widgets.dart`. Chaque hub est
-un `ConsumerStatefulWidget` avec un **en-tête fixe** (topbar + onglets, ne scrolle pas) au-dessus d'un
-**corps switché par onglet** (calqué sur le segmented control de l'écran Progression) :
+structure visuelle identique implémentée dans `screens/hub/widgets/hub_home_widgets.dart`. Chaque hub
+est un `ConsumerWidget` en **single scroll** (plus d'onglets internes : les anciens segments
+*Entraînement / Examens blancs* ont été refondus pour matcher la maquette
+`tcf_modules_home_screen.html` — home unique avec hero examen blanc + liste verticale des épreuves
++ bloc progression).
 
-- `HubTopBar` : icône notifications à gauche, pastille de niveau/parcours à droite (bleue sur Civique
-  affiche CSP/CR/NAT, rouge sur TCF affiche A2/B1/B2 d'après `user.targetProcedure`).
-- `HubTabsBar` (enum `HubTab { entrainement, examens }`) : deux onglets **Entraînement / Examens**,
-  couleur active = accent du hub. Le state `_tab` vit sur le hub ; `Expanded` rend le corps de
-  l'onglet courant.
-  - **Entraînement** : `_CiviqueTrainingTab` / `_TcfTrainingTab` (hero + progress + cards modules,
-    chacun avec son propre `RefreshIndicator`).
-  - **Examens** : embarque directement la vue des 20 slots d'examens blancs — `CiviqueExamBlancView`
-    (Civique : POST `/api/attempts {type:MOCK_EXAM, module:CIVIQUE}`, 40 Q / 45 min / seuil 32 → runner)
-    ou `TcfFullExamsView` (TCF : POST `/api/full-tcf-exams` → `/tcf/examen-blanc/:parentId`). Le
-    briefing modal (`showCiviqueExamBriefingSheet` / `showTcfFullExamBriefingSheet`) s'ouvre au tap
-    d'un slot vide.
-- `HubHero` : bandeau gradient (bleu sur Civique, rouge sur TCF) avec eyebrow mono, titre Jakarta gras
-  sur 2 lignes, description.
-- `HubProgressCard` : objectif (libellé du parcours / niveau visé) + % de maîtrise calculé sur les
-  stats `byTheme` (correct / total).
-- `HubModuleCard` : icône colorée + titre + description + meta + chevron. Flag `aiTag: true` pour
-  EE/EO. Flag `locked: true` réservé aux modules premium futurs.
+Sections successives (mêmes briques sur les 2 hubs) :
 
-**Vues d'examens blancs** (corps de l'onglet Examens, sans topbar propre) :
-- `CiviqueExamBlancView` (`civique/civique_exam_blanc_view.dart`) — n'est plus un écran routé : l'ancien
-  `CiviqueExamBlancScreen` + la route `/civique/examens-blancs` ont été **supprimés** (l'examen civique
-  vit uniquement dans l'onglet Examens du hub).
-- `TcfFullExamsView` (`module_detail/tcf_full_exams_screen.dart`) — embarquée dans le hub TCF, **et**
-  enveloppée par `TcfFullExamsScreen` (topbar + back) qui reste routé sur `/tcf/examens-blancs` car
-  encore atteint depuis le hero Progression, l'historique et le bilan.
+- `HubHomeHeader` : titre + sous-titre dynamiques (ex. « Préparer le TCF » + « IRN · 5 modules ·
+  objectif B1 »). Bouton menu à gauche + cloche notifications à droite (placeholders, pas d'action
+  branchée).
+- `ExamBlancHero` : carte rouge teintée (`redLight` + `redDark`), eyebrow mono « EXAMEN BLANC
+  COMPLET · 1H 35 », titre, description, CTA filled rouge. Tap → push la route examens du module.
+  - TCF : push `AppRoutes.tcfFullExams` (`TcfFullExamsScreen` → 20 slots).
+  - Civique : ouvre `showCiviqueExamBriefingSheet` puis POST `/api/attempts {type:MOCK_EXAM,
+    module:CIVIQUE}` → runner. Pour les non-abonnés on resume l'attempt en cours ou on tombe
+    sur le paywall si l'examen gratuit a été consommé.
+- `SectionLabel` (« S'entraîner par épreuve / par thème ») + `SectionCounter` (« 5 modules »).
+- Liste verticale d'`EpreuveCard` : icône colorée 44×44, titre + pill niveau (CSP/CR/NAT ou
+  A2/B1/B2 selon `user.targetProcedure`), sous-titre court, **barre 3 px** + % à droite, chevron.
+  - TCF : 5 cartes (CO bleu, CE vert, Structure ambre — pill « BONUS », EE gris neutre, EO rouge).
+    Barre = **maîtrise** user `correct/total` du thème côté backend (`/api/me/stats`).
+    EE/EO ont `progress: 0.0` en attendant que l'API expose un compte de submissions terminées
+    par tâche (TODO inline).
+  - Civique : N thèmes chargés via `/api/themes?module=CIVIQUE`, couleurs alternées
+    (bleu/rouge/ambre/vert selon `displayOrder`).
+- `SectionLabel('Ma progression')` + `SectionLink('Détails')` → push `/progress`.
+- TCF : `CecrlProgressCard` (niveau actuel = `progression.lastFullExam.finalLevel` du dernier
+  examen blanc complet ; objectif = `progression.tcf.targetLevel`, fallback dérivé de
+  `targetProcedure`). Barre 6 segments A1→C2 colorée jusqu'au niveau courant.
+- TCF uniquement : `StatsRow` (3 mini-cards). Seules les Séances sont branchées
+  (`stats.attemptsTotal`) — Pratique (minutes) et Jours actifs sont en `—` tant que le backend
+  ne les expose pas (TODO).
+- Civique : `CiviqueMasteryCard` à la place du CECRL (Civique n'a pas de niveau CECRL) — affiche
+  % de bonnes réponses sur questions tentées + couverture brute `answered/total`. Pas de stats row.
+
+**Lien examen blanc complet TCF** : `TcfFullExamsScreen` (route `/tcf/examens-blancs`) reste
+l'écran unique des 20 slots, atteint depuis le hero du hub TCF, le hero Progression, l'historique
+et le bilan. `TcfFullExamsView` est le corps réutilisable qu'il enveloppe avec une topbar back.
+L'ancien `civique_exam_blanc_view.dart` a été **supprimé** (plus utilisé après la refonte sans
+onglets) ; pour Civique, le tap du hero démarre directement un MOCK_EXAM via le briefing modal.
 
 **Modules affichés :**
 - **Civique** = les 5 thèmes officiels chargés via `/api/themes?module=CIVIQUE` (Principes &
@@ -371,10 +395,9 @@ un `ConsumerStatefulWidget` avec un **en-tête fixe** (topbar + onglets, ne scro
 - **TCF** = 4 modules officiels IRN + 1 bonus, **tous** avec un écran détail :
   - CO → `/tcf/co`, CE → `/tcf/ce` → `TcfQcmDetailScreen` → CTA "Commencer l'entraînement"
     → `POST /api/attempts` + push runner.
-  - EE → `/tcf/ee`, EO → `/tcf/eo` → `TcfProductionDetailScreen` → onglet Tâches = 3 cards
-    T1/T2/T3 + CTA "Voir les tâches" (raccourci T1). Tap card → push
-    `TcfProductionTaskSubjectsScreen` (sujets de la tâche choisie) → tap sujet → briefing.
-    Plus de hub intermédiaire (cf. § ProductionHubScreen supprimé plus bas).
+  - EE → `/tcf/ee`, EO → `/tcf/eo` → `TcfExpressionScreen` : hub d'épreuve (carte examen
+    blanc + 3 tâches + historique). Tap une tâche → `TcfTaskTrainingScreen` (sujets +
+    exemples). Cf. § TCF Expression plus bas.
   - **Structure de la langue** → `/tcf/structure` → `TcfQcmDetailScreen` avec
     `TcfQcmModule.structure` (`questionType = STRUCTURE`). Bannière `_ModuleNoticeBanner`
     rendue sous le titre pour rappeler que le module n'est pas évalué au TCF IRN. Mêmes
@@ -386,28 +409,33 @@ un `ConsumerStatefulWidget` avec un **en-tête fixe** (topbar + onglets, ne scro
 
 **Écran détail (lot 3 + 3 bis)** — vit dans `screens/module_detail/`. Routes hors shell (pas de
 bottom nav) :
-- `/civique/theme/:themeId` → `CiviqueThemeDetailScreen` (fetch theme via `themesRepository`,
-  cherche les stats du thème dans `byTheme[themeId]`). **3 onglets** (Lots / Examens / Erreurs)
-  calqués sur le pattern TCF QCM :
-  - **Lots** : liste des lots civique (15 Q chacun) du thème via `civiqueLotsProvider(themeId)` →
-    `GET /api/lots?module=CIVIQUE&themeId=...`. Tap lot → `POST /api/attempts {type:TRAINING,
-    module:CIVIQUE, themeId, lotNumero}` puis push runner. Backend trace via `lot_theme_id` +
-    `lot_numero` (cf. migration V089 + CLAUDE.md racine § Lots).
-  - **Examens** : **10 slots d'examens civique scopés à ce thème** (20 Q du thème, 20 min,
-    seuil 16/20). Provider `_civiqueThemeExamsHistoryProvider(themeId)` →
-    `GET /api/me/attempts?type=MOCK_EXAM&module=CIVIQUE&themeId=...`. Backend distingue
-    cette variante en posant `lot_theme_id` sur l'attempt lors du POST (cf.
-    `AttemptService` branche `CIVIQUE_THEME_EXAM`). Distinct de l'examen blanc complet
-    civique (40 Q tous thèmes, 45 min, seuil 32) qui vit sur l'onglet Examens du hub.
-  - **Erreurs** : 20 dernières questions ratées du user sur **ce thème précis**, via
-    `_civiqueWrongProvider(themeId)` → `GET /api/me/questions/wrong?module=CIVIQUE&themeId=...`.
-    Tap question → `showQuestionDetailSheet` partagé.
+- `/civique/theme/:themeId` → `CiviqueThemeDetailScreen` — **refondu** au pattern TCF QCM
+  (single scroll, plus d'onglets segmentés). Header + hero rouge « Lancer un examen blanc »
+  + section « S'entraîner par lot » + historique des 3 derniers examens du thème.
+  Sous-widgets dans `widgets/civique_hub/` (civique_exam_hero / civique_lot_row /
+  civique_history_section). Providers partagés dans `civique_hub_data.dart`
+  (`civiqueThemesProvider`, `civiqueStatsProvider`, `civiqueThemeExamsHistoryProvider`),
+  miroir de `qcm_hub_data.dart`. Civique n'a pas la notion de niveau (vs TCF A2/B1/B2) →
+  les lots sont rendus inline avec un cap de 6 + "Voir plus" pour les thèmes copieux.
+  L'onglet Erreurs a été supprimé (alignement sur le pattern QCM ; les erreurs restent
+  accessibles via `/review`). Tap lot → `POST /api/attempts {type:TRAINING,
+  module:CIVIQUE, themeId, lotNumero}` puis push runner (backend trace via `lot_theme_id`
+  + `lot_numero`, cf. migration V089 + CLAUDE.md racine § Lots). Lot 1 = découverte
+  gratuite du thème, lots 2+ paywall non-abonné.
+- `/civique/theme/:themeId/examens` → `CiviqueThemeExamsScreen` — page « Examens
+  blancs » d'un thème calquée sur `TcfQcmExamsScreen`. Header + drapeau France + 3 stats
+  (Terminés / Score moyen / Meilleur score) + barre progression + chips filtre + 10 slots
+  numérotés (20 Q du thème, 20 min, seuil 16/20). Slot 1 = découverte gratuite, slots 2-10
+  = premium. Réutilise les widgets partagés `ExamSlotCard`, `ExamProgressCard`,
+  `ExamFilterChips`, `FlagBadge`, `ModuleScreenHeader`, `ExamsErrorView` (dossier
+  `tcf_production/widgets/`), + le builder local `CiviqueExamSlotBuilder` extrait pour
+  rester sous 400 lignes. Distinct de l'examen blanc complet civique (40 Q tous thèmes,
+  45 min, seuil 32) qui vit sur l'onglet Examens du hub.
 - `/tcf/co` et `/tcf/ce` → `TcfQcmDetailScreen` avec l'enum `TcfQcmModule.{co,ce}` qui porte
   l'intitulé, l'icône, le `QuestionType` et le label de durée.
-- `/tcf/eo` et `/tcf/ee` → `TcfProductionDetailScreen` avec l'enum
-  `TcfProductionModule.{eo,ee}` qui porte l'intitulé, l'icône, le label de durée et le CTA.
-  L'onglet Tâches affiche 3 cards T1/T2/T3 et push directement la sélection des sujets
-  (`TcfProductionTaskSubjectsScreen`) — pas de hub intermédiaire.
+- `/tcf/eo` et `/tcf/ee` → `TcfExpressionScreen` (hub) ; `/tcf/{eo,ee}/tache/:n` →
+  `TcfTaskTrainingScreen`. Enum `TcfProductionModule.{eo,ee}` dans
+  `tcf_production/tcf_production_module.dart` (cf. § TCF Expression).
 
 Layout uniforme (`widgets/module_detail_widgets.dart`) :
 1. `ModuleDetailTopBar` (back + icône décorative).
@@ -482,12 +510,25 @@ Le `RunnerScreen` est l'écran le plus complexe. Il gère :
 3. **Sélection** des choix (single-select pour l'instant, prêt pour multi-select)
 4. **Soumission** d'une réponse :
     - En **entraînement** : le backend renvoie immédiatement `correct` + `explanation`. On affiche
-      `ExplanationBox`, on bloque les choix, puis le bouton "Question suivante" apparaît.
-    - En **examen blanc** : on enregistre silencieusement la réponse et on passe à la suivante. Pas de
-      correction immédiate.
+      `ExplanationBox`, on bloque les choix, puis le bouton "Question suivante" apparaît. Le bouton
+      "Valider" appelle `submitCurrent`.
+    - En **examen blanc** : pas de "Valider" — la réponse est soumise par les boutons "Suivant" /
+      "Terminer" juste avant de naviguer. `submitCurrent()` renvoie un `bool` : en examen blanc, si
+      la soumission échoue (réseau), on **n'avance pas** et on **ne finalise pas** (l'`errorMessage`
+      reste affiché) — sinon la réponse de la question serait perdue silencieusement. Pas de
+      correction immédiate (le backend renvoie `correct/correctChoiceIds = null`, que
+      `AnswerResult.fromJson` coerce en valeurs neutres).
 5. **Chrono** : pour les examens blancs, `ExamTimer` décompte depuis `attempt.startedAt` jusqu'à
    `timeLimitSeconds`. Quand ça atteint 0, finalisation automatique.
 6. **Finalisation** : `POST /api/attempts/{id}/finish`, dialog de résultat avec score / seuil / passé-échoué.
+
+**Ordre des choix** : le backend shuffle les choix (seedé par `AttemptQuestion.id`, donc stable
+runner ↔ rapport pour un même attempt). Le mapping réponse cliquée → enregistrée → affichée se fait
+**toujours par ID de choix réel**, jamais par position. Le tri d'affichage est centralisé dans
+`orderedDisplayChoices()` (`core/models/question_models.dart`), partagé par le runner et le rapport
+(`question_detail_sheet.dart`) : pour les questions TCF CO `FULL_AUDIO` (labels mono-lettre A/B/C/D),
+on re-trie A→D ; les autres gardent l'ordre shuffle. À réutiliser partout où on rend des choix pour
+garder runner et rapport cohérents.
 
 **Reprise d'un attempt** : si l'utilisateur quitte le runner avant de finir, l'attempt reste en cours côté
 backend. À la reprise, `RunnerController._load()` recalcule l'index de départ : première question non
@@ -502,28 +543,31 @@ contiennent que du texte, mais l'architecture est prête pour le TCF complet.
 Module distinct du runner QCM : l'utilisateur **produit** un audio (EO) ou un texte (EE), envoyé au backend
 qui le transcrit (Whisper) + le note (Claude) en 10-15 s. Cf. `CLAUDE.md` racine pour le pipeline backend.
 
-**Deux modes d'entrée** :
-- **Onglet Tâches** du détail module → entraînement libre **single-task** (les 3 cards
-  T1/T2/T3 vivent directement sur `TcfProductionDetailScreen`, plus de hub intermédiaire).
-  Tap card → push `TcfProductionTaskSubjectsScreen(tacheNumero)` → liste des sujets de la
-  tâche → tap sujet → `startSingle(task)` + briefing. **EO T1 = consigne fixe** : le
-  subjects screen auto-démarre et `pushReplacement` le briefing (évite que le back depuis
-  briefing y revienne, cf. patch dédié).
-- **Onglet Examens** du détail module → session **3 tâches enchaînées**, fidèle au vrai TCF :
-  **aucune correction n'est visible entre T1/T2/T3**. Après T3, on push directement le bilan
-  détaillé (`HistorySessionScreen` en mode `?live=1`) qui pollera les évaluations IA jusqu'à ce
-  qu'elles soient toutes EVALUATED/FAILED, puis le user peut tapoter chaque ligne pour voir le
-  détail complet de l'évaluation Claude (donut + critères + feedback + transcription).
+**Deux écrans** (`tcf_expression_screen.dart`, remplacent l'ancien couple
+`TcfProductionDetailScreen` + `TcfProductionTaskSubjectsScreen` supprimés). Accent **rouge**
+partout (section TCF). Design calme, sans onglets globaux ni bottom-nav (cf. maquette
+`tcf_eo_training_screen.html`).
 
-**Onglet Examens — slots remplis (parité avec TCF QCM CO/CE)** : 10 slots numérotés. Le provider
-`_productionExamsHistoryProvider` (dans `tcf_production_detail_screen.dart`) regroupe les
-submissions du user par `attemptId` et ne garde **que les attempts à ≥3 submissions** (single-task
-exclus). Slot 1 = plus ancien examen. Tap slot vide → briefing + start nouvelle session. Tap
-slot fait → bottom sheet `_ProductionExamActionSheet` : "Voir les détails" (push
-`/sessions/{attemptId}`, mode historique) ou "Reprendre" (briefing + start). Badge slot : niveau
-CECRL plancher des 3 submissions, teinté rouge/ambre/bleu/vert selon le palier. Si l'éval IA
-tourne encore (badge `…`, sous-titre "évaluation en cours"), c'est qu'on est revenu sur le détail
-avant la fin du pipeline — tap → bilan détaillé qui poll.
+1. **`TcfExpressionScreen`** — hub d'épreuve (`/tcf/eo`, `/tcf/ee`). Un seul scroll :
+   - Carte **« Lancer un examen blanc »** (fond teinté rouge + CTA `Commencer`) → premium
+     check → `showProductionExamBriefingSheet` → `start(niveau)` (session 3 tâches) → briefing.
+   - **« S'entraîner par tâche »** : 3 lignes (`_TaskRow`, pastille colorée T1 vert / T2 ambre /
+     T3 rouge + titre + sous-titre + nb de sujets) → push `/tcf/{eo,ee}/tache/N`.
+   - **« Historique »** (+ Tout voir → `…/historique`) : stats (examens passés, niveau estimé) +
+     dernier examen blanc (`_LastExamCard`, scores T1/T2/T3 → push `…/sessions/{id}`) + dernier
+     entraînement libre (→ push `…/resultats/{id}`). Données via `_hubProvider`.
+
+2. **`TcfTaskTrainingScreen`** (`/tcf/{eo,ee}/tache/:n`) — entraînement d'une tâche :
+   **toggle « Sujets / Exemples »** (`_SubToggle`) → **liste verticale**. Les **sujets** =
+   lignes `production_tasks` du (épreuve, tâche), tous niveaux confondus, marquées
+   **faite/non-faite** (`listMine` → map `production_task_id → dernière submission`). Tap sujet
+   → fiche (`_SubjectSheet`) : consigne + plan d'aide en points (`_planFor`), puis
+   **Enregistrer/Rédiger** (`startSingle(task)` + briefing `/tcf/expression-{orale,ecrite}/t/0`)
+   si non fait, ou **Refaire / Voir le rapport** si déjà fait. Segment **Exemples** = les
+   **modèles** (`GET /api/production-examples?…`) ; tap → modal texte + `explications` + audio EO.
+
+L'**examen blanc** (session 3 tâches enchaînées) reste fidèle au vrai TCF : **aucune correction
+entre T1/T2/T3** ; après T3 → bilan détaillé (`HistorySessionScreen` `?live=1`, polling IA).
 
 **Routes EO** (idem EE en remplaçant `expression-orale` par `expression-ecrite`) :
 - `/tcf/expression-orale` → **redirige** vers `/tcf/eo` (l'ancien `ProductionHubScreen` est
@@ -541,18 +585,32 @@ avant la fin du pipeline — tap → bilan détaillé qui poll.
   submission (correction IA complète) — push en single-task après soumission, ou depuis le
   bilan en tap d'une ligne.
 
-**Sélection des sujets** (`tcf_production_task_subjects_screen.dart`) — appelée depuis
-l'onglet Tâches du détail module :
-- Fetch les sujets de (`epreuve`, `tacheNumero`, niveau du user) via
-  `/api/production-tasks?epreuve=...&niveau=...&tacheNumero=...`. Affichage en lots de 5
-  si > 15 sujets, sinon liste plate.
-- **T1 EO** = consigne fixe (présentation) : l'écran auto-démarre `startSingle(tasks.first)`
-  et `pushReplacement` directement vers le briefing (transit pur, jamais sur la pile).
-- T2/T3 et toutes les tâches EE : liste des sujets visible. Tap → `startSingle(task)` +
-  `context.push` briefing (back depuis briefing revient à la liste pour changer de sujet).
-- **L'ancien `ProductionHubScreen`** (qui hébergeait 3 cards T1/T2/T3 + dernière note) a
-  été supprimé : sa fonction est désormais portée par l'onglet Tâches de
-  `TcfProductionDetailScreen`, et la sélection fine vit dans le subjects screen.
+**Modélisation (sémantique clé)** : `production_tasks` = les **SUJETS** d'entraînement —
+plusieurs lignes par (épreuve, tacheNumero), chacune un sujet concret (ex. « Vous êtes
+mécanicien, présentez-vous »). Le candidat en choisit un et produit sa réponse, corrigée par
+l'IA. `production_examples` = des **MODÈLES** illustratifs rattachés à la tâche (`task_id`)
++ un champ `explications` (commentaire pédagogique) ; ils se listent par (épreuve,
+tacheNumero) et ne dépendent **pas** du sujet choisi. **Les situations ont été supprimées**
+(plus de `production_situations` / `_situation_medias` / supports visuels ni plan d'aide
+`etapes`/`declencheur`).
+
+**Adaptation assumée** : le panneau de production ne réenregistre/ré-rédige pas inline — il
+réutilise le flux briefing → enregistrement (EO) / `ee_briefing_writing_screen` (EE) déjà
+éprouvé, sur le sujet (task) sélectionné. L'ancien `ProductionHubScreen`,
+`TcfProductionDetailScreen` et `TcfProductionTaskSubjectsScreen` sont **supprimés**.
+
+**Backend du contenu d'entraînement** (cf. CLAUDE.md racine) :
+- `V107`→`V109` (historiques) : avaient créé `production_situations` + supports + colonnes
+  audio sur `production_examples`.
+- `V135` : **supprime** `production_situations` + `production_situation_medias` + la colonne
+  `production_submissions.situation_id`, et ajoute `production_examples.explications`.
+- Seed : `V133`/`V134` (situations historiques, droppées) puis `V136` (sujets EO T1 variés +
+  ré-seed des exemples avec `explications`, rattachés par catégorie).
+- Audio EO des exemples : batch admin (Azure Speech + R2) ; le candidat ne voit `audioUrl`
+  que `PUBLISHED` (bouton « ▶ Écouter » dans le modal exemple).
+- Endpoints lecture : `GET /api/production-tasks?epreuve=…&tacheNumero=…` (sujets),
+  `GET /api/production-tasks/{id}` (détail sujet), `GET /api/production-examples?epreuve=…&tacheNumero=…` (modèles).
+- La correction IA réutilise le pipeline existant (Whisper + Claude).
 
 **Flow EO (3 écrans + résultats)** — inchangé en single-task, le SessionController a juste 1 tâche :
 1. **Briefing** (`eo_briefing_screen.dart`) : consigne + conseils + CTA "Commencer" qui demande la permission
@@ -748,6 +806,22 @@ les cards correspondantes ne s'affichent pas.
 vers `https://sejourfr.fr/paiement`. Supprimé — Apple aurait rejeté l'app
 au review (3.1.1). Si on a besoin de référencer une URL web pour les CGV,
 utiliser `url_launcher` ponctuellement, jamais pour le paiement.
+
+**Résiliation** : écran `screens/profile/manage_subscription_screen.dart`
+accessible via tap sur la `_PlanCard` du profil quand l'user est Premium
+(route `AppRoutes.manageSubscription = /profile/abonnement`). Affiche
+plan + source + date de renouvellement + CTA rouge « Résilier mon
+abonnement » avec confirmation. Appelle directement `BillingRepository.cancel()`
+(pas via `BillingController`, dont l'état est dédié aux achats IAP) puis
+gère la réponse :
+- `action=DONE` (Stripe) : `AuthController.refreshSubscriptionStatus()`
+  pour propager `autoRenew=false` + status CANCELED sur la PlanCard,
+  SnackBar de confirmation.
+- `action=REDIRECT` (Apple/Google) : ouvre `redirectUrl` via `url_launcher`
+  en `LaunchMode.externalApplication`. Sur iOS l'URL
+  `https://apps.apple.com/account/subscriptions` ouvre directement les
+  Settings → Subscriptions ; sur Android, redirige vers la fiche Play.
+  Le statut local ne bascule QUE quand le webhook du store confirme.
 
 ## Roadmap (ce qui n'est pas encore fait)
 

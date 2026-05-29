@@ -16,6 +16,7 @@ public class ProductionTaskMapper {
             task.getConsigne(),
             task.getContexte(),
             task.getDureeMaxSec(),
+            task.getDureeMinSec(),
             task.getMotsMin(),
             task.getMotsMax()
         );

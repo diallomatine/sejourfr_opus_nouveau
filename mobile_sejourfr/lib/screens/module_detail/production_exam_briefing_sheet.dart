@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/models/enums.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
-import 'tcf_production_detail_screen.dart' show TcfProductionModule;
+import '../tcf_production/tcf_production_module.dart' show TcfProductionModule;
 
 /// Briefing avant le démarrage d'un examen complet TCF (3 tâches EE ou EO
 /// enchaînées). Bottomsheet modal — miroir du `ModuleExamBriefingSheet` des
@@ -93,6 +93,7 @@ class ProductionExamBriefingSheet extends StatelessWidget {
                   AppButton(
                     label: 'Commencer maintenant',
                     icon: Icons.play_arrow_rounded,
+                    variant: AppButtonVariant.danger,
                     isLoading: starting,
                     onPressed: starting
                         ? null
@@ -105,9 +106,8 @@ class ProductionExamBriefingSheet extends StatelessWidget {
                   AppButton(
                     label: 'Annuler',
                     variant: AppButtonVariant.ghost,
-                    onPressed: starting
-                        ? null
-                        : () => Navigator.of(context).pop(),
+                    onPressed:
+                        starting ? null : () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
@@ -154,17 +154,17 @@ const _eeTasks = <_ExamTask>[
   _ExamTask(
     index: 1,
     label: 'Message simple',
-    detail: 'Email, invitation, annulation · 60-120 mots',
+    detail: 'Email, invitation, annulation · 30-60 mots',
   ),
   _ExamTask(
     index: 2,
     label: 'Récit',
-    detail: 'Expérience personnelle · 120-150 mots',
+    detail: 'Expérience personnelle · 40-90 mots',
   ),
   _ExamTask(
     index: 3,
     label: 'Opinion',
-    detail: 'Argumentation simple · 120-180 mots',
+    detail: 'Argumentation simple · 40-90 mots',
   ),
 ];
 

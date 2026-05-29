@@ -6,6 +6,7 @@ import { ToastProvider } from "./components/ui/Toast";
 import { AudioDraftReviewPage } from "./features/audioQuestions/AudioDraftReviewPage";
 import { AudioQuestionGeneratePage } from "./features/audioQuestions/AudioQuestionGeneratePage";
 import { AudioQuestionLogsPage } from "./features/audioQuestions/AudioQuestionLogsPage";
+import { ExampleAudioReviewPage } from "./features/exampleAudio/ExampleAudioReviewPage";
 import { ConversationsPage } from "./features/conversations/ConversationsPage";
 import { DashboardPage } from "./features/dashboard/DashboardPage";
 import { ExamFormPage } from "./features/exams/ExamFormPage";
@@ -61,6 +62,10 @@ export function App() {
                 <Route
                   path="/audio-questions/logs"
                   element={<AudioQuestionLogsPage />}
+                />
+                <Route
+                  path="/example-audio/review"
+                  element={<ExampleAudioReviewPage />}
                 />
                 <Route path="/plans" element={<PlansPage />} />
                 <Route path="/subscriptions" element={<SubscriptionsPage />} />

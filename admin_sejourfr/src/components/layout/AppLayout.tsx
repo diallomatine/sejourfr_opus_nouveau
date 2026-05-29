@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../auth/AuthContext";
 import { audioDraftsApi } from "../../api/audioDraftsApi";
+import { exampleAudioApi } from "../../api/exampleAudioApi";
 import { conversationsApi } from "../../api/conversationsApi";
 import { dashboardApi } from "../../api/dashboardApi";
 import styles from "./AppLayout.module.css";
@@ -27,6 +28,13 @@ export function AppLayout() {
   const draftsPendingQuery = useQuery({
     queryKey: ["audioDrafts", "pendingReview", "count"],
     queryFn: () => audioDraftsApi.pendingReviewCount(),
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
+
+  const exampleAudioPendingQuery = useQuery({
+    queryKey: ["exampleAudio", "pending", "count"],
+    queryFn: () => exampleAudioApi.pendingCount(),
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
@@ -77,6 +85,12 @@ export function AppLayout() {
           ↳ Audio a valider
         </NavItem>
         <NavItem to="/audio-questions/logs">↳ Audit generations</NavItem>
+        <NavItem
+          to="/example-audio/review"
+          badge={exampleAudioPendingQuery.data?.count}
+        >
+          ↳ Audios exemples EO
+        </NavItem>
 
         <div className={styles.navSection}>Commerce</div>
         <NavItem to="/plans">↳ Plans & tarifs</NavItem>

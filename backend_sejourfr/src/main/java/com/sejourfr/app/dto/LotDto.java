@@ -3,6 +3,7 @@ package com.sejourfr.app.dto;
 import com.sejourfr.app.enums.Difficulty;
 
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Un "lot" est un chunk déterministe de questions filtrées par module,
@@ -22,11 +23,14 @@ import java.time.Instant;
  * @param totalQuestions    nombre de questions dans ce lot
  * @param lastScore         dernier score de l'utilisateur sur ce lot (null si jamais fait)
  * @param lastAttemptedAt   date du dernier attempt fini sur ce lot (null si jamais fait)
+ * @param lastAttemptId     id du dernier attempt fini (null si jamais fait) — sert
+ *                          au mobile pour ouvrir le bilan de lot sans re-lancer.
  */
 public record LotDto(
         int numero,
         Difficulty difficulty,
         int totalQuestions,
         Integer lastScore,
-        Instant lastAttemptedAt
+        Instant lastAttemptedAt,
+        UUID lastAttemptId
 ) {}

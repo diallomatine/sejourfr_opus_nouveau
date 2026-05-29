@@ -11,26 +11,70 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/eyebrow.dart';
+import '../civique/civique_full_exams_screen.dart'
+    show civiqueGlobalExamsProvider;
+import '../module_detail/civique_hub_data.dart'
+    show civiqueThemeExamsHistoryProvider;
+import '../module_detail/qcm_hub_data.dart' show qcmExamsHistoryProvider;
+import '../module_detail/tcf_full_exams_screen.dart'
+    show fullExamsHistoryProvider;
 
 /// Provider qui charge l'attempt finalisé (avec ses questions + corrections).
-final examAttemptProvider = FutureProvider.autoDispose.family<Attempt, String>((ref, id) {
+final examAttemptProvider =
+    FutureProvider.autoDispose.family<Attempt, String>((ref, id) {
   return ref.watch(attemptsRepositoryProvider).getById(id);
 });
 
-class ExamResultScreen extends ConsumerWidget {
+class ExamResultScreen extends ConsumerStatefulWidget {
   const ExamResultScreen({super.key, required this.attemptId});
 
   final String attemptId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(examAttemptProvider(attemptId));
+  ConsumerState<ExamResultScreen> createState() => _ExamResultScreenState();
+}
+
+class _ExamResultScreenState extends ConsumerState<ExamResultScreen> {
+  // Capturé tant que le context est vivant : `ref` n'est plus utilisable dans
+  // `dispose()` (Riverpod assert l'élément déjà démonté). On passe par le
+  // container pour invalider au démontage.
+  late final ProviderContainer _container;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _container = ProviderScope.containerOf(context, listen: false);
+  }
+
+  @override
+  void dispose() {
+    // Au pop / démontage : invalide les caches d'historique d'examens. Comme
+    // le runner fait un `pushReplacement` vers cet écran, l'écran liste qui
+    // a lancé l'examen reste mounted en dessous — sans invalidation, on
+    // retombe dessus avec ses anciennes données et la note du nouvel examen
+    // n'apparaît pas (il faut tirer pour rafraîchir).
+    //
+    // On invalide les 4 listes possibles (civique global, civique par thème,
+    // TCF QCM par épreuve, TCF complet). Pour les family providers, sans
+    // argument, invalide TOUTES les instances — exactement ce qu'on veut
+    // puisqu'on ne connaît pas la clé d'origine ici.
+    _container.invalidate(civiqueGlobalExamsProvider);
+    _container.invalidate(civiqueThemeExamsHistoryProvider);
+    _container.invalidate(qcmExamsHistoryProvider);
+    _container.invalidate(fullExamsHistoryProvider);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(examAttemptProvider(widget.attemptId));
 
     return Scaffold(
       backgroundColor: AppColors.bg,
-      // AppBar avec bouton retour. Si on arrive depuis le runner (qui a fait
-      // un context.go), context.canPop() = false → on remplace par un bouton
-      // "Accueil". Sinon (on vient de l'historique), context.pop() ramène.
+      // Retour contextuel : on pop si possible (revient à l'écran qui a
+      // lancé l'examen — liste examens, hub, historique). Le runner fait un
+      // `pushReplacement` vers cet écran pour préserver la stack. Fallback
+      // home si la stack a été reset (deep link direct).
       appBar: AppBar(
         backgroundColor: AppColors.bg,
         elevation: 0,
@@ -53,7 +97,7 @@ class ExamResultScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorState(
           message: ApiClient.toApiException(e).message,
-          onRetry: () => ref.invalidate(examAttemptProvider(attemptId)),
+          onRetry: () => ref.invalidate(examAttemptProvider(widget.attemptId)),
         ),
         data: (attempt) => _ResultView(attempt: attempt),
       ),
@@ -75,7 +119,9 @@ class _ResultView extends StatelessWidget {
     final percent = total == 0 ? 0 : ((score / total) * 100).round();
     final errors = total - score;
 
-    final duration = attempt.finishedAt != null ? attempt.finishedAt!.difference(attempt.startedAt) : null;
+    final duration = attempt.finishedAt != null
+        ? attempt.finishedAt!.difference(attempt.startedAt)
+        : null;
 
     final breakdown = _computeBreakdown(attempt);
 
@@ -241,7 +287,9 @@ class _CiviqueHero extends StatelessWidget {
             height: 64,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: passed ? AppColors.green.withValues(alpha: 0.12) : AppColors.redLight,
+              color: passed
+                  ? AppColors.green.withValues(alpha: 0.12)
+                  : AppColors.redLight,
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -287,7 +335,9 @@ class _CiviqueHero extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            passed ? (isExam ? 'Réussite confirmée' : 'Session terminée') : 'Pas encore',
+            passed
+                ? (isExam ? 'Réussite confirmée' : 'Session terminée')
+                : 'Pas encore',
             style: AppFonts.jakarta(
               size: 15,
               weight: FontWeight.w700,
@@ -333,6 +383,10 @@ class _TcfHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final level = attempt.levelAchieved;
+    // Niveau CECRL précis (peut être A1 / A1 non atteint, plafonné B2) ;
+    // fallback sur le palier legacy pour l'entraînement libre TCF.
+    final cecrl = attempt.cecrlLevel;
+    final levelText = cecrl?.displayName ?? level?.wire ?? '< A2';
     final percent = total == 0 ? 0 : ((score / total) * 100).round();
 
     return AppCard(
@@ -371,7 +425,7 @@ class _TcfHero extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            level?.wire ?? '< A2',
+            levelText,
             style: AppFonts.fraunces(
               size: 64,
               weight: FontWeight.w700,
@@ -394,7 +448,9 @@ class _TcfHero extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            '$score/$total bonnes réponses · $percent %',
+            attempt.calibratedScore != null
+                ? 'Score ${attempt.calibratedScore} / 499 · $score/$total bonnes réponses'
+                : '$score/$total bonnes réponses · $percent %',
             style: AppFonts.jakarta(
               size: 12,
               color: AppColors.muted,
@@ -627,9 +683,14 @@ class _BottomActions extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           AppButton(
-            label: 'Retour à l\'accueil',
+            label: 'Retour',
             variant: AppButtonVariant.secondary,
-            onPressed: () => context.go(AppRoutes.home),
+            // Pop si possible (revient à la liste d'examens / l'écran qui a
+            // lancé le runner — préservé grâce au pushReplacement côté runner,
+            // cf. `RunnerScreen._navigateToResult`). Fallback accueil si la
+            // stack a été reset (deep link direct sur cet écran).
+            onPressed: () =>
+                context.canPop() ? context.pop() : context.go(AppRoutes.home),
           ),
         ],
       ),
@@ -655,7 +716,8 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_outlined, color: AppColors.red, size: 40),
+            const Icon(Icons.cloud_off_outlined,
+                color: AppColors.red, size: 40),
             const SizedBox(height: 12),
             Text(
               message,

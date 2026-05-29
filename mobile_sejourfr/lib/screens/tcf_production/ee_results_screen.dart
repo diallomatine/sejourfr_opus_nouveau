@@ -12,6 +12,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'ee_session_controller.dart';
+import 'widgets/avertissements_card.dart';
 import 'widgets/correction_example.dart';
 import 'widgets/criterion_row.dart';
 import 'widgets/donut_chart_score.dart';
@@ -40,7 +41,7 @@ class EeResultsScreen extends ConsumerStatefulWidget {
   final String submissionId;
   final int taskIndex;
 
-  /// True quand on consulte les resultats depuis l'historique : on cache les
+  /// True quand on consulte les résultats depuis l'historique : on cache les
   /// CTAs "Passer a la tache N+1" / "Voir mon bilan" au profit d'un simple "Retour".
   final bool isHistory;
 
@@ -65,7 +66,8 @@ class _EeResultsScreenState extends ConsumerState<EeResultsScreen> {
         return;
       }
       // Stop si statut final atteint ou timeout.
-      final value = ref.read(_submissionFetcher(widget.submissionId)).valueOrNull;
+      final value =
+          ref.read(_submissionFetcher(widget.submissionId)).valueOrNull;
       if (value != null && value.statut.isFinal) {
         timer.cancel();
         return;
@@ -86,7 +88,8 @@ class _EeResultsScreenState extends ConsumerState<EeResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final session = widget.isHistory ? null : ref.watch(eeSessionProvider).value;
+    final session =
+        widget.isHistory ? null : ref.watch(eeSessionProvider).value;
     final async = ref.watch(_submissionFetcher(widget.submissionId));
 
     // Lecture des query params depuis le State du screen — `GoRouterState.of`
@@ -97,9 +100,8 @@ class _EeResultsScreenState extends ConsumerState<EeResultsScreen> {
     final qp = GoRouterState.of(context).uri.queryParameters;
     final fullExamId = qp['fullExamId'];
 
-    final fallbackRoute = fullExamId != null
-        ? '/tcf/examen-blanc/$fullExamId'
-        : '/tcf/ee';
+    final fallbackRoute =
+        fullExamId != null ? '/tcf/examen-blanc/$fullExamId' : '/tcf/ee';
     return _Wrapper(
       fallbackRoute: fallbackRoute,
       body: async.when(
@@ -134,6 +136,7 @@ class _EeResultsScreenState extends ConsumerState<EeResultsScreen> {
 
 class _Wrapper extends StatelessWidget {
   const _Wrapper({required this.body, this.fallbackRoute = '/tcf'});
+
   final Widget body;
   final String fallbackRoute;
 
@@ -142,7 +145,7 @@ class _Wrapper extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: ProductionAppHeader(
-        title: 'Resultats',
+        title: 'Résultats',
         fallbackRoute: fallbackRoute,
         rightAction: const ProductionAppHeaderInfo(),
       ),
@@ -211,12 +214,15 @@ class _ResultsBody extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
             children: [
               const ResultsEvalBanner(
-                title: 'Evaluation terminee !',
-                subtitle: 'Voici votre correction detaillee.',
+                title: 'Evaluation terminée !',
+                subtitle: 'Voici votre correction détaillée.',
               ),
               DonutChartScore(
                 noteSur20: eval.noteSurVingt?.toDouble(),
                 niveau: eval.niveauCecrl,
+              ),
+              AvertissementsCard(
+                avertissements: eval.feedback.avertissements,
               ),
               if (eval.feedback.scoresCriteres.isNotEmpty)
                 _CriteresCard(criteres: eval.feedback.scoresCriteres),
@@ -229,7 +235,7 @@ class _ResultsBody extends ConsumerWidget {
               if (eval.feedback.pointsAAmeliorer.isNotEmpty)
                 FeedbackBlock(
                   kind: FeedbackKind.improve,
-                  title: 'A ameliorer',
+                  title: 'A améliorer',
                   items: eval.feedback.pointsAAmeliorer,
                 ),
               if (eval.feedback.exemplesCorriges.isNotEmpty)
@@ -269,19 +275,13 @@ class _ResultsBody extends ConsumerWidget {
                   )
                 : _isSingleTask
                     ? AppButton(
-                        label: 'Retour aux sujets',
+                        label: 'Retour à l\'entraînement',
                         icon: Icons.grid_view_rounded,
                         onPressed: () {
-                          // Retour à la liste des sujets de la tâche
-                          // qu'on vient de faire (TcfProductionTaskSubjectsScreen).
-                          final tacheNumero = submission.tacheNumero ??
-                              session?.taskAt(taskIndex)?.tacheNumero ??
-                              1;
+                          // Retour à l'écran d'entraînement Expression écrite
+                          // (onglet Entraînement, carrousel de situations).
                           ref.read(eeSessionProvider.notifier).reset();
-                          context.go(
-                            AppRoutes.tcfEeTaskSubjects
-                                .replaceFirst(':tacheNumero', '$tacheNumero'),
-                          );
+                          context.go(AppRoutes.tcfEeDetail);
                         },
                       )
                     : AppButton(
@@ -317,6 +317,7 @@ class _ResultsBody extends ConsumerWidget {
 /// Carte "Detail par criteres" (results-summary-card avec wrapping).
 class _CriteresCard extends StatelessWidget {
   const _CriteresCard({required this.criteres});
+
   final List<CriterionScore> criteres;
 
   @override
@@ -334,7 +335,7 @@ class _CriteresCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Detail par criteres',
+            'Detail par critères',
             style: AppFonts.jakarta(
               size: 15,
               weight: FontWeight.w700,
@@ -351,6 +352,7 @@ class _CriteresCard extends StatelessWidget {
 
 class _CorrectionsCard extends StatelessWidget {
   const _CorrectionsCard({required this.examples});
+
   final List<CorrectionExample> examples;
 
   @override
@@ -369,7 +371,8 @@ class _CorrectionsCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.lightbulb_outline_rounded, size: 18, color: AppColors.amber),
+              Icon(Icons.lightbulb_outline_rounded,
+                  size: 18, color: AppColors.amber),
               const SizedBox(width: 8),
               Text(
                 'Exemples et corrections',
@@ -391,6 +394,7 @@ class _CorrectionsCard extends StatelessWidget {
 
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.text);
+
   final String text;
 
   @override
@@ -408,6 +412,7 @@ class _SectionTitle extends StatelessWidget {
 
 class _SubmittedTextCard extends StatelessWidget {
   const _SubmittedTextCard({required this.text});
+
   final String text;
 
   @override
@@ -433,6 +438,7 @@ class _SubmittedTextCard extends StatelessWidget {
 
 class _FailedBlock extends StatelessWidget {
   const _FailedBlock({required this.submission, required this.onRetry});
+
   final ProductionSubmissionDto submission;
   final VoidCallback onRetry;
 
@@ -443,10 +449,11 @@ class _FailedBlock extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline_rounded, size: 40, color: AppColors.red),
+          const Icon(Icons.error_outline_rounded,
+              size: 40, color: AppColors.red),
           const SizedBox(height: 12),
           Text(
-            "L'evaluation n'a pas abouti",
+            "L'évaluation n'a pas abouti",
             style: AppFonts.fraunces(
               size: 18,
               weight: FontWeight.w700,
@@ -467,7 +474,7 @@ class _FailedBlock extends StatelessWidget {
           AppButton(
             label: submission.retryCount >= 3
                 ? 'Plafond de retries atteint'
-                : "Reessayer l'evaluation",
+                : "Réessayer l'évaluation",
             icon: Icons.refresh_rounded,
             onPressed: submission.retryCount >= 3 ? null : onRetry,
           ),

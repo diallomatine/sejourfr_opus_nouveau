@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../models/enums.dart';
+
 /// Palette de couleurs officielle SejourFR — exactement les valeurs du template.
 class AppColors {
   static const blue = Color(0xFF1E3A8C);
@@ -24,6 +26,33 @@ class AppColors {
 
   static const green = Color(0xFF168F5B);
   static const amber = Color(0xFFE8A317);
+}
+
+/// Couleur associée à un niveau CECRL pour les badges / barres de niveau.
+/// **Jamais de rouge** (réservé aux CTA/urgence) : un niveau faible est en
+/// ambre, B1 en bleu, B2+ en vert. Helper canonique partagé par le hub TCF,
+/// le bilan d'examen complet et les résultats EE/EO.
+extension CecrlColor on NiveauCecrl {
+  Color get color => switch (this) {
+        NiveauCecrl.a1NonAtteint ||
+        NiveauCecrl.a1 ||
+        NiveauCecrl.a2 =>
+          AppColors.amber,
+        NiveauCecrl.b1 => AppColors.blue,
+        NiveauCecrl.b2 || NiveauCecrl.c1 || NiveauCecrl.c2 => AppColors.green,
+      };
+}
+
+/// Ombres réutilisables partagées entre les cartes du produit.
+class AppShadows {
+  /// Ombre douce sous les cartes blanches (hubs TCF, Civique, EE/EO).
+  static const card = <BoxShadow>[
+    BoxShadow(
+      color: Color(0x0A0F1839),
+      blurRadius: 12,
+      offset: Offset(0, 4),
+    ),
+  ];
 }
 
 /// Helpers pour les polices Google Fonts.

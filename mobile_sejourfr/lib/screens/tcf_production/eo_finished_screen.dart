@@ -13,7 +13,6 @@ import '../../core/widgets/app_button.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'audio_recorder_service.dart';
 import 'eo_session_controller.dart';
-import 'widgets/evaluation_loading_view.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
 
@@ -149,12 +148,10 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_submitting) {
-      return const Scaffold(
-        body: EvaluationLoadingView(includeTranscription: true),
-      );
-    }
-
+    // Pendant le submit on garde l'écran visible avec un loading inline sur le
+    // bouton ; un écran loading plein écran ici donnerait l'illusion d'un
+    // double push une fois l'écran de résultats (avec son propre loading de
+    // polling) monté.
     final session = ref.watch(eoSessionProvider).value;
     final task = session?.taskAt(widget.taskIndex);
     final rec = ref.watch(recordingControllerProvider);
@@ -230,6 +227,10 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
                     ),
                     const SizedBox(height: 22),
                     _PlaybackBar(filePath: rec.filePath!),
+                    if (rec.elapsed.inSeconds < 120) ...[
+                      const SizedBox(height: 12),
+                      const _ShortRecordingHint(),
+                    ],
                     const SizedBox(height: 16),
                     _NextInfoCard(),
                     if (_submitError != null) ...[
@@ -253,12 +254,47 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
                 child: AppButton(
                   label: 'Voir mon evaluation',
                   icon: Icons.auto_awesome_rounded,
-                  onPressed: () => _submit(context),
+                  isLoading: _submitting,
+                  onPressed: _submitting ? null : () => _submit(context),
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ShortRecordingHint extends StatelessWidget {
+  const _ShortRecordingHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.amber.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.amber.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.tips_and_updates_outlined, size: 18, color: AppColors.amber),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Astuce : visez 2-3 minutes pour une meilleure note — vous pouvez tout de même envoyer.',
+              style: AppFonts.jakarta(
+                size: 13,
+                color: AppColors.ink,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

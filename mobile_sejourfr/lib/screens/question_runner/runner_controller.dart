@@ -301,12 +301,19 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
     ));
   }
 
-  Future<void> submitCurrent() async {
+  /// Soumet la réponse de la question courante. Renvoie `true` si l'opération
+  /// a abouti (réponse enregistrée côté backend, ou rien à soumettre), `false`
+  /// si l'appel réseau a échoué. L'appelant s'appuie sur ce booléen pour
+  /// décider d'avancer : en examen blanc on ne passe PAS à la suite si la
+  /// soumission a échoué, sinon la réponse serait perdue silencieusement.
+  Future<bool> submitCurrent() async {
     final cur = state.valueOrNull;
-    if (cur == null) return;
+    if (cur == null) return false;
     final qId = cur.current.id;
     final selected = cur.answersByQuestion[qId] ?? const [];
-    if (selected.isEmpty) return;
+    // Rien à soumettre (question sautée en examen) : ce n'est pas un échec,
+    // l'appelant peut avancer.
+    if (selected.isEmpty) return true;
 
     final attemptIdForQ = cur.attemptIdByQuestionId[qId] ?? cur.activeAttempt.id;
 
@@ -330,11 +337,13 @@ class RunnerController extends StateNotifier<AsyncValue<RunnerState>> {
           after.currentIndex >= after.questions.length - 1) {
         unawaited(_extend());
       }
+      return true;
     } catch (e) {
       state = AsyncValue.data(cur.copyWith(
         submitting: false,
         errorMessage: ApiClient.toApiException(e).message,
       ));
+      return false;
     }
   }
 

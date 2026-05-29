@@ -17,6 +17,7 @@ public record ProductionTaskDto(
         String consigne,
         String contexte,
         Integer dureeMaxSec,
+        Integer dureeMinSec,
         Integer motsMin,
         Integer motsMax
 ) {

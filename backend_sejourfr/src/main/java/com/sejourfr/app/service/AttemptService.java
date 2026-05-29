@@ -4,6 +4,7 @@ import com.sejourfr.app.dto.AnswerResultResponse;
 import com.sejourfr.app.dto.AttemptResponse;
 import com.sejourfr.app.dto.AttemptSummaryResponse;
 import com.sejourfr.app.dto.ProductionAttemptStartRequest;
+import com.sejourfr.app.dto.QcmAnswerResult;
 import com.sejourfr.app.dto.StartAttemptRequest;
 import com.sejourfr.app.dto.SubmitAnswerRequest;
 import com.sejourfr.app.entity.Answer;
@@ -18,6 +19,7 @@ import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.TargetLevel;
 import com.sejourfr.app.enums.TargetProcedure;
@@ -106,6 +108,7 @@ public class AttemptService {
     private final ExamTemplateManager examTemplateManager;
     private final SubscriptionService subscriptionService;
     private final LotService lotService;
+    private final TcfLevelEstimatorService levelEstimator;
     private final AttemptMapper mapper;
 
     // ------------------------------------------------------------------------
@@ -209,6 +212,12 @@ public class AttemptService {
         // filtrer l'historique par thème côté `MeAttemptsController`).
         if (civicThemeExam) {
             attempt.setLotThemeId(req.themeId());
+        }
+        // Slot d'examen blanc visé dans la grille UI (cf. V110). Ignoré pour
+        // TRAINING/REVIEW. Permet à l'UI de retrouver « le dernier essai du
+        // slot N » au lieu de glisser les essais d'un cran à chaque refait.
+        if (req.type() == AttemptType.MOCK_EXAM && req.slotNumber() != null) {
+            attempt.setSlotNumber(req.slotNumber());
         }
         attempt = attemptManager.save(attempt);
 
@@ -539,6 +548,11 @@ public class AttemptService {
         attempt.setTotalQuestions(picked.size());
         attempt.setTimeLimitSeconds(timeLimit);
         attempt.setStartedAt(Instant.now());
+        // Slot UI (cf. V110) — propage le slotNumber demandé pour que la
+        // grille mobile retrouve « le dernier essai du slot N ».
+        if (req.slotNumber() != null) {
+            attempt.setSlotNumber(req.slotNumber());
+        }
         attempt = attemptManager.save(attempt);
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, picked);
@@ -822,18 +836,25 @@ public class AttemptService {
         attempt.setFinishedAt(Instant.now());
         attempt.setScore(score);
 
-        // Pour le TCF on calcule en plus le niveau CECRL atteint a partir du
-        // taux de reussite par strate A2/B1/B2. Civique : levelAchieved reste null.
         if (attempt.getModule() == Module.TCF) {
-            attempt.setLevelAchieved(computeLevelAchieved(aqs));
-        }
-
-        // Examen module TCF : on persiste aussi le score pondere par niveau
-        // (A2=1, B1=2, B2=3) pour permettre un affichage X/50 cote front sans
-        // re-joindre attempt_questions a chaque lecture de l'historique.
-        if (attempt.getModuleExamQuestionType() != null) {
-            attempt.setWeightedScore(computeWeightedScore(aqs, true));
-            attempt.setMaxWeightedScore(computeWeightedScore(aqs, false));
+            if (attempt.getModuleExamQuestionType() != null) {
+                // Examen module TCF (CO/CE/STRUCTURE) ou sous-attempt CO/CE d'un
+                // examen blanc complet : strates A2/B1/B2 garanties à la
+                // composition → niveau CECRL rigoureux (score calibré + garde-fou
+                // palier), source de vérité unique stockée sur cecrl_level et
+                // projetée sur level_achieved (A2/B1/B2). On persiste aussi le
+                // score pondéré (A2=1, B1=2, B2=3) pour l'affichage X/50.
+                NiveauCecrl cecrl = levelEstimator.estimateQcm(toQcmResults(aqs));
+                attempt.setCecrlLevel(cecrl);
+                attempt.setLevelAchieved(toTargetLevel(cecrl));
+                attempt.setWeightedScore(computeWeightedScore(aqs, true));
+                attempt.setMaxWeightedScore(computeWeightedScore(aqs, false));
+            } else {
+                // Entraînement TCF libre : strates non garanties (pool aléatoire),
+                // le garde-fou palier n'aurait pas de sens → on garde le niveau
+                // indicatif par strate sans renseigner cecrl_level.
+                attempt.setLevelAchieved(computeLevelAchieved(aqs));
+            }
         }
 
         attemptManager.save(attempt);
@@ -872,6 +893,27 @@ public class AttemptService {
             case A2 -> Difficulty.A2;
             case B1 -> Difficulty.B1;
             case B2 -> Difficulty.B2;
+        };
+    }
+
+    /** Projette les questions d'un attempt en entrées d'estimation CECRL. */
+    private static List<QcmAnswerResult> toQcmResults(List<AttemptQuestion> aqs) {
+        return aqs.stream()
+                .map(aq -> new QcmAnswerResult(
+                        aq.getQuestion().getId(),
+                        aq.getQuestion().getDifficulty(),
+                        aq.getAnswer() != null && Boolean.TRUE.equals(aq.getAnswer().getCorrect())))
+                .toList();
+    }
+
+    /** Niveau CECRL → palier TargetLevel exposé en legacy (A1/A1_NON_ATTEINT → null). */
+    private static TargetLevel toTargetLevel(NiveauCecrl cecrl) {
+        if (cecrl == null) return null;
+        return switch (cecrl) {
+            case A2 -> TargetLevel.A2;
+            case B1 -> TargetLevel.B1;
+            case B2 -> TargetLevel.B2;
+            default -> null;
         };
     }
 

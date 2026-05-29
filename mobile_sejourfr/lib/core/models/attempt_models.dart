@@ -26,6 +26,7 @@ class StartAttemptRequest {
     this.size,
     this.lotNumero,
     this.moduleExamQuestionType,
+    this.slotNumber,
   });
 
   final AttemptType type;
@@ -47,6 +48,13 @@ class StartAttemptRequest {
   /// Cf. `AttemptService.startModuleExam` côté Java.
   final QuestionType? moduleExamQuestionType;
 
+  /// Slot d'examen blanc visé dans la grille UI (1..10). Ignoré pour
+  /// TRAINING / REVIEW côté backend. Permet à l'UI de stabiliser la
+  /// numérotation : refaire le slot N crée un nouvel attempt avec le
+  /// même slot_number=N, l'écran liste prend le plus récent par slot.
+  /// Cf. migration V110 + `AttemptService.start`.
+  final int? slotNumber;
+
   Map<String, dynamic> toJson() => {
         'type': type.wire,
         'module': module.wire,
@@ -58,6 +66,7 @@ class StartAttemptRequest {
         if (lotNumero != null) 'lotNumero': lotNumero,
         if (moduleExamQuestionType != null)
           'moduleExamQuestionType': moduleExamQuestionType!.wire,
+        if (slotNumber != null) 'slotNumber': slotNumber,
       };
 }
 
@@ -110,6 +119,8 @@ class Attempt {
     this.score,
     this.levelAchieved,
     this.moduleExamQuestionType,
+    this.calibratedScore,
+    this.cecrlLevel,
   });
 
   final String id;
@@ -131,6 +142,13 @@ class Attempt {
   /// le mode strict côté runner : audio auto-play 2s, lecture unique, pas
   /// de pause, soumission auto à la fin du temps.
   final QuestionType? moduleExamQuestionType;
+
+  /// Score calibré 100-499 (examens module TCF) — affichage façon relevé TCF
+  /// à la place du score pondéré X/50. Null hors examen module.
+  final int? calibratedScore;
+
+  /// Niveau CECRL estimé de l'examen module TCF (CO/CE). Null hors module.
+  final NiveauCecrl? cecrlLevel;
 
   bool get isMockExam => type == AttemptType.mockExam;
   bool get isFinished => finishedAt != null;
@@ -159,6 +177,8 @@ class Attempt {
         moduleExamQuestionType: json['moduleExamQuestionType'] == null
             ? null
             : QuestionType.fromWire(json['moduleExamQuestionType'] as String),
+        calibratedScore: (json['calibratedScore'] as num?)?.toInt(),
+        cecrlLevel: NiveauCecrl.fromWireNullable(json['cecrlLevel'] as String?),
         questions: (json['questions'] as List<dynamic>?)
                 ?.map((q) =>
                     AttemptQuestion.fromJson(q as Map<String, dynamic>))
@@ -180,10 +200,16 @@ class AnswerResult {
   final String? explanation;
 
   factory AnswerResult.fromJson(Map<String, dynamic> json) => AnswerResult(
-        correct: json['correct'] as bool,
-        correctChoiceIds: (json['correctChoiceIds'] as List<dynamic>)
-            .map((e) => e as String)
-            .toList(),
+        // En MOCK_EXAM le backend renvoie correct/correctChoiceIds = null (la
+        // correction n'est révélée qu'au finish). On coerce vers des valeurs
+        // neutres pour ne pas faire crasher le parsing — sinon chaque
+        // soumission d'examen blanc tombe dans le `catch` de submitCurrent,
+        // ce qui rend une vraie erreur réseau indiscernable d'un succès.
+        correct: json['correct'] as bool? ?? false,
+        correctChoiceIds: (json['correctChoiceIds'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList() ??
+            const [],
         explanation: json['explanation'] as String?,
       );
 }

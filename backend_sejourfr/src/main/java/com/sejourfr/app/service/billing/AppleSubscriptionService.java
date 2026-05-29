@@ -19,6 +19,7 @@ import com.sejourfr.app.manager.PlanManager;
 import com.sejourfr.app.manager.ProcessedExternalEventManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
+import com.sejourfr.app.service.MailService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +58,7 @@ public class AppleSubscriptionService {
     private final UserManager userManager;
     private final UserSubscriptionManager userSubscriptionManager;
     private final ProcessedExternalEventManager processedEventManager;
+    private final MailService mailService;
 
     // ------------------------------------------------------------------------
     // verify-receipt : flow client → backend après un achat sur l'app
@@ -104,11 +106,22 @@ public class AppleSubscriptionService {
             User user = userManager.findById(userId)
                     .orElseThrow(() -> new EntityNotFoundException("User introuvable: " + userId));
 
+            // Une restauration (PurchaseStatus.restored côté StoreKit) refait
+            // un verify-receipt sur un originalTransactionId existant — on ne
+            // veut PAS spammer un mail de bienvenue dans ce cas. On détecte la
+            // création vs update avant l'upsert.
+            boolean isNew = userSubscriptionManager
+                    .findBySourceAndOriginalTransactionId(
+                            SubscriptionSource.APPLE, tx.getOriginalTransactionId())
+                    .isEmpty();
             UserSubscription sub = upsert(user, plan, tx, /* renewalInfo */ null);
             log.info(
-                    "Apple verify-receipt OK user={} productId={} originalTxId={} endsAt={}",
-                    userId, tx.getProductId(), tx.getOriginalTransactionId(), sub.getEndsAt()
+                    "Apple verify-receipt OK user={} productId={} originalTxId={} endsAt={} new={}",
+                    userId, tx.getProductId(), tx.getOriginalTransactionId(), sub.getEndsAt(), isNew
             );
+            if (isNew) {
+                sendActivationMail(sub);
+            }
             return sub;
         } catch (ResponseStatusException e) {
             // Rend visible la raison exacte du refus (sinon le 400 est muet côté
@@ -178,6 +191,7 @@ public class AppleSubscriptionService {
 
         UserSubscription sub = existing.get();
         Plan plan = sub.getPlan();
+        SubscriptionStatus oldStatus = sub.getStatus();
         applyNotificationTransition(sub, type, subtype, tx, renewalInfo);
         sub.setPlan(plan); // garantir que la FK reste posée
         userSubscriptionManager.save(sub);
@@ -186,6 +200,32 @@ public class AppleSubscriptionService {
                 "Apple notification {} (type={}, subtype={}) appliquée user={} status={} endsAt={} autoRenew={}",
                 notificationUUID, type, subtype,
                 sub.getUser().getId(), sub.getStatus(), sub.getEndsAt(), sub.isAutoRenew()
+        );
+
+        // Mail de résiliation UNIQUEMENT sur transition vers CANCELED
+        // (typiquement DID_CHANGE_RENEWAL_STATUS avec AUTO_RENEW_DISABLED).
+        // Pas de mail si CANCELED → CANCELED (replay notification).
+        if (oldStatus != SubscriptionStatus.CANCELED
+                && sub.getStatus() == SubscriptionStatus.CANCELED) {
+            sendCancellationMail(sub);
+        }
+    }
+
+    private void sendActivationMail(UserSubscription sub) {
+        User user = sub.getUser();
+        String planName = sub.getPlan() != null ? sub.getPlan().getName() : "Premium";
+        mailService.sendSubscriptionActivatedEmail(
+                user.getEmail(), user.getFirstName(), planName,
+                sub.getEndsAt(), sub.getSource().name()
+        );
+    }
+
+    private void sendCancellationMail(UserSubscription sub) {
+        User user = sub.getUser();
+        String planName = sub.getPlan() != null ? sub.getPlan().getName() : "Premium";
+        mailService.sendSubscriptionCanceledEmail(
+                user.getEmail(), user.getFirstName(), planName,
+                sub.getEndsAt(), sub.getSource().name()
         );
     }
 

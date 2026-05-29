@@ -9,7 +9,8 @@ import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 
-final _attemptProvider = FutureProvider.autoDispose.family<Attempt, String>((ref, attemptId) {
+final _attemptProvider =
+    FutureProvider.autoDispose.family<Attempt, String>((ref, attemptId) {
   return ref.watch(attemptsRepositoryProvider).getById(attemptId);
 });
 
@@ -36,13 +37,7 @@ class TcfLotResultScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final asyncAttempt = ref.watch(_attemptProvider(attemptId));
 
-    String levelLabel = level.toUpperCase();
-    final accent = switch (level.toLowerCase()) {
-      'a2' => AppColors.green,
-      'b1' => AppColors.amber,
-      'b2' => AppColors.red,
-      _ => AppColors.blue,
-    };
+    final String levelLabel = level.toUpperCase();
 
     void backToLots() {
       // Grâce au `pushReplacement` côté runner, l'écran lots est resté dans
@@ -54,7 +49,9 @@ class TcfLotResultScreen extends ConsumerWidget {
         return;
       }
       context.go(
-        AppRoutes.tcfLevelLots.replaceFirst(':moduleKey', moduleKey).replaceFirst(':level', level),
+        AppRoutes.tcfLevelLots
+            .replaceFirst(':moduleKey', moduleKey)
+            .replaceFirst(':level', level),
       );
     }
 
@@ -78,10 +75,19 @@ class TcfLotResultScreen extends ConsumerWidget {
                 ? attempt.finishedAt!.difference(attempt.startedAt)
                 : Duration.zero;
 
+            // Couleur + icône + titre pilotés par le RÉSULTAT (pas le niveau du
+            // lot) : vert ≥ 70 %, ambre 40–69 %, rouge < 40 %. Mêmes seuils que
+            // le badge score des cards de la liste de lots (_colorForScore).
+            final tier = _ResultTier.fromPercent(percent);
+
             return ListView(
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
               children: [
-                _TopBar(onClose: backToLots, accent: accent),
+                _TopBar(
+                  onClose: backToLots,
+                  accent: tier.accent,
+                  icon: tier.icon,
+                ),
                 const SizedBox(height: 22),
                 Column(
                   children: [
@@ -96,7 +102,7 @@ class TcfLotResultScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Bravo !',
+                      tier.heading,
                       style: AppFonts.fraunces(
                         size: 30,
                         weight: FontWeight.w600,
@@ -111,7 +117,7 @@ class TcfLotResultScreen extends ConsumerWidget {
                     score: score,
                     total: total,
                     percent: percent,
-                    accent: accent,
+                    accent: tier.accent,
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -130,13 +136,21 @@ class TcfLotResultScreen extends ConsumerWidget {
                   errors: errors,
                   duration: duration,
                   levelLabel: levelLabel,
+                  accent: tier.accent,
                 ),
                 const SizedBox(height: 12),
                 _AdviceCard(
                   percent: percent,
                   level: levelLabel,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
+                AppButton(
+                  label: 'Voir le rapport détaillé',
+                  onPressed: () => context.push(
+                    AppRoutes.examReport.replaceFirst(':attemptId', attemptId),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 AppButton(
                   label: 'Retour aux lots',
                   variant: AppButtonVariant.ghost,
@@ -164,11 +178,53 @@ class TcfLotResultScreen extends ConsumerWidget {
   }
 }
 
+/// Palier de résultat d'un lot : couleur d'accent, icône de synthèse et titre
+/// éditorial, pilotés par le pourcentage de réussite. Seuils alignés sur le
+/// badge score des cards de la liste de lots (vert ≥ 70 %, ambre ≥ 40 %, rouge).
+class _ResultTier {
+  const _ResultTier({
+    required this.accent,
+    required this.icon,
+    required this.heading,
+  });
+
+  final Color accent;
+  final IconData icon;
+  final String heading;
+
+  static _ResultTier fromPercent(int percent) {
+    if (percent >= 70) {
+      return const _ResultTier(
+        accent: AppColors.green,
+        icon: Icons.emoji_events_rounded,
+        heading: 'Bravo !',
+      );
+    }
+    if (percent >= 40) {
+      return const _ResultTier(
+        accent: AppColors.amber,
+        icon: Icons.trending_up_rounded,
+        heading: 'Bien joué !',
+      );
+    }
+    return const _ResultTier(
+      accent: AppColors.red,
+      icon: Icons.replay_rounded,
+      heading: 'Continue !',
+    );
+  }
+}
+
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onClose, required this.accent});
+  const _TopBar({
+    required this.onClose,
+    required this.accent,
+    required this.icon,
+  });
 
   final VoidCallback onClose;
   final Color accent;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -188,7 +244,8 @@ class _TopBar extends StatelessWidget {
                 border: Border.all(color: AppColors.line),
               ),
               alignment: Alignment.center,
-              child: const Icon(Icons.close_rounded, size: 20, color: AppColors.ink),
+              child: const Icon(Icons.close_rounded,
+                  size: 20, color: AppColors.ink),
             ),
           ),
         ),
@@ -201,10 +258,7 @@ class _TopBar extends StatelessWidget {
             shape: BoxShape.circle,
             color: accent.withValues(alpha: 0.12),
           ),
-          child: Text(
-            '🏆',
-            style: AppFonts.jakarta(size: 22),
-          ),
+          child: Icon(icon, size: 22, color: accent),
         ),
       ],
     );
@@ -321,12 +375,14 @@ class _SummaryCard extends StatelessWidget {
     required this.errors,
     required this.duration,
     required this.levelLabel,
+    required this.accent,
   });
 
   final int correctAnswers;
   final int errors;
   final Duration duration;
   final String levelLabel;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -350,7 +406,11 @@ class _SummaryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          _Row(label: 'Bonnes réponses', value: '$correctAnswers'),
+          _Row(
+            label: 'Bonnes réponses',
+            value: '$correctAnswers',
+            valueColor: accent,
+          ),
           const SizedBox(height: 8),
           _Row(label: 'Erreurs', value: '$errors'),
           const SizedBox(height: 8),
@@ -372,10 +432,11 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.label, required this.value});
+  const _Row({required this.label, required this.value, this.valueColor});
 
   final String label;
   final String value;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
@@ -401,7 +462,7 @@ class _Row extends StatelessWidget {
             style: AppFonts.jakarta(
               size: 13.5,
               weight: FontWeight.w800,
-              color: AppColors.ink,
+              color: valueColor ?? AppColors.ink,
             ),
           ),
         ],

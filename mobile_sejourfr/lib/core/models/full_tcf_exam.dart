@@ -137,6 +137,7 @@ class FullTcfExamSummary {
     required this.finishedAt,
     required this.finalCecrlLevel,
     required this.status,
+    this.slotNumber,
   });
 
   final String id;
@@ -144,6 +145,9 @@ class FullTcfExamSummary {
   final DateTime? finishedAt;
   final NiveauCecrl? finalCecrlLevel;
   final FullTcfExamStatus status;
+  /// Slot dans la grille « 20 examens TCF complets » (cf. V110). Permet à
+  /// l'UI de retrouver le dernier essai par slot.
+  final int? slotNumber;
 
   factory FullTcfExamSummary.fromJson(Map<String, dynamic> json) {
     return FullTcfExamSummary(
@@ -155,6 +159,7 @@ class FullTcfExamSummary {
       finalCecrlLevel:
           NiveauCecrl.fromWireNullable(json['finalCecrlLevel'] as String?),
       status: FullTcfExamStatus.fromWire(json['status'] as String),
+      slotNumber: (json['slotNumber'] as num?)?.toInt(),
     );
   }
 }

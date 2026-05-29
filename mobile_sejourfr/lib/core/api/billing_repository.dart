@@ -39,4 +39,16 @@ class BillingRepository {
     );
     return SubscriptionStatusResponse.fromJson(res.data as Map<String, dynamic>);
   }
+
+  /// Résilie l'abonnement Premium en cours. Le backend route selon la source :
+  /// - Stripe : annulation à la fin de période, Premium reste ouvert jusqu'à
+  ///   `endsAt` puis bascule EXPIRED (réponse `action=DONE`).
+  /// - Apple/Google : pas d'annulation serveur possible, réponse
+  ///   `action=REDIRECT` avec l'URL de gestion d'abonnement du store. C'est
+  ///   le webhook du store qui mettra à jour le statut quand / si l'user
+  ///   confirme.
+  Future<CancelSubscriptionResponse> cancel() async {
+    final Response res = await _client.dio.post('/api/billing/cancel');
+    return CancelSubscriptionResponse.fromJson(res.data as Map<String, dynamic>);
+  }
 }

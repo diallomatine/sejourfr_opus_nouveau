@@ -13,6 +13,7 @@ import '../../core/models/production_models.dart';
 import '../../core/models/question_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/mastery_status.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/paywall_sheet.dart';
@@ -21,7 +22,8 @@ import '../../core/widgets/paywall_sheet.dart';
 // Providers
 // ---------------------------------------------------------------------------
 
-final _statsProvider = FutureProvider.autoDispose.family<UserStats, AppModule>((ref, module) {
+final _statsProvider =
+    FutureProvider.autoDispose.family<UserStats, AppModule>((ref, module) {
   return ref.watch(userContentRepositoryProvider).stats(module: module);
 });
 
@@ -30,22 +32,26 @@ final _statsProvider = FutureProvider.autoDispose.family<UserStats, AppModule>((
 /// et afficher : pas d'agrégation locale (Sessions / Questions / Mastery
 /// globaux ne disaient rien sur la préparation à l'examen, cf. discussion
 /// 2026-05-22). Family par module pour rester aligné sur le tab actif.
-final _progressionProvider = FutureProvider.autoDispose.family<ProgressionSummary, AppModule>((ref, module) {
+final _progressionProvider = FutureProvider.autoDispose
+    .family<ProgressionSummary, AppModule>((ref, module) {
   return ref.watch(userContentRepositoryProvider).progression(module: module);
 });
 
 /// Derniers attempts du user pour ce module — sert au graphe de tendance
 /// (score sur 7 derniers passages d'examens blancs).
-final _recentAttemptsProvider =
-    FutureProvider.autoDispose.family<List<AttemptSummary>, AppModule>((ref, module) {
-  return ref.watch(attemptsRepositoryProvider).listMine(module: module, limit: 100);
+final _recentAttemptsProvider = FutureProvider.autoDispose
+    .family<List<AttemptSummary>, AppModule>((ref, module) {
+  return ref
+      .watch(attemptsRepositoryProvider)
+      .listMine(module: module, limit: 100);
 });
 
 /// Liste complete des themes du module — utilisee pour afficher toutes les
 /// competences/thematiques meme celles ou l'utilisateur n'a encore aucune
 /// reponse (`0 / total`). Les themes seedes (5 civique, 3 TCF) ne bougent
 /// pas souvent : on garde le cache autoDispose pour rafraichir au refresh.
-final _allThemesProvider = FutureProvider.autoDispose.family<List<ThemeDto>, AppModule>((ref, module) {
+final _allThemesProvider =
+    FutureProvider.autoDispose.family<List<ThemeDto>, AppModule>((ref, module) {
   return ref.watch(themesRepositoryProvider).list(module: module);
 });
 
@@ -54,7 +60,8 @@ final _allThemesProvider = FutureProvider.autoDispose.family<List<ThemeDto>, App
 /// dans la liste TCF "Par competence" (pas de notion de theme cote backend
 /// pour ces epreuves : on a juste des productions notees par l'IA).
 final _productionStatsProvider =
-    FutureProvider.autoDispose<Map<EpreuveType, _ProductionCompetenceStats>>((ref) async {
+    FutureProvider.autoDispose<Map<EpreuveType, _ProductionCompetenceStats>>(
+        (ref) async {
   final repo = ref.watch(productionRepositoryProvider);
   final results = await Future.wait([
     repo.listMine(epreuve: EpreuveType.tcfEe, limit: 100),
@@ -85,7 +92,8 @@ class _ProductionCompetenceStats {
   factory _ProductionCompetenceStats.fromSubmissions(
     List<ProductionSubmissionDto> subs,
   ) {
-    final evaluated = subs.where((s) => s.evaluation?.niveauCecrl != null).toList();
+    final evaluated =
+        subs.where((s) => s.evaluation?.niveauCecrl != null).toList();
     if (evaluated.isEmpty) {
       return const _ProductionCompetenceStats(
         evaluatedCount: 0,
@@ -94,9 +102,11 @@ class _ProductionCompetenceStats {
       );
     }
     final byScale = [...evaluated]..sort(
-        (a, b) => b.evaluation!.niveauCecrl!.scaleIndex.compareTo(a.evaluation!.niveauCecrl!.scaleIndex),
+        (a, b) => b.evaluation!.niveauCecrl!.scaleIndex
+            .compareTo(a.evaluation!.niveauCecrl!.scaleIndex),
       );
-    final byDate = [...evaluated]..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+    final byDate = [...evaluated]
+      ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
     return _ProductionCompetenceStats(
       evaluatedCount: evaluated.length,
       bestLevel: byScale.first.evaluation!.niveauCecrl,
@@ -126,12 +136,14 @@ class StatsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final module = ref.watch(selectedModuleProvider);
     final auth = ref.watch(authControllerProvider);
-    final isPremiumForModule = auth is AuthAuthenticated && auth.user.canAccessModule(module);
+    final isPremiumForModule =
+        auth is AuthAuthenticated && auth.user.canAccessModule(module);
 
     final stats = ref.watch(_statsProvider(module));
     final attemptsAsync = ref.watch(_recentAttemptsProvider(module));
     final allThemesAsync = ref.watch(_allThemesProvider(module));
-    final productionStatsAsync = module == AppModule.tcf ? ref.watch(_productionStatsProvider) : null;
+    final productionStatsAsync =
+        module == AppModule.tcf ? ref.watch(_productionStatsProvider) : null;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -171,7 +183,8 @@ class StatsScreen extends ConsumerWidget {
                   stats: s,
                   attempts: attemptsAsync.valueOrNull ?? const [],
                   allThemes: allThemesAsync.valueOrNull ?? const [],
-                  productionStats: productionStatsAsync?.valueOrNull ?? const {},
+                  productionStats:
+                      productionStatsAsync?.valueOrNull ?? const {},
                   module: module,
                   isPremium: isPremiumForModule,
                 ),
@@ -328,7 +341,9 @@ class _ModuleTabBtn extends StatelessWidget {
                 tag,
                 style: AppFonts.mono(
                   size: 10,
-                  color: active ? AppColors.white.withValues(alpha: 0.7) : AppColors.muted2,
+                  color: active
+                      ? AppColors.white.withValues(alpha: 0.7)
+                      : AppColors.muted2,
                   letterSpacing: 0.8,
                   weight: FontWeight.w500,
                 ),
@@ -415,7 +430,8 @@ class _Body extends ConsumerWidget {
     // Pour la tendance, on isole les MOCK_EXAM uniquement — le score d'un
     // lot d'entraînement n'a pas le même poids que celui d'un examen blanc,
     // les mélanger ferait mentir le graphe.
-    final examAttempts = attempts.where((a) => a.type == AttemptType.mockExam).toList();
+    final examAttempts =
+        attempts.where((a) => a.type == AttemptType.mockExam).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -462,12 +478,14 @@ class _Body extends ConsumerWidget {
   ) {
     if (seeded.isEmpty) return answered;
     final byId = {for (final s in answered) s.themeId: s};
-    final ordered = [...seeded]..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
+    final ordered = [...seeded]
+      ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
     return ordered
         .map((t) =>
             byId[t.id] ??
             ThemeStats(
               themeId: t.id,
+              themeCode: t.code,
               themeName: t.name,
               answered: 0,
               correct: 0,
@@ -516,8 +534,12 @@ class _ReadinessHero extends StatelessWidget {
         ],
       ),
       child: module == AppModule.civique
-          ? (civiqueProgress == null ? const _HeroLoading() : _CiviqueHero(progress: civiqueProgress!))
-          : (tcfProgress == null ? const _HeroLoading() : _TcfHero(progress: tcfProgress!)),
+          ? (civiqueProgress == null
+              ? const _HeroLoading()
+              : _CiviqueHero(progress: civiqueProgress!))
+          : (tcfProgress == null
+              ? const _HeroLoading()
+              : _TcfHero(progress: tcfProgress!)),
     );
   }
 }
@@ -538,7 +560,8 @@ class _HeroLoading extends StatelessWidget {
           height: 22,
           child: CircularProgressIndicator(
             strokeWidth: 2.4,
-            valueColor: AlwaysStoppedAnimation(AppColors.white.withValues(alpha: 0.8)),
+            valueColor:
+                AlwaysStoppedAnimation(AppColors.white.withValues(alpha: 0.8)),
           ),
         ),
       ),
@@ -557,7 +580,8 @@ class _CiviqueHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final score = progress.latestScore;
-    final ratio = score == null ? 0.0 : score / CiviqueProgression.defaultExamTotal;
+    final ratio =
+        score == null ? 0.0 : score / CiviqueProgression.defaultExamTotal;
     final (status, detail) = _statusFor(score);
 
     return Column(
@@ -722,7 +746,8 @@ class _TcfHeroNoExam extends StatelessWidget {
             ),
             if (target != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: AppColors.white.withValues(alpha: 0.13),
                   borderRadius: BorderRadius.circular(99),
@@ -760,11 +785,36 @@ class _TcfHeroNoExam extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
-        AppButton(
-          label: 'Lancer un examen blanc',
-          icon: Icons.play_arrow_rounded,
-          variant: AppButtonVariant.primary,
-          onPressed: () => context.push(AppRoutes.tcfFullExams),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Material(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => context.push(AppRoutes.tcfFullExams),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.play_arrow_rounded,
+                        size: 16, color: AppColors.redDark),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Lancer un examen blanc',
+                      style: AppFonts.jakarta(
+                        size: 13,
+                        weight: FontWeight.w800,
+                        color: AppColors.redDark,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ],
     );
@@ -806,7 +856,8 @@ class _TcfHeroPending extends StatelessWidget {
             ),
             if (target != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: AppColors.white.withValues(alpha: 0.13),
                   borderRadius: BorderRadius.circular(99),
@@ -853,10 +904,12 @@ class _TcfHeroPending extends StatelessWidget {
                   const SizedBox(height: 10),
                   GestureDetector(
                     onTap: () => context.push(
-                      AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', exam.attemptId),
+                      AppRoutes.tcfFullExamProgress
+                          .replaceFirst(':parentId', exam.attemptId),
                     ),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 7),
                       decoration: BoxDecoration(
                         color: AppColors.white,
                         borderRadius: BorderRadius.circular(99),
@@ -931,7 +984,8 @@ class _TcfHeroCompleted extends StatelessWidget {
             ),
             if (target != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: AppColors.white.withValues(alpha: 0.13),
                   borderRadius: BorderRadius.circular(99),
@@ -968,7 +1022,9 @@ class _TcfHeroCompleted extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    limitedBy == null ? detail : '$detail Épreuve à renforcer : $limitedBy.',
+                    limitedBy == null
+                        ? detail
+                        : '$detail Épreuve à renforcer : $limitedBy.',
                     style: AppFonts.jakarta(
                       size: 12.5,
                       color: AppColors.white.withValues(alpha: 0.78),
@@ -985,7 +1041,9 @@ class _TcfHeroCompleted extends StatelessWidget {
         Row(
           children: [
             for (final e in epreuves) ...[
-              Expanded(child: _EpreuveChip(label: e.$1, level: e.$2, target: target)),
+              Expanded(
+                  child:
+                      _EpreuveChip(label: e.$1, level: e.$2, target: target)),
               if (e != epreuves.last) const SizedBox(width: 6),
             ],
           ],
@@ -1043,7 +1101,9 @@ class _EpreuveChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final reached = level != null && target != null && level!.scaleIndex >= target!.scaleIndex;
+    final reached = level != null &&
+        target != null &&
+        level!.scaleIndex >= target!.scaleIndex;
     final bg = level == null
         ? AppColors.white.withValues(alpha: 0.08)
         : reached
@@ -1093,7 +1153,9 @@ class _CecrlBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = level == null ? '—' : (level == NiveauCecrl.a1NonAtteint ? 'A1-' : level!.displayName);
+    final label = level == null
+        ? '—'
+        : (level == NiveauCecrl.a1NonAtteint ? 'A1-' : level!.displayName);
     return Container(
       width: 92,
       height: 92,
@@ -1101,7 +1163,8 @@ class _CecrlBadge extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: AppColors.white.withValues(alpha: 0.14),
-        border: Border.all(color: AppColors.white.withValues(alpha: 0.3), width: 2),
+        border:
+            Border.all(color: AppColors.white.withValues(alpha: 0.3), width: 2),
       ),
       child: Text(
         label,
@@ -1235,7 +1298,11 @@ class _StatsRow extends StatelessWidget {
       if (civiqueProgress == null) {
         return _StatsRowSkeleton(
           accents: const [AppColors.blue, AppColors.green, AppColors.amber],
-          labels: const ['Examens passés', 'Thèmes consolidés', 'Meilleur score'],
+          labels: const [
+            'Examens passés',
+            'Thèmes consolidés',
+            'Meilleur score'
+          ],
         );
       }
       final p = civiqueProgress!;
@@ -1259,7 +1326,9 @@ class _StatsRow extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: _StatMini(
-              value: p.bestScore == null ? '—' : '${p.bestScore}/${CiviqueProgression.defaultExamTotal}',
+              value: p.bestScore == null
+                  ? '—'
+                  : '${p.bestScore}/${CiviqueProgression.defaultExamTotal}',
               label: 'Meilleur score',
               color: AppColors.amber,
             ),
@@ -1295,7 +1364,9 @@ class _StatsRow extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: _StatMini(
-            value: p.bestWeightedScore == null ? '—' : '${p.bestWeightedScore}/${p.bestWeightedMax}',
+            value: p.bestWeightedScore == null
+                ? '—'
+                : '${p.bestWeightedScore}/${p.bestWeightedMax}',
             label: 'Meilleur QCM',
             color: AppColors.amber,
           ),
@@ -1426,8 +1497,11 @@ class _TrendCard extends StatelessWidget {
     }
 
     // Garde les 7 derniers (chronologique).
-    final sample = finished.length > 7 ? finished.sublist(finished.length - 7) : finished;
-    final percents = sample.map((a) => (a.score! / a.totalQuestions).clamp(0.0, 1.0)).toList();
+    final sample =
+        finished.length > 7 ? finished.sublist(finished.length - 7) : finished;
+    final percents = sample
+        .map((a) => (a.score! / a.totalQuestions).clamp(0.0, 1.0))
+        .toList();
     final last = percents.last;
     final first = percents.first;
     final deltaPts = ((last - first) * 100).round();
@@ -1609,7 +1683,8 @@ class _ThemesCard extends ConsumerWidget {
   });
 
   final List<ThemeStats> themes;
-  final List<({EpreuveType epreuve, _ProductionCompetenceStats stats})> productions;
+  final List<({EpreuveType epreuve, _ProductionCompetenceStats stats})>
+      productions;
   final AppModule module;
   final bool locked;
 
@@ -1639,7 +1714,7 @@ class _ThemesCard extends ConsumerWidget {
               locked: locked,
               onTap: locked
                   ? () => _showProgressPaywall(context)
-                  : () => _trainTheme(context, ref, sortedThemes[i]),
+                  : () => _openThemeDetail(context, ref, sortedThemes[i]),
             ),
           if (hasProductions)
             for (int i = 0; i < productions.length; i++)
@@ -1660,8 +1735,43 @@ class _ThemesCard extends ConsumerWidget {
   void _openProductionHub(BuildContext context, EpreuveType epreuve) {
     // Le `ProductionHubScreen` a été supprimé : la sélection T1/T2/T3 vit
     // désormais sur l'onglet Tâches du détail module (`/tcf/eo` ou `/tcf/ee`).
-    final route = epreuve == EpreuveType.tcfEe ? AppRoutes.tcfEeDetail : AppRoutes.tcfEoDetail;
+    final route = epreuve == EpreuveType.tcfEe
+        ? AppRoutes.tcfEeDetail
+        : AppRoutes.tcfEoDetail;
     context.push(route);
+  }
+
+  /// Tap sur une ligne de thème dans la progression : on pousse l'écran
+  /// détail de la sous-section correspondante (route paramétrée pour civique,
+  /// route fixe pour TCF QCM). Le routing se fait sur le `themeCode` exposé
+  /// par le backend (CIV_*, TCF_CO, TCF_CE, TCF_STRUCTURE) — plus fiable que
+  /// matcher le `themeName` libellé.
+  ///
+  /// Fallback : si le code est inconnu (cas non prévu — nouveau thème ajouté
+  /// sans entrée dans le mapping), on retombe sur l'ancien comportement qui
+  /// lance directement une session d'entraînement.
+  void _openThemeDetail(BuildContext context, WidgetRef ref, ThemeStats theme) {
+    final route = _routeForThemeCode(theme.themeCode, theme.themeId);
+    if (route == null) {
+      _trainTheme(context, ref, theme);
+      return;
+    }
+    context.push(route);
+  }
+
+  String? _routeForThemeCode(String code, String themeId) {
+    switch (code) {
+      case 'TCF_CO':
+        return AppRoutes.tcfCoDetail;
+      case 'TCF_CE':
+        return AppRoutes.tcfCeDetail;
+      case 'TCF_STRUCTURE':
+        return AppRoutes.tcfStructureDetail;
+    }
+    if (code.startsWith('CIV_')) {
+      return AppRoutes.civiqueThemeDetail.replaceFirst(':themeId', themeId);
+    }
+    return null;
   }
 
   Future<void> _trainTheme(
@@ -1723,16 +1833,11 @@ class _ThemeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasAnswered = theme.answered > 0;
-    // Couverture du pool = X questions distinctes vues sur le total actif.
-    final coverage = theme.progress.clamp(0.0, 1.0);
-    // Précision = % de bonnes réponses sur ce que le user a tenté.
-    final successRate = theme.successRate.clamp(0.0, 1.0);
+    // Progression = maîtrise : bonnes réponses / total de questions du thème.
+    final mastery = theme.mastery.clamp(0.0, 1.0);
 
-    final (barColor, tagColor, tagBg, tagLabel) = _statusFor(
-      hasAnswered: hasAnswered,
-      coverage: coverage,
-      successRate: successRate,
-    );
+    final status = MasteryStatus.of(hasAnswered: hasAnswered, mastery: mastery);
+    final barColor = status.color;
 
     return InkWell(
       onTap: onTap,
@@ -1776,26 +1881,27 @@ class _ThemeRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 if (locked)
-                  const Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.muted2)
+                  const Icon(Icons.lock_outline_rounded,
+                      size: 14, color: AppColors.muted2)
                 else
-                  // Compteur "vues / total" du pool (couverture chiffrée).
-                  // Le suffixe "vues" est explicite — sans ça le user pense
-                  // que "8 / 32" = "8 bonnes réponses sur 32" (confondu avec
-                  // un score), alors que c'est "8 questions distinctes
-                  // touchées sur les 32 actives du thème".
+                  // Compteur "réussies / total" du pool — c'est la
+                  // progression chiffrée (bonnes réponses distinctes sur le
+                  // total actif du thème). Le suffixe "réussies" lève
+                  // l'ambiguïté avec un compteur de questions vues.
                   RichText(
                     text: TextSpan(
                       children: [
                         TextSpan(
-                          text: '${theme.answered}',
+                          text: '${theme.correct}',
                           style: AppFonts.mono(
                             size: 12,
                             weight: FontWeight.w700,
-                            color: hasAnswered ? AppColors.ink : AppColors.muted2,
+                            color:
+                                hasAnswered ? AppColors.ink : AppColors.muted2,
                           ),
                         ),
                         TextSpan(
-                          text: ' / ${theme.total} vues',
+                          text: ' / ${theme.total} réussies',
                           style: AppFonts.mono(
                             size: 12,
                             color: AppColors.muted2,
@@ -1808,10 +1914,7 @@ class _ThemeRow extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            // Barre = COUVERTURE (% du pool de questions déjà vu). On a
-            // séparé la qualité (badge ci-dessous) pour qu'un user qui a
-            // 100 % de justesse sur 10 questions ne se voie pas afficher
-            // une barre quasi vide qui le démotive.
+            // Barre = MAÎTRISE (% de bonnes réponses sur le pool complet).
             Stack(
               children: [
                 Container(
@@ -1824,7 +1927,7 @@ class _ThemeRow extends StatelessWidget {
                 if (!locked && hasAnswered)
                   FractionallySizedBox(
                     alignment: Alignment.centerLeft,
-                    widthFactor: coverage.clamp(0.02, 1.0),
+                    widthFactor: mastery.clamp(0.02, 1.0),
                     child: Container(
                       height: 6,
                       decoration: BoxDecoration(
@@ -1838,34 +1941,36 @@ class _ThemeRow extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                // Tag status — couleur synchronisée sur la précision.
+                // Tag status — piloté par la maîtrise (helper partagé).
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: tagBg,
+                    color: status.softBg,
                     borderRadius: BorderRadius.circular(99),
                   ),
                   child: Text(
-                    '● $tagLabel',
+                    '● ${status.label}',
                     style: AppFonts.mono(
                       size: 9.5,
-                      color: tagColor,
+                      color: status.color,
                       letterSpacing: 1.2,
                       weight: FontWeight.w600,
                     ),
                   ),
                 ),
                 const SizedBox(width: 6),
-                // Badge précision : % de bonnes réponses parmi les vues.
+                // Badge maîtrise chiffrée : % de bonnes réponses sur le pool.
                 if (!locked && hasAnswered)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: AppColors.line2,
                       borderRadius: BorderRadius.circular(99),
                     ),
                     child: Text(
-                      '✓ ${(successRate * 100).round()}% justes',
+                      '${(mastery * 100).round()} % de maîtrise',
                       style: AppFonts.mono(
                         size: 9.5,
                         color: AppColors.ink2,
@@ -1886,72 +1991,6 @@ class _ThemeRow extends StatelessWidget {
     );
   }
 
-  /// Couleurs + label de status combinant couverture (% du pool vu) et
-  /// précision (% de bonnes réponses sur ce que le user a tenté).
-  ///
-  /// "Maîtrisé" exige les DEUX : couverture ≥ 70 % ET précision ≥ 85 %.
-  /// Sans ça, voir 1 question + la réussir = "Maîtrisé" → trompeur (le
-  /// user croit avoir fini alors qu'il a vu 3 % du programme).
-  ///
-  /// "Bon démarrage" est introduit pour le cas spécifique "précision OK
-  /// mais peu de couverture" — encourage à élargir sans dévaloriser.
-  (Color, Color, Color, String) _statusFor({
-    required bool hasAnswered,
-    required double coverage,
-    required double successRate,
-  }) {
-    if (!hasAnswered) {
-      return (
-        AppColors.muted2,
-        AppColors.muted,
-        AppColors.line2,
-        'À démarrer',
-      );
-    }
-    // Précision faible → priorité : la qualité doit s'améliorer avant de
-    // se soucier de la couverture.
-    if (successRate < 0.45) {
-      return (
-        AppColors.red,
-        AppColors.red,
-        AppColors.redLight,
-        'À retravailler',
-      );
-    }
-    if (successRate < 0.65) {
-      return (
-        AppColors.amber,
-        const Color(0xFFB5811A),
-        const Color(0xFFFDF3DD),
-        'À consolider',
-      );
-    }
-    // Précision ≥ 65 %. On regarde maintenant la couverture pour décider
-    // entre "bon démarrage" (précis mais peu vu), "en progrès" (bien
-    // engagé) et "maîtrisé" (couvre largement le pool avec précision haute).
-    if (coverage < 0.30) {
-      return (
-        AppColors.blue,
-        AppColors.blue,
-        AppColors.blueLight,
-        'Bon démarrage',
-      );
-    }
-    if (coverage >= 0.70 && successRate >= 0.85) {
-      return (
-        AppColors.green,
-        AppColors.green,
-        const Color(0xFFE6F4ED),
-        'Maîtrisé',
-      );
-    }
-    return (
-      AppColors.blue,
-      AppColors.blue,
-      AppColors.blueLight,
-      'En progrès',
-    );
-  }
 }
 
 /// Ligne "competence" pour les epreuves productives EE/EO. Distincte de
@@ -1977,7 +2016,8 @@ class _ProductionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final epreuve = production.epreuve;
     final stats = production.stats;
-    final label = epreuve == EpreuveType.tcfEe ? 'Expression écrite' : 'Expression orale';
+    final label =
+        epreuve == EpreuveType.tcfEe ? 'Expression écrite' : 'Expression orale';
     final hasEvaluated = stats.hasEvaluated;
     final level = stats.bestLevel;
     // Position du curseur sur l'echelle A1→C2 (6 paliers, index 0..5).
@@ -2042,7 +2082,8 @@ class _ProductionRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 if (locked)
-                  const Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.muted2)
+                  const Icon(Icons.lock_outline_rounded,
+                      size: 14, color: AppColors.muted2)
                 else
                   RichText(
                     text: TextSpan(
@@ -2052,7 +2093,8 @@ class _ProductionRow extends StatelessWidget {
                           style: AppFonts.mono(
                             size: 12,
                             weight: FontWeight.w700,
-                            color: hasEvaluated ? AppColors.ink : AppColors.muted2,
+                            color:
+                                hasEvaluated ? AppColors.ink : AppColors.muted2,
                           ),
                         ),
                         TextSpan(
@@ -2231,7 +2273,8 @@ class _EmptyState extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final module = ref.watch(selectedModuleProvider);
-    final hubRoute = module == AppModule.civique ? AppRoutes.civique : AppRoutes.tcf;
+    final hubRoute =
+        module == AppModule.civique ? AppRoutes.civique : AppRoutes.tcf;
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(

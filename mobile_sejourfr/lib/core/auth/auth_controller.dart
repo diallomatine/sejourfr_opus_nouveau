@@ -215,10 +215,22 @@ class AuthController extends StateNotifier<AuthState> {
     state = AuthAuthenticated(user);
   }
 
-  /// Logout déclenché par l'intercepteur quand le refresh échoue.
+  /// Logout déclenché par l'intercepteur sur un 401 non récupérable (session
+  /// morte). Les tokens ont déjà été vidés côté intercepteur.
+  ///
+  /// On bascule d'abord en [AuthLoading] : le router affiche alors le splash
+  /// (spinner « déconnexion en cours ») et remplace immédiatement la page
+  /// courante — ainsi l'écran n'affiche jamais l'erreur 401 « Authentification
+  /// requise ». Après un court instant on passe en [AuthUnauthenticated] →
+  /// redirection vers l'écran de connexion.
   void forceLogout() {
-    // Pas besoin d'attendre le clear : il a déjà eu lieu côté intercepteur.
-    state = const AuthUnauthenticated();
+    if (state is AuthUnauthenticated || state is AuthLoading) return;
+    state = const AuthLoading();
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (state is AuthLoading) {
+        state = const AuthUnauthenticated();
+      }
+    });
   }
 }
 

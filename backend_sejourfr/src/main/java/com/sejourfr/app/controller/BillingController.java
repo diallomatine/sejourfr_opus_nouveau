@@ -1,6 +1,7 @@
 package com.sejourfr.app.controller;
 
 import com.sejourfr.app.dto.BillingCheckoutResponse;
+import com.sejourfr.app.dto.CancelSubscriptionResponse;
 import com.sejourfr.app.dto.PlanPublicResponse;
 import com.sejourfr.app.dto.SubscriptionStatusResponse;
 import com.sejourfr.app.dto.VerifyReceiptRequest;
@@ -8,6 +9,7 @@ import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.BillingService;
 import com.sejourfr.app.service.ReceiptVerificationService;
 import com.sejourfr.app.service.SubscriptionService;
+import com.sejourfr.app.service.billing.SubscriptionCancellationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,6 +33,7 @@ public class BillingController {
     private final BillingService billingService;
     private final SubscriptionService subscriptionService;
     private final ReceiptVerificationService receiptVerificationService;
+    private final SubscriptionCancellationService subscriptionCancellationService;
     private final CurrentUser currentUser;
 
     /**
@@ -85,6 +88,26 @@ public class BillingController {
     @PostMapping("/verify-receipt")
     public SubscriptionStatusResponse verifyReceipt(@Valid @RequestBody VerifyReceiptRequest request) {
         return receiptVerificationService.verify(currentUser.getId(), request);
+    }
+
+    /**
+     * Résiliation de l'abonnement Premium en cours. Le routing dépend de la
+     * source (Stripe / Apple / Google) — cf.
+     * {@link SubscriptionCancellationService}.
+     *
+     * <ul>
+     *   <li>Stripe : {@code action=DONE}, abonnement programmé pour cesser à
+     *       {@code endsAt}, Premium reste ouvert d'ici là.</li>
+     *   <li>Apple / Google : {@code action=REDIRECT} + {@code redirectUrl}
+     *       vers la page de gestion du store (les stores n'autorisent pas
+     *       l'annulation serveur, c'est l'utilisateur qui doit confirmer
+     *       dans l'app store). Le statut local sera mis à jour par le
+     *       webhook quand / si l'annulation est confirmée côté store.</li>
+     * </ul>
+     */
+    @PostMapping("/cancel")
+    public CancelSubscriptionResponse cancel() {
+        return subscriptionCancellationService.cancelForUser(currentUser.getId());
     }
 
     /**

@@ -9,19 +9,23 @@ import 'package:sejourfr_mobile/screens/history/tcf_exam_history_screen.dart';
 import '../../screens/auth/forgot_password_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
+import '../../screens/civique/civique_full_exams_screen.dart';
 import '../../screens/civique/civique_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/module_detail/civique_theme_detail_screen.dart';
+import '../../screens/module_detail/civique_theme_exams_screen.dart';
 import '../../screens/module_detail/tcf_full_exams_screen.dart';
 import '../../screens/module_detail/tcf_level_lots_screen.dart';
 import '../../screens/module_detail/tcf_lot_result_screen.dart';
-import '../../screens/module_detail/tcf_production_detail_screen.dart';
-import '../../screens/module_detail/tcf_production_task_subjects_screen.dart';
+import '../../screens/tcf_production/tcf_expression_screen.dart';
+import '../../screens/tcf_production/tcf_production_module.dart';
 import '../../screens/module_detail/tcf_qcm_detail_screen.dart';
+import '../../screens/module_detail/tcf_qcm_exams_screen.dart';
 import '../../screens/onboarding/onboarding_screen.dart';
 import '../../screens/help/contact_screen.dart';
 import '../../screens/help/help_center_screen.dart';
 import '../../screens/help/in_app_webview_screen.dart';
+import '../../screens/profile/manage_subscription_screen.dart';
 import '../../screens/profile/mes_historiques_screen.dart';
 import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
@@ -41,6 +45,7 @@ import '../../screens/tcf_production/eo_finished_screen.dart';
 import '../../screens/tcf_production/eo_recording_screen.dart';
 import '../../screens/tcf_production/eo_results_screen.dart';
 import '../../screens/tcf_production/history_session_screen.dart';
+import '../../screens/tcf_production/production_exams_screen.dart';
 import '../../screens/tcf_production/production_history_screen.dart';
 import '../auth/auth_controller.dart';
 import '../models/enums.dart';
@@ -53,19 +58,30 @@ class AppRoutes {
   static const forgotPassword = '/forgot-password';
   static const home = '/';
   static const civique = '/civique';
+  // Page « Examens blancs » civique GLOBAUX (20 slots de 40 Q tous thèmes,
+  // 45 min, seuil 32/40). Pushée depuis le hero du hub Civique. Distincte
+  // des examens thématiques (20 Q d'un seul thème, route
+  // `/civique/theme/:themeId/examens`).
+  static const civiqueExamsBlanc = '/civique/examens-blancs';
   static const civiqueThemeDetail = '/civique/theme/:themeId';
+  // Page « Examens blancs » d'un thème civique (10 slots de 20 Q / 20 min /
+  // seuil 16). Pushé depuis le hero rouge du détail thème.
+  static const civiqueThemeExams = '/civique/theme/:themeId/examens';
   static const tcf = '/tcf';
   static const tcfCoDetail = '/tcf/co';
   static const tcfCeDetail = '/tcf/ce';
   static const tcfStructureDetail = '/tcf/structure';
+  // Sous-routes des hubs QCM (CO, CE, Structure) : examens blancs.
+  static const tcfCoExams = '/tcf/co/examens';
+  static const tcfCeExams = '/tcf/ce/examens';
+  static const tcfStructureExams = '/tcf/structure/examens';
+  // Hub d'épreuve Expression (`TcfExpressionScreen`) : carte examen blanc + 3
+  // tâches + historique. Tap une tâche → `TcfTaskTrainingScreen` (sujets +
+  // exemples) sur les routes `…/tache/:tacheNumero`.
   static const tcfEoDetail = '/tcf/eo';
   static const tcfEeDetail = '/tcf/ee';
-
-  // Sujets d'une tâche EE ou EO (route hors shell). tacheNumero ∈ {1,2,3}.
-  // Cf. `TcfProductionTaskSubjectsScreen` — affichage groupé par lots de 5
-  // si > 15 sujets, sinon liste plate. Bypass pour EO T1 (consigne fixe).
-  static const tcfEoTaskSubjects = '/tcf/eo/tache/:tacheNumero';
-  static const tcfEeTaskSubjects = '/tcf/ee/tache/:tacheNumero';
+  static const tcfEoTaskTraining = '/tcf/eo/tache/:tacheNumero';
+  static const tcfEeTaskTraining = '/tcf/ee/tache/:tacheNumero';
 
   // Examen blanc complet TCF (les 4 épreuves enchaînées). 20 slots dans
   // la liste. Distinct des module exams (CO/CE seul) côté backend via
@@ -113,6 +129,11 @@ class AppRoutes {
 
   // Édition des informations personnelles (firstName/lastName/email/password).
   static const personalInfo = '/profile/personal-info';
+
+  // Gestion de l'abonnement Premium en cours (détails + résiliation). Le
+  // routing serveur/store est décidé côté backend selon la source (Stripe,
+  // Apple, Google).
+  static const manageSubscription = '/profile/abonnement';
 
   // TCF Expression orale / ecrite (Lot A : briefing seul, soumission a venir).
   static const tcfExpressionOrale = '/tcf/expression-orale';
@@ -251,6 +272,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const PersonalInfoScreen(),
       ),
       GoRoute(
+        path: AppRoutes.manageSubscription,
+        builder: (_, __) => const ManageSubscriptionScreen(),
+      ),
+      GoRoute(
         path: AppRoutes.examReport,
         builder: (_, state) {
           final attemptId = state.pathParameters['attemptId']!;
@@ -298,6 +323,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
+      // Page « Examens blancs » civique GLOBAUX (20 slots, 40 Q tous thèmes).
+      // Pushée depuis le hero du hub Civique. Hors shell pour cohérence avec
+      // `tcfFullExams` (même UX 20 slots côté TCF).
+      GoRoute(
+        path: AppRoutes.civiqueExamsBlanc,
+        builder: (_, __) => const CiviqueFullExamsScreen(),
+      ),
+
       // Écrans détail module (hors shell — pas de bottom nav).
       // Civique : un détail par thème (5 thèmes officiels chargés depuis l'API).
       GoRoute(
@@ -305,57 +338,72 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => CiviqueThemeDetailScreen(
           themeId: state.pathParameters['themeId']!,
         ),
+        routes: [
+          GoRoute(
+            path: 'examens',
+            builder: (_, state) => CiviqueThemeExamsScreen(
+              themeId: state.pathParameters['themeId']!,
+            ),
+          ),
+        ],
       ),
-      // TCF QCM : un détail par épreuve (CO, CE) → push runner après attempt.
+      // TCF QCM CO — hub + sous-routes examens/erreurs.
       GoRoute(
         path: AppRoutes.tcfCoDetail,
         builder: (_, __) => const TcfQcmDetailScreen(module: TcfQcmModule.co),
+        routes: [
+          GoRoute(
+            path: 'examens',
+            builder: (_, __) => const TcfQcmExamsScreen(module: TcfQcmModule.co),
+          ),
+        ],
       ),
+      // TCF QCM CE — hub + sous-route examens.
       GoRoute(
         path: AppRoutes.tcfCeDetail,
         builder: (_, __) => const TcfQcmDetailScreen(module: TcfQcmModule.ce),
+        routes: [
+          GoRoute(
+            path: 'examens',
+            builder: (_, __) => const TcfQcmExamsScreen(module: TcfQcmModule.ce),
+          ),
+        ],
       ),
-      // Structure de la langue : QCM grammaire / lexique. Non évalué dans le
-      // TCF IRN officiel — gardé comme entraînement complémentaire. Mêmes
-      // onglets Séries / Examens / Erreurs que CO et CE, avec une bannière
-      // d'info rendue par TcfQcmDetailScreen quand `module.notice != null`.
+      // TCF Structure de la langue — QCM grammaire / lexique. Non évalué dans
+      // le TCF IRN officiel — bannière `_ModuleNoticeBanner` rendue par le hub.
       GoRoute(
         path: AppRoutes.tcfStructureDetail,
         builder: (_, __) => const TcfQcmDetailScreen(module: TcfQcmModule.structure),
+        routes: [
+          GoRoute(
+            path: 'examens',
+            builder: (_, __) => const TcfQcmExamsScreen(module: TcfQcmModule.structure),
+          ),
+        ],
       ),
-      // TCF productions : un détail par épreuve (EO, EE). L'onglet Tâches
-      // du détail expose les 3 cards T1/T2/T3 et push directement la
-      // sélection des sujets (`TcfProductionTaskSubjectsScreen`) — il n'y
-      // a plus d'écran hub intermédiaire.
+      // TCF productions : hub d'épreuve (examen blanc + 3 tâches + historique).
       GoRoute(
         path: AppRoutes.tcfEoDetail,
-        builder: (_, __) => const TcfProductionDetailScreen(module: TcfProductionModule.eo),
+        builder: (_, __) => const TcfExpressionScreen(module: TcfProductionModule.eo),
       ),
       GoRoute(
         path: AppRoutes.tcfEeDetail,
-        builder: (_, __) => const TcfProductionDetailScreen(module: TcfProductionModule.ee),
+        builder: (_, __) => const TcfExpressionScreen(module: TcfProductionModule.ee),
       ),
-      // Sujets d'une tâche EE / EO. Pushé depuis l'onglet Tâches du détail
-      // production quand l'utilisateur tape une card tâche.
+      // Entraînement d'une tâche (sujets + exemples).
       GoRoute(
-        path: AppRoutes.tcfEoTaskSubjects,
-        builder: (_, state) {
-          final n = int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1;
-          return TcfProductionTaskSubjectsScreen(
-            epreuve: EpreuveType.tcfEo,
-            tacheNumero: n.clamp(1, 3),
-          );
-        },
+        path: AppRoutes.tcfEoTaskTraining,
+        builder: (_, state) => TcfTaskTrainingScreen(
+          module: TcfProductionModule.eo,
+          tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1).clamp(1, 3),
+        ),
       ),
       GoRoute(
-        path: AppRoutes.tcfEeTaskSubjects,
-        builder: (_, state) {
-          final n = int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1;
-          return TcfProductionTaskSubjectsScreen(
-            epreuve: EpreuveType.tcfEe,
-            tacheNumero: n.clamp(1, 3),
-          );
-        },
+        path: AppRoutes.tcfEeTaskTraining,
+        builder: (_, state) => TcfTaskTrainingScreen(
+          module: TcfProductionModule.ee,
+          tache: (int.tryParse(state.pathParameters['tacheNumero'] ?? '1') ?? 1).clamp(1, 3),
+        ),
       ),
       // Examen blanc TCF complet (CO + CE + EE + EO en 90 min). Pushé
       // depuis la carte sombre du hub TCF. Orchestration des 4 épreuves
@@ -439,6 +487,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         redirect: (_, state) => state.uri.path == AppRoutes.tcfExpressionOrale ? AppRoutes.tcfEoDetail : null,
         routes: [
           GoRoute(
+            path: 'examens',
+            builder: (_, __) => const ProductionExamsScreen(
+                module: TcfProductionModule.eo),
+          ),
+          GoRoute(
             path: 'historique',
             builder: (_, __) => const ProductionHistoryScreen(epreuve: EpreuveType.tcfEo),
           ),
@@ -499,6 +552,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         redirect: (_, state) =>
             state.uri.path == AppRoutes.tcfExpressionEcrite ? AppRoutes.tcfEeDetail : null,
         routes: [
+          GoRoute(
+            path: 'examens',
+            builder: (_, __) => const ProductionExamsScreen(
+                module: TcfProductionModule.ee),
+          ),
           GoRoute(
             path: 'historique',
             builder: (_, __) => const ProductionHistoryScreen(epreuve: EpreuveType.tcfEe),

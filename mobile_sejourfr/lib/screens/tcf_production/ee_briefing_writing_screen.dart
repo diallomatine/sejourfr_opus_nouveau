@@ -16,11 +16,10 @@ import 'draft_service.dart';
 import 'ee_session_controller.dart';
 import 'widgets/consigne_card.dart';
 import 'widgets/criteres_card.dart';
-import 'widgets/evaluation_loading_view.dart';
 import 'widgets/mots_card.dart';
+import 'widgets/preparation_points.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
-import 'widgets/tips_card.dart';
 import 'widgets/writing_zone.dart';
 
 /// Briefing + zone d'ecriture combines (un seul long scroll), aligne sur
@@ -31,10 +30,12 @@ class EeBriefingWritingScreen extends ConsumerStatefulWidget {
   final int taskIndex;
 
   @override
-  ConsumerState<EeBriefingWritingScreen> createState() => _EeBriefingWritingScreenState();
+  ConsumerState<EeBriefingWritingScreen> createState() =>
+      _EeBriefingWritingScreenState();
 }
 
-class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScreen> {
+class _EeBriefingWritingScreenState
+    extends ConsumerState<EeBriefingWritingScreen> {
   final TextEditingController _controller = TextEditingController();
   final FocusNode _writingFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
@@ -44,29 +45,6 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
   bool _draftLoaded = false;
   String? _loadedForTaskId;
   bool _wasFocused = false;
-
-  /// Conseils generiques EE par numero de tache (texte calque sur le mockup).
-  static const _tipsByTache = <int, List<String>>{
-    1: [
-      'Adresse-toi directement au destinataire',
-      'Sois clair sur les 2-3 informations à transmettre',
-      'Utilise un ton adapté (amical, formel)',
-      'Relis ton message avant de valider',
-    ],
-    2: [
-      'Raconte une expérience réelle et intéressante',
-      'Organise ton récit (début, événements, fin)',
-      'Utilise des connecteurs temporels',
-      'Exprime tes sentiments et tes réactions',
-      'Relis ton texte avant de valider',
-    ],
-    3: [
-      'Donne une opinion claire dès le début',
-      'Appuie ta position avec 2 arguments concrets',
-      'Illustre par un exemple personnel ou observé',
-      'Conclus en reformulant ton avis',
-    ],
-  };
 
   static const _criteresEE = [
     'Pertinence et développement du contenu',
@@ -102,7 +80,13 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
               niveau: _niveauForUser(),
             );
       } else {
-        ref.read(eeSessionProvider.notifier).start(niveau: _niveauForUser());
+        // Une session déjà en cours (ex: sujet unique lancé via startSingle
+        // depuis la fiche) est respectée — on ne la remplace pas par un
+        // examen 3-tâches. On ne démarre que s'il n'y a rien (deep-link).
+        final current = ref.read(eeSessionProvider).value;
+        if (current == null || !current.isStarted || current.isCompleted) {
+          ref.read(eeSessionProvider.notifier).start(niveau: _niveauForUser());
+        }
       }
     });
   }
@@ -110,7 +94,8 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
   void _onFocusChanged() {
     if (!mounted) return;
     final isNowFocused = _writingFocusNode.hasFocus;
-    final justBlurredWithText = _wasFocused && !isNowFocused && _controller.text.trim().isNotEmpty;
+    final justBlurredWithText =
+        _wasFocused && !isNowFocused && _controller.text.trim().isNotEmpty;
     _wasFocused = isNowFocused;
     // On differe le setState a la frame suivante pour ne pas casser la
     // sequence de focus → keyboard (le reflow synchrone des cards qui
@@ -199,7 +184,8 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
       }
       if (!mounted) return;
       final session = ref.read(eeSessionProvider).value;
-      final hasNext = session != null && widget.taskIndex + 1 < session.totalTasks;
+      final hasNext =
+          session != null && widget.taskIndex + 1 < session.totalTasks;
       if (hasNext) {
         context.pushReplacement(
           withCurrentQuery(
@@ -240,7 +226,8 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
       if (!mounted) return;
       final session = ref.read(eeSessionProvider).value;
       final isExamMode = session != null && session.totalTasks > 1;
-      final hasNext = session != null && widget.taskIndex + 1 < session.totalTasks;
+      final hasNext =
+          session != null && widget.taskIndex + 1 < session.totalTasks;
       if (isExamMode) {
         // Mode session 3-tâches (onglet Examens) : pas d'évaluation visible
         // entre T1/T2/T3, fidèle au vrai TCF. On enchaîne directement le
@@ -278,7 +265,8 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
     }
   }
 
-  Future<void> _saveDraftAndQuit(BuildContext context, ProductionTaskDto task) async {
+  Future<void> _saveDraftAndQuit(
+      BuildContext context, ProductionTaskDto task) async {
     if (_controller.text.trim().isNotEmpty) {
       await ref.read(eeDraftServiceProvider).save(task.id, _controller.text);
     }
@@ -306,21 +294,18 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
 
   @override
   Widget build(BuildContext context) {
-    if (_submitting) {
-      return const Scaffold(
-        body: EvaluationLoadingView(includeTranscription: false),
-      );
-    }
-
+    // Pendant le submit on garde l'écran visible avec un loading inline sur le
+    // bouton ; un écran loading plein écran ici donnerait l'illusion d'un
+    // double push une fois l'écran de résultats (avec son propre loading de
+    // polling) monté.
     final sessionAsync = ref.watch(eeSessionProvider);
     // Fallback back-arrow contextuel : si `canPop` est faux (deep link,
     // pushReplacement chain, etc.), on retombe sur le détail EE sauf en mode
     // examen blanc complet où on retourne au progress de l'examen.
     final goState = GoRouterState.of(context);
     final fullExamId = goState.uri.queryParameters['fullExamId'];
-    final fallbackRoute = fullExamId != null
-        ? '/tcf/examen-blanc/$fullExamId'
-        : '/tcf/ee';
+    final fallbackRoute =
+        fullExamId != null ? '/tcf/examen-blanc/$fullExamId' : '/tcf/ee';
     return Scaffold(
       backgroundColor: AppColors.white,
       resizeToAvoidBottomInset: true,
@@ -345,7 +330,9 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
                     niveau: _niveauForUser(),
                   );
             } else {
-              ref.read(eeSessionProvider.notifier).start(niveau: _niveauForUser());
+              ref
+                  .read(eeSessionProvider.notifier)
+                  .start(niveau: _niveauForUser());
             }
           },
         ),
@@ -369,7 +356,7 @@ class _EeBriefingWritingScreenState extends ConsumerState<EeBriefingWritingScree
             onSaveDraftAndQuit: () => _saveDraftAndQuit(context, task),
             onClear: () => _clearText(task),
             submitError: _submitError,
-            tips: _tipsByTache[task.tacheNumero] ?? const <String>[],
+            submitting: _submitting,
             criteres: _criteresEE,
           );
         },
@@ -392,8 +379,8 @@ class _Content extends StatelessWidget {
     required this.onSaveDraftAndQuit,
     required this.onClear,
     required this.wordCount,
-    required this.tips,
     required this.criteres,
+    required this.submitting,
     this.submitError,
   });
 
@@ -409,15 +396,15 @@ class _Content extends StatelessWidget {
   final VoidCallback onSaveDraftAndQuit;
   final VoidCallback onClear;
   final int wordCount;
-  final List<String> tips;
   final List<String> criteres;
+  final bool submitting;
   final String? submitError;
 
   bool get _inRange =>
       task.motsMin != null &&
       task.motsMax != null &&
       wordCount >= task.motsMin! &&
-      wordCount <= task.motsMax!;
+      wordCount <= (task.motsMax! * 1.2).floor();
 
   @override
   Widget build(BuildContext context) {
@@ -439,14 +426,14 @@ class _Content extends StatelessWidget {
                 key: const ValueKey('ee-consigne'),
                 consigne: task.consigne,
                 subTitleHero: task.displayTitle,
-                subtitle: 'Longueur attendue : ${task.motsMin ?? 0} à ${task.motsMax ?? 0} mots',
+                subtitle:
+                    'Longueur attendue : ${task.motsMin ?? 0} à ${task.motsMax ?? 0} mots',
               ),
-              if (tips.isNotEmpty)
-                TipsCard(
-                  key: const ValueKey('ee-tips'),
-                  tips: tips,
-                  title: 'Conseils pour réussir',
-                ),
+              PreparationCard(
+                key: const ValueKey('ee-prep'),
+                isEo: false,
+                tache: task.tacheNumero,
+              ),
               MotsCard(
                 key: const ValueKey('ee-mots'),
                 current: wordCount,
@@ -491,7 +478,8 @@ class _Content extends StatelessWidget {
                   AppButton(
                     label: 'Valider ma rédaction',
                     icon: Icons.send_rounded,
-                    onPressed: _inRange ? onSubmit : null,
+                    isLoading: submitting,
+                    onPressed: (_inRange && !submitting) ? onSubmit : null,
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton(
@@ -540,12 +528,14 @@ class _InlineError extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline_rounded, size: 18, color: AppColors.red),
+          const Icon(Icons.error_outline_rounded,
+              size: 18, color: AppColors.red),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: AppFonts.jakarta(size: 13, color: AppColors.red, height: 1.4),
+              style:
+                  AppFonts.jakarta(size: 13, color: AppColors.red, height: 1.4),
             ),
           ),
         ],
@@ -567,7 +557,8 @@ class _ErrorBox extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline_rounded, size: 32, color: AppColors.red),
+          const Icon(Icons.error_outline_rounded,
+              size: 32, color: AppColors.red),
           const SizedBox(height: 8),
           Text(
             'Impossible de démarrer la session.',

@@ -8,6 +8,8 @@ import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.AttemptQuestion;
 import com.sejourfr.app.entity.ExamTemplate;
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.service.TcfLevelEstimatorService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +22,7 @@ import java.util.UUID;
 public class AttemptMapper {
 
     private final QuestionMapper questionMapper;
+    private final TcfLevelEstimatorService levelEstimator;
 
     public AttemptResponse toResponse(Attempt attempt, List<AttemptQuestion> aqs, boolean revealCorrect) {
         List<AttemptQuestionResponse> aqResponses = aqs.stream()
@@ -46,6 +49,8 @@ public class AttemptMapper {
                 attempt.getScore(),
                 attempt.getLevelAchieved(),
                 attempt.getModuleExamQuestionType(),
+                calibratedScoreOf(attempt),
+                cecrlLevelOf(attempt),
                 aqResponses
         );
     }
@@ -77,8 +82,34 @@ public class AttemptMapper {
                 a.getModuleExamQuestionType(),
                 a.getWeightedScore(),
                 a.getMaxWeightedScore(),
-                a.getLotThemeId()
+                calibratedScoreOf(a),
+                cecrlLevelOf(a),
+                a.getLotThemeId(),
+                a.getSlotNumber()
         );
+    }
+
+    /**
+     * Score calibré 100-499 d'un examen module TCF (dérivé du score pondéré).
+     * Null hors examen module (le X/50 reste pertinent ailleurs).
+     */
+    private Integer calibratedScoreOf(Attempt a) {
+        if (a.getModuleExamQuestionType() == null
+                || a.getWeightedScore() == null
+                || a.getMaxWeightedScore() == null) {
+            return null;
+        }
+        return levelEstimator.calibratedScore(a.getWeightedScore(), a.getMaxWeightedScore());
+    }
+
+    /**
+     * Niveau CECRL d'un examen module TCF : cecrl_level posé au finish, fallback
+     * dérivé du score pondéré pour les attempts pré-V416. Null hors module.
+     */
+    private NiveauCecrl cecrlLevelOf(Attempt a) {
+        if (a.getModuleExamQuestionType() == null) return null;
+        if (a.getCecrlLevel() != null) return a.getCecrlLevel();
+        return levelEstimator.levelFromWeighted(a.getWeightedScore(), a.getMaxWeightedScore());
     }
 
     private AttemptQuestionResponse toAttemptQuestionResponse(AttemptQuestion aq, boolean revealCorrect) {

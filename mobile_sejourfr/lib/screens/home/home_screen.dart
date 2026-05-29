@@ -14,7 +14,9 @@ import '../../core/widgets/app_card.dart';
 import '../../core/widgets/sejourfr_logo.dart';
 
 final _civiqueStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
-  return ref.watch(userContentRepositoryProvider).stats(module: AppModule.civique);
+  return ref
+      .watch(userContentRepositoryProvider)
+      .stats(module: AppModule.civique);
 });
 
 final _tcfStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
@@ -40,9 +42,10 @@ class _ModuleProgress {
 
   bool get isStarted => answered > 0;
 
-  double get coverage => total == 0 ? 0.0 : (answered / total).clamp(0.0, 1.0);
+  // Progression = maîtrise : bonnes réponses / total de questions du module.
+  double get mastery => total == 0 ? 0.0 : (correct / total).clamp(0.0, 1.0);
 
-  int get precisionPct => answered == 0 ? 0 : (correct / answered * 100).round();
+  int get masteryPct => (mastery * 100).round();
 
   static _ModuleProgress fromStats(UserStats s) {
     final answered = s.byTheme.fold<int>(0, (sum, t) => sum + t.answered);
@@ -72,7 +75,8 @@ class HomeScreen extends ConsumerWidget {
       context.go(route);
     }
 
-    final civiqueIsDemo = user != null && !user.canAccessModule(AppModule.civique);
+    final civiqueIsDemo =
+        user != null && !user.canAccessModule(AppModule.civique);
     final tcfIsDemo = user != null && !user.canAccessModule(AppModule.tcf);
 
     // Compteur global "X vues" rendu en chip top-right du card bleu. Somme
@@ -80,8 +84,10 @@ class HomeScreen extends ConsumerWidget {
     // qu'au moins un des deux stats charge encore → on attend pour ne pas
     // afficher un sous-total trompeur, et le chip ne paraît pas si le user
     // n'a encore rien vu (évite "0 vues" déprimant à l'onboarding).
-    final int? viewedCount = (civiqueStats.valueOrNull != null && tcfStats.valueOrNull != null)
-        ? civiqueStats.value!.byTheme.fold<int>(0, (sum, t) => sum + t.answered) +
+    final int? viewedCount = (civiqueStats.valueOrNull != null &&
+            tcfStats.valueOrNull != null)
+        ? civiqueStats.value!.byTheme
+                .fold<int>(0, (sum, t) => sum + t.answered) +
             tcfStats.value!.byTheme.fold<int>(0, (sum, t) => sum + t.answered)
         : null;
 
@@ -110,8 +116,9 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: 24),
               _SectionTitle(
                 label: 'Vos modules',
-                trailing:
-                    user?.targetProcedure != null ? 'PARCOURS · ${user!.targetProcedure!.shortLabel}' : null,
+                trailing: user?.targetProcedure != null
+                    ? 'PARCOURS · ${user!.targetProcedure!.shortLabel}'
+                    : null,
               ),
               const SizedBox(height: 12),
               _ModuleCard(
@@ -126,13 +133,6 @@ class HomeScreen extends ConsumerWidget {
                 stats: tcfStats,
                 isDemo: tcfIsDemo,
                 onTap: () => selectAndGo(AppModule.tcf, AppRoutes.tcf),
-              ),
-              const SizedBox(height: 18),
-              _AiHighlightCard(
-                onTap: () {
-                  ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
-                  context.push(AppRoutes.tcfEeDetail);
-                },
               ),
               const SizedBox(height: 26),
               const _SectionTitle(label: 'Raccourcis'),
@@ -158,6 +158,40 @@ class HomeScreen extends ConsumerWidget {
                       accent: AppColors.red,
                       accentBg: AppColors.redLight,
                       onTap: () => context.push(AppRoutes.review),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ShortcutTile(
+                      icon: Icons.edit_note_rounded,
+                      title: 'Expression écrite',
+                      subtitle: 'corrigée par IA',
+                      accent: AppColors.blue,
+                      accentBg: AppColors.blueLight,
+                      onTap: () {
+                        ref.read(selectedModuleProvider.notifier).state =
+                            AppModule.tcf;
+                        context.push(AppRoutes.tcfEeDetail);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _ShortcutTile(
+                      icon: Icons.mic_rounded,
+                      title: 'Expression orale',
+                      subtitle: 'corrigée par IA',
+                      accent: AppColors.red,
+                      accentBg: AppColors.redLight,
+                      onTap: () {
+                        ref.read(selectedModuleProvider.notifier).state =
+                            AppModule.tcf;
+                        context.push(AppRoutes.tcfEoDetail);
+                      },
                     ),
                   ),
                 ],
@@ -211,7 +245,10 @@ class _Header extends StatelessWidget {
               ).copyWith(letterSpacing: -0.3),
             ),
             const Spacer(),
-            const _IconChip(icon: Icons.notifications_outlined),
+            _IconChip(
+              icon: Icons.person_outline_rounded,
+              onTap: () => context.go(AppRoutes.profile),
+            ),
           ],
         ),
         const SizedBox(height: 22),
@@ -264,7 +301,15 @@ class _Header extends StatelessWidget {
   }
 
   String _frenchDayLabel(DateTime d) {
-    const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+    const days = [
+      'Lundi',
+      'Mardi',
+      'Mercredi',
+      'Jeudi',
+      'Vendredi',
+      'Samedi',
+      'Dimanche'
+    ];
     const months = [
       'janvier',
       'février',
@@ -286,22 +331,30 @@ class _Header extends StatelessWidget {
 }
 
 class _IconChip extends StatelessWidget {
-  const _IconChip({required this.icon});
+  const _IconChip({required this.icon, this.onTap});
 
   final IconData icon;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        color: AppColors.white,
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(11),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: AppColors.line),
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(11),
+            border: Border.all(color: AppColors.line),
+          ),
+          alignment: Alignment.center,
+          child: Icon(icon, size: 18, color: AppColors.ink),
+        ),
       ),
-      alignment: Alignment.center,
-      child: Icon(icon, size: 16, color: AppColors.ink),
     );
   }
 }
@@ -389,7 +442,8 @@ class _HeroParcoursCard extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      if (viewedCount != null && viewedCount! > 0) _ViewedChip(count: viewedCount!),
+                      if (viewedCount != null && viewedCount! > 0)
+                        _ViewedChip(count: viewedCount!),
                     ],
                   ),
                   const SizedBox(height: 14),
@@ -407,7 +461,8 @@ class _HeroParcoursCard extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: AppColors.white.withValues(alpha: 0.16),
                             borderRadius: BorderRadius.circular(99),
@@ -584,9 +639,11 @@ class _ModuleCard extends StatelessWidget {
 
   Color get _accent => _isCivique ? AppColors.blue : AppColors.red;
 
-  Color get _accentLight => _isCivique ? AppColors.blueLight : AppColors.redLight;
+  Color get _accentLight =>
+      _isCivique ? AppColors.blueLight : AppColors.redLight;
 
-  IconData get _icon => _isCivique ? Icons.account_balance_rounded : Icons.translate_rounded;
+  IconData get _icon =>
+      _isCivique ? Icons.account_balance_rounded : Icons.translate_rounded;
 
   String get _title => _isCivique ? 'Examen civique' : 'TCF · Test de français';
 
@@ -673,8 +730,10 @@ class _ModuleCard extends StatelessWidget {
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: AppColors.amber.withValues(alpha: 0.16),
-                                          borderRadius: BorderRadius.circular(4),
+                                          color: AppColors.amber
+                                              .withValues(alpha: 0.16),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
                                         ),
                                         child: Text(
                                           'DÉMO',
@@ -731,9 +790,9 @@ class _ModuleCard extends StatelessWidget {
   }
 }
 
-/// Mini barre couverture + label "X/Y vues · Z% justes" sous la card
-/// module. Quand le user n'a pas encore touché au module, affichage
-/// "Pas encore commencé — appuie pour démarrer".
+/// Mini barre de progression (maîtrise = bonnes réponses / total) + label
+/// "X/Y réussies · N vues" sous la card module. Quand le user n'a pas encore
+/// touché au module, affichage "Pas encore commencé — appuie pour démarrer".
 class _ModuleProgressStrip extends StatelessWidget {
   const _ModuleProgressStrip({required this.progress, required this.accent});
 
@@ -756,7 +815,9 @@ class _ModuleProgressStrip extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            p == null ? 'Chargement…' : 'Pas encore commencé · appuie pour démarrer',
+            p == null
+                ? 'Chargement…'
+                : 'Pas encore commencé · appuie pour démarrer',
             style: AppFonts.jakarta(
               size: 11.5,
               color: AppColors.muted,
@@ -780,7 +841,7 @@ class _ModuleProgressStrip extends StatelessWidget {
             ),
             FractionallySizedBox(
               alignment: Alignment.centerLeft,
-              widthFactor: p.coverage.clamp(0.02, 1.0),
+              widthFactor: p.mastery.clamp(0.02, 1.0),
               child: Container(
                 height: 4,
                 decoration: BoxDecoration(
@@ -793,149 +854,13 @@ class _ModuleProgressStrip extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '${p.answered}/${p.total} vues · ${p.precisionPct} % justes',
+          '${p.correct}/${p.total} réussies · ${p.masteryPct} % · ${p.answered} vues',
           style: AppFonts.jakarta(
             size: 11.5,
             color: AppColors.muted,
           ),
         ),
       ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// AI HIGHLIGHT CARD — met en valeur le différenciateur produit : l'éval IA
-// pour Expression écrite + Expression orale. Card éditoriale premium.
-// ---------------------------------------------------------------------------
-
-class _AiHighlightCard extends StatelessWidget {
-  const _AiHighlightCard({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.blue,
-                AppColors.blue.withValues(alpha: 0.94),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.ink.withValues(alpha: 0.22),
-                blurRadius: 22,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // Pastille IA — design distinct, animation visuelle légère via
-              // un dégradé bleu / violet pour l'isoler des modules.
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.red.withValues(alpha: 0.9),
-                      AppColors.red.withValues(alpha: 0.55),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.auto_awesome_rounded,
-                  size: 22,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'CORRECTION IA',
-                          style: AppFonts.mono(
-                            size: 9.5,
-                            color: AppColors.white.withValues(alpha: 0.65),
-                            letterSpacing: 1.8,
-                            weight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.red.withValues(alpha: 0.22),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'NOUVEAU',
-                            style: AppFonts.mono(
-                              size: 8.5,
-                              color: AppColors.white,
-                              letterSpacing: 1.2,
-                              weight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Correction IA instantanée',
-                      style: AppFonts.jakarta(
-                        size: 14.5,
-                        weight: FontWeight.w800,
-                        color: AppColors.white,
-                      ).copyWith(letterSpacing: -0.2),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'EE & EO corrigées par IA — niveau CECRL, '
-                      'points forts, axes à travailler.',
-                      style: AppFonts.jakarta(
-                        size: 11.5,
-                        color: AppColors.white.withValues(alpha: 0.72),
-                        height: 1.35,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.white.withValues(alpha: 0.7),
-                size: 22,
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

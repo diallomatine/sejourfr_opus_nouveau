@@ -14,7 +14,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Catalogue des consignes EO/EE (lecture seule pour l'utilisateur final).
+ * Catalogue des sujets EO/EE (lecture seule pour l'utilisateur final).
+ * Chaque ligne = un sujet ; plusieurs sujets par (epreuve, tacheNumero).
  * Seules les tasks {@code is_active = true} sont exposees.
  */
 @RestController

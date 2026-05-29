@@ -80,6 +80,16 @@ class UserContentRepository {
     return ProgressionSummary.fromJson(res.data!);
   }
 
+  /// Profil de niveau TCF par épreuve (CO/CE/EE/EO) + niveau global plancher.
+  /// Agrège le DERNIER passage de chaque épreuve indépendamment. Cf. backend
+  /// `GET /api/tcf/profile/level` (`TcfProfileService`).
+  Future<TcfLevelProfile> tcfLevelProfile() async {
+    final res = await _client.dio.get<Map<String, dynamic>>(
+      '/api/tcf/profile/level',
+    );
+    return TcfLevelProfile.fromJson(res.data!);
+  }
+
   /// Définit / met à jour le parcours administratif visé (CSP/CR/NAT).
   /// Le backend dérive ensuite automatiquement la difficulté des questions
   /// tirées en entraînement et examen blanc.
@@ -120,6 +130,7 @@ class UserStats {
 class ThemeStats {
   ThemeStats({
     required this.themeId,
+    required this.themeCode,
     required this.themeName,
     required this.answered,
     required this.correct,
@@ -127,21 +138,24 @@ class ThemeStats {
   });
 
   final String themeId;
+  /// Code stable du thème (ex: `CIV_PRINCIPES`, `TCF_CO`, `TCF_STRUCTURE`).
+  /// Sert au routing depuis l'écran Progression vers le détail de la
+  /// sous-section, sans dépendre du libellé.
+  final String themeCode;
   final String themeName;
   final int answered;
   final int correct;
   final int total;
 
-  // Couverture : part du pool du thème déjà tentée (questions distinctes).
-  double get progress => total == 0 ? 0 : answered / total;
-  // Précision sur les questions tentées (correct / answered distincts).
-  double get successRate => answered == 0 ? 0 : correct / answered;
-  // Score de maîtrise : seul indicateur cohérent pour la progression par thème.
-  // Sur 1 examen blanc avec 2 questions du thème (50 disponibles) : 2/50 = 4%.
+  // Maîtrise = formule de progression de l'app : bonnes réponses distinctes
+  // sur le pool complet du thème. Sur 1 examen blanc avec 2 questions du thème
+  // réussies (50 disponibles) : 2/50 = 4 %. (La couverture answered/total et la
+  // précision correct/answered ne sont plus affichées — cf. [MasteryStatus].)
   double get mastery => total == 0 ? 0 : correct / total;
 
   factory ThemeStats.fromJson(Map<String, dynamic> json) => ThemeStats(
         themeId: json['themeId'] as String,
+        themeCode: json['themeCode'] as String? ?? '',
         themeName: json['themeName'] as String,
         answered: (json['answered'] as num? ?? 0).toInt(),
         correct: (json['correct'] as num? ?? 0).toInt(),
@@ -308,4 +322,71 @@ class LastFullTcfExam {
         eeLevel: NiveauCecrl.fromWireNullable(json['eeLevel'] as String?),
         eoLevel: NiveauCecrl.fromWireNullable(json['eoLevel'] as String?),
       );
+}
+
+/// Profil de niveau TCF par épreuve — miroir de `TcfLevelProfileResponse`
+/// backend (`GET /api/tcf/profile/level`). Le dernier passage de CHAQUE
+/// épreuve pris indépendamment, plus le niveau global = plancher (plafonné B2).
+class TcfLevelProfile {
+  TcfLevelProfile({
+    required this.co,
+    required this.ce,
+    required this.ee,
+    required this.eo,
+    required this.globalLevel,
+  });
+
+  final TcfEpreuveLevel co;
+  final TcfEpreuveLevel ce;
+  final TcfEpreuveLevel ee;
+  final TcfEpreuveLevel eo;
+
+  /// Plancher des épreuves renseignées (jamais une moyenne). Null si aucune
+  /// épreuve passée.
+  final NiveauCecrl? globalLevel;
+
+  factory TcfLevelProfile.fromJson(Map<String, dynamic> json) => TcfLevelProfile(
+        co: TcfEpreuveLevel.fromJson(json['co'] as Map<String, dynamic>?),
+        ce: TcfEpreuveLevel.fromJson(json['ce'] as Map<String, dynamic>?),
+        ee: TcfEpreuveLevel.fromJson(json['ee'] as Map<String, dynamic>?),
+        eo: TcfEpreuveLevel.fromJson(json['eo'] as Map<String, dynamic>?),
+        globalLevel: NiveauCecrl.fromWireNullable(json['globalLevel'] as String?),
+      );
+}
+
+/// Résultat du dernier passage d'une épreuve TCF. CO/CE renseignent
+/// `calibratedScore` (100-499) + `weightedScore`/`maxWeightedScore` (X/50) ;
+/// EE/EO renseignent `note20`. `level` null = épreuve jamais passée.
+class TcfEpreuveLevel {
+  TcfEpreuveLevel({
+    required this.level,
+    this.calibratedScore,
+    this.weightedScore,
+    this.maxWeightedScore,
+    this.note20,
+    this.lastAttemptAt,
+  });
+
+  final NiveauCecrl? level;
+  final int? calibratedScore;
+  final int? weightedScore;
+  final int? maxWeightedScore;
+  final double? note20;
+  final DateTime? lastAttemptAt;
+
+  bool get attempted => level != null;
+
+  factory TcfEpreuveLevel.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return TcfEpreuveLevel(level: null);
+    return TcfEpreuveLevel(
+      level: NiveauCecrl.fromWireNullable(json['level'] as String?),
+      calibratedScore: (json['calibratedScore'] as num?)?.toInt(),
+      weightedScore: (json['weightedScore'] as num?)?.toInt(),
+      maxWeightedScore: (json['maxWeightedScore'] as num?)?.toInt(),
+      note20: (json['note20'] as num?)?.toDouble(),
+      lastAttemptAt: json['lastAttemptAt'] == null
+          ? null
+          : DateTime.parse(json['lastAttemptAt'] as String),
+    );
+  }
 }

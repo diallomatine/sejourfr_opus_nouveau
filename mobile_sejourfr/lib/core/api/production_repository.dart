@@ -80,6 +80,22 @@ class ProductionRepository {
     return ProductionTaskDto.fromJson(res.data!);
   }
 
+  /// Exemples-modeles d'une categorie (epreuve, tacheNumero), independants du
+  /// sujet choisi.
+  ///   GET /api/production-examples?epreuve=...&tacheNumero=...
+  Future<List<ProductionExampleDto>> listExamples({
+    required EpreuveType epreuve,
+    required int tacheNumero,
+  }) async {
+    final res = await _client.dio.get<List<dynamic>>(
+      '/api/production-examples',
+      queryParameters: {'epreuve': epreuve.wire, 'tacheNumero': tacheNumero},
+    );
+    return (res.data ?? [])
+        .map((e) => ProductionExampleDto.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Soumet un texte (epreuve EE). Le backend repond avec la submission deja
   /// EVALUATED (synchrone court-terme : 10-20 s d'attente cote serveur).
   Future<ProductionSubmissionDto> submitText({

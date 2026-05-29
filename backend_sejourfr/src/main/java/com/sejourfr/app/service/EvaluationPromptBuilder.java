@@ -56,8 +56,12 @@ public class EvaluationPromptBuilder {
      * @param transcriptionLitterale true si la production vient d'une transcription
      *        Whisper en mode litteral (pour informer le LLM que les fautes peuvent
      *        avoir ete partiellement lissees).
+     * @param dureeProductionSec duree parlee reelle (EO uniquement, sinon null).
+     *        Si elle est sous l'objectif {@code dureeMaxSec}, on injecte un bloc
+     *        invitant le LLM a minorer la note pour production insuffisante.
      */
-    public String buildUserPrompt(ProductionTask task, String production, boolean transcriptionLitterale) {
+    public String buildUserPrompt(ProductionTask task, String production,
+                                  boolean transcriptionLitterale, Integer dureeProductionSec) {
         String contexteBlock = (task.getContexte() == null || task.getContexte().isBlank())
             ? ""
             : "CONTEXTE :\n\"" + task.getContexte() + "\"\n";
@@ -94,6 +98,13 @@ public class EvaluationPromptBuilder {
               + "ton evaluation."
             : "";
 
+        // EO : débit (mots/min) en tête du bloc, puis l'éventuel rappel de durée
+        // sous-objectif. Injectés ensemble dans {DUREE_BLOCK} pour ne pas
+        // toucher au gabarit .md (pas de bump de prompt-version : contexte
+        // runtime, comme la durée).
+        String dureeBlock = buildDebitBlock(task, production, dureeProductionSec)
+                + buildDureeBlock(task, dureeProductionSec);
+
         return loadTemplate(userPath(currentVersion()))
             .replace("{MODALITE}", modalite(task.getEpreuve()))
             .replace("{TACHE_NUMERO}", String.valueOf(task.getTacheNumero()))
@@ -104,7 +115,54 @@ public class EvaluationPromptBuilder {
             .replace("{CONSIGNES_CORRECTEUR}", consignesCorrecteur.isBlank() ? "(aucune)" : consignesCorrecteur)
             .replace("{MARQUEURS_NIVEAU_SUPERIEUR}", marqueursNiveauSup)
             .replace("{PRODUCTION}", nullSafe(production))
-            .replace("{LITTERAL_NOTICE}", litteralNotice);
+            .replace("{LITTERAL_NOTICE}", litteralNotice)
+            .replace("{DUREE_BLOCK}", dureeBlock);
+    }
+
+    /**
+     * Bloc EO « débit de parole » (mots/minute), toujours présent dès qu'on a
+     * une durée parlée. Donne au LLM un signal de fluidité chiffré ; reste
+     * indicatif (à pondérer avec le contenu réel). Vide pour l'EE ou sans durée.
+     */
+    private static String buildDebitBlock(ProductionTask task, String production, Integer dureeProductionSec) {
+        if (task.getEpreuve() != EpreuveType.TCF_EO
+                || dureeProductionSec == null || dureeProductionSec <= 0
+                || production == null || production.isBlank()) {
+            return "";
+        }
+        int mots = production.trim().split("\\s+").length;
+        int wpm = (int) Math.round(mots * 60.0 / dureeProductionSec);
+        return "DÉBIT DE PAROLE : le candidat a produit environ " + mots + " mots en "
+            + dureeProductionSec + " s, soit ~" + wpm + " mots/minute. Indicateur de fluidité "
+            + "(un débit oral naturel en français se situe ~110-150 mots/min ; nettement plus "
+            + "lent peut trahir des hésitations, très rapide peut nuire à l'intelligibilité). "
+            + "Pondère ce signal avec le contenu réel de la transcription, ne le sur-pénalise pas seul.\n";
+    }
+
+    /**
+     * Bloc EO injecte quand la duree parlee est sous l'objectif de la tache :
+     * invite le LLM a minorer la note_globale pour production insuffisante.
+     * Vide pour l'EE ou si la duree atteint l'objectif.
+     */
+    private static String buildDureeBlock(ProductionTask task, Integer dureeProductionSec) {
+        if (task.getEpreuve() != EpreuveType.TCF_EO
+                || dureeProductionSec == null
+                || task.getDureeMaxSec() == null
+                || dureeProductionSec >= task.getDureeMaxSec()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder("DURÉE DE LA PRODUCTION : le candidat a parlé ")
+            .append(dureeProductionSec)
+            .append(" secondes, pour un objectif de ")
+            .append(task.getDureeMaxSec())
+            .append(" secondes");
+        if (task.getDureeMinSec() != null) {
+            sb.append(" (minimum acceptable ").append(task.getDureeMinSec()).append(" s)");
+        }
+        sb.append(". La production est donc plus courte que demandé : la tâche est moins bien "
+            + "remplie. Minore la note_globale en conséquence, SANS pénaliser deux fois le "
+            + "niveau_cecrl (qui reflète la qualité linguistique réelle de ce qui a été produit).\n");
+        return sb.toString();
     }
 
     /**

@@ -26,6 +26,10 @@ public class UserSubscriptionManager {
         return repository.findByUserId(userId);
     }
 
+    public Optional<UserSubscription> findById(UUID id) {
+        return repository.findById(id);
+    }
+
     public Optional<UserSubscription> findByStripeSubscriptionId(String stripeSubscriptionId) {
         return repository.findByStripeSubscriptionId(stripeSubscriptionId);
     }

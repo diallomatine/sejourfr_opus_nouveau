@@ -84,8 +84,9 @@ public class MeService {
                 .map(r -> new UserStatsResponse.ThemeStatsResponse(
                         (UUID) r[0],
                         (String) r[1],
-                        ((Number) r[2]).intValue(),
+                        (String) r[2],
                         ((Number) r[3]).intValue(),
+                        ((Number) r[4]).intValue(),
                         (int) questionManager.countActiveByTheme((UUID) r[0])
                 ))
                 .toList();

@@ -37,5 +37,14 @@ public record StartAttemptRequest(
         QuestionType questionType,
         Integer size,
         Integer lotNumero,
-        QuestionType moduleExamQuestionType
+        QuestionType moduleExamQuestionType,
+        /**
+         * Slot d'examen blanc visé dans la grille UI (1..10). Optionnel ;
+         * ne s'applique qu'aux MOCK_EXAM (ignoré pour TRAINING / REVIEW).
+         * Permet de stabiliser la numérotation côté liste examens : refaire
+         * « l'examen N » crée un nouvel attempt avec le même slot_number=N,
+         * l'UI prend le plus récent par slot — au lieu de l'ancien LIFO qui
+         * faisait glisser les essais d'un cran. Cf. migration V110.
+         */
+        Integer slotNumber
 ) {}

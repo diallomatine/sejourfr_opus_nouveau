@@ -2,6 +2,7 @@ package com.sejourfr.app.dto;
 
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.enums.TargetLevel;
 
@@ -27,5 +28,10 @@ public record AttemptResponse(
         // au mobile pour appliquer les conditions strictes (audio auto-play
         // 2s, pas de pause, lecture unique, soumission auto à la fin du temps).
         QuestionType moduleExamQuestionType,
+        // Score calibré 100-499 (examens module TCF) + niveau CECRL estimé.
+        // Affichage façon relevé TCF (X/499 + niveau) à la place du X/50 interne.
+        // Null hors examen module TCF.
+        Integer calibratedScore,
+        NiveauCecrl cecrlLevel,
         List<AttemptQuestionResponse> questions
 ) {}
