@@ -201,9 +201,14 @@ function PaiementInner() {
     const index = useMemo(() => indexPlans(plans), [plans]);
 
     // Mode passes one-time (lot 5) : pas de toggle de périodicité, grille de
-    // passes par module. Le mode abonnement reste si le backend renvoie des
-    // plans récurrents.
-    const oneTime = plans.length > 0 && plans.every((p) => p.purchaseType === "ONE_TIME");
+    // passes par module. On ignore les plans non payables (FREE) dans la
+    // détection — sinon le FREE (SUBSCRIPTION) casserait le `every`.
+    const payablePlans = plans.filter(
+        (p) => p.moduleAccess !== "NONE" && p.price > 0,
+    );
+    const oneTime =
+        payablePlans.length > 0 &&
+        payablePlans.every((p) => p.purchaseType === "ONE_TIME");
 
     /** Modules visibles : INTEGRAL seul si déjà INTEGRAL ; les 2 sinon ; focus si demandé. */
     const visibleModules = useMemo<PlanModuleTarget[]>(() => {
