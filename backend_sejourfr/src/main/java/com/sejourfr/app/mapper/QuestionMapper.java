@@ -10,6 +10,7 @@ import com.sejourfr.app.dto.QuestionReviewResponse;
 import com.sejourfr.app.entity.Choice;
 import com.sejourfr.app.entity.Passage;
 import com.sejourfr.app.entity.Question;
+import com.sejourfr.app.enums.MediaType;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -87,11 +88,13 @@ public class QuestionMapper {
                 .sorted(Comparator.comparingInt(Choice::getDisplayOrder))
                 .collect(Collectors.toCollection(ArrayList::new));
         // Questions audio (TCF CO) : l'audio énonce les réponses dans l'ordre
-        // displayOrder (A→B→C→D) et fige la correspondance lettre↔réponse. On
-        // ne les shuffle PAS, sinon la lettre affichée ne correspond plus à
-        // celle dite dans l'audio. Les autres questions sont mélangées de façon
+        // displayOrder (« A… B… C… D… ») et fige la correspondance lettre↔
+        // réponse. On ne les shuffle PAS, sinon la lettre/position affichée ne
+        // correspond plus à celle dite dans l'audio. On se base sur la présence
+        // d'un média AUDIO (les seeds CO ne renseignent pas tous audio_mode, qui
+        // reste souvent NULL). Les autres questions sont mélangées de façon
         // stable (seed = AttemptQuestion.id) pour limiter la mémorisation.
-        if (q.getAudioMode() == null) {
+        if (!isAudioQuestion(q)) {
             Collections.shuffle(ordered, new Random(uuidSeed(shuffleSeedId)));
         }
 
@@ -154,6 +157,17 @@ public class QuestionMapper {
                 q.getMedia().getTranscript(),
                 q.getMedia().getInlineSvg()
         );
+    }
+
+    /**
+     * Une question est « audio » si elle porte un média AUDIO (cas TCF CO :
+     * l'audio lit les 4 réponses dans l'ordre displayOrder) ou si son
+     * audioMode est renseigné. Dans ce cas on n'autorise pas le shuffle des
+     * choix — l'ordre affiché doit suivre l'audio.
+     */
+    private static boolean isAudioQuestion(Question q) {
+        if (q.getAudioMode() != null) return true;
+        return q.getMedia() != null && q.getMedia().getType() == MediaType.AUDIO;
     }
 
     private static long uuidSeed(UUID id) {
