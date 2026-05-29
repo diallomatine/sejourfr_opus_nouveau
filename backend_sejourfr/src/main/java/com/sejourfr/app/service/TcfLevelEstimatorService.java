@@ -97,7 +97,7 @@ public class TcfLevelEstimatorService {
 
     /**
      * Niveau « par score » seul (sans garde-fou palier), depuis un score
-     * pondéré déjà stocké. Fallback pour les examens module finis avant V415
+     * pondéré déjà stocké. Fallback pour les examens module finis avant V416
      * (cecrl_level encore NULL) où l'on n'a plus le détail par question.
      */
     public NiveauCecrl levelFromWeighted(Integer weighted, Integer maxWeighted) {

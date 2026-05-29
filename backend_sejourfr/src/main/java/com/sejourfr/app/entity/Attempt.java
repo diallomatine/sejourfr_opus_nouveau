@@ -152,7 +152,7 @@ public class Attempt {
     // Niveau CECRL estimé d'une épreuve QCM (CO/CE) — calculé à la finalisation
     // par TcfLevelEstimatorService (score calibré + garde-fou palier), plafonné
     // B2. Source de vérité unique relue par le full exam et le profil de niveau.
-    // NULL pour le civique, l'entraînement libre, et les attempts pré-V415.
+    // NULL pour le civique, l'entraînement libre, et les attempts pré-V416.
     @Enumerated(EnumType.STRING)
     @Column(name = "cecrl_level", length = 24)
     private NiveauCecrl cecrlLevel;

@@ -318,7 +318,7 @@ public class FullTcfExamService {
         if (e == EpreuveType.TCF_CO || e == EpreuveType.TCF_CE) {
             // Source de vérité : cecrl_level posé à la finalisation par
             // TcfLevelEstimatorService. Fallback weightedScoreToCecrl pour les
-            // sous-attempts finis avant V415 (cecrl_level encore NULL).
+            // sous-attempts finis avant V416 (cecrl_level encore NULL).
             NiveauCecrl level = null;
             if (sub.getFinishedAt() != null) {
                 level = sub.getCecrlLevel() != null

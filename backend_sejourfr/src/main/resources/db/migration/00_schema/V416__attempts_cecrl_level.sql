@@ -7,4 +7,4 @@ ALTER TABLE attempts
     ADD COLUMN cecrl_level VARCHAR(24);
 
 COMMENT ON COLUMN attempts.cecrl_level IS
-    'Examens module TCF (CO/CE) : niveau CECRL estimé à la finalisation (TcfLevelEstimatorService), plafonné B2. NULL pour le civique, l''entraînement libre et les attempts pré-V415.';
+    'Examens module TCF (CO/CE) : niveau CECRL estimé à la finalisation (TcfLevelEstimatorService), plafonné B2. NULL pour le civique, l''entraînement libre et les attempts pré-V416.';

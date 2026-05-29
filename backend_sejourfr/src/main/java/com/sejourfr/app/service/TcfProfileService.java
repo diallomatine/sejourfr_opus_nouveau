@@ -65,7 +65,7 @@ public class TcfProfileService {
     /**
      * Dernier examen module fini d'une épreuve QCM (CO/CE), standalone ou
      * sous-attempt d'un examen complet. Niveau lu sur {@code cecrl_level}
-     * (fallback score pondéré pour les attempts pré-V415).
+     * (fallback score pondéré pour les attempts pré-V416).
      */
     private EpreuveLevel latestQcm(UUID userId, QuestionType qType, EpreuveType epreuve) {
         List<Attempt> attempts = attemptManager.findByUserFiltered(
