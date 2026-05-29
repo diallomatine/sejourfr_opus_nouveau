@@ -33,8 +33,9 @@ public class FullTcfExamController {
      * abonnés TCF.
      */
     @PostMapping("/api/full-tcf-exams")
-    public FullTcfExamResponse start() {
-        return fullTcfExamService.start(currentUser.getId());
+    public FullTcfExamResponse start(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Integer slotNumber) {
+        return fullTcfExamService.start(currentUser.getId(), slotNumber);
     }
 
     /** Détail courant : 4 sous-attempts + agrégation CECRL plancher lazy. */

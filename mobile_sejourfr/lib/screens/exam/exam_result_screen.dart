@@ -11,6 +11,13 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/eyebrow.dart';
+import '../civique/civique_full_exams_screen.dart'
+    show civiqueGlobalExamsProvider;
+import '../module_detail/civique_hub_data.dart'
+    show civiqueThemeExamsHistoryProvider;
+import '../module_detail/qcm_hub_data.dart' show qcmExamsHistoryProvider;
+import '../module_detail/tcf_full_exams_screen.dart'
+    show fullExamsHistoryProvider;
 
 /// Provider qui charge l'attempt finalisé (avec ses questions + corrections).
 final examAttemptProvider =
@@ -18,20 +25,45 @@ final examAttemptProvider =
   return ref.watch(attemptsRepositoryProvider).getById(id);
 });
 
-class ExamResultScreen extends ConsumerWidget {
+class ExamResultScreen extends ConsumerStatefulWidget {
   const ExamResultScreen({super.key, required this.attemptId});
 
   final String attemptId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(examAttemptProvider(attemptId));
+  ConsumerState<ExamResultScreen> createState() => _ExamResultScreenState();
+}
+
+class _ExamResultScreenState extends ConsumerState<ExamResultScreen> {
+  @override
+  void dispose() {
+    // Au pop / démontage : invalide les caches d'historique d'examens. Comme
+    // le runner fait un `pushReplacement` vers cet écran, l'écran liste qui
+    // a lancé l'examen reste mounted en dessous — sans invalidation, on
+    // retombe dessus avec ses anciennes données et la note du nouvel examen
+    // n'apparaît pas (il faut tirer pour rafraîchir).
+    //
+    // On invalide les 4 listes possibles (civique global, civique par thème,
+    // TCF QCM par épreuve, TCF complet). Pour les family providers, sans
+    // argument, invalide TOUTES les instances — exactement ce qu'on veut
+    // puisqu'on ne connaît pas la clé d'origine ici.
+    ref.invalidate(civiqueGlobalExamsProvider);
+    ref.invalidate(civiqueThemeExamsHistoryProvider);
+    ref.invalidate(qcmExamsHistoryProvider);
+    ref.invalidate(fullExamsHistoryProvider);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(examAttemptProvider(widget.attemptId));
 
     return Scaffold(
       backgroundColor: AppColors.bg,
-      // AppBar avec bouton retour. Si on arrive depuis le runner (qui a fait
-      // un context.go), context.canPop() = false → on remplace par un bouton
-      // "Accueil". Sinon (on vient de l'historique), context.pop() ramène.
+      // Retour contextuel : on pop si possible (revient à l'écran qui a
+      // lancé l'examen — liste examens, hub, historique). Le runner fait un
+      // `pushReplacement` vers cet écran pour préserver la stack. Fallback
+      // home si la stack a été reset (deep link direct).
       appBar: AppBar(
         backgroundColor: AppColors.bg,
         elevation: 0,
@@ -54,7 +86,7 @@ class ExamResultScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => _ErrorState(
           message: ApiClient.toApiException(e).message,
-          onRetry: () => ref.invalidate(examAttemptProvider(attemptId)),
+          onRetry: () => ref.invalidate(examAttemptProvider(widget.attemptId)),
         ),
         data: (attempt) => _ResultView(attempt: attempt),
       ),
@@ -634,9 +666,14 @@ class _BottomActions extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           AppButton(
-            label: 'Retour à l\'accueil',
+            label: 'Retour',
             variant: AppButtonVariant.secondary,
-            onPressed: () => context.go(AppRoutes.home),
+            // Pop si possible (revient à la liste d'examens / l'écran qui a
+            // lancé le runner — préservé grâce au pushReplacement côté runner,
+            // cf. `RunnerScreen._navigateToResult`). Fallback accueil si la
+            // stack a été reset (deep link direct sur cet écran).
+            onPressed: () =>
+                context.canPop() ? context.pop() : context.go(AppRoutes.home),
           ),
         ],
       ),

@@ -43,6 +43,11 @@ public record AttemptSummaryResponse(
         // un examen thème-scopé (20 Q d'un seul thème), null pour un examen
         // blanc complet civique (40 Q tous thèmes). Permet au front de
         // distinguer les deux variantes dans les listes d'historique.
-        UUID lotThemeId
+        UUID lotThemeId,
+        // Slot d'examen blanc dans la grille UI (1..10). Non null uniquement
+        // pour les MOCK_EXAM standalone. L'UI groupe par slotNumber et prend
+        // le plus récent par slot — refaire l'examen N met à jour la note
+        // du slot N au lieu de créer un slot N+1. Cf. migration V110.
+        Integer slotNumber
 ) {
 }

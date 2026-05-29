@@ -24,7 +24,7 @@ import 'tcf_full_exam_briefing_sheet.dart';
 /// **Distinction backend** : ces examens sont conceptuellement séparés des
 /// examens module (CO seul / CE seul) — `attempts.epreuve = TCF_COMPLET`
 /// vs `attempts.module_exam_question_type`. L'historique ne se mélange jamais.
-final _fullExamsHistoryProvider =
+final fullExamsHistoryProvider =
     FutureProvider.autoDispose<List<FullTcfExamSummary>>((ref) {
   return ref.watch(fullTcfExamRepositoryProvider).listMine(limit: 50);
 });
@@ -76,7 +76,7 @@ class TcfFullExamsView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final historyAsync = ref.watch(_fullExamsHistoryProvider);
+    final historyAsync = ref.watch(fullExamsHistoryProvider);
 
     Future<void> startNew(int slot) async {
       final auth = ref.read(authControllerProvider);
@@ -92,11 +92,12 @@ class TcfFullExamsView extends ConsumerWidget {
         slot: slot,
         onStart: () async {
           try {
-            final exam =
-                await ref.read(fullTcfExamRepositoryProvider).start();
+            final exam = await ref
+                .read(fullTcfExamRepositoryProvider)
+                .start(slotNumber: slot);
             if (!context.mounted) return;
             // Force le re-fetch de l'historique quand on revient ici plus tard.
-            ref.invalidate(_fullExamsHistoryProvider);
+            ref.invalidate(fullExamsHistoryProvider);
             context.go(
               AppRoutes.tcfFullExamProgress
                   .replaceFirst(':parentId', exam.id),
@@ -128,8 +129,8 @@ class TcfFullExamsView extends ConsumerWidget {
     return RefreshIndicator(
       color: AppColors.red,
       onRefresh: () async {
-        ref.invalidate(_fullExamsHistoryProvider);
-        await ref.read(_fullExamsHistoryProvider.future);
+        ref.invalidate(fullExamsHistoryProvider);
+        await ref.read(fullExamsHistoryProvider.future);
       },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
@@ -145,7 +146,7 @@ class TcfFullExamsView extends ConsumerWidget {
             ),
             error: (e, _) => _ErrorBox(
               message: e.toString(),
-              onRetry: () => ref.invalidate(_fullExamsHistoryProvider),
+              onRetry: () => ref.invalidate(fullExamsHistoryProvider),
             ),
             data: (history) => _SlotsSection(
               history: history,
@@ -368,10 +369,13 @@ class _SlotsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Le backend renvoie l'historique DESC (récent en premier). On inverse
-    // pour avoir le plus ancien en slot 1 — même règle que TCF QCM (CO/CE)
-    // et EE/EO, pour que la numérotation reste stable dans le temps.
-    final ordered = history.reversed.toList();
+    // Group by slot_number (cf. V110) : dernier essai par slot. Refait le
+    // slot N → nouvel attempt slot_number=N qui écrase l'ancien dans la grille.
+    final bySlot = <int, FullTcfExamSummary>{};
+    for (final e in history) {
+      if (e.slotNumber == null) continue;
+      bySlot.putIfAbsent(e.slotNumber!, () => e);
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -401,7 +405,7 @@ class _SlotsSection extends StatelessWidget {
         for (int i = 0; i < _fullExamSlotsCount; i++) ...[
           _ExamSlotCard(
             slot: i + 1,
-            exam: i < ordered.length ? ordered[i] : null,
+            exam: bySlot[i + 1],
             onTapDone: onTapDone,
             onTapEmpty: () => onTapEmpty(i + 1),
           ),

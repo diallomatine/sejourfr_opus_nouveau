@@ -15,6 +15,12 @@ public record FullTcfExamSummaryResponse(
         Instant startedAt,
         Instant finishedAt,
         NiveauCecrl finalCecrlLevel,
-        FullTcfExamResponse.FullTcfExamStatus status
+        FullTcfExamResponse.FullTcfExamStatus status,
+        /**
+         * Slot d'examen blanc dans la grille UI (1..20). Cf. V110 — permet
+         * à la grille des 20 examens TCF complets de grouper par slot et
+         * d'afficher le dernier essai par slot.
+         */
+        Integer slotNumber
 ) {
 }

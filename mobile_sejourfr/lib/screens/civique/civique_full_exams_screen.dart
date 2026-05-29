@@ -32,7 +32,7 @@ const int _examTotalQuestions = 40;
 /// null). Le backend ne sait pas filtrer « globaux uniquement » en un
 /// paramètre — l'inverse `themeId=` filtre par thème, ici on veut le
 /// complément.
-final _civiqueGlobalExamsProvider =
+final civiqueGlobalExamsProvider =
     FutureProvider.autoDispose<List<AttemptSummary>>((ref) async {
   final all = await ref.read(attemptsRepositoryProvider).listMine(
         type: AttemptType.mockExam,
@@ -68,11 +68,11 @@ class _CiviqueFullExamsScreenState
 
   bool _isLocked(int slot) => !_isPremium() && slot > 1;
 
-  Future<void> _startExam() async {
+  Future<void> _startExam({required int slotNumber}) async {
     if (_starting) return;
     if (!_isPremium()) {
       final history =
-          ref.read(_civiqueGlobalExamsProvider).valueOrNull ?? const [];
+          ref.read(civiqueGlobalExamsProvider).valueOrNull ?? const [];
       if (history.any((a) => a.isFinished)) {
         showPaywallSheet(context);
         return;
@@ -85,10 +85,11 @@ class _CiviqueFullExamsScreenState
             StartAttemptRequest(
               type: AttemptType.mockExam,
               module: AppModule.civique,
+              slotNumber: slotNumber,
             ),
           );
       if (!mounted) return;
-      ref.invalidate(_civiqueGlobalExamsProvider);
+      ref.invalidate(civiqueGlobalExamsProvider);
       context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
     } catch (e) {
       if (!mounted) return;
@@ -106,17 +107,20 @@ class _CiviqueFullExamsScreenState
     }
   }
 
-  void _openBriefing() {
+  void _openBriefing({required int slotNumber}) {
     if (_starting) return;
     if (!_isPremium()) {
       final history =
-          ref.read(_civiqueGlobalExamsProvider).valueOrNull ?? const [];
+          ref.read(civiqueGlobalExamsProvider).valueOrNull ?? const [];
       if (history.any((a) => a.isFinished)) {
         showPaywallSheet(context);
         return;
       }
     }
-    showCiviqueExamBriefingSheet(context, onStart: _startExam);
+    showCiviqueExamBriefingSheet(
+      context,
+      onStart: () => _startExam(slotNumber: slotNumber),
+    );
   }
 
   /// Pousse le rapport Q-par-Q (`ExamReportScreen`) — même destination
@@ -144,7 +148,7 @@ class _CiviqueFullExamsScreenState
         },
         onResume: () {
           Navigator.of(sheetCtx).pop();
-          _openBriefing();
+          _openBriefing(slotNumber: slot);
         },
       ),
     );
@@ -160,7 +164,7 @@ class _CiviqueFullExamsScreenState
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(_civiqueGlobalExamsProvider);
+    final async = ref.watch(civiqueGlobalExamsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -180,7 +184,7 @@ class _CiviqueFullExamsScreenState
                     child: CircularProgressIndicator(color: AppColors.blue)),
                 error: (e, _) => ExamsErrorView(
                   message: ApiClient.toApiException(e).message,
-                  onRetry: () => ref.invalidate(_civiqueGlobalExamsProvider),
+                  onRetry: () => ref.invalidate(civiqueGlobalExamsProvider),
                   accent: AppColors.blue,
                 ),
                 data: _buildContent,
@@ -193,22 +197,27 @@ class _CiviqueFullExamsScreenState
   }
 
   Widget _buildContent(List<AttemptSummary> history) {
-    // Plus ancien examen en slot 1 — même règle que TCF QCM/Full et Civique
-    // thème (l'historique backend descend par date desc, on retourne ASC).
-    final finished =
-        history.where((a) => a.isFinished).toList().reversed.toList();
-    final nextSlot = finished.length + 1;
+    // Group by slot_number : on garde le DERNIER essai par slot (refait l'examen
+    // N → nouvel attempt avec slot_number=N qui écrase l'ancien dans la grille).
+    // Backend renvoie chrono DESC → le premier rencontré par slot est le bon.
+    // Cf. V110 + bug « slot 2 prenait la note d'un refait de l'examen 1 ».
+    final bySlot = <int, AttemptSummary>{};
+    for (final a in history) {
+      if (!a.isFinished || a.slotNumber == null) continue;
+      bySlot.putIfAbsent(a.slotNumber!, () => a);
+    }
+    final nextSlot = _firstFreeSlot(bySlot);
 
     final filtered = <int>[
       for (int i = 0; i < _examSlotsCount; i++)
-        if (_passesFilter(slotIndex: i, finished: finished)) i,
+        if (_passesFilterBySlot(slotIndex: i, bySlot: bySlot)) i,
     ];
     final visible =
         _showAll ? filtered : filtered.take(_visibleByDefault).toList();
     final hiddenCount = filtered.length - visible.length;
 
-    final doneCount = finished.length;
-    final scores = finished
+    final doneCount = bySlot.length;
+    final scores = bySlot.values
         .where((a) => a.score != null && a.totalQuestions > 0)
         .toList();
     final bestScore = scores.isEmpty
@@ -222,13 +231,13 @@ class _CiviqueFullExamsScreenState
             .round();
 
     final todoCount =
-        _examSlotsCount - finished.length - _lockedTodoCount(finished.length);
+        _examSlotsCount - bySlot.length - _lockedTodoCountBySlot(bySlot);
 
     return RefreshIndicator(
       color: AppColors.blue,
       onRefresh: () async {
-        ref.invalidate(_civiqueGlobalExamsProvider);
-        await ref.read(_civiqueGlobalExamsProvider.future);
+        ref.invalidate(civiqueGlobalExamsProvider);
+        await ref.read(civiqueGlobalExamsProvider.future);
       },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
@@ -257,7 +266,7 @@ class _CiviqueFullExamsScreenState
           ),
           const SizedBox(height: 12),
           for (final i in visible) ...[
-            _buildSlot(i, finished, nextSlot),
+            _buildSlot(i, bySlot, nextSlot),
             const SizedBox(height: 8),
           ],
           if (filtered.isEmpty)
@@ -294,12 +303,12 @@ class _CiviqueFullExamsScreenState
     );
   }
 
-  bool _passesFilter({
+  bool _passesFilterBySlot({
     required int slotIndex,
-    required List<AttemptSummary> finished,
+    required Map<int, AttemptSummary> bySlot,
   }) {
     final slotNumber = slotIndex + 1;
-    final isDone = slotIndex < finished.length;
+    final isDone = bySlot.containsKey(slotNumber);
     final isLocked = _isLocked(slotNumber);
     return switch (_filter) {
       1 => !isDone && !isLocked,
@@ -308,22 +317,30 @@ class _CiviqueFullExamsScreenState
     };
   }
 
-  int _lockedTodoCount(int doneCount) {
+  /// Premier slot vide (1..N). Sert au badge « À FAIRE ENSUITE ».
+  int _firstFreeSlot(Map<int, AttemptSummary> bySlot) {
+    for (int i = 1; i <= _examSlotsCount; i++) {
+      if (!bySlot.containsKey(i)) return i;
+    }
+    return _examSlotsCount + 1;
+  }
+
+  int _lockedTodoCountBySlot(Map<int, AttemptSummary> bySlot) {
     if (_isPremium()) return 0;
     var locked = 0;
-    for (int i = doneCount; i < _examSlotsCount; i++) {
-      if (_isLocked(i + 1)) locked++;
+    for (int i = 1; i <= _examSlotsCount; i++) {
+      if (!bySlot.containsKey(i) && _isLocked(i)) locked++;
     }
     return locked;
   }
 
   Widget _buildSlot(
     int slotIndex,
-    List<AttemptSummary> finished,
+    Map<int, AttemptSummary> bySlot,
     int nextSlot,
   ) {
     final number = slotIndex + 1;
-    final attempt = slotIndex < finished.length ? finished[slotIndex] : null;
+    final attempt = bySlot[number];
     final isLocked = _isLocked(number);
     final isNext = number == nextSlot && number <= _examSlotsCount;
     final action = attempt != null
@@ -345,7 +362,7 @@ class _CiviqueFullExamsScreenState
       if (_isLocked(slotNumber)) {
         showPaywallSheet(context);
       } else {
-        _openBriefing();
+        _openBriefing(slotNumber: slotNumber);
       }
     };
   }

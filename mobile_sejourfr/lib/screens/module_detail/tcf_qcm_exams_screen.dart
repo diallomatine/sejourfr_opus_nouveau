@@ -50,7 +50,7 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
 
   bool _isLocked(int slot) => !_isPremium() && slot > 1;
 
-  void _openBriefing() {
+  void _openBriefing({required int slotNumber}) {
     if (!_isPremium()) {
       final history = ref
               .read(qcmExamsHistoryProvider(widget.module.questionType))
@@ -62,7 +62,7 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
       }
     }
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
-    showModuleExamBriefingSheet(context, widget.module);
+    showModuleExamBriefingSheet(context, widget.module, slotNumber: slotNumber);
   }
 
   /// Pousse le rapport Q-par-Q (`ExamReportScreen`) — même destination
@@ -90,7 +90,7 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
         },
         onResume: () {
           Navigator.of(sheetCtx).pop();
-          _openBriefing();
+          _openBriefing(slotNumber: slot);
         },
       ),
     );
@@ -140,19 +140,28 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
   }
 
   Widget _buildContent(List<AttemptSummary> history) {
-    // Plus ancien examen en slot 1.
-    final finished = history.where((a) => a.isFinished).toList().reversed.toList();
-    final nextSlot = finished.length + 1;
+    // Group by slot_number : on ne garde que le DERNIER essai par slot
+    // (refait l'examen N → le nouvel attempt avec slot_number=N écrase
+    // l'ancien dans la grille). Cf. migration V110 + bug « slot 2 prenait
+    // la note d'un refait de l'examen 1 ». Le backend renvoie l'historique
+    // en chrono DESC, donc le premier rencontré par slot est le bon.
+    final bySlot = <int, AttemptSummary>{};
+    for (final a in history) {
+      if (!a.isFinished || a.slotNumber == null) continue;
+      bySlot.putIfAbsent(a.slotNumber!, () => a);
+    }
+    final doneCount = bySlot.length;
+    final nextSlot = _firstFreeSlot(bySlot);
 
     final filtered = <int>[
       for (int i = 0; i < _examSlotsCount; i++)
-        if (_passesFilter(slotIndex: i, finished: finished)) i,
+        if (_passesFilterBySlot(slotIndex: i, bySlot: bySlot)) i,
     ];
 
     final visible = _showAll ? filtered : filtered.take(_visibleByDefault).toList();
     final hiddenCount = filtered.length - visible.length;
 
-    final doneCount = finished.length;
+    final finished = bySlot.values.toList();
     final scores = finished
         .where((a) => a.weightedScore != null && a.maxWeightedScore != null)
         .toList();
@@ -172,8 +181,8 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
             .round();
 
     final todoCount =
-        _examSlotsCount - finished.length - _lockedTodoCount(finished.length);
-    final doneFilterCount = finished.length;
+        _examSlotsCount - bySlot.length - _lockedTodoCountBySlot(bySlot);
+    final doneFilterCount = bySlot.length;
 
     return RefreshIndicator(
       color: AppColors.blue,
@@ -208,7 +217,7 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
           ),
           const SizedBox(height: 12),
           for (final i in visible) ...[
-            _buildSlot(i, finished, nextSlot),
+            _buildSlot(i, bySlot, nextSlot),
             const SizedBox(height: 8),
           ],
           if (filtered.isEmpty)
@@ -242,10 +251,10 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
     );
   }
 
-  bool _passesFilter(
-      {required int slotIndex, required List<AttemptSummary> finished}) {
+  bool _passesFilterBySlot(
+      {required int slotIndex, required Map<int, AttemptSummary> bySlot}) {
     final slotNumber = slotIndex + 1;
-    final isDone = slotIndex < finished.length;
+    final isDone = bySlot.containsKey(slotNumber);
     final isLocked = _isLocked(slotNumber);
     return switch (_filter) {
       1 => !isDone && !isLocked,
@@ -254,22 +263,29 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
     };
   }
 
-  int _lockedTodoCount(int doneCount) {
+  /// Premier slot vide (1..10). Sert au badge « À FAIRE ENSUITE ».
+  int _firstFreeSlot(Map<int, AttemptSummary> bySlot) {
+    for (int i = 1; i <= _examSlotsCount; i++) {
+      if (!bySlot.containsKey(i)) return i;
+    }
+    return _examSlotsCount + 1;
+  }
+
+  int _lockedTodoCountBySlot(Map<int, AttemptSummary> bySlot) {
     if (_isPremium()) return 0;
-    // Les slots 2..10 sont premium (gratuit = slot 1 uniquement). Si le user
-    // a déjà fini certains, ils restent comptés comme done et donc pas
-    // « à faire » verrouillés.
+    // Slots 2..10 verrouillés pour les non-premium ; un slot rempli n'est
+    // jamais compté comme « à faire verrouillé ».
     var locked = 0;
-    for (int i = doneCount; i < _examSlotsCount; i++) {
-      if (_isLocked(i + 1)) locked++;
+    for (int i = 1; i <= _examSlotsCount; i++) {
+      if (!bySlot.containsKey(i) && _isLocked(i)) locked++;
     }
     return locked;
   }
 
   Widget _buildSlot(
-      int slotIndex, List<AttemptSummary> finished, int nextSlot) {
+      int slotIndex, Map<int, AttemptSummary> bySlot, int nextSlot) {
     final number = slotIndex + 1;
-    final attempt = slotIndex < finished.length ? finished[slotIndex] : null;
+    final attempt = bySlot[number];
     final done = attempt != null;
     final isLocked = _isLocked(number);
     final isNext = number == nextSlot && number <= _examSlotsCount;
@@ -331,7 +347,7 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
       if (_isLocked(slotNumber)) {
         showPaywallSheet(context);
       } else {
-        _openBriefing();
+        _openBriefing(slotNumber: slotNumber);
       }
     };
   }

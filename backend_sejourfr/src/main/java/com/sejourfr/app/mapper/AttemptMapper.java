@@ -77,7 +77,8 @@ public class AttemptMapper {
                 a.getModuleExamQuestionType(),
                 a.getWeightedScore(),
                 a.getMaxWeightedScore(),
-                a.getLotThemeId()
+                a.getLotThemeId(),
+                a.getSlotNumber()
         );
     }
 

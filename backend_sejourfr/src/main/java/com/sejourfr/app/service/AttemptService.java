@@ -210,6 +210,12 @@ public class AttemptService {
         if (civicThemeExam) {
             attempt.setLotThemeId(req.themeId());
         }
+        // Slot d'examen blanc visé dans la grille UI (cf. V110). Ignoré pour
+        // TRAINING/REVIEW. Permet à l'UI de retrouver « le dernier essai du
+        // slot N » au lieu de glisser les essais d'un cran à chaque refait.
+        if (req.type() == AttemptType.MOCK_EXAM && req.slotNumber() != null) {
+            attempt.setSlotNumber(req.slotNumber());
+        }
         attempt = attemptManager.save(attempt);
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
@@ -539,6 +545,11 @@ public class AttemptService {
         attempt.setTotalQuestions(picked.size());
         attempt.setTimeLimitSeconds(timeLimit);
         attempt.setStartedAt(Instant.now());
+        // Slot UI (cf. V110) — propage le slotNumber demandé pour que la
+        // grille mobile retrouve « le dernier essai du slot N ».
+        if (req.slotNumber() != null) {
+            attempt.setSlotNumber(req.slotNumber());
+        }
         attempt = attemptManager.save(attempt);
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, picked);

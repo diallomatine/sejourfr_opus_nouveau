@@ -11,8 +11,12 @@ import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_tag.dart';
 import '../../core/widgets/eyebrow.dart';
-import '../../core/widgets/rich_paragraph_text.dart';
 import '../../core/widgets/paywall_sheet.dart';
+import '../../core/widgets/rich_paragraph_text.dart';
+import '../civique/civique_full_exams_screen.dart' show civiqueGlobalExamsProvider;
+import '../module_detail/civique_hub_data.dart' show civiqueThemeExamsHistoryProvider;
+import '../module_detail/qcm_hub_data.dart' show qcmExamsHistoryProvider;
+import '../module_detail/tcf_full_exams_screen.dart' show fullExamsHistoryProvider;
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'runner_controller.dart';
 import 'widgets/choice_tile.dart';
@@ -40,7 +44,9 @@ class _RunnerScreenState extends ConsumerState<RunnerScreen> {
       if (!mounted) return;
       final from = GoRouterState.of(context).uri.queryParameters['from'];
       if (from == 'tcfLot' || from == 'civiqueLot') {
-        ref.read(runnerControllerProvider(widget.attemptId).notifier).setFixedBatch(true);
+        ref
+            .read(runnerControllerProvider(widget.attemptId).notifier)
+            .setFixedBatch(true);
       }
     });
   }
@@ -62,7 +68,8 @@ class _RunnerScreenState extends ConsumerState<RunnerScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.cloud_off_outlined, color: AppColors.red, size: 40),
+                const Icon(Icons.cloud_off_outlined,
+                    color: AppColors.red, size: 40),
                 const SizedBox(height: 12),
                 Text(
                   e.toString(),
@@ -74,7 +81,9 @@ class _RunnerScreenState extends ConsumerState<RunnerScreen> {
                   label: 'Réessayer',
                   variant: AppButtonVariant.secondary,
                   fullWidth: false,
-                  onPressed: () => ref.read(runnerControllerProvider(attemptId).notifier).retry(),
+                  onPressed: () => ref
+                      .read(runnerControllerProvider(attemptId).notifier)
+                      .retry(),
                 ),
               ],
             ),
@@ -99,7 +108,8 @@ class _RunnerView extends ConsumerWidget {
     final isTraining = state.activeAttempt.type == AttemptType.training;
     final selected = state.answersByQuestion[state.current.id] ?? const [];
 
-    final isFavorite = state.favoriteQuestionIds.contains(state.current.question.id);
+    final isFavorite =
+        state.favoriteQuestionIds.contains(state.current.question.id);
 
     return Scaffold(
       appBar: AppBar(
@@ -117,7 +127,9 @@ class _RunnerView extends ConsumerWidget {
               size: 22,
               color: isFavorite ? AppColors.red : AppColors.ink,
             ),
-            onPressed: () => ref.read(runnerControllerProvider(attemptId).notifier).toggleFavoriteCurrent(),
+            onPressed: () => ref
+                .read(runnerControllerProvider(attemptId).notifier)
+                .toggleFavoriteCurrent(),
           ),
           if (isExam && state.activeAttempt.timeLimitSeconds != null)
             Padding(
@@ -162,29 +174,34 @@ class _RunnerView extends ConsumerWidget {
                   ...() {
                     final choices = _orderedChoices(question.choices);
                     return List.generate(choices.length, (i) {
-                    final c = choices[i];
-                    final isSelected = selected.contains(c.id);
-                    final showCorr = state.hasResult && isTraining;
-                    final isCorrect = state.lastResult?.correctChoiceIds.contains(c.id);
-                    return Padding(
-                      padding: EdgeInsets.only(bottom: i == choices.length - 1 ? 0 : 10),
-                      child: ChoiceTile(
-                        choice: c,
-                        index: i,
-                        selected: isSelected,
-                        showCorrection: showCorr,
-                        isCorrect: isCorrect,
-                        onTap: () =>
-                            ref.read(runnerControllerProvider(attemptId).notifier).toggleChoice(c.id),
-                      ),
-                    );
-                  });
+                      final c = choices[i];
+                      final isSelected = selected.contains(c.id);
+                      final showCorr = state.hasResult && isTraining;
+                      final isCorrect =
+                          state.lastResult?.correctChoiceIds.contains(c.id);
+                      return Padding(
+                        padding: EdgeInsets.only(
+                            bottom: i == choices.length - 1 ? 0 : 10),
+                        child: ChoiceTile(
+                          choice: c,
+                          index: i,
+                          selected: isSelected,
+                          showCorrection: showCorr,
+                          isCorrect: isCorrect,
+                          onTap: () => ref
+                              .read(
+                                  runnerControllerProvider(attemptId).notifier)
+                              .toggleChoice(c.id),
+                        ),
+                      );
+                    });
                   }(),
                   if (state.hasResult && isTraining) ...[
                     const SizedBox(height: 20),
                     ExplanationBox(
                       correct: state.lastResult!.correct,
-                      explanation: state.lastResult!.explanation ?? question.explanation,
+                      explanation:
+                          state.lastResult!.explanation ?? question.explanation,
                     ),
                   ],
                   if (state.errorMessage != null) ...[
@@ -193,7 +210,8 @@ class _RunnerView extends ConsumerWidget {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: AppColors.redLight,
-                        border: Border.all(color: AppColors.red.withValues(alpha: 0.3)),
+                        border: Border.all(
+                            color: AppColors.red.withValues(alpha: 0.3)),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -215,7 +233,8 @@ class _RunnerView extends ConsumerWidget {
   Future<void> _confirmQuit(BuildContext context, WidgetRef ref) async {
     final isTraining = state.activeAttempt.type == AttemptType.training;
     final isInfinite = state.isInfiniteTraining;
-    final title = isInfinite ? 'Terminer la session ?' : 'Quitter cette session ?';
+    final title =
+        isInfinite ? 'Terminer la session ?' : 'Quitter cette session ?';
     final message = isInfinite
         ? 'Vos réponses ont été enregistrées. Vous pourrez consulter cette session dans votre historique.'
         : 'Votre progression dans cette session sera conservée. Vous pourrez la reprendre plus tard.';
@@ -264,7 +283,8 @@ class _RunnerView extends ConsumerWidget {
   }
 
   Future<void> _autoFinish(BuildContext context, WidgetRef ref) async {
-    final attempt = await ref.read(runnerControllerProvider(attemptId).notifier).finish();
+    final attempt =
+        await ref.read(runnerControllerProvider(attemptId).notifier).finish();
     if (attempt != null && context.mounted) {
       _navigateToResult(context, ref, attempt);
     }
@@ -297,7 +317,8 @@ class _ProgressHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Eyebrow(state.activeAttempt.isMockExam ? 'Examen blanc' : 'Entraînement'),
+        Eyebrow(
+            state.activeAttempt.isMockExam ? 'Examen blanc' : 'Entraînement'),
         const SizedBox(height: 2),
         Text(
           isInfinite
@@ -395,7 +416,8 @@ class _PassageBlock extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.menu_book_outlined, size: 14, color: AppColors.blue),
+              const Icon(Icons.menu_book_outlined,
+                  size: 14, color: AppColors.blue),
               const SizedBox(width: 6),
               Text(
                 'Document à lire',
@@ -516,7 +538,8 @@ class _BottomBar extends ConsumerWidget {
                 ? AppButton(
                     label: 'Valider',
                     variant: AppButtonVariant.primary,
-                    onPressed: (!hasSelection || waiting) ? null : ctrl.submitCurrent,
+                    onPressed:
+                        (!hasSelection || waiting) ? null : ctrl.submitCurrent,
                     isLoading: state.submitting,
                   )
                 : isLast
@@ -582,7 +605,26 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
   }
 
   if (attempt.isMockExam) {
-    context.go(
+    // Invalide les caches d'historique AVANT le push : l'écran liste qui a
+    // lancé l'examen est encore mounted en dessous (préservé par le
+    // pushReplacement). Riverpod refetch immédiatement les providers
+    // autoDispose qui ont des listeners actifs → le nouvel attempt sera
+    // visible dès le retour à la liste sans pull-to-refresh.
+    //
+    // On invalide les 4 listes possibles (civique global, civique par thème,
+    // TCF QCM par épreuve, TCF complet). Pour les family providers, sans
+    // argument, invalide toutes les instances — on ne connaît pas la clé
+    // exacte ici (themeId / questionType).
+    ref.invalidate(civiqueGlobalExamsProvider);
+    ref.invalidate(civiqueThemeExamsHistoryProvider);
+    ref.invalidate(qcmExamsHistoryProvider);
+    ref.invalidate(fullExamsHistoryProvider);
+
+    // `pushReplacement` (et non `go`) préserve la stack précédente — la
+    // flèche back / le bouton « Retour » d'ExamResultScreen peut alors pop
+    // naturellement vers la liste d'origine, qui aura déjà été rafraîchie
+    // par les invalidations ci-dessus.
+    context.pushReplacement(
       AppRoutes.examResult.replaceFirst(':attemptId', attempt.id),
     );
     return;
@@ -615,7 +657,9 @@ void _navigateToResult(BuildContext context, WidgetRef ref, Attempt attempt) {
   if (from == 'civiqueLot') {
     final themeId = goState.uri.queryParameters['themeId'];
     final base = AppRoutes.examReport.replaceFirst(':attemptId', attempt.id);
-    final qs = themeId == null ? '?from=civiqueLot' : '?from=civiqueLot&themeId=$themeId';
+    final qs = themeId == null
+        ? '?from=civiqueLot'
+        : '?from=civiqueLot&themeId=$themeId';
     context.pushReplacement('$base$qs');
     return;
   }
@@ -651,10 +695,14 @@ void _showTrainingResultDialog(
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isPremium ? AppColors.blueLight : AppColors.amber.withValues(alpha: 0.16),
+                color: isPremium
+                    ? AppColors.blueLight
+                    : AppColors.amber.withValues(alpha: 0.16),
               ),
               child: Icon(
-                isPremium ? Icons.check_circle : Icons.workspace_premium_rounded,
+                isPremium
+                    ? Icons.check_circle
+                    : Icons.workspace_premium_rounded,
                 size: 36,
                 color: isPremium ? AppColors.blue : AppColors.amber,
               ),
@@ -715,7 +763,7 @@ void _showTrainingResultDialog(
             ] else ...[
               const SizedBox(height: 24),
               AppButton(
-                label: 'Retour à l\'accueil',
+                label: 'Retour à l\'accueil Diaall',
                 onPressed: () {
                   Navigator.of(ctx).pop();
                   GoRouter.of(context).pop();

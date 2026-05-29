@@ -26,6 +26,7 @@ class StartAttemptRequest {
     this.size,
     this.lotNumero,
     this.moduleExamQuestionType,
+    this.slotNumber,
   });
 
   final AttemptType type;
@@ -47,6 +48,13 @@ class StartAttemptRequest {
   /// Cf. `AttemptService.startModuleExam` côté Java.
   final QuestionType? moduleExamQuestionType;
 
+  /// Slot d'examen blanc visé dans la grille UI (1..10). Ignoré pour
+  /// TRAINING / REVIEW côté backend. Permet à l'UI de stabiliser la
+  /// numérotation : refaire le slot N crée un nouvel attempt avec le
+  /// même slot_number=N, l'écran liste prend le plus récent par slot.
+  /// Cf. migration V110 + `AttemptService.start`.
+  final int? slotNumber;
+
   Map<String, dynamic> toJson() => {
         'type': type.wire,
         'module': module.wire,
@@ -58,6 +66,7 @@ class StartAttemptRequest {
         if (lotNumero != null) 'lotNumero': lotNumero,
         if (moduleExamQuestionType != null)
           'moduleExamQuestionType': moduleExamQuestionType!.wire,
+        if (slotNumber != null) 'slotNumber': slotNumber,
       };
 }
 

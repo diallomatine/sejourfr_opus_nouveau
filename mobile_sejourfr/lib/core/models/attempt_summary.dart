@@ -21,6 +21,7 @@ class AttemptSummary {
     this.weightedScore,
     this.maxWeightedScore,
     this.lotThemeId,
+    this.slotNumber,
   });
 
   final String id;
@@ -50,6 +51,12 @@ class AttemptSummary {
   // thème-scopé (20 Q d'un seul thème), null pour un examen blanc complet
   // civique (40 Q tous thèmes). Permet de distinguer les deux dans les listes.
   final String? lotThemeId;
+
+  /// Slot d'examen blanc dans la grille UI (1..10). Non null seulement pour
+  /// les MOCK_EXAM standalone. Permet à l'écran liste de grouper par slot et
+  /// d'afficher le dernier essai par slot (cf. V110 + bug « refaire l'examen
+  /// 1 mettait à jour le slot 2 »).
+  final int? slotNumber;
 
   bool get isModuleExam => moduleExamQuestionType != null;
 
@@ -93,5 +100,6 @@ class AttemptSummary {
         weightedScore: (json['weightedScore'] as num?)?.toInt(),
         maxWeightedScore: (json['maxWeightedScore'] as num?)?.toInt(),
         lotThemeId: json['lotThemeId'] as String?,
+        slotNumber: (json['slotNumber'] as num?)?.toInt(),
       );
 }

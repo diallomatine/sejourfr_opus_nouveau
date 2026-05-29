@@ -56,7 +56,7 @@ class _CiviqueThemeExamsScreenState
 
   bool _isLocked(int slot) => !_isPremium() && slot > 1;
 
-  Future<void> _startExam(ThemeDto theme) async {
+  Future<void> _startExam(ThemeDto theme, {required int slotNumber}) async {
     if (_starting) return;
     if (!_isPremium()) {
       final history =
@@ -75,6 +75,7 @@ class _CiviqueThemeExamsScreenState
               type: AttemptType.mockExam,
               module: AppModule.civique,
               themeId: theme.id,
+              slotNumber: slotNumber,
             ),
           );
       if (!mounted) return;
@@ -96,7 +97,7 @@ class _CiviqueThemeExamsScreenState
     }
   }
 
-  void _openBriefing(ThemeDto theme) {
+  void _openBriefing(ThemeDto theme, {required int slotNumber}) {
     if (_starting) return;
     if (!_isPremium()) {
       final history =
@@ -110,7 +111,7 @@ class _CiviqueThemeExamsScreenState
     showCiviqueThemeExamBriefingSheet(
       context,
       themeName: theme.name,
-      onStart: () => _startExam(theme),
+      onStart: () => _startExam(theme, slotNumber: slotNumber),
     );
   }
 
@@ -139,7 +140,7 @@ class _CiviqueThemeExamsScreenState
         },
         onResume: () {
           Navigator.of(sheetCtx).pop();
-          _openBriefing(theme);
+          _openBriefing(theme, slotNumber: slot);
         },
       ),
     );
@@ -217,20 +218,25 @@ class _CiviqueThemeExamsScreenState
   }
 
   Widget _buildContent(ThemeDto theme, List<AttemptSummary> history) {
-    final finished =
-        history.where((a) => a.isFinished).toList().reversed.toList();
-    final nextSlot = finished.length + 1;
+    // Group by slot_number : dernier essai par slot (cf. V110 + commentaire
+    // sur `civique_full_exams_screen.dart::_buildContent`).
+    final bySlot = <int, AttemptSummary>{};
+    for (final a in history) {
+      if (!a.isFinished || a.slotNumber == null) continue;
+      bySlot.putIfAbsent(a.slotNumber!, () => a);
+    }
+    final nextSlot = _firstFreeSlot(bySlot);
 
     final filtered = <int>[
       for (int i = 0; i < _examSlotsCount; i++)
-        if (_passesFilter(slotIndex: i, finished: finished)) i,
+        if (_passesFilterBySlot(slotIndex: i, bySlot: bySlot)) i,
     ];
     final visible =
         _showAll ? filtered : filtered.take(_visibleByDefault).toList();
     final hiddenCount = filtered.length - visible.length;
 
-    final doneCount = finished.length;
-    final scores = finished
+    final doneCount = bySlot.length;
+    final scores = bySlot.values
         .where((a) => a.score != null && a.totalQuestions > 0)
         .toList();
     final bestScore = scores.isEmpty
@@ -244,7 +250,7 @@ class _CiviqueThemeExamsScreenState
             .round();
 
     final todoCount =
-        _examSlotsCount - finished.length - _lockedTodoCount(finished.length);
+        _examSlotsCount - bySlot.length - _lockedTodoCountBySlot(bySlot);
 
     return RefreshIndicator(
       color: AppColors.blue,
@@ -279,7 +285,7 @@ class _CiviqueThemeExamsScreenState
           ),
           const SizedBox(height: 12),
           for (final i in visible) ...[
-            _buildSlot(i, finished, nextSlot, theme),
+            _buildSlot(i, bySlot, nextSlot, theme),
             const SizedBox(height: 8),
           ],
           if (filtered.isEmpty)
@@ -316,12 +322,12 @@ class _CiviqueThemeExamsScreenState
     );
   }
 
-  bool _passesFilter({
+  bool _passesFilterBySlot({
     required int slotIndex,
-    required List<AttemptSummary> finished,
+    required Map<int, AttemptSummary> bySlot,
   }) {
     final slotNumber = slotIndex + 1;
-    final isDone = slotIndex < finished.length;
+    final isDone = bySlot.containsKey(slotNumber);
     final isLocked = _isLocked(slotNumber);
     return switch (_filter) {
       1 => !isDone && !isLocked,
@@ -330,23 +336,30 @@ class _CiviqueThemeExamsScreenState
     };
   }
 
-  int _lockedTodoCount(int doneCount) {
+  int _firstFreeSlot(Map<int, AttemptSummary> bySlot) {
+    for (int i = 1; i <= _examSlotsCount; i++) {
+      if (!bySlot.containsKey(i)) return i;
+    }
+    return _examSlotsCount + 1;
+  }
+
+  int _lockedTodoCountBySlot(Map<int, AttemptSummary> bySlot) {
     if (_isPremium()) return 0;
     var locked = 0;
-    for (int i = doneCount; i < _examSlotsCount; i++) {
-      if (_isLocked(i + 1)) locked++;
+    for (int i = 1; i <= _examSlotsCount; i++) {
+      if (!bySlot.containsKey(i) && _isLocked(i)) locked++;
     }
     return locked;
   }
 
   Widget _buildSlot(
     int slotIndex,
-    List<AttemptSummary> finished,
+    Map<int, AttemptSummary> bySlot,
     int nextSlot,
     ThemeDto theme,
   ) {
     final number = slotIndex + 1;
-    final attempt = slotIndex < finished.length ? finished[slotIndex] : null;
+    final attempt = bySlot[number];
     final isLocked = _isLocked(number);
     final isNext = number == nextSlot && number <= _examSlotsCount;
     final action = attempt != null
@@ -368,7 +381,7 @@ class _CiviqueThemeExamsScreenState
       if (_isLocked(slotNumber)) {
         showPaywallSheet(context);
       } else {
-        _openBriefing(theme);
+        _openBriefing(theme, slotNumber: slotNumber);
       }
     };
   }

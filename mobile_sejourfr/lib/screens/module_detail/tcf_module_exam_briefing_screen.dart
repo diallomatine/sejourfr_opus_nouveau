@@ -23,9 +23,17 @@ import 'tcf_qcm_detail_screen.dart' show TcfQcmModule;
 /// Au tap "Commencer maintenant" : ferme le sheet, POST /api/attempts,
 /// puis push runner. Réservé premium TCF — 403 → showPaywallSheet.
 class ModuleExamBriefingSheet extends ConsumerStatefulWidget {
-  const ModuleExamBriefingSheet({super.key, required this.module});
+  const ModuleExamBriefingSheet({
+    super.key,
+    required this.module,
+    this.slotNumber,
+  });
 
   final TcfQcmModule module;
+
+  /// Slot d'examen visé dans la grille (1..10). Propagé au backend pour que
+  /// refaire l'examen N préserve la position du slot N. Cf. V110.
+  final int? slotNumber;
 
   @override
   ConsumerState<ModuleExamBriefingSheet> createState() =>
@@ -58,6 +66,7 @@ class _ModuleExamBriefingSheetState
               type: AttemptType.mockExam,
               module: AppModule.tcf,
               moduleExamQuestionType: widget.module.questionType,
+              slotNumber: widget.slotNumber,
             ),
           );
       if (!mounted) return;
@@ -172,12 +181,21 @@ class _ModuleExamBriefingSheetState
 }
 
 /// Helper : ouvre le briefing en bottomsheet modal.
-void showModuleExamBriefingSheet(BuildContext context, TcfQcmModule module) {
+/// `slotNumber` sert à stabiliser la numérotation côté grille examens
+/// (refaire le slot N → nouvel attempt avec slot_number=N).
+void showModuleExamBriefingSheet(
+  BuildContext context,
+  TcfQcmModule module, {
+  int? slotNumber,
+}) {
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => ModuleExamBriefingSheet(module: module),
+    builder: (_) => ModuleExamBriefingSheet(
+      module: module,
+      slotNumber: slotNumber,
+    ),
   );
 }
 

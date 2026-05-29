@@ -83,14 +83,14 @@ public class FullTcfExamService {
      * comptes premium TCF.
      */
     @Transactional
-    public FullTcfExamResponse start(UUID userId) {
+    public FullTcfExamResponse start(UUID userId, Integer slotNumber) {
         User user = userManager.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
         if (!subscriptionService.hasTcf(userId)) {
             throw new AccessDeniedException("L'examen blanc TCF complet est réservé aux abonnés TCF.");
         }
 
-        Attempt parent = createParent(user);
+        Attempt parent = createParent(user, slotNumber);
 
         // CO + CE : QCM avec questions tirées + chrono propre.
         attemptService.startModuleExamSubAttempt(user, QuestionType.CO, parent);
@@ -107,7 +107,7 @@ public class FullTcfExamService {
         return buildResponse(parent);
     }
 
-    private Attempt createParent(User user) {
+    private Attempt createParent(User user, Integer slotNumber) {
         Attempt parent = new Attempt();
         parent.setUser(user);
         parent.setType(AttemptType.MOCK_EXAM);
@@ -116,6 +116,12 @@ public class FullTcfExamService {
         parent.setStatus(AttemptStatus.EN_COURS);
         parent.setTimeLimitSeconds(FULL_EXAM_TOTAL_SECONDS);
         parent.setStartedAt(Instant.now());
+        // Slot UI (cf. V110) — propage le slot visé par l'utilisateur dans la
+        // grille « 20 slots TCF complets ». Les sous-attempts CO/CE/EE/EO
+        // restent à slot_number NULL (ils ne sont pas listés en grille).
+        if (slotNumber != null) {
+            parent.setSlotNumber(slotNumber);
+        }
         // totalQuestions / score / passThreshold restent NULL — le parent
         // n'a pas de questions propres, le résultat est porté par finalCecrlLevel.
         return attemptManager.save(parent);
@@ -299,7 +305,8 @@ public class FullTcfExamService {
         FullTcfExamResponse full = buildResponse(parent);
         return new FullTcfExamSummaryResponse(
                 full.id(), full.startedAt(), full.finishedAt(),
-                full.finalCecrlLevel(), full.status());
+                full.finalCecrlLevel(), full.status(),
+                parent.getSlotNumber());
     }
 
     private FullTcfExamResponse.SubAttempt mapSubAttempt(Attempt sub) {

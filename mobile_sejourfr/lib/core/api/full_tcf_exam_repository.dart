@@ -13,9 +13,15 @@ class FullTcfExamRepository {
 
   /// Démarre un nouvel examen blanc complet. Réservé aux abonnés TCF — un
   /// non-premium reçoit 403 (le mobile affiche le paywall avant cet appel).
-  Future<FullTcfExamResponse> start() async {
+  /// [slotNumber] permet à la grille « 20 examens TCF complets » de
+  /// stabiliser la numérotation (refaire le slot N met à jour le slot N
+  /// au lieu de glisser les essais d'un cran). Cf. V110.
+  Future<FullTcfExamResponse> start({int? slotNumber}) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
       '/api/full-tcf-exams',
+      queryParameters: {
+        if (slotNumber != null) 'slotNumber': slotNumber,
+      },
     );
     return FullTcfExamResponse.fromJson(res.data!);
   }
