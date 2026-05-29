@@ -16,6 +16,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../tcf_production/widgets/module_screen_header.dart';
+import 'civique_exam_briefing_sheet.dart';
 import 'civique_hub_data.dart';
 import 'widgets/civique_hub/civique_exam_hero.dart';
 import 'widgets/civique_hub/civique_history_section.dart';
@@ -147,9 +148,43 @@ class _CiviqueThemeDetailScreenState
     );
   }
 
+  /// Démarre un examen blanc du thème (20 Q, MOCK_EXAM) sur le slot donné,
+  /// puis pousse le runner. Miroir de `CiviqueThemeExamsScreen._startExam`.
+  Future<void> _startThemeExam(ThemeDto theme, {required int slotNumber}) async {
+    if (_starting) return;
+    setState(() => _starting = true);
+    ref.read(selectedModuleProvider.notifier).state = AppModule.civique;
+    try {
+      final attempt = await ref.read(attemptsRepositoryProvider).start(
+            StartAttemptRequest(
+              type: AttemptType.mockExam,
+              module: AppModule.civique,
+              themeId: theme.id,
+              slotNumber: slotNumber,
+            ),
+          );
+      if (!mounted) return;
+      ref.invalidate(civiqueThemeExamsHistoryProvider(theme.id));
+      context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
+    } catch (e) {
+      if (!mounted) return;
+      final apiErr = ApiClient.toApiException(e);
+      if (apiErr.isForbidden) {
+        showPaywallSheet(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(apiErr.message), backgroundColor: AppColors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _starting = false);
+    }
+  }
+
   /// Tap sur un examen de l'historique : ouvre le sheet « Voir le détail » /
   /// « Reprendre », en miroir des lots. Plus de saut direct vers le bilan.
-  void _showExamSheet(AttemptSummary attempt) {
+  void _showExamSheet(AttemptSummary attempt, ThemeDto theme) {
     final score = attempt.score;
     final total = attempt.totalQuestions;
     final subtitle =
@@ -167,11 +202,25 @@ class _CiviqueThemeDetailScreenState
           context.push(
               AppRoutes.examReport.replaceFirst(':attemptId', attempt.id));
         },
+        // « Reprendre » : relance le briefing de CE slot (puis nouvel examen),
+        // au lieu de renvoyer vers la grille. Refaire est premium (1er passage
+        // gratuit déjà consommé) — paywall pour les non-abonnés.
         onResume: () {
           Navigator.of(sheetCtx).pop();
-          context.push(
-            AppRoutes.civiqueThemeExams
-                .replaceFirst(':themeId', widget.themeId),
+          if (!_isPremium()) {
+            final history =
+                ref.read(civiqueThemeExamsHistoryProvider(theme.id)).valueOrNull ??
+                    const [];
+            if (history.any((a) => a.isFinished)) {
+              showPaywallSheet(context);
+              return;
+            }
+          }
+          showCiviqueThemeExamBriefingSheet(
+            context,
+            themeName: theme.name,
+            onStart: () =>
+                _startThemeExam(theme, slotNumber: attempt.slotNumber ?? 1),
           );
         },
       ),
@@ -265,7 +314,7 @@ class _CiviqueThemeDetailScreenState
               data: (history) => CiviqueHistorySection(
                 history: history,
                 onSeeAll: () => _openExamsPage(theme),
-                onTap: _showExamSheet,
+                onTap: (attempt) => _showExamSheet(attempt, theme),
               ),
             ),
           ],

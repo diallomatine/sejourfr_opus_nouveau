@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_summary.dart';
 import '../../core/models/enums.dart';
 import '../../core/providers/lots_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
+import '../../core/widgets/paywall_sheet.dart';
 import '../tcf_production/widgets/module_screen_header.dart';
 import 'qcm_hub_data.dart';
+import 'tcf_module_exam_briefing_screen.dart';
 import 'widgets/exam_done_sheet.dart';
 import 'widgets/qcm_hub/qcm_exam_hero.dart';
 import 'widgets/qcm_hub/qcm_history_section.dart';
@@ -159,10 +162,35 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
         },
         onResume: () {
           Navigator.of(sheetCtx).pop();
-          _openExamsPage();
+          _resumeExam(attempt);
         },
       ),
     );
+  }
+
+  bool _isPremium() {
+    final auth = ref.read(authControllerProvider);
+    return auth is AuthAuthenticated &&
+        auth.user.canAccessModule(AppModule.tcf);
+  }
+
+  /// « Reprendre » un examen de l'historique : on relance le briefing de CE
+  /// slot précis (puis nouvel attempt), comme la page Examens — au lieu de
+  /// renvoyer vers la grille générique. Refaire un examen est réservé au
+  /// premium (le 1er passage gratuit est déjà consommé).
+  void _resumeExam(AttemptSummary attempt) {
+    if (!_isPremium()) {
+      final history =
+          ref.read(qcmExamsHistoryProvider(widget.module.questionType)).valueOrNull ??
+              const [];
+      if (history.any((a) => a.isFinished)) {
+        showPaywallSheet(context);
+        return;
+      }
+    }
+    ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
+    showModuleExamBriefingSheet(context, widget.module,
+        slotNumber: attempt.slotNumber);
   }
 
   void _back() {
