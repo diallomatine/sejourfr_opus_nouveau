@@ -280,6 +280,10 @@ export interface AnswerResultResponse {
 export type BillingCycle = "NONE" | "MONTHLY" | "YEARLY" | "THREE_MONTHS" | "SIX_MONTHS";
 export type ModuleAccess = "NONE" | "CIVIQUE" | "TCF" | "INTEGRAL";
 
+/** Nature commerciale d'un plan (lot 5). ONE_TIME = pass à durée fixe sans
+ *  reconduction ; SUBSCRIPTION = abonnement récurrent (dormant). */
+export type PlanPurchaseType = "SUBSCRIPTION" | "ONE_TIME";
+
 export interface PlanPublicResponse {
   code: string;
   name: string;
@@ -289,8 +293,11 @@ export interface PlanPublicResponse {
   /** Prix "normal" affiché barré (offre de lancement). Null si pas de réduction. */
   originalPrice: number | null;
   moduleAccess: ModuleAccess;
-  /** Durée d'accès en jours après paiement one-shot. 0 pour FREE. */
+  /** Durée d'accès en jours. Source de vérité de la durée en mode ONE_TIME. */
   durationDays: number;
+  /** ONE_TIME (pass) ou SUBSCRIPTION (abonnement). Le front rend une grille de
+   *  passes pour ONE_TIME, le toggle de périodicité pour SUBSCRIPTION. */
+  purchaseType: PlanPurchaseType;
 }
 
 // ============ ATTEMPT SUMMARY (historique) ============
@@ -391,6 +398,9 @@ export interface SubscriptionStatusResponse {
   status: SubscriptionStatus | null;
   moduleAccess: ModuleAccess;
   autoRenew: boolean;
+  /** True si l'accès vient d'un pass one-time (lot 5) : « Mon accès » sans
+   *  résiliation. Absent (undefined) sur les anciens backends → traiter false. */
+  oneTime?: boolean;
 }
 
 /** Réponse de `POST /api/billing/cancel`. Deux variantes :

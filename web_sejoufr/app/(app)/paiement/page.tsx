@@ -104,6 +104,18 @@ function formatPrice(n: number): string {
     return n.toFixed(2).replace(".", ",");
 }
 
+/** Libellé de durée d'un pass one-time (« 6 semaines », « 3 mois », « 1 an »). */
+function durationLabel(days: number): string {
+    if (days <= 0) return "";
+    if (days % 365 === 0) {
+        const y = days / 365;
+        return y === 1 ? "1 an" : `${y} ans`;
+    }
+    if (days >= 30 && days % 30 === 0) return `${days / 30} mois`;
+    if (days % 7 === 0) return `${days / 7} semaines`;
+    return `${days} jours`;
+}
+
 /** Calcule l'équivalent mensuel d'un plan trimestriel/annuel. */
 function monthlyEquivalent(price: number, cycle: BillingCycle): number | null {
     if (cycle === "THREE_MONTHS") return price / 3;
@@ -187,6 +199,11 @@ function PaiementInner() {
     }, []);
 
     const index = useMemo(() => indexPlans(plans), [plans]);
+
+    // Mode passes one-time (lot 5) : pas de toggle de périodicité, grille de
+    // passes par module. Le mode abonnement reste si le backend renvoie des
+    // plans récurrents.
+    const oneTime = plans.length > 0 && plans.every((p) => p.purchaseType === "ONE_TIME");
 
     /** Modules visibles : INTEGRAL seul si déjà INTEGRAL ; les 2 sinon ; focus si demandé. */
     const visibleModules = useMemo<PlanModuleTarget[]>(() => {
@@ -279,27 +296,38 @@ function PaiementInner() {
                 <CurrentSubscriptionCard user={user} currentPlan={currentPlan}/>
             )}
 
-            <PeriodicityToggle value={periodicity} onChange={setPeriodicity}/>
+            {oneTime ? (
+                <OneTimePasses
+                    plans={plans}
+                    modules={visibleModules}
+                    loadingCode={loadingCode}
+                    onSubscribe={handleSubscribe}
+                />
+            ) : (
+                <>
+                    <PeriodicityToggle value={periodicity} onChange={setPeriodicity}/>
 
-            <section className={`pay-cards ${visibleModules.length === 1 ? "is-single" : ""}`}>
-                {visibleModules.map((module) => {
-                    const plan = index.get(`${module}:${periodicity}`);
-                    if (!plan) return null;
-                    const intent = deriveIntent(currentPlan, module);
-                    return (
-                        <PlanCard
-                            key={module}
-                            module={module}
-                            plan={plan}
-                            periodicity={periodicity}
-                            intent={intent}
-                            loading={loadingCode === planCodeFor(module, periodicity)}
-                            anyLoading={loadingCode !== null}
-                            onSubscribe={() => handleSubscribe(planCodeFor(module, periodicity))}
-                        />
-                    );
-                })}
-            </section>
+                    <section className={`pay-cards ${visibleModules.length === 1 ? "is-single" : ""}`}>
+                        {visibleModules.map((module) => {
+                            const plan = index.get(`${module}:${periodicity}`);
+                            if (!plan) return null;
+                            const intent = deriveIntent(currentPlan, module);
+                            return (
+                                <PlanCard
+                                    key={module}
+                                    module={module}
+                                    plan={plan}
+                                    periodicity={periodicity}
+                                    intent={intent}
+                                    loading={loadingCode === planCodeFor(module, periodicity)}
+                                    anyLoading={loadingCode !== null}
+                                    onSubscribe={() => handleSubscribe(planCodeFor(module, periodicity))}
+                                />
+                            );
+                        })}
+                    </section>
+                </>
+            )}
 
             {error && (
                 <div className="form-error pay-error" role="alert">
@@ -340,6 +368,85 @@ function PaiementInner() {
         </main>
     );
 }
+
+// ============================================================================
+// PASSES ONE-TIME (lot 5) — grille de passes par module
+// ============================================================================
+function OneTimePasses({
+    plans,
+    modules,
+    loadingCode,
+    onSubscribe,
+}: {
+    plans: PlanPublicResponse[];
+    modules: PlanModuleTarget[];
+    loadingCode: string | null;
+    onSubscribe: (code: string) => void;
+}) {
+    return (
+        <section className={`pay-cards ${modules.length === 1 ? "is-single" : ""}`}>
+            {modules.map((module) => {
+                const passes = plans
+                    .filter((p) => p.purchaseType === "ONE_TIME" && p.moduleAccess === module)
+                    .sort((a, b) => a.durationDays - b.durationDays);
+                if (passes.length === 0) return null;
+                const pres = PRESENTATION[module];
+                return (
+                    <article key={module} className={`otp-card otp-${pres.tone}`}>
+                        <span className="otp-tag">{pres.tag}</span>
+                        <h2 className="otp-name">{pres.name}</h2>
+                        <p className="otp-pitch">{pres.pitch}</p>
+                        <ul className="otp-features">
+                            {pres.features.map((f) => (
+                                <li key={f.label} className={f.strong ? "is-strong" : ""}>
+                                    <CheckIcon /> {f.label}
+                                </li>
+                            ))}
+                        </ul>
+                        <div className="otp-passes">
+                            {passes.map((p) => (
+                                <button
+                                    key={p.code}
+                                    type="button"
+                                    className="otp-pass"
+                                    disabled={loadingCode !== null}
+                                    onClick={() => onSubscribe(p.code)}
+                                >
+                                    <span className="otp-pass-dur">{durationLabel(p.durationDays)}</span>
+                                    <span className="otp-pass-price">{formatPrice(p.price)} €</span>
+                                    <span className="otp-pass-cta">
+                                        {loadingCode === p.code ? "…" : "Choisir →"}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    </article>
+                );
+            })}
+            <style>{otpStyles}</style>
+        </section>
+    );
+}
+
+const otpStyles = `
+.otp-card { border:1.5px solid var(--color-line); border-radius:22px; padding:28px; background:#fff; display:flex; flex-direction:column; }
+.otp-blue { background:linear-gradient(135deg,var(--color-blue-soft) 0%,#fff 100%); border-color:var(--color-blue-light); }
+.otp-red { background:linear-gradient(135deg,var(--color-red-light) 0%,#fff 100%); border-color:rgba(225,55,47,.2); }
+.otp-tag { font-family:var(--font-mono); font-size:10px; letter-spacing:.12em; color:var(--color-muted); text-transform:uppercase; }
+.otp-name { font-family:var(--font-display); font-size:30px; font-weight:600; color:var(--color-ink); margin:10px 0 4px; }
+.otp-pitch { font-size:14px; color:var(--color-muted); line-height:1.55; margin:0 0 16px; }
+.otp-features { list-style:none; padding:0; margin:0 0 18px; display:flex; flex-direction:column; gap:8px; }
+.otp-features li { display:flex; align-items:flex-start; gap:8px; font-size:13.5px; color:var(--color-ink-2); line-height:1.4; }
+.otp-features li.is-strong { font-weight:700; color:var(--color-ink); }
+.otp-features svg { flex:0 0 auto; margin-top:2px; color:var(--color-green); }
+.otp-passes { display:flex; flex-direction:column; gap:10px; margin-top:auto; }
+.otp-pass { display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:14px 16px; border-radius:12px; border:1.5px solid var(--color-line); background:#fff; cursor:pointer; transition:border-color .15s, transform .15s; }
+.otp-pass:hover:not(:disabled) { border-color:var(--color-blue); transform:translateY(-1px); }
+.otp-pass:disabled { opacity:.55; cursor:default; }
+.otp-pass-dur { font-weight:700; font-size:15px; color:var(--color-ink); flex:1; min-width:0; }
+.otp-pass-price { font-family:var(--font-display); font-size:20px; font-weight:700; color:var(--color-ink); }
+.otp-pass-cta { font-family:var(--font-mono); font-size:11px; font-weight:700; color:var(--color-blue); white-space:nowrap; }
+`;
 
 // ============================================================================
 // PERIODICITY TOGGLE
