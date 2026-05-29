@@ -56,7 +56,7 @@ class CiviqueScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
             children: [
               HubHomeHeader(
-                title: 'Préparer le civique',
+                title: 'Préparer l\'examen civique',
                 subtitle: _headerSubtitle(target, themesAsync),
               ),
               const SizedBox(height: 14),
