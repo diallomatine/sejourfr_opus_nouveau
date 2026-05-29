@@ -84,7 +84,7 @@ export function PlansPage() {
                 <tr>
                   <th>Plan</th>
                   <th>Module</th>
-                  <th>Périodicité</th>
+                  <th>Type / durée</th>
                   <th>Prix</th>
                   <th>Statut</th>
                   <th>SKUs stores</th>
@@ -105,7 +105,11 @@ export function PlansPage() {
                         {MODULE_ACCESS_LABEL[p.moduleAccess]}
                       </Tag>
                     </td>
-                    <td>{BILLING_CYCLE_LABEL[p.billingCycle]}</td>
+                    <td>
+                      {p.purchaseType === "ONE_TIME"
+                        ? `Pass · ${p.durationDays} j`
+                        : BILLING_CYCLE_LABEL[p.billingCycle]}
+                    </td>
                     <td>
                       <div className={styles.priceCell}>
                         <strong>{formatPrice(p.price)}</strong>
