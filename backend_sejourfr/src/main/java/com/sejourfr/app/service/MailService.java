@@ -169,6 +169,45 @@ public class MailService {
     }
 
     /**
+     * Rappel « votre accès se termine bientôt » pour un pass one-time (lot 5).
+     * Incite au ré-achat — pas d'abonnement, donc pas de renouvellement auto.
+     */
+    public void sendAccessExpiringSoonEmail(
+            String to, String displayName, String planName, Instant endsAt) {
+        String greet = displayNameOrFallback(displayName);
+        String endsLabel = formatFrenchDate(endsAt);
+        String html = htmlLayout(
+                "Votre accès se termine bientôt",
+                """
+                <p style="margin:0 0 16px;font-size:15px;color:#0F1839;line-height:1.55;">
+                  Bonjour %s,
+                </p>
+                <p style="margin:0 0 16px;font-size:15px;color:#0F1839;line-height:1.55;">
+                  Votre accès <strong>%s</strong> se termine le <strong>%s</strong>. Comme
+                  il s'agit d'un achat unique, il n'y a aucun renouvellement automatique :
+                  pour continuer à vous entraîner après cette date, il vous suffit de
+                  reprendre un accès quand vous le souhaitez.
+                </p>
+                <p style="margin:0 0 24px;">
+                  <a href="%s/paiement" style="display:inline-block;padding:13px 22px;border-radius:10px;background:#1E3A8C;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;">
+                    Prolonger mon accès
+                  </a>
+                </p>
+                <p style="margin:0 0 8px;font-size:13px;color:#6B7299;line-height:1.55;">
+                  Vos données (favoris, erreurs, progression) restent sur votre compte —
+                  vous les retrouverez si vous reprenez un accès plus tard.
+                </p>
+                """.formatted(
+                        escape(greet),
+                        escape(planName),
+                        escape(endsLabel),
+                        appBaseUrl
+                )
+        );
+        sendHtmlWithLogo(to, "SejourFR — Votre accès se termine bientôt", html);
+    }
+
+    /**
      * Email envoyé quand une souscription bascule en {@code CANCELED} (auto-renew
      * désactivé). Ne pas envoyer sur expiration naturelle ou refund — ces cas
      * ont leur propre sémantique.

@@ -54,4 +54,10 @@ public class UserSubscriptionManager {
     public Page<UserSubscription> findAll(Specification<UserSubscription> spec, Pageable pageable) {
         return repository.findAll(spec, pageable);
     }
+
+    /** Passes one-time qui expirent entre maintenant et {@code threshold}, non rappelés (lot 5). */
+    public List<UserSubscription> findOneTimeExpiringSoon(
+            java.time.Instant now, java.time.Instant threshold) {
+        return repository.findOneTimeExpiringSoon(now, threshold);
+    }
 }
