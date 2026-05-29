@@ -510,12 +510,25 @@ Le `RunnerScreen` est l'écran le plus complexe. Il gère :
 3. **Sélection** des choix (single-select pour l'instant, prêt pour multi-select)
 4. **Soumission** d'une réponse :
     - En **entraînement** : le backend renvoie immédiatement `correct` + `explanation`. On affiche
-      `ExplanationBox`, on bloque les choix, puis le bouton "Question suivante" apparaît.
-    - En **examen blanc** : on enregistre silencieusement la réponse et on passe à la suivante. Pas de
-      correction immédiate.
+      `ExplanationBox`, on bloque les choix, puis le bouton "Question suivante" apparaît. Le bouton
+      "Valider" appelle `submitCurrent`.
+    - En **examen blanc** : pas de "Valider" — la réponse est soumise par les boutons "Suivant" /
+      "Terminer" juste avant de naviguer. `submitCurrent()` renvoie un `bool` : en examen blanc, si
+      la soumission échoue (réseau), on **n'avance pas** et on **ne finalise pas** (l'`errorMessage`
+      reste affiché) — sinon la réponse de la question serait perdue silencieusement. Pas de
+      correction immédiate (le backend renvoie `correct/correctChoiceIds = null`, que
+      `AnswerResult.fromJson` coerce en valeurs neutres).
 5. **Chrono** : pour les examens blancs, `ExamTimer` décompte depuis `attempt.startedAt` jusqu'à
    `timeLimitSeconds`. Quand ça atteint 0, finalisation automatique.
 6. **Finalisation** : `POST /api/attempts/{id}/finish`, dialog de résultat avec score / seuil / passé-échoué.
+
+**Ordre des choix** : le backend shuffle les choix (seedé par `AttemptQuestion.id`, donc stable
+runner ↔ rapport pour un même attempt). Le mapping réponse cliquée → enregistrée → affichée se fait
+**toujours par ID de choix réel**, jamais par position. Le tri d'affichage est centralisé dans
+`orderedDisplayChoices()` (`core/models/question_models.dart`), partagé par le runner et le rapport
+(`question_detail_sheet.dart`) : pour les questions TCF CO `FULL_AUDIO` (labels mono-lettre A/B/C/D),
+on re-trie A→D ; les autres gardent l'ordre shuffle. À réutiliser partout où on rend des choix pour
+garder runner et rapport cohérents.
 
 **Reprise d'un attempt** : si l'utilisateur quitte le runner avant de finir, l'attempt reste en cours côté
 backend. À la reprise, `RunnerController._load()` recalcule l'index de départ : première question non
