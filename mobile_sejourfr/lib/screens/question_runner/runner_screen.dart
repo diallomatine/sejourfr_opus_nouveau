@@ -173,7 +173,7 @@ class _RunnerView extends ConsumerWidget {
                   _StatementBlock(text: question.statement),
                   const SizedBox(height: 20),
                   ...() {
-                    final choices = _orderedChoices(question.choices);
+                    final choices = orderedDisplayChoices(question.choices);
                     return List.generate(choices.length, (i) {
                       final c = choices[i];
                       final isSelected = selected.contains(c.id);
@@ -290,20 +290,6 @@ class _RunnerView extends ConsumerWidget {
       _navigateToResult(context, ref, attempt);
     }
   }
-}
-
-/// Pour les questions TCF CO FULL_AUDIO (tous les labels sont une seule lettre
-/// A/B/C/D), on trie les choix par label pour qu'ils s'affichent dans l'ordre
-/// A→D — la lettre du label étant la clé de réponse citée par l'audio et
-/// l'explication. Les questions normales gardent leur ordre d'origine.
-final _singleLetter = RegExp(r'^[A-Za-z]$');
-
-List<ChoiceDto> _orderedChoices(List<ChoiceDto> choices) {
-  final allLetters = choices.isNotEmpty &&
-      choices.every((c) => _singleLetter.hasMatch(c.label.trim()));
-  if (!allLetters) return choices;
-  return [...choices]..sort((a, b) =>
-      a.label.trim().toUpperCase().compareTo(b.label.trim().toUpperCase()));
 }
 
 class _ProgressHeader extends StatelessWidget {
@@ -558,7 +544,11 @@ class _BottomBar extends ConsumerWidget {
                                 // donc la réponse est déjà soumise (mirror
                                 // de la logique du bouton "Suivant").
                                 if (!isTraining && hasSelection) {
-                                  await ctrl.submitCurrent();
+                                  final ok = await ctrl.submitCurrent();
+                                  // Soumission échouée (réseau) : on reste sur
+                                  // la question, l'erreur s'affiche, pas de
+                                  // finalisation avec une réponse perdue.
+                                  if (!ok) return;
                                 }
                                 final attempt = await ctrl.finish();
                                 if (attempt != null && context.mounted) {
@@ -574,7 +564,11 @@ class _BottomBar extends ConsumerWidget {
                             ? null
                             : () async {
                                 if (!isTraining && hasSelection) {
-                                  await ctrl.submitCurrent();
+                                  final ok = await ctrl.submitCurrent();
+                                  // Échec réseau : on ne passe pas à la suite,
+                                  // sinon la réponse de cette question serait
+                                  // perdue. L'erreur reste affichée.
+                                  if (!ok) return;
                                 }
                                 await ctrl.goNext();
                               },

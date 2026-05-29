@@ -189,10 +189,16 @@ class AnswerResult {
   final String? explanation;
 
   factory AnswerResult.fromJson(Map<String, dynamic> json) => AnswerResult(
-        correct: json['correct'] as bool,
-        correctChoiceIds: (json['correctChoiceIds'] as List<dynamic>)
-            .map((e) => e as String)
-            .toList(),
+        // En MOCK_EXAM le backend renvoie correct/correctChoiceIds = null (la
+        // correction n'est révélée qu'au finish). On coerce vers des valeurs
+        // neutres pour ne pas faire crasher le parsing — sinon chaque
+        // soumission d'examen blanc tombe dans le `catch` de submitCurrent,
+        // ce qui rend une vraie erreur réseau indiscernable d'un succès.
+        correct: json['correct'] as bool? ?? false,
+        correctChoiceIds: (json['correctChoiceIds'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList() ??
+            const [],
         explanation: json['explanation'] as String?,
       );
 }
