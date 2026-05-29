@@ -367,7 +367,7 @@ Sections successives (mêmes briques sur les 2 hubs) :
 - Liste verticale d'`EpreuveCard` : icône colorée 44×44, titre + pill niveau (CSP/CR/NAT ou
   A2/B1/B2 selon `user.targetProcedure`), sous-titre court, **barre 3 px** + % à droite, chevron.
   - TCF : 5 cartes (CO bleu, CE vert, Structure ambre — pill « BONUS », EE gris neutre, EO rouge).
-    Barre = couverture user `answered/questionCount` du thème côté backend (`/api/me/stats`).
+    Barre = **maîtrise** user `correct/total` du thème côté backend (`/api/me/stats`).
     EE/EO ont `progress: 0.0` en attendant que l'API expose un compte de submissions terminées
     par tâche (TODO inline).
   - Civique : N thèmes chargés via `/api/themes?module=CIVIQUE`, couleurs alternées

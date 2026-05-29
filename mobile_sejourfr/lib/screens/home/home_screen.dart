@@ -42,10 +42,10 @@ class _ModuleProgress {
 
   bool get isStarted => answered > 0;
 
-  double get coverage => total == 0 ? 0.0 : (answered / total).clamp(0.0, 1.0);
+  // Progression = maîtrise : bonnes réponses / total de questions du module.
+  double get mastery => total == 0 ? 0.0 : (correct / total).clamp(0.0, 1.0);
 
-  int get precisionPct =>
-      answered == 0 ? 0 : (correct / answered * 100).round();
+  int get masteryPct => (mastery * 100).round();
 
   static _ModuleProgress fromStats(UserStats s) {
     final answered = s.byTheme.fold<int>(0, (sum, t) => sum + t.answered);
@@ -790,9 +790,9 @@ class _ModuleCard extends StatelessWidget {
   }
 }
 
-/// Mini barre couverture + label "X/Y vues · Z% justes" sous la card
-/// module. Quand le user n'a pas encore touché au module, affichage
-/// "Pas encore commencé — appuie pour démarrer".
+/// Mini barre de progression (maîtrise = bonnes réponses / total) + label
+/// "X/Y réussies · N vues" sous la card module. Quand le user n'a pas encore
+/// touché au module, affichage "Pas encore commencé — appuie pour démarrer".
 class _ModuleProgressStrip extends StatelessWidget {
   const _ModuleProgressStrip({required this.progress, required this.accent});
 
@@ -841,7 +841,7 @@ class _ModuleProgressStrip extends StatelessWidget {
             ),
             FractionallySizedBox(
               alignment: Alignment.centerLeft,
-              widthFactor: p.coverage.clamp(0.02, 1.0),
+              widthFactor: p.mastery.clamp(0.02, 1.0),
               child: Container(
                 height: 4,
                 decoration: BoxDecoration(
@@ -854,7 +854,7 @@ class _ModuleProgressStrip extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          '${p.answered}/${p.total} vues · ${p.precisionPct} % justes',
+          '${p.correct}/${p.total} réussies · ${p.masteryPct} % · ${p.answered} vues',
           style: AppFonts.jakarta(
             size: 11.5,
             color: AppColors.muted,

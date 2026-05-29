@@ -133,12 +133,14 @@ class _ModulesList extends ConsumerWidget {
       orElse: () => const <String, ThemeStats>{},
     );
 
+    // Progression = maîtrise : bonnes réponses / total de questions de
+    // l'épreuve (pas la couverture vue/total).
     double? qcmProgress(String code) {
       final theme = themesByCode[code];
       if (theme == null) return null;
       final stats = statsByThemeId[theme.id];
       if (stats == null || stats.total == 0) return 0.0;
-      return (stats.answered / stats.total).clamp(0.0, 1.0);
+      return (stats.correct / stats.total).clamp(0.0, 1.0);
     }
 
     void open(String route) {

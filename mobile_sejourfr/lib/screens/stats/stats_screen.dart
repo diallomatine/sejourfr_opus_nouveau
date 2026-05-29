@@ -13,6 +13,7 @@ import '../../core/models/production_models.dart';
 import '../../core/models/question_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/mastery_status.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/paywall_sheet.dart';
@@ -1832,16 +1833,11 @@ class _ThemeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasAnswered = theme.answered > 0;
-    // Couverture du pool = X questions distinctes vues sur le total actif.
-    final coverage = theme.progress.clamp(0.0, 1.0);
-    // Précision = % de bonnes réponses sur ce que le user a tenté.
-    final successRate = theme.successRate.clamp(0.0, 1.0);
+    // Progression = maîtrise : bonnes réponses / total de questions du thème.
+    final mastery = theme.mastery.clamp(0.0, 1.0);
 
-    final (barColor, tagColor, tagBg, tagLabel) = _statusFor(
-      hasAnswered: hasAnswered,
-      coverage: coverage,
-      successRate: successRate,
-    );
+    final status = MasteryStatus.of(hasAnswered: hasAnswered, mastery: mastery);
+    final barColor = status.color;
 
     return InkWell(
       onTap: onTap,
@@ -1888,16 +1884,15 @@ class _ThemeRow extends StatelessWidget {
                   const Icon(Icons.lock_outline_rounded,
                       size: 14, color: AppColors.muted2)
                 else
-                  // Compteur "vues / total" du pool (couverture chiffrée).
-                  // Le suffixe "vues" est explicite — sans ça le user pense
-                  // que "8 / 32" = "8 bonnes réponses sur 32" (confondu avec
-                  // un score), alors que c'est "8 questions distinctes
-                  // touchées sur les 32 actives du thème".
+                  // Compteur "réussies / total" du pool — c'est la
+                  // progression chiffrée (bonnes réponses distinctes sur le
+                  // total actif du thème). Le suffixe "réussies" lève
+                  // l'ambiguïté avec un compteur de questions vues.
                   RichText(
                     text: TextSpan(
                       children: [
                         TextSpan(
-                          text: '${theme.answered}',
+                          text: '${theme.correct}',
                           style: AppFonts.mono(
                             size: 12,
                             weight: FontWeight.w700,
@@ -1906,7 +1901,7 @@ class _ThemeRow extends StatelessWidget {
                           ),
                         ),
                         TextSpan(
-                          text: ' / ${theme.total} vues',
+                          text: ' / ${theme.total} réussies',
                           style: AppFonts.mono(
                             size: 12,
                             color: AppColors.muted2,
@@ -1919,10 +1914,7 @@ class _ThemeRow extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            // Barre = COUVERTURE (% du pool de questions déjà vu). On a
-            // séparé la qualité (badge ci-dessous) pour qu'un user qui a
-            // 100 % de justesse sur 10 questions ne se voie pas afficher
-            // une barre quasi vide qui le démotive.
+            // Barre = MAÎTRISE (% de bonnes réponses sur le pool complet).
             Stack(
               children: [
                 Container(
@@ -1935,7 +1927,7 @@ class _ThemeRow extends StatelessWidget {
                 if (!locked && hasAnswered)
                   FractionallySizedBox(
                     alignment: Alignment.centerLeft,
-                    widthFactor: coverage.clamp(0.02, 1.0),
+                    widthFactor: mastery.clamp(0.02, 1.0),
                     child: Container(
                       height: 6,
                       decoration: BoxDecoration(
@@ -1949,26 +1941,26 @@ class _ThemeRow extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                // Tag status — couleur synchronisée sur la précision.
+                // Tag status — piloté par la maîtrise (helper partagé).
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: tagBg,
+                    color: status.softBg,
                     borderRadius: BorderRadius.circular(99),
                   ),
                   child: Text(
-                    '● $tagLabel',
+                    '● ${status.label}',
                     style: AppFonts.mono(
                       size: 9.5,
-                      color: tagColor,
+                      color: status.color,
                       letterSpacing: 1.2,
                       weight: FontWeight.w600,
                     ),
                   ),
                 ),
                 const SizedBox(width: 6),
-                // Badge précision : % de bonnes réponses parmi les vues.
+                // Badge maîtrise chiffrée : % de bonnes réponses sur le pool.
                 if (!locked && hasAnswered)
                   Container(
                     padding:
@@ -1978,7 +1970,7 @@ class _ThemeRow extends StatelessWidget {
                       borderRadius: BorderRadius.circular(99),
                     ),
                     child: Text(
-                      '✓ ${(successRate * 100).round()}% justes',
+                      '${(mastery * 100).round()} % de maîtrise',
                       style: AppFonts.mono(
                         size: 9.5,
                         color: AppColors.ink2,
@@ -1999,72 +1991,6 @@ class _ThemeRow extends StatelessWidget {
     );
   }
 
-  /// Couleurs + label de status combinant couverture (% du pool vu) et
-  /// précision (% de bonnes réponses sur ce que le user a tenté).
-  ///
-  /// "Maîtrisé" exige les DEUX : couverture ≥ 70 % ET précision ≥ 85 %.
-  /// Sans ça, voir 1 question + la réussir = "Maîtrisé" → trompeur (le
-  /// user croit avoir fini alors qu'il a vu 3 % du programme).
-  ///
-  /// "Bon démarrage" est introduit pour le cas spécifique "précision OK
-  /// mais peu de couverture" — encourage à élargir sans dévaloriser.
-  (Color, Color, Color, String) _statusFor({
-    required bool hasAnswered,
-    required double coverage,
-    required double successRate,
-  }) {
-    if (!hasAnswered) {
-      return (
-        AppColors.muted2,
-        AppColors.muted,
-        AppColors.line2,
-        'À démarrer',
-      );
-    }
-    // Précision faible → priorité : la qualité doit s'améliorer avant de
-    // se soucier de la couverture.
-    if (successRate < 0.45) {
-      return (
-        AppColors.red,
-        AppColors.red,
-        AppColors.redLight,
-        'À retravailler',
-      );
-    }
-    if (successRate < 0.65) {
-      return (
-        AppColors.amber,
-        const Color(0xFFB5811A),
-        const Color(0xFFFDF3DD),
-        'À consolider',
-      );
-    }
-    // Précision ≥ 65 %. On regarde maintenant la couverture pour décider
-    // entre "bon démarrage" (précis mais peu vu), "en progrès" (bien
-    // engagé) et "maîtrisé" (couvre largement le pool avec précision haute).
-    if (coverage < 0.30) {
-      return (
-        AppColors.blue,
-        AppColors.blue,
-        AppColors.blueLight,
-        'Bon démarrage',
-      );
-    }
-    if (coverage >= 0.70 && successRate >= 0.85) {
-      return (
-        AppColors.green,
-        AppColors.green,
-        const Color(0xFFE6F4ED),
-        'Maîtrisé',
-      );
-    }
-    return (
-      AppColors.blue,
-      AppColors.blue,
-      AppColors.blueLight,
-      'En progrès',
-    );
-  }
 }
 
 /// Ligne "competence" pour les epreuves productives EE/EO. Distincte de

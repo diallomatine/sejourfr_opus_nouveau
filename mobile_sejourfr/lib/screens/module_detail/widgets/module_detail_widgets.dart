@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/mastery_status.dart';
 
 /// Topbar du détail module : bouton retour à gauche, icône décorative du
 /// module à droite. Diffère de `HubTopBar` (notif + badge) — on garde les
@@ -264,17 +265,15 @@ class ModuleDetailScoreCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final neverPlayed = answered == 0;
-    final coverage = total == 0 ? 0.0 : (answered / total).clamp(0.0, 1.0);
-    final precision = answered == 0 ? 0.0 : (correct / answered).clamp(0.0, 1.0);
-    final precisionPct = (precision * 100).round();
+    // Progression = maîtrise : bonnes réponses / total de questions du module.
+    final mastery = total == 0 ? 0.0 : (correct / total).clamp(0.0, 1.0);
+    final masteryPct = (mastery * 100).round();
 
-    // Status combiné couverture + précision (mêmes seuils que `_ThemeRow`
-    // de l'écran Progression — cohérence sur les deux surfaces).
-    final (badgeLabel, badgeColor) = _statusFor(
-      hasAnswered: !neverPlayed,
-      coverage: coverage,
-      successRate: precision,
-    );
+    // Badge de statut piloté par la maîtrise (source unique partagée avec
+    // l'écran Progression — cohérence sur toutes les surfaces).
+    final status = MasteryStatus.of(hasAnswered: !neverPlayed, mastery: mastery);
+    final badgeLabel = status.label;
+    final badgeColor = status.color;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
@@ -300,7 +299,7 @@ class ModuleDetailScoreCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'COUVERTURE DU MODULE',
+                      'MAÎTRISE DU MODULE',
                       style: AppFonts.mono(
                         size: 9.5,
                         color: AppColors.muted,
@@ -313,7 +312,7 @@ class ModuleDetailScoreCard extends StatelessWidget {
                       text: TextSpan(
                         children: [
                           TextSpan(
-                            text: neverPlayed ? '0' : '$answered',
+                            text: neverPlayed ? '0' : '$correct',
                             style: AppFonts.jakarta(
                               size: 22,
                               weight: FontWeight.w800,
@@ -329,7 +328,7 @@ class ModuleDetailScoreCard extends StatelessWidget {
                             ),
                           ),
                           TextSpan(
-                            text: ' vues',
+                            text: ' réussies',
                             style: AppFonts.jakarta(
                               size: 13,
                               weight: FontWeight.w500,
@@ -360,9 +359,7 @@ class ModuleDetailScoreCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          // Barre couverture (% du pool exploré). Pas de marqueur de seuil
-          // — la cible naturelle est 100 % vu, mais un user peut être prêt
-          // bien avant si sa précision est haute.
+          // Barre de maîtrise (% de bonnes réponses sur le pool complet).
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: Stack(
@@ -372,7 +369,7 @@ class ModuleDetailScoreCard extends StatelessWidget {
                   color: AppColors.line2,
                 ),
                 FractionallySizedBox(
-                  widthFactor: neverPlayed ? 0 : coverage.clamp(0.02, 1.0),
+                  widthFactor: neverPlayed ? 0 : mastery.clamp(0.02, 1.0),
                   child: Container(
                     height: 8,
                     decoration: BoxDecoration(
@@ -396,7 +393,7 @@ class ModuleDetailScoreCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(99),
                   ),
                   child: Text(
-                    '✓ $precisionPct % justes',
+                    '$masteryPct % de maîtrise',
                     style: AppFonts.mono(
                       size: 9.5,
                       color: AppColors.ink2,
@@ -410,7 +407,7 @@ class ModuleDetailScoreCard extends StatelessWidget {
                 child: Text(
                   neverPlayed
                       ? 'Lance ta première session pour voir ta progression.'
-                      : '$correct/$answered réussies — élargis ton exploration pour sécuriser le niveau.',
+                      : '$answered questions vues — continue pour gagner en maîtrise.',
                   style: AppFonts.jakarta(
                     size: 12,
                     color: AppColors.muted,
@@ -424,32 +421,6 @@ class ModuleDetailScoreCard extends StatelessWidget {
     );
   }
 
-  /// Status combiné couverture + précision. "Maîtrisé" exige couverture
-  /// ≥ 70 % ET précision ≥ 85 % — sinon un user à 100 % de précision sur
-  /// 3 questions vues serait labellisé "Maîtrisé" à tort. Aligné avec
-  /// `_ThemeRow._statusFor` de l'écran Progression.
-  (String, Color) _statusFor({
-    required bool hasAnswered,
-    required double coverage,
-    required double successRate,
-  }) {
-    if (!hasAnswered) {
-      return ('À démarrer', AppColors.muted);
-    }
-    if (successRate < 0.45) {
-      return ('À retravailler', AppColors.red);
-    }
-    if (successRate < 0.65) {
-      return ('À consolider', AppColors.amber);
-    }
-    if (coverage < 0.30) {
-      return ('Bon démarrage', AppColors.blue);
-    }
-    if (coverage >= 0.70 && successRate >= 0.85) {
-      return ('Maîtrisé', AppColors.green);
-    }
-    return ('En progrès', AppColors.blue);
-  }
 }
 
 /// Barre d'onglets segmentés (Séries / Examens / Erreurs).

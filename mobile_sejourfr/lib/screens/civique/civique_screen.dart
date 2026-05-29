@@ -148,9 +148,10 @@ class CiviqueScreen extends ConsumerWidget {
     TargetProcedure? target,
   ) {
     final hasStarted = stats != null && stats.answered > 0;
+    // Progression = maîtrise : bonnes réponses / total de questions du thème.
     final ratio = !hasStarted || theme.questionCount == 0
         ? 0.0
-        : (stats.answered / theme.questionCount).clamp(0.0, 1.0);
+        : (stats.correct / theme.questionCount).clamp(0.0, 1.0);
     final iconColor = _accentForOrder(theme.displayOrder);
     final iconBg = _accentBgForOrder(theme.displayOrder);
 
@@ -229,21 +230,15 @@ class _MasteryBlock extends ConsumerWidget {
     final async = ref.watch(_civiqueStatsProvider);
     final s = async.valueOrNull;
     if (s == null) {
-      return const CiviqueMasteryCard(
-        answered: 0,
-        total: 0,
-        precisionPercent: null,
-      );
+      return const CiviqueMasteryCard(answered: 0, correct: 0, total: 0);
     }
     final answered = s.byTheme.fold<int>(0, (sum, t) => sum + t.answered);
     final correct = s.byTheme.fold<int>(0, (sum, t) => sum + t.correct);
     final total = s.byTheme.fold<int>(0, (sum, t) => sum + t.total);
-    final precision =
-        answered == 0 ? null : (correct / answered * 100).round();
     return CiviqueMasteryCard(
       answered: answered,
+      correct: correct,
       total: total,
-      precisionPercent: precision,
     );
   }
 }
