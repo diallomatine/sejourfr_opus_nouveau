@@ -49,13 +49,16 @@ public interface AnswerRepository extends JpaRepository<Answer, UUID> {
     // au moins une fois dans le module.
     @Query("""
         SELECT a.attemptQuestion.question.theme.id,
+               a.attemptQuestion.question.theme.code,
                a.attemptQuestion.question.theme.name,
                COUNT(DISTINCT a.attemptQuestion.question.id),
                COUNT(DISTINCT CASE WHEN a.correct = true THEN a.attemptQuestion.question.id END)
         FROM Answer a
         WHERE a.attemptQuestion.attempt.user.id = :userId
           AND a.attemptQuestion.attempt.module = :module
-        GROUP BY a.attemptQuestion.question.theme.id, a.attemptQuestion.question.theme.name
+        GROUP BY a.attemptQuestion.question.theme.id,
+                 a.attemptQuestion.question.theme.code,
+                 a.attemptQuestion.question.theme.name
         """)
     List<Object[]> aggregateByTheme(@Param("userId") UUID userId, @Param("module") Module module);
 

@@ -20,6 +20,13 @@ public record UserStatsResponse(
      */
     public record ThemeStatsResponse(
             UUID themeId,
+            /**
+             * Code stable du thème (ex: {@code CIV_PRINCIPES}, {@code TCF_CO},
+             * {@code TCF_STRUCTURE}). Utilisé par le front pour router vers
+             * l'écran détail correspondant — plus fiable que matcher sur le
+             * {@code themeName} libellé.
+             */
+            String themeCode,
             String themeName,
             int answered,
             int correct,

@@ -120,6 +120,7 @@ class UserStats {
 class ThemeStats {
   ThemeStats({
     required this.themeId,
+    required this.themeCode,
     required this.themeName,
     required this.answered,
     required this.correct,
@@ -127,6 +128,10 @@ class ThemeStats {
   });
 
   final String themeId;
+  /// Code stable du thème (ex: `CIV_PRINCIPES`, `TCF_CO`, `TCF_STRUCTURE`).
+  /// Sert au routing depuis l'écran Progression vers le détail de la
+  /// sous-section, sans dépendre du libellé.
+  final String themeCode;
   final String themeName;
   final int answered;
   final int correct;
@@ -142,6 +147,7 @@ class ThemeStats {
 
   factory ThemeStats.fromJson(Map<String, dynamic> json) => ThemeStats(
         themeId: json['themeId'] as String,
+        themeCode: json['themeCode'] as String? ?? '',
         themeName: json['themeName'] as String,
         answered: (json['answered'] as num? ?? 0).toInt(),
         correct: (json['correct'] as num? ?? 0).toInt(),
