@@ -7,6 +7,8 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.androidpublisher.AndroidPublisher;
 import com.google.api.services.androidpublisher.AndroidPublisherScopes;
+import com.google.api.services.androidpublisher.model.ProductPurchase;
+import com.google.api.services.androidpublisher.model.ProductPurchasesAcknowledgeRequest;
 import com.google.api.services.androidpublisher.model.SubscriptionPurchaseV2;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -160,6 +162,36 @@ public class GoogleStoreClient {
         ensureReady();
         return androidPublisher.purchases().subscriptionsv2()
                 .get(properties.getPackageName(), purchaseToken)
+                .execute();
+    }
+
+    /**
+     * État autoritatif d'un achat de produit one-time (managed product, lot 5)
+     * via {@code purchases.products.get}. Distinct de
+     * {@link #getSubscriptionV2(String)} (abonnements). Le {@code purchaseToken}
+     * sert de clé de réconciliation ({@code originalTransactionId}).
+     *
+     * @throws IOException si l'appel API Play échoue.
+     */
+    public ProductPurchase getProduct(String productId, String purchaseToken) throws IOException {
+        ensureReady();
+        return androidPublisher.purchases().products()
+                .get(properties.getPackageName(), productId, purchaseToken)
+                .execute();
+    }
+
+    /**
+     * Acquitte un achat de produit one-time (obligatoire sous 3 jours, sinon
+     * Play rembourse). Best-effort : la consommation (pour ré-achat) est faite
+     * côté client par le plugin in_app_purchase.
+     *
+     * @throws IOException si l'appel API Play échoue.
+     */
+    public void acknowledgeProduct(String productId, String purchaseToken) throws IOException {
+        ensureReady();
+        androidPublisher.purchases().products()
+                .acknowledge(properties.getPackageName(), productId, purchaseToken,
+                        new ProductPurchasesAcknowledgeRequest())
                 .execute();
     }
 
