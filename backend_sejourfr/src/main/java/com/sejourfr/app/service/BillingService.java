@@ -1,10 +1,13 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.config.BillingProperties;
 import com.sejourfr.app.config.StripeProperties;
 import com.sejourfr.app.dto.BillingCheckoutResponse;
 import com.sejourfr.app.dto.PlanPublicResponse;
 import com.sejourfr.app.entity.Plan;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.entity.UserSubscription;
+import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.manager.PlanManager;
 import com.sejourfr.app.manager.ProcessedExternalEventManager;
@@ -27,7 +30,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -63,12 +69,17 @@ public class BillingService {
      */
     private static final long REPLAY_TOLERANCE_SECONDS = 300L;
 
+    /** Montant minimal facturable par Stripe (50 cts) — plancher d'un upgrade proraté. */
+    private static final long MIN_CHARGE_CENTS = 50L;
+
     private final StripeProperties stripeProperties;
+    private final BillingProperties billingProperties;
     private final UserManager userManager;
     private final PlanManager planManager;
     private final ProcessedExternalEventManager processedEventManager;
     private final PlanMapper planMapper;
     private final StripeSubscriptionService stripeSubscriptionService;
+    private final SubscriptionService subscriptionService;
 
     /**
      * Initialise la clé API Stripe globale au démarrage si elle est configurée.
@@ -134,6 +145,14 @@ public class BillingService {
                         HttpStatus.NOT_FOUND,
                         "Plan inconnu ou inactif : " + planCode
                 ));
+
+        // Mode passes one-time (lot 5) : Checkout mode=PAYMENT, montant dynamique
+        // (price_data depuis plan.price) — pas besoin de Stripe Price. Proration
+        // appliquée si upgrade Civique→Intégral.
+        if (billingProperties.isOneTime()) {
+            return createOneTimeCheckout(user, plan);
+        }
+
         String priceId = plan.getStripePriceId();
         if (priceId == null || priceId.isBlank()) {
             throw new ResponseStatusException(
@@ -169,6 +188,85 @@ public class BillingService {
                     "Impossible de créer la session Stripe. Réessayez dans un instant."
             );
         }
+    }
+
+    /**
+     * Checkout one-time (mode PAYMENT) : montant = prix du plan en base, via
+     * {@code price_data} dynamique (aucun Stripe Price à créer). Le {@code planCode}
+     * voyage en metadata pour que le webhook sache quel pass créditer ; le
+     * {@code payment_intent} servira de clé d'unicité côté grant.
+     */
+    private BillingCheckoutResponse createOneTimeCheckout(User user, Plan plan) {
+        long amountCents = computeOneTimeAmountCents(user.getId(), plan);
+        String appBaseUrl = stripeProperties.getAppBaseUrl();
+        String successUrl = appBaseUrl + "/paiement/succes"
+                + "?session_id={CHECKOUT_SESSION_ID}&plan=" + plan.getCode();
+        String cancelUrl = appBaseUrl + "/paiement?canceled=1";
+
+        SessionCreateParams params = SessionCreateParams.builder()
+                .setMode(SessionCreateParams.Mode.PAYMENT)
+                .setClientReferenceId(user.getId().toString())
+                .setCustomerEmail(user.getEmail())
+                .setSuccessUrl(successUrl)
+                .setCancelUrl(cancelUrl)
+                .putMetadata("planCode", plan.getCode())
+                .addLineItem(SessionCreateParams.LineItem.builder()
+                        .setQuantity(1L)
+                        .setPriceData(SessionCreateParams.LineItem.PriceData.builder()
+                                .setCurrency("eur")
+                                .setUnitAmount(amountCents)
+                                .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                        .setName(plan.getName())
+                                        .build())
+                                .build())
+                        .build())
+                .build();
+        try {
+            Session session = Session.create(params);
+            return new BillingCheckoutResponse(session.getUrl());
+        } catch (StripeException e) {
+            log.error("Échec création Checkout one-time (plan={}) : {}", plan.getCode(), e.getMessage());
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "Impossible de créer la session Stripe. Réessayez dans un instant."
+            );
+        }
+    }
+
+    /**
+     * Montant à facturer en centimes. Cas nominal = prix plein du plan. Cas
+     * upgrade Civique→Intégral avec un accès Civique encore valide : on crédite
+     * la valeur restante du pass Civique (prix × joursRestants / durée) et on ne
+     * facture que la différence (plancher {@link #MIN_CHARGE_CENTS}). La
+     * proration ne vit QUE côté Stripe : Apple/Google vendent à prix fixe.
+     */
+    private long computeOneTimeAmountCents(UUID userId, Plan plan) {
+        long full = toCents(plan.getPrice());
+        if (plan.getModuleAccess() != ModuleAccess.INTEGRAL) {
+            return full;
+        }
+        UserSubscription current = subscriptionService.currentSubscription(userId).orElse(null);
+        if (current == null || current.getPlan() == null
+                || current.getPlan().getModuleAccess() != ModuleAccess.CIVIQUE) {
+            return full; // déjà Intégral, ou aucun accès Civique à créditer
+        }
+        Instant end = current.getEndsAt();
+        int civiqueDuration = current.getPlan().getDurationDays();
+        if (end == null || !end.isAfter(Instant.now()) || civiqueDuration <= 0) {
+            return full;
+        }
+        long remainingDays = Math.max(0, ChronoUnit.DAYS.between(Instant.now(), end));
+        BigDecimal credit = current.getPlan().getPrice()
+                .multiply(BigDecimal.valueOf(remainingDays))
+                .divide(BigDecimal.valueOf(civiqueDuration), 2, RoundingMode.HALF_UP);
+        long amount = full - toCents(credit);
+        log.info("Upgrade proraté user={} plan={} plein={}cts crédit={}cts → {}cts",
+                userId, plan.getCode(), full, toCents(credit), Math.max(amount, MIN_CHARGE_CENTS));
+        return Math.max(amount, MIN_CHARGE_CENTS);
+    }
+
+    private static long toCents(BigDecimal euros) {
+        return euros.movePointRight(2).setScale(0, RoundingMode.HALF_UP).longValueExact();
     }
 
     // ------------------------------------------------------------------------
