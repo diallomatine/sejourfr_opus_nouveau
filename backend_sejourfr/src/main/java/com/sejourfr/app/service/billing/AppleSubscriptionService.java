@@ -59,6 +59,8 @@ public class AppleSubscriptionService {
     private final UserSubscriptionManager userSubscriptionManager;
     private final ProcessedExternalEventManager processedEventManager;
     private final MailService mailService;
+    private final OneTimeAccessService oneTimeAccessService;
+    private final com.sejourfr.app.config.BillingProperties billingProperties;
 
     // ------------------------------------------------------------------------
     // verify-receipt : flow client → backend après un achat sur l'app
@@ -105,6 +107,19 @@ public class AppleSubscriptionService {
             Plan plan = lookupPlanOrThrow(tx.getProductId());
             User user = userManager.findById(userId)
                     .orElseThrow(() -> new EntityNotFoundException("User introuvable: " + userId));
+
+            // Mode passes one-time (lot 5) : produit Non-Renewing Subscription /
+            // Consumable. On ne passe PAS par l'upsert auto-renewable — on
+            // délègue au grant commun (durée = plan.durationDays, idempotent,
+            // mail d'activation géré là-bas).
+            if (billingProperties.isOneTime()) {
+                UserSubscription sub = oneTimeAccessService.grantOneTimeAccess(
+                        userId, plan, SubscriptionSource.APPLE,
+                        tx.getOriginalTransactionId(), tx.getTransactionId());
+                log.info("Apple one-time pass user={} productId={} origTx={} endsAt={}",
+                        userId, tx.getProductId(), tx.getOriginalTransactionId(), sub.getEndsAt());
+                return sub;
+            }
 
             // Une restauration (PurchaseStatus.restored côté StoreKit) refait
             // un verify-receipt sur un originalTransactionId existant — on ne
@@ -190,6 +205,24 @@ public class AppleSubscriptionService {
         }
 
         UserSubscription sub = existing.get();
+
+        // Mode passes one-time : un pass non-renouvelable ne reçoit pas de
+        // notifications de renouvellement. Seuls REFUND / REVOKE comptent
+        // (retrait d'accès). On ne touche pas endsAt (posé par le backend).
+        if (billingProperties.isOneTime()) {
+            if (type == NotificationTypeV2.REFUND || type == NotificationTypeV2.REVOKE) {
+                sub.setStatus(SubscriptionStatus.REFUNDED);
+                sub.setAutoRenew(false);
+                userSubscriptionManager.save(sub);
+                log.info("Apple one-time refund/revoke user={} type={} origTx={}",
+                        sub.getUser().getId(), type, tx.getOriginalTransactionId());
+            } else {
+                log.debug("Apple notification {} type={} ignorée (mode one-time).",
+                        notificationUUID, type);
+            }
+            return;
+        }
+
         Plan plan = sub.getPlan();
         SubscriptionStatus oldStatus = sub.getStatus();
         applyNotificationTransition(sub, type, subtype, tx, renewalInfo);
