@@ -2,6 +2,7 @@ package com.sejourfr.app.entity;
 
 import com.sejourfr.app.enums.BillingCycle;
 import com.sejourfr.app.enums.ModuleAccess;
+import com.sejourfr.app.enums.PlanPurchaseType;
 import org.hibernate.annotations.UuidGenerator;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
@@ -40,6 +41,15 @@ public class Plan {
     /** Durée d'accès en jours après paiement one-shot. */
     @Column(name = "duration_days", nullable = false)
     private int durationDays = 0;
+
+    /**
+     * Nature commerciale : abonnement récurrent (SUBSCRIPTION, lots 2/3/4) ou
+     * pass d'accès à durée fixe (ONE_TIME, lot 5). En mode ONE_TIME,
+     * {@link #durationDays} EST la source de vérité de la durée Premium.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "purchase_type", nullable = false, length = 16)
+    private PlanPurchaseType purchaseType = PlanPurchaseType.SUBSCRIPTION;
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
@@ -92,6 +102,9 @@ public class Plan {
 
     public int getDurationDays() { return durationDays; }
     public void setDurationDays(int durationDays) { this.durationDays = durationDays; }
+
+    public PlanPurchaseType getPurchaseType() { return purchaseType; }
+    public void setPurchaseType(PlanPurchaseType purchaseType) { this.purchaseType = purchaseType; }
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
