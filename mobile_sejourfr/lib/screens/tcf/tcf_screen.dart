@@ -13,6 +13,7 @@ import '../../core/utils/selected_module.dart';
 import '../hub/widgets/hub_home_widgets.dart';
 import 'widgets/cecrl_progress_card.dart';
 import 'widgets/stats_row.dart';
+import 'widgets/tcf_epreuve_levels_card.dart';
 
 /// Stats par thème (CO / CE / STRUCTURE) — sert à brancher la barre de
 /// progression de chaque card module sur la donnée réelle.
@@ -33,6 +34,13 @@ final _tcfProgressionProvider =
   return ref
       .watch(userContentRepositoryProvider)
       .progression(module: AppModule.tcf);
+});
+
+/// Profil de niveau par épreuve (dernier passage CO/CE/EE/EO) — alimente la
+/// carte « Niveau par épreuve ». Cf. `GET /api/tcf/profile/level`.
+final _tcfLevelProfileProvider =
+    FutureProvider.autoDispose<TcfLevelProfile>((ref) {
+  return ref.watch(userContentRepositoryProvider).tcfLevelProfile();
 });
 
 /// Hub TCF : home en single scroll. Header titre dynamique + hero examen
@@ -58,10 +66,12 @@ class TcfScreen extends ConsumerWidget {
             ref.invalidate(_tcfStatsProvider);
             ref.invalidate(_tcfThemesProvider);
             ref.invalidate(_tcfProgressionProvider);
+            ref.invalidate(_tcfLevelProfileProvider);
             await Future.wait([
               ref.read(_tcfStatsProvider.future),
               ref.read(_tcfThemesProvider.future),
               ref.read(_tcfProgressionProvider.future),
+              ref.read(_tcfLevelProfileProvider.future),
             ]);
           },
           child: ListView(
@@ -103,6 +113,8 @@ class TcfScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 10),
               _ProgressionBlock(target: target),
+              const SizedBox(height: 10),
+              const _EpreuveLevelsBlock(),
               const SizedBox(height: 10),
               _StatsBlock(),
             ],
@@ -242,6 +254,24 @@ class _ProgressionBlock extends ConsumerWidget {
         TargetProcedure.nat => NiveauCecrl.b2,
         null => null,
       };
+}
+
+/// Carte « Niveau par épreuve » (dernier passage CO/CE/EE/EO). Masquée tant
+/// qu'aucune épreuve n'a été passée — le hub liste déjà les 5 modules au-dessus.
+class _EpreuveLevelsBlock extends ConsumerWidget {
+  const _EpreuveLevelsBlock();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(_tcfLevelProfileProvider).valueOrNull;
+    if (profile == null) return const SizedBox.shrink();
+    final anyAttempted = profile.co.attempted ||
+        profile.ce.attempted ||
+        profile.ee.attempted ||
+        profile.eo.attempted;
+    if (!anyAttempted) return const SizedBox.shrink();
+    return TcfEpreuveLevelsCard(profile: profile);
+  }
 }
 
 /// 3 mini-cards stats (Séances / Pratique / Jours actifs). Seul le compteur

@@ -762,14 +762,7 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
     return 'Terminée';
   }
 
-  Color _levelColor(NiveauCecrl l) {
-    return switch (l) {
-      NiveauCecrl.a1NonAtteint || NiveauCecrl.a1 => AppColors.red,
-      NiveauCecrl.a2 => AppColors.amber,
-      NiveauCecrl.b1 => AppColors.blue,
-      NiveauCecrl.b2 || NiveauCecrl.c1 || NiveauCecrl.c2 => AppColors.green,
-    };
-  }
+  Color _levelColor(NiveauCecrl l) => l.color;
 
   String _shortLevel(NiveauCecrl l) {
     return switch (l) {

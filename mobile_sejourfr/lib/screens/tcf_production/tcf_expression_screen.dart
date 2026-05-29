@@ -1366,20 +1366,7 @@ class _ErrorBox extends StatelessWidget {
 
 (Color, Color) _taskColors(int tache) => taskPalette(tache);
 
-Color _colorForLevel(NiveauCecrl level) {
-  switch (level) {
-    case NiveauCecrl.a1NonAtteint:
-    case NiveauCecrl.a1:
-    case NiveauCecrl.a2:
-      return AppColors.red;
-    case NiveauCecrl.b1:
-      return AppColors.amber;
-    case NiveauCecrl.b2:
-    case NiveauCecrl.c1:
-    case NiveauCecrl.c2:
-      return AppColors.green;
-  }
-}
+Color _colorForLevel(NiveauCecrl level) => level.color;
 
 String _formatNote(double n) => n.toStringAsFixed(1).replaceAll('.', ',');
 
