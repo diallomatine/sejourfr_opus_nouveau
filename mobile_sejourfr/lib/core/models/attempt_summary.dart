@@ -20,6 +20,8 @@ class AttemptSummary {
     this.moduleExamQuestionType,
     this.weightedScore,
     this.maxWeightedScore,
+    this.calibratedScore,
+    this.cecrlLevel,
     this.lotThemeId,
     this.slotNumber,
   });
@@ -46,6 +48,11 @@ class AttemptSummary {
   final QuestionType? moduleExamQuestionType;
   final int? weightedScore;
   final int? maxWeightedScore;
+
+  /// Score calibré 100-499 + niveau CECRL (examens module TCF). Affichage
+  /// façon relevé TCF (X/499 + niveau) à la place du X/50 interne.
+  final int? calibratedScore;
+  final NiveauCecrl? cecrlLevel;
 
   // Thème ciblé par l'attempt (CIVIQUE) : non null pour un lot ou un examen
   // thème-scopé (20 Q d'un seul thème), null pour un examen blanc complet
@@ -99,6 +106,8 @@ class AttemptSummary {
             : QuestionType.fromWire(json['moduleExamQuestionType'] as String),
         weightedScore: (json['weightedScore'] as num?)?.toInt(),
         maxWeightedScore: (json['maxWeightedScore'] as num?)?.toInt(),
+        calibratedScore: (json['calibratedScore'] as num?)?.toInt(),
+        cecrlLevel: NiveauCecrl.fromWireNullable(json['cecrlLevel'] as String?),
         lotThemeId: json['lotThemeId'] as String?,
         slotNumber: (json['slotNumber'] as num?)?.toInt(),
       );

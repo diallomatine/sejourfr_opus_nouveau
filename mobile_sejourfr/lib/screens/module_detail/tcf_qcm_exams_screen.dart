@@ -162,21 +162,16 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
     final hiddenCount = filtered.length - visible.length;
 
     final finished = bySlot.values.toList();
-    final scores = finished
-        .where((a) => a.weightedScore != null && a.maxWeightedScore != null)
-        .toList();
-    // Suppose `maxWeightedScore` constant entre les attempts du même module
-    // (vrai à ce jour : 50 pour les examens module TCF). Si un jour ce n'est
-    // plus le cas, repasser sur le pourcentage `score / maxScore`.
+    // Score calibré 100-499 (relevé façon TCF) au lieu du X/50 interne.
+    final scores =
+        finished.where((a) => a.calibratedScore != null).toList();
+    const maxPossible = 499;
     final bestScore = scores.isEmpty
         ? null
-        : scores
-            .map((a) => a.weightedScore!)
-            .reduce((a, b) => a > b ? a : b);
-    final maxPossible = scores.isEmpty ? 50 : (scores.first.maxWeightedScore ?? 50);
+        : scores.map((a) => a.calibratedScore!).reduce((a, b) => a > b ? a : b);
     final avgScore = scores.isEmpty
         ? null
-        : (scores.map((a) => a.weightedScore!).reduce((a, b) => a + b) /
+        : (scores.map((a) => a.calibratedScore!).reduce((a, b) => a + b) /
                 scores.length)
             .round();
 
@@ -290,23 +285,23 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
     final isLocked = _isLocked(number);
     final isNext = number == nextSlot && number <= _examSlotsCount;
 
-    final score = attempt?.weightedScore;
-    final maxScore = attempt?.maxWeightedScore ?? 50;
+    final calibrated = attempt?.calibratedScore;
+    final level = attempt?.cecrlLevel;
 
     Widget? secondaryStatus;
-    if (done && score != null) {
+    if (done && calibrated != null) {
+      final c = level?.color ?? AppColors.green;
       secondaryStatus = Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.check_circle_rounded,
-              size: 13, color: AppColors.green),
+          Icon(Icons.check_circle_rounded, size: 13, color: c),
           const SizedBox(width: 3),
           Text(
-            '$score/$maxScore',
+            level != null ? '$calibrated · ${level.displayName}' : '$calibrated/499',
             style: AppFonts.jakarta(
               size: 11,
               weight: FontWeight.w700,
-              color: AppColors.green,
+              color: c,
             ),
           ),
         ],

@@ -96,9 +96,10 @@ class _HistoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final score = attempt.weightedScore;
-    final maxScore = attempt.maxWeightedScore;
-    final scoreColor = _scoreColor(score, maxScore);
+    // Score calibré 100-499 + niveau CECRL (relevé façon TCF) au lieu du X/50.
+    final calibrated = attempt.calibratedScore;
+    final level = attempt.cecrlLevel;
+    final scoreColor = level?.color ?? AppColors.muted;
 
     return Container(
       decoration: BoxDecoration(
@@ -154,7 +155,7 @@ class _HistoryRow extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (score != null && maxScore != null)
+                if (calibrated != null)
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 3),
@@ -163,7 +164,9 @@ class _HistoryRow extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      '$score/$maxScore',
+                      level != null
+                          ? '$calibrated · ${level.displayName}'
+                          : '$calibrated / 499',
                       style: AppFonts.jakarta(
                         size: 11,
                         weight: FontWeight.w800,
@@ -185,11 +188,4 @@ class _HistoryRow extends StatelessWidget {
     );
   }
 
-  Color _scoreColor(int? score, int? max) {
-    if (score == null || max == null || max == 0) return AppColors.muted;
-    final pct = score / max * 100;
-    if (pct >= 70) return AppColors.green;
-    if (pct >= 40) return AppColors.amber;
-    return AppColors.red;
-  }
 }

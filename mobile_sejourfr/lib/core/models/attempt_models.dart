@@ -119,6 +119,8 @@ class Attempt {
     this.score,
     this.levelAchieved,
     this.moduleExamQuestionType,
+    this.calibratedScore,
+    this.cecrlLevel,
   });
 
   final String id;
@@ -140,6 +142,13 @@ class Attempt {
   /// le mode strict côté runner : audio auto-play 2s, lecture unique, pas
   /// de pause, soumission auto à la fin du temps.
   final QuestionType? moduleExamQuestionType;
+
+  /// Score calibré 100-499 (examens module TCF) — affichage façon relevé TCF
+  /// à la place du score pondéré X/50. Null hors examen module.
+  final int? calibratedScore;
+
+  /// Niveau CECRL estimé de l'examen module TCF (CO/CE). Null hors module.
+  final NiveauCecrl? cecrlLevel;
 
   bool get isMockExam => type == AttemptType.mockExam;
   bool get isFinished => finishedAt != null;
@@ -168,6 +177,8 @@ class Attempt {
         moduleExamQuestionType: json['moduleExamQuestionType'] == null
             ? null
             : QuestionType.fromWire(json['moduleExamQuestionType'] as String),
+        calibratedScore: (json['calibratedScore'] as num?)?.toInt(),
+        cecrlLevel: NiveauCecrl.fromWireNullable(json['cecrlLevel'] as String?),
         questions: (json['questions'] as List<dynamic>?)
                 ?.map((q) =>
                     AttemptQuestion.fromJson(q as Map<String, dynamic>))

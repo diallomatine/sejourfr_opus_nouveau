@@ -383,6 +383,10 @@ class _TcfHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final level = attempt.levelAchieved;
+    // Niveau CECRL précis (peut être A1 / A1 non atteint, plafonné B2) ;
+    // fallback sur le palier legacy pour l'entraînement libre TCF.
+    final cecrl = attempt.cecrlLevel;
+    final levelText = cecrl?.displayName ?? level?.wire ?? '< A2';
     final percent = total == 0 ? 0 : ((score / total) * 100).round();
 
     return AppCard(
@@ -421,7 +425,7 @@ class _TcfHero extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            level?.wire ?? '< A2',
+            levelText,
             style: AppFonts.fraunces(
               size: 64,
               weight: FontWeight.w700,
@@ -444,7 +448,9 @@ class _TcfHero extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            '$score/$total bonnes réponses · $percent %',
+            attempt.calibratedScore != null
+                ? 'Score ${attempt.calibratedScore} / 499 · $score/$total bonnes réponses'
+                : '$score/$total bonnes réponses · $percent %',
             style: AppFonts.jakarta(
               size: 12,
               color: AppColors.muted,

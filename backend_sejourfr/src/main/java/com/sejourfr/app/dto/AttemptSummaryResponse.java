@@ -4,6 +4,7 @@ import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.QuestionType;
 
 import java.time.Instant;
@@ -39,6 +40,10 @@ public record AttemptSummaryResponse(
         QuestionType moduleExamQuestionType,
         Integer weightedScore,
         Integer maxWeightedScore,
+        // Score calibré 100-499 + niveau CECRL estimé (examens module TCF).
+        // Affichage relevé TCF (X/499 + niveau) ; null hors examen module TCF.
+        Integer calibratedScore,
+        NiveauCecrl cecrlLevel,
         // Thème ciblé par cet attempt (CIVIQUE) — non null pour un lot ou
         // un examen thème-scopé (20 Q d'un seul thème), null pour un examen
         // blanc complet civique (40 Q tous thèmes). Permet au front de
