@@ -86,6 +86,18 @@ function monthlyEquivalent(price: number, periodicity: PlanPeriodicity): number 
   return null;
 }
 
+/** Libellé de durée d'un pass one-time (« 6 semaines », « 3 mois », « 1 an »). */
+function passDurationLabel(days: number): string {
+  if (days <= 0) return "";
+  if (days % 365 === 0) {
+    const y = days / 365;
+    return y === 1 ? "1 an" : `${y} ans`;
+  }
+  if (days >= 30 && days % 30 === 0) return `${days / 30} mois`;
+  if (days % 7 === 0) return `${days / 7} semaines`;
+  return `${days} jours`;
+}
+
 /** Indexe les Plans payants par (module, periodicity). */
 function indexPaidPlans(
   plans: PlanPublicResponse[],
@@ -107,6 +119,39 @@ export function PricingPlans({ plans, variant = "full", defaultPeriodicity = "qu
   const [periodicity, setPeriodicity] = useState<PlanPeriodicity>(defaultPeriodicity);
   const index = useMemo(() => indexPaidPlans(plans), [plans]);
   const freePlan = plans.find((p) => p.code === "FREE") ?? null;
+
+  // Mode passes one-time (lot 5) : on ignore les plans non payables (FREE) dans
+  // la détection, puis on rend une carte par module listant ses passes.
+  const payablePlans = plans.filter((p) => p.moduleAccess !== "NONE" && p.price > 0);
+  const oneTime =
+    payablePlans.length > 0 && payablePlans.every((p) => p.purchaseType === "ONE_TIME");
+
+  if (oneTime) {
+    const passesFor = (mod: "CIVIQUE" | "INTEGRAL") =>
+      payablePlans
+        .filter((p) => p.moduleAccess === mod)
+        .sort((a, b) => a.durationDays - b.durationDays);
+    return (
+      <div className={`pp pp-${variant}`}>
+        <div className="pp-cards">
+          {freePlan && (
+            <PricingCard
+              preset={PRESENTATIONS.FREE}
+              name={freePlan.name}
+              price={null}
+              originalPrice={null}
+              periodicity={periodicity}
+              durationNote="Sans limite de durée"
+              href="/inscription"
+            />
+          )}
+          <PassModuleCard preset={PRESENTATIONS.CIVIQUE} name="Civique" module="CIVIQUE" passes={passesFor("CIVIQUE")} />
+          <PassModuleCard preset={PRESENTATIONS.INTEGRAL} name="Intégral" module="INTEGRAL" passes={passesFor("INTEGRAL")} />
+        </div>
+        <style>{styles}</style>
+      </div>
+    );
+  }
 
   const civique = index.get(`CIVIQUE:${periodicity}`);
   const integral = index.get(`INTEGRAL:${periodicity}`);
@@ -247,8 +292,92 @@ function PricingCard({
   );
 }
 
+/** Carte marketing d'un module en mode passes : preset + liste des passes
+ *  (durée + prix) + CTA vers /paiement pour choisir et payer. */
+function PassModuleCard({
+  preset,
+  name,
+  module,
+  passes,
+}: {
+  preset: Preset;
+  name: string;
+  module: "CIVIQUE" | "INTEGRAL";
+  passes: PlanPublicResponse[];
+}) {
+  if (passes.length === 0) return null;
+  const ctaClass =
+    preset.cta.variant === "red"
+      ? "btn btn-red pp-cta"
+      : preset.cta.variant === "ghost"
+        ? "btn btn-ghost pp-cta"
+        : "btn pp-cta";
+  return (
+    <article className={`pp-card ${preset.featured ? "is-featured" : ""}`}>
+      {preset.badge && (
+        <span className={`pp-badge ${preset.badge.tone === "red" ? "is-red" : ""}`}>
+          <Sparkles className="pp-badge-icon" />
+          {preset.badge.label}
+        </span>
+      )}
+      <header className="pp-head">
+        <h3 className="pp-name">{name}</h3>
+        <p className="pp-desc">{preset.description}</p>
+      </header>
+      <div className="pp-passes">
+        {passes.map((p) => (
+          <div key={p.code} className="pp-pass">
+            <span className="pp-pass-dur">{passDurationLabel(p.durationDays)}</span>
+            <span className="pp-pass-price">{formatPrice(p.price)} €</span>
+          </div>
+        ))}
+      </div>
+      <ul className="pp-feats">
+        {preset.features.map((f) => (
+          <li key={f.label}>
+            <Check className="pp-tick" />
+            <span>{f.strong ? <strong>{f.label}</strong> : f.label}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="pp-foot">
+        <Link href={`/paiement?module=${module}`} className={ctaClass}>
+          {preset.cta.label}
+        </Link>
+      </div>
+    </article>
+  );
+}
+
 const styles = `
   .pp { max-width: 1100px; margin: 0 auto; }
+  .pp-passes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 22px;
+  }
+  .pp-pass {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--color-line);
+    border-radius: 12px;
+    background: var(--color-paper);
+  }
+  .pp-pass-dur {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--color-ink);
+  }
+  .pp-pass-price {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-ink);
+  }
   .pp-toggle {
     display: grid;
     grid-template-columns: repeat(3, 1fr);

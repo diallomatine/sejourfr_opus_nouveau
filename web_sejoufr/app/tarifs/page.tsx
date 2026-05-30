@@ -10,14 +10,14 @@ import { safeJsonLd } from "@/lib/security";
 import type { PlanPublicResponse } from "@/lib/types";
 
 export const metadata: Metadata = {
-  title: "Tarifs — Abonnements Civique et Intégral | SejourFR",
+  title: "Tarifs — Pass Civique et Intégral | SejourFR",
   description:
-    "Préparez votre examen civique avec un abonnement mensuel, trimestriel ou annuel : Civique ou Intégral (Civique + TCF). Annulable à tout moment.",
+    "Préparez votre examen civique avec un pass à durée fixe : Civique (3 mois, 1 an) ou Intégral (Civique + TCF). Paiement unique, sans abonnement.",
   alternates: { canonical: "/tarifs" },
   openGraph: {
     title: "Tarifs SejourFR — examen civique et naturalisation",
     description:
-      "Abonnements mensuel, trimestriel ou annuel. Découverte gratuite, Civique, Intégral (Civique + TCF). Annulable à tout moment.",
+      "Pass d'accès à durée fixe : découverte gratuite, Civique, Intégral (Civique + TCF). Paiement unique, sans renouvellement automatique.",
     type: "website",
     url: `${SITE.url}/tarifs`,
   },
@@ -74,8 +74,8 @@ export default async function TarifsPage() {
         <PricingFAQ />
 
         <p className="tarifs-foot">
-          Paiement sécurisé par <strong>Stripe</strong>. Annulable à tout moment.
-          Une question avant achat ?{" "}
+          Paiement sécurisé par <strong>Stripe</strong>. Paiement unique, sans
+          abonnement. Une question avant achat ?{" "}
           <Link href="/contact" className="tarifs-foot-link">
             Contactez-nous
           </Link>

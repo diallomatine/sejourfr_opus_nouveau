@@ -249,7 +249,7 @@ function PaiementInner() {
     if (!user) {
         return (
             <main className="pay-gate">
-                <p>Connectez-vous pour souscrire ou gérer votre abonnement.</p>
+                <p>Connectez-vous pour obtenir ou gérer votre accès.</p>
                 <Link href="/connexion?next=/paiement" className="pay-gate-cta">
                     Se connecter →
                 </Link>
@@ -287,7 +287,7 @@ function PaiementInner() {
                         <LockIcon /> Paiement sécurisé Stripe
                     </span>
                     <span className="pay-hero-chip">
-                        <CalendarIcon /> Annulable à tout moment
+                        <CalendarIcon /> Sans renouvellement
                     </span>
                     <span className="pay-hero-chip">
                         <CheckIcon /> Sans engagement
@@ -349,8 +349,8 @@ function PaiementInner() {
                     />
                     <TrustItem
                         icon={<CalendarIcon/>}
-                        title="Annulable à tout moment"
-                        body="Vous gardez l'accès jusqu'à la fin de la période payée."
+                        title="Sans renouvellement"
+                        body="Vous accédez à l'app pour toute la durée de votre pass."
                     />
                     <TrustItem
                         icon={<MailIcon/>}
@@ -365,7 +365,7 @@ function PaiementInner() {
                 </div>
                 <p className="trust-foot">
                     Vos données (favoris, erreurs, progression) restent sur votre compte
-                    si vous suspendez ou reprenez l&apos;abonnement plus tard.
+                    si vous reprenez un accès plus tard.
                 </p>
             </section>
 
@@ -541,32 +541,32 @@ function CurrentSubscriptionCard({
             </div>
             <div className="current-body">
                 <div className="current-row">
-                    <span className="current-label">PLAN ACTUEL</span>
+                    <span className="current-label">MON ACCÈS</span>
                     <span className={`current-tone-pill current-tone-pill-${tone}`}>
-                        {expiresSoon ? "Bientôt expiré" : "Actif"}
+                        {expiresSoon ? "Bientôt terminé" : "Actif"}
                     </span>
                 </div>
                 <div className="current-title">{label}</div>
                 <div className="current-meta">
                     {user.premiumEndsAt ? (
                         <>
-                            Prochaine échéance le{" "}
+                            Accès jusqu&apos;au{" "}
                             <strong>{formatEndDate(user.premiumEndsAt)}</strong>
                             {remaining !== null && (
                                 <>
                                     {" "}·{" "}
                                     {remaining > 0 ? (
                                         <>
-                                            dans <strong>{remaining} jour{remaining > 1 ? "s" : ""}</strong>
+                                            encore <strong>{remaining} jour{remaining > 1 ? "s" : ""}</strong>
                                         </>
                                     ) : (
-                                        <strong>échéance aujourd&apos;hui</strong>
+                                        <strong>se termine aujourd&apos;hui</strong>
                                     )}
                                 </>
                             )}
                         </>
                     ) : (
-                        <>Abonnement actif sans date d&apos;expiration.</>
+                        <>Accès actif.</>
                     )}
                 </div>
             </div>
@@ -718,12 +718,12 @@ function titleFor(plan: CurrentPlan, firstName: string | null): React.ReactNode 
 
 function leadFor(plan: CurrentPlan): string {
     if (plan === "INTEGRAL") {
-        return "Accès complet à la plateforme. Vous pouvez ajuster ou annuler votre abonnement à tout moment.";
+        return "Accès complet à la plateforme. Prolongez quand vous le souhaitez — paiement unique, sans abonnement.";
     }
     if (plan === "CIVIQUE") {
-        return "Renouvelez votre Civique ou passez à l'Intégral pour débloquer aussi le TCF IRN.";
+        return "Prolongez votre Civique ou passez à l'Intégral pour débloquer aussi le TCF IRN.";
     }
-    return "Mensuel, trimestriel ou annuel — choisissez ce qui colle à votre échéance d'examen. Annulable à tout moment.";
+    return "Choisissez la durée qui colle à votre échéance d'examen. Paiement unique, sans abonnement ni reconduction.";
 }
 
 // ============================================================================
