@@ -1,0 +1,580 @@
+/* ============================================================================
+   Briques partagées des hubs d'entraînement (Civique / TCF), calquées sur les
+   widgets mobiles `screens/hub/widgets/hub_home_widgets.dart`. Single-scroll,
+   densité serrée, accents pilotés par les variables --accent / --accent-bg /
+   --accent-start / --accent-end posées en inline style (theming data-driven).
+   ============================================================================ */
+
+.hub {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px 24px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+@media (max-width: 760px) {
+  .hub { padding: 18px 16px 56px; gap: 16px; }
+}
+
+/* ---------- Header ---------- */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.headerTitle {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  margin: 0;
+  line-height: 1.2;
+}
+.headerSub {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin: 4px 0 0;
+}
+
+/* ---------- Hero examen blanc (carte dégradée) ---------- */
+.hero {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  cursor: pointer;
+  border-radius: 20px;
+  padding: 20px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+  box-shadow: 0 14px 30px -14px var(--accent-shadow, rgba(30, 58, 140, 0.5));
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  font-family: var(--font-sans);
+}
+.hero:hover { transform: translateY(-2px); }
+.heroEyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.9);
+}
+.heroTitle {
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  margin: 10px 0 0;
+  color: #fff;
+}
+.heroDesc {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 6px 0 0;
+}
+.heroCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  background: #fff;
+  color: var(--accent-end);
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-weight: 800;
+  font-size: 13.5px;
+}
+
+/* ---------- Section label + trailing ---------- */
+.sectionRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+.sectionLabel {
+  flex: 1;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--color-muted);
+  margin: 0;
+}
+.sectionCounter {
+  font-size: 11.5px;
+  color: var(--color-muted-2);
+}
+.sectionLink {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-blue);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.sectionLink:hover { text-decoration: underline; }
+
+/* ---------- Carte épreuve / thème ---------- */
+.list { display: flex; flex-direction: column; gap: 8px; }
+.epreuve {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.epreuve:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  box-shadow: 0 12px 26px -18px rgba(15, 24, 57, 0.3);
+}
+.epreuveIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.epreuveBody { flex: 1; min-width: 0; }
+.epreuveTitleRow { display: flex; align-items: center; gap: 6px; }
+.epreuveTitle {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  font-size: 14.5px;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.epreuvePill {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.epreuveSub {
+  font-size: 12px;
+  color: var(--color-muted);
+  margin: 2px 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.epreuveBarRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.epreuveTrack {
+  flex: 1;
+  height: 3px;
+  border-radius: 99px;
+  background: var(--color-line-2);
+  overflow: hidden;
+}
+.epreuveFill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--accent);
+}
+.epreuvePct {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-muted-2);
+  font-variant-numeric: tabular-nums;
+}
+.epreuveChevron { color: var(--color-muted-2); flex-shrink: 0; }
+
+/* ---------- Carte maîtrise (Civique) ---------- */
+.mastery {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  padding: 18px;
+}
+.masteryTop {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.masteryPct {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 34px;
+  line-height: 1;
+  color: var(--color-blue);
+  font-variant-numeric: tabular-nums;
+}
+.masteryPctLabel { font-size: 13px; color: var(--color-muted); }
+.masteryCoverage {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--color-muted);
+  margin: 14px 0 6px;
+}
+.masteryCoverageVal { color: var(--color-ink); font-weight: 700; }
+.masteryTrack {
+  height: 6px;
+  border-radius: 100px;
+  background: var(--color-line-2);
+  overflow: hidden;
+}
+.masteryFill {
+  height: 100%;
+  border-radius: 100px;
+  background: var(--color-blue);
+}
+
+/* ---------- États (loading / error / banner) ---------- */
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+.error {
+  background: var(--color-red-light);
+  border: 1px solid rgba(225, 55, 47, 0.25);
+  border-radius: 12px;
+  padding: 14px;
+  color: var(--color-red-dark);
+  font-size: 12.5px;
+}
+.demo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: linear-gradient(135deg, rgba(232, 163, 23, 0.1), rgba(232, 163, 23, 0.02));
+  border: 1px solid rgba(232, 163, 23, 0.35);
+  border-radius: 14px;
+  padding: 13px 16px;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: var(--font-sans);
+}
+.demo:hover { background: linear-gradient(135deg, rgba(232, 163, 23, 0.14), rgba(232, 163, 23, 0.04)); }
+.demoIcon {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--color-amber);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.demoBody { flex: 1; min-width: 0; }
+.demoTitle { font-weight: 700; font-size: 13.5px; color: var(--color-ink); line-height: 1.25; }
+.demoSub { font-size: 12px; color: var(--color-muted); line-height: 1.4; margin-top: 3px; }
+.demoArrow { color: var(--color-amber); font-size: 18px; font-weight: 700; flex-shrink: 0; }
+
+/* ---------- En-tête de page détail (back + titre) ---------- */
+.detailHeader { display: flex; align-items: center; gap: 12px; }
+.backBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  border: 1px solid var(--color-line);
+  background: #fff;
+  color: var(--color-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+.backBtn:hover { border-color: var(--color-blue); color: var(--color-blue); }
+
+/* ---------- Ligne de lot ---------- */
+.lotRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.lotRow:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  box-shadow: 0 12px 26px -18px rgba(15, 24, 57, 0.3);
+}
+.lotRow:disabled { opacity: 0.6; cursor: progress; }
+.lotNum {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 17px;
+}
+.lotBody { flex: 1; min-width: 0; }
+.lotTitle { font-weight: 700; font-size: 14.5px; color: var(--color-ink); margin: 0; }
+.lotSub { font-size: 12px; color: var(--color-muted); margin: 2px 0 0; }
+.scoreBadge {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.scoreGood { background: rgba(22, 143, 91, 0.12); color: var(--color-green); }
+.scoreMid { background: rgba(232, 163, 23, 0.16); color: #B87908; }
+.scoreLow { background: var(--color-red-light); color: var(--color-red); }
+.rowChevron { color: var(--color-muted-2); flex-shrink: 0; }
+
+.seeMore {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--color-blue);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+.seeMore:hover { text-decoration: underline; }
+
+/* ---------- Historique compact ---------- */
+.histList { display: flex; flex-direction: column; gap: 8px; }
+.histRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  padding: 11px 14px;
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+.histRow:hover { border-color: var(--color-blue); }
+.histDate { flex: 1; font-size: 13px; color: var(--color-ink); font-weight: 600; }
+.empty {
+  background: var(--color-paper);
+  border: 1px dashed var(--color-line);
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+/* ---------- Vue slots d'examens (stats + progress + chips + slots) ---------- */
+.examStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.statCell {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+.statVal {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+.statLabel {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin-top: 5px;
+}
+.progressWrap { display: flex; flex-direction: column; gap: 6px; }
+.progressTop {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.progressTrack {
+  height: 6px;
+  border-radius: 100px;
+  background: var(--color-line-2);
+  overflow: hidden;
+}
+.progressFill { height: 100%; border-radius: 100px; background: var(--accent); }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  border: 1px solid var(--color-line);
+  background: #fff;
+  border-radius: 100px;
+  padding: 7px 14px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+.chipActive { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+
+.slotCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: var(--font-sans);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.slotCard:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  box-shadow: 0 12px 26px -18px rgba(15, 24, 57, 0.3);
+}
+.slotCard:disabled { opacity: 0.6; cursor: progress; }
+.slotLocked { background: repeating-linear-gradient(45deg, var(--color-paper) 0 6px, #fff 6px 14px); }
+.slotNum {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+}
+.slotBody { flex: 1; min-width: 0; }
+.slotTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-ink);
+}
+.slotSub { font-size: 12px; color: var(--color-muted); margin: 2px 0 0; }
+.nextChip {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--accent-bg);
+  color: var(--accent);
+  padding: 2px 7px;
+  border-radius: 100px;
+}
+.lockChip {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+/* ---------- Carte CECRL (TCF) ---------- */
+.cecrl {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  padding: 18px;
+}
+.cecrlTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.cecrlObjLabel { font-size: 12px; color: var(--color-muted); }
+.cecrlObj {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 26px;
+  color: var(--color-red);
+  line-height: 1;
+}
+.cecrlSegments { display: flex; gap: 5px; margin: 14px 0 8px; }
+.cecrlSeg { flex: 1; height: 6px; border-radius: 100px; background: var(--color-line-2); }
+.cecrlSegOn { background: var(--color-blue); }
+.cecrlSegTarget { background: var(--color-red); }
+.cecrlLabels {
+  display: flex;
+  gap: 5px;
+}
+.cecrlLabel {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--color-muted-2);
+  font-weight: 600;
+}
+
+/* ---------- Stats row (3 mini-cards) ---------- */
+.statsRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+/* ---------- Bandeau d'information (ex. Structure hors TCF IRN) ---------- */
+.notice {
+  display: flex;
+  gap: 10px;
+  background: rgba(232, 163, 23, 0.1);
+  border: 1px solid rgba(232, 163, 23, 0.3);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #8a6308;
+}

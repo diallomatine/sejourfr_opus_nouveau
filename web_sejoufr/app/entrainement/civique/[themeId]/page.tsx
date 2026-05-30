@@ -1,49 +1,50 @@
 "use client";
 
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { ApiException, attemptApi, lotApi, themeApi, userContentApi } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
-import { canAccessModule } from "@/lib/types";
-import type {
-  AttemptSummaryResponse,
-  LotDto,
-  QuestionReviewResponse,
-} from "@/lib/types";
-import { QuestionDetailModal } from "@/app/_components/QuestionDetailModal";
-import { PaywallSheet } from "@/app/_components/PaywallSheet";
+import {useParams, useRouter} from "next/navigation";
+import {useEffect, useMemo, useState} from "react";
+import {ApiException, attemptApi, lotApi, themeApi} from "@/lib/api";
+import {useAuth} from "@/lib/auth-context";
+import {canAccessModule} from "@/lib/types";
+import type {AttemptSummaryResponse, LotDto} from "@/lib/types";
+import {DualChromeShell} from "@/app/_components/DualChromeShell";
+import {PaywallSheet} from "@/app/_components/PaywallSheet";
+import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
 import {
-  ErrorsList,
-  ExamSlots,
-  LotsGrid,
-  ModuleDetailGate,
-  ModuleDetailShell,
-  ModuleHero,
-  ModuleTabs,
-  SkeletonGrid,
-  moduleDetailStyles as s,
-} from "@/app/_components/module_detail/parts";
+  ExamBlancHero,
+  ExamHistoryList,
+  HubDetailHeader,
+  LotRow,
+  SectionCounter,
+  SectionLabel,
+  SectionLink,
+  SeeMoreButton,
+} from "@/app/_components/hub/HubParts";
+import hub from "@/app/_components/hub/hub.module.css";
 
-type Tab = "lots" | "examens" | "erreurs";
-const EXAM_SLOTS = 10;
+const LOTS_CAP = 6;
 
+/**
+ * Détail d'un thème civique — single-scroll calqué sur
+ * `CiviqueThemeDetailScreen` mobile : header + hero examen blanc du thème
+ * (20 Q) + section lots (lot 1 gratuit, 2+ premium) + historique des examens
+ * du thème. L'ancien onglet « Erreurs » est retiré (les erreurs vivent dans
+ * /revision, comme sur mobile).
+ */
 export default function CiviqueThemeDetailPage() {
-  const params = useParams<{ themeId: string }>();
+  const params = useParams<{themeId: string}>();
   const themeId = params?.themeId ?? "";
   const router = useRouter();
-  const { user, status } = useAuth();
+  const {user, status} = useAuth();
 
-  const [tab, setTab] = useState<Tab>("lots");
   const [themeName, setThemeName] = useState("Thème civique");
+  const [questionCount, setQuestionCount] = useState<number>(0);
   const [lots, setLots] = useState<LotDto[]>([]);
   const [exams, setExams] = useState<AttemptSummaryResponse[]>([]);
-  const [errors, setErrors] = useState<QuestionReviewResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedQuestion, setSelectedQuestion] = useState<QuestionReviewResponse | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [showAllLots, setShowAllLots] = useState(false);
 
   const isPremium = user ? canAccessModule(user, "CIVIQUE") : false;
 
@@ -55,23 +56,24 @@ export default function CiviqueThemeDetailPage() {
     Promise.allSettled([
       themeApi.list("CIVIQUE"),
       lotApi.listCivique(themeId),
-      attemptApi.listMine({ type: "MOCK_EXAM", module: "CIVIQUE", themeId, limit: 30 }),
-      userContentApi.wrong("CIVIQUE", { themeId }),
-    ]).then(([t, l, e, w]) => {
+      attemptApi.listMine({type: "MOCK_EXAM", module: "CIVIQUE", themeId, limit: 30}),
+    ]).then(([t, l, e]) => {
       if (cancelled) return;
       if (t.status === "fulfilled") {
         const found = t.value.find((x) => x.id === themeId);
-        if (found) setThemeName(found.name);
+        if (found) {
+          setThemeName(found.name);
+          setQuestionCount(found.questionCount ?? 0);
+        }
       }
       if (l.status === "fulfilled") setLots(l.value);
       if (e.status === "fulfilled") {
         setExams(
           e.value
             .filter((a) => a.finishedAt)
-            .sort((a, b) => a.startedAt.localeCompare(b.startedAt)),
+            .sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
         );
       }
-      if (w.status === "fulfilled") setErrors(w.value);
       setLoading(false);
     });
     return () => {
@@ -81,6 +83,11 @@ export default function CiviqueThemeDetailPage() {
 
   async function startLot(lot: LotDto) {
     if (starting) return;
+    // Lot 1 = découverte gratuite ; lots 2+ réservés aux abonnés (parité mobile).
+    if (!isPremium && lot.numero > 1) {
+      setPaywallOpen(true);
+      return;
+    }
     setError(null);
     setStarting(true);
     try {
@@ -97,107 +104,80 @@ export default function CiviqueThemeDetailPage() {
     }
   }
 
-  async function startThemeExam() {
-    if (starting) return;
-    setError(null);
-    setStarting(true);
-    try {
-      const a = await attemptApi.start({
-        type: "MOCK_EXAM",
-        module: "CIVIQUE",
-        themeId,
-      });
-      router.push(`/sessions/${a.id}`);
-    } catch (e) {
-      setError(e instanceof ApiException ? e.message : "Impossible de démarrer l'examen.");
-      setStarting(false);
-    }
-  }
+  const visibleLots = useMemo(
+    () => (showAllLots ? lots : lots.slice(0, LOTS_CAP)),
+    [lots, showAllLots],
+  );
 
-  const examsSorted = useMemo(() => exams, [exams]);
-
-  if (status === "loading") return <div className={s.gate} />;
+  if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`/entrainement/civique/${themeId}`} />;
 
   return (
-    <ModuleDetailShell accent="blue">
-      <div className={s.breadcrumb}>
-        <Link href="/entrainement?module=CIVIQUE">Entraînement</Link>
-        <span className="sep">/</span> Examen civique <span className="sep">/</span>{" "}
-        <strong>{themeName}</strong>
-      </div>
-
-      <ModuleHero
-        eyebrow="Thème civique"
-        title={themeName}
-        description="Travaille ce thème par lots, passe des examens ciblés et revois tes erreurs."
-      />
-
-      <ModuleTabs<Tab>
-        tabs={[
-          { key: "lots", label: "Lots" },
-          { key: "examens", label: "Examens" },
-          {
-            key: "erreurs",
-            label: errors.length > 0 ? `Erreurs (${errors.length})` : "Erreurs",
-          },
-        ]}
-        active={tab}
-        onChange={setTab}
-      />
-
-      {error && <div className={`form-error ${s.error}`}>{error}</div>}
-
-      {tab === "lots" &&
-        (loading ? (
-          <SkeletonGrid />
-        ) : lots.length === 0 ? (
-          <p className={s.empty}>Aucun lot disponible pour ce thème pour l&apos;instant.</p>
-        ) : (
-          <LotsGrid lots={lots} starting={starting} onStart={startLot} />
-        ))}
-
-      {tab === "examens" && (
-        <section>
-          <p className={s.intro}>
-            Examen ciblé sur ce thème : <strong>20 questions</strong> · 20 min · seuil de
-            réussite 16/20.
-          </p>
-          {loading ? (
-            <SkeletonGrid />
-          ) : (
-            <ExamSlots
-              count={EXAM_SLOTS}
-              exams={examsSorted}
-              premium={isPremium}
-              starting={starting}
-              onStart={startThemeExam}
-              onLocked={() => setPaywallOpen(true)}
-            />
-          )}
-        </section>
-      )}
-
-      {tab === "erreurs" &&
-        (loading ? (
-          <SkeletonGrid />
-        ) : errors.length === 0 ? (
-          <p className={s.empty}>Aucune erreur sur ce thème — beau parcours&nbsp;!</p>
-        ) : (
-          <ErrorsList errors={errors} onSelect={setSelectedQuestion} />
-        ))}
-
-      {selectedQuestion && (
-        <QuestionDetailModal
-          question={selectedQuestion}
-          onClose={() => setSelectedQuestion(null)}
+    <DualChromeShell>
+      <main className={hub.hub}>
+        <HubDetailHeader
+          backHref="/entrainement?module=CIVIQUE"
+          title={themeName}
+          subtitle={`Civique · ${questionCount} questions`}
         />
-      )}
-      <PaywallSheet
-        open={paywallOpen}
-        onClose={() => setPaywallOpen(false)}
-        module="CIVIQUE"
-      />
-    </ModuleDetailShell>
+
+        <ExamBlancHero
+          eyebrow="Examen blanc · 20 questions"
+          title="Lancer un examen blanc"
+          description="20 questions de ce thème, en 20 minutes. Seuil : 16/20."
+          ctaLabel="Voir les examens"
+          accent="blue"
+          onClick={() => router.push(`/entrainement/civique/${themeId}/examens`)}
+        />
+
+        {error && <div className={hub.error}>{error}</div>}
+
+        {loading ? (
+          <div className={hub.loading}>Chargement…</div>
+        ) : (
+          <>
+            <SectionLabel
+              label="S'entraîner par lot"
+              trailing={<SectionCounter text={`${lots.length} lots`} />}
+            />
+            {lots.length === 0 ? (
+              <p className={hub.empty}>Aucun lot disponible pour ce thème pour l&apos;instant.</p>
+            ) : (
+              <div className={hub.list}>
+                {visibleLots.map((lot) => (
+                  <LotRow
+                    key={lot.numero}
+                    lot={lot}
+                    tone="blue"
+                    locked={!isPremium && lot.numero > 1}
+                    disabled={starting}
+                    onClick={() => startLot(lot)}
+                  />
+                ))}
+                {!showAllLots && lots.length > LOTS_CAP && (
+                  <SeeMoreButton
+                    label={`Voir les ${lots.length - LOTS_CAP} autres lots`}
+                    onClick={() => setShowAllLots(true)}
+                  />
+                )}
+              </div>
+            )}
+
+            <SectionLabel
+              label="Examens récents"
+              trailing={
+                <SectionLink
+                  label="Tout voir"
+                  onClick={() => router.push(`/entrainement/civique/${themeId}/examens`)}
+                />
+              }
+            />
+            <ExamHistoryList items={exams.slice(0, 3)} />
+          </>
+        )}
+
+        <PaywallSheet open={paywallOpen} onClose={() => setPaywallOpen(false)} module="CIVIQUE" />
+      </main>
+    </DualChromeShell>
   );
 }

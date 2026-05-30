@@ -334,6 +334,37 @@ Chantier découpé en vagues :
     (pas d'extension premium), eyebrow "Lot N", retour au détail via
     `lotReturnPath(attempt)` (civique → thème, TCF → épreuve×niveau).
 
+- **Vague 6** ✅ — Refonte **single-scroll** des hubs et pages détail au design
+  de l'app mobile (`screens/civique`, `screens/tcf`, `module_detail/`). Les
+  onglets disparaissent ; chaque écran est un scroll unique. L'onglet « Erreurs »
+  est retiré partout (les erreurs vivent dans `/revision`, comme sur mobile).
+  - **Composants partagés** `app/_components/hub/` (miroir de
+    `hub_home_widgets.dart`) : `HubParts.tsx` (HubHeader, HubDetailHeader,
+    ExamBlancHero, EpreuveCard, SectionLabel/Counter/Link, LotRow,
+    ExamHistoryList, CiviqueMasteryCard), `ExamSlotsView.tsx` (stats + progress +
+    chips + slots), `CiviqueHub.tsx`, `TcfHub.tsx` + `hub.module.css` (accents
+    pilotés par variables CSS `--accent`/`--accent-bg`).
+  - **`/entrainement`** = simple dispatcher : `?module=TCF` → `TcfHub`, sinon
+    `CiviqueHub` (les deux dual guest/connecté). L'ancien `EntrainementHub` à
+    onglets (~1500 l.) est supprimé.
+  - **Civique** : hub (hero examen 40 Q + thèmes + maîtrise) → détail thème
+    (hero examen 20 Q + lots + historique) → pages examens dédiées
+    `/entrainement/civique/examens-blancs` (40 Q, 20 slots, dual) et
+    `/entrainement/civique/[themeId]/examens` (20 Q, 10 slots).
+  - **TCF** : hub (hero examen complet + 5 épreuves + carte CECRL + stats ;
+    EE/EO → `ProductionMobileSheet`) → détail QCM (hero + 3 niveaux + historique)
+    → `/entrainement/tcf/[code]/examens` (10 slots) et `[code]/[level]` (lots,
+    lot 1 gratuit / 2+ premium).
+  - **Bilan donut lot TCF** : `TcfLotResultCard` (score donut + résumé + conseil
+    + rapport dépliable), servi par la session via
+    `?lot=N&result=tcfLot&code&level` (parité `TcfLotResultScreen` mobile). Le
+    bilan civique reste le rapport Q-par-Q (`ExamReport`).
+  - `module_detail/parts.tsx` ne garde que `ModuleDetailGate` + `moduleDetailStyles`.
+  - **Reste au lot 2** : parcours Expression EE/EO web (audio navigateur + éval
+    IA) et examen blanc TCF complet orchestré (CO→CE→EE→EO). En attendant, le
+    hero « examen complet » du hub TCF pointe sur `/examens-blancs/tcf` et EE/EO
+    renvoient vers le mobile.
+
 ### Endpoints backend manquants (à créer si besoin)
 
 Côté Spring, ces endpoints n'existent pas encore et leur absence est gérée par

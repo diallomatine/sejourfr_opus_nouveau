@@ -9,6 +9,7 @@ import {
   type RunnerBackend,
 } from "@/app/_components/QuestionRunner";
 import { TrainingResultCard } from "@/app/_components/TrainingResultCard";
+import { TcfLotResultCard } from "@/app/_components/TcfLotResultCard";
 import { ExamResultCard } from "@/app/_components/ExamResultCard";
 import { ExamReport } from "@/app/_components/ExamReport";
 import {
@@ -90,6 +91,10 @@ function SessionRunnerInner({ params }: PageProps) {
   /** Numéro de lot quand la session est un lot d'entraînement (batch fixe, pas d'extension). */
   const lotParam = searchParams.get("lot");
   const lotNumero = lotParam && /^\d+$/.test(lotParam) ? Number(lotParam) : null;
+  /** Mode de bilan : "tcfLot" → écran donut TcfLotResultCard (parité mobile). */
+  const resultMode = searchParams.get("result");
+  const tcfCode = searchParams.get("code");
+  const tcfLevel = searchParams.get("level");
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [sessionMode, setSessionMode] = useState<SessionMode>("auth");
@@ -193,6 +198,18 @@ function SessionRunnerInner({ params }: PageProps) {
   if (phase === "result" && attempt) {
     const isExam = attempt.type === "MOCK_EXAM";
     const isGuest = sessionMode === "guest";
+
+    // Bilan donut d'un lot TCF (parité mobile TcfLotResultScreen).
+    if (resultMode === "tcfLot" && !isExam && !isGuest) {
+      const back =
+        tcfCode && tcfLevel
+          ? `/entrainement/tcf/${tcfCode}/${tcfLevel}`
+          : (lotReturnPath(attempt) ?? "/entrainement?module=TCF");
+      return (
+        <TcfLotResultCard attempt={attempt} returnHref={back} level={tcfLevel} />
+      );
+    }
+
     const lotReturnHref =
       lotNumero != null && !isGuest ? (lotReturnPath(attempt) ?? undefined) : undefined;
     return (
