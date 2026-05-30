@@ -40,17 +40,25 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(billingControllerProvider);
 
-    // Ferme automatiquement le paywall quand on devient Premium.
+    // Ferme automatiquement le paywall après une vérif d'achat réussie qui
+    // ouvre l'accès. On se base sur l'ARRIVÉE d'une nouvelle vérification
+    // (instance de lastVerification différente) et non sur une transition
+    // non-premium→premium : le BillingController n'est pas autoDispose, donc
+    // lastVerification persiste entre deux ouvertures du paywall. Une
+    // prolongation (déjà premium), un 2e achat, ou une transaction rejouée à
+    // l'ouverture ne produisaient aucune transition → l'écran ne se fermait
+    // jamais (spinner qui s'arrête sans fermeture).
     ref.listen<BillingState>(billingControllerProvider, (prev, next) {
-      final justWentPremium = next.lastVerification?.isPremium == true &&
-          (prev?.lastVerification?.isPremium != true);
-      if (justWentPremium && mounted) {
+      final verified = next.lastVerification;
+      final isFreshVerification =
+          verified != null && !identical(prev?.lastVerification, verified);
+      if (isFreshVerification && verified.isPremium && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: AppColors.ink,
             behavior: SnackBarBehavior.floating,
             content: Text(
-              'Abonnement activé. Bienvenue !',
+              _welcomeMessage(verified),
               style: AppFonts.jakarta(color: AppColors.white, size: 13),
             ),
           ),
@@ -103,6 +111,20 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             : _buildContent(context, state),
       ),
     );
+  }
+
+  /// Message de confirmation post-achat, adapté au module débloqué et à la
+  /// nature (pass one-time vs abonnement).
+  String _welcomeMessage(SubscriptionStatusResponse status) {
+    final module = switch (status.moduleAccess) {
+      ModuleAccess.integral => 'Intégral',
+      ModuleAccess.civique => 'Civique',
+      _ => null,
+    };
+    final prefix = status.oneTime ? 'Accès activé' : 'Abonnement activé';
+    return module != null
+        ? '$prefix · Bienvenue dans $module !'
+        : '$prefix. Bienvenue !';
   }
 
   Widget _buildContent(BuildContext context, BillingState state) {
