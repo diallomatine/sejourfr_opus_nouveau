@@ -9,6 +9,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -130,6 +131,7 @@ public class MailService {
      * @param source      Stripe / Apple / Google — détermine le wording
      *                    « gestion » (page web vs Settings du store)
      */
+    @Async
     public void sendSubscriptionActivatedEmail(
             String to, String displayName, String planName,
             Instant endsAt, String source) {
@@ -215,6 +217,7 @@ public class MailService {
      * <p>Le texte précise que l'accès Premium reste ouvert jusqu'à {@code endsAt}
      * (cancel_at_period_end côté Stripe, idem côté store pour Apple/Google).
      */
+    @Async
     public void sendSubscriptionCanceledEmail(
             String to, String displayName, String planName,
             Instant endsAt, String source) {

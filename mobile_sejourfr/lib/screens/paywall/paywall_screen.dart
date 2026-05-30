@@ -67,48 +67,57 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
       }
     });
 
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      appBar: AppBar(
+    return PopScope(
+      // Pendant la validation d'un achat (spinner), on bloque toute fermeture
+      // (geste retour / bouton système) : aucune interaction tant que le
+      // backend n'a pas confirmé. La fermeture se fait automatiquement au
+      // succès (ref.listen ci-dessus) ou redevient possible en cas d'erreur.
+      canPop: !state.purchaseInProgress,
+      child: Scaffold(
         backgroundColor: AppColors.bg,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded, color: AppColors.ink),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        actions: [
-          TextButton(
+        appBar: AppBar(
+          backgroundColor: AppColors.bg,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.close_rounded, color: AppColors.ink),
             onPressed: state.purchaseInProgress
                 ? null
-                : () => ref
-                    .read(billingControllerProvider.notifier)
-                    .restorePurchases(),
-            child: (state.purchaseInProgress && state.purchasingSku == null)
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation(AppColors.muted),
-                    ),
-                  )
-                : Text(
-                    'Restaurer',
-                    style: AppFonts.jakarta(
-                      size: 13,
-                      weight: FontWeight.w600,
-                      color: AppColors.muted,
-                    ),
-                  ),
+                : () => Navigator.of(context).maybePop(),
           ),
-        ],
-      ),
-      body: SafeArea(
-        top: false,
-        child: state.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _buildContent(context, state),
+          actions: [
+            TextButton(
+              onPressed: state.purchaseInProgress
+                  ? null
+                  : () => ref
+                      .read(billingControllerProvider.notifier)
+                      .restorePurchases(),
+              child: (state.purchaseInProgress && state.purchasingSku == null)
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(AppColors.muted),
+                      ),
+                    )
+                  : Text(
+                      'Restaurer',
+                      style: AppFonts.jakarta(
+                        size: 13,
+                        weight: FontWeight.w600,
+                        color: AppColors.muted,
+                      ),
+                    ),
+            ),
+          ],
+        ),
+        body: SafeArea(
+          top: false,
+          child: state.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _buildContent(context, state),
+        ),
       ),
     );
   }

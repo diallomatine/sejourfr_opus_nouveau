@@ -244,8 +244,11 @@ masque le bouton d'achat IAP. Pareil dans l'autre sens.
   expiration naturelle ni sur refund/revoke (sémantique différente).
 - Format : HTML inline CSS (compat Gmail/Outlook), logo en image inline CID
   depuis `backend_sejourfr/src/main/resources/static/mail/logo.png`. Envoi
-  synchrone dans la transaction qui modifie le sub ; un mail raté log warn
-  sans propager (cf. pattern existant pour reset password).
+  **asynchrone** (`@Async` sur `sendSubscriptionActivatedEmail` /
+  `sendSubscriptionCanceledEmail`, `@EnableAsync` global) : le SMTP est hors du
+  chemin critique, donc `verify-receipt`/`cancel` répondent sans attendre l'envoi
+  (sinon un SMTP lent/injoignable bloquait la requête ~15-20 s). Un mail raté log
+  warn sans propager (cf. pattern reset password).
 - `POST /api/billing/webhook` — Stripe (signé HMAC).
 - `POST /api/billing/webhooks/apple` — Apple ASSN V2 (JWS signé, à vérifier).
 - `POST /api/billing/webhooks/google` — Google RTDN via Pub/Sub.
