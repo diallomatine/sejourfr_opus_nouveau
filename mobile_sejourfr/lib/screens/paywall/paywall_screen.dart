@@ -63,7 +63,10 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             ),
           ),
         );
-        Navigator.of(context).maybePop();
+        // rootNavigator: true — le paywall est poussé sur le navigator racine
+        // par showPaywallSheet ; on pop le MÊME pour revenir à la page d'où
+        // l'utilisateur venait (ex. l'examen qui avait déclenché le paywall).
+        Navigator.of(context, rootNavigator: true).maybePop();
       }
     });
 
@@ -83,7 +86,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             icon: const Icon(Icons.close_rounded, color: AppColors.ink),
             onPressed: state.purchaseInProgress
                 ? null
-                : () => Navigator.of(context).maybePop(),
+                : () => Navigator.of(context, rootNavigator: true).maybePop(),
           ),
           actions: [
             TextButton(
