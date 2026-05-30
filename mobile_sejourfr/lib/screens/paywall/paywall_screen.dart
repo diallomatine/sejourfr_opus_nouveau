@@ -63,10 +63,17 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             ),
           ),
         );
+        // pop() explicite (PAS maybePop) : le PopScope ci-dessous a
+        // canPop=false tant que purchaseInProgress=true ; or ce listener
+        // s'exécute de façon synchrone au changement d'état, AVANT que le
+        // widget se reconstruise avec canPop=true → maybePop serait refusé et
+        // le paywall ne se fermerait pas. canPop()+pop() contourne ce garde-fou
+        // (qui ne doit bloquer que la fermeture MANUELLE pendant l'achat).
         // rootNavigator: true — le paywall est poussé sur le navigator racine
         // par showPaywallSheet ; on pop le MÊME pour revenir à la page d'où
-        // l'utilisateur venait (ex. l'examen qui avait déclenché le paywall).
-        Navigator.of(context, rootNavigator: true).maybePop();
+        // l'utilisateur venait (lot, examen, etc.).
+        final nav = Navigator.of(context, rootNavigator: true);
+        if (nav.canPop()) nav.pop();
       }
     });
 
