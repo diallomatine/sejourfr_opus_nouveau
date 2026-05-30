@@ -654,30 +654,75 @@ class _FeatureList extends StatelessWidget {
             'Expression écrite + orale évaluée par IA',
             'Diagnostic CECRL (A2 / B1 / B2)',
           ];
+    // Pour Civique, on montre explicitement ce qui n'est PAS couvert (le TCF
+    // IRN) afin de lever toute ambiguïté avec l'offre Intégral. Vide pour
+    // Intégral, qui couvre tout.
+    final excluded = module == PlanModuleTarget.civique
+        ? const [
+            'Module TCF IRN (CO, CE, Structure)',
+            'Expression écrite + orale évaluée par IA',
+            'Diagnostic CECRL (A2 / B1 / B2)',
+          ]
+        : const <String>[];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: features
-          .map((f) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 3),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.check_rounded, size: 16, color: AppColors.green),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        f,
-                        style: AppFonts.jakarta(
-                          size: 13.5,
-                          color: AppColors.ink2,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ))
-          .toList(),
+      children: [
+        ...features.map((f) => _FeatureRow(label: f, included: true)),
+        if (excluded.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text(
+            'NON INCLUS',
+            style: AppFonts.mono(
+              size: 9.5,
+              color: AppColors.red,
+              letterSpacing: 1.2,
+              weight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          ...excluded.map((f) => _FeatureRow(label: f, included: false)),
+        ],
+      ],
+    );
+  }
+}
+
+/// Une ligne de feature : coche verte si incluse, croix grise + texte estompé
+/// barré si non incluse (utilisé pour clarifier la couverture de Civique).
+class _FeatureRow extends StatelessWidget {
+  const _FeatureRow({required this.label, required this.included});
+
+  final String label;
+  final bool included;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            included ? Icons.check_rounded : Icons.close_rounded,
+            size: 16,
+            color: included ? AppColors.green : AppColors.red,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: AppFonts.jakarta(
+                size: 13.5,
+                color: included ? AppColors.ink2 : AppColors.red,
+                height: 1.4,
+              ).copyWith(
+                decoration: included ? null : TextDecoration.lineThrough,
+                decorationColor: AppColors.red.withValues(alpha: 0.6),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

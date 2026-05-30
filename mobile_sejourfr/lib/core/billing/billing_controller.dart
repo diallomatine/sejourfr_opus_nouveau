@@ -426,21 +426,33 @@ class BillingController extends StateNotifier<BillingState> {
         clearPurchasingSku: true,
       );
     } catch (e) {
-      // On NE complete PAS l'achat ici : si le backend a échoué (network,
-      // 502...), le store va re-livrer l'achat au prochain démarrage et on
-      // re-tentera la validation. Le user reste « pending » côté UI mais
-      // ne perd pas son achat.
       final api = ApiClient.toApiException(e);
+
+      // 409 = ce reçu store appartient à un AUTRE compte SejourFR (rejeu d'un
+      // vieil achat ou d'une restauration en arrière-plan). En mode pass
+      // one-time (consommables), un achat réellement neuf a toujours une
+      // transaction neuve → il ne tombe JAMAIS en 409. Un 409 est donc
+      // toujours un reçu étranger que l'utilisateur courant ne peut pas
+      // résoudre, et qui ne doit pas masquer son achat légitime en cours. On
+      // le purge SILENCIEUSEMENT de la file (sinon le store le re-livre en
+      // boucle à chaque lancement) sans afficher d'erreur bloquante.
+      if (api.statusCode == 409) {
+        if (purchase.pendingCompletePurchase) {
+          await _iap.completePurchase(purchase);
+        }
+        // Hors d'un achat actif (boot / restauration), on évite juste de
+        // laisser le spinner global coincé. Pendant un achat actif
+        // (purchasingSku != null), on ne touche à rien : c'est l'event de
+        // succès du vrai achat qui réinitialisera l'état.
+        if (state.purchasingSku == null) {
+          state = state.copyWith(purchaseInProgress: false);
+        }
+        return;
+      }
+
       final String message;
       final bool blocking;
-      if (api.statusCode == 409) {
-        // Permanent : rejouer ne corrigera rien tant que l'utilisateur
-        // n'utilise pas le bon compte.
-        message = 'Votre compte $_storeName est déjà associé à un abonnement '
-            'SejourFR actif sur un autre compte. Connectez-vous à ce compte '
-            'pour y accéder, ou utilisez un autre compte $_storeName.';
-        blocking = true;
-      } else if (api.statusCode == 400 || api.statusCode == 422) {
+      if (api.statusCode == 400 || api.statusCode == 422) {
         message = 'Achat validé côté store, mais nous n\'avons pas pu activer '
             'votre accès. Contactez le support si le problème persiste.';
         blocking = true;
@@ -452,6 +464,16 @@ class BillingController extends StateNotifier<BillingState> {
             'sous peu — vous ne serez pas débité deux fois.';
         blocking = false;
       }
+
+      // Échec PERMANENT (blocking) → on acquitte quand même la transaction.
+      // Sinon le store la re-livre à chaque lancement / tentative d'achat
+      // (transaction « empoisonnée ») : l'erreur revient en boucle et grise
+      // les boutons, l'utilisateur ne peut plus rien acheter. On ne laisse en
+      // suspens QUE les échecs transitoires, pour lesquels rejouer a un sens.
+      if (blocking && purchase.pendingCompletePurchase) {
+        await _iap.completePurchase(purchase);
+      }
+
       state = state.copyWith(
         purchaseInProgress: false,
         clearPurchasingSku: true,
