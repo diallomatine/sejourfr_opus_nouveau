@@ -103,13 +103,6 @@ function AppSidebarInner() {
         >
           Examen civique
         </SideLink>
-        <SideLink
-          href="/examens-blancs"
-          pathname={pathname}
-          icon={<ClockCircleIcon />}
-        >
-          Examens blancs
-        </SideLink>
         <SideLink href="/historique" pathname={pathname} icon={<HistoryIcon />}>
           Historique
         </SideLink>
@@ -249,12 +242,6 @@ const LandmarkIcon = () => (
     <line x1="14" y1="18" x2="14" y2="11" />
     <line x1="18" y1="18" x2="18" y2="11" />
     <polygon points="12 2 20 7 4 7" />
-  </IconBase>
-);
-const ClockCircleIcon = () => (
-  <IconBase>
-    <circle cx="12" cy="12" r="10" />
-    <polyline points="12 6 12 12 16 14" />
   </IconBase>
 );
 const HistoryIcon = () => (

@@ -10,7 +10,7 @@ import {
 } from "@/app/_components/QuestionRunner";
 import { TrainingResultCard } from "@/app/_components/TrainingResultCard";
 import { TcfLotResultCard } from "@/app/_components/TcfLotResultCard";
-import { ExamResultCard } from "@/app/_components/ExamResultCard";
+import { TcfScoreCard } from "@/app/_components/TcfScoreCard";
 import { ExamReport } from "@/app/_components/ExamReport";
 import {
   ApiException,
@@ -216,16 +216,30 @@ function SessionRunnerInner({ params }: PageProps) {
       <main className="sess">
         {isExam ? (
           <>
-            <ExamResultCard attempt={attempt} />
+            {/* TCF : carte compacte points + niveau CECRL. Civique : pas de
+                carte de score — le rapport porte déjà les stats
+                bonnes / mauvaises / non répondues en tête. */}
+            {attempt.module === "TCF" && <TcfScoreCard attempt={attempt} />}
             <ExamReport attempt={attempt} />
+            {isGuest && <GuestResultCta />}
+          </>
+        ) : openedAsFinished ? (
+          <>
+            {/* Consultation d'un attempt déjà fini (« Voir le détail ») : rapport
+                question-par-question (parité écran rapport mobile), sans carte
+                « déjà terminée ». Pour le TCF on ajoute en tête une carte
+                points obtenus + niveau CECRL atteint. */}
+            {attempt.module === "TCF" && !isGuest && <TcfScoreCard attempt={attempt} />}
+            {!isGuest && <ExamReport attempt={attempt} />}
             {isGuest && <GuestResultCta />}
           </>
         ) : (
           <>
+            {/* À chaud, fin de session interactive : carte de score célébrative. */}
             <TrainingResultCard
               attempt={attempt}
               isPremium={isPremium}
-              variant={openedAsFinished ? "resume" : "primary"}
+              variant="primary"
               lotReturnHref={lotReturnHref}
             />
             {isGuest && <GuestResultCta />}

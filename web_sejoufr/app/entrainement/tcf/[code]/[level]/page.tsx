@@ -16,6 +16,7 @@ import {
   SectionCounter,
   SectionLabel,
 } from "@/app/_components/hub/HubParts";
+import {ExamDoneSheet} from "@/app/_components/hub/ExamDoneSheet";
 import hub from "@/app/_components/hub/hub.module.css";
 
 const TCF_QCM = {
@@ -51,6 +52,7 @@ export default function TcfLevelLotsPage() {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [selectedLot, setSelectedLot] = useState<LotDto | null>(null);
 
   const isPremium = user ? canAccessModule(user, "TCF") : false;
   const valid = Boolean(config && level);
@@ -154,12 +156,36 @@ export default function TcfLevelLotsPage() {
                   tone={tone}
                   locked={!isPremium && lot.numero > 1}
                   disabled={starting}
-                  onClick={() => startLot(lot)}
+                  onClick={() =>
+                    lot.lastScore != null ? setSelectedLot(lot) : startLot(lot)
+                  }
                 />
               ))}
             </div>
           </>
         )}
+        <ExamDoneSheet
+          open={selectedLot !== null}
+          title={selectedLot ? `Lot ${selectedLot.numero}` : "Lot"}
+          subtitle={
+            selectedLot && selectedLot.lastScore != null
+              ? `Dernier score : ${selectedLot.lastScore} / ${selectedLot.totalQuestions}`
+              : null
+          }
+          onViewDetail={() => {
+            const id = selectedLot?.lastAttemptId;
+            setSelectedLot(null);
+            if (id) {
+              router.push(`/sessions/${id}?result=tcfLot&code=${code}&level=${levelKey}`);
+            }
+          }}
+          onResume={() => {
+            const lot = selectedLot;
+            setSelectedLot(null);
+            if (lot) void startLot(lot);
+          }}
+          onClose={() => setSelectedLot(null)}
+        />
         <PaywallSheet open={paywallOpen} onClose={() => setPaywallOpen(false)} module="INTEGRAL" />
       </main>
     </DualChromeShell>

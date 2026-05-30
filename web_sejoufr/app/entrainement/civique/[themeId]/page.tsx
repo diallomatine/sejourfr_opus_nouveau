@@ -19,6 +19,7 @@ import {
   SectionLink,
   SeeMoreButton,
 } from "@/app/_components/hub/HubParts";
+import {ExamDoneSheet} from "@/app/_components/hub/ExamDoneSheet";
 import hub from "@/app/_components/hub/hub.module.css";
 
 const LOTS_CAP = 6;
@@ -45,6 +46,8 @@ export default function CiviqueThemeDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [showAllLots, setShowAllLots] = useState(false);
+  const [selected, setSelected] = useState<AttemptSummaryResponse | null>(null);
+  const [selectedLot, setSelectedLot] = useState<LotDto | null>(null);
 
   const isPremium = user ? canAccessModule(user, "CIVIQUE") : false;
 
@@ -104,6 +107,29 @@ export default function CiviqueThemeDetailPage() {
     }
   }
 
+  async function startThemeExam() {
+    if (starting) return;
+    setError(null);
+    setStarting(true);
+    try {
+      const a = await attemptApi.start({type: "MOCK_EXAM", module: "CIVIQUE", themeId});
+      router.push(`/sessions/${a.id}`);
+    } catch (e) {
+      setError(e instanceof ApiException ? e.message : "Impossible de démarrer l'examen.");
+      setStarting(false);
+    }
+  }
+
+  function resumeSelected() {
+    setSelected(null);
+    // 1er examen gratuit déjà consommé (celui-ci est terminé) → refaire est premium.
+    if (!isPremium) {
+      setPaywallOpen(true);
+      return;
+    }
+    void startThemeExam();
+  }
+
   const visibleLots = useMemo(
     () => (showAllLots ? lots : lots.slice(0, LOTS_CAP)),
     [lots, showAllLots],
@@ -151,7 +177,9 @@ export default function CiviqueThemeDetailPage() {
                     tone="blue"
                     locked={!isPremium && lot.numero > 1}
                     disabled={starting}
-                    onClick={() => startLot(lot)}
+                    onClick={() =>
+                      lot.lastScore != null ? setSelectedLot(lot) : startLot(lot)
+                    }
                   />
                 ))}
                 {!showAllLots && lots.length > LOTS_CAP && (
@@ -164,7 +192,7 @@ export default function CiviqueThemeDetailPage() {
             )}
 
             <SectionLabel
-              label="Examens récents"
+              label="Historique"
               trailing={
                 <SectionLink
                   label="Tout voir"
@@ -172,10 +200,49 @@ export default function CiviqueThemeDetailPage() {
                 />
               }
             />
-            <ExamHistoryList items={exams.slice(0, 3)} />
+            <ExamHistoryList
+              items={exams.slice(0, 3)}
+              emptyLabel="Aucun examen passé. Lance un examen blanc ou entraîne-toi par lot."
+              onSelect={setSelected}
+            />
           </>
         )}
 
+        <ExamDoneSheet
+          open={selected !== null}
+          subtitle={
+            selected && selected.totalQuestions
+              ? `Dernier score : ${selected.score ?? 0} / ${selected.totalQuestions}`
+              : null
+          }
+          onViewDetail={() => {
+            const id = selected?.id;
+            setSelected(null);
+            if (id) router.push(`/sessions/${id}`);
+          }}
+          onResume={resumeSelected}
+          onClose={() => setSelected(null)}
+        />
+        <ExamDoneSheet
+          open={selectedLot !== null}
+          title={selectedLot ? `Lot ${selectedLot.numero}` : "Lot"}
+          subtitle={
+            selectedLot && selectedLot.lastScore != null
+              ? `Dernier score : ${selectedLot.lastScore} / ${selectedLot.totalQuestions}`
+              : null
+          }
+          onViewDetail={() => {
+            const id = selectedLot?.lastAttemptId;
+            setSelectedLot(null);
+            if (id) router.push(`/sessions/${id}`);
+          }}
+          onResume={() => {
+            const lot = selectedLot;
+            setSelectedLot(null);
+            if (lot) void startLot(lot);
+          }}
+          onClose={() => setSelectedLot(null)}
+        />
         <PaywallSheet open={paywallOpen} onClose={() => setPaywallOpen(false)} module="CIVIQUE" />
       </main>
     </DualChromeShell>

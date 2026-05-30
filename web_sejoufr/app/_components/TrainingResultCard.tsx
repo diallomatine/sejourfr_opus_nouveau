@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { AttemptResponse } from "@/lib/types";
+import type {AttemptResponse} from "@/lib/types";
 
 /**
  * Carte de résultat affichée après finalisation d'une session d'entraînement.
@@ -13,83 +13,83 @@ import type { AttemptResponse } from "@/lib/types";
  *   - /entrainement/[attemptId] (résumé en fin de session ou attempt déjà finalisé)
  */
 export function TrainingResultCard({
-  attempt,
-  isPremium,
-  variant = "primary",
-  lotReturnHref,
-}: {
-  attempt: AttemptResponse;
-  isPremium: boolean;
-  /** "primary" = fin de session interactive. "resume" = attempt déjà finalisé. */
-  variant?: "primary" | "resume";
-  /** Si défini, la session est un lot : le CTA renvoie vers le détail du thème. */
-  lotReturnHref?: string;
+                                       attempt,
+                                       isPremium,
+                                       variant = "primary",
+                                       lotReturnHref,
+                                   }: {
+    attempt: AttemptResponse;
+    isPremium: boolean;
+    /** "primary" = fin de session interactive. "resume" = attempt déjà finalisé. */
+    variant?: "primary" | "resume";
+    /** Si défini, la session est un lot : le CTA renvoie vers le détail du thème. */
+    lotReturnHref?: string;
 }) {
-  const score = attempt.score ?? 0;
-  const total = attempt.totalQuestions;
-  const pct = total > 0 ? Math.round((score / total) * 100) : 0;
-  const passed = pct >= 70;
+    const score = attempt.score ?? 0;
+    const total = attempt.totalQuestions;
+    const pct = total > 0 ? Math.round((score / total) * 100) : 0;
+    const passed = pct >= 70;
 
-  const tag = variant === "resume"
-    ? "Session déjà terminée"
-    : isPremium
-      ? passed
-        ? "Belle session"
-        : "Continuez à pratiquer"
-      : "Démo terminée";
-  const tagClass = variant === "resume"
-    ? "neutral"
-    : passed
-      ? "good"
-      : "bad";
+    const tag = variant === "resume"
+        ? "Session déjà terminée"
+        : isPremium
+            ? passed
+                ? "Belle session"
+                : "Continuez à pratiquer"
+            : "Démo terminée";
+    const tagClass = variant === "resume"
+        ? "neutral"
+        : passed
+            ? "good"
+            : "bad";
 
-  return (
-    <section className="trc-wrap">
-      <div className="trc-card">
-        <span className={`trc-tag ${tagClass}`}>{tag}</span>
-        <h1>
-          {score} <span className="of">/ {total}</span>
-        </h1>
-        <p className="trc-pct">{pct} % de bonnes réponses</p>
+    return (
+        <section className="trc-wrap">
+            <div className="trc-card">
+                <span className={`trc-tag ${tagClass}`}>{tag}</span>
+                <h1>
+                    {score} <span className="of">/ {total}</span>
+                </h1>
+                <p className="trc-pct">{pct} % de bonnes réponses</p>
 
-        {!isPremium && variant === "primary" && (
-          <div className="trc-paywall">
-            Vous avez terminé les <strong>{total} questions</strong> de la démo.
-            L&apos;abonnement débloque l&apos;entraînement illimité, le choix du
-            thème et la révision ciblée des erreurs.
-          </div>
-        )}
+                {!isPremium && variant === "primary" && (
+                    <div className="trc-paywall">
+                        Vous avez terminé les <strong>{total} questions</strong> de la démo.
+                        L&apos;abonnement débloque l&apos;entraînement illimité, le choix du
+                        thème et la révision ciblée des erreurs.
+                    </div>
+                )}
 
-        <div className="trc-cta">
-          {lotReturnHref ? (
-            <>
-              <Link href="/dashboard" className="btn btn-ghost">
-                Tableau de bord
-              </Link>
-              <Link href={lotReturnHref} className="btn btn-blue">
-                Retour au thème →
-              </Link>
-            </>
-          ) : (
-            <>
-              <Link href="/entrainement" className="btn btn-ghost">
-                ↻ Nouvel entraînement
-              </Link>
-              {isPremium ? (
-                <Link href="/dashboard" className="btn btn-blue">
-                  Tableau de bord →
-                </Link>
-              ) : (
-                <Link href="/paiement" className="btn btn-red">
-                  Voir l&apos;abonnement →
-                </Link>
-              )}
-            </>
-          )}
-        </div>
-      </div>
+                <div className="trc-cta">
+                    {lotReturnHref ? (
+                        <>
+                            <Link href="/dashboard" className="btn btn-ghost">
+                                Tableau de bord
+                            </Link>
+                            <Link href={lotReturnHref} className="btn btn-blue">
+                                Retour au thème →
+                            </Link>
+                        </>
+                    ) : (
+                        <>
+                            <Link href="/entrainement" className="btn btn-ghost">
+                                ↻ Nouvel entraînement
+                            </Link>
+                            {isPremium ? (
+                                <Link href="/dashboard" className="btn btn-blue">
+                                    Tableau de bord →
+                                </Link>
+                            ) : (
+                                <Link href="/paiement" className="btn btn-red">
+                                    Voir l&apos;abonnement →
+                                </Link>
+                            )}
+                        </>
+                    )}
+                </div>
+            </div>
 
-      <style>{`
+            <style>{`
         .trc-wrap { padding: 56px 16px 80px; }
         .trc-card {
           max-width: 560px; margin: 0 auto;
@@ -140,6 +140,6 @@ export function TrainingResultCard({
           .trc-card { padding: 32px 22px; }
         }
       `}</style>
-    </section>
-  );
+        </section>
+    );
 }

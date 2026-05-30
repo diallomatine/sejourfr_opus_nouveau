@@ -236,6 +236,9 @@ export interface LotDto {
   /** Dernier score sur ce lot (null si jamais fait). */
   lastScore?: number | null;
   lastAttemptedAt?: string | null;
+  /** Id du dernier attempt fini sur ce lot (null si jamais fait) — sert à
+   *  ouvrir le bilan sans relancer. */
+  lastAttemptId?: string | null;
 }
 
 export interface AttemptQuestionResponse {

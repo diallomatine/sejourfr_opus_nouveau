@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type {CSSProperties, ReactNode} from "react";
-import {ChevronLeft, ChevronRight, Lock, Play, Rocket} from "lucide-react";
+import {ChevronLeft, ChevronRight, ClipboardCheck, Lock, Play, Rocket} from "lucide-react";
 import type {AttemptSummaryResponse, LotDto} from "@/lib/types";
 import styles from "./hub.module.css";
 
@@ -242,26 +242,92 @@ export function LotRow({
   );
 }
 
+// ---------- Ligne de niveau (TCF CO/CE/Structure) ----------
+
+export function LevelRow({
+  chip,
+  tone,
+  title,
+  subtitle,
+  lotCount,
+  onClick,
+}: {
+  chip: string;
+  tone: HubTone;
+  title: string;
+  subtitle: string;
+  lotCount?: number | null;
+  onClick: () => void;
+}) {
+  const t = TONE[tone];
+  return (
+    <button
+      type="button"
+      className={styles.levelRow}
+      style={{"--accent": t.accent, "--accent-bg": t.bg} as CSSProperties}
+      onClick={onClick}
+    >
+      <span className={styles.levelChip}>{chip}</span>
+      <span className={styles.levelBody}>
+        <span className={styles.levelTitle}>{title}</span>
+        <span className={styles.levelSub}>{subtitle}</span>
+      </span>
+      {lotCount != null && <span className={styles.levelCount}>{lotCount} lots</span>}
+      <ChevronRight size={20} className={styles.rowChevron} />
+    </button>
+  );
+}
+
 // ---------- Historique compact d'examens ----------
 
-export function ExamHistoryList({items}: {items: AttemptSummaryResponse[]}) {
+export function ExamHistoryList({
+  items,
+  emptyLabel = "Aucun examen passé pour l'instant.",
+  onSelect,
+}: {
+  items: AttemptSummaryResponse[];
+  emptyLabel?: string;
+  /** Si défini : tap → ouvre une feuille (Voir le détail / Reprendre). Sinon,
+   *  lien direct vers la session finie. */
+  onSelect?: (a: AttemptSummaryResponse) => void;
+}) {
   if (items.length === 0) {
-    return <p className={styles.empty}>Aucun examen passé pour l&apos;instant.</p>;
+    return <p className={styles.empty}>{emptyLabel}</p>;
   }
   return (
     <div className={styles.histList}>
       {items.map((a) => {
         const total = a.totalQuestions ?? 0;
         const score = a.score ?? 0;
-        return (
-          <Link key={a.id} href={`/sessions/${a.id}`} className={styles.histRow}>
-            <span className={styles.histDate}>{formatDay(a.startedAt)}</span>
+        const inner = (
+          <>
+            <span className={styles.histIcon}>
+              <ClipboardCheck size={18} strokeWidth={1.9} />
+            </span>
+            <span className={styles.histBody}>
+              <span className={styles.histTitle}>Examen blanc</span>
+              <span className={styles.histDate}>{formatDay(a.finishedAt ?? a.startedAt)}</span>
+            </span>
             {total > 0 && (
               <span className={`${styles.scoreBadge} ${scoreClass(score, total)}`}>
                 {score}/{total}
               </span>
             )}
             <ChevronRight size={18} className={styles.rowChevron} />
+          </>
+        );
+        return onSelect ? (
+          <button
+            type="button"
+            key={a.id}
+            className={styles.histRow}
+            onClick={() => onSelect(a)}
+          >
+            {inner}
+          </button>
+        ) : (
+          <Link key={a.id} href={`/sessions/${a.id}`} className={styles.histRow}>
+            {inner}
           </Link>
         );
       })}

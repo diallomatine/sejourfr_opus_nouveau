@@ -75,8 +75,8 @@ app/
 │   ├── TcfPaywallCard.tsx        # carte legacy si user.hasTcf === false — non utilisée
 │   │                              #   depuis hotfix démo TCF, conservée pour future cas d'usage
 │   ├── PaywallSheet.tsx          # modal paywall (bottom sheet mobile, dialog desktop)
-│   ├── TrainingResultCard.tsx    # carte de résultat fin de session training
-│   └── ExamResultCard.tsx        # carte de résultat fin d'examen blanc (TCF level vs civique pass)
+│   ├── TrainingResultCard.tsx    # carte de résultat fin de session training (à chaud)
+│   └── TcfScoreCard.tsx          # carte compacte points + niveau CECRL (détail TCF)
 │
 ├── (app)/                        # route group : connecté, layout sidebar+main
 │   ├── layout.tsx                # grid 260px / 1fr, passe en horizontal sous 900px
@@ -295,9 +295,10 @@ Chantier découpé en vagues :
   (mode exam, urgence rouge sous 5min, auto-finish à 0), refonte `/examens-blancs`
   (liste sectionnée free/premium, gating par module, paywall sheet) +
   `/examens-blancs/[slug]` (briefing + start qui POST l'attempt et redirige vers
-  `/sessions/<id>`). `ExamResultCard` gère civique (passed/failed vs seuil) et TCF
-  (level achieved A2/B1/B2). Ancien `ExamRunnerClient.tsx` supprimé,
-  `/examen-blanc` redirige vers `/examens-blancs`.
+  `/sessions/<id>`). Ancien `ExamRunnerClient.tsx` supprimé,
+  `/examen-blanc` redirige vers `/examens-blancs`. (NB lot 6 : `ExamResultCard`
+  retiré — le détail d'un examen montre directement le rapport `ExamReport` ;
+  côté TCF une carte compacte `TcfScoreCard` points + niveau précède le rapport.)
 - **Vague 3** ✅ — Stats / Historique / Révision / Favoris :
   `/statistiques` (stats par thème + tri faibles d'abord, couleurs vert/ambre/rouge),
   `/revision` (tabs erreurs+favoris avec modal détail réutilisant `QuestionReviewResponse`),
@@ -347,10 +348,10 @@ Chantier découpé en vagues :
   - **`/entrainement`** = simple dispatcher : `?module=TCF` → `TcfHub`, sinon
     `CiviqueHub` (les deux dual guest/connecté). L'ancien `EntrainementHub` à
     onglets (~1500 l.) est supprimé.
-  - **Civique** : hub (hero examen 40 Q + thèmes + maîtrise) → détail thème
-    (hero examen 20 Q + lots + historique) → pages examens dédiées
-    `/entrainement/civique/examens-blancs` (40 Q, 20 slots, dual) et
-    `/entrainement/civique/[themeId]/examens` (20 Q, 10 slots).
+  - **Civique** : hub (hero examen 40 Q → `/examens-blancs/civique` existant +
+    thèmes + maîtrise) → détail thème (hero examen 20 Q + lots + historique) →
+    page examens thème dédiée `/entrainement/civique/[themeId]/examens`
+    (20 Q, 10 slots).
   - **TCF** : hub (hero examen complet + 5 épreuves + carte CECRL + stats ;
     EE/EO → `ProductionMobileSheet`) → détail QCM (hero + 3 niveaux + historique)
     → `/entrainement/tcf/[code]/examens` (10 slots) et `[code]/[level]` (lots,

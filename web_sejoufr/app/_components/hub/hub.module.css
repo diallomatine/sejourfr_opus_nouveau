@@ -378,21 +378,83 @@
 }
 .seeMore:hover { text-decoration: underline; }
 
+/* ---------- Ligne de niveau (TCF CO/CE/Structure) ---------- */
+.levelRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  padding: 13px 14px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  box-shadow: 0 8px 22px -18px rgba(15, 24, 57, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.levelRow:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  box-shadow: 0 12px 26px -16px rgba(15, 24, 57, 0.3);
+}
+.levelChip {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 13px;
+}
+.levelBody { flex: 1; min-width: 0; }
+.levelTitle { font-weight: 700; font-size: 14px; color: var(--color-ink); margin: 0; }
+.levelSub { font-size: 12px; color: var(--color-muted); margin: 1px 0 0; }
+.levelCount {
+  font-size: 11px;
+  color: var(--color-muted-2);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 /* ---------- Historique compact ---------- */
-.histList { display: flex; flex-direction: column; gap: 8px; }
+.histList { display: flex; flex-direction: column; gap: 10px; }
 .histRow {
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
+  text-align: left;
   background: #fff;
   border: 1px solid var(--color-line);
-  border-radius: 12px;
-  padding: 11px 14px;
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
   text-decoration: none;
+  font-family: var(--font-sans);
   transition: border-color 0.15s ease;
 }
 .histRow:hover { border-color: var(--color-blue); }
-.histDate { flex: 1; font-size: 13px; color: var(--color-ink); font-weight: 600; }
+.histIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+.histBody { flex: 1; min-width: 0; }
+.histTitle { font-weight: 700; font-size: 13.5px; color: var(--color-ink); }
+.histDate { font-size: 11px; color: var(--color-muted); margin-top: 1px; }
 .empty {
   background: var(--color-paper);
   border: 1px dashed var(--color-line);
@@ -566,15 +628,37 @@
 /* ---------- Stats row (3 mini-cards) ---------- */
 .statsRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 
-/* ---------- Bandeau d'information (ex. Structure hors TCF IRN) ---------- */
+/* ---------- Bandeau d'information bleu (ex. Structure hors TCF IRN) ---------- */
 .notice {
   display: flex;
-  gap: 10px;
-  background: rgba(232, 163, 23, 0.1);
-  border: 1px solid rgba(232, 163, 23, 0.3);
-  border-radius: 12px;
+  gap: 12px;
+  background: var(--color-blue-soft);
+  border: 1px solid var(--color-blue-light);
+  border-radius: 14px;
   padding: 12px 14px;
+}
+.noticeIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+.noticeBody { min-width: 0; }
+.noticeLabel {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  color: var(--color-blue);
+}
+.noticeText {
   font-size: 12.5px;
   line-height: 1.45;
-  color: #8a6308;
+  color: var(--color-ink-2);
+  margin-top: 4px;
 }
