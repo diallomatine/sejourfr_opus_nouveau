@@ -135,22 +135,22 @@ On crée 5 **produits intégrés** (in-app products), product IDs en **minuscule
 
 ---
 
-## 4. Renseigner les SKU en base
+## 4. SKU en base — automatique
 
-Une fois les produits créés des deux côtés, lier les SKU aux plans :
+Les `apple_product_id` / `google_product_id` des passes sont posés
+**automatiquement** par la migration **`V421`** suivant la convention
+déterministe (`apple = Plan.code`, `google = code` minuscules). **Rien à faire
+en SQL** — il faut juste que les produits stores aient été créés avec
+**exactement** ces identifiants (étapes 2 et 3 ci-dessus).
+
+Vérification :
 
 ```sql
-UPDATE plans SET apple_product_id = 'CIVIQUE_PASS_3M',       google_product_id = 'civique_pass_3m'       WHERE code = 'CIVIQUE_PASS_3M';
-UPDATE plans SET apple_product_id = 'CIVIQUE_PASS_1Y',       google_product_id = 'civique_pass_1y'       WHERE code = 'CIVIQUE_PASS_1Y';
-UPDATE plans SET apple_product_id = 'INTEGRAL_PASS_SPRINT',  google_product_id = 'integral_pass_sprint'  WHERE code = 'INTEGRAL_PASS_SPRINT';
-UPDATE plans SET apple_product_id = 'INTEGRAL_PASS_3M',      google_product_id = 'integral_pass_3m'      WHERE code = 'INTEGRAL_PASS_3M';
-UPDATE plans SET apple_product_id = 'INTEGRAL_PASS_1Y',      google_product_id = 'integral_pass_1y'      WHERE code = 'INTEGRAL_PASS_1Y';
+SELECT code, apple_product_id, google_product_id FROM plans WHERE purchase_type = 'ONE_TIME';
 ```
 
-(ou via la console admin → Plans, qui édite les store IDs + le prix.)
-
-`stripe_price_id` reste **NULL** pour les passes (Stripe utilise le montant
-dynamique).
+(Si un jour tu changes la convention d'ID, édite-les via la console admin →
+Plans.) `stripe_price_id` reste **NULL** pour les passes (montant dynamique).
 
 ---
 
