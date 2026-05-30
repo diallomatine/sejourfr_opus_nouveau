@@ -89,7 +89,7 @@ class TcfScreen extends ConsumerWidget {
                 title: 'Simuler le jour J',
                 description:
                     'Les 4 épreuves enchaînées comme à l\'examen réel.',
-                ctaLabel: 'Lancer l\'examen blanc',
+                ctaLabel: 'Voir les examens blancs',
                 onTap: () => context.push(AppRoutes.tcfFullExams),
               ),
               const SizedBox(height: 18),

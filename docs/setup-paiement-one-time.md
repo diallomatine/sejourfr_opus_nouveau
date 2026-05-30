@@ -10,13 +10,13 @@ Console, puis renseigner les SKU en base.
 
 ## Catalogue (rappel)
 
-| Code (Plan.code / Apple) | Google product id (minuscules) | Module | Prix | Durée |
-|---|---|---|---|---|
-| `CIVIQUE_PASS_3M` | `civique_pass_3m` | Civique | 9,99 € | 90 j |
-| `CIVIQUE_PASS_1Y` | `civique_pass_1y` | Civique | 29,99 € | 365 j |
-| `INTEGRAL_PASS_SPRINT` | `integral_pass_sprint` | Intégral | 19,99 € | 42 j |
-| `INTEGRAL_PASS_3M` | `integral_pass_3m` | Intégral | 35,99 € | 90 j |
-| `INTEGRAL_PASS_1Y` | `integral_pass_1y` | Intégral | 79,99 € | 365 j |
+| Code (Plan.code / Apple) | Google product id (minuscules) | Module   | Prix    | Durée |
+|--------------------------|--------------------------------|----------|---------|-------|
+| `CIVIQUE_PASS_3M`        | `civique_pass_3m`              | Civique  | 9,99 €  | 90 j  |
+| `CIVIQUE_PASS_1Y`        | `civique_pass_1y`              | Civique  | 29,99 € | 365 j |
+| `INTEGRAL_PASS_SPRINT`   | `integral_pass_sprint`         | Intégral | 19,99 € | 42 j  |
+| `INTEGRAL_PASS_3M`       | `integral_pass_3m`             | Intégral | 35,99 € | 90 j  |
+| `INTEGRAL_PASS_1Y`       | `integral_pass_1y`             | Intégral | 79,99 € | 365 j |
 
 ⚠️ **La durée d'accès est posée par le backend** (`plans.duration_days`), pas par
 le store. Le store ne fait qu'encaisser un paiement unique. Donc 6 semaines (42 j)
@@ -45,10 +45,10 @@ existante soit en place :
 2. **Dashboard Stripe → Developers → Webhooks → ton endpoint**
    (`https://api.sejourfr.fr/api/billing/webhook`) → bouton **« … » → Update
    details → Select events** : s'assurer que ces deux events sont cochés :
-   - `checkout.session.completed`
-   - `charge.refunded`
-   (Les `customer.subscription.*` peuvent rester cochés, ils ne se déclenchent
-   pas en mode one-time.) Copier le **Signing secret** dans `STRIPE_WEBHOOK_SECRET`.
+    - `checkout.session.completed`
+    - `charge.refunded`
+      (Les `customer.subscription.*` peuvent rester cochés, ils ne se déclenchent
+      pas en mode one-time.) Copier le **Signing secret** dans `STRIPE_WEBHOOK_SECRET`.
 3. `APP_BASE_URL` pointe sur le web (pour les URLs de succès/annulation).
 
 Le prix est géré en base : pour ajuster, `UPDATE plans SET price = … WHERE code = …`
@@ -68,16 +68,16 @@ bon choix pour des passes ré-achetables via `in_app_purchase`.
 3. Clique le bouton **+ (Créer)** en haut de la liste.
 4. Choisis le type **Consommable** → **Créer**.
 5. Renseigne :
-   - **Référence** (nom interne, libre) : ex. `Civique - pass 3 mois`.
-   - **ID de produit** : **exactement** le code du plan, en MAJUSCULES :
-     `CIVIQUE_PASS_3M`.
+    - **Référence** (nom interne, libre) : ex. `Civique - pass 3 mois`.
+    - **ID de produit** : **exactement** le code du plan, en MAJUSCULES :
+      `CIVIQUE_PASS_3M`.
 6. Section **Disponibilité** : laisse tous les pays (ou ta liste).
 7. Section **Tarification** → **Ajouter une tarification** → choisis le palier
    le plus proche de **9,99 €** (Apple impose des paliers ; prends le palier
    « Tier » qui donne 9,99 € en zone Euro).
 8. Section **Localisations** → **+ Ajouter une localisation** → Français :
-   - **Nom affiché** : `Pass Civique 3 mois`.
-   - **Description** : `Accès au module civique pendant 3 mois.`
+    - **Nom affiché** : `Pass Civique 3 mois`.
+    - **Description** : `Accès au module civique pendant 3 mois.`
 9. **Enregistrer** en haut à droite.
 10. **Répète les étapes 3 à 9** pour les 4 autres produits :
     | ID de produit (MAJ) | Prix cible | Nom affiché |
@@ -107,11 +107,11 @@ On crée 5 **produits intégrés** (in-app products), product IDs en **minuscule
    (In-app products).
 3. Clique **Créer un produit**.
 4. Renseigne :
-   - **ID de produit** : **exactement** le code en **minuscules** :
-     `civique_pass_3m`. ⚠️ Google **refuse les majuscules** — c'est pour ça que
-     le backend minuscule le code pour Google.
-   - **Nom** : `Pass Civique 3 mois`.
-   - **Description** : `Accès au module civique pendant 3 mois.`
+    - **ID de produit** : **exactement** le code en **minuscules** :
+      `civique_pass_3m`. ⚠️ Google **refuse les majuscules** — c'est pour ça que
+      le backend minuscule le code pour Google.
+    - **Nom** : `Pass Civique 3 mois`.
+    - **Description** : `Accès au module civique pendant 3 mois.`
 5. Section **Prix** → **Définir le prix** → **9,99 €** (Google convertit pour
    les autres devises).
 6. Mets le produit **Actif** (toggle / statut) puis **Enregistrer**.
@@ -120,7 +120,7 @@ On crée 5 **produits intégrés** (in-app products), product IDs en **minuscule
    |---|---|---|
    | `civique_pass_1y` | 29,99 € | Pass Civique 1 an |
    | `integral_pass_sprint` | 19,99 € | Pass Intégral sprint 6 semaines |
-   | `integral_pass_3m` | 35,99 € | Pass Intégral 3 mois |
+   | `integral_pass_3m` | 34,99 € | Pass Intégral 3 mois |
    | `integral_pass_1y` | 79,99 € | Pass Intégral 1 an |
 8. **RTDN** (refunds, déjà configuré au lot 3) : **Monétiser → Configuration de
    la monétisation → Notifications développeur en temps réel** pointe sur le
@@ -154,7 +154,9 @@ Convention déterministe : `apple_product_id = Plan.code`,
 Vérification :
 
 ```sql
-SELECT code, apple_product_id, google_product_id FROM plans WHERE purchase_type = 'ONE_TIME';
+SELECT code, apple_product_id, google_product_id
+FROM plans
+WHERE purchase_type = 'ONE_TIME';
 ```
 
 `stripe_price_id` reste **NULL** pour les passes (montant dynamique).
