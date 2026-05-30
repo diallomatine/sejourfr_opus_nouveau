@@ -377,6 +377,10 @@ function PaiementInner() {
 // ============================================================================
 // PASSES ONE-TIME (lot 5) — grille de passes par module
 // ============================================================================
+
+/** Pass mis en avant comme « le plus populaire » (cohérent web + mobile). */
+const POPULAR_PASS_CODE = "INTEGRAL_PASS_3M";
+
 function OneTimePasses({
     plans,
     modules,
@@ -409,21 +413,25 @@ function OneTimePasses({
                             ))}
                         </ul>
                         <div className="otp-passes">
-                            {passes.map((p) => (
-                                <button
-                                    key={p.code}
-                                    type="button"
-                                    className="otp-pass"
-                                    disabled={loadingCode !== null}
-                                    onClick={() => onSubscribe(p.code)}
-                                >
-                                    <span className="otp-pass-dur">{durationLabel(p.durationDays)}</span>
-                                    <span className="otp-pass-price">{formatPrice(p.price)} €</span>
-                                    <span className="otp-pass-cta">
-                                        {loadingCode === p.code ? "…" : "Choisir →"}
-                                    </span>
-                                </button>
-                            ))}
+                            {passes.map((p) => {
+                                const popular = p.code === POPULAR_PASS_CODE;
+                                return (
+                                    <button
+                                        key={p.code}
+                                        type="button"
+                                        className={`otp-pass ${popular ? "is-popular" : ""}`}
+                                        disabled={loadingCode !== null}
+                                        onClick={() => onSubscribe(p.code)}
+                                    >
+                                        {popular && <span className="otp-pop">Le plus populaire</span>}
+                                        <span className="otp-pass-dur">{durationLabel(p.durationDays)}</span>
+                                        <span className="otp-pass-price">{formatPrice(p.price)} €</span>
+                                        <span className="otp-pass-cta">
+                                            {loadingCode === p.code ? "…" : "Choisir →"}
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </article>
                 );
@@ -445,9 +453,11 @@ const otpStyles = `
 .otp-features li.is-strong { font-weight:700; color:var(--color-ink); }
 .otp-features svg { flex:0 0 auto; margin-top:2px; color:var(--color-green); }
 .otp-passes { display:flex; flex-direction:column; gap:10px; margin-top:auto; }
-.otp-pass { display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:14px 16px; border-radius:12px; border:1.5px solid var(--color-line); background:#fff; cursor:pointer; transition:border-color .15s, transform .15s; }
+.otp-pass { position:relative; display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:14px 16px; border-radius:12px; border:1.5px solid var(--color-line); background:#fff; cursor:pointer; transition:border-color .15s, transform .15s; }
 .otp-pass:hover:not(:disabled) { border-color:var(--color-blue); transform:translateY(-1px); }
 .otp-pass:disabled { opacity:.55; cursor:default; }
+.otp-pass.is-popular { border-color:var(--color-red); background:var(--color-red-light); }
+.otp-pop { position:absolute; top:-9px; left:14px; background:var(--color-red); color:#fff; font-family:var(--font-mono); font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:2px 8px; border-radius:100px; }
 .otp-pass-dur { font-weight:700; font-size:15px; color:var(--color-ink); flex:1; min-width:0; }
 .otp-pass-price { font-family:var(--font-display); font-size:20px; font-weight:700; color:var(--color-ink); }
 .otp-pass-cta { font-family:var(--font-mono); font-size:11px; font-weight:700; color:var(--color-blue); white-space:nowrap; }

@@ -70,6 +70,9 @@ const PERIOD_SUFFIX: Record<PlanPeriodicity, string> = {
   yearly: "/ an",
 };
 
+/** Pass mis en avant comme « le plus populaire » (cohérent web + mobile). */
+const POPULAR_PASS_CODE = "INTEGRAL_PASS_3M";
+
 function formatPrice(value: number): string {
   if (value === 0) return "0";
   if (Number.isInteger(value)) return String(value);
@@ -145,8 +148,8 @@ export function PricingPlans({ plans, variant = "full", defaultPeriodicity = "qu
               href="/inscription"
             />
           )}
-          <PassModuleCard preset={PRESENTATIONS.CIVIQUE} name="Civique" module="CIVIQUE" passes={passesFor("CIVIQUE")} />
-          <PassModuleCard preset={PRESENTATIONS.INTEGRAL} name="Intégral" module="INTEGRAL" passes={passesFor("INTEGRAL")} />
+          <PassModuleCard preset={PRESENTATIONS.CIVIQUE} name="Civique" module="CIVIQUE" passes={passesFor("CIVIQUE")} featured={false} />
+          <PassModuleCard preset={PRESENTATIONS.INTEGRAL} name="Intégral" module="INTEGRAL" passes={passesFor("INTEGRAL")} featured />
         </div>
         <style>{styles}</style>
       </div>
@@ -299,11 +302,13 @@ function PassModuleCard({
   name,
   module,
   passes,
+  featured,
 }: {
   preset: Preset;
   name: string;
   module: "CIVIQUE" | "INTEGRAL";
   passes: PlanPublicResponse[];
+  featured: boolean;
 }) {
   if (passes.length === 0) return null;
   const ctaClass =
@@ -313,24 +318,27 @@ function PassModuleCard({
         ? "btn btn-ghost pp-cta"
         : "btn pp-cta";
   return (
-    <article className={`pp-card ${preset.featured ? "is-featured" : ""}`}>
-      {preset.badge && (
-        <span className={`pp-badge ${preset.badge.tone === "red" ? "is-red" : ""}`}>
-          <Sparkles className="pp-badge-icon" />
-          {preset.badge.label}
-        </span>
-      )}
+    <article className={`pp-card ${featured ? "is-featured" : ""}`}>
       <header className="pp-head">
         <h3 className="pp-name">{name}</h3>
         <p className="pp-desc">{preset.description}</p>
       </header>
       <div className="pp-passes">
-        {passes.map((p) => (
-          <div key={p.code} className="pp-pass">
-            <span className="pp-pass-dur">{passDurationLabel(p.durationDays)}</span>
-            <span className="pp-pass-price">{formatPrice(p.price)} €</span>
-          </div>
-        ))}
+        {passes.map((p) => {
+          const popular = p.code === POPULAR_PASS_CODE;
+          return (
+            <div key={p.code} className={`pp-pass ${popular ? "is-popular" : ""}`}>
+              {popular && (
+                <span className="pp-pop">
+                  <Sparkles className="pp-badge-icon" />
+                  Le plus populaire
+                </span>
+              )}
+              <span className="pp-pass-dur">{passDurationLabel(p.durationDays)}</span>
+              <span className="pp-pass-price">{formatPrice(p.price)} €</span>
+            </div>
+          );
+        })}
       </div>
       <ul className="pp-feats">
         {preset.features.map((f) => (
@@ -358,6 +366,7 @@ const styles = `
     margin-bottom: 22px;
   }
   .pp-pass {
+    position: relative;
     display: flex;
     align-items: baseline;
     justify-content: space-between;
@@ -366,6 +375,27 @@ const styles = `
     border: 1px solid var(--color-line);
     border-radius: 12px;
     background: var(--color-paper);
+  }
+  .pp-pass.is-popular {
+    border-color: var(--color-red);
+    background: var(--color-red-light);
+  }
+  .pp-pop {
+    position: absolute;
+    top: -10px;
+    left: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--color-red);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
   }
   .pp-pass-dur {
     font-weight: 700;

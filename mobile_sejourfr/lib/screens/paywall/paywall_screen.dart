@@ -504,6 +504,9 @@ class _OneTimeModuleCard extends StatelessWidget {
 }
 
 /// Ligne d'un pass achetable : durée (« 3 mois ») + prix store + flèche.
+/// Pass mis en avant comme « le plus populaire » (cohérent web + mobile).
+const String _popularPassCode = 'INTEGRAL_PASS_3M';
+
 class _PassRow extends StatelessWidget {
   const _PassRow({
     required this.pass,
@@ -521,8 +524,11 @@ class _PassRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final popular = pass.plan.code == _popularPassCode;
+    // Le pass populaire est mis en avant en rouge (CTA/urgence assumé ici).
+    final c = popular ? AppColors.red : accent;
     return Material(
-      color: accent.withValues(alpha: 0.06),
+      color: c.withValues(alpha: 0.06),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: disabled ? null : onTap,
@@ -531,20 +537,50 @@ class _PassRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: accent.withValues(alpha: 0.25)),
+            border: Border.all(
+              color: c.withValues(alpha: popular ? 0.6 : 0.25),
+              width: popular ? 1.5 : 1,
+            ),
           ),
           child: Row(
             children: [
               Expanded(
-                child: Text(
-                  pass.durationLabel,
-                  style: AppFonts.jakarta(size: 15, weight: FontWeight.w700),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (popular)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.red,
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          child: Text(
+                            'LE PLUS POPULAIRE',
+                            style: AppFonts.mono(
+                              size: 8.5,
+                              color: AppColors.white,
+                              letterSpacing: 1.0,
+                              weight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    Text(
+                      pass.durationLabel,
+                      style: AppFonts.jakarta(size: 15, weight: FontWeight.w700),
+                    ),
+                  ],
                 ),
               ),
               Text(
                 pass.localizedPrice,
-                style: AppFonts.fraunces(
-                    size: 20, weight: FontWeight.w700, color: accent),
+                style:
+                    AppFonts.fraunces(size: 20, weight: FontWeight.w700, color: c),
               ),
               const SizedBox(width: 10),
               loading
@@ -553,10 +589,10 @@ class _PassRow extends StatelessWidget {
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(accent),
+                        valueColor: AlwaysStoppedAnimation(c),
                       ),
                     )
-                  : Icon(Icons.arrow_forward_rounded, size: 18, color: accent),
+                  : Icon(Icons.arrow_forward_rounded, size: 18, color: c),
             ],
           ),
         ),
