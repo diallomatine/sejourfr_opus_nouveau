@@ -73,7 +73,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           TextButton(
             onPressed: state.purchaseInProgress
                 ? null
-                : () => ref.read(billingControllerProvider.notifier).restorePurchases(),
+                : () => ref
+                    .read(billingControllerProvider.notifier)
+                    .restorePurchases(),
             child: (state.purchaseInProgress && state.purchasingSku == null)
                 ? const SizedBox(
                     width: 16,
@@ -108,8 +110,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     // carte par module avec ses passes (durée + prix). Le mode abonnement
     // (toggle + 2 cartes) reste disponible si le backend renvoie des plans
     // récurrents.
-    final oneTime = state.products.isNotEmpty &&
-        state.products.every((p) => p.isOneTime);
+    final oneTime =
+        state.products.isNotEmpty && state.products.every((p) => p.isOneTime);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
@@ -142,7 +144,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             ),
           ),
           const SizedBox(height: 22),
-
           if (!oneTime) ...[
             _PeriodicityToggle(
               value: _periodicity,
@@ -150,14 +151,11 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             ),
             const SizedBox(height: 22),
           ],
-
           if (state.error != null) ...[
             _ErrorBanner(message: state.error!),
             const SizedBox(height: 16),
           ],
-
           ...(oneTime ? _buildOneTimeCards(state) : _buildPlanCards(state)),
-
           const SizedBox(height: 24),
           _TrustRow(),
           const SizedBox(height: 14),
@@ -177,8 +175,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     final cards = <Widget>[];
     for (final module in modulesToShow) {
       final passes = state.products.where((p) => p.module == module).toList()
-        ..sort((a, b) =>
-            a.plan.durationDays.compareTo(b.plan.durationDays));
+        ..sort((a, b) => a.plan.durationDays.compareTo(b.plan.durationDays));
       if (passes.isEmpty) continue;
       cards.add(_OneTimeModuleCard(
         module: module,
@@ -241,6 +238,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 
 class _PeriodicityToggle extends StatelessWidget {
   const _PeriodicityToggle({required this.value, required this.onChanged});
+
   final PlanPeriodicity value;
   final ValueChanged<PlanPeriodicity> onChanged;
 
@@ -310,9 +308,8 @@ class _PlanCard extends StatelessWidget {
   final bool loading;
   final VoidCallback? onPurchase;
 
-  Color get _accent => module == PlanModuleTarget.civique
-      ? AppColors.blue
-      : AppColors.red;
+  Color get _accent =>
+      module == PlanModuleTarget.civique ? AppColors.blue : AppColors.red;
 
   @override
   Widget build(BuildContext context) {
@@ -355,7 +352,8 @@ class _PlanCard extends StatelessWidget {
               ),
               if (module == PlanModuleTarget.integral)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppColors.red,
                     borderRadius: BorderRadius.circular(100),
@@ -572,15 +570,16 @@ class _PassRow extends StatelessWidget {
                       ),
                     Text(
                       pass.durationLabel,
-                      style: AppFonts.jakarta(size: 15, weight: FontWeight.w700),
+                      style:
+                          AppFonts.jakarta(size: 15, weight: FontWeight.w700),
                     ),
                   ],
                 ),
               ),
               Text(
                 pass.localizedPrice,
-                style:
-                    AppFonts.fraunces(size: 20, weight: FontWeight.w700, color: c),
+                style: AppFonts.fraunces(
+                    size: 20, weight: FontWeight.w700, color: c),
               ),
               const SizedBox(width: 10),
               loading
@@ -603,6 +602,7 @@ class _PassRow extends StatelessWidget {
 
 class _PriceBlock extends StatelessWidget {
   const _PriceBlock({required this.product, required this.periodicity});
+
   final IapProduct? product;
   final PlanPeriodicity periodicity;
 
@@ -636,6 +636,7 @@ class _PriceBlock extends StatelessWidget {
 
 class _FeatureList extends StatelessWidget {
   const _FeatureList({required this.module});
+
   final PlanModuleTarget module;
 
   @override
@@ -661,8 +662,7 @@ class _FeatureList extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.check_rounded,
-                        size: 16, color: AppColors.green),
+                    Icon(Icons.check_rounded, size: 16, color: AppColors.green),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -701,14 +701,15 @@ class _TrustRow extends StatelessWidget {
 
 class _LegalLinks extends StatelessWidget {
   const _LegalLinks({this.oneTime = false});
+
   final bool oneTime;
 
   @override
   Widget build(BuildContext context) {
     return Text(
       oneTime
-          ? 'Achat unique, sans abonnement : aucun renouvellement automatique, '
-              'rien à résilier. L\'accès expire à la fin de la durée choisie.'
+          ? 'Achat unique, sans abonnement : aucun renouvellement automatique. '
+              'L\'accès expire à la fin de la durée choisie.'
           : 'L\'abonnement est géré par le store. Gérez le renouvellement et '
               'annulez à tout moment dans Réglages > Apple ID / Google Play.',
       textAlign: TextAlign.center,
@@ -719,6 +720,7 @@ class _LegalLinks extends StatelessWidget {
 
 class _ErrorBanner extends StatelessWidget {
   const _ErrorBanner({required this.message});
+
   final String message;
 
   @override
