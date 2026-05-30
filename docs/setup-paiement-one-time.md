@@ -135,13 +135,21 @@ On crée 5 **produits intégrés** (in-app products), product IDs en **minuscule
 
 ---
 
-## 4. SKU en base — automatique
+## 4. SKU en base
 
-Les `apple_product_id` / `google_product_id` des passes sont posés
-**automatiquement** par la migration **`V421`** suivant la convention
-déterministe (`apple = Plan.code`, `google = code` minuscules). **Rien à faire
-en SQL** — il faut juste que les produits stores aient été créés avec
-**exactement** ces identifiants (étapes 2 et 3 ci-dessus).
+Convention déterministe : `apple_product_id = Plan.code`,
+`google_product_id = code` en minuscules.
+
+- **Dev / test** : posés **automatiquement** par la migration dev-only
+  `db/migration-dev/V901` (chargée uniquement sous le profil `dev`). Rien à
+  faire — il suffit que les produits sandbox aient été créés avec ces IDs exacts.
+- **Prod** : à poser **au go-live**, une fois les vrais produits stores créés et
+  vérifiés, via la console **admin → Plans** ou un SQL ponctuel :
+
+  ```sql
+  UPDATE plans SET apple_product_id = code, google_product_id = lower(code)
+  WHERE purchase_type = 'ONE_TIME';
+  ```
 
 Vérification :
 
@@ -149,8 +157,7 @@ Vérification :
 SELECT code, apple_product_id, google_product_id FROM plans WHERE purchase_type = 'ONE_TIME';
 ```
 
-(Si un jour tu changes la convention d'ID, édite-les via la console admin →
-Plans.) `stripe_price_id` reste **NULL** pour les passes (montant dynamique).
+`stripe_price_id` reste **NULL** pour les passes (montant dynamique).
 
 ---
 
