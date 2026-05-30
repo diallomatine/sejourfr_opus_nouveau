@@ -301,6 +301,10 @@ export interface PlanPublicResponse {
   /** ONE_TIME (pass) ou SUBSCRIPTION (abonnement). Le front rend une grille de
    *  passes pour ONE_TIME, le toggle de périodicité pour SUBSCRIPTION. */
   purchaseType: PlanPurchaseType;
+  /** Product IDs store (SKU IAP) consommés par le mobile pour StoreKit / Play
+   *  Billing. Inutilisés côté web (paiement Stripe). Null si non configurés. */
+  appleProductId: string | null;
+  googleProductId: string | null;
 }
 
 // ============ ATTEMPT SUMMARY (historique) ============

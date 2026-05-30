@@ -19,6 +19,13 @@ spring:
     # (lots civique). On accepte les migrations "manquantes" appliquees apres
     # une migration de numero superieur.
     out-of-order: true
+    # Tolere une migration retiree du code mais deja appliquee en base (ex.
+    # seed renomme/deplace, comme l'ancien V421 devenu V422). Sans ca, un env
+    # deploye AVANT le retrait echoue au boot sur "Detected applied migration
+    # not resolved locally". N'affecte que les bases qui l'avaient deja
+    # appliquee (l'effet a deja eu lieu) ; les bases neuves ne sont pas
+    # concernees. Evite la chirurgie SQL / flyway repair sur chaque env.
+    ignore-migration-patterns: "*:missing"
   servlet:
     multipart:
       max-file-size: 25MB

@@ -113,11 +113,26 @@ public class AppleSubscriptionService {
             // délègue au grant commun (durée = plan.durationDays, idempotent,
             // mail d'activation géré là-bas).
             if (billingProperties.isOneTime()) {
+                // Pass one-time (Consommable / Non-Renewing) : chaque achat — y
+                // compris une PROLONGATION du même pass — doit ouvrir une
+                // nouvelle période. On clé donc l'idempotence sur le
+                // transactionId (unique par achat), PAS sur l'originalTransactionId
+                // qui, pour un Non-Renewing Apple, reste stable d'un achat à
+                // l'autre du même produit : la prolongation serait alors prise
+                // pour un simple replay (aucune durée créditée → l'utilisateur
+                // « ne peut plus racheter la même pass »). Un vrai replay du même
+                // achat conserve le même transactionId → reste idempotent.
                 UserSubscription sub = oneTimeAccessService.grantOneTimeAccess(
                         userId, plan, SubscriptionSource.APPLE,
-                        tx.getOriginalTransactionId(), tx.getTransactionId());
-                log.info("Apple one-time pass user={} productId={} origTx={} endsAt={}",
-                        userId, tx.getProductId(), tx.getOriginalTransactionId(), sub.getEndsAt());
+                        tx.getTransactionId(), tx.getTransactionId());
+                // type DOIT être CONSUMABLE pour qu'un pass soit ré-achetable
+                // (Apple ré-affiche la sheet à chaque achat). Un NON_CONSUMABLE
+                // est « déjà possédé » → Apple n'ouvre pas la sheet, il restaure
+                // la transaction d'origine (même transactionId) → traité en
+                // replay ici, donc aucune prolongation. À surveiller en sandbox.
+                log.info("Apple one-time pass user={} productId={} type={} tx={} origTx={} endsAt={}",
+                        userId, tx.getProductId(), tx.getType(), tx.getTransactionId(),
+                        tx.getOriginalTransactionId(), sub.getEndsAt());
                 return sub;
             }
 
@@ -187,9 +202,16 @@ public class AppleSubscriptionService {
                 ? decodeRenewalInfo(data.getSignedRenewalInfo())
                 : null;
 
+        // En mode one-time, chaque pass est clé sur son transactionId (cf.
+        // activateFromReceipt) et un refund/revoke vise un achat précis ; on
+        // cherche donc par transactionId. En mode abonnement, la clé reste
+        // l'originalTransactionId stable sur toute la chaîne de renouvellements.
+        String lookupTransactionId = billingProperties.isOneTime()
+                ? tx.getTransactionId()
+                : tx.getOriginalTransactionId();
         Optional<UserSubscription> existing = userSubscriptionManager
                 .findBySourceAndOriginalTransactionId(
-                        SubscriptionSource.APPLE, tx.getOriginalTransactionId());
+                        SubscriptionSource.APPLE, lookupTransactionId);
 
         if (existing.isEmpty()) {
             // Notification reçue pour un user qu'on ne connaît pas (jamais
@@ -198,8 +220,8 @@ public class AppleSubscriptionService {
             // même. On log et on attendra que l'app revienne avec un
             // verify-receipt — pas de création silencieuse sans userId.
             log.warn(
-                    "Apple notification {} (type={}) pour originalTxId={} : aucune subscription locale, ignorée.",
-                    notificationUUID, type, tx.getOriginalTransactionId()
+                    "Apple notification {} (type={}) pour txId={} : aucune subscription locale, ignorée.",
+                    notificationUUID, type, lookupTransactionId
             );
             return;
         }

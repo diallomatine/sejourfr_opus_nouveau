@@ -260,16 +260,12 @@ class BillingController extends StateNotifier<BillingState> {
   }
 
   String? _skuFor(PlanPublicResponse plan, SubscriptionSource source) {
-    // On lit le SKU côté backend (table plans). C'est l'admin qui le pose
-    // dans /admin/plans. Si non renseigné → SKU absent ici, on filtre.
-    // Note : le DTO public n'expose pas appleProductId / googleProductId
-    // pour éviter de leaker les SKUs dans la landing. Workaround : on
-    // utilise le `code` du Plan comme convention SKU (CIVIQUE_MONTHLY etc.)
-    // et le backend / l'admin doit s'assurer que c'est aligné avec App Store
-    // Connect / Play Console.
-    // Le plan FREE (pas de module ciblé / pas de périodicité / prix nul) n'a
-    // aucun SKU côté store → on l'écarte pour ne pas l'envoyer à loadProducts
-    // (sinon il revient en notFoundIDs).
+    // Le SKU vient du backend (table plans, posé par l'admin dans /admin/plans).
+    // On lit directement appleProductId / googleProductId : ils peuvent diverger
+    // du `code` (ex. produit Apple recréé avec un ID neuf — un Product ID
+    // supprimé n'est jamais réutilisable côté Apple). Si l'ID store n'est pas
+    // renseigné pour cette plateforme, on filtre (le plan ne sera pas vendable
+    // ici, ex. plan FREE ou web-only Stripe).
     if (plan.target == null || plan.price <= 0) {
       return null;
     }
@@ -278,15 +274,13 @@ class BillingController extends StateNotifier<BillingState> {
     if (!plan.isOneTime && plan.periodicity == null) {
       return null;
     }
-    // Google Play impose des Product IDs en MINUSCULES (Apple/Stripe tolèrent
-    // les majuscules). Le code Plan canonique est en MAJ (CIVIQUE_MONTHLY) → on
-    // le minuscule pour Google. Conséquence : `plans.google_product_id` en base
-    // ET les Product IDs créés dans la Play Console doivent être en minuscules
-    // (civique_monthly, …), sinon le SKU revient en notFoundIDs.
-    if (source == SubscriptionSource.google) {
-      return plan.code.toLowerCase();
+    final sku = source == SubscriptionSource.google
+        ? plan.googleProductId
+        : plan.appleProductId;
+    if (sku == null || sku.isEmpty) {
+      return null;
     }
-    return plan.code;
+    return sku;
   }
 
   // --------------------------------------------------------------------------

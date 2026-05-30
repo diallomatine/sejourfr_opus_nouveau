@@ -192,7 +192,11 @@ String planCodeFor(PlanModuleTarget module, PlanPeriodicity periodicity) {
 // DTOs
 // ============================================================================
 
-/// Plan public exposé par `/api/billing/plans` (sans store IDs ni id interne).
+/// Plan public exposé par `/api/billing/plans`. Inclut les Product IDs store
+/// ([appleProductId] / [googleProductId]) : le mobile les passe tels quels à
+/// StoreKit / Play Billing comme SKU (cf. [BillingController]). Ils peuvent
+/// diverger de [code] (ex. produit Apple recréé avec un ID neuf) et sont null
+/// pour les plans web-only.
 class PlanPublicResponse {
   PlanPublicResponse({
     required this.code,
@@ -203,6 +207,8 @@ class PlanPublicResponse {
     required this.moduleAccess,
     required this.durationDays,
     required this.purchaseType,
+    required this.appleProductId,
+    required this.googleProductId,
   });
 
   final String code;
@@ -213,6 +219,8 @@ class PlanPublicResponse {
   final ModuleAccess moduleAccess;
   final int durationDays;
   final PlanPurchaseType purchaseType;
+  final String? appleProductId;
+  final String? googleProductId;
 
   factory PlanPublicResponse.fromJson(Map<String, dynamic> json) {
     return PlanPublicResponse(
@@ -224,6 +232,8 @@ class PlanPublicResponse {
       moduleAccess: ModuleAccessParse.fromString(json['moduleAccess'] as String?),
       durationDays: (json['durationDays'] as num?)?.toInt() ?? 0,
       purchaseType: PlanPurchaseTypeParse.fromString(json['purchaseType'] as String?),
+      appleProductId: json['appleProductId'] as String?,
+      googleProductId: json['googleProductId'] as String?,
     );
   }
 

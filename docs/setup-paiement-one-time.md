@@ -10,13 +10,18 @@ Console, puis renseigner les SKU en base.
 
 ## Catalogue (rappel)
 
-| Code (Plan.code / Apple) | Google product id (minuscules) | Module   | Prix    | Durée |
-|--------------------------|--------------------------------|----------|---------|-------|
-| `CIVIQUE_PASS_3M`        | `civique_pass_3m`              | Civique  | 9,99 €  | 90 j  |
-| `CIVIQUE_PASS_1Y`        | `civique_pass_1y`              | Civique  | 29,99 € | 365 j |
-| `INTEGRAL_PASS_SPRINT`   | `integral_pass_sprint`         | Intégral | 19,99 € | 42 j  |
-| `INTEGRAL_PASS_3M`       | `integral_pass_3m`             | Intégral | 35,99 € | 90 j  |
-| `INTEGRAL_PASS_1Y`       | `integral_pass_1y`             | Intégral | 79,99 € | 365 j |
+| Plan.code (backend)    | Product id store (Apple = Google, minuscules) | Module   | Prix    | Durée |
+|------------------------|-----------------------------------------------|----------|---------|-------|
+| `CIVIQUE_PASS_3M`      | `civique_pass_3m`                             | Civique  | 9,99 €  | 90 j  |
+| `CIVIQUE_PASS_1Y`      | `civique_pass_1y`                             | Civique  | 29,99 € | 365 j |
+| `INTEGRAL_PASS_SPRINT` | `integral_pass_sprint`                        | Intégral | 19,99 € | 42 j  |
+| `INTEGRAL_PASS_3M`     | `integral_pass_3m`                            | Intégral | 34,99 € | 90 j  |
+| `INTEGRAL_PASS_1Y`     | `integral_pass_1y`                            | Intégral | 79,99 € | 365 j |
+
+Le même Product ID sert pour Apple et Google (en minuscules — contrainte Google,
+tolérée par Apple). Le mobile lit ces IDs depuis le backend
+(`PlanPublicResponse.appleProductId` / `googleProductId`), il ne les déduit plus
+de `Plan.code`.
 
 ⚠️ **La durée d'accès est posée par le backend** (`plans.duration_days`), pas par
 le store. Le store ne fait qu'encaisser un paiement unique. Donc 6 semaines (42 j)
@@ -58,9 +63,17 @@ Le prix est géré en base : pour ajuster, `UPDATE plans SET price = … WHERE c
 
 ## 2. Apple — App Store Connect (produits **Consommables**)
 
-On crée 5 produits **Consommables** (re-achetables après expiration). Le type
-n'a pas d'importance pour le backend en mode one-time, mais Consommable est le
-bon choix pour des passes ré-achetables via `in_app_purchase`.
+On crée 5 produits **Consommables**. ⚠️ Le type est **critique** : seul un
+Consommable est ré-achetable (Apple ré-affiche la sheet de paiement à chaque
+achat). Un **Non-Consommable** est « possédé à vie » → Apple refuse le rachat et
+restaure la transaction d'origine (même `transactionId`) → le backend la traite
+en *replay*, **aucune prolongation**. La durée d'accès vient du backend
+(`plans.duration_days`), Apple n'encaisse qu'un paiement.
+
+⚠️ Le **Product ID d'un produit Apple supprimé n'est jamais réutilisable**. Si tu
+avais d'abord créé ces passes en Non-Consommable, recrée-les en Consommable avec
+un ID **différent** — d'où le choix de minuscules ci-dessous : chaîne distincte
+des anciens IDs en majuscules, et identique aux IDs Google.
 
 1. Va sur **https://appstoreconnect.apple.com** → **Mes apps** → l'app **SejourFR**.
 2. Dans la barre latérale, sous **Monétisation**, clique **Achats intégrés**
@@ -69,8 +82,8 @@ bon choix pour des passes ré-achetables via `in_app_purchase`.
 4. Choisis le type **Consommable** → **Créer**.
 5. Renseigne :
     - **Référence** (nom interne, libre) : ex. `Civique - pass 3 mois`.
-    - **ID de produit** : **exactement** le code du plan, en MAJUSCULES :
-      `CIVIQUE_PASS_3M`.
+    - **ID de produit** : en **minuscules**, identique à l'ID Google :
+      `civique_pass_3m`.
 6. Section **Disponibilité** : laisse tous les pays (ou ta liste).
 7. Section **Tarification** → **Ajouter une tarification** → choisis le palier
    le plus proche de **9,99 €** (Apple impose des paliers ; prends le palier
@@ -80,12 +93,12 @@ bon choix pour des passes ré-achetables via `in_app_purchase`.
     - **Description** : `Accès au module civique pendant 3 mois.`
 9. **Enregistrer** en haut à droite.
 10. **Répète les étapes 3 à 9** pour les 4 autres produits :
-    | ID de produit (MAJ) | Prix cible | Nom affiché |
+    | ID de produit (minuscules) | Prix cible | Nom affiché |
     |---|---|---|
-    | `CIVIQUE_PASS_1Y` | 29,99 € | Pass Civique 1 an |
-    | `INTEGRAL_PASS_SPRINT` | 19,99 € | Pass Intégral sprint 6 semaines |
-    | `INTEGRAL_PASS_3M` | 35,99 € | Pass Intégral 3 mois |
-    | `INTEGRAL_PASS_1Y` | 79,99 € | Pass Intégral 1 an |
+    | `civique_pass_1y` | 29,99 € | Pass Civique 1 an |
+    | `integral_pass_sprint` | 19,99 € | Pass Intégral sprint 6 semaines |
+    | `integral_pass_3m` | 34,99 € | Pass Intégral 3 mois |
+    | `integral_pass_1y` | 79,99 € | Pass Intégral 1 an |
 11. **Sandbox de test** : **Utilisateurs et accès → Sandbox → Testeurs** →
     **+** pour créer un compte de test, puis teste l'achat via **TestFlight**.
 12. **Webhook** (déjà configuré au lot 2, à vérifier) : **App Information →
@@ -137,18 +150,18 @@ On crée 5 **produits intégrés** (in-app products), product IDs en **minuscule
 
 ## 4. SKU en base
 
-Convention déterministe : `apple_product_id = Plan.code`,
-`google_product_id = code` en minuscules.
+Convention : `apple_product_id = google_product_id = lower(code)` (même ID store
+sur les deux plateformes).
 
-- **Dev / test** : posés **automatiquement** par la migration dev-only
-  `db/migration-dev/V901` (chargée uniquement sous le profil `dev`). Rien à
-  faire — il suffit que les produits sandbox aient été créés avec ces IDs exacts.
-- **Prod** : à poser **au go-live**, une fois les vrais produits stores créés et
-  vérifiés, via la console **admin → Plans** ou un SQL ponctuel :
+- Posés **automatiquement dans tous les environnements** (dev / test / prod) par
+  la migration `db/migration/10_reference/V422__pass_store_product_ids.sql`. Il
+  suffit que les produits stores aient été créés avec ces IDs exacts.
+- Pour un ID store qui diverge de `lower(code)` : console **admin → Plans**, ou
+  SQL ponctuel :
 
   ```sql
-  UPDATE plans SET apple_product_id = code, google_product_id = lower(code)
-  WHERE purchase_type = 'ONE_TIME';
+  UPDATE plans SET apple_product_id = '<id>', google_product_id = '<id>'
+  WHERE code = '<PLAN_CODE>';
   ```
 
 Vérification :
