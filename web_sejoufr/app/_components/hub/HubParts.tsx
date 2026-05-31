@@ -14,369 +14,373 @@ import styles from "./hub.module.css";
 export type HubTone = "blue" | "red" | "amber" | "green" | "slate";
 
 /** Couleur d'accent + fond clair par tonalité (aligné sur AppColors mobile). */
-const TONE: Record<HubTone, {accent: string; bg: string}> = {
-  blue: {accent: "var(--color-blue)", bg: "var(--color-blue-light)"},
-  red: {accent: "var(--color-red)", bg: "var(--color-red-light)"},
-  amber: {accent: "#B87908", bg: "rgba(232, 163, 23, 0.16)"},
-  green: {accent: "var(--color-green)", bg: "rgba(22, 143, 91, 0.12)"},
-  slate: {accent: "var(--color-muted)", bg: "var(--color-paper-2)"},
+const TONE: Record<HubTone, { accent: string; bg: string }> = {
+    blue: {accent: "var(--color-blue)", bg: "var(--color-blue-light)"},
+    red: {accent: "var(--color-red)", bg: "var(--color-red-light)"},
+    amber: {accent: "#B87908", bg: "rgba(232, 163, 23, 0.16)"},
+    green: {accent: "var(--color-green)", bg: "rgba(22, 143, 91, 0.12)"},
+    slate: {accent: "var(--color-muted)", bg: "var(--color-paper-2)"},
 };
 
 // ---------- Header ----------
 
-export function HubHeader({title, subtitle}: {title: string; subtitle: string}) {
-  return (
-    <div className={styles.header}>
-      <div>
-        <h1 className={styles.headerTitle}>{title}</h1>
-        <p className={styles.headerSub}>{subtitle}</p>
-      </div>
-    </div>
-  );
+export function HubHeader({title, subtitle}: { title: string; subtitle: string }) {
+    return (
+        <div className={styles.header}>
+            <div>
+                <h1 className={styles.headerTitle}>{title}</h1>
+                <p className={styles.headerSub}>{subtitle}</p>
+            </div>
+        </div>
+    );
 }
 
 // ---------- Hero examen blanc ----------
 
 export function ExamBlancHero({
-  eyebrow,
-  title,
-  description,
-  ctaLabel,
-  accent = "blue",
-  onClick,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  ctaLabel: string;
-  accent?: "blue" | "red";
-  onClick: () => void;
+                                  eyebrow,
+                                  title,
+                                  description,
+                                  ctaLabel,
+                                  accent = "blue",
+                                  onClick,
+                              }: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    ctaLabel: string;
+    accent?: "blue" | "red";
+    onClick: () => void;
 }) {
-  const vars =
-    accent === "red"
-      ? {
-          "--accent-start": "var(--color-red)",
-          "--accent-end": "var(--color-red-dark)",
-          "--accent-shadow": "rgba(225, 55, 47, 0.45)",
-        }
-      : {
-          "--accent-start": "var(--color-blue)",
-          "--accent-end": "var(--color-blue-dark)",
-          "--accent-shadow": "rgba(30, 58, 140, 0.5)",
-        };
-  return (
-    <button type="button" className={styles.hero} style={vars as CSSProperties} onClick={onClick}>
+    const vars =
+        accent === "red"
+            ? {
+                "--accent-start": "var(--color-red)",
+                "--accent-end": "var(--color-red-dark)",
+                "--accent-shadow": "rgba(225, 55, 47, 0.45)",
+            }
+            : {
+                "--accent-start": "var(--color-blue)",
+                "--accent-end": "var(--color-blue-dark)",
+                "--accent-shadow": "rgba(30, 58, 140, 0.5)",
+            };
+    return (
+        <button type="button" className={styles.hero} style={vars as CSSProperties} onClick={onClick}>
       <span className={styles.heroEyebrow}>
-        <Rocket size={13} strokeWidth={2.2} />
-        {eyebrow.toUpperCase()}
+        <Rocket size={13} strokeWidth={2.2}/>
+          {eyebrow.toUpperCase()}
       </span>
-      <span className={styles.heroTitle} style={{display: "block"}}>
+            <span className={styles.heroTitle} style={{display: "block"}}>
         {title}
       </span>
-      <span className={styles.heroDesc} style={{display: "block"}}>
+            <span className={styles.heroDesc} style={{display: "block"}}>
         {description}
       </span>
-      <span className={styles.heroCta}>
-        <Play size={15} strokeWidth={2.4} fill="currentColor" />
-        {ctaLabel}
+            <span className={styles.heroCta}>
+        <Play size={15} strokeWidth={2.4} fill="currentColor"/>
+                {ctaLabel}
       </span>
-    </button>
-  );
+        </button>
+    );
 }
 
 // ---------- Section label ----------
 
-export function SectionLabel({label, trailing}: {label: string; trailing?: ReactNode}) {
-  return (
-    <div className={styles.sectionRow}>
-      <p className={styles.sectionLabel}>{label}</p>
-      {trailing}
-    </div>
-  );
+export function SectionLabel({label, trailing}: { label: string; trailing?: ReactNode }) {
+    return (
+        <div className={styles.sectionRow}>
+            <p className={styles.sectionLabel}>{label}</p>
+            {trailing}
+        </div>
+    );
 }
 
-export function SectionCounter({text}: {text: string}) {
-  return <span className={styles.sectionCounter}>{text}</span>;
+export function SectionCounter({text}: { text: string }) {
+    return <span className={styles.sectionCounter}>{text}</span>;
 }
 
-export function SectionLink({label, onClick}: {label: string; onClick: () => void}) {
-  return (
-    <button type="button" className={styles.sectionLink} onClick={onClick}>
-      {label}
-    </button>
-  );
+export function SectionLink({label, onClick}: { label: string; onClick: () => void }) {
+    return (
+        <button type="button" className={styles.sectionLink} onClick={onClick}>
+            {label}
+        </button>
+    );
 }
 
 // ---------- Carte épreuve / thème ----------
 
 export function EpreuveCard({
-  icon,
-  tone,
-  title,
-  subtitle,
-  pill,
-  progress,
-  locked = false,
-  onClick,
-}: {
-  icon: ReactNode;
-  tone: HubTone;
-  title: string;
-  subtitle: string;
-  pill?: string | null;
-  /** 0..1 ; null = pas de barre. */
-  progress?: number | null;
-  locked?: boolean;
-  onClick: () => void;
+                                icon,
+                                tone,
+                                title,
+                                subtitle,
+                                pill,
+                                progress,
+                                locked = false,
+                                onClick,
+                            }: {
+    icon: ReactNode;
+    tone: HubTone;
+    title: string;
+    subtitle: string;
+    pill?: string | null;
+    /** 0..1 ; null = pas de barre. */
+    progress?: number | null;
+    locked?: boolean;
+    onClick: () => void;
 }) {
-  const t = TONE[tone];
-  const pct = progress == null ? null : Math.round(Math.min(1, Math.max(0, progress)) * 100);
-  return (
-    <button
-      type="button"
-      className={styles.epreuve}
-      style={{"--accent": t.accent, "--accent-bg": t.bg} as CSSProperties}
-      onClick={onClick}
-    >
-      <span className={styles.epreuveIcon}>{icon}</span>
-      <span className={styles.epreuveBody}>
+    const t = TONE[tone];
+    const pct = progress == null ? null : Math.round(Math.min(1, Math.max(0, progress)) * 100);
+    return (
+        <button
+            type="button"
+            className={styles.epreuve}
+            style={{"--accent": t.accent, "--accent-bg": t.bg} as CSSProperties}
+            onClick={onClick}
+        >
+            <span className={styles.epreuveIcon}>{icon}</span>
+            <span className={styles.epreuveBody}>
         <span className={styles.epreuveTitleRow}>
           <span className={styles.epreuveTitle}>{title}</span>
-          {pill ? <span className={styles.epreuvePill}>{pill}</span> : null}
+            {pill ? <span className={styles.epreuvePill}>{pill}</span> : null}
         </span>
         <span className={styles.epreuveSub}>{subtitle}</span>
-        {pct != null && (
-          <span className={styles.epreuveBarRow}>
+                {pct != null && (
+                    <span className={styles.epreuveBarRow}>
             <span className={styles.epreuveTrack}>
-              <span className={styles.epreuveFill} style={{width: `${pct}%`}} />
+              <span className={styles.epreuveFill} style={{width: `${pct}%`}}/>
             </span>
             <span className={styles.epreuvePct}>{pct}%</span>
           </span>
-        )}
+                )}
       </span>
-      {locked ? (
-        <Lock size={16} className={styles.epreuveChevron} />
-      ) : (
-        <ChevronRight size={20} className={styles.epreuveChevron} />
-      )}
-    </button>
-  );
+            {locked ? (
+                <Lock size={16} className={styles.epreuveChevron}/>
+            ) : (
+                <ChevronRight size={20} className={styles.epreuveChevron}/>
+            )}
+        </button>
+    );
 }
 
 // ---------- En-tête de page détail (back + titre) ----------
 
 export function HubDetailHeader({
-  backHref,
-  title,
-  subtitle,
-}: {
-  backHref: string;
-  title: string;
-  subtitle: string;
+                                    backHref,
+                                    title,
+                                    subtitle,
+                                }: {
+    backHref: string;
+    title: string;
+    subtitle: string;
 }) {
-  return (
-    <div className={styles.detailHeader}>
-      <Link href={backHref} className={styles.backBtn} aria-label="Retour">
-        <ChevronLeft size={20} />
-      </Link>
-      <div>
-        <h1 className={styles.headerTitle}>{title}</h1>
-        <p className={styles.headerSub}>{subtitle}</p>
-      </div>
-    </div>
-  );
+    return (
+        <div className={styles.detailHeader}>
+            <Link href={backHref} className={styles.backBtn} aria-label="Retour">
+                <ChevronLeft size={20}/>
+            </Link>
+            <div>
+                <h1 className={styles.headerTitle}>{title}</h1>
+                <p className={styles.headerSub}>{subtitle}</p>
+            </div>
+        </div>
+    );
 }
 
 // ---------- Ligne de lot (Civique thème / TCF niveau) ----------
 
 /** Classe couleur d'un score en fonction du ratio. */
 function scoreClass(score: number, total: number): string {
-  if (total <= 0) return styles.scoreMid;
-  const r = score / total;
-  if (r >= 0.7) return styles.scoreGood;
-  if (r >= 0.4) return styles.scoreMid;
-  return styles.scoreLow;
+    if (total <= 0) return styles.scoreMid;
+    const r = score / total;
+    if (r >= 0.7) return styles.scoreGood;
+    if (r >= 0.4) return styles.scoreMid;
+    return styles.scoreLow;
 }
 
 export function LotRow({
-  lot,
-  tone,
-  locked = false,
-  disabled = false,
-  onClick,
-}: {
-  lot: LotDto;
-  tone: HubTone;
-  locked?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
+                           lot,
+                           tone,
+                           locked = false,
+                           disabled = false,
+                           onClick,
+                       }: {
+    lot: LotDto;
+    tone: HubTone;
+    locked?: boolean;
+    disabled?: boolean;
+    onClick: () => void;
 }) {
-  const t = TONE[tone];
-  const done = lot.lastScore != null;
-  return (
-    <button
-      type="button"
-      className={styles.lotRow}
-      style={{"--accent": t.accent, "--accent-bg": t.bg} as CSSProperties}
-      onClick={onClick}
-      disabled={disabled}
-    >
-      <span className={styles.lotNum}>{lot.numero}</span>
-      <span className={styles.lotBody}>
-        <span className={styles.lotTitle}>Lot {lot.numero}</span>
+    const t = TONE[tone];
+    const done = lot.lastScore != null;
+    return (
+        <button
+            type="button"
+            className={`${styles.lotRow} ${locked ? styles.lotLocked : ""}`}
+            style={{"--accent": t.accent, "--accent-bg": t.bg} as CSSProperties}
+            onClick={onClick}
+            disabled={disabled}
+        >
+            <span className={`${styles.lotNum} ${locked ? styles.numLocked : ""}`}>{lot.numero}</span>
+            <span className={styles.lotBody}>
+        <span className={styles.lotTitle}>
+          Lot {lot.numero}
+            {locked && <span className={styles.lockChip}>Premium</span>}
+        </span>
         <span className={styles.lotSub}>
-          {lot.totalQuestions} questions
-          {done ? " · déjà fait" : ""}
+          {locked
+              ? "Réservé aux abonnés"
+              : `${lot.totalQuestions} questions${done ? " · déjà fait" : ""}`}
         </span>
       </span>
-      {locked ? (
-        <Lock size={16} className={styles.rowChevron} />
-      ) : done ? (
-        <span className={`${styles.scoreBadge} ${scoreClass(lot.lastScore!, lot.totalQuestions)}`}>
+            {locked ? (
+                <Lock size={16} className={styles.rowChevron}/>
+            ) : done ? (
+                <span className={`${styles.scoreBadge} ${scoreClass(lot.lastScore!, lot.totalQuestions)}`}>
           {lot.lastScore}/{lot.totalQuestions}
         </span>
-      ) : (
-        <ChevronRight size={20} className={styles.rowChevron} />
-      )}
-    </button>
-  );
+            ) : (
+                <ChevronRight size={20} className={styles.rowChevron}/>
+            )}
+        </button>
+    );
 }
 
 // ---------- Ligne de niveau (TCF CO/CE/Structure) ----------
 
 export function LevelRow({
-  chip,
-  tone,
-  title,
-  subtitle,
-  lotCount,
-  onClick,
-}: {
-  chip: string;
-  tone: HubTone;
-  title: string;
-  subtitle: string;
-  lotCount?: number | null;
-  onClick: () => void;
+                             chip,
+                             tone,
+                             title,
+                             subtitle,
+                             lotCount,
+                             onClick,
+                         }: {
+    chip: string;
+    tone: HubTone;
+    title: string;
+    subtitle: string;
+    lotCount?: number | null;
+    onClick: () => void;
 }) {
-  const t = TONE[tone];
-  return (
-    <button
-      type="button"
-      className={styles.levelRow}
-      style={{"--accent": t.accent, "--accent-bg": t.bg} as CSSProperties}
-      onClick={onClick}
-    >
-      <span className={styles.levelChip}>{chip}</span>
-      <span className={styles.levelBody}>
-        <span className={styles.levelTitle}>{title}</span>
-        <span className={styles.levelSub}>{subtitle}</span>
+    const t = TONE[tone];
+    return (
+        <button
+            type="button"
+            className={styles.levelRow}
+            style={{"--accent": t.accent, "--accent-bg": t.bg} as CSSProperties}
+            onClick={onClick}
+        >
+            <span className={styles.levelChip}>{chip} </span>
+            <span className={styles.levelBody}>
+        <span className={styles.levelTitle}>{title} </span>
+        <span className={styles.levelSub}>{subtitle} </span>
       </span>
-      {lotCount != null && <span className={styles.levelCount}>{lotCount} lots</span>}
-      <ChevronRight size={20} className={styles.rowChevron} />
-    </button>
-  );
+            {lotCount != null && <span className={styles.levelCount}>{lotCount} lots </span>}
+            <ChevronRight size={20} className={styles.rowChevron}/>
+        </button>
+    );
 }
 
 // ---------- Historique compact d'examens ----------
 
 export function ExamHistoryList({
-  items,
-  emptyLabel = "Aucun examen passé pour l'instant.",
-  onSelect,
-}: {
-  items: AttemptSummaryResponse[];
-  emptyLabel?: string;
-  /** Si défini : tap → ouvre une feuille (Voir le détail / Reprendre). Sinon,
-   *  lien direct vers la session finie. */
-  onSelect?: (a: AttemptSummaryResponse) => void;
+                                    items,
+                                    emptyLabel = "Aucun examen passé pour l'instant.",
+                                    onSelect,
+                                }: {
+    items: AttemptSummaryResponse[];
+    emptyLabel?: string;
+    /** Si défini : tap → ouvre une feuille (Voir le détail / Reprendre). Sinon,
+     *  lien direct vers la session finie. */
+    onSelect?: (a: AttemptSummaryResponse) => void;
 }) {
-  if (items.length === 0) {
-    return <p className={styles.empty}>{emptyLabel}</p>;
-  }
-  return (
-    <div className={styles.histList}>
-      {items.map((a) => {
-        const total = a.totalQuestions ?? 0;
-        const score = a.score ?? 0;
-        const inner = (
-          <>
+    if (items.length === 0) {
+        return <p className={styles.empty}>{emptyLabel}</p>;
+    }
+    return (
+        <div className={styles.histList}>
+            {items.map((a) => {
+                const total = a.totalQuestions ?? 0;
+                const score = a.score ?? 0;
+                const inner = (
+                    <>
             <span className={styles.histIcon}>
-              <ClipboardCheck size={18} strokeWidth={1.9} />
+              <ClipboardCheck size={18} strokeWidth={1.9}/>
             </span>
-            <span className={styles.histBody}>
+                        <span className={styles.histBody}>
               <span className={styles.histTitle}>Examen blanc</span>
               <span className={styles.histDate}>{formatDay(a.finishedAt ?? a.startedAt)}</span>
             </span>
-            {total > 0 && (
-              <span className={`${styles.scoreBadge} ${scoreClass(score, total)}`}>
+                        {total > 0 && (
+                            <span className={`${styles.scoreBadge} ${scoreClass(score, total)}`}>
                 {score}/{total}
               </span>
-            )}
-            <ChevronRight size={18} className={styles.rowChevron} />
-          </>
-        );
-        return onSelect ? (
-          <button
-            type="button"
-            key={a.id}
-            className={styles.histRow}
-            onClick={() => onSelect(a)}
-          >
-            {inner}
-          </button>
-        ) : (
-          <Link key={a.id} href={`/sessions/${a.id}`} className={styles.histRow}>
-            {inner}
-          </Link>
-        );
-      })}
-    </div>
-  );
+                        )}
+                        <ChevronRight size={18} className={styles.rowChevron}/>
+                    </>
+                );
+                return onSelect ? (
+                    <button
+                        type="button"
+                        key={a.id}
+                        className={styles.histRow}
+                        onClick={() => onSelect(a)}
+                    >
+                        {inner}
+                    </button>
+                ) : (
+                    <Link key={a.id} href={`/sessions/${a.id}`} className={styles.histRow}>
+                        {inner}
+                    </Link>
+                );
+            })}
+        </div>
+    );
 }
 
-export function SeeMoreButton({label, onClick}: {label: string; onClick: () => void}) {
-  return (
-    <button type="button" className={styles.seeMore} onClick={onClick}>
-      {label}
-    </button>
-  );
+export function SeeMoreButton({label, onClick}: { label: string; onClick: () => void }) {
+    return (
+        <button type="button" className={styles.seeMore} onClick={onClick}>
+            {label}
+        </button>
+    );
 }
 
 function formatDay(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("fr-FR", {day: "2-digit", month: "short", year: "numeric"});
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("fr-FR", {day: "2-digit", month: "short", year: "numeric"});
 }
 
 // ---------- Carte maîtrise (Civique) ----------
 
 export function CiviqueMasteryCard({
-  answered,
-  correct,
-  total,
-}: {
-  answered: number;
-  correct: number;
-  total: number;
+                                       answered,
+                                       correct,
+                                       total,
+                                   }: {
+    answered: number;
+    correct: number;
+    total: number;
 }) {
-  const pct = answered > 0 ? Math.round((correct / answered) * 100) : 0;
-  const coverage = total > 0 ? Math.min(1, answered / total) : 0;
-  return (
-    <div className={styles.mastery}>
-      <div className={styles.masteryTop}>
-        <span className={styles.masteryPct}>{answered > 0 ? `${pct}%` : "—"}</span>
-        <span className={styles.masteryPctLabel}>de bonnes réponses</span>
-      </div>
-      <div className={styles.masteryCoverage}>
-        <span>Couverture de la banque</span>
-        <span className={styles.masteryCoverageVal}>
+    const pct = answered > 0 ? Math.round((correct / answered) * 100) : 0;
+    const coverage = total > 0 ? Math.min(1, answered / total) : 0;
+    return (
+        <div className={styles.mastery}>
+            <div className={styles.masteryTop}>
+                <span className={styles.masteryPct}>{answered > 0 ? `${pct}%` : "—"}</span>
+                <span className={styles.masteryPctLabel}>de bonnes réponses</span>
+            </div>
+            <div className={styles.masteryCoverage}>
+                <span>Couverture de la banque</span>
+                <span className={styles.masteryCoverageVal}>
           {answered}/{total} questions
         </span>
-      </div>
-      <div className={styles.masteryTrack}>
-        <div className={styles.masteryFill} style={{width: `${Math.round(coverage * 100)}%`}} />
-      </div>
-    </div>
-  );
+            </div>
+            <div className={styles.masteryTrack}>
+                <div className={styles.masteryFill} style={{width: `${Math.round(coverage * 100)}%`}}/>
+            </div>
+        </div>
+    );
 }

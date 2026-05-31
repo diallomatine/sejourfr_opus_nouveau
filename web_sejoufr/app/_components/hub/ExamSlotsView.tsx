@@ -141,7 +141,7 @@ export function ExamSlotsView({
               onClick={locked ? onLocked : onStart}
               disabled={locked ? false : starting}
             >
-              <span className={styles.slotNum}>{slot}</span>
+              <span className={`${styles.slotNum} ${locked ? styles.numLocked : ""}`}>{slot}</span>
               <span className={styles.slotBody}>
                 <span className={styles.slotTitle}>
                   Examen {slot}
