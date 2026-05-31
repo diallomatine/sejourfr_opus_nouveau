@@ -203,6 +203,8 @@ sejourfr:
       api-key: ${EVAL_OPENAI_API_KEY:${OPENAI_API_KEY:}}
       api-url: https://api.openai.com/v1/chat/completions
       model: ${EVAL_OPENAI_MODEL:gpt-4o-mini}
+      # 0 = notation déterministe (même texte → mêmes notes d'un run à l'autre).
+      temperature: ${EVAL_OPENAI_TEMPERATURE:0}
       max-tokens: 2000
       timeout-sec: 60
       max-retries: 2
@@ -233,6 +235,7 @@ sejourfr:
       # DeepSeek V4 : thinking mode ON par défaut casse le tool_choice forcé (400).
       # On l'envoie {"thinking":{"type":"disabled"}} pour un tool_call déterministe.
       disable-thinking: ${EVAL_DEEPSEEK_DISABLE_THINKING:true}
+      temperature: ${EVAL_DEEPSEEK_TEMPERATURE:0}
       max-tokens: 2000
       timeout-sec: 60
       prompt-version: ${EVAL_PROMPT_VERSION:v1.4}

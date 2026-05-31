@@ -172,6 +172,9 @@ public class OpenAiCompatibleEvalClient implements EvaluationLlmClient {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", settings.getModel());
         body.put("max_tokens", settings.getMaxTokens());
+        // 0 = deterministe : une evaluation doit donner les memes notes d'un run
+        // a l'autre sur le meme texte (au defaut ~1.0 les scores varient bcp).
+        body.put("temperature", settings.getTemperature());
         body.put("messages", List.of(systemMessage, userMessage));
         body.put("tools", List.of(tool));
         body.put("tool_choice", toolChoice);

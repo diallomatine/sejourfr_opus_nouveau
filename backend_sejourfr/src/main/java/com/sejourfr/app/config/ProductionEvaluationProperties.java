@@ -182,6 +182,13 @@ public class ProductionEvaluationProperties {
         boolean isConfigured();
 
         /**
+         * Temperature d'echantillonnage. 0 = deterministe — recommande pour une
+         * EVALUATION (memes scores d'un run a l'autre sur le meme texte). Au-dela
+         * de 0, la notation varie a chaque appel.
+         */
+        default double getTemperature() { return 0.0; }
+
+        /**
          * true → ajoute {@code "thinking":{"type":"disabled"}} a la requete.
          * Necessaire pour DeepSeek V4 (thinking mode actif par defaut refuse le
          * {@code tool_choice} force → 400). Faux pour OpenAI (champ inconnu, 400).
@@ -316,11 +323,21 @@ public class ProductionEvaluationProperties {
         private int maxRetries;
         private long retryBackoffMs;
         private String promptVersion;
+        private double temperature;
         private double costPerMillionInputTokens;
         private double costPerMillionOutputTokens;
 
         public boolean isConfigured() {
             return apiKey != null && !apiKey.isBlank();
+        }
+
+        @Override
+        public double getTemperature() {
+            return temperature;
+        }
+
+        public void setTemperature(double temperature) {
+            this.temperature = temperature;
         }
 
         public String getApiKey() {
@@ -423,11 +440,21 @@ public class ProductionEvaluationProperties {
         private int timeoutSec;
         private String promptVersion;
         private boolean disableThinking;
+        private double temperature;
         private double costPerMillionInputTokens;
         private double costPerMillionOutputTokens;
 
         public boolean isConfigured() {
             return apiKey != null && !apiKey.isBlank();
+        }
+
+        @Override
+        public double getTemperature() {
+            return temperature;
+        }
+
+        public void setTemperature(double temperature) {
+            this.temperature = temperature;
         }
 
         @Override
