@@ -45,6 +45,7 @@ public class AiEvaluationService {
     private final AiEvaluationManager aiEvaluationManager;
     private final EvaluationLlmClient llmClient;
     private final EvaluationPromptBuilder promptBuilder;
+    private final ProductionRubricsProvider rubrics;
     @SuppressWarnings("unused")
     private final ProductionEvaluationProperties props;
 
@@ -98,9 +99,9 @@ public class AiEvaluationService {
         if (!avertissements.isEmpty()) {
             feedback.put("avertissements", avertissements);
         }
-        // Joint le `label` de la grille a chaque score (le LLM ne renvoie que le
-        // `code`). Source unique = production_tasks.criteres_evaluation : evite
-        // au mobile de maintenir une table parallele code→libelle qui derive.
+        // Joint le `label` des criteres a chaque score (le LLM ne renvoie que le
+        // `code`). Source = la rubrique de la tache (fallback DB) : evite au mobile
+        // de maintenir une table parallele code→libelle qui derive.
         enrichScoresWithLabels(feedback, task);
         BigDecimal noteSur20 = extractNote(feedback);
         NiveauCecrl niveau = extractNiveau(feedback);
@@ -166,9 +167,12 @@ public class AiEvaluationService {
     @SuppressWarnings("unchecked")
     private void enrichScoresWithLabels(Map<String, Object> feedback, ProductionTask task) {
         Object scoresObj = feedback.get("scores_criteres");
-        Object grilleObj = task.getCriteresEvaluation() != null
-                ? task.getCriteresEvaluation().get("criteres")
-                : null;
+        // Source des labels = la rubrique de la tache (meme source que les criteres
+        // envoyes au LLM), fallback DB criteres_evaluation.
+        Object grilleObj = rubrics.find(task.getEpreuve(), task.getTacheNumero())
+                .map(r -> r.get("criteres"))
+                .orElseGet(() -> task.getCriteresEvaluation() != null
+                        ? task.getCriteresEvaluation().get("criteres") : null);
         if (!(scoresObj instanceof List<?> scores) || !(grilleObj instanceof List<?> grille)) return;
         Map<String, String> labelByCode = new HashMap<>();
         for (Object g : grille) {

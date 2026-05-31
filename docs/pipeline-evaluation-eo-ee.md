@@ -29,16 +29,25 @@ sous-module comme `audioquestion/`) :
 
 - `WhisperTranscriptionClient` + `WhisperTranscriptionService` (OpenAI multipart, retry
   Spring 3 tentatives)
-- **Interface `EvaluationLlmClient`** avec deux impls : `EvaluationAnthropicClient`
-  (Claude + tool_use) et `EvaluationOpenAiClient` (Chat Completions + function calling). Le
-  bean primary est sélectionné dans `config/EvaluationLlmConfig` selon
-  `sejourfr.production-evaluation.provider` (`openai` par défaut, `anthropic` possible). Le
-  tool schema JSON est strictement identique entre providers — seule l'enveloppe HTTP
-  change. Pour ajouter un 3e provider : implémenter l'interface (4 méthodes : `evaluate`,
-  `getModelName`, `getPromptVersion`, calcul de coût dans `Outcome`), enregistrer le bean
-  avec un `@Service("evaluationXxxClient")`, ajouter le case dans `EvaluationLlmConfig`.
-- `EvaluationPromptBuilder` (charge `system-v1.md` + `user-template.md` au startup,
-  substitution `{CONSIGNE}`, `{NIVEAU}`, etc.)
+- **Interface `EvaluationLlmClient`** : `EvaluationAnthropicClient` (Claude + tool_use) +
+  **`OpenAiCompatibleEvalClient`** (Chat Completions + function calling), un client générique
+  instancié **une fois par provider compatible OpenAI** — OpenAI **et DeepSeek** — via 2
+  `@Bean` dans `config/EvaluationLlmConfig`, piloté par l'interface `ChatCompletionSettings`
+  (blocs `OpenAi` / `DeepSeek` de `ProductionEvaluationProperties`). Le bean actif est
+  sélectionné selon `sejourfr.production-evaluation.provider` (`openai` défaut, `anthropic`,
+  `deepseek`). Tool schema JSON identique entre providers — seule l'enveloppe HTTP change.
+  **Ajouter un provider OpenAI-compatible** (DeepSeek, Mistral, …) = un bloc de config
+  implémentant `ChatCompletionSettings` + un `@Bean` d'une ligne ; **un provider au format
+  différent** = implémenter `EvaluationLlmClient` (4 méthodes) + un `case` dans
+  `EvaluationLlmConfig`.
+- **`ProductionRubricsProvider`** : charge `prompts/production-rubrics-<version>.json`
+  (`rubrics-version`, défaut `v1`) — **source unique du « comment noter » par tâche**
+  (critères+poids, barème, descripteurs A1-C2, consignes correcteur), lookup
+  `(épreuve, tâche)`. Fallback DB `criteres_evaluation` si une tâche manque.
+- `EvaluationPromptBuilder` (charge `system-vX.Y.md` + `user-template-vX.Y.md`, substitue
+  `{CONSIGNE}`, `{NIVEAU}`, et injecte la rubrique de la tâche : `{CRITERES}`,
+  `{BAREME_NOTE}`, `{DESCRIPTEURS}`, `{CONSIGNES_CORRECTEUR}`). N'injecte **que des données**,
+  aucune instruction (cf. archi 2 couches dans Prompts).
 - `AiEvaluationService` (orchestration : prompt + LLM + persistance `AiEvaluation`)
 - `ProductionAudioStorageService` (R2 privé + URL signée via `S3Presigner` ; le bean est
   ajouté à `audioquestion/config/CloudflareR2Config.java`)
@@ -52,30 +61,52 @@ sous-module comme `audioquestion/`) :
 
 Dans
 `src/main/resources/prompts/production-evaluation-{system,user-template,tool-schema}-vX.Y.{md,json}`.
-Chargés à la demande selon `prompt-version` du provider actif (default `v1.2`). Versionnés
+Chargés à la demande selon `prompt-version` du provider actif (**default `v1.4`**). Versionnés
 dans `ai_evaluations.prompt_version` ; toute modif structurante = nouveau triplet `vX.Y`
 (les anciens fichiers restent en place pour permettre un rollback via
-`EVAL_PROMPT_VERSION=v1.0` / `v1.1`).
+`EVAL_PROMPT_VERSION=v1.2` / `v1.3`).
 
-En v1.1 : distinction explicite **note_globale (qualité de la tâche)** vs **niveau_cecrl
-(compétence réelle, peut dépasser le niveau cible)**, descripteurs CECRL A1-C2 dans le
-system prompt, champ `justification_niveau` (obligatoire, cite 2-3 marqueurs concrets)
-ajouté au tool schema et exposé dans `EvaluationResultDto.justificationNiveau` (nullable
-pour rétro-compat v1.0).
+### Architecture des instructions à l'IA (depuis v1.4) — 2 couches, 0 dans le code
 
-En v1.2 (actif par défaut) :
+Règle d'or : on n'éparpille pas le « comment noter ». Trois niveaux, chacun avec **une seule
+source** :
 
-- **Règle hors-sujet** dans le system prompt : si la production ne traite pas la consigne,
-  l'IA DOIT mettre `note_globale=0`, `niveau_cecrl=A1_NON_ATTEINT`, tous les
-  `scores_criteres[].note_sur_20=0`, et inclure dans `points_a_ameliorer` la phrase exacte
-  « Production hors-sujet : la consigne n'a pas été traitée. ». Le hors-sujet *partiel*
-  pénalise fortement le critère de pertinence sans annuler la note.
-- **Bloc `{DUREE_BLOCK}` EO** dans le user-template : injecté par
-  `EvaluationPromptBuilder` quand `submission.mediaDurationSec < task.dureeMaxSec`. Il
-  signale la durée parlée vs la cible et demande à l'IA de minorer `note_globale` (sans
-  pénaliser deux fois `niveau_cecrl`, qui doit refléter la qualité linguistique réelle).
-- Schéma `tool_use` inchangé entre v1.1 et v1.2 — la règle hors-sujet réutilise les
-  champs existants. Pas de changement côté mobile pour parser l'output.
+1. **GLOBAL → le system prompt** (`system-vX.Y.md`) : échelle CECRL, note≠niveau, hors-sujet,
+   oral = transcription (on n'évalue pas prononciation/débit/durée), méthode, format de sortie.
+   Identique pour toutes les tâches.
+2. **PAR TÂCHE → `prompts/production-rubrics-<v>.json`** (via `ProductionRubricsProvider`) :
+   pour chaque `(épreuve, tâche)`, la rubrique fixe — `criteres` (+ poids), `bareme_note`,
+   `descripteurs` A1-C2, `consignes_correcteur`. **C'est LE seul endroit à éditer pour ajuster
+   la notation d'une tâche.** Versionné via `rubrics-version` (`EVAL_RUBRICS_VERSION`, défaut
+   `v1`), indépendant de `prompt-version`.
+3. **CODE → aucune instruction** : `EvaluationPromptBuilder` n'injecte que des données
+   (production, durée factuelle, rubrique). La durée EO est une simple ligne
+   `DURÉE (indicative) : …` ; l'ordre de l'ignorer vit une seule fois dans le system prompt.
+
+Le user-template v1.4 expose les slots `{CRITERES}`, `{BAREME_NOTE}`, `{DESCRIPTEURS}`,
+`{CONSIGNES_CORRECTEUR}` (+ `{CONSIGNE}`, `{PRODUCTION}`, `{DUREE_BLOCK}`). Fallback : si une
+tâche n'est pas dans le fichier de rubriques, le builder retombe sur la colonne DB
+`production_tasks.criteres_evaluation` (conservée pour compat/réversibilité).
+
+### Historique des versions
+
+- **v1.1** : distinction **note_globale (qualité de la tâche)** vs **niveau_cecrl (compétence
+  réelle, peut dépasser le niveau cible)** ; descripteurs CECRL A1-C2 ; champ
+  `justification_niveau` (obligatoire) ajouté au tool schema, exposé dans
+  `EvaluationResultDto.justificationNiveau` (nullable, rétro-compat v1.0).
+- **v1.2** : **règle hors-sujet** — si la production ne traite pas la consigne, l'IA met
+  `note_globale=0`, `niveau_cecrl=A1_NON_ATTEINT`, tous les `scores_criteres[].note_sur_20=0`
+  et la phrase exacte « Production hors-sujet : la consigne n'a pas été traitée. » dans
+  `points_a_ameliorer`. Hors-sujet *partiel* = forte pénalité de pertinence sans annuler la note.
+- **v1.3** : **EO évaluée comme du texte transcrit** — l'IA ne note plus prononciation /
+  intonation / débit / durée (elle n'a pas l'audio). Les blocs débit/durée Java passent en
+  informatif.
+- **v1.4** (actif) : **archi rubriques par tâche** (ci-dessus). user-template gagne
+  `{BAREME_NOTE}` + `{DESCRIPTEURS}`, la notice de transcription est absorbée dans le system
+  prompt, le bloc « débit » est supprimé, la durée devient une donnée factuelle.
+
+Le schéma `tool_use` est inchangé depuis v1.1 (mêmes champs) — aucun changement côté mobile
+pour parser l'output.
 
 ## Validation et enrichissements serveur
 
@@ -94,8 +125,10 @@ est un garde-fou serveur. Garde-fou absolu indépendant de la tâche :
 **EO — durée** : aucun blocage. L'utilisateur reçoit toujours une correction IA, même
 si la durée est sous la cible voire sous le minimum de 120 s. Trois leviers :
 
-1. `EvaluationPromptBuilder` injecte `{DUREE_BLOCK}` quand `duree < task.dureeMaxSec` →
-   l'IA minore `note_globale` en conséquence (pas `niveau_cecrl`).
+1. `EvaluationPromptBuilder` injecte un `{DUREE_BLOCK}` **factuel** quand
+   `duree < task.dureeMaxSec` (`DURÉE (indicative) : …`). **Depuis v1.4 l'IA ne minore plus
+   la note pour la durée** (on évalue la transcription comme du texte) ; il reste l'avertissement
+   utilisateur (levier 2).
 2. `AiEvaluationService.buildAvertissements` ajoute un message orienté utilisateur dans
    `feedback["avertissements"]` (variante plus appuyée si `duree < task.dureeMinSec`).
 3. Côté mobile, le chrono EO est codé en couleur (rouge < 120 s / orange < cible /
@@ -107,11 +140,11 @@ par `AiEvaluationService.buildAvertissements(sub, task)` AVANT persistance dans
 feedback et remonte au mobile via `EvaluationResultDto.feedback` (Map). Le mobile la lit
 sur `EvaluationFeedback.avertissements` et l'affiche dans `AvertissementsCard`.
 
-**Libellés des critères** — l'IA ne renvoie que le `code` (`pertinence`,
-`clarte_orale`, …) dans `scores_criteres`. `AiEvaluationService.enrichScoresWithLabels`
-joint le `label` de la grille (`task.criteresEvaluation.criteres[].label`) à chaque item
-avant persistance. Source unique = `production_tasks`, pas de table parallèle côté
-mobile. Le mobile (`CriterionRow`) utilise `criterion.label` si présent, sinon retombe
+**Libellés des critères** — l'IA ne renvoie que le `code` (`pertinence`, `coherence`, …)
+dans `scores_criteres`. `AiEvaluationService.enrichScoresWithLabels` joint le `label` de la
+grille à chaque item avant persistance. Source du label = la rubrique de la tâche
+(`production-rubrics-<v>.json`, fallback `production_tasks.criteres_evaluation`), pas de table
+parallèle côté mobile. Le mobile (`CriterionRow`) utilise `criterion.label` si présent, sinon retombe
 sur une table locale (fallback pour les évaluations antérieures à v1.2).
 
 ## Config
