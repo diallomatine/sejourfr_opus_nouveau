@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * Service du formulaire de contact. Relaye le message vers l'adresse support
- * (configurée via {@code sejourfr.contact.to}, défaut {@code hello@sejourfr.fr}).
+ * (configurée via {@code sejourfr.contact.to}, défaut {@code support@sejourfr.fr}).
  *
  * <p>Pas de persistance : pour cette itération on traite le message comme
  * un email transitoire. Si on veut un suivi côté admin plus tard, on
@@ -20,16 +20,6 @@ import org.springframework.stereotype.Service;
 public class ContactService {
 
     private final MailService mailService;
-
-    public void submit(ContactRequest req) {
-        log.info("Contact form submission from {} : '{}'", req.email(), req.subject());
-        mailService.sendContactMessage(
-                sanitizeHeader(req.name().trim()),
-                req.email().trim().toLowerCase(),
-                sanitizeHeader(req.subject().trim()),
-                req.message().trim()
-        );
-    }
 
     /**
      * Défense en profondeur contre l'injection de headers SMTP : on retire
@@ -44,5 +34,15 @@ public class ContactService {
      */
     private static String sanitizeHeader(String value) {
         return value.replace("\r", " ").replace("\n", " ");
+    }
+
+    public void submit(ContactRequest req) {
+        log.info("Contact form submission from {} : '{}'", req.email(), req.subject());
+        mailService.sendContactMessage(
+                sanitizeHeader(req.name().trim()),
+                req.email().trim().toLowerCase(),
+                sanitizeHeader(req.subject().trim()),
+                req.message().trim()
+        );
     }
 }

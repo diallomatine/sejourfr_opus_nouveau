@@ -3,7 +3,14 @@
 import Link from "next/link";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import {Suspense, useEffect, useMemo, useState} from "react";
-import {ApiException, billingApi, periodicityFromCycle, planCodeFor, type PlanModuleTarget, type PlanPeriodicity} from "@/lib/api";
+import {
+    ApiException,
+    billingApi,
+    periodicityFromCycle,
+    planCodeFor,
+    type PlanModuleTarget,
+    type PlanPeriodicity
+} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import type {AuthenticatedUser, BillingCycle, PlanPublicResponse} from "@/lib/types";
 
@@ -284,13 +291,13 @@ function PaiementInner() {
                 <p className="pay-hero-sub">{leadFor(currentPlan)}</p>
                 <div className="pay-hero-chips">
                     <span className="pay-hero-chip">
-                        <LockIcon /> Paiement sécurisé Stripe
+                        <LockIcon/> Paiement sécurisé Stripe
                     </span>
                     <span className="pay-hero-chip">
-                        <CalendarIcon /> Sans renouvellement
+                        <CalendarIcon/> Sans renouvellement
                     </span>
                     <span className="pay-hero-chip">
-                        <CheckIcon /> Sans engagement
+                        <CheckIcon/> Sans engagement
                     </span>
                 </div>
             </header>
@@ -357,7 +364,7 @@ function PaiementInner() {
                         title="Support direct"
                         body={
                             <>
-                                <a href="mailto:hello@sejourfr.fr">hello@sejourfr.fr</a> — on
+                                <a href="mailto:support@sejourfr.fr">support@sejourfr.fr</a> — on
                                 répond.
                             </>
                         }
@@ -382,11 +389,11 @@ function PaiementInner() {
 const POPULAR_PASS_CODE = "INTEGRAL_PASS_3M";
 
 function OneTimePasses({
-    plans,
-    modules,
-    loadingCode,
-    onSubscribe,
-}: {
+                           plans,
+                           modules,
+                           loadingCode,
+                           onSubscribe,
+                       }: {
     plans: PlanPublicResponse[];
     modules: PlanModuleTarget[];
     loadingCode: string | null;
@@ -408,7 +415,7 @@ function OneTimePasses({
                         <ul className="otp-features">
                             {pres.features.map((f) => (
                                 <li key={f.label} className={f.strong ? "is-strong" : ""}>
-                                    <CheckIcon /> {f.label}
+                                    <CheckIcon/> {f.label}
                                 </li>
                             ))}
                         </ul>
@@ -787,7 +794,9 @@ const I = (props: React.SVGProps<SVGSVGElement>) => (
     />
 );
 const CheckIcon = () => (
-    <I><polyline points="20 6 9 17 4 12"/></I>
+    <I>
+        <polyline points="20 6 9 17 4 12"/>
+    </I>
 );
 const AlertIcon = () => (
     <I>

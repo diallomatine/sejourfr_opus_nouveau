@@ -27,21 +27,21 @@ Backend Spring Boot Java 21 séparé, qui tourne sur `http://localhost:8080`.
 
 ### Endpoints utilisés
 
-| Méthode | URL                                    | Usage                                | Auth |
-|---------|----------------------------------------|--------------------------------------|------|
-| POST    | `/api/auth/register`                   | inscription                          | non  |
-| POST    | `/api/auth/login`                      | connexion                            | non  |
-| POST    | `/api/auth/google`                     | sign-in Google (cree compte si besoin) | non  |
-| GET     | `/api/auth/me`                         | user courant                         | oui  |
-| GET     | `/api/themes?module=CIVIQUE\|TCF`      | liste des thèmes                     | oui  |
-| POST    | `/api/attempts`                        | démarrer une tentative               | oui  |
-| GET     | `/api/attempts/{id}`                   | reprendre                            | oui  |
-| POST    | `/api/attempts/{id}/answers`           | soumettre une réponse                | oui  |
-| POST    | `/api/attempts/{id}/finish`            | finaliser                            | oui  |
-| GET     | `/api/billing/plans`                   | liste plans actifs (publique, ISR 30min)  | non  |
-| GET     | `/api/billing/payment-link?planCode=…` | Checkout Session Stripe (mode subscription) | oui  |
+| Méthode | URL                                    | Usage                                           | Auth |
+|---------|----------------------------------------|-------------------------------------------------|------|
+| POST    | `/api/auth/register`                   | inscription                                     | non  |
+| POST    | `/api/auth/login`                      | connexion                                       | non  |
+| POST    | `/api/auth/google`                     | sign-in Google (cree compte si besoin)          | non  |
+| GET     | `/api/auth/me`                         | user courant                                    | oui  |
+| GET     | `/api/themes?module=CIVIQUE\|TCF`      | liste des thèmes                                | oui  |
+| POST    | `/api/attempts`                        | démarrer une tentative                          | oui  |
+| GET     | `/api/attempts/{id}`                   | reprendre                                       | oui  |
+| POST    | `/api/attempts/{id}/answers`           | soumettre une réponse                           | oui  |
+| POST    | `/api/attempts/{id}/finish`            | finaliser                                       | oui  |
+| GET     | `/api/billing/plans`                   | liste plans actifs (publique, ISR 30min)        | non  |
+| GET     | `/api/billing/payment-link?planCode=…` | Checkout Session Stripe (mode subscription)     | oui  |
 | GET     | `/api/billing/subscription-status`     | statut Premium agrégé (Stripe + Apple + Google) | oui  |
-| POST    | `/api/billing/cancel`                  | résiliation de l'abonnement courant  | oui  |
+| POST    | `/api/billing/cancel`                  | résiliation de l'abonnement courant             | oui  |
 
 ### Enums Spring miroirs côté TS (dans `lib/types.ts`)
 
@@ -53,7 +53,8 @@ Backend Spring Boot Java 21 séparé, qui tourne sur `http://localhost:8080`.
 - `AttemptType` = `"TRAINING" \| "MOCK_EXAM" \| "REVIEW"`
 - `MediaType` = `"AUDIO" \| "IMAGE" \| "VIDEO"`
 - `Role` = `"USER" \| "ADMIN"`
-- `AudioMode` = `"WRITTEN_QUESTION" \| "FULL_AUDIO"` (sur `Question`, nullable ; en mode `FULL_AUDIO` les labels sont `"Réponse A/B/C/D"` et le contenu réel est lu dans l'audio — cf CLAUDE.md racine)
+- `AudioMode` = `"WRITTEN_QUESTION" \| "FULL_AUDIO"` (sur `Question`, nullable ; en mode `FULL_AUDIO` les labels sont
+  `"Réponse A/B/C/D"` et le contenu réel est lu dans l'audio — cf CLAUDE.md racine)
 
 ## Structure
 
@@ -177,6 +178,7 @@ standard 36px, variante `.cocarde.lg` à 56px.
   les composants plus simples / hérités. Pas d'utility-first dans les deux cas.
 
 **Hygiène (rappel transverse, cf. CLAUDE.md racine)**
+
 - Toute nouvelle page App Router prend sa place dans `app/<segment>/`. Les composants partagés à 2+ pages
   remontent dans `app/_components/`. Si un helper apparaît dans 2 pages, le mettre dans `lib/`. À la 2ᵉ
   duplication, pas plus tard.
@@ -222,6 +224,7 @@ récurrents Stripe** au lieu de paiements one-shot. 6 SKUs proposés : Civique +
 Intégral × mensuel / trimestriel / annuel.
 
 **Flow d'achat** :
+
 1. L'utilisateur arrive sur `/paiement` (depuis paywall, sidebar, ou
    `/tarifs`). Optionnel : `?module=CIVIQUE|INTEGRAL` pour mettre l'accent
    sur un module, `?period=monthly|quarterly|yearly` pour pré-sélectionner
@@ -237,21 +240,24 @@ Intégral × mensuel / trimestriel / annuel.
    activé (webhook backend → DB).
 
 **Composants** :
+
 - `components/pricing/PricingPlans.tsx` (client) — toggle + 3 cards
   (Free/Civique/Intégral). Variante `compact` pour la landing. Partagé entre
   `/tarifs` et la `PricingSection` du `/` (landing).
 - `app/_components/PaywallSheet.tsx` — bottom sheet d'incitation à l'achat,
   prop `module: "CIVIQUE" | "INTEGRAL"` (plus de `plan`).
 - `app/(app)/paiement/page.tsx` — page de checkout authentifiée, toggle
-  + 2 cards, gestion du status courant (CurrentSubscriptionCard) et cas
-  upgrade (CIVIQUE → INTEGRAL).
+    + 2 cards, gestion du status courant (CurrentSubscriptionCard) et cas
+      upgrade (CIVIQUE → INTEGRAL).
 
 **Helpers `lib/api.ts`** :
+
 - `planCodeFor(module, periodicity)` — dérive le code backend.
 - `periodicityFromCycle(billingCycle)` — convertit le `billingCycle` backend
   (`MONTHLY` / `THREE_MONTHS` / `YEARLY`) vers la périodicité UI.
 
 **Types `lib/types.ts`** :
+
 - `PlanModuleTarget = "CIVIQUE" | "INTEGRAL"`
 - `PlanPeriodicity = "monthly" | "quarterly" | "yearly"`
 
@@ -267,6 +273,7 @@ montage et affiche plan + source + date + CTA **Résilier mon abonnement**
 en rouge avec confirmation modal locale.
 
 Routing décidé côté backend selon la source :
+
 - **Stripe** → `action=DONE`. On appelle `useAuth().refreshUser()` puis
   re-fetch le status pour refléter `status=CANCELED` immédiatement.
 - **Apple/Google** → `action=REDIRECT`. On ouvre `redirectUrl` dans un
@@ -315,56 +322,56 @@ Chantier découpé en vagues :
 - **Vague 5** ✅ — Pages détail de module (parité écrans mobiles
   `module_detail/`). Un clic sur un module depuis `/entrainement` ouvre un
   écran détail à onglets, branché sur le runner existant :
-  - **Civique** `/entrainement/civique/[themeId]` — onglets **Lots / Examens /
-    Erreurs**. Lots → `TRAINING {themeId, lotNumero}` → runner mode lot.
-    Examens → 10 slots (abonné = tous lançables, gratuit = slot 1 seul, 2+ →
-    paywall), `MOCK_EXAM {themeId}` (20 Q/20 min/seuil 16). Erreurs → liste
-    cliquable → `QuestionDetailModal`.
-  - **TCF QCM** `/entrainement/tcf/[code]` (code = `co`/`ce`) — onglets
-    **Séries / Examens / Erreurs**. Séries = 3 cartes niveau (A2/B1/B2) →
-    `/entrainement/tcf/[code]/[level]` (lots du niveau via
-    `lotApi.listTcf(questionType, difficulty)`, lot gated premium → paywall
-    INTEGRAL). Examens → `MOCK_EXAM {moduleExamQuestionType}` (25 Q,
-    20 min CO / 35 min CE, score /50). EE/EO restent sur le
-    `ProductionMobileSheet` (productions mobiles uniquement).
-  - **Composants partagés** `app/_components/module_detail/` :
-    `parts.tsx` (ModuleDetailShell/Hero/Tabs, LotsGrid, ExamSlots, ErrorsList,
-    SkeletonGrid) + `ModuleDetail.module.css` (accent bleu/rouge via
-    `data-accent`). `QuestionDetailModal` extrait de `/revision`.
-  - **Runner mode lot** : `/sessions/[id]?lot=<numero>` force le batch fixe
-    (pas d'extension premium), eyebrow "Lot N", retour au détail via
-    `lotReturnPath(attempt)` (civique → thème, TCF → épreuve×niveau).
+    - **Civique** `/entrainement/civique/[themeId]` — onglets **Lots / Examens /
+      Erreurs**. Lots → `TRAINING {themeId, lotNumero}` → runner mode lot.
+      Examens → 10 slots (abonné = tous lançables, gratuit = slot 1 seul, 2+ →
+      paywall), `MOCK_EXAM {themeId}` (20 Q/20 min/seuil 16). Erreurs → liste
+      cliquable → `QuestionDetailModal`.
+    - **TCF QCM** `/entrainement/tcf/[code]` (code = `co`/`ce`) — onglets
+      **Séries / Examens / Erreurs**. Séries = 3 cartes niveau (A2/B1/B2) →
+      `/entrainement/tcf/[code]/[level]` (lots du niveau via
+      `lotApi.listTcf(questionType, difficulty)`, lot gated premium → paywall
+      INTEGRAL). Examens → `MOCK_EXAM {moduleExamQuestionType}` (25 Q,
+      20 min CO / 35 min CE, score /50). EE/EO restent sur le
+      `ProductionMobileSheet` (productions mobiles uniquement).
+    - **Composants partagés** `app/_components/module_detail/` :
+      `parts.tsx` (ModuleDetailShell/Hero/Tabs, LotsGrid, ExamSlots, ErrorsList,
+      SkeletonGrid) + `ModuleDetail.module.css` (accent bleu/rouge via
+      `data-accent`). `QuestionDetailModal` extrait de `/revision`.
+    - **Runner mode lot** : `/sessions/[id]?lot=<numero>` force le batch fixe
+      (pas d'extension premium), eyebrow "Lot N", retour au détail via
+      `lotReturnPath(attempt)` (civique → thème, TCF → épreuve×niveau).
 
 - **Vague 6** ✅ — Refonte **single-scroll** des hubs et pages détail au design
   de l'app mobile (`screens/civique`, `screens/tcf`, `module_detail/`). Les
   onglets disparaissent ; chaque écran est un scroll unique. L'onglet « Erreurs »
   est retiré partout (les erreurs vivent dans `/revision`, comme sur mobile).
-  - **Composants partagés** `app/_components/hub/` (miroir de
-    `hub_home_widgets.dart`) : `HubParts.tsx` (HubHeader, HubDetailHeader,
-    ExamBlancHero, EpreuveCard, SectionLabel/Counter/Link, LotRow,
-    ExamHistoryList, CiviqueMasteryCard), `ExamSlotsView.tsx` (stats + progress +
-    chips + slots), `CiviqueHub.tsx`, `TcfHub.tsx` + `hub.module.css` (accents
-    pilotés par variables CSS `--accent`/`--accent-bg`).
-  - **`/entrainement`** = simple dispatcher : `?module=TCF` → `TcfHub`, sinon
-    `CiviqueHub` (les deux dual guest/connecté). L'ancien `EntrainementHub` à
-    onglets (~1500 l.) est supprimé.
-  - **Civique** : hub (hero examen 40 Q → `/examens-blancs/civique` existant +
-    thèmes + maîtrise) → détail thème (hero examen 20 Q + lots + historique) →
-    page examens thème dédiée `/entrainement/civique/[themeId]/examens`
-    (20 Q, 10 slots).
-  - **TCF** : hub (hero examen complet + 5 épreuves + carte CECRL + stats ;
-    EE/EO → `ProductionMobileSheet`) → détail QCM (hero + 3 niveaux + historique)
-    → `/entrainement/tcf/[code]/examens` (10 slots) et `[code]/[level]` (lots,
-    lot 1 gratuit / 2+ premium).
-  - **Bilan donut lot TCF** : `TcfLotResultCard` (score donut + résumé + conseil
-    + rapport dépliable), servi par la session via
-    `?lot=N&result=tcfLot&code&level` (parité `TcfLotResultScreen` mobile). Le
-    bilan civique reste le rapport Q-par-Q (`ExamReport`).
-  - `module_detail/parts.tsx` ne garde que `ModuleDetailGate` + `moduleDetailStyles`.
-  - **Reste au lot 2** : parcours Expression EE/EO web (audio navigateur + éval
-    IA) et examen blanc TCF complet orchestré (CO→CE→EE→EO). En attendant, le
-    hero « examen complet » du hub TCF pointe sur `/examens-blancs/tcf` et EE/EO
-    renvoient vers le mobile.
+    - **Composants partagés** `app/_components/hub/` (miroir de
+      `hub_home_widgets.dart`) : `HubParts.tsx` (HubHeader, HubDetailHeader,
+      ExamBlancHero, EpreuveCard, SectionLabel/Counter/Link, LotRow,
+      ExamHistoryList, CiviqueMasteryCard), `ExamSlotsView.tsx` (stats + progress +
+      chips + slots), `CiviqueHub.tsx`, `TcfHub.tsx` + `hub.module.css` (accents
+      pilotés par variables CSS `--accent`/`--accent-bg`).
+    - **`/entrainement`** = simple dispatcher : `?module=TCF` → `TcfHub`, sinon
+      `CiviqueHub` (les deux dual guest/connecté). L'ancien `EntrainementHub` à
+      onglets (~1500 l.) est supprimé.
+    - **Civique** : hub (hero examen 40 Q → `/examens-blancs/civique` existant +
+      thèmes + maîtrise) → détail thème (hero examen 20 Q + lots + historique) →
+      page examens thème dédiée `/entrainement/civique/[themeId]/examens`
+      (20 Q, 10 slots).
+    - **TCF** : hub (hero examen complet + 5 épreuves + carte CECRL + stats ;
+      EE/EO → `ProductionMobileSheet`) → détail QCM (hero + 3 niveaux + historique)
+      → `/entrainement/tcf/[code]/examens` (10 slots) et `[code]/[level]` (lots,
+      lot 1 gratuit / 2+ premium).
+    - **Bilan donut lot TCF** : `TcfLotResultCard` (score donut + résumé + conseil
+        + rapport dépliable), servi par la session via
+          `?lot=N&result=tcfLot&code&level` (parité `TcfLotResultScreen` mobile). Le
+          bilan civique reste le rapport Q-par-Q (`ExamReport`).
+    - `module_detail/parts.tsx` ne garde que `ModuleDetailGate` + `moduleDetailStyles`.
+    - **Reste au lot 2** : parcours Expression EE/EO web (audio navigateur + éval
+      IA) et examen blanc TCF complet orchestré (CO→CE→EE→EO). En attendant, le
+      hero « examen complet » du hub TCF pointe sur `/examens-blancs/tcf` et EE/EO
+      renvoient vers le mobile.
 
 ### Endpoints backend manquants (à créer si besoin)
 
@@ -376,7 +383,7 @@ des stubs/fallbacks côté web :
 - `POST /api/me/change-password` — workaround actuel : la page profil envoie
   vers `/mot-de-passe-oublie` qui utilise le flow par email.
 - `DELETE /api/me/account` — la page profil affiche une modal "bientôt" qui
-  invite à écrire à hello@sejourfr.fr.
+  invite à écrire à support@sejourfr.fr.
 - `POST /api/auth/logout` (révocation serveur du refresh token) — actuellement
   on clear juste le storage côté client.
 

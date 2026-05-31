@@ -19,7 +19,7 @@ import java.time.ZoneId;
 
 /**
  * Service d'envoi d'emails.
- *
+ * <p>
  * En dev : on s'attend à pointer sur un MailHog ou un Mailtrap local
  * (cf. application-dev.yaml). Si JavaMailSender n'est pas configuré,
  * on log juste le mail sans l'envoyer — utile pour les tests locaux.
@@ -28,7 +28,10 @@ import java.time.ZoneId;
 public class MailService {
 
     private static final Logger log = LoggerFactory.getLogger(MailService.class);
-
+    private static final String[] FRENCH_MONTHS = {
+            "janvier", "février", "mars", "avril", "mai", "juin",
+            "juillet", "août", "septembre", "octobre", "novembre", "décembre"
+    };
     private final JavaMailSender mailSender;
     private final String fromAddress;
     private final String appBaseUrl;
@@ -39,7 +42,7 @@ public class MailService {
             JavaMailSender mailSender,
             @Value("${sejourfr.mail.from:no-reply@sejourfr.fr}") String fromAddress,
             @Value("${sejourfr.app.base-url:http://localhost:3000}") String appBaseUrl,
-            @Value("${sejourfr.contact.to:hello@sejourfr.fr}") String contactAddress,
+            @Value("${sejourfr.contact.to:support@sejourfr.fr}") String contactAddress,
             @Value("${sejourfr.backend.base-url:http://localhost:8080}") String backendBaseUrl
     ) {
         this.mailSender = mailSender;
@@ -49,19 +52,75 @@ public class MailService {
         this.backendBaseUrl = backendBaseUrl;
     }
 
+    private static String displayNameOrFallback(String displayName) {
+        if (displayName == null || displayName.isBlank()) return "à toi";
+        return displayName;
+    }
+
+    // ------------------------------------------------------------------------
+    // Emails Premium : activation + résiliation. HTML avec logo inline (CID).
+    // ------------------------------------------------------------------------
+
+    /**
+     * Wording « gestion » côté store, propre à la source de l'abo.
+     */
+    private static String manageHint(String source) {
+        return switch (source) {
+            case "STRIPE" -> "Vous pouvez gérer ou résilier votre abonnement à tout moment depuis votre profil.";
+            case "APPLE" ->
+                    "Votre abonnement est géré par Apple — vous pouvez le résilier à tout moment depuis Réglages → [votre nom] → Abonnements.";
+            case "GOOGLE" ->
+                    "Votre abonnement est géré par Google Play — vous pouvez le résilier à tout moment depuis Play Store → Abonnements.";
+            default -> "Vous pouvez gérer votre abonnement depuis votre profil.";
+        };
+    }
+
+    /**
+     * Wording « réactivation » côté store, propre à la source de l'abo.
+     */
+    private static String reactivateHint(String source) {
+        return switch (source) {
+            case "STRIPE" -> "Vous pouvez réactiver votre abonnement à tout moment depuis votre profil.";
+            case "APPLE" -> "Vous pouvez réactiver votre abonnement depuis Réglages → [votre nom] → Abonnements.";
+            case "GOOGLE" -> "Vous pouvez réactiver votre abonnement depuis Play Store → Abonnements.";
+            default -> "Vous pouvez réactiver votre abonnement à tout moment depuis votre profil.";
+        };
+    }
+
+    private static String formatFrenchDate(Instant t) {
+        if (t == null) return "la fin de la période en cours";
+        LocalDate d = t.atZone(ZoneId.of("Europe/Paris")).toLocalDate();
+        return d.getDayOfMonth() + " " + FRENCH_MONTHS[d.getMonthValue() - 1] + " " + d.getYear();
+    }
+
+    // ------------------------------------------------------------------------
+    // Helpers HTML — layout commun avec logo en image inline (CID).
+    // ------------------------------------------------------------------------
+
+    /**
+     * Échappement HTML basique pour les données dynamiques injectées.
+     */
+    private static String escape(String s) {
+        if (s == null) return "";
+        return s.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
+    }
+
     public void sendPasswordResetEmail(String to, String token) {
         String link = appBaseUrl + "/reinitialiser-mot-de-passe?token=" + token;
         String body = """
                 Bonjour,
-
+                
                 Vous avez demandé la réinitialisation de votre mot de passe SejourFR.
-
+                
                 Cliquez sur le lien suivant (valable 1 heure) :
                 %s
-
+                
                 Si vous n'êtes pas à l'origine de cette demande, vous pouvez
                 ignorer cet email — votre mot de passe reste inchangé.
-
+                
                 — L'équipe SejourFR
                 """.formatted(link);
 
@@ -90,16 +149,16 @@ public class MailService {
         String link = backendBaseUrl + "/api/auth/confirm-email-change?token=" + token;
         String body = """
                 Bonjour,
-
+                
                 Vous avez demandé à changer l'email associé à votre compte SejourFR.
-
+                
                 Cliquez sur le lien suivant (valable 1 heure) pour confirmer
                 ce nouvel email :
                 %s
-
+                
                 Si vous n'êtes pas à l'origine de cette demande, ignorez cet
                 email — votre compte reste accessible avec son adresse actuelle.
-
+                
                 — L'équipe SejourFR
                 """.formatted(link);
 
@@ -115,10 +174,6 @@ public class MailService {
             log.warn("Failed to send email change confirmation to {} : {}", to, e.getMessage());
         }
     }
-
-    // ------------------------------------------------------------------------
-    // Emails Premium : activation + résiliation. HTML avec logo inline (CID).
-    // ------------------------------------------------------------------------
 
     /**
      * Email de confirmation envoyé juste après l'activation Premium. Une seule
@@ -141,25 +196,25 @@ public class MailService {
         String html = htmlLayout(
                 "Votre accès Premium est activé",
                 """
-                <p style="margin:0 0 16px;font-size:15px;color:#0F1839;line-height:1.55;">
-                  Bonjour %s,
-                </p>
-                <p style="margin:0 0 16px;font-size:15px;color:#0F1839;line-height:1.55;">
-                  Votre abonnement <strong>%s</strong> est désormais actif. Tous les modules
-                  inclus sont débloqués sur le web et l'application mobile.
-                </p>
-                <p style="margin:0 0 24px;font-size:15px;color:#0F1839;line-height:1.55;">
-                  <strong>Prochain renouvellement automatique :</strong> %s.
-                </p>
-                <p style="margin:0 0 24px;">
-                  <a href="%s" style="display:inline-block;padding:13px 22px;border-radius:10px;background:#1E3A8C;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;">
-                    Reprendre mon entraînement
-                  </a>
-                </p>
-                <p style="margin:0 0 8px;font-size:13px;color:#6B7299;line-height:1.55;">
-                  %s
-                </p>
-                """.formatted(
+                        <p style="margin:0 0 16px;font-size:15px;color:#0F1839;line-height:1.55;">
+                          Bonjour %s,
+                        </p>
+                        <p style="margin:0 0 16px;font-size:15px;color:#0F1839;line-height:1.55;">
+                          Votre abonnement <strong>%s</strong> est désormais actif. Tous les modules
+                          inclus sont débloqués sur le web et l'application mobile.
+                        </p>
+                        <p style="margin:0 0 24px;font-size:15px;color:#0F1839;line-height:1.55;">
+                          <strong>Prochain renouvellement automatique :</strong> %s.
+                        </p>
+                        <p style="margin:0 0 24px;">
+                          <a href="%s" style="display:inline-block;padding:13px 22px;border-radius:10px;background:#1E3A8C;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;">
+                            Reprendre mon entraînement
+                          </a>
+                        </p>
+                        <p style="margin:0 0 8px;font-size:13px;color:#6B7299;line-height:1.55;">
+                          %s
+                        </p>
+                        """.formatted(
                         escape(greet),
                         escape(planName),
                         escape(endsLabel),
@@ -181,25 +236,25 @@ public class MailService {
         String html = htmlLayout(
                 "Votre accès se termine bientôt",
                 """
-                <p style="margin:0 0 16px;font-size:15px;color:#0F1839;line-height:1.55;">
-                  Bonjour %s,
-                </p>
-                <p style="margin:0 0 16px;font-size:15px;color:#0F1839;line-height:1.55;">
-                  Votre accès <strong>%s</strong> se termine le <strong>%s</strong>. Comme
-                  il s'agit d'un achat unique, il n'y a aucun renouvellement automatique :
-                  pour continuer à vous entraîner après cette date, il vous suffit de
-                  reprendre un accès quand vous le souhaitez.
-                </p>
-                <p style="margin:0 0 24px;">
-                  <a href="%s/paiement" style="display:inline-block;padding:13px 22px;border-radius:10px;background:#1E3A8C;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;">
-                    Prolonger mon accès
-                  </a>
-                </p>
-                <p style="margin:0 0 8px;font-size:13px;color:#6B7299;line-height:1.55;">
-                  Vos données (favoris, erreurs, progression) restent sur votre compte —
-                  vous les retrouverez si vous reprenez un accès plus tard.
-                </p>
-                """.formatted(
+                        <p style="margin:0 0 16px;font-size:15px;color:#0F1839;line-height:1.55;">
+                          Bonjour %s,
+                        </p>
+                        <p style="margin:0 0 16px;font-size:15px;color:#0F1839;line-height:1.55;">
+                          Votre accès <strong>%s</strong> se termine le <strong>%s</strong>. Comme
+                          il s'agit d'un achat unique, il n'y a aucun renouvellement automatique :
+                          pour continuer à vous entraîner après cette date, il vous suffit de
+                          reprendre un accès quand vous le souhaitez.
+                        </p>
+                        <p style="margin:0 0 24px;">
+                          <a href="%s/paiement" style="display:inline-block;padding:13px 22px;border-radius:10px;background:#1E3A8C;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;">
+                            Prolonger mon accès
+                          </a>
+                        </p>
+                        <p style="margin:0 0 8px;font-size:13px;color:#6B7299;line-height:1.55;">
+                          Vos données (favoris, erreurs, progression) restent sur votre compte —
+                          vous les retrouverez si vous reprenez un accès plus tard.
+                        </p>
+                        """.formatted(
                         escape(greet),
                         escape(planName),
                         escape(endsLabel),
@@ -227,26 +282,26 @@ public class MailService {
         String html = htmlLayout(
                 "Résiliation enregistrée",
                 """
-                <p style="margin:0 0 16px;font-size:15px;color:#0F1839;line-height:1.55;">
-                  Bonjour %s,
-                </p>
-                <p style="margin:0 0 16px;font-size:15px;color:#0F1839;line-height:1.55;">
-                  Nous avons bien enregistré la résiliation de votre abonnement
-                  <strong>%s</strong>. Le renouvellement automatique est désactivé.
-                </p>
-                <p style="margin:0 0 24px;font-size:15px;color:#0F1839;line-height:1.55;">
-                  <strong>Votre accès Premium reste ouvert jusqu'au %s.</strong>
-                  Continuez d'utiliser l'app comme avant d'ici là.
-                </p>
-                <p style="margin:0 0 24px;">
-                  <a href="%s" style="display:inline-block;padding:13px 22px;border-radius:10px;background:#1E3A8C;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;">
-                    Continuer mon entraînement
-                  </a>
-                </p>
-                <p style="margin:0 0 8px;font-size:13px;color:#6B7299;line-height:1.55;">
-                  %s
-                </p>
-                """.formatted(
+                        <p style="margin:0 0 16px;font-size:15px;color:#0F1839;line-height:1.55;">
+                          Bonjour %s,
+                        </p>
+                        <p style="margin:0 0 16px;font-size:15px;color:#0F1839;line-height:1.55;">
+                          Nous avons bien enregistré la résiliation de votre abonnement
+                          <strong>%s</strong>. Le renouvellement automatique est désactivé.
+                        </p>
+                        <p style="margin:0 0 24px;font-size:15px;color:#0F1839;line-height:1.55;">
+                          <strong>Votre accès Premium reste ouvert jusqu'au %s.</strong>
+                          Continuez d'utiliser l'app comme avant d'ici là.
+                        </p>
+                        <p style="margin:0 0 24px;">
+                          <a href="%s" style="display:inline-block;padding:13px 22px;border-radius:10px;background:#1E3A8C;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;">
+                            Continuer mon entraînement
+                          </a>
+                        </p>
+                        <p style="margin:0 0 8px;font-size:13px;color:#6B7299;line-height:1.55;">
+                          %s
+                        </p>
+                        """.formatted(
                         escape(greet),
                         escape(planName),
                         escape(endsLabel),
@@ -256,10 +311,6 @@ public class MailService {
         );
         sendHtmlWithLogo(to, "SejourFR — Résiliation enregistrée", html);
     }
-
-    // ------------------------------------------------------------------------
-    // Helpers HTML — layout commun avec logo en image inline (CID).
-    // ------------------------------------------------------------------------
 
     /**
      * Envoie un email HTML avec le logo SejourFR attaché en image inline
@@ -335,51 +386,6 @@ public class MailService {
                 """.formatted(escape(title), contentHtml);
     }
 
-    private static String displayNameOrFallback(String displayName) {
-        if (displayName == null || displayName.isBlank()) return "à toi";
-        return displayName;
-    }
-
-    /** Wording « gestion » côté store, propre à la source de l'abo. */
-    private static String manageHint(String source) {
-        return switch (source) {
-            case "STRIPE" -> "Vous pouvez gérer ou résilier votre abonnement à tout moment depuis votre profil.";
-            case "APPLE" -> "Votre abonnement est géré par Apple — vous pouvez le résilier à tout moment depuis Réglages → [votre nom] → Abonnements.";
-            case "GOOGLE" -> "Votre abonnement est géré par Google Play — vous pouvez le résilier à tout moment depuis Play Store → Abonnements.";
-            default -> "Vous pouvez gérer votre abonnement depuis votre profil.";
-        };
-    }
-
-    /** Wording « réactivation » côté store, propre à la source de l'abo. */
-    private static String reactivateHint(String source) {
-        return switch (source) {
-            case "STRIPE" -> "Vous pouvez réactiver votre abonnement à tout moment depuis votre profil.";
-            case "APPLE" -> "Vous pouvez réactiver votre abonnement depuis Réglages → [votre nom] → Abonnements.";
-            case "GOOGLE" -> "Vous pouvez réactiver votre abonnement depuis Play Store → Abonnements.";
-            default -> "Vous pouvez réactiver votre abonnement à tout moment depuis votre profil.";
-        };
-    }
-
-    private static final String[] FRENCH_MONTHS = {
-            "janvier", "février", "mars", "avril", "mai", "juin",
-            "juillet", "août", "septembre", "octobre", "novembre", "décembre"
-    };
-
-    private static String formatFrenchDate(Instant t) {
-        if (t == null) return "la fin de la période en cours";
-        LocalDate d = t.atZone(ZoneId.of("Europe/Paris")).toLocalDate();
-        return d.getDayOfMonth() + " " + FRENCH_MONTHS[d.getMonthValue() - 1] + " " + d.getYear();
-    }
-
-    /** Échappement HTML basique pour les données dynamiques injectées. */
-    private static String escape(String s) {
-        if (s == null) return "";
-        return s.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;");
-    }
-
     /**
      * Relaie un message du formulaire de contact (web ou mobile) vers
      * l'adresse support. `replyTo` est positionné sur l'email de l'expéditeur
@@ -389,10 +395,10 @@ public class MailService {
     public void sendContactMessage(String senderName, String senderEmail, String subject, String message) {
         String body = """
                 Nouveau message via le formulaire de contact SejourFR.
-
+                
                 De      : %s <%s>
                 Sujet   : %s
-
+                
                 --------
                 %s
                 --------
