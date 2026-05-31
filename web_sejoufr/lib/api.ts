@@ -9,17 +9,23 @@ import type {
   AttemptType,
   AuthenticatedUser,
   Difficulty,
+  EpreuveType,
   ExamTemplateSummary,
   GoogleSignInRequest,
   LoginRequest,
   LotDto,
   Module as ModuleEnum,
   PlanPublicResponse,
+  ProductionAttemptStartRequest,
+  ProductionExampleDto,
+  ProductionSubmissionDto,
+  ProductionTaskDto,
   QuestionReviewResponse,
   QuestionType,
   RegisterRequest,
   StartAttemptRequest,
   SubmitAnswerRequest,
+  SubmitProductionTextRequest,
   TargetProcedure,
   ThemeUserResponse,
   TokenResponse,
@@ -624,6 +630,95 @@ export const attemptApi = {
         return apiFetch<AttemptSummaryResponse[]>(`/api/me/attempts${suffix}`, {
             auth: true,
         });
+    },
+};
+
+// ============================================================================
+// Endpoints Production écrite / orale (TCF_EE / TCF_EO — évaluation IA)
+// ============================================================================
+// Tout est authentifié : le backend protège ces routes via
+// `.anyRequest().authenticated()` (le catalogue de tâches/exemples n'est PAS
+// sous /api/public/**). Après un POST, on poll getSubmission jusqu'à statut
+// EVALUATED / FAILED (le pipeline IA tourne en arrière-plan).
+
+export const productionApi = {
+    /** Crée un attempt vide dédié à une épreuve productive (EE/EO/COMPLET). */
+    startAttempt(body: ProductionAttemptStartRequest): Promise<AttemptResponse> {
+        return apiFetch<AttemptResponse>("/api/attempts/production", {
+            method: "POST",
+            json: body,
+            auth: true,
+        });
+    },
+
+    /** Catalogue de tâches filtré. niveau / tacheNumero optionnels. */
+    listTasks(opts: {
+        epreuve: EpreuveType;
+        niveau?: string;
+        tacheNumero?: number;
+    }): Promise<ProductionTaskDto[]> {
+        const qs = new URLSearchParams({epreuve: opts.epreuve});
+        if (opts.niveau) qs.set("niveau", opts.niveau);
+        if (opts.tacheNumero !== undefined) qs.set("tacheNumero", String(opts.tacheNumero));
+        return apiFetch<ProductionTaskDto[]>(`/api/production-tasks?${qs.toString()}`, {
+            auth: true,
+        });
+    },
+
+    getTask(id: string): Promise<ProductionTaskDto> {
+        return apiFetch<ProductionTaskDto>(`/api/production-tasks/${id}`, {auth: true});
+    },
+
+    /** Réponses-modèles d'une (épreuve, tâche) — onglet « Exemples ». */
+    listExamples(epreuve: EpreuveType, tacheNumero: number): Promise<ProductionExampleDto[]> {
+        return apiFetch<ProductionExampleDto[]>(
+            `/api/production-examples?epreuve=${epreuve}&tacheNumero=${tacheNumero}`,
+            {auth: true},
+        );
+    },
+
+    /** Soumet un texte EE. Renvoie la submission en statut SUBMITTED. */
+    submitText(body: SubmitProductionTextRequest): Promise<ProductionSubmissionDto> {
+        return apiFetch<ProductionSubmissionDto>("/api/production-submissions", {
+            method: "POST",
+            json: body,
+            auth: true,
+        });
+    },
+
+    /** Récupère une submission (polling de l'évaluation IA). */
+    getSubmission(id: string): Promise<ProductionSubmissionDto> {
+        return apiFetch<ProductionSubmissionDto>(`/api/production-submissions/${id}`, {
+            auth: true,
+        });
+    },
+
+    /** Relance l'évaluation d'une submission FAILED (3 essais max). */
+    retrySubmission(id: string): Promise<ProductionSubmissionDto> {
+        return apiFetch<ProductionSubmissionDto>(
+            `/api/production-submissions/${id}/retry`,
+            {method: "POST", auth: true},
+        );
+    },
+
+    /** Historique des soumissions de l'utilisateur (optionnellement par épreuve). */
+    listMine(opts: { epreuve?: EpreuveType; limit?: number } = {}): Promise<ProductionSubmissionDto[]> {
+        const qs = new URLSearchParams();
+        if (opts.epreuve) qs.set("epreuve", opts.epreuve);
+        if (opts.limit !== undefined) qs.set("limit", String(opts.limit));
+        const suffix = qs.toString() ? `?${qs.toString()}` : "";
+        return apiFetch<ProductionSubmissionDto[]>(
+            `/api/users/me/production-submissions${suffix}`,
+            {auth: true},
+        );
+    },
+
+    /** Dernière submission par tâche pour un (épreuve, niveau) — badges du hub. */
+    lastPerTask(epreuve: EpreuveType, niveau: string): Promise<ProductionSubmissionDto[]> {
+        return apiFetch<ProductionSubmissionDto[]>(
+            `/api/users/me/production-submissions/last-per-task?epreuve=${epreuve}&niveau=${niveau}`,
+            {auth: true},
+        );
     },
 };
 

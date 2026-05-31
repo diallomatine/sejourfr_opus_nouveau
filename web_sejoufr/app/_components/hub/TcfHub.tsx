@@ -129,9 +129,9 @@ export function TcfHub({user}: {user: AuthenticatedUser | null}) {
       icon: <PenLine size={22} strokeWidth={1.9} />,
       tone: "slate",
       title: "Expression écrite",
-      subtitle: "3 exercices · 30 min · rédaction",
+      subtitle: "3 tâches · rédaction · évaluation IA",
       pill,
-      onClick: () => setProdSheet("EE"),
+      onClick: () => router.push("/entrainement/tcf/ee"),
     },
     {
       key: "eo",

@@ -21,6 +21,12 @@ public interface ProductionTaskRepository extends JpaRepository<ProductionTask, 
             EpreuveType epreuve, String niveauCible, Short tacheNumero
     );
 
+    /** Catalogue actif filtre par epreuve + numero de tache, tous niveaux (entrainement
+     *  par tache sans niveau impose). */
+    List<ProductionTask> findByEpreuveAndTacheNumeroAndActiveTrueOrderByNiveauCibleAscCreatedAtAsc(
+            EpreuveType epreuve, Short tacheNumero
+    );
+
     /** Toutes les taches actives d'une epreuve (sans filtre niveau). */
     List<ProductionTask> findByEpreuveAndActiveTrueOrderByNiveauCibleAscTacheNumeroAsc(EpreuveType epreuve);
 

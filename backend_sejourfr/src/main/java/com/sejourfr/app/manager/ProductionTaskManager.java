@@ -49,6 +49,10 @@ public class ProductionTaskManager {
             return repository.findByEpreuveAndNiveauCibleAndActiveTrueOrderByTacheNumeroAsc(
                     epreuve, niveauCible);
         }
+        if (tacheNumero != null) {
+            return repository.findByEpreuveAndTacheNumeroAndActiveTrueOrderByNiveauCibleAscCreatedAtAsc(
+                    epreuve, tacheNumero);
+        }
         return repository.findByEpreuveAndActiveTrueOrderByNiveauCibleAscTacheNumeroAsc(epreuve);
     }
 

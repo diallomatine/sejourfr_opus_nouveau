@@ -360,18 +360,44 @@ Chantier découpé en vagues :
       page examens thème dédiée `/entrainement/civique/[themeId]/examens`
       (20 Q, 10 slots).
     - **TCF** : hub (hero examen complet + 5 épreuves + carte CECRL + stats ;
-      EE/EO → `ProductionMobileSheet`) → détail QCM (hero + 3 niveaux + historique)
-      → `/entrainement/tcf/[code]/examens` (10 slots) et `[code]/[level]` (lots,
-      lot 1 gratuit / 2+ premium).
+      EE branchée web, EO → `ProductionMobileSheet`) → détail QCM (hero + 3 niveaux
+      + historique) → `/entrainement/tcf/[code]/examens` (10 slots) et
+      `[code]/[level]` (lots, lot 1 gratuit / 2+ premium).
     - **Bilan donut lot TCF** : `TcfLotResultCard` (score donut + résumé + conseil
         + rapport dépliable), servi par la session via
           `?lot=N&result=tcfLot&code&level` (parité `TcfLotResultScreen` mobile). Le
           bilan civique reste le rapport Q-par-Q (`ExamReport`).
     - `module_detail/parts.tsx` ne garde que `ModuleDetailGate` + `moduleDetailStyles`.
-    - **Reste au lot 2** : parcours Expression EE/EO web (audio navigateur + éval
-      IA) et examen blanc TCF complet orchestré (CO→CE→EE→EO). En attendant, le
-      hero « examen complet » du hub TCF pointe sur `/examens-blancs/tcf` et EE/EO
-      renvoient vers le mobile.
+    - **Reste au lot 2** : parcours Expression **orale** (EO) web (micro navigateur)
+      et examen blanc TCF complet orchestré (CO→CE→EE→EO). En attendant, le hero
+      « examen complet » du hub TCF pointe sur `/examens-blancs/tcf` et **EO** renvoie
+      vers le mobile (`ProductionMobileSheet`).
+
+- **Vague 7** ✅ — **Expression écrite (EE)** web, parité mobile
+  (`screens/tcf_production/*`). La carte EE du `TcfHub` ouvre `/entrainement/tcf/ee`
+  au lieu du `ProductionMobileSheet`.
+  - **Endpoints** (aucun changement backend) : `productionApi` dans `lib/api.ts` —
+    `startAttempt` (`POST /api/attempts/production`), `listTasks` / `getTask` /
+    `listExamples` (publics), `submitText` (`POST /api/production-submissions`),
+    `getSubmission` (polling), `retrySubmission`, `listMine`, `lastPerTask`.
+  - **Types** `lib/types.ts` : `ProductionTaskDto`, `ProductionSubmissionDto`,
+    `EvaluationResultDto`, `ProductionExampleDto`, `SubmissionStatut`, `NiveauCecrl`
+    + helpers (`eeTaskTitle`, `niveauCecrlLabel`, `cecrlIndex`, `resolveTcfLevel`,
+    `parseEeFeedback` qui normalise le `feedback` JSONB snake_case en `EeFeedback`).
+  - **Routes** sous `app/entrainement/tcf/ee/` : `page` (hub : hero examen blanc +
+    3 tâches + historique), `tache/[n]` (sujets + onglet Exemples), `redaction/[taskId]`
+    (rédaction libre → attempt + soumission → feedback), `resultats/[submissionId]`
+    (polling 3 s → feedback IA, retry si FAILED), `examens` (entrée examen blanc,
+    premium-only), `session/[attemptId]` (orchestration 3 tâches → bilan CECRL
+    plancher, phase dérivée des soumissions), `historique`.
+  - **Composants** `app/_components/production/` : `EeWritingForm` (consigne +
+    critères + textarea + compteur de mots + brouillon auto-save localStorage),
+    `CecrlScoreDonut`, `EeFeedbackView` (critères notés + points forts/à améliorer/
+    suggestions/corrections), `SubmissionRow` + `production.module.css`.
+  - **Gating** (source de vérité backend) : entraînement par tâche = **2 essais
+    gratuits à vie** pour non-abonnés (403 au-delà → `PaywallSheet` Intégral) ;
+    examen blanc 3-tâches = **premium-only** (paywall à l'entrée, car 3 soumissions
+    dépassent le quota gratuit). Premium TCF (Intégral) = illimité.
 
 ### Endpoints backend manquants (à créer si besoin)
 
