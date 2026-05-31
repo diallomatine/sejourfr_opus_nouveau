@@ -1,19 +1,26 @@
 "use client";
 
 import {ChevronRight} from "lucide-react";
-import {eeTaskTitle, niveauCecrlLabel, type ProductionSubmissionDto} from "@/lib/types";
+import {
+  type EpreuveType,
+  niveauCecrlLabel,
+  productionTaskTitle,
+  type ProductionSubmissionDto,
+} from "@/lib/types";
 import styles from "./production.module.css";
 
 /**
- * Ligne d'une soumission EE (historique / hub) : numéro de tâche, titre, état
- * (note + niveau si évaluée, sinon « en cours » / « échouée »). Partagée entre
- * le hub EE et l'historique.
+ * Ligne d'une soumission de production (EE/EO) : numéro de tâche, titre (selon
+ * l'épreuve), état (note + niveau si évaluée, sinon « en cours » / « échouée »).
+ * Partagée entre les hubs et les historiques.
  */
 export function SubmissionRow({
   submission: s,
+  epreuve,
   onClick,
 }: {
   submission: ProductionSubmissionDto;
+  epreuve: EpreuveType;
   onClick: () => void;
 }) {
   const note = s.evaluation?.noteSurVingt;
@@ -29,7 +36,7 @@ export function SubmissionRow({
     <button type="button" className={styles.row} onClick={onClick}>
       <span className={styles.rowChip}>T{s.tacheNumero ?? "?"}</span>
       <span className={styles.rowBody}>
-        <span className={styles.rowTitle}>{eeTaskTitle(s.tacheNumero ?? 0)}</span>
+        <span className={styles.rowTitle}>{productionTaskTitle(epreuve, s.tacheNumero ?? 0)}</span>
         <span className={styles.rowSub}>{sub}</span>
       </span>
       {note != null && s.statut === "EVALUATED" ? (

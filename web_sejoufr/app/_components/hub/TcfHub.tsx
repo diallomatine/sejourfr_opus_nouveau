@@ -12,7 +12,6 @@ import {
   type ThemeUserResponse,
   type UserStatsResponse,
 } from "@/lib/types";
-import {type ProductionKind, ProductionMobileSheet} from "@/app/_components/ProductionMobileSheet";
 import {
   EpreuveCard,
   ExamBlancHero,
@@ -35,8 +34,8 @@ function tcfLevelOf(p: string | null | undefined): TargetLevel | null {
 /**
  * Hub TCF web — single-scroll calqué sur `TcfScreen` mobile : header + hero
  * examen blanc complet + 5 épreuves (CO/CE/Structure → détail QCM ; EE/EO →
- * renvoi mobile pour ce lot) + carte CECRL + stats. L'examen blanc complet
- * orchestré (CO→CE→EE→EO) et les parcours EE/EO web arrivent au lot 2.
+ * parcours production web avec évaluation IA) + carte CECRL + stats. L'examen
+ * blanc complet orchestré (CO→CE→EE→EO) arrive au lot suivant.
  */
 export function TcfHub({user}: {user: AuthenticatedUser | null}) {
   const router = useRouter();
@@ -47,7 +46,6 @@ export function TcfHub({user}: {user: AuthenticatedUser | null}) {
   const [themes, setThemes] = useState<ThemeUserResponse[]>([]);
   const [stats, setStats] = useState<UserStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [prodSheet, setProdSheet] = useState<ProductionKind | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -138,9 +136,9 @@ export function TcfHub({user}: {user: AuthenticatedUser | null}) {
       icon: <Mic size={22} strokeWidth={1.9} />,
       tone: "red",
       title: "Expression orale",
-      subtitle: "3 tâches · 10 min · oral",
+      subtitle: "3 tâches · audio · évaluation IA",
       pill,
-      onClick: () => setProdSheet("EO"),
+      onClick: () => router.push("/entrainement/tcf/eo"),
     },
   ];
 
@@ -210,11 +208,6 @@ export function TcfHub({user}: {user: AuthenticatedUser | null}) {
         <StatCell value="—" label="Jours actifs" />
       </div>
 
-      <ProductionMobileSheet
-        open={prodSheet !== null}
-        kind={prodSheet}
-        onClose={() => setProdSheet(null)}
-      />
     </main>
   );
 }

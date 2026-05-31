@@ -470,6 +470,53 @@ export function eeTaskSubtitle(tacheNumero: number): string {
   }
 }
 
+/** Titre éditorial d'une tâche EO (parité mobile). */
+export function eoTaskTitle(tacheNumero: number): string {
+  switch (tacheNumero) {
+    case 1:
+      return "Entretien dirigé";
+    case 2:
+      return "Expression d'un point de vue";
+    case 3:
+      return "Jeu de rôle";
+    default:
+      return `Tâche ${tacheNumero}`;
+  }
+}
+
+/** Sous-titre d'une tâche EO. */
+export function eoTaskSubtitle(tacheNumero: number): string {
+  switch (tacheNumero) {
+    case 1:
+      return "Se présenter et répondre à des questions";
+    case 2:
+      return "Donner et défendre son opinion";
+    case 3:
+      return "Interagir dans une situation simulée";
+    default:
+      return "";
+  }
+}
+
+/** Titre d'une tâche selon l'épreuve productive (EE / EO). */
+export function productionTaskTitle(epreuve: EpreuveType, tacheNumero: number): string {
+  return epreuve === "TCF_EO" ? eoTaskTitle(tacheNumero) : eeTaskTitle(tacheNumero);
+}
+
+/** Sous-titre d'une tâche selon l'épreuve productive (EE / EO). */
+export function productionTaskSubtitle(epreuve: EpreuveType, tacheNumero: number): string {
+  return epreuve === "TCF_EO" ? eoTaskSubtitle(tacheNumero) : eeTaskSubtitle(tacheNumero);
+}
+
+/** Durée lisible « 1 min 30 » / « 2 min » à partir de secondes. */
+export function formatDurationSec(sec: number | null | undefined): string {
+  if (sec == null || sec <= 0) return "";
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  if (m === 0) return `${s} s`;
+  return s === 0 ? `${m} min` : `${m} min ${s}`;
+}
+
 /** Libellé affichable d'un niveau CECRL. */
 export function niveauCecrlLabel(n: NiveauCecrl | null | undefined): string {
   if (!n) return "—";

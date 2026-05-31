@@ -686,6 +686,24 @@ export const productionApi = {
         });
     },
 
+    /** Soumet un audio EO (multipart). productionTaskId / attemptId en query
+     *  (côté backend `@RequestParam`), l'audio en part `audio`. Content-Type
+     *  multipart posé automatiquement par le navigateur. */
+    submitAudio(
+        productionTaskId: string,
+        attemptId: string,
+        audio: Blob,
+        filename = "audio.webm",
+    ): Promise<ProductionSubmissionDto> {
+        const fd = new FormData();
+        fd.append("audio", audio, filename);
+        const qs = new URLSearchParams({productionTaskId, attemptId});
+        return apiFetch<ProductionSubmissionDto>(
+            `/api/production-submissions?${qs.toString()}`,
+            {method: "POST", body: fd, auth: true},
+        );
+    },
+
     /** Récupère une submission (polling de l'évaluation IA). */
     getSubmission(id: string): Promise<ProductionSubmissionDto> {
         return apiFetch<ProductionSubmissionDto>(`/api/production-submissions/${id}`, {

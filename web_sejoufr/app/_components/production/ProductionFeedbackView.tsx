@@ -6,12 +6,13 @@ import {CecrlScoreDonut} from "./CecrlScoreDonut";
 import styles from "./production.module.css";
 
 /**
- * Rendu complet d'une évaluation IA d'expression écrite : donut note/20 +
- * niveau CECRL, critères notés (barre + commentaire), puis blocs « points forts
- * / à améliorer / suggestions / exemples corrigés ». Miroir de `EeResultsScreen`
- * mobile. Réutilisé en entraînement libre comme dans le bilan d'examen.
+ * Rendu complet d'une évaluation IA d'une production (écrite ou orale) : donut
+ * note/20 + niveau CECRL, critères notés (barre + commentaire), puis blocs
+ * « points forts / à améliorer / suggestions / corrections ». Miroir des écrans
+ * de résultats mobiles. Réutilisé en entraînement libre comme en examen blanc,
+ * EE comme EO (le feedback IA a la même structure).
  */
-export function EeFeedbackView({evaluation}: {evaluation: EvaluationResultDto}) {
+export function ProductionFeedbackView({evaluation}: {evaluation: EvaluationResultDto}) {
   const fb = parseEeFeedback(evaluation);
 
   return (
