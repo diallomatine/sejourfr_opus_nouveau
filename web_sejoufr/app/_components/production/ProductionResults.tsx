@@ -14,6 +14,7 @@ import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
 import {HubDetailHeader} from "@/app/_components/hub/HubParts";
 import {ProductionFeedbackView} from "./ProductionFeedbackView";
+import {EoTranscriptNotice} from "./EoTranscriptNotice";
 import {type ProductionConfig} from "./config";
 import hub from "@/app/_components/hub/hub.module.css";
 import prod from "./production.module.css";
@@ -138,6 +139,7 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
         ) : submission.evaluation ? (
           <>
             <ProductionFeedbackView evaluation={submission.evaluation} />
+            {config.mode === "audio" && <EoTranscriptNotice />}
             {config.mode === "audio" && submission.transcription && (
               <details className={prod.card}>
                 <summary className={prod.cardLabel} style={{cursor: "pointer"}}>

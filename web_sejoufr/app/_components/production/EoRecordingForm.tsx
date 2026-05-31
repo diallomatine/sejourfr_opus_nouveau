@@ -3,6 +3,7 @@
 import {useEffect, useRef, useState} from "react";
 import {Clock, Mic, RotateCcw, Square} from "lucide-react";
 import {formatDurationSec, type ProductionTaskDto} from "@/lib/types";
+import {EoTranscriptNotice} from "./EoTranscriptNotice";
 import styles from "./production.module.css";
 
 /** Les 5 critères d'évaluation EO (affichés avant l'enregistrement). */
@@ -16,23 +17,35 @@ const EO_CRITERIA = [
 
 /** Choisit un conteneur audio supporté par le navigateur (Chrome/FF: webm,
  *  Safari: mp4). Whisper accepte ces formats. */
-function pickMime(): {mime: string; ext: string} {
-  if (typeof MediaRecorder === "undefined") return {mime: "", ext: "webm"};
-  const candidates = [
-    {mime: "audio/webm", ext: "webm"},
-    {mime: "audio/mp4", ext: "mp4"},
-    {mime: "audio/ogg", ext: "ogg"},
-  ];
-  for (const c of candidates) {
-    if (MediaRecorder.isTypeSupported(c.mime)) return c;
+function pickMime(): string {
+  if (typeof MediaRecorder === "undefined") return "";
+  for (const mime of ["audio/webm", "audio/mp4", "audio/ogg"]) {
+    if (MediaRecorder.isTypeSupported(mime)) return mime;
   }
-  return {mime: "", ext: "webm"};
+  return "";
 }
 
 function fmtTimer(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = sec % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+/** Message précis selon le type d'échec de `getUserMedia`. */
+function micErrorMessage(name: string): string {
+  switch (name) {
+    case "NotAllowedError":
+    case "SecurityError":
+      return "Accès au micro refusé. Cliquez sur l'icône à gauche de l'adresse → Microphone → Autoriser, puis rechargez la page.";
+    case "NotFoundError":
+    case "DevicesNotFoundError":
+      return "Aucun microphone détecté. Branchez un micro puis réessayez.";
+    case "NotReadableError":
+    case "TrackStartError":
+      return "Le micro est utilisé par une autre application. Fermez-la puis réessayez.";
+    default:
+      return "Micro inaccessible. Autorisez le microphone dans votre navigateur, puis réessayez.";
+  }
 }
 
 /**
@@ -58,12 +71,16 @@ export function EoRecordingForm({
   const [elapsed, setElapsed] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [permError, setPermError] = useState<string | null>(null);
+  // État du droit micro, déterminé au montage (avant tout clic) pour guider
+  // l'utilisateur : "ready" = on peut demander/enregistrer, sinon cas bloquant.
+  const [micState, setMicState] = useState<
+    "unknown" | "ready" | "denied" | "insecure" | "unsupported"
+  >("unknown");
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const blobRef = useRef<Blob | null>(null);
-  const extRef = useRef("webm");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Nettoyage : stoppe le flux micro + révoque l'URL à la destruction.
@@ -75,13 +92,42 @@ export function EoRecordingForm({
     };
   }, [audioUrl]);
 
+  // Détection du contexte + état de permission au montage (sans déclencher la
+  // pop-up : on lit juste l'état pour afficher le bon message d'amorce).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const initial = !window.isSecureContext
+      ? "insecure"
+      : typeof navigator === "undefined" ||
+          !navigator.mediaDevices?.getUserMedia ||
+          typeof MediaRecorder === "undefined"
+        ? "unsupported"
+        : "ready";
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMicState(initial);
+    if (initial === "ready" && navigator.permissions?.query) {
+      navigator.permissions
+        .query({name: "microphone" as PermissionName})
+        .then((res) => {
+          if (res.state === "denied") setMicState("denied");
+          res.onchange = () => setMicState(res.state === "denied" ? "denied" : "ready");
+        })
+        .catch(() => undefined);
+    }
+  }, []);
+
   async function start() {
     setPermError(null);
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setMicState("unsupported");
+      return;
+    }
     try {
+      // Déclenche la demande d'autorisation du navigateur (1ʳᵉ fois).
       const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+      setMicState("ready");
       streamRef.current = stream;
-      const {mime, ext} = pickMime();
-      extRef.current = ext;
+      const mime = pickMime();
       const rec = mime ? new MediaRecorder(stream, {mimeType: mime}) : new MediaRecorder(stream);
       chunksRef.current = [];
       rec.ondataavailable = (e) => {
@@ -103,10 +149,11 @@ export function EoRecordingForm({
       setElapsed(0);
       setPhase("recording");
       timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
-    } catch {
-      setPermError(
-        "Micro inaccessible. Autorisez le microphone dans votre navigateur, puis réessayez.",
-      );
+    } catch (e) {
+      const name = typeof e === "object" && e && "name" in e ? String((e as {name?: unknown}).name) : "";
+      if (name === "NotAllowedError" || name === "SecurityError") setMicState("denied");
+      else if (name === "NotFoundError" || name === "DevicesNotFoundError") setMicState("unsupported");
+      setPermError(micErrorMessage(name));
     }
   }
 
@@ -136,6 +183,17 @@ export function EoRecordingForm({
       : max != null
         ? `≤ ${formatDurationSec(max)}`
         : "";
+
+  const blocked =
+    micState === "insecure" || micState === "unsupported" || micState === "denied";
+  const blockMsg =
+    micState === "insecure"
+      ? "Le micro nécessite une connexion sécurisée (HTTPS) ou localhost. Ouvrez le site en https pour enregistrer."
+      : micState === "unsupported"
+        ? "Votre navigateur ne supporte pas l'enregistrement audio. Essayez Chrome ou Firefox à jour."
+        : micState === "denied"
+          ? "Accès au micro bloqué. Cliquez sur l'icône à gauche de l'adresse → Microphone → Autoriser, puis rechargez la page."
+          : null;
 
   return (
     <>
@@ -169,6 +227,8 @@ export function EoRecordingForm({
         </ul>
       </div>
 
+      <EoTranscriptNotice />
+
       <div className={styles.recorder}>
         <div className={`${styles.timerBig} ${timerClass}`}>{fmtTimer(elapsed)}</div>
 
@@ -181,7 +241,7 @@ export function EoRecordingForm({
             type="button"
             className={styles.recordCircle}
             onClick={start}
-            disabled={submitting}
+            disabled={submitting || blocked}
             aria-label={phase === "recorded" ? "Réenregistrer" : "Démarrer l'enregistrement"}
           >
             <Mic size={32} strokeWidth={2} />
@@ -193,9 +253,9 @@ export function EoRecordingForm({
             ? "Enregistrement en cours… appuyez sur le carré pour arrêter."
             : phase === "recorded"
               ? "Réécoutez votre réponse, refaites-la ou envoyez-la à l'évaluation."
-              : rangeLabel
-                ? `Appuyez sur le micro et parlez (durée conseillée ${rangeLabel}).`
-                : "Appuyez sur le micro pour vous enregistrer."}
+              : `Appuyez sur le micro pour autoriser et enregistrer${
+                  rangeLabel ? ` (durée conseillée ${rangeLabel})` : ""
+                }. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`}
         </p>
 
         {phase === "recorded" && audioUrl && (
@@ -205,7 +265,9 @@ export function EoRecordingForm({
         )}
       </div>
 
-      {(permError || error) && <div className={styles.error}>{permError ?? error}</div>}
+      {(blockMsg || permError || error) && (
+        <div className={styles.error}>{blockMsg ?? permError ?? error}</div>
+      )}
 
       {phase === "recorded" && (
         <div className={styles.submitRow}>

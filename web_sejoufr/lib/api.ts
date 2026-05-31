@@ -641,6 +641,16 @@ export const attemptApi = {
 // sous /api/public/**). Après un POST, on poll getSubmission jusqu'à statut
 // EVALUATED / FAILED (le pipeline IA tourne en arrière-plan).
 
+/** Nom de fichier audio dérivé du type MIME du blob (Safari = mp4, Chrome/FF =
+ *  webm) pour que le backend/Whisper détecte le bon format. */
+function audioFilename(type: string): string {
+    if (type.includes("mp4") || type.includes("m4a")) return "audio.mp4";
+    if (type.includes("ogg")) return "audio.ogg";
+    if (type.includes("wav")) return "audio.wav";
+    if (type.includes("mpeg")) return "audio.mp3";
+    return "audio.webm";
+}
+
 export const productionApi = {
     /** Crée un attempt vide dédié à une épreuve productive (EE/EO/COMPLET). */
     startAttempt(body: ProductionAttemptStartRequest): Promise<AttemptResponse> {
@@ -693,10 +703,10 @@ export const productionApi = {
         productionTaskId: string,
         attemptId: string,
         audio: Blob,
-        filename = "audio.webm",
+        filename?: string,
     ): Promise<ProductionSubmissionDto> {
         const fd = new FormData();
-        fd.append("audio", audio, filename);
+        fd.append("audio", audio, filename ?? audioFilename(audio.type));
         const qs = new URLSearchParams({productionTaskId, attemptId});
         return apiFetch<ProductionSubmissionDto>(
             `/api/production-submissions?${qs.toString()}`,

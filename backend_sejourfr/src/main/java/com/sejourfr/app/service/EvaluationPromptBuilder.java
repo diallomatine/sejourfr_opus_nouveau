@@ -120,9 +120,10 @@ public class EvaluationPromptBuilder {
     }
 
     /**
-     * Bloc EO « débit de parole » (mots/minute), toujours présent dès qu'on a
-     * une durée parlée. Donne au LLM un signal de fluidité chiffré ; reste
-     * indicatif (à pondérer avec le contenu réel). Vide pour l'EE ou sans durée.
+     * Bloc EO « débit de parole » (mots/minute). PUREMENT INFORMATIF depuis le
+     * prompt v1.3 : on évalue la transcription comme un texte écrit, donc le
+     * débit ne doit influencer ni la note ni le niveau (le modèle n'entend pas
+     * l'oral réel). Vide pour l'EE ou sans durée.
      */
     private static String buildDebitBlock(ProductionTask task, String production, Integer dureeProductionSec) {
         if (task.getEpreuve() != EpreuveType.TCF_EO
@@ -132,17 +133,18 @@ public class EvaluationPromptBuilder {
         }
         int mots = production.trim().split("\\s+").length;
         int wpm = (int) Math.round(mots * 60.0 / dureeProductionSec);
-        return "DÉBIT DE PAROLE : le candidat a produit environ " + mots + " mots en "
-            + dureeProductionSec + " s, soit ~" + wpm + " mots/minute. Indicateur de fluidité "
-            + "(un débit oral naturel en français se situe ~110-150 mots/min ; nettement plus "
-            + "lent peut trahir des hésitations, très rapide peut nuire à l'intelligibilité). "
-            + "Pondère ce signal avec le contenu réel de la transcription, ne le sur-pénalise pas seul.\n";
+        return "DÉBIT DE PAROLE (indicatif) : ~" + mots + " mots en " + dureeProductionSec
+            + " s, soit ~" + wpm + " mots/minute. Donnée fournie à titre PUREMENT INFORMATIF : "
+            + "n'en tiens PAS compte dans la note_globale ni dans le niveau_cecrl (tu évalues le "
+            + "texte transcrit, pas la fluidité orale que tu n'entends pas).\n";
     }
 
     /**
-     * Bloc EO injecte quand la duree parlee est sous l'objectif de la tache :
-     * invite le LLM a minorer la note_globale pour production insuffisante.
-     * Vide pour l'EE ou si la duree atteint l'objectif.
+     * Bloc EO « durée parlée vs objectif ». PUREMENT INFORMATIF depuis v1.3 :
+     * une transcription se note comme un texte écrit, la durée ne doit pas
+     * minorer la note (le candidat peut être coupé par le temps, et on ne
+     * récompense/pénalise pas l'oral non entendu). Vide pour l'EE ou si la durée
+     * atteint l'objectif.
      */
     private static String buildDureeBlock(ProductionTask task, Integer dureeProductionSec) {
         if (task.getEpreuve() != EpreuveType.TCF_EO
@@ -151,17 +153,17 @@ public class EvaluationPromptBuilder {
                 || dureeProductionSec >= task.getDureeMaxSec()) {
             return "";
         }
-        StringBuilder sb = new StringBuilder("DURÉE DE LA PRODUCTION : le candidat a parlé ")
+        StringBuilder sb = new StringBuilder("DURÉE DE LA PRODUCTION (indicatif) : ")
             .append(dureeProductionSec)
-            .append(" secondes, pour un objectif de ")
+            .append(" s pour un objectif de ")
             .append(task.getDureeMaxSec())
-            .append(" secondes");
+            .append(" s");
         if (task.getDureeMinSec() != null) {
-            sb.append(" (minimum acceptable ").append(task.getDureeMinSec()).append(" s)");
+            sb.append(" (minimum ").append(task.getDureeMinSec()).append(" s)");
         }
-        sb.append(". La production est donc plus courte que demandé : la tâche est moins bien "
-            + "remplie. Minore la note_globale en conséquence, SANS pénaliser deux fois le "
-            + "niveau_cecrl (qui reflète la qualité linguistique réelle de ce qui a été produit).\n");
+        sb.append(". Donnée fournie à titre PUREMENT INFORMATIF : n'en tiens PAS compte dans la "
+            + "note_globale ni dans le niveau_cecrl. Évalue la qualité linguistique du texte "
+            + "transcrit, pas la complétude orale.\n");
         return sb.toString();
     }
 
