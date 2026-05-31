@@ -229,7 +229,7 @@ sejourfr:
     deepseek:
       api-key: ${EVAL_DEEPSEEK_API_KEY:${DEEPSEEK_API_KEY:}}
       api-url: https://api.deepseek.com/chat/completions
-      model: ${EVAL_DEEPSEEK_MODEL:deepseek-v4-pro}
+      model: ${EVAL_DEEPSEEK_MODEL:deepseek-v4-flash}
       # DeepSeek V4 : thinking mode ON par défaut casse le tool_choice forcé (400).
       # On l'envoie {"thinking":{"type":"disabled"}} pour un tool_call déterministe.
       disable-thinking: ${EVAL_DEEPSEEK_DISABLE_THINKING:true}

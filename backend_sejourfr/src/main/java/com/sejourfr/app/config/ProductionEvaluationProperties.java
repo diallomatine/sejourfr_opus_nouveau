@@ -32,6 +32,130 @@ public class ProductionEvaluationProperties {
     private Anthropic anthropic = new Anthropic();
     private OpenAi openai = new OpenAi();
     private DeepSeek deepseek = new DeepSeek();
+    /**
+     * Plafond audio accepte pour une submission EO (defaut: 5 min).
+     */
+    private int maxAudioDurationSeconds = 300;
+    /**
+     * Plafond mots accepte pour une submission EE.
+     */
+    private int maxTextWords = 300;
+    /**
+     * Plancher mots accepte pour une submission EE.
+     */
+    private int minTextWords = 10;
+    /**
+     * Taille max upload audio (bytes).
+     */
+    private long maxAudioSizeBytes = 25L * 1024 * 1024;
+    /**
+     * Logging systematique des couts (tokens/centimes).
+     */
+    private boolean costTrackingEnabled = true;
+    /**
+     * Anti-abus : nombre max de retries manuels par submission.
+     */
+    private int maxRetriesPerSubmission = 3;
+    /**
+     * TTL des URL signees pour recuperer l'audio user (minutes).
+     */
+    private int presignedUrlExpiryMinutes = 15;
+
+    public String getProvider() {
+        return provider;
+    }
+
+    public void setProvider(String provider) {
+        this.provider = provider;
+    }
+
+    public String getRubricsVersion() {
+        return rubricsVersion;
+    }
+
+    public void setRubricsVersion(String rubricsVersion) {
+        this.rubricsVersion = rubricsVersion;
+    }
+
+    public Anthropic getAnthropic() {
+        return anthropic;
+    }
+
+    public void setAnthropic(Anthropic anthropic) {
+        this.anthropic = anthropic;
+    }
+
+    public OpenAi getOpenai() {
+        return openai;
+    }
+
+    public void setOpenai(OpenAi openai) {
+        this.openai = openai;
+    }
+
+    public DeepSeek getDeepseek() {
+        return deepseek;
+    }
+
+    public void setDeepseek(DeepSeek deepseek) {
+        this.deepseek = deepseek;
+    }
+
+    public int getMaxAudioDurationSeconds() {
+        return maxAudioDurationSeconds;
+    }
+
+    public void setMaxAudioDurationSeconds(int maxAudioDurationSeconds) {
+        this.maxAudioDurationSeconds = maxAudioDurationSeconds;
+    }
+
+    public int getMaxTextWords() {
+        return maxTextWords;
+    }
+
+    public void setMaxTextWords(int maxTextWords) {
+        this.maxTextWords = maxTextWords;
+    }
+
+    public int getMinTextWords() {
+        return minTextWords;
+    }
+
+    public void setMinTextWords(int minTextWords) {
+        this.minTextWords = minTextWords;
+    }
+
+    public long getMaxAudioSizeBytes() {
+        return maxAudioSizeBytes;
+    }
+
+    public void setMaxAudioSizeBytes(long maxAudioSizeBytes) {
+        this.maxAudioSizeBytes = maxAudioSizeBytes;
+    }
+
+    public boolean isCostTrackingEnabled() {
+        return costTrackingEnabled;
+    }
+
+    public void setCostTrackingEnabled(boolean costTrackingEnabled) {
+        this.costTrackingEnabled = costTrackingEnabled;
+    }
+
+    public int getMaxRetriesPerSubmission() {
+        return maxRetriesPerSubmission;
+    }
+
+    public void setMaxRetriesPerSubmission(int maxRetriesPerSubmission) {
+        this.maxRetriesPerSubmission = maxRetriesPerSubmission;
+    }
+
+    public int getPresignedUrlExpiryMinutes() {
+        return presignedUrlExpiryMinutes;
+    }
+
+    public void setPresignedUrlExpiryMinutes(int presignedUrlExpiryMinutes) {
+        this.presignedUrlExpiryMinutes = presignedUrlExpiryMinutes;
+    }
 
     /**
      * Reglages communs aux providers compatibles OpenAI (Chat Completions +
@@ -40,13 +164,21 @@ public class ProductionEvaluationProperties {
      */
     public interface ChatCompletionSettings {
         String getApiKey();
+
         String getApiUrl();
+
         String getModel();
+
         int getMaxTokens();
+
         int getTimeoutSec();
+
         String getPromptVersion();
+
         double getCostPerMillionInputTokens();
+
         double getCostPerMillionOutputTokens();
+
         boolean isConfigured();
 
         /**
@@ -54,72 +186,9 @@ public class ProductionEvaluationProperties {
          * Necessaire pour DeepSeek V4 (thinking mode actif par defaut refuse le
          * {@code tool_choice} force → 400). Faux pour OpenAI (champ inconnu, 400).
          */
-        default boolean isDisableThinking() { return false; }
-    }
-
-    /** Plafond audio accepte pour une submission EO (defaut: 5 min). */
-    private int maxAudioDurationSeconds = 300;
-
-    /** Plafond mots accepte pour une submission EE. */
-    private int maxTextWords = 300;
-
-    /** Plancher mots accepte pour une submission EE. */
-    private int minTextWords = 10;
-
-    /** Taille max upload audio (bytes). */
-    private long maxAudioSizeBytes = 25L * 1024 * 1024;
-
-    /** Logging systematique des couts (tokens/centimes). */
-    private boolean costTrackingEnabled = true;
-
-    /** Anti-abus : nombre max de retries manuels par submission. */
-    private int maxRetriesPerSubmission = 3;
-
-    /** TTL des URL signees pour recuperer l'audio user (minutes). */
-    private int presignedUrlExpiryMinutes = 15;
-
-    public String getProvider() { return provider; }
-    public void setProvider(String provider) { this.provider = provider; }
-
-    public String getRubricsVersion() { return rubricsVersion; }
-    public void setRubricsVersion(String rubricsVersion) { this.rubricsVersion = rubricsVersion; }
-
-    public Anthropic getAnthropic() { return anthropic; }
-    public void setAnthropic(Anthropic anthropic) { this.anthropic = anthropic; }
-
-    public OpenAi getOpenai() { return openai; }
-    public void setOpenai(OpenAi openai) { this.openai = openai; }
-
-    public DeepSeek getDeepseek() { return deepseek; }
-    public void setDeepseek(DeepSeek deepseek) { this.deepseek = deepseek; }
-
-    public int getMaxAudioDurationSeconds() { return maxAudioDurationSeconds; }
-    public void setMaxAudioDurationSeconds(int maxAudioDurationSeconds) {
-        this.maxAudioDurationSeconds = maxAudioDurationSeconds;
-    }
-
-    public int getMaxTextWords() { return maxTextWords; }
-    public void setMaxTextWords(int maxTextWords) { this.maxTextWords = maxTextWords; }
-
-    public int getMinTextWords() { return minTextWords; }
-    public void setMinTextWords(int minTextWords) { this.minTextWords = minTextWords; }
-
-    public long getMaxAudioSizeBytes() { return maxAudioSizeBytes; }
-    public void setMaxAudioSizeBytes(long maxAudioSizeBytes) { this.maxAudioSizeBytes = maxAudioSizeBytes; }
-
-    public boolean isCostTrackingEnabled() { return costTrackingEnabled; }
-    public void setCostTrackingEnabled(boolean costTrackingEnabled) {
-        this.costTrackingEnabled = costTrackingEnabled;
-    }
-
-    public int getMaxRetriesPerSubmission() { return maxRetriesPerSubmission; }
-    public void setMaxRetriesPerSubmission(int maxRetriesPerSubmission) {
-        this.maxRetriesPerSubmission = maxRetriesPerSubmission;
-    }
-
-    public int getPresignedUrlExpiryMinutes() { return presignedUrlExpiryMinutes; }
-    public void setPresignedUrlExpiryMinutes(int presignedUrlExpiryMinutes) {
-        this.presignedUrlExpiryMinutes = presignedUrlExpiryMinutes;
+        default boolean isDisableThinking() {
+            return false;
+        }
     }
 
     public static class Anthropic {
@@ -131,9 +200,13 @@ public class ProductionEvaluationProperties {
         private int timeoutSec = 60;
         private int maxRetries = 2;
         private long retryBackoffMs = 1000L;
-        /** Versionne dans ai_evaluations.prompt_version. */
+        /**
+         * Versionne dans ai_evaluations.prompt_version.
+         */
         private String promptVersion = "v1.4";
-        /** Tarification USD / 1M tokens (mai 2026, Sonnet 4-5). */
+        /**
+         * Tarification USD / 1M tokens (mai 2026, Sonnet 4-5).
+         */
         private double costPerMillionInputTokens = 3.0;
         private double costPerMillionOutputTokens = 15.0;
 
@@ -141,40 +214,93 @@ public class ProductionEvaluationProperties {
             return apiKey != null && !apiKey.isBlank();
         }
 
-        public String getApiKey() { return apiKey; }
-        public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+        public String getApiKey() {
+            return apiKey;
+        }
 
-        public String getApiUrl() { return apiUrl; }
-        public void setApiUrl(String apiUrl) { this.apiUrl = apiUrl; }
+        public void setApiKey(String apiKey) {
+            this.apiKey = apiKey;
+        }
 
-        public String getAnthropicVersion() { return anthropicVersion; }
+        public String getApiUrl() {
+            return apiUrl;
+        }
+
+        public void setApiUrl(String apiUrl) {
+            this.apiUrl = apiUrl;
+        }
+
+        public String getAnthropicVersion() {
+            return anthropicVersion;
+        }
+
         public void setAnthropicVersion(String anthropicVersion) {
             this.anthropicVersion = anthropicVersion;
         }
 
-        public String getModel() { return model; }
-        public void setModel(String model) { this.model = model; }
+        public String getModel() {
+            return model;
+        }
 
-        public int getMaxTokens() { return maxTokens; }
-        public void setMaxTokens(int maxTokens) { this.maxTokens = maxTokens; }
+        public void setModel(String model) {
+            this.model = model;
+        }
 
-        public int getTimeoutSec() { return timeoutSec; }
-        public void setTimeoutSec(int timeoutSec) { this.timeoutSec = timeoutSec; }
+        public int getMaxTokens() {
+            return maxTokens;
+        }
 
-        public int getMaxRetries() { return maxRetries; }
-        public void setMaxRetries(int maxRetries) { this.maxRetries = maxRetries; }
+        public void setMaxTokens(int maxTokens) {
+            this.maxTokens = maxTokens;
+        }
 
-        public long getRetryBackoffMs() { return retryBackoffMs; }
-        public void setRetryBackoffMs(long retryBackoffMs) { this.retryBackoffMs = retryBackoffMs; }
+        public int getTimeoutSec() {
+            return timeoutSec;
+        }
 
-        public String getPromptVersion() { return promptVersion; }
-        public void setPromptVersion(String promptVersion) { this.promptVersion = promptVersion; }
+        public void setTimeoutSec(int timeoutSec) {
+            this.timeoutSec = timeoutSec;
+        }
 
-        public double getCostPerMillionInputTokens() { return costPerMillionInputTokens; }
-        public void setCostPerMillionInputTokens(double v) { this.costPerMillionInputTokens = v; }
+        public int getMaxRetries() {
+            return maxRetries;
+        }
 
-        public double getCostPerMillionOutputTokens() { return costPerMillionOutputTokens; }
-        public void setCostPerMillionOutputTokens(double v) { this.costPerMillionOutputTokens = v; }
+        public void setMaxRetries(int maxRetries) {
+            this.maxRetries = maxRetries;
+        }
+
+        public long getRetryBackoffMs() {
+            return retryBackoffMs;
+        }
+
+        public void setRetryBackoffMs(long retryBackoffMs) {
+            this.retryBackoffMs = retryBackoffMs;
+        }
+
+        public String getPromptVersion() {
+            return promptVersion;
+        }
+
+        public void setPromptVersion(String promptVersion) {
+            this.promptVersion = promptVersion;
+        }
+
+        public double getCostPerMillionInputTokens() {
+            return costPerMillionInputTokens;
+        }
+
+        public void setCostPerMillionInputTokens(double v) {
+            this.costPerMillionInputTokens = v;
+        }
+
+        public double getCostPerMillionOutputTokens() {
+            return costPerMillionOutputTokens;
+        }
+
+        public void setCostPerMillionOutputTokens(double v) {
+            this.costPerMillionOutputTokens = v;
+        }
     }
 
     /**
@@ -192,7 +318,9 @@ public class ProductionEvaluationProperties {
         private int maxRetries = 2;
         private long retryBackoffMs = 1000L;
         private String promptVersion = "v1.4";
-        /** Tarification USD / 1M tokens (mai 2026, gpt-4o-mini). */
+        /**
+         * Tarification USD / 1M tokens (mai 2026, gpt-4o-mini).
+         */
         private double costPerMillionInputTokens = 0.15;
         private double costPerMillionOutputTokens = 0.60;
 
@@ -200,35 +328,85 @@ public class ProductionEvaluationProperties {
             return apiKey != null && !apiKey.isBlank();
         }
 
-        public String getApiKey() { return apiKey; }
-        public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+        public String getApiKey() {
+            return apiKey;
+        }
 
-        public String getApiUrl() { return apiUrl; }
-        public void setApiUrl(String apiUrl) { this.apiUrl = apiUrl; }
+        public void setApiKey(String apiKey) {
+            this.apiKey = apiKey;
+        }
 
-        public String getModel() { return model; }
-        public void setModel(String model) { this.model = model; }
+        public String getApiUrl() {
+            return apiUrl;
+        }
 
-        public int getMaxTokens() { return maxTokens; }
-        public void setMaxTokens(int maxTokens) { this.maxTokens = maxTokens; }
+        public void setApiUrl(String apiUrl) {
+            this.apiUrl = apiUrl;
+        }
 
-        public int getTimeoutSec() { return timeoutSec; }
-        public void setTimeoutSec(int timeoutSec) { this.timeoutSec = timeoutSec; }
+        public String getModel() {
+            return model;
+        }
 
-        public int getMaxRetries() { return maxRetries; }
-        public void setMaxRetries(int maxRetries) { this.maxRetries = maxRetries; }
+        public void setModel(String model) {
+            this.model = model;
+        }
 
-        public long getRetryBackoffMs() { return retryBackoffMs; }
-        public void setRetryBackoffMs(long retryBackoffMs) { this.retryBackoffMs = retryBackoffMs; }
+        public int getMaxTokens() {
+            return maxTokens;
+        }
 
-        public String getPromptVersion() { return promptVersion; }
-        public void setPromptVersion(String promptVersion) { this.promptVersion = promptVersion; }
+        public void setMaxTokens(int maxTokens) {
+            this.maxTokens = maxTokens;
+        }
 
-        public double getCostPerMillionInputTokens() { return costPerMillionInputTokens; }
-        public void setCostPerMillionInputTokens(double v) { this.costPerMillionInputTokens = v; }
+        public int getTimeoutSec() {
+            return timeoutSec;
+        }
 
-        public double getCostPerMillionOutputTokens() { return costPerMillionOutputTokens; }
-        public void setCostPerMillionOutputTokens(double v) { this.costPerMillionOutputTokens = v; }
+        public void setTimeoutSec(int timeoutSec) {
+            this.timeoutSec = timeoutSec;
+        }
+
+        public int getMaxRetries() {
+            return maxRetries;
+        }
+
+        public void setMaxRetries(int maxRetries) {
+            this.maxRetries = maxRetries;
+        }
+
+        public long getRetryBackoffMs() {
+            return retryBackoffMs;
+        }
+
+        public void setRetryBackoffMs(long retryBackoffMs) {
+            this.retryBackoffMs = retryBackoffMs;
+        }
+
+        public String getPromptVersion() {
+            return promptVersion;
+        }
+
+        public void setPromptVersion(String promptVersion) {
+            this.promptVersion = promptVersion;
+        }
+
+        public double getCostPerMillionInputTokens() {
+            return costPerMillionInputTokens;
+        }
+
+        public void setCostPerMillionInputTokens(double v) {
+            this.costPerMillionInputTokens = v;
+        }
+
+        public double getCostPerMillionOutputTokens() {
+            return costPerMillionOutputTokens;
+        }
+
+        public void setCostPerMillionOutputTokens(double v) {
+            this.costPerMillionOutputTokens = v;
+        }
     }
 
     /**
@@ -236,52 +414,98 @@ public class ProductionEvaluationProperties {
      * endpoint {@code /chat/completions}, meme format {@code tools}/{@code tool_calls},
      * auth Bearer), donc le meme {@code OpenAiCompatibleEvalClient} la sert sans
      * code dedie. Renseigner {@code …deepseek.api-key} (DEEPSEEK_API_KEY). Le
-     * modele par defaut est {@code deepseek-v4-pro} (function calling supporte) ;
+     * modele par defaut est {@code deepseek-v4-flash} (function calling supporte) ;
      * surchargeable via {@code …deepseek.model}.
      */
     public static class DeepSeek implements ChatCompletionSettings {
+        // Toutes les valeurs viennent de application.yaml
+        // (sejourfr.production-evaluation.deepseek.*) — pas de defaut metier en dur
+        // ici, le yaml est la source unique (api-url, model, disable-thinking, tarifs…).
         private String apiKey = "";
-        private String apiUrl = "https://api.deepseek.com/chat/completions";
-        private String model = "deepseek-v4-pro";
-        private int maxTokens = 2000;
-        private int timeoutSec = 60;
-        private String promptVersion = "v1.4";
-        /** DeepSeek V4 : thinking mode ON par defaut casse le tool_choice force. */
-        private boolean disableThinking = true;
-        /** Tarification USD / 1M tokens (ordre de grandeur deepseek-chat). */
-        private double costPerMillionInputTokens = 0.27;
-        private double costPerMillionOutputTokens = 1.10;
+        private String apiUrl;
+        private String model;
+        private int maxTokens;
+        private int timeoutSec;
+        private String promptVersion;
+        private boolean disableThinking;
+        private double costPerMillionInputTokens;
+        private double costPerMillionOutputTokens;
 
         public boolean isConfigured() {
             return apiKey != null && !apiKey.isBlank();
         }
 
         @Override
-        public boolean isDisableThinking() { return disableThinking; }
-        public void setDisableThinking(boolean disableThinking) { this.disableThinking = disableThinking; }
+        public boolean isDisableThinking() {
+            return disableThinking;
+        }
 
-        public String getApiKey() { return apiKey; }
-        public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+        public void setDisableThinking(boolean disableThinking) {
+            this.disableThinking = disableThinking;
+        }
 
-        public String getApiUrl() { return apiUrl; }
-        public void setApiUrl(String apiUrl) { this.apiUrl = apiUrl; }
+        public String getApiKey() {
+            return apiKey;
+        }
 
-        public String getModel() { return model; }
-        public void setModel(String model) { this.model = model; }
+        public void setApiKey(String apiKey) {
+            this.apiKey = apiKey;
+        }
 
-        public int getMaxTokens() { return maxTokens; }
-        public void setMaxTokens(int maxTokens) { this.maxTokens = maxTokens; }
+        public String getApiUrl() {
+            return apiUrl;
+        }
 
-        public int getTimeoutSec() { return timeoutSec; }
-        public void setTimeoutSec(int timeoutSec) { this.timeoutSec = timeoutSec; }
+        public void setApiUrl(String apiUrl) {
+            this.apiUrl = apiUrl;
+        }
 
-        public String getPromptVersion() { return promptVersion; }
-        public void setPromptVersion(String promptVersion) { this.promptVersion = promptVersion; }
+        public String getModel() {
+            return model;
+        }
 
-        public double getCostPerMillionInputTokens() { return costPerMillionInputTokens; }
-        public void setCostPerMillionInputTokens(double v) { this.costPerMillionInputTokens = v; }
+        public void setModel(String model) {
+            this.model = model;
+        }
 
-        public double getCostPerMillionOutputTokens() { return costPerMillionOutputTokens; }
-        public void setCostPerMillionOutputTokens(double v) { this.costPerMillionOutputTokens = v; }
+        public int getMaxTokens() {
+            return maxTokens;
+        }
+
+        public void setMaxTokens(int maxTokens) {
+            this.maxTokens = maxTokens;
+        }
+
+        public int getTimeoutSec() {
+            return timeoutSec;
+        }
+
+        public void setTimeoutSec(int timeoutSec) {
+            this.timeoutSec = timeoutSec;
+        }
+
+        public String getPromptVersion() {
+            return promptVersion;
+        }
+
+        public void setPromptVersion(String promptVersion) {
+            this.promptVersion = promptVersion;
+        }
+
+        public double getCostPerMillionInputTokens() {
+            return costPerMillionInputTokens;
+        }
+
+        public void setCostPerMillionInputTokens(double v) {
+            this.costPerMillionInputTokens = v;
+        }
+
+        public double getCostPerMillionOutputTokens() {
+            return costPerMillionOutputTokens;
+        }
+
+        public void setCostPerMillionOutputTokens(double v) {
+            this.costPerMillionOutputTokens = v;
+        }
     }
 }
