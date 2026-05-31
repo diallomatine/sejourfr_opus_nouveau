@@ -14,6 +14,7 @@ public record ExampleAudioDto(
         String titre,
         String resume,
         String contenu,
+        String ssmlText,
         ExampleAudioStatus audioStatus,
         String audioUrl,
         String audioVoice,

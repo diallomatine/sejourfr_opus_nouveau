@@ -541,6 +541,7 @@ export interface ExampleAudioDto {
   titre: string;
   resume: string | null;
   contenu: string;
+  ssmlText: string | null;
   audioStatus: ExampleAudioStatus;
   audioUrl: string | null;
   audioVoice: string | null;
