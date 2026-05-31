@@ -175,6 +175,11 @@ public class OpenAiCompatibleEvalClient implements EvaluationLlmClient {
         body.put("messages", List.of(systemMessage, userMessage));
         body.put("tools", List.of(tool));
         body.put("tool_choice", toolChoice);
+        // DeepSeek V4 : le thinking mode (actif par defaut) refuse le tool_choice
+        // force (400). On le desactive pour obtenir un tool_call deterministe.
+        if (settings.isDisableThinking()) {
+            body.put("thinking", Map.of("type", "disabled"));
+        }
         return body;
     }
 

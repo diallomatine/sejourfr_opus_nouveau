@@ -48,6 +48,13 @@ public class ProductionEvaluationProperties {
         double getCostPerMillionInputTokens();
         double getCostPerMillionOutputTokens();
         boolean isConfigured();
+
+        /**
+         * true → ajoute {@code "thinking":{"type":"disabled"}} a la requete.
+         * Necessaire pour DeepSeek V4 (thinking mode actif par defaut refuse le
+         * {@code tool_choice} force → 400). Faux pour OpenAI (champ inconnu, 400).
+         */
+        default boolean isDisableThinking() { return false; }
     }
 
     /** Plafond audio accepte pour une submission EO (defaut: 5 min). */
@@ -239,6 +246,8 @@ public class ProductionEvaluationProperties {
         private int maxTokens = 2000;
         private int timeoutSec = 60;
         private String promptVersion = "v1.4";
+        /** DeepSeek V4 : thinking mode ON par defaut casse le tool_choice force. */
+        private boolean disableThinking = true;
         /** Tarification USD / 1M tokens (ordre de grandeur deepseek-chat). */
         private double costPerMillionInputTokens = 0.27;
         private double costPerMillionOutputTokens = 1.10;
@@ -246,6 +255,10 @@ public class ProductionEvaluationProperties {
         public boolean isConfigured() {
             return apiKey != null && !apiKey.isBlank();
         }
+
+        @Override
+        public boolean isDisableThinking() { return disableThinking; }
+        public void setDisableThinking(boolean disableThinking) { this.disableThinking = disableThinking; }
 
         public String getApiKey() { return apiKey; }
         public void setApiKey(String apiKey) { this.apiKey = apiKey; }

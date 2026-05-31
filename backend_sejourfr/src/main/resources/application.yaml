@@ -230,6 +230,9 @@ sejourfr:
       api-key: ${EVAL_DEEPSEEK_API_KEY:${DEEPSEEK_API_KEY:}}
       api-url: https://api.deepseek.com/chat/completions
       model: ${EVAL_DEEPSEEK_MODEL:deepseek-v4-pro}
+      # DeepSeek V4 : thinking mode ON par défaut casse le tool_choice forcé (400).
+      # On l'envoie {"thinking":{"type":"disabled"}} pour un tool_call déterministe.
+      disable-thinking: ${EVAL_DEEPSEEK_DISABLE_THINKING:true}
       max-tokens: 2000
       timeout-sec: 60
       prompt-version: ${EVAL_PROMPT_VERSION:v1.4}

@@ -40,12 +40,11 @@ import java.util.UUID;
 @Slf4j
 public class ProductionPipelineAsyncRunner {
 
-    private static final int ERREUR_MESSAGE_MAX_LENGTH = 1000;
-
     private final ProductionSubmissionManager submissionManager;
     private final TranscriptionManager transcriptionManager;
     private final WhisperTranscriptionService whisperService;
     private final AiEvaluationService aiEvaluationService;
+    private final ProductionPipelineFailureRecorder failureRecorder;
 
     /**
      * Lance le pipeline d'évaluation IA en arrière-plan. Re-fetch la
@@ -85,14 +84,11 @@ public class ProductionPipelineAsyncRunner {
         } catch (Exception e) {
             log.warn("Pipeline async FAILED pour submission {} : {}",
                     submissionId, e.getMessage(), e);
-            // Re-fetch au cas où la session a été fermée par l'exception
-            ProductionSubmission fresh = submissionManager.findById(submissionId).orElse(submission);
-            fresh.setStatut(SubmissionStatut.FAILED);
-            String msg = e.getMessage() != null ? e.getMessage() : "Erreur inconnue lors de l'évaluation";
-            fresh.setErreurMessage(msg.length() > ERREUR_MESSAGE_MAX_LENGTH
-                    ? msg.substring(0, ERREUR_MESSAGE_MAX_LENGTH)
-                    : msg);
-            submissionManager.save(fresh);
+            // La transaction du pipeline est marquee rollback-only par l'exception.
+            // On ecrit FAILED dans une transaction NEUVE (REQUIRES_NEW) sinon le
+            // statut + le message d'erreur seraient annules au commit et la
+            // submission resterait bloquee en EVALUATING.
+            failureRecorder.markFailed(submissionId, e.getMessage());
         }
     }
 }
