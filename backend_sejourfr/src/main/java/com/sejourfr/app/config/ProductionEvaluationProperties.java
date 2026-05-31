@@ -192,23 +192,19 @@ public class ProductionEvaluationProperties {
     }
 
     public static class Anthropic {
+        // Valeurs fournies par application.yaml
+        // (sejourfr.production-evaluation.anthropic.*) — pas de defaut metier en dur.
         private String apiKey = "";
-        private String apiUrl = "https://api.anthropic.com/v1/messages";
-        private String anthropicVersion = "2023-06-01";
-        private String model = "claude-sonnet-4-5";
-        private int maxTokens = 2000;
-        private int timeoutSec = 60;
-        private int maxRetries = 2;
-        private long retryBackoffMs = 1000L;
-        /**
-         * Versionne dans ai_evaluations.prompt_version.
-         */
-        private String promptVersion = "v1.4";
-        /**
-         * Tarification USD / 1M tokens (mai 2026, Sonnet 4-5).
-         */
-        private double costPerMillionInputTokens = 3.0;
-        private double costPerMillionOutputTokens = 15.0;
+        private String apiUrl;
+        private String anthropicVersion;
+        private String model;
+        private int maxTokens;
+        private int timeoutSec;
+        private int maxRetries;
+        private long retryBackoffMs;
+        private String promptVersion;
+        private double costPerMillionInputTokens;
+        private double costPerMillionOutputTokens;
 
         public boolean isConfigured() {
             return apiKey != null && !apiKey.isBlank();
@@ -310,19 +306,18 @@ public class ProductionEvaluationProperties {
      * Whisper (sejourfr.openai.api-key) ou une cle dediee.
      */
     public static class OpenAi implements ChatCompletionSettings {
+        // Valeurs fournies par application.yaml
+        // (sejourfr.production-evaluation.openai.*) — pas de defaut metier en dur.
         private String apiKey = "";
-        private String apiUrl = "https://api.openai.com/v1/chat/completions";
-        private String model = "gpt-4o-mini";
-        private int maxTokens = 2000;
-        private int timeoutSec = 60;
-        private int maxRetries = 2;
-        private long retryBackoffMs = 1000L;
-        private String promptVersion = "v1.4";
-        /**
-         * Tarification USD / 1M tokens (mai 2026, gpt-4o-mini).
-         */
-        private double costPerMillionInputTokens = 0.15;
-        private double costPerMillionOutputTokens = 0.60;
+        private String apiUrl;
+        private String model;
+        private int maxTokens;
+        private int timeoutSec;
+        private int maxRetries;
+        private long retryBackoffMs;
+        private String promptVersion;
+        private double costPerMillionInputTokens;
+        private double costPerMillionOutputTokens;
 
         public boolean isConfigured() {
             return apiKey != null && !apiKey.isBlank();
