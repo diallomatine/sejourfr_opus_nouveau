@@ -36,14 +36,18 @@ public class EvaluationPromptBuilder {
 
     private static final String SYSTEM_PATH_FORMAT = "prompts/production-evaluation-system-%s.md";
     private static final String USER_PATH_FORMAT = "prompts/production-evaluation-user-template-%s.md";
+    private static final List<String> NIVEAUX = List.of("A1", "A2", "B1", "B2", "C1", "C2");
 
     private final ObjectMapper objectMapper;
     private final ProductionEvaluationProperties props;
+    private final ProductionRubricsProvider rubrics;
     private final Map<String, String> templateCache = new ConcurrentHashMap<>();
 
-    public EvaluationPromptBuilder(ObjectMapper objectMapper, ProductionEvaluationProperties props) {
+    public EvaluationPromptBuilder(ObjectMapper objectMapper, ProductionEvaluationProperties props,
+                                   ProductionRubricsProvider rubrics) {
         this.objectMapper = objectMapper;
         this.props = props;
+        this.rubrics = rubrics;
     }
 
     public String buildSystemPrompt(EpreuveType epreuve) {
@@ -66,18 +70,18 @@ public class EvaluationPromptBuilder {
             ? ""
             : "CONTEXTE :\n\"" + task.getContexte() + "\"\n";
 
-        Map<String, Object> grille = task.getCriteresEvaluation() != null
-            ? task.getCriteresEvaluation()
-            : Map.of();
+        // Source UNIQUE du "comment noter" par tache : la rubrique fixe (fichier).
+        // Fallback DB criteres_evaluation si absente (reversibilite). Le system
+        // prompt porte le global ; ce builder n'injecte que des donnees, pas
+        // d'instruction.
+        Map<String, Object> rubric = rubrics.find(task.getEpreuve(), task.getTacheNumero()).orElse(null);
+        Map<String, Object> dbGrille = task.getCriteresEvaluation() != null
+            ? task.getCriteresEvaluation() : Map.of();
 
-        // Pour la grille passee au LLM on n'envoie que les criteres + niveau_attendu
-        // afin d'eviter de dupliquer consignes_correcteur / marqueurs_niveau_superieur
-        // qui sont injectes en sections dediees ci-dessous.
         Map<String, Object> criteresPourPrompt = new LinkedHashMap<>();
-        Object criteres = grille.get("criteres");
+        Object criteres = rubric != null ? rubric.get("criteres") : dbGrille.get("criteres");
         if (criteres != null) criteresPourPrompt.put("criteres", criteres);
-        Object niveauAttendu = grille.get("niveau_attendu");
-        if (niveauAttendu != null) criteresPourPrompt.put("niveau_attendu", niveauAttendu);
+        criteresPourPrompt.put("niveau_attendu", nullSafe(task.getNiveauCible()));
         String criteresJson;
         try {
             criteresJson = objectMapper.writeValueAsString(criteresPourPrompt);
@@ -85,25 +89,28 @@ public class EvaluationPromptBuilder {
             criteresJson = "{}";
         }
 
-        String consignesCorrecteur = asString(grille.get("consignes_correcteur"));
-        String marqueursNiveauSup = asString(grille.get("marqueurs_niveau_superieur"));
-        if (marqueursNiveauSup.isBlank()) {
-            marqueursNiveauSup = "(non renseigne pour cette tache — utilise les descripteurs CECRL standards)";
+        String bareme = rubric != null ? asString(rubric.get("bareme_note")) : "";
+        if (bareme.isBlank()) {
+            bareme = "0-9 : tache insuffisamment remplie · 10-13 : tache remplie · "
+                + "14-16 : bonne maitrise · 17-20 : excellente maitrise.";
         }
 
-        String litteralNotice = transcriptionLitterale
-            ? "Note : la transcription provient d'un systeme automatique configure en mode litteral. "
-              + "Elle peut contenir des erreurs grammaticales refletant la production orale reelle du "
-              + "candidat (ex: \"j'habites\", \"les voitures rouge\"). Tiens compte de ces erreurs dans "
-              + "ton evaluation."
-            : "";
+        String descripteurs = rubric != null
+            ? formatDescripteurs(rubric.get("descripteurs"))
+            : asString(dbGrille.get("marqueurs_niveau_superieur"));
+        if (descripteurs.isBlank()) {
+            descripteurs = "(non renseignes pour cette tache — applique les descripteurs CECRL standards.)";
+        }
 
-        // EO : débit (mots/min) en tête du bloc, puis l'éventuel rappel de durée
-        // sous-objectif. Injectés ensemble dans {DUREE_BLOCK} pour ne pas
-        // toucher au gabarit .md (pas de bump de prompt-version : contexte
-        // runtime, comme la durée).
-        String dureeBlock = buildDebitBlock(task, production, dureeProductionSec)
-                + buildDureeBlock(task, dureeProductionSec);
+        String consignes = rubric != null
+            ? asString(rubric.get("consignes_correcteur"))
+            : asString(dbGrille.get("consignes_correcteur"));
+        if (consignes.isBlank()) consignes = "(aucune)";
+
+        // Donnee factuelle uniquement (l'ordre d'ignorer la duree vit dans le
+        // system prompt, section oral). `transcriptionLitterale` n'est plus
+        // exploite ici : la notice de transcription est portee par le system prompt.
+        String dureeBlock = buildDureeBlock(task, dureeProductionSec);
 
         return loadTemplate(userPath(currentVersion()))
             .replace("{MODALITE}", modalite(task.getEpreuve()))
@@ -112,39 +119,30 @@ public class EvaluationPromptBuilder {
             .replace("{CONSIGNE}", nullSafe(task.getConsigne()))
             .replace("{CONTEXTE_BLOCK}", contexteBlock)
             .replace("{CRITERES}", criteresJson)
-            .replace("{CONSIGNES_CORRECTEUR}", consignesCorrecteur.isBlank() ? "(aucune)" : consignesCorrecteur)
-            .replace("{MARQUEURS_NIVEAU_SUPERIEUR}", marqueursNiveauSup)
+            .replace("{BAREME_NOTE}", bareme)
+            .replace("{DESCRIPTEURS}", descripteurs)
+            .replace("{CONSIGNES_CORRECTEUR}", consignes)
             .replace("{PRODUCTION}", nullSafe(production))
-            .replace("{LITTERAL_NOTICE}", litteralNotice)
             .replace("{DUREE_BLOCK}", dureeBlock);
     }
 
-    /**
-     * Bloc EO « débit de parole » (mots/minute). PUREMENT INFORMATIF depuis le
-     * prompt v1.3 : on évalue la transcription comme un texte écrit, donc le
-     * débit ne doit influencer ni la note ni le niveau (le modèle n'entend pas
-     * l'oral réel). Vide pour l'EE ou sans durée.
-     */
-    private static String buildDebitBlock(ProductionTask task, String production, Integer dureeProductionSec) {
-        if (task.getEpreuve() != EpreuveType.TCF_EO
-                || dureeProductionSec == null || dureeProductionSec <= 0
-                || production == null || production.isBlank()) {
-            return "";
+    /** Formate la map descripteurs {A1..C2} en lignes "- B2 : ...", dans l'ordre. */
+    private static String formatDescripteurs(Object o) {
+        if (!(o instanceof Map<?, ?> m)) return "";
+        StringBuilder sb = new StringBuilder();
+        for (String niv : NIVEAUX) {
+            Object v = m.get(niv);
+            if (v != null && !v.toString().isBlank()) {
+                sb.append("- ").append(niv).append(" : ").append(v).append("\n");
+            }
         }
-        int mots = production.trim().split("\\s+").length;
-        int wpm = (int) Math.round(mots * 60.0 / dureeProductionSec);
-        return "DÉBIT DE PAROLE (indicatif) : ~" + mots + " mots en " + dureeProductionSec
-            + " s, soit ~" + wpm + " mots/minute. Donnée fournie à titre PUREMENT INFORMATIF : "
-            + "n'en tiens PAS compte dans la note_globale ni dans le niveau_cecrl (tu évalues le "
-            + "texte transcrit, pas la fluidité orale que tu n'entends pas).\n";
+        return sb.toString().trim();
     }
 
     /**
-     * Bloc EO « durée parlée vs objectif ». PUREMENT INFORMATIF depuis v1.3 :
-     * une transcription se note comme un texte écrit, la durée ne doit pas
-     * minorer la note (le candidat peut être coupé par le temps, et on ne
-     * récompense/pénalise pas l'oral non entendu). Vide pour l'EE ou si la durée
-     * atteint l'objectif.
+     * Bloc EO « durée parlée vs objectif » — donnée FACTUELLE uniquement. La
+     * consigne de ne pas la prendre en compte vit une seule fois dans le system
+     * prompt (section oral). Vide pour l'EE ou si la durée atteint l'objectif.
      */
     private static String buildDureeBlock(ProductionTask task, Integer dureeProductionSec) {
         if (task.getEpreuve() != EpreuveType.TCF_EO
@@ -153,18 +151,8 @@ public class EvaluationPromptBuilder {
                 || dureeProductionSec >= task.getDureeMaxSec()) {
             return "";
         }
-        StringBuilder sb = new StringBuilder("DURÉE DE LA PRODUCTION (indicatif) : ")
-            .append(dureeProductionSec)
-            .append(" s pour un objectif de ")
-            .append(task.getDureeMaxSec())
-            .append(" s");
-        if (task.getDureeMinSec() != null) {
-            sb.append(" (minimum ").append(task.getDureeMinSec()).append(" s)");
-        }
-        sb.append(". Donnée fournie à titre PUREMENT INFORMATIF : n'en tiens PAS compte dans la "
-            + "note_globale ni dans le niveau_cecrl. Évalue la qualité linguistique du texte "
-            + "transcrit, pas la complétude orale.\n");
-        return sb.toString();
+        return "DURÉE (indicative) : " + dureeProductionSec + " s (objectif "
+            + task.getDureeMaxSec() + " s).\n";
     }
 
     /**

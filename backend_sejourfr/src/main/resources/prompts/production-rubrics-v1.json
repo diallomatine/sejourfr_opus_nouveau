@@ -1,0 +1,109 @@
+{
+  "_doc": "Rubriques d'évaluation FIXES par tâche, source unique du 'comment noter' propre à chaque tâche. Clé = epreuve -> tacheNumero. Critères texte uniquement (transcription pour l'EO). Le system prompt porte les règles GLOBALES (CECRL, note vs niveau, hors-sujet, oral=transcription) ; ce fichier porte le PAR-TÂCHE.",
+  "TCF_EO": {
+    "1": {
+      "titre": "Entretien dirigé (présentation de soi)",
+      "criteres": [
+        {"code": "pertinence", "label": "Pertinence et richesse du contenu", "poids": 0.30},
+        {"code": "coherence", "label": "Organisation et cohérence du discours", "poids": 0.20},
+        {"code": "lexique", "label": "Richesse et précision du vocabulaire", "poids": 0.25},
+        {"code": "grammaire", "label": "Correction grammaticale", "poids": 0.25}
+      ],
+      "bareme_note": "0-6 : hors-sujet ou incompréhensible · 7-9 : tâche partiellement remplie, langue minimale · 10-13 : tâche remplie, langue fonctionnelle · 14-16 : tâche bien remplie, bonne maîtrise · 17-20 : présentation riche, fluide et précise.",
+      "descripteurs": {
+        "A2": "Phrases simples au présent ; vocabulaire de base (identité, goûts, quotidien) ; connecteurs « et / mais ».",
+        "B1": "Discours suivi ; subordonnées (parce que, quand, qui) ; passé composé correct ; goûts justifiés simplement ; connecteurs variés.",
+        "B2": "Structures variées et nuancées (clivées « ce que…c'est », nominalisation, concession) ; lexique précis voire abstrait ; prise de recul, reformulation — possible MÊME dans une présentation.",
+        "C1": "Aisance remarquable ; lexique riche et idiomatique ; nuance fine, registre maîtrisé, style personnel."
+      },
+      "consignes_correcteur": "Tâche descriptive : ne plafonne PAS à B1 sous prétexte que le sujet (se présenter) est simple. Si le candidat mobilise spontanément des structures clivées, de la nominalisation, des thèmes abstraits ou de la prise de recul, c'est du B2 — même sans imparfait ni argumentation. Évalue la richesse RÉELLE de la langue produite."
+    },
+    "2": {
+      "titre": "Expression d'un point de vue",
+      "criteres": [
+        {"code": "pertinence", "label": "Pertinence et développement de l'argumentation", "poids": 0.35},
+        {"code": "coherence", "label": "Structure et cohérence du raisonnement", "poids": 0.25},
+        {"code": "lexique", "label": "Richesse et précision du vocabulaire", "poids": 0.20},
+        {"code": "grammaire", "label": "Correction grammaticale", "poids": 0.20}
+      ],
+      "bareme_note": "0-6 : hors-sujet · 7-9 : opinion énoncée sans justification · 10-13 : opinion avec arguments simples · 14-16 : argumentation structurée · 17-20 : démonstration nuancée et convaincante.",
+      "descripteurs": {
+        "A2": "Opinion énoncée sans justification développée ; phrases juxtaposées.",
+        "B1": "Opinion claire avec quelques arguments ; connecteurs logiques (d'abord, ensuite, par exemple) ; exemples concrets.",
+        "B2": "Argumentation structurée et nuancée ; concession (bien que, certes…mais) ; conditionnel ; anticipe les objections ; lexique précis.",
+        "C1": "Démonstration fluide et subtile ; connecteurs sophistiqués ; nuance, point de vue personnel affirmé."
+      },
+      "consignes_correcteur": "Tâche argumentative : le niveau se joue sur la QUALITÉ DU RAISONNEMENT (structure, concession, anticipation des objections), pas sur la longueur. Une opinion juste mais peu développée plafonne à B1 ; la nuance et la concession font le B2."
+    },
+    "3": {
+      "titre": "Interaction / jeu de rôle",
+      "criteres": [
+        {"code": "pertinence", "label": "Adéquation à la situation et gestion de l'échange", "poids": 0.30},
+        {"code": "coherence", "label": "Cohérence et fluidité de l'interaction", "poids": 0.25},
+        {"code": "lexique", "label": "Richesse et précision du vocabulaire", "poids": 0.20},
+        {"code": "grammaire", "label": "Correction grammaticale", "poids": 0.25}
+      ],
+      "bareme_note": "0-6 : hors-sujet · 7-9 : échange minimal · 10-13 : échange fonctionnel · 14-16 : échange mené avec aisance · 17-20 : interaction riche et stratégique.",
+      "descripteurs": {
+        "A2": "Échange minimal ; demandes et réponses simples.",
+        "B1": "Gère l'échange ; pose des questions, répond, reformule ; conditionnel de politesse.",
+        "B2": "Négocie, argumente dans l'interaction, anticipe les cas de figure, s'adapte à l'interlocuteur.",
+        "C1": "Interaction fluide et stratégique ; gère l'imprévu, registre adapté finement."
+      },
+      "consignes_correcteur": "Tâche interactive : valorise la capacité à MENER l'échange (questions pertinentes, reformulations, adaptation). Se contenter de répondre = B1 ; négocier / anticiper / s'adapter = B2."
+    }
+  },
+  "TCF_EE": {
+    "1": {
+      "titre": "Message court",
+      "criteres": [
+        {"code": "pertinence", "label": "Pertinence et adéquation à la situation", "poids": 0.30},
+        {"code": "coherence", "label": "Organisation et registre", "poids": 0.20},
+        {"code": "lexique", "label": "Richesse et précision du vocabulaire", "poids": 0.20},
+        {"code": "grammaire", "label": "Correction grammaticale et orthographe", "poids": 0.30}
+      ],
+      "bareme_note": "0-6 : hors-sujet ou incompréhensible · 7-9 : message minimal · 10-13 : message clair et adéquat · 14-16 : message efficace et bien formulé · 17-20 : message précis, naturel, registre maîtrisé.",
+      "descripteurs": {
+        "A2": "Message court compréhensible ; formules de base ; phrases simples.",
+        "B1": "Message clair et cohérent ; registre adapté (salutations, formule de politesse) ; quelques connecteurs.",
+        "B2": "Message efficace et nuancé ; registre maîtrisé ; lexique précis ; aisance de formulation.",
+        "C1": "Message stylé, registre finement adapté, formulation idiomatique."
+      },
+      "consignes_correcteur": "Tâche courte et pratique : juge la clarté, l'adéquation au registre (formel/informel) et la correction. Le format court ne doit PAS empêcher de reconnaître un B2 (précision lexicale, aisance de formulation)."
+    },
+    "2": {
+      "titre": "Récit / échange",
+      "criteres": [
+        {"code": "pertinence", "label": "Pertinence et richesse du contenu", "poids": 0.30},
+        {"code": "coherence", "label": "Cohérence temporelle et organisation", "poids": 0.25},
+        {"code": "lexique", "label": "Richesse et précision du vocabulaire", "poids": 0.20},
+        {"code": "grammaire", "label": "Correction grammaticale et orthographe", "poids": 0.25}
+      ],
+      "bareme_note": "0-6 : hors-sujet · 7-9 : récit minimal · 10-13 : récit clair et suivi · 14-16 : récit structuré et détaillé · 17-20 : récit vivant, nuancé et maîtrisé.",
+      "descripteurs": {
+        "A2": "Récit linéaire au passé composé ; vocabulaire concret.",
+        "B1": "Récit structuré ; passé composé / imparfait corrects ; connecteurs temporels ; détails.",
+        "B2": "Récit vivant et nuancé ; alternance des temps maîtrisée ; lexique imagé ; reformulations.",
+        "C1": "Récit riche et stylé ; cohésion sophistiquée ; nuance et registre."
+      },
+      "consignes_correcteur": "Tâche narrative : la maîtrise des temps du passé (passé composé / imparfait) et la cohésion temporelle sont déterminantes. La richesse et la nuance font le B2."
+    },
+    "3": {
+      "titre": "Prise de position argumentée",
+      "criteres": [
+        {"code": "pertinence", "label": "Pertinence et développement de l'argumentation", "poids": 0.35},
+        {"code": "coherence", "label": "Structure et cohérence du texte", "poids": 0.25},
+        {"code": "lexique", "label": "Richesse et précision du vocabulaire", "poids": 0.20},
+        {"code": "grammaire", "label": "Correction grammaticale et orthographe", "poids": 0.20}
+      ],
+      "bareme_note": "0-6 : hors-sujet · 7-9 : opinion sans développement · 10-13 : position avec arguments simples · 14-16 : argumentation structurée · 17-20 : démonstration aboutie et nuancée.",
+      "descripteurs": {
+        "A2": "Opinion simple sans développement.",
+        "B1": "Position claire avec arguments et exemples ; connecteurs logiques.",
+        "B2": "Argumentation nuancée et structurée ; concession, conditionnel / subjonctif ; objections anticipées ; lexique précis.",
+        "C1": "Démonstration aboutie et subtile ; style personnel ; cohésion sophistiquée."
+      },
+      "consignes_correcteur": "Tâche argumentative écrite : juge la STRUCTURE (introduction / arguments / conclusion), la nuance (concession, modalisation) et la précision lexicale. Une opinion peu développée plafonne à B1 ; la nuance argumentative fait le B2."
+    }
+  }
+}

@@ -15,13 +15,40 @@ public class ProductionEvaluationProperties {
 
     /**
      * Provider LLM actif pour l'evaluation des productions. Valeurs supportees :
-     * {@code openai}, {@code anthropic}. Bascule a chaud (redemarrage du backend
-     * suffit, aucune migration / aucun changement cote mobile).
+     * {@code openai}, {@code anthropic}, {@code deepseek} (et tout endpoint
+     * compatible OpenAI via le bloc deepseek/openai). Bascule a chaud
+     * (redemarrage du backend suffit, aucune migration / aucun changement mobile).
      */
     private String provider = "openai";
 
+    /**
+     * Version du fichier de rubriques par tache charge par
+     * {@code ProductionRubricsProvider} : {@code prompts/production-rubrics-<v>.json}.
+     * Source unique du "comment noter" propre a chaque tache (criteres, bareme,
+     * descripteurs, consignes). Independant de la prompt-version (templates).
+     */
+    private String rubricsVersion = "v1";
+
     private Anthropic anthropic = new Anthropic();
     private OpenAi openai = new OpenAi();
+    private DeepSeek deepseek = new DeepSeek();
+
+    /**
+     * Reglages communs aux providers compatibles OpenAI (Chat Completions +
+     * function calling) : OpenAI, DeepSeek, ou tout endpoint OpenAI-compatible.
+     * Pilote {@code OpenAiCompatibleEvalClient} sans dupliquer le client.
+     */
+    public interface ChatCompletionSettings {
+        String getApiKey();
+        String getApiUrl();
+        String getModel();
+        int getMaxTokens();
+        int getTimeoutSec();
+        String getPromptVersion();
+        double getCostPerMillionInputTokens();
+        double getCostPerMillionOutputTokens();
+        boolean isConfigured();
+    }
 
     /** Plafond audio accepte pour une submission EO (defaut: 5 min). */
     private int maxAudioDurationSeconds = 300;
@@ -47,11 +74,17 @@ public class ProductionEvaluationProperties {
     public String getProvider() { return provider; }
     public void setProvider(String provider) { this.provider = provider; }
 
+    public String getRubricsVersion() { return rubricsVersion; }
+    public void setRubricsVersion(String rubricsVersion) { this.rubricsVersion = rubricsVersion; }
+
     public Anthropic getAnthropic() { return anthropic; }
     public void setAnthropic(Anthropic anthropic) { this.anthropic = anthropic; }
 
     public OpenAi getOpenai() { return openai; }
     public void setOpenai(OpenAi openai) { this.openai = openai; }
+
+    public DeepSeek getDeepseek() { return deepseek; }
+    public void setDeepseek(DeepSeek deepseek) { this.deepseek = deepseek; }
 
     public int getMaxAudioDurationSeconds() { return maxAudioDurationSeconds; }
     public void setMaxAudioDurationSeconds(int maxAudioDurationSeconds) {
@@ -92,7 +125,7 @@ public class ProductionEvaluationProperties {
         private int maxRetries = 2;
         private long retryBackoffMs = 1000L;
         /** Versionne dans ai_evaluations.prompt_version. */
-        private String promptVersion = "v1.3";
+        private String promptVersion = "v1.4";
         /** Tarification USD / 1M tokens (mai 2026, Sonnet 4-5). */
         private double costPerMillionInputTokens = 3.0;
         private double costPerMillionOutputTokens = 15.0;
@@ -143,7 +176,7 @@ public class ProductionEvaluationProperties {
      * de la requete change. La cle peut etre la meme que celle utilisee pour
      * Whisper (sejourfr.openai.api-key) ou une cle dediee.
      */
-    public static class OpenAi {
+    public static class OpenAi implements ChatCompletionSettings {
         private String apiKey = "";
         private String apiUrl = "https://api.openai.com/v1/chat/completions";
         private String model = "gpt-4o-mini";
@@ -151,7 +184,7 @@ public class ProductionEvaluationProperties {
         private int timeoutSec = 60;
         private int maxRetries = 2;
         private long retryBackoffMs = 1000L;
-        private String promptVersion = "v1.3";
+        private String promptVersion = "v1.4";
         /** Tarification USD / 1M tokens (mai 2026, gpt-4o-mini). */
         private double costPerMillionInputTokens = 0.15;
         private double costPerMillionOutputTokens = 0.60;
@@ -180,6 +213,54 @@ public class ProductionEvaluationProperties {
 
         public long getRetryBackoffMs() { return retryBackoffMs; }
         public void setRetryBackoffMs(long retryBackoffMs) { this.retryBackoffMs = retryBackoffMs; }
+
+        public String getPromptVersion() { return promptVersion; }
+        public void setPromptVersion(String promptVersion) { this.promptVersion = promptVersion; }
+
+        public double getCostPerMillionInputTokens() { return costPerMillionInputTokens; }
+        public void setCostPerMillionInputTokens(double v) { this.costPerMillionInputTokens = v; }
+
+        public double getCostPerMillionOutputTokens() { return costPerMillionOutputTokens; }
+        public void setCostPerMillionOutputTokens(double v) { this.costPerMillionOutputTokens = v; }
+    }
+
+    /**
+     * Config du provider DeepSeek. L'API DeepSeek est compatible OpenAI (meme
+     * endpoint {@code /chat/completions}, meme format {@code tools}/{@code tool_calls},
+     * auth Bearer), donc le meme {@code OpenAiCompatibleEvalClient} la sert sans
+     * code dedie. Renseigner {@code …deepseek.api-key} (DEEPSEEK_API_KEY). Le
+     * modele par defaut est {@code deepseek-v4-pro} (function calling supporte) ;
+     * surchargeable via {@code …deepseek.model}.
+     */
+    public static class DeepSeek implements ChatCompletionSettings {
+        private String apiKey = "";
+        private String apiUrl = "https://api.deepseek.com/chat/completions";
+        private String model = "deepseek-v4-pro";
+        private int maxTokens = 2000;
+        private int timeoutSec = 60;
+        private String promptVersion = "v1.4";
+        /** Tarification USD / 1M tokens (ordre de grandeur deepseek-chat). */
+        private double costPerMillionInputTokens = 0.27;
+        private double costPerMillionOutputTokens = 1.10;
+
+        public boolean isConfigured() {
+            return apiKey != null && !apiKey.isBlank();
+        }
+
+        public String getApiKey() { return apiKey; }
+        public void setApiKey(String apiKey) { this.apiKey = apiKey; }
+
+        public String getApiUrl() { return apiUrl; }
+        public void setApiUrl(String apiUrl) { this.apiUrl = apiUrl; }
+
+        public String getModel() { return model; }
+        public void setModel(String model) { this.model = model; }
+
+        public int getMaxTokens() { return maxTokens; }
+        public void setMaxTokens(int maxTokens) { this.maxTokens = maxTokens; }
+
+        public int getTimeoutSec() { return timeoutSec; }
+        public void setTimeoutSec(int timeoutSec) { this.timeoutSec = timeoutSec; }
 
         public String getPromptVersion() { return promptVersion; }
         public void setPromptVersion(String promptVersion) { this.promptVersion = promptVersion; }

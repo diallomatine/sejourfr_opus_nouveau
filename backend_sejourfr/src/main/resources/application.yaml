@@ -183,11 +183,13 @@ sejourfr:
         Conserver les hesitations, les repetitions, et les eventuelles fautes
         grammaticales telles que prononcees.
   production-evaluation:
-    # Provider LLM actif : openai (defaut) ou anthropic. Pour switcher, changer
-    # cette valeur (ou EVAL_LLM_PROVIDER) et redemarrer le backend. Aucune
+    # Provider LLM actif : openai (defaut), anthropic ou deepseek. Pour switcher,
+    # changer cette valeur (ou EVAL_LLM_PROVIDER) et redemarrer le backend. Aucune
     # migration ni changement cote mobile : le DTO + le tool schema sont
     # identiques, seule la maniere d'appeler le LLM change.
     provider: ${EVAL_LLM_PROVIDER:openai}
+    # Version du fichier de rubriques par tache (prompts/production-rubrics-<v>.json).
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v1}
     max-audio-duration-seconds: 300
     max-text-words: 300
     min-text-words: 10
@@ -205,7 +207,7 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v1.2}
+      prompt-version: ${EVAL_PROMPT_VERSION:v1.4}
       # Tarification gpt-4o-mini (USD / 1M tokens, mai 2026). A surcharger si
       # on bascule sur gpt-4o ou gpt-5 (cout estime persiste dans ai_evaluations).
       cost-per-million-input-tokens: 0.15
@@ -219,6 +221,17 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v1.2}
+      prompt-version: ${EVAL_PROMPT_VERSION:v1.4}
       cost-per-million-input-tokens: 3.0
       cost-per-million-output-tokens: 15.0
+    # DeepSeek : API compatible OpenAI (meme client). Activer avec
+    # EVAL_LLM_PROVIDER=deepseek + EVAL_DEEPSEEK_API_KEY (ou DEEPSEEK_API_KEY).
+    deepseek:
+      api-key: ${EVAL_DEEPSEEK_API_KEY:${DEEPSEEK_API_KEY:}}
+      api-url: https://api.deepseek.com/chat/completions
+      model: ${EVAL_DEEPSEEK_MODEL:deepseek-v4-pro}
+      max-tokens: 2000
+      timeout-sec: 60
+      prompt-version: ${EVAL_PROMPT_VERSION:v1.4}
+      cost-per-million-input-tokens: 0.27
+      cost-per-million-output-tokens: 1.10
