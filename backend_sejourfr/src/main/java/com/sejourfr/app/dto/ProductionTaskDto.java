@@ -6,8 +6,8 @@ import java.util.UUID;
 
 /**
  * Vue front d'une {@link com.sejourfr.app.entity.ProductionTask}. La grille
- * d'evaluation (criteresEvaluation) n'est volontairement pas exposee : elle
- * reste cote serveur pour ne pas donner d'indice sur la grille au candidat.
+ * d'evaluation n'est pas exposee au candidat : elle vit cote serveur dans
+ * prompts/production-rubrics-&lt;version&gt;.json (par epreuve/tache).
  */
 public record ProductionTaskDto(
         UUID id,

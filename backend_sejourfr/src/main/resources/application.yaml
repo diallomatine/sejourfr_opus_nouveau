@@ -15,16 +15,16 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
-    # Numerotation hybride V1-V99 (schema + features) + V200/V300/V400/V500
-    # (lots civique). On accepte les migrations "manquantes" appliquees apres
-    # une migration de numero superieur.
+    # Arborescence par domaine sous db/migration (scan recursif par defaut) :
+    #   00_schema (V001-V099) -> 100_reference (V100-V199)
+    #   -> 200_civique (V200-V299) -> 400_tcf (V400-V799).
+    # C'est le NUMERO de version qui ordonne l'execution, pas le dossier ;
+    # les plages garantissent schema -> reference -> contenu.
     out-of-order: true
-    # Tolere une migration retiree du code mais deja appliquee en base (ex.
-    # seed renomme/deplace, comme l'ancien V421 devenu V422). Sans ca, un env
-    # deploye AVANT le retrait echoue au boot sur "Detected applied migration
-    # not resolved locally". N'affecte que les bases qui l'avaient deja
-    # appliquee (l'effet a deja eu lieu) ; les bases neuves ne sont pas
-    # concernees. Evite la chirurgie SQL / flyway repair sur chaque env.
+    # Tolere une migration retiree du code mais deja appliquee en base. Sans ca,
+    # un env deploye AVANT un retrait echoue au boot sur "Detected applied
+    # migration not resolved locally". N'affecte que les bases qui l'avaient
+    # deja appliquee ; les bases neuves ne sont pas concernees.
     ignore-migration-patterns: "*:missing"
   servlet:
     multipart:
