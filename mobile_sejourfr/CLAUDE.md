@@ -782,17 +782,28 @@ vend du contenu digital). L'ancien `openSubscriptionWeb()` est supprimé.
 `PurchaseStatus.restored` → même flow que `purchased` (verify-receipt +
 refresh user).
 
-**SKUs** : convention `<MODULE>_<PERIODICITY>` (ex: `CIVIQUE_MONTHLY`,
-`INTEGRAL_QUARTERLY`). Doit matcher EXACTEMENT :
-- Le `Plan.code` côté backend (table `plans`, cf. migration V106) — en MAJ.
-- Le Product ID dans App Store Connect → Subscriptions — **MAJUSCULES** (= `Plan.code`).
-- Le Product ID dans Google Play Console → In-app products — **MINUSCULES**.
+**SKUs** : le mobile lit les Product IDs store **directement depuis le backend**
+(`PlanPublicResponse.appleProductId` / `googleProductId`, exposés par
+`/api/billing/plans`). `_skuFor()` retourne l'ID de la plateforme courante
+(Apple ou Google) tel quel — **plus de dérivation depuis `Plan.code`**. Un plan
+dont l'ID store de la plateforme est `null` est filtré (non vendable ici, ex.
+plan FREE ou web-only Stripe → il n'apparaît pas au paywall).
 
-⚠ **Google n'accepte que des Product IDs en minuscules.** `_skuFor()` minuscule
-donc le `Plan.code` pour la source GOOGLE (`plan.code.toLowerCase()`), et
-`plans.google_product_id` doit être posé en minuscules (Apple reste en MAJ).
-Sans cet alignement, `loadProducts` retourne les SKUs dans `notFoundIDs` et
-les cards correspondantes ne s'affichent pas.
+⚠ Conséquence : les colonnes `plans.apple_product_id` / `plans.google_product_id`
+**doivent être renseignées** (admin → Plans, ou seed dev) avec les Product IDs
+EXACTS créés dans App Store Connect / Play Console — sinon `loadProducts` ne les
+trouve pas (`notFoundIDs`) et les cards ne s'affichent pas. Les IDs Apple et
+Google peuvent **diverger de `Plan.code`** : c'est nécessaire car un Product ID
+Apple supprimé **n'est jamais réutilisable**, donc une recréation impose un ID
+neuf. (Google impose des IDs en minuscules ; Apple tolère les majuscules — mais
+l'app n'impose plus aucune casse, elle envoie ce que dit le backend.)
+
+⚠ Type de produit Apple : les passes one-time **doivent être des Consommables**
+(ré-achetables à l'infini, Apple ré-affiche la sheet à chaque achat). Un
+Non-Consommable est « possédé à vie » → Apple refuse le rachat et restaure la
+transaction d'origine (même `transactionId`) → le backend la traite en *replay*,
+aucune prolongation. La durée d'accès est posée par le backend
+(`plan.durationDays`), pas par Apple.
 
 **Setup natif requis** (à faire avant les tests sandbox) :
 - iOS : Xcode → Runner → Signing & Capabilities → +In-App Purchase.

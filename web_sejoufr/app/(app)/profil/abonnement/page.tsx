@@ -178,6 +178,8 @@ function PremiumView({
   onCancelClick: () => void;
 }) {
   const isCanceled = status.status === "CANCELED";
+  // Pass one-time (lot 5) : aucune reconduction → « Mon accès » sans résiliation.
+  const isOneTime = status.oneTime === true;
   const planLabel =
     status.moduleAccess === "INTEGRAL"
       ? "Plan Intégral · Civique + TCF"
@@ -198,9 +200,11 @@ function PremiumView({
         </div>
         <h2>{planLabel}</h2>
         <p>
-          {isCanceled
-            ? "Renouvellement automatique désactivé."
-            : "Renouvellement automatique activé."}
+          {isOneTime
+            ? "Accès payé une fois, sans abonnement ni reconduction."
+            : isCanceled
+              ? "Renouvellement automatique désactivé."
+              : "Renouvellement automatique activé."}
         </p>
       </section>
 
@@ -209,7 +213,7 @@ function PremiumView({
         <dl>
           <DetailRow label="Géré par" value={sourceLabel(status.source)} />
           <DetailRow
-            label={isCanceled ? "Accès jusqu'au" : "Prochain renouvellement"}
+            label={isCanceled || isOneTime ? "Accès jusqu'au" : "Prochain renouvellement"}
             value={formatLong(status.expiresAt) ?? "—"}
           />
           {status.productId && (
@@ -218,7 +222,16 @@ function PremiumView({
         </dl>
       </section>
 
-      {!isCanceled && (
+      {isOneTime && (
+        <section className="ab-note">
+          <strong>Accès sans abonnement.</strong>{" "}
+          {status.expiresAt
+            ? `Vous gardez l'accès jusqu'au ${formatLong(status.expiresAt)}. Rien à résilier — rachetez un pass pour prolonger.`
+            : "Rien à résilier — rachetez un pass pour prolonger."}
+        </section>
+      )}
+
+      {!isCanceled && !isOneTime && (
         <section className="ab-action">
           <button
             type="button"

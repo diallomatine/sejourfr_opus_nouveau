@@ -37,4 +37,14 @@ public class AiEvaluationManager {
     public AiEvaluation save(AiEvaluation evaluation) {
         return repository.save(evaluation);
     }
+
+    /** Nombre d'evaluations ayant a la fois le niveau LLM et le niveau calcule (calibration). */
+    public long countWithBothNiveaux() {
+        return repository.countWithBothNiveaux();
+    }
+
+    /** Nombre d'evaluations ou le niveau LLM diverge du niveau calcule (≥ 1 cran). */
+    public long countNiveauDivergent() {
+        return repository.countNiveauDivergent();
+    }
 }

@@ -31,4 +31,19 @@ public interface AiEvaluationRepository extends JpaRepository<AiEvaluation, UUID
     List<AiEvaluation> findByUserAndEpreuve(
             @Param("userId") UUID userId,
             @Param("epreuve") EpreuveType epreuve);
+
+    /** Nombre d'evaluations ayant a la fois le niveau LLM et le niveau calcule (calibration). */
+    @Query("""
+            SELECT COUNT(e) FROM AiEvaluation e
+            WHERE e.niveauCecrlIa IS NOT NULL AND e.niveauCecrl IS NOT NULL
+            """)
+    long countWithBothNiveaux();
+
+    /** Nombre d'evaluations ou le niveau LLM diverge du niveau calcule (≥ 1 cran). */
+    @Query("""
+            SELECT COUNT(e) FROM AiEvaluation e
+            WHERE e.niveauCecrlIa IS NOT NULL AND e.niveauCecrl IS NOT NULL
+              AND e.niveauCecrlIa <> e.niveauCecrl
+            """)
+    long countNiveauDivergent();
 }

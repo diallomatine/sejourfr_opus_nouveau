@@ -562,7 +562,7 @@ class _PlanCard extends StatelessWidget {
 
     final endLabel = user.premiumEndsAt == null
         ? null
-        : 'Renouvellement le ${_formatDate(user.premiumEndsAt!)}';
+        : 'Expire le ${_formatDate(user.premiumEndsAt!)}';
 
     // Premium → tap pousse l'écran « Mon abonnement » (détails + résiliation).
     // Gratuit/démo → ouvre la PaywallSheet partagée (l'app vend désormais via

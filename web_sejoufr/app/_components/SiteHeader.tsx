@@ -166,13 +166,6 @@ export function SiteHeader() {
                                         Entrainements
                                     </Link>
                                     <Link
-                                        href="/examens-blancs"
-                                        className="site-header__menuItem"
-                                        onClick={() => setMenuOpen(false)}
-                                    >
-                                        Examens blancs
-                                    </Link>
-                                    <Link
                                         href="/profil"
                                         className="site-header__menuItem"
                                         onClick={() => setMenuOpen(false)}

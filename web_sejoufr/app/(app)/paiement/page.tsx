@@ -3,7 +3,14 @@
 import Link from "next/link";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
 import {Suspense, useEffect, useMemo, useState} from "react";
-import {ApiException, billingApi, periodicityFromCycle, planCodeFor, type PlanModuleTarget, type PlanPeriodicity} from "@/lib/api";
+import {
+    ApiException,
+    billingApi,
+    periodicityFromCycle,
+    planCodeFor,
+    type PlanModuleTarget,
+    type PlanPeriodicity
+} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import type {AuthenticatedUser, BillingCycle, PlanPublicResponse} from "@/lib/types";
 
@@ -104,6 +111,18 @@ function formatPrice(n: number): string {
     return n.toFixed(2).replace(".", ",");
 }
 
+/** Libellé de durée d'un pass one-time (« 6 semaines », « 3 mois », « 1 an »). */
+function durationLabel(days: number): string {
+    if (days <= 0) return "";
+    if (days % 365 === 0) {
+        const y = days / 365;
+        return y === 1 ? "1 an" : `${y} ans`;
+    }
+    if (days >= 30 && days % 30 === 0) return `${days / 30} mois`;
+    if (days % 7 === 0) return `${days / 7} semaines`;
+    return `${days} jours`;
+}
+
 /** Calcule l'équivalent mensuel d'un plan trimestriel/annuel. */
 function monthlyEquivalent(price: number, cycle: BillingCycle): number | null {
     if (cycle === "THREE_MONTHS") return price / 3;
@@ -188,6 +207,16 @@ function PaiementInner() {
 
     const index = useMemo(() => indexPlans(plans), [plans]);
 
+    // Mode passes one-time (lot 5) : pas de toggle de périodicité, grille de
+    // passes par module. On ignore les plans non payables (FREE) dans la
+    // détection — sinon le FREE (SUBSCRIPTION) casserait le `every`.
+    const payablePlans = plans.filter(
+        (p) => p.moduleAccess !== "NONE" && p.price > 0,
+    );
+    const oneTime =
+        payablePlans.length > 0 &&
+        payablePlans.every((p) => p.purchaseType === "ONE_TIME");
+
     /** Modules visibles : INTEGRAL seul si déjà INTEGRAL ; les 2 sinon ; focus si demandé. */
     const visibleModules = useMemo<PlanModuleTarget[]>(() => {
         if (currentPlan === "INTEGRAL") return ["INTEGRAL"];
@@ -227,7 +256,7 @@ function PaiementInner() {
     if (!user) {
         return (
             <main className="pay-gate">
-                <p>Connectez-vous pour souscrire ou gérer votre abonnement.</p>
+                <p>Connectez-vous pour obtenir ou gérer votre accès.</p>
                 <Link href="/connexion?next=/paiement" className="pay-gate-cta">
                     Se connecter →
                 </Link>
@@ -262,13 +291,13 @@ function PaiementInner() {
                 <p className="pay-hero-sub">{leadFor(currentPlan)}</p>
                 <div className="pay-hero-chips">
                     <span className="pay-hero-chip">
-                        <LockIcon /> Paiement sécurisé Stripe
+                        <LockIcon/> Paiement sécurisé Stripe
                     </span>
                     <span className="pay-hero-chip">
-                        <CalendarIcon /> Annulable à tout moment
+                        <CalendarIcon/> Sans renouvellement
                     </span>
                     <span className="pay-hero-chip">
-                        <CheckIcon /> Sans engagement
+                        <CheckIcon/> Sans engagement
                     </span>
                 </div>
             </header>
@@ -279,27 +308,38 @@ function PaiementInner() {
                 <CurrentSubscriptionCard user={user} currentPlan={currentPlan}/>
             )}
 
-            <PeriodicityToggle value={periodicity} onChange={setPeriodicity}/>
+            {oneTime ? (
+                <OneTimePasses
+                    plans={plans}
+                    modules={visibleModules}
+                    loadingCode={loadingCode}
+                    onSubscribe={handleSubscribe}
+                />
+            ) : (
+                <>
+                    <PeriodicityToggle value={periodicity} onChange={setPeriodicity}/>
 
-            <section className={`pay-cards ${visibleModules.length === 1 ? "is-single" : ""}`}>
-                {visibleModules.map((module) => {
-                    const plan = index.get(`${module}:${periodicity}`);
-                    if (!plan) return null;
-                    const intent = deriveIntent(currentPlan, module);
-                    return (
-                        <PlanCard
-                            key={module}
-                            module={module}
-                            plan={plan}
-                            periodicity={periodicity}
-                            intent={intent}
-                            loading={loadingCode === planCodeFor(module, periodicity)}
-                            anyLoading={loadingCode !== null}
-                            onSubscribe={() => handleSubscribe(planCodeFor(module, periodicity))}
-                        />
-                    );
-                })}
-            </section>
+                    <section className={`pay-cards ${visibleModules.length === 1 ? "is-single" : ""}`}>
+                        {visibleModules.map((module) => {
+                            const plan = index.get(`${module}:${periodicity}`);
+                            if (!plan) return null;
+                            const intent = deriveIntent(currentPlan, module);
+                            return (
+                                <PlanCard
+                                    key={module}
+                                    module={module}
+                                    plan={plan}
+                                    periodicity={periodicity}
+                                    intent={intent}
+                                    loading={loadingCode === planCodeFor(module, periodicity)}
+                                    anyLoading={loadingCode !== null}
+                                    onSubscribe={() => handleSubscribe(planCodeFor(module, periodicity))}
+                                />
+                            );
+                        })}
+                    </section>
+                </>
+            )}
 
             {error && (
                 <div className="form-error pay-error" role="alert">
@@ -316,15 +356,15 @@ function PaiementInner() {
                     />
                     <TrustItem
                         icon={<CalendarIcon/>}
-                        title="Annulable à tout moment"
-                        body="Vous gardez l'accès jusqu'à la fin de la période payée."
+                        title="Sans renouvellement"
+                        body="Vous accédez à l'app pour toute la durée de votre pass."
                     />
                     <TrustItem
                         icon={<MailIcon/>}
                         title="Support direct"
                         body={
                             <>
-                                <a href="mailto:hello@sejourfr.fr">hello@sejourfr.fr</a> — on
+                                <a href="mailto:support@sejourfr.fr">support@sejourfr.fr</a> — on
                                 répond.
                             </>
                         }
@@ -332,7 +372,7 @@ function PaiementInner() {
                 </div>
                 <p className="trust-foot">
                     Vos données (favoris, erreurs, progression) restent sur votre compte
-                    si vous suspendez ou reprenez l&apos;abonnement plus tard.
+                    si vous reprenez un accès plus tard.
                 </p>
             </section>
 
@@ -340,6 +380,95 @@ function PaiementInner() {
         </main>
     );
 }
+
+// ============================================================================
+// PASSES ONE-TIME (lot 5) — grille de passes par module
+// ============================================================================
+
+/** Pass mis en avant comme « le plus populaire » (cohérent web + mobile). */
+const POPULAR_PASS_CODE = "INTEGRAL_PASS_3M";
+
+function OneTimePasses({
+                           plans,
+                           modules,
+                           loadingCode,
+                           onSubscribe,
+                       }: {
+    plans: PlanPublicResponse[];
+    modules: PlanModuleTarget[];
+    loadingCode: string | null;
+    onSubscribe: (code: string) => void;
+}) {
+    return (
+        <section className={`pay-cards ${modules.length === 1 ? "is-single" : ""}`}>
+            {modules.map((module) => {
+                const passes = plans
+                    .filter((p) => p.purchaseType === "ONE_TIME" && p.moduleAccess === module)
+                    .sort((a, b) => a.durationDays - b.durationDays);
+                if (passes.length === 0) return null;
+                const pres = PRESENTATION[module];
+                return (
+                    <article key={module} className={`otp-card otp-${pres.tone}`}>
+                        <span className="otp-tag">{pres.tag}</span>
+                        <h2 className="otp-name">{pres.name}</h2>
+                        <p className="otp-pitch">{pres.pitch}</p>
+                        <ul className="otp-features">
+                            {pres.features.map((f) => (
+                                <li key={f.label} className={f.strong ? "is-strong" : ""}>
+                                    <CheckIcon/> {f.label}
+                                </li>
+                            ))}
+                        </ul>
+                        <div className="otp-passes">
+                            {passes.map((p) => {
+                                const popular = p.code === POPULAR_PASS_CODE;
+                                return (
+                                    <button
+                                        key={p.code}
+                                        type="button"
+                                        className={`otp-pass ${popular ? "is-popular" : ""}`}
+                                        disabled={loadingCode !== null}
+                                        onClick={() => onSubscribe(p.code)}
+                                    >
+                                        {popular && <span className="otp-pop">Le plus populaire</span>}
+                                        <span className="otp-pass-dur">{durationLabel(p.durationDays)}</span>
+                                        <span className="otp-pass-price">{formatPrice(p.price)} €</span>
+                                        <span className="otp-pass-cta">
+                                            {loadingCode === p.code ? "…" : "Choisir →"}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </article>
+                );
+            })}
+            <style>{otpStyles}</style>
+        </section>
+    );
+}
+
+const otpStyles = `
+.otp-card { border:1.5px solid var(--color-line); border-radius:22px; padding:28px; background:#fff; display:flex; flex-direction:column; }
+.otp-blue { background:linear-gradient(135deg,var(--color-blue-soft) 0%,#fff 100%); border-color:var(--color-blue-light); }
+.otp-red { background:linear-gradient(135deg,var(--color-red-light) 0%,#fff 100%); border-color:rgba(225,55,47,.2); }
+.otp-tag { font-family:var(--font-mono); font-size:10px; letter-spacing:.12em; color:var(--color-muted); text-transform:uppercase; }
+.otp-name { font-family:var(--font-display); font-size:30px; font-weight:600; color:var(--color-ink); margin:10px 0 4px; }
+.otp-pitch { font-size:14px; color:var(--color-muted); line-height:1.55; margin:0 0 16px; }
+.otp-features { list-style:none; padding:0; margin:0 0 18px; display:flex; flex-direction:column; gap:8px; }
+.otp-features li { display:flex; align-items:flex-start; gap:8px; font-size:13.5px; color:var(--color-ink-2); line-height:1.4; }
+.otp-features li.is-strong { font-weight:700; color:var(--color-ink); }
+.otp-features svg { flex:0 0 auto; margin-top:2px; color:var(--color-green); }
+.otp-passes { display:flex; flex-direction:column; gap:10px; margin-top:auto; }
+.otp-pass { position:relative; display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:14px 16px; border-radius:12px; border:1.5px solid var(--color-line); background:#fff; cursor:pointer; transition:border-color .15s, transform .15s; }
+.otp-pass:hover:not(:disabled) { border-color:var(--color-blue); transform:translateY(-1px); }
+.otp-pass:disabled { opacity:.55; cursor:default; }
+.otp-pass.is-popular { border-color:var(--color-red); background:var(--color-red-light); }
+.otp-pop { position:absolute; top:-9px; left:14px; background:var(--color-red); color:#fff; font-family:var(--font-mono); font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:2px 8px; border-radius:100px; }
+.otp-pass-dur { font-weight:700; font-size:15px; color:var(--color-ink); flex:1; min-width:0; }
+.otp-pass-price { font-family:var(--font-display); font-size:20px; font-weight:700; color:var(--color-ink); }
+.otp-pass-cta { font-family:var(--font-mono); font-size:11px; font-weight:700; color:var(--color-blue); white-space:nowrap; }
+`;
 
 // ============================================================================
 // PERIODICITY TOGGLE
@@ -429,32 +558,32 @@ function CurrentSubscriptionCard({
             </div>
             <div className="current-body">
                 <div className="current-row">
-                    <span className="current-label">PLAN ACTUEL</span>
+                    <span className="current-label">MON ACCÈS</span>
                     <span className={`current-tone-pill current-tone-pill-${tone}`}>
-                        {expiresSoon ? "Bientôt expiré" : "Actif"}
+                        {expiresSoon ? "Bientôt terminé" : "Actif"}
                     </span>
                 </div>
                 <div className="current-title">{label}</div>
                 <div className="current-meta">
                     {user.premiumEndsAt ? (
                         <>
-                            Prochaine échéance le{" "}
+                            Accès jusqu&apos;au{" "}
                             <strong>{formatEndDate(user.premiumEndsAt)}</strong>
                             {remaining !== null && (
                                 <>
                                     {" "}·{" "}
                                     {remaining > 0 ? (
                                         <>
-                                            dans <strong>{remaining} jour{remaining > 1 ? "s" : ""}</strong>
+                                            encore <strong>{remaining} jour{remaining > 1 ? "s" : ""}</strong>
                                         </>
                                     ) : (
-                                        <strong>échéance aujourd&apos;hui</strong>
+                                        <strong>se termine aujourd&apos;hui</strong>
                                     )}
                                 </>
                             )}
                         </>
                     ) : (
-                        <>Abonnement actif sans date d&apos;expiration.</>
+                        <>Accès actif.</>
                     )}
                 </div>
             </div>
@@ -606,12 +735,12 @@ function titleFor(plan: CurrentPlan, firstName: string | null): React.ReactNode 
 
 function leadFor(plan: CurrentPlan): string {
     if (plan === "INTEGRAL") {
-        return "Accès complet à la plateforme. Vous pouvez ajuster ou annuler votre abonnement à tout moment.";
+        return "Accès complet à la plateforme. Prolongez quand vous le souhaitez — paiement unique, sans abonnement.";
     }
     if (plan === "CIVIQUE") {
-        return "Renouvelez votre Civique ou passez à l'Intégral pour débloquer aussi le TCF IRN.";
+        return "Prolongez votre Civique ou passez à l'Intégral pour débloquer aussi le TCF IRN.";
     }
-    return "Mensuel, trimestriel ou annuel — choisissez ce qui colle à votre échéance d'examen. Annulable à tout moment.";
+    return "Choisissez la durée qui colle à votre échéance d'examen. Paiement unique, sans abonnement ni reconduction.";
 }
 
 // ============================================================================
@@ -665,7 +794,9 @@ const I = (props: React.SVGProps<SVGSVGElement>) => (
     />
 );
 const CheckIcon = () => (
-    <I><polyline points="20 6 9 17 4 12"/></I>
+    <I>
+        <polyline points="20 6 9 17 4 12"/>
+    </I>
 );
 const AlertIcon = () => (
     <I>

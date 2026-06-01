@@ -46,6 +46,14 @@ public class ProductionExample {
     @Column(nullable = false, columnDefinition = "text")
     private String contenu;
 
+    /**
+     * SSML multi-voix ecrit a la main (dialogues EO : voix qui alternent au fil
+     * du dialogue). Prioritaire pour la generation audio ; si NULL, le batch
+     * retombe sur la generation auto depuis {@code contenu}.
+     */
+    @Column(name = "ssml_text", columnDefinition = "text")
+    private String ssmlText;
+
     /** Commentaire pedagogique affiche sous le contenu pour orienter le candidat. */
     @Column(columnDefinition = "text")
     private String explications;
@@ -106,6 +114,9 @@ public class ProductionExample {
 
     public String getContenu() { return contenu; }
     public void setContenu(String contenu) { this.contenu = contenu; }
+
+    public String getSsmlText() { return ssmlText; }
+    public void setSsmlText(String ssmlText) { this.ssmlText = ssmlText; }
 
     public String getExplications() { return explications; }
     public void setExplications(String explications) { this.explications = explications; }

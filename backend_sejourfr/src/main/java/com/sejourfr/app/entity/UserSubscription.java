@@ -108,6 +108,14 @@ public class UserSubscription {
     @Column(name = "stripe_subscription_id", length = 255)
     private String stripeSubscriptionId;
 
+    /**
+     * Pass one-time (lot 5) : date d'envoi du rappel « ton accès se termine
+     * bientôt ». NULL tant qu'aucun rappel envoyé. Anti-doublon du job
+     * d'expiration.
+     */
+    @Column(name = "expiry_reminded_at")
+    private Instant expiryRemindedAt;
+
     @PreUpdate
     public void touchUpdatedAt() {
         this.updatedAt = Instant.now();
@@ -154,4 +162,7 @@ public class UserSubscription {
 
     public String getStripeSubscriptionId() { return stripeSubscriptionId; }
     public void setStripeSubscriptionId(String stripeSubscriptionId) { this.stripeSubscriptionId = stripeSubscriptionId; }
+
+    public Instant getExpiryRemindedAt() { return expiryRemindedAt; }
+    public void setExpiryRemindedAt(Instant expiryRemindedAt) { this.expiryRemindedAt = expiryRemindedAt; }
 }

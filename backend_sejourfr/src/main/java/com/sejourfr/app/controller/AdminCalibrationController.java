@@ -2,6 +2,7 @@ package com.sejourfr.app.controller;
 
 import com.sejourfr.app.dto.CalibrationStatsDto;
 import com.sejourfr.app.dto.HumanCalibrationNoteDto;
+import com.sejourfr.app.dto.NiveauCalibrationStatsDto;
 import com.sejourfr.app.dto.ProductionSubmissionDto;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.AdminCalibrationService;
@@ -58,5 +59,11 @@ public class AdminCalibrationController {
     @GetMapping("/stats")
     public CalibrationStatsDto stats() {
         return adminCalibrationService.stats();
+    }
+
+    /** Ecart niveau CECRL : LLM brut vs calcule serveur (calibration du niveau). */
+    @GetMapping("/stats/niveau")
+    public NiveauCalibrationStatsDto niveauStats() {
+        return adminCalibrationService.niveauStats();
     }
 }

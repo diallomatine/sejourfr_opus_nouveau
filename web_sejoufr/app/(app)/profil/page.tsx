@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth-context";
-import type { TargetProcedure } from "@/lib/types";
+import {useRouter} from "next/navigation";
+import {useEffect, useState} from "react";
+import {useAuth} from "@/lib/auth-context";
+import type {TargetProcedure} from "@/lib/types";
 
 const EXAM_DATE_KEY = "sejourfr.examDate";
 
@@ -17,406 +17,406 @@ const EXAM_DATE_KEY = "sejourfr.examDate";
  *  - Date d'examen en localStorage (synchro dashboard)
  */
 export default function ProfilPage() {
-  const router = useRouter();
-  const { user, status, logout } = useAuth();
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [showDeleteSoon, setShowDeleteSoon] = useState(false);
-  const [showEditNameSoon, setShowEditNameSoon] = useState(false);
-  const [examDate, setExamDate] = useState<string | null>(null);
+    const router = useRouter();
+    const {user, status, logout} = useAuth();
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const [showDeleteSoon, setShowDeleteSoon] = useState(false);
+    const [showEditNameSoon, setShowEditNameSoon] = useState(false);
+    const [examDate, setExamDate] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const v = window.localStorage.getItem(EXAM_DATE_KEY);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (v) setExamDate(v);
-  }, []);
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const v = window.localStorage.getItem(EXAM_DATE_KEY);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (v) setExamDate(v);
+    }, []);
 
-  useEffect(() => {
-    if (!showLogoutConfirm && !showDeleteSoon && !showEditNameSoon) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [showLogoutConfirm, showDeleteSoon, showEditNameSoon]);
+    useEffect(() => {
+        if (!showLogoutConfirm && !showDeleteSoon && !showEditNameSoon) return;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        return () => {
+            document.body.style.overflow = prev;
+        };
+    }, [showLogoutConfirm, showDeleteSoon, showEditNameSoon]);
 
-  function handleLogout() {
-    logout();
-    router.push("/");
-  }
+    function handleLogout() {
+        logout();
+        router.push("/");
+    }
 
-  if (status === "loading") return <ProfilSkeleton />;
-  if (!user) {
+    if (status === "loading") return <ProfilSkeleton/>;
+    if (!user) {
+        return (
+            <main className="pr-gate">
+                <p>Connectez-vous pour voir votre compte.</p>
+                <Link href="/connexion?next=/profil" className="pr-gate-cta">
+                    Se connecter →
+                </Link>
+                <style>{gateStyles}</style>
+            </main>
+        );
+    }
+
+    const fullName =
+        [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || "—";
+    const initials =
+        (user.firstName?.[0] ?? user.email[0] ?? "?").toUpperCase() +
+        (user.lastName?.[0]?.toUpperCase() ?? "");
+    const proc = user.targetProcedure ? PROCEDURE_INFO[user.targetProcedure] : null;
+    const tcfLevel = proc?.tcfLevel ?? "—";
+
+    const planLabel = user.isPremium
+        ? user.hasTcf
+            ? "Intégral · Civique + TCF"
+            : "Premium Civique"
+        : "Découverte";
+    const planSub = user.isPremium
+        ? user.premiumEndsAt
+            ? `Valide jusqu'au ${formatDate(user.premiumEndsAt)}`
+            : "Abonnement actif"
+        : "20 questions et 1 examen blanc gratuits par module";
+
     return (
-      <main className="pr-gate">
-        <p>Connectez-vous pour voir votre compte.</p>
-        <Link href="/connexion?next=/profil" className="pr-gate-cta">
-          Se connecter →
-        </Link>
-        <style>{gateStyles}</style>
-      </main>
-    );
-  }
+        <main className="pr">
+            {/* ---- Hero ---- */}
+            <section className="pr-hero">
+                <div className="pr-hero-main">
+                    <div className="breadcrumb">
+                        ACCUEIL <span className="sep">/</span> PROFIL
+                    </div>
+                    <h1>Mon <em>profil</em></h1>
+                    <p>
+                        Gère ton compte, ton objectif d&apos;examen, ton abonnement et tes
+                        paramètres de sécurité.
+                    </p>
+                    <div className="pr-hero-actions">
+                        <button
+                            type="button"
+                            className="pr-hero-btn"
+                            onClick={() => setShowEditNameSoon(true)}
+                        >
+                            Modifier mon profil
+                        </button>
+                        <Link
+                            href={user.isPremium ? "/profil/abonnement" : "/paiement"}
+                            className="pr-hero-btn pr-hero-btn-ghost"
+                        >
+                            {user.isPremium ? "Gérer mon abonnement" : "Passer Premium"}
+                        </Link>
+                    </div>
+                </div>
 
-  const fullName =
-    [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || "—";
-  const initials =
-    (user.firstName?.[0] ?? user.email[0] ?? "?").toUpperCase() +
-    (user.lastName?.[0]?.toUpperCase() ?? "");
-  const proc = user.targetProcedure ? PROCEDURE_INFO[user.targetProcedure] : null;
-  const tcfLevel = proc?.tcfLevel ?? "—";
+                <div className="pr-score">
+                    <div className="pr-score-head">
+                        <span className="pr-avatar">{initials}</span>
+                        <div>
+                            <div className="pr-score-name">{user.firstName ?? fullName}</div>
+                            <div className="pr-score-plan">{planLabel}</div>
+                        </div>
+                    </div>
+                    <div className="pr-score-meta">
+                        Objectif&nbsp;: {proc ? proc.title : "à définir"}
+                    </div>
+                    <div className="pr-score-meta">Niveau de français visé&nbsp;: {tcfLevel}</div>
+                </div>
+            </section>
 
-  const planLabel = user.isPremium
-    ? user.hasTcf
-      ? "Intégral · Civique + TCF"
-      : "Premium Civique"
-    : "Découverte";
-  const planSub = user.isPremium
-    ? user.premiumEndsAt
-      ? `Valide jusqu'au ${formatDate(user.premiumEndsAt)}`
-      : "Abonnement actif"
-    : "20 questions et 1 examen blanc gratuits par module";
+            {/* ---- Infos perso + abonnement ---- */}
+            <div className="pr-cols">
+                <section className="pr-panel">
+                    <div className="pr-panel-head">
+                        <h2>Informations personnelles</h2>
+                        <button type="button" className="pr-link-btn" onClick={() => setShowEditNameSoon(true)}>
+                            Modifier
+                        </button>
+                    </div>
+                    <div className="pr-info">
+                        <div className="pr-stat">
+                            <span>Nom complet</span>
+                            <strong>{fullName}</strong>
+                        </div>
+                        <div className="pr-stat">
+                            <span>Adresse e-mail</span>
+                            <strong className="pr-mono">{user.email}</strong>
+                        </div>
+                        <div className="pr-stat">
+                            <span>Objectif</span>
+                            <strong>{proc ? proc.title : "Pas encore défini"}</strong>
+                        </div>
+                        <div className="pr-stat">
+                            <span>Niveau visé</span>
+                            <strong>{tcfLevel}</strong>
+                        </div>
+                    </div>
+                </section>
 
-  return (
-    <main className="pr">
-      {/* ---- Hero ---- */}
-      <section className="pr-hero">
-        <div className="pr-hero-main">
-          <div className="breadcrumb">
-            ACCUEIL <span className="sep">/</span> PROFIL
-          </div>
-          <h1>Mon <em>profil</em></h1>
-          <p>
-            Gère ton compte, ton objectif d&apos;examen, ton abonnement et tes
-            paramètres de sécurité.
-          </p>
-          <div className="pr-hero-actions">
-            <button
-              type="button"
-              className="pr-hero-btn"
-              onClick={() => setShowEditNameSoon(true)}
-            >
-              Modifier mon profil
-            </button>
-            <Link
-              href={user.isPremium ? "/profil/abonnement" : "/paiement"}
-              className="pr-hero-btn pr-hero-btn-ghost"
-            >
-              {user.isPremium ? "Gérer mon abonnement" : "Passer Premium"}
-            </Link>
-          </div>
-        </div>
+                <aside className="pr-panel">
+                    <h2 className="pr-panel-title">Abonnement</h2>
+                    <div className="pr-tips">
+                        <div className="pr-tip">
+                            <span className="pr-tip-emoji" aria-hidden>⭐</span>
+                            <p><strong>Offre actuelle :</strong> {planLabel}.</p>
+                        </div>
+                        <div className="pr-tip">
+                            <span className="pr-tip-emoji" aria-hidden>🤖</span>
+                            <p>{planSub}.</p>
+                        </div>
+                        <div className="pr-tip">
+                            <span className="pr-tip-emoji" aria-hidden>🔐</span>
+                            <p><strong>Gestion :</strong> paiement et accès gérés en ligne en toute sécurité.</p>
+                        </div>
+                    </div>
+                    <Link
+                        href={user.isPremium ? "/profil/abonnement" : "/paiement"}
+                        className="pr-panel-cta"
+                    >
+                        {user.isPremium ? "Gérer mon abonnement" : "Passer Premium"}
+                    </Link>
+                </aside>
+            </div>
 
-        <div className="pr-score">
-          <div className="pr-score-head">
-            <span className="pr-avatar">{initials}</span>
-            <div>
-              <div className="pr-score-name">{user.firstName ?? fullName}</div>
-              <div className="pr-score-plan">{planLabel}</div>
+            {/* ---- Paramètres du compte ---- */}
+            <div className="pr-section-title">
+                <h2>Paramètres du compte</h2>
             </div>
-          </div>
-          <div className="pr-score-meta">
-            Objectif&nbsp;: {proc ? proc.title : "à définir"}
-          </div>
-          <div className="pr-score-meta">Niveau de français visé&nbsp;: {tcfLevel}</div>
-        </div>
-      </section>
+            <section className="pr-cards">
+                <Link href="/parcours?from=/profil" className="pr-card">
+                    <div className="pr-card-head">
+                        <span className="pr-card-icon tone-amber" aria-hidden>🎯</span>
+                        <span className="pr-card-badge">{tcfLevel}</span>
+                    </div>
+                    <h3>Objectif d&apos;examen</h3>
+                    <p>CSP, CR ou naturalisation — et le niveau de français correspondant.</p>
+                    <span className="pr-card-cta">Modifier</span>
+                </Link>
 
-      {/* ---- Infos perso + abonnement ---- */}
-      <div className="pr-cols">
-        <section className="pr-panel">
-          <div className="pr-panel-head">
-            <h2>Informations personnelles</h2>
-            <button type="button" className="pr-link-btn" onClick={() => setShowEditNameSoon(true)}>
-              Modifier
-            </button>
-          </div>
-          <div className="pr-info">
-            <div className="pr-stat">
-              <span>Nom complet</span>
-              <strong>{fullName}</strong>
-            </div>
-            <div className="pr-stat">
-              <span>Adresse e-mail</span>
-              <strong className="pr-mono">{user.email}</strong>
-            </div>
-            <div className="pr-stat">
-              <span>Objectif</span>
-              <strong>{proc ? proc.title : "Pas encore défini"}</strong>
-            </div>
-            <div className="pr-stat">
-              <span>Niveau visé</span>
-              <strong>{tcfLevel}</strong>
-            </div>
-          </div>
-        </section>
+                <Link href="/dashboard" className="pr-card">
+                    <div className="pr-card-head">
+                        <span className="pr-card-icon tone-blue" aria-hidden>📅</span>
+                        <span className="pr-card-badge">{examDate ? "Définie" : "À définir"}</span>
+                    </div>
+                    <h3>Date d&apos;examen</h3>
+                    <p>{examDate ? `Prévue le ${formatDate(examDate)}.` : "Fixe ta date pour suivre ton compte à rebours."}</p>
+                    <span className="pr-card-cta">{examDate ? "Modifier" : "Définir"}</span>
+                </Link>
 
-        <aside className="pr-panel">
-          <h2 className="pr-panel-title">Abonnement</h2>
-          <div className="pr-tips">
-            <div className="pr-tip">
-              <span className="pr-tip-emoji" aria-hidden>⭐</span>
-              <p><strong>Offre actuelle :</strong> {planLabel}.</p>
-            </div>
-            <div className="pr-tip">
-              <span className="pr-tip-emoji" aria-hidden>🤖</span>
-              <p>{planSub}.</p>
-            </div>
-            <div className="pr-tip">
-              <span className="pr-tip-emoji" aria-hidden>🔐</span>
-              <p><strong>Gestion :</strong> paiement et accès gérés en ligne en toute sécurité.</p>
-            </div>
-          </div>
-          <Link
-            href={user.isPremium ? "/profil/abonnement" : "/paiement"}
-            className="pr-panel-cta"
-          >
-            {user.isPremium ? "Gérer mon abonnement" : "Passer Premium"}
-          </Link>
-        </aside>
-      </div>
+                <Link href="/mot-de-passe-oublie" className="pr-card">
+                    <div className="pr-card-head">
+                        <span className="pr-card-icon tone-green" aria-hidden>🔒</span>
+                        <span className="pr-card-badge">Sécurité</span>
+                    </div>
+                    <h3>Connexion</h3>
+                    <p>Réinitialise ton mot de passe. Connexion Google/Apple gérée à part.</p>
+                    <span className="pr-card-cta">Gérer</span>
+                </Link>
 
-      {/* ---- Paramètres du compte ---- */}
-      <div className="pr-section-title">
-        <h2>Paramètres du compte</h2>
-      </div>
-      <section className="pr-cards">
-        <Link href="/parcours?from=/profil" className="pr-card">
-          <div className="pr-card-head">
-            <span className="pr-card-icon tone-amber" aria-hidden>🎯</span>
-            <span className="pr-card-badge">{tcfLevel}</span>
-          </div>
-          <h3>Objectif d&apos;examen</h3>
-          <p>CSP, CR ou naturalisation — et le niveau de français correspondant.</p>
-          <span className="pr-card-cta">Modifier</span>
-        </Link>
+                <button type="button" className="pr-card pr-card-danger" onClick={() => setShowDeleteSoon(true)}>
+                    <div className="pr-card-head">
+                        <span className="pr-card-icon tone-red" aria-hidden>🗑️</span>
+                        <span className="pr-card-badge">RGPD</span>
+                    </div>
+                    <h3>Données personnelles</h3>
+                    <p>Supprimer mon historique et fermer mon compte, conformément au RGPD.</p>
+                    <span className="pr-card-cta">Ouvrir</span>
+                </button>
+            </section>
 
-        <Link href="/dashboard" className="pr-card">
-          <div className="pr-card-head">
-            <span className="pr-card-icon tone-blue" aria-hidden>📅</span>
-            <span className="pr-card-badge">{examDate ? "Définie" : "À définir"}</span>
-          </div>
-          <h3>Date d&apos;examen</h3>
-          <p>{examDate ? `Prévue le ${formatDate(examDate)}.` : "Fixe ta date pour suivre ton compte à rebours."}</p>
-          <span className="pr-card-cta">{examDate ? "Modifier" : "Définir"}</span>
-        </Link>
+            {/* ---- Activité + conseil ---- */}
+            <div className="pr-cols">
+                <section className="pr-panel">
+                    <div className="pr-panel-head">
+                        <h2>Mon activité</h2>
+                        <Link href="/historique" className="pr-link-btn">Historique complet →</Link>
+                    </div>
+                    <Link href="/historique" className="pr-mock-row">
+                        <span className="pr-card-icon tone-blue" aria-hidden>📝</span>
+                        <div className="pr-mock-body">
+                            <h3>Mes examens blancs</h3>
+                            <p>Scores et progression de tous tes examens passés.</p>
+                        </div>
+                        <span className="pr-mock-btn">Voir</span>
+                    </Link>
+                    <Link href="/statistiques" className="pr-mock-row">
+                        <span className="pr-card-icon tone-green" aria-hidden>📈</span>
+                        <div className="pr-mock-body">
+                            <h3>Ma progression</h3>
+                            <p>Maîtrise par thème et points à renforcer.</p>
+                        </div>
+                        <span className="pr-mock-btn">Détails</span>
+                    </Link>
+                    <Link href="/revision" className="pr-mock-row">
+                        <span className="pr-card-icon tone-amber" aria-hidden>🔁</span>
+                        <div className="pr-mock-body">
+                            <h3>Mes erreurs</h3>
+                            <p>Revois les questions ratées et tes favoris.</p>
+                        </div>
+                        <span className="pr-mock-btn">Revoir</span>
+                    </Link>
+                </section>
 
-        <Link href="/mot-de-passe-oublie" className="pr-card">
-          <div className="pr-card-head">
-            <span className="pr-card-icon tone-green" aria-hidden>🔒</span>
-            <span className="pr-card-badge">Sécurité</span>
-          </div>
-          <h3>Connexion</h3>
-          <p>Réinitialise ton mot de passe. Connexion Google/Apple gérée à part.</p>
-          <span className="pr-card-cta">Gérer</span>
-        </Link>
+                <aside className="pr-panel">
+                    <h2 className="pr-panel-title">Conseil personnalisé</h2>
+                    <div className="pr-tips">
+                        <div className="pr-tip">
+                            <span className="pr-tip-emoji" aria-hidden>🎯</span>
+                            <p>Ton objectif&nbsp;: {proc ? proc.title : "à définir"}. Vise le niveau {tcfLevel}.</p>
+                        </div>
+                        <div className="pr-tip">
+                            <span className="pr-tip-emoji" aria-hidden>📅</span>
+                            <p>Garde un rythme simple&nbsp;: 15 à 20 minutes par jour suffisent pour progresser.</p>
+                        </div>
+                        <div className="pr-tip">
+                            <span className="pr-tip-emoji" aria-hidden>🚀</span>
+                            <p>Alterne civique et TCF pour ne pas perdre le fil de ta préparation.</p>
+                        </div>
+                    </div>
+                </aside>
+            </div>
 
-        <button type="button" className="pr-card pr-card-danger" onClick={() => setShowDeleteSoon(true)}>
-          <div className="pr-card-head">
-            <span className="pr-card-icon tone-red" aria-hidden>🗑️</span>
-            <span className="pr-card-badge">RGPD</span>
-          </div>
-          <h3>Données personnelles</h3>
-          <p>Supprimer mon historique et fermer mon compte, conformément au RGPD.</p>
-          <span className="pr-card-cta">Ouvrir</span>
-        </button>
-      </section>
-
-      {/* ---- Activité + conseil ---- */}
-      <div className="pr-cols">
-        <section className="pr-panel">
-          <div className="pr-panel-head">
-            <h2>Mon activité</h2>
-            <Link href="/historique" className="pr-link-btn">Historique complet →</Link>
-          </div>
-          <Link href="/historique" className="pr-mock-row">
-            <span className="pr-card-icon tone-blue" aria-hidden>📝</span>
-            <div className="pr-mock-body">
-              <h3>Mes examens blancs</h3>
-              <p>Scores et progression de tous tes examens passés.</p>
-            </div>
-            <span className="pr-mock-btn">Voir</span>
-          </Link>
-          <Link href="/statistiques" className="pr-mock-row">
-            <span className="pr-card-icon tone-green" aria-hidden>📈</span>
-            <div className="pr-mock-body">
-              <h3>Ma progression</h3>
-              <p>Maîtrise par thème et points à renforcer.</p>
-            </div>
-            <span className="pr-mock-btn">Détails</span>
-          </Link>
-          <Link href="/revision" className="pr-mock-row">
-            <span className="pr-card-icon tone-amber" aria-hidden>🔁</span>
-            <div className="pr-mock-body">
-              <h3>Mes erreurs</h3>
-              <p>Revois les questions ratées et tes favoris.</p>
-            </div>
-            <span className="pr-mock-btn">Revoir</span>
-          </Link>
-        </section>
-
-        <aside className="pr-panel">
-          <h2 className="pr-panel-title">Conseil personnalisé</h2>
-          <div className="pr-tips">
-            <div className="pr-tip">
-              <span className="pr-tip-emoji" aria-hidden>🎯</span>
-              <p>Ton objectif&nbsp;: {proc ? proc.title : "à définir"}. Vise le niveau {tcfLevel}.</p>
-            </div>
-            <div className="pr-tip">
-              <span className="pr-tip-emoji" aria-hidden>📅</span>
-              <p>Garde un rythme simple&nbsp;: 15 à 20 minutes par jour suffisent pour progresser.</p>
-            </div>
-            <div className="pr-tip">
-              <span className="pr-tip-emoji" aria-hidden>🚀</span>
-              <p>Alterne civique et TCF pour ne pas perdre le fil de ta préparation.</p>
-            </div>
-          </div>
-        </aside>
-      </div>
-
-      {/* ---- Déconnexion ---- */}
-      <div className="pr-footnote">
-        <button type="button" className="pr-logout" onClick={() => setShowLogoutConfirm(true)}>
-          Se déconnecter
-        </button>
-        <span>
+            {/* ---- Déconnexion ---- */}
+            <div className="pr-footnote">
+                <button type="button" className="pr-logout" onClick={() => setShowLogoutConfirm(true)}>
+                    Se déconnecter
+                </button>
+                <span>
           Besoin d&apos;aide ? <Link href="/faq">Consultez la FAQ</Link> ou écrivez à{" "}
-          <a href="mailto:hello@sejourfr.fr">hello@sejourfr.fr</a>.
+                    <a href="mailto:support@sejourfr.fr">support@sejourfr.fr</a>.
         </span>
-      </div>
+            </div>
 
-      {/* MODALS */}
-      {showLogoutConfirm && (
-        <ConfirmModal
-          title="Se déconnecter ?"
-          body="Vos données restent en sécurité côté serveur. Vous pourrez vous reconnecter à tout moment avec votre email."
-          confirmLabel="Me déconnecter"
-          confirmTone="danger"
-          onConfirm={handleLogout}
-          onCancel={() => setShowLogoutConfirm(false)}
-        />
-      )}
-      {showDeleteSoon && (
-        <ConfirmModal
-          title="Suppression du compte"
-          body="Cette fonctionnalité arrive bientôt. En attendant, envoyez-nous un email à hello@sejourfr.fr depuis l'adresse de votre compte et nous procéderons à la suppression manuellement, conformément au RGPD."
-          confirmLabel="J'ai compris"
-          confirmTone="neutral"
-          onConfirm={() => setShowDeleteSoon(false)}
-          onCancel={() => setShowDeleteSoon(false)}
-          singleAction
-        />
-      )}
-      {showEditNameSoon && (
-        <ConfirmModal
-          title="Édition à venir"
-          body="L'édition du nom et de l'email arrive bientôt. En attendant, écrivez à hello@sejourfr.fr en précisant votre demande."
-          confirmLabel="OK"
-          confirmTone="neutral"
-          onConfirm={() => setShowEditNameSoon(false)}
-          onCancel={() => setShowEditNameSoon(false)}
-          singleAction
-        />
-      )}
+            {/* MODALS */}
+            {showLogoutConfirm && (
+                <ConfirmModal
+                    title="Se déconnecter ?"
+                    body="Vos données restent en sécurité côté serveur. Vous pourrez vous reconnecter à tout moment avec votre email."
+                    confirmLabel="Me déconnecter"
+                    confirmTone="danger"
+                    onConfirm={handleLogout}
+                    onCancel={() => setShowLogoutConfirm(false)}
+                />
+            )}
+            {showDeleteSoon && (
+                <ConfirmModal
+                    title="Suppression du compte"
+                    body="Cette fonctionnalité arrive bientôt. En attendant, envoyez-nous un email à support@sejourfr.fr depuis l'adresse de votre compte et nous procéderons à la suppression manuellement, conformément au RGPD."
+                    confirmLabel="J'ai compris"
+                    confirmTone="neutral"
+                    onConfirm={() => setShowDeleteSoon(false)}
+                    onCancel={() => setShowDeleteSoon(false)}
+                    singleAction
+                />
+            )}
+            {showEditNameSoon && (
+                <ConfirmModal
+                    title="Édition à venir"
+                    body="L'édition du nom et de l'email arrive bientôt. En attendant, écrivez à support@sejourfr.fr en précisant votre demande."
+                    confirmLabel="OK"
+                    confirmTone="neutral"
+                    onConfirm={() => setShowEditNameSoon(false)}
+                    onCancel={() => setShowEditNameSoon(false)}
+                    singleAction
+                />
+            )}
 
-      <style>{styles}</style>
-    </main>
-  );
+            <style>{styles}</style>
+        </main>
+    );
 }
 
 // ============================================================================
 // CONFIRM MODAL
 // ============================================================================
 function ConfirmModal({
-  title,
-  body,
-  confirmLabel,
-  confirmTone = "primary",
-  onConfirm,
-  onCancel,
-  singleAction = false,
-}: {
-  title: string;
-  body: string;
-  confirmLabel: string;
-  confirmTone?: "primary" | "danger" | "neutral";
-  onConfirm: () => void;
-  onCancel: () => void;
-  singleAction?: boolean;
+                          title,
+                          body,
+                          confirmLabel,
+                          confirmTone = "primary",
+                          onConfirm,
+                          onCancel,
+                          singleAction = false,
+                      }: {
+    title: string;
+    body: string;
+    confirmLabel: string;
+    confirmTone?: "primary" | "danger" | "neutral";
+    onConfirm: () => void;
+    onCancel: () => void;
+    singleAction?: boolean;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onCancel();
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [onCancel]);
 
-  return (
-    <div className="cm" role="dialog" aria-modal="true" onClick={onCancel}>
-      <div className="cm-backdrop" />
-      <div className="cm-sheet" onClick={(e) => e.stopPropagation()}>
-        <h2 className="cm-title">{title}</h2>
-        <p className="cm-body">{body}</p>
-        <div className="cm-actions">
-          {!singleAction && (
-            <button type="button" className="cm-btn cm-btn-ghost" onClick={onCancel}>
-              Annuler
-            </button>
-          )}
-          <button
-            type="button"
-            className={`cm-btn cm-btn-${confirmTone}`}
-            onClick={onConfirm}
-          >
-            {confirmLabel}
-          </button>
+    return (
+        <div className="cm" role="dialog" aria-modal="true" onClick={onCancel}>
+            <div className="cm-backdrop"/>
+            <div className="cm-sheet" onClick={(e) => e.stopPropagation()}>
+                <h2 className="cm-title">{title}</h2>
+                <p className="cm-body">{body}</p>
+                <div className="cm-actions">
+                    {!singleAction && (
+                        <button type="button" className="cm-btn cm-btn-ghost" onClick={onCancel}>
+                            Annuler
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        className={`cm-btn cm-btn-${confirmTone}`}
+                        onClick={onConfirm}
+                    >
+                        {confirmLabel}
+                    </button>
+                </div>
+            </div>
+            <style>{modalStyles}</style>
         </div>
-      </div>
-      <style>{modalStyles}</style>
-    </div>
-  );
+    );
 }
 
 // ============================================================================
 // HELPERS
 // ============================================================================
 const PROCEDURE_INFO: Record<
-  TargetProcedure,
-  { title: string; desc: string; tcfLevel: string }
+    TargetProcedure,
+    { title: string; desc: string; tcfLevel: string }
 > = {
-  CSP: {
-    title: "Carte de séjour pluriannuelle",
-    desc: "Premier renouvellement après le visa long séjour.",
-    tcfLevel: "A2",
-  },
-  CR: {
-    title: "Carte de résident (10 ans)",
-    desc: "Stabilité longue durée, démarches allégées.",
-    tcfLevel: "B1",
-  },
-  NAT: {
-    title: "Naturalisation française",
-    desc: "Nationalité française. Niveau d'exigence le plus élevé.",
-    tcfLevel: "B2",
-  },
+    CSP: {
+        title: "Carte de séjour pluriannuelle",
+        desc: "Premier renouvellement après le visa long séjour.",
+        tcfLevel: "A2",
+    },
+    CR: {
+        title: "Carte de résident (10 ans)",
+        desc: "Stabilité longue durée, démarches allégées.",
+        tcfLevel: "B1",
+    },
+    NAT: {
+        title: "Naturalisation française",
+        desc: "Nationalité française. Niveau d'exigence le plus élevé.",
+        tcfLevel: "B2",
+    },
 };
 
 function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+    const d = new Date(iso);
+    return d.toLocaleDateString("fr-FR", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+    });
 }
 
 function ProfilSkeleton() {
-  return (
-    <div className="pr-loading">
-      <style>{`.pr-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
-    </div>
-  );
+    return (
+        <div className="pr-loading">
+            <style>{`.pr-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
+        </div>
+    );
 }
 
 const gateStyles = `

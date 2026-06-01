@@ -230,13 +230,15 @@ class BillingController extends StateNotifier<BillingState> {
         final plan = skuToPlan[pd.id];
         if (plan == null) continue;
         final target = plan.target;
-        final periodicity = plan.periodicity;
-        if (target == null || periodicity == null) continue;
+        if (target == null) continue;
+        // Abonnement : périodicité requise. Pass one-time : pas de périodicité
+        // (la durée vient de durationDays).
+        if (!plan.isOneTime && plan.periodicity == null) continue;
         products.add(IapProduct(
           plan: plan,
           productDetails: pd,
           module: target,
-          periodicity: periodicity,
+          periodicity: plan.periodicity,
         ));
       }
 
@@ -258,28 +260,27 @@ class BillingController extends StateNotifier<BillingState> {
   }
 
   String? _skuFor(PlanPublicResponse plan, SubscriptionSource source) {
-    // On lit le SKU côté backend (table plans). C'est l'admin qui le pose
-    // dans /admin/plans. Si non renseigné → SKU absent ici, on filtre.
-    // Note : le DTO public n'expose pas appleProductId / googleProductId
-    // pour éviter de leaker les SKUs dans la landing. Workaround : on
-    // utilise le `code` du Plan comme convention SKU (CIVIQUE_MONTHLY etc.)
-    // et le backend / l'admin doit s'assurer que c'est aligné avec App Store
-    // Connect / Play Console.
-    // Le plan FREE (pas de module ciblé / pas de périodicité / prix nul) n'a
-    // aucun SKU côté store → on l'écarte pour ne pas l'envoyer à loadProducts
-    // (sinon il revient en notFoundIDs).
-    if (plan.target == null || plan.periodicity == null || plan.price <= 0) {
+    // Le SKU vient du backend (table plans, posé par l'admin dans /admin/plans).
+    // On lit directement appleProductId / googleProductId : ils peuvent diverger
+    // du `code` (ex. produit Apple recréé avec un ID neuf — un Product ID
+    // supprimé n'est jamais réutilisable côté Apple). Si l'ID store n'est pas
+    // renseigné pour cette plateforme, on filtre (le plan ne sera pas vendable
+    // ici, ex. plan FREE ou web-only Stripe).
+    if (plan.target == null || plan.price <= 0) {
       return null;
     }
-    // Google Play impose des Product IDs en MINUSCULES (Apple/Stripe tolèrent
-    // les majuscules). Le code Plan canonique est en MAJ (CIVIQUE_MONTHLY) → on
-    // le minuscule pour Google. Conséquence : `plans.google_product_id` en base
-    // ET les Product IDs créés dans la Play Console doivent être en minuscules
-    // (civique_monthly, …), sinon le SKU revient en notFoundIDs.
-    if (source == SubscriptionSource.google) {
-      return plan.code.toLowerCase();
+    // Abonnement récurrent : périodicité requise. Pass one-time : pas de
+    // périodicité (la durée vit dans durationDays).
+    if (!plan.isOneTime && plan.periodicity == null) {
+      return null;
     }
-    return plan.code;
+    final sku = source == SubscriptionSource.google
+        ? plan.googleProductId
+        : plan.appleProductId;
+    if (sku == null || sku.isEmpty) {
+      return null;
+    }
+    return sku;
   }
 
   // --------------------------------------------------------------------------
@@ -293,7 +294,11 @@ class BillingController extends StateNotifier<BillingState> {
       clearError: true,
     );
     try {
-      final ok = await _iap.purchase(product.productDetails);
+      // Pass one-time = produit consommable (ré-achetable) ; abonnement =
+      // non-consommable. Cf. IapService.
+      final ok = product.plan.isOneTime
+          ? await _iap.purchaseConsumable(product.productDetails)
+          : await _iap.purchase(product.productDetails);
       if (!ok) {
         // Le store a refusé d'ouvrir l'UI d'achat (déjà en cours, restrictions
         // parentales, etc.). L'erreur réelle remontera via purchaseStream s'il
@@ -415,21 +420,33 @@ class BillingController extends StateNotifier<BillingState> {
         clearPurchasingSku: true,
       );
     } catch (e) {
-      // On NE complete PAS l'achat ici : si le backend a échoué (network,
-      // 502...), le store va re-livrer l'achat au prochain démarrage et on
-      // re-tentera la validation. Le user reste « pending » côté UI mais
-      // ne perd pas son achat.
       final api = ApiClient.toApiException(e);
+
+      // 409 = ce reçu store appartient à un AUTRE compte SejourFR (rejeu d'un
+      // vieil achat ou d'une restauration en arrière-plan). En mode pass
+      // one-time (consommables), un achat réellement neuf a toujours une
+      // transaction neuve → il ne tombe JAMAIS en 409. Un 409 est donc
+      // toujours un reçu étranger que l'utilisateur courant ne peut pas
+      // résoudre, et qui ne doit pas masquer son achat légitime en cours. On
+      // le purge SILENCIEUSEMENT de la file (sinon le store le re-livre en
+      // boucle à chaque lancement) sans afficher d'erreur bloquante.
+      if (api.statusCode == 409) {
+        if (purchase.pendingCompletePurchase) {
+          await _iap.completePurchase(purchase);
+        }
+        // Hors d'un achat actif (boot / restauration), on évite juste de
+        // laisser le spinner global coincé. Pendant un achat actif
+        // (purchasingSku != null), on ne touche à rien : c'est l'event de
+        // succès du vrai achat qui réinitialisera l'état.
+        if (state.purchasingSku == null) {
+          state = state.copyWith(purchaseInProgress: false);
+        }
+        return;
+      }
+
       final String message;
       final bool blocking;
-      if (api.statusCode == 409) {
-        // Permanent : rejouer ne corrigera rien tant que l'utilisateur
-        // n'utilise pas le bon compte.
-        message = 'Votre compte $_storeName est déjà associé à un abonnement '
-            'SejourFR actif sur un autre compte. Connectez-vous à ce compte '
-            'pour y accéder, ou utilisez un autre compte $_storeName.';
-        blocking = true;
-      } else if (api.statusCode == 400 || api.statusCode == 422) {
+      if (api.statusCode == 400 || api.statusCode == 422) {
         message = 'Achat validé côté store, mais nous n\'avons pas pu activer '
             'votre accès. Contactez le support si le problème persiste.';
         blocking = true;
@@ -441,6 +458,16 @@ class BillingController extends StateNotifier<BillingState> {
             'sous peu — vous ne serez pas débité deux fois.';
         blocking = false;
       }
+
+      // Échec PERMANENT (blocking) → on acquitte quand même la transaction.
+      // Sinon le store la re-livre à chaque lancement / tentative d'achat
+      // (transaction « empoisonnée ») : l'erreur revient en boucle et grise
+      // les boutons, l'utilisateur ne peut plus rien acheter. On ne laisse en
+      // suspens QUE les échecs transitoires, pour lesquels rejouer a un sens.
+      if (blocking && purchase.pendingCompletePurchase) {
+        await _iap.completePurchase(purchase);
+      }
+
       state = state.copyWith(
         purchaseInProgress: false,
         clearPurchasingSku: true,

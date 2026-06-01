@@ -20,8 +20,12 @@ const int kInitialBatchSize = 30;
 ///
 /// [initialTarget] permet de focus un module spécifique (ex: INTÉGRAL si le
 /// paywall pop sur une feature TCF). Si null, on montre les deux cards.
-void showPaywallSheet(BuildContext context, {PlanModuleTarget? initialTarget}) {
-  Navigator.of(context, rootNavigator: true).push(
+/// Renvoie un `Future` qui se complète au pop du paywall — utile pour
+/// rafraîchir un écran (ex: « Mon accès ») au retour. Les appelants qui
+/// n'en ont pas besoin peuvent ignorer le retour.
+Future<void> showPaywallSheet(BuildContext context,
+    {PlanModuleTarget? initialTarget}) {
+  return Navigator.of(context, rootNavigator: true).push(
     MaterialPageRoute<void>(
       builder: (_) => PaywallScreen(initialTarget: initialTarget),
       fullscreenDialog: true,

@@ -61,6 +61,8 @@ public class GoogleSubscriptionService {
     private final UserSubscriptionManager userSubscriptionManager;
     private final ProcessedExternalEventManager processedEventManager;
     private final MailService mailService;
+    private final OneTimeAccessService oneTimeAccessService;
+    private final com.sejourfr.app.config.BillingProperties billingProperties;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // ------------------------------------------------------------------------
@@ -86,6 +88,12 @@ public class GoogleSubscriptionService {
                 userId, expectedProductId, purchaseToken
         );
         try {
+            // Mode passes one-time (lot 5) : produit managed → API products.get
+            // (et non subscriptionsv2). Grant commun, durée backend.
+            if (billingProperties.isOneTime()) {
+                return activateOneTimeProduct(userId, expectedProductId, purchaseToken);
+            }
+
             SubscriptionPurchaseV2 state = fetchSubscriptionOrThrow(purchaseToken);
 
             SubscriptionPurchaseLineItem lineItem = pickPrimaryLineItem(state, expectedProductId);
@@ -117,6 +125,49 @@ public class GoogleSubscriptionService {
             );
             throw e;
         }
+    }
+
+    /**
+     * Active un pass one-time (managed product) via {@code purchases.products.get}.
+     * On valide l'état d'achat (purchaseState=0 Purchased), acquitte best-effort,
+     * puis crédite via le grant commun. La consommation (ré-achat) est faite
+     * côté client par in_app_purchase.
+     */
+    private UserSubscription activateOneTimeProduct(
+            UUID userId, String expectedProductId, String purchaseToken) {
+        com.google.api.services.androidpublisher.model.ProductPurchase pp;
+        try {
+            pp = googleStoreClient.getProduct(expectedProductId, purchaseToken);
+        } catch (IOException e) {
+            log.warn("Google getProduct a échoué (productId={}, token={}) : {}",
+                    expectedProductId, purchaseToken, e.getMessage(), e);
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Reçu Google invalide ou inaccessible : " + e.getMessage(), e);
+        }
+        // purchaseState : 0 = Purchased, 1 = Canceled, 2 = Pending.
+        Integer purchaseState = pp.getPurchaseState();
+        if (purchaseState != null && purchaseState != 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Achat Google non finalisé (purchaseState=" + purchaseState + ").");
+        }
+        Plan plan = lookupPlanOrThrow(expectedProductId);
+
+        // Acquittement obligatoire sous 3 j (sinon refund auto). Best-effort :
+        // un échec d'ack ne doit pas bloquer l'octroi de l'accès déjà payé.
+        try {
+            googleStoreClient.acknowledgeProduct(expectedProductId, purchaseToken);
+        } catch (IOException e) {
+            log.warn("Google acknowledgeProduct a échoué (productId={}) : {} — accès accordé quand même.",
+                    expectedProductId, e.getMessage());
+        }
+
+        UserSubscription sub = oneTimeAccessService.grantOneTimeAccess(
+                userId, plan, SubscriptionSource.GOOGLE, purchaseToken, pp.getOrderId());
+        log.info("Google one-time pass user={} productId={} token={} endsAt={}",
+                userId, expectedProductId, purchaseToken, sub.getEndsAt());
+        return sub;
     }
 
     // ------------------------------------------------------------------------
@@ -180,6 +231,14 @@ public class GoogleSubscriptionService {
                     "message.data Pub/Sub non décodable : " + e.getMessage(),
                     e
             );
+        }
+
+        // Mode passes one-time (lot 5) : on traite voidedPurchaseNotification
+        // (refund/chargeback → REFUNDED) et on logue oneTimeProductNotification
+        // (l'octroi se fait via verify-receipt). Pas de subscriptionNotification.
+        if (billingProperties.isOneTime()) {
+            handleOneTimeNotification(data, messageId);
+            return;
         }
 
         // RTDN d'abonnement uniquement (on ignore voidedPurchaseNotification,
@@ -273,6 +332,48 @@ public class GoogleSubscriptionService {
                 notificationType, messageId,
                 sub.getUser().getId(), sub.getStatus(), sub.getEndsAt(), sub.isAutoRenew()
         );
+    }
+
+    /**
+     * RTDN en mode passes one-time : refund/chargeback → REFUNDED. L'achat
+     * (oneTimeProductNotification PURCHASED) est crédité via verify-receipt, on
+     * se contente de loguer ici (pas de mapping userId sans ligne existante).
+     */
+    private void handleOneTimeNotification(JsonNode data, String messageId) {
+        JsonNode voided = data.path("voidedPurchaseNotification");
+        if (!voided.isMissingNode() && !voided.isNull()) {
+            String token = voided.path("purchaseToken").asText("");
+            if (token.isBlank()) {
+                log.warn("Google RTDN voided messageId={} sans purchaseToken — ignoré.", messageId);
+                return;
+            }
+            userSubscriptionManager
+                    .findBySourceAndOriginalTransactionId(SubscriptionSource.GOOGLE, token)
+                    .ifPresentOrElse(sub -> {
+                        sub.setStatus(SubscriptionStatus.REFUNDED);
+                        sub.setAutoRenew(false);
+                        userSubscriptionManager.save(sub);
+                        log.info("Google one-time voided/refund user={} token={}",
+                                sub.getUser().getId(), token);
+                    }, () -> log.warn(
+                            "Google RTDN voided messageId={} token={} : aucune subscription locale.",
+                            messageId, token));
+            return;
+        }
+        JsonNode oneTime = data.path("oneTimeProductNotification");
+        if (!oneTime.isMissingNode() && !oneTime.isNull()) {
+            log.info("Google one-time product notif messageId={} sku={} type={} — octroi via verify-receipt.",
+                    messageId, oneTime.path("sku").asText(""),
+                    oneTime.path("notificationType").asInt(-1));
+            return;
+        }
+        JsonNode testNotif = data.path("testNotification");
+        if (!testNotif.isMissingNode() && !testNotif.isNull()) {
+            log.info("Google RTDN testNotification messageId={} (one-time) — pas d'impact.", messageId);
+            return;
+        }
+        log.warn("Google RTDN one-time messageId={} sans notif exploitable — ignoré (payload={}).",
+                messageId, data);
     }
 
     // ------------------------------------------------------------------------

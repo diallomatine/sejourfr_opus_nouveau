@@ -244,8 +244,11 @@ masque le bouton d'achat IAP. Pareil dans l'autre sens.
   expiration naturelle ni sur refund/revoke (sémantique différente).
 - Format : HTML inline CSS (compat Gmail/Outlook), logo en image inline CID
   depuis `backend_sejourfr/src/main/resources/static/mail/logo.png`. Envoi
-  synchrone dans la transaction qui modifie le sub ; un mail raté log warn
-  sans propager (cf. pattern existant pour reset password).
+  **asynchrone** (`@Async` sur `sendSubscriptionActivatedEmail` /
+  `sendSubscriptionCanceledEmail`, `@EnableAsync` global) : le SMTP est hors du
+  chemin critique, donc `verify-receipt`/`cancel` répondent sans attendre l'envoi
+  (sinon un SMTP lent/injoignable bloquait la requête ~15-20 s). Un mail raté log
+  warn sans propager (cf. pattern reset password).
 - `POST /api/billing/webhook` — Stripe (signé HMAC).
 - `POST /api/billing/webhooks/apple` — Apple ASSN V2 (JWS signé, à vérifier).
 - `POST /api/billing/webhooks/google` — Google RTDN via Pub/Sub.
@@ -299,6 +302,40 @@ masque le bouton d'achat IAP. Pareil dans l'autre sens.
 ⚠ **Cassure connue après lot 4** : le web `/paiement` actuel envoie
 `?plan=BillingPlan` (CIVIQUE_3MOIS / INTEGRAL_3MOIS) ; il sera 400 jusqu'à
 ce que le lot 4b mette à jour l'appel en `?planCode=<string>`.
+
+- **Lot 5 (bascule achat unique — feature-flaggée)** : le produit vend des
+  **passes d'accès à durée fixe** (paiement unique, sans reconduction), au lieu
+  d'abonnements. Catalogue : Civique 3 mois (9,99) / 1 an (29,99) ; Intégral
+  sprint 6 sem (19,99) / 3 mois (35,99) / 1 an (79,99). Modèle : paiement →
+  `user_subscriptions` `ACTIVE`, `auto_renew=false`, `ends_at = paiement +
+  plans.duration_days` (durée posée par le **backend**, pas le store) ;
+  expiration **lazy** à la lecture (`SubscriptionService.isCovering`), pas de
+  job. Prolongation cumulative par module (`grantOneTimeAccess`), idempotente
+  sur `(source, original_transaction_id)`. **Proration** uniquement à l'upgrade
+  Civique→Intégral **côté Stripe** (crédit du reste du pass Civique, on facture
+  la différence) — Apple/Google vendent à prix fixe, pas de proration.
+  - Backend : `PlanPurchaseType` + `plans.purchase_type`/`duration_days` (V417/
+    V418, les 6 plans récurrents passent `is_active=FALSE`, conservés) ;
+    `BillingProperties` (`billing.mode`) ; `OneTimeAccessService.grantOneTimeAccess`
+    (commun aux 3 canaux) ; Stripe Checkout `mode=PAYMENT` + `price_data`
+    dynamique (montant = `plans.price`, **aucun Stripe Price à créer**) ; Apple
+    accepte Non-Renewing/Consumable (bypass du garde-fou AUTO_RENEWABLE) ; Google
+    `purchases.products.get` + acknowledge, RTDN `voidedPurchaseNotification`.
+    `SubscriptionStatusResponse.oneTime` expose la nature aux fronts.
+  - Mobile : paywall en **grille de passes** (pilotée par `purchaseType`),
+    `buyConsumable` (passes ré-achetables), « Mon accès » sans résiliation.
+  - Stores : produits **Consommables** (Apple) / **managed in-app** (Google),
+    product IDs = `Plan.code` (Apple MAJ, Google minuscules). Guide pas-à-pas →
+    `docs/setup-paiement-one-time.md`.
+
+> **⚠️ RÉVERSIBILITÉ — ne JAMAIS supprimer le code abonnement (lots 2/3/4).** La
+> bascule est pilotée par le flag `sejourfr.billing.mode` (`SUBSCRIPTION |
+> ONE_TIME`, env `BILLING_MODE`) **+** le drapeau `is_active` : les deux jeux de
+> plans coexistent en base. `StripeSubscriptionService`, les handlers webhook
+> récurrents Apple/Google, le toggle paywall et l'écran de résiliation restent
+> en place, **dormants**. Revenir aux abonnements selon le succès du projet =
+> `BILLING_MODE=SUBSCRIPTION` + réactiver les 6 plans récurrents (`V106`) +
+> désactiver les 5 passes. Aucune migration destructive, aucun rebuild.
 
 **Setup Apple (lot 2)** :
 1. **App Store Connect → Users and Access → Integrations → App Store Server API**
@@ -450,6 +487,7 @@ Référence à consulter quand le contexte le demande — pas chargé par défau
 - `docs/lots-entrainement.md` — lots TCF/Civique (calcul dynamique sans schéma)
 - `docs/exams-tcf.md` — examens module (CO/CE) et examen blanc TCF complet
 - `docs/auth-social.md` — Google/Apple sign-in (backend + front, config env)
+- `docs/setup-paiement-one-time.md` — passes achat unique (lot 5) : setup Stripe/Apple/Google pas-à-pas + SKU
 - `docs/pipeline-audio-co.md` — génération audio TCF CO (Claude → Azure Speech → R2)
 - `docs/pipeline-evaluation-eo-ee.md` — éval EO/EE (Whisper → Claude/OpenAI → R2 privé)
 - `docs/refonte-entrainement.md` — statut refonte hubs Civique/TCF (mobile + web)

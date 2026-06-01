@@ -122,7 +122,7 @@ public class ProductionExampleAudioService {
         taskManager.saveExample(ex);
 
         String voice = resolveVoice(requestedVoice, ex.getDisplayOrder());
-        byte[] mp3 = azureSpeechClient.synthesize(buildSsml(ex.getContenu(), voice));
+        byte[] mp3 = azureSpeechClient.synthesize(resolveSsml(ex, voice));
         CloudflareR2Client.R2UploadResult upload = r2Client.uploadAudio(UUID.randomUUID(), mp3);
 
         ex.setAudioUrl(upload.publicUrl());
@@ -166,6 +166,15 @@ public class ProductionExampleAudioService {
     }
 
     /**
+     * SSML multi-voix écrit à la main (dialogues examinateur ↔ candidat) s'il est
+     * renseigné, sinon génération automatique mono-voix depuis {@code contenu}.
+     */
+    private String resolveSsml(ProductionExample ex, String voice) {
+        String ssml = ex.getSsmlText();
+        return (ssml != null && !ssml.isBlank()) ? ssml : buildSsml(ex.getContenu(), voice);
+    }
+
+    /**
      * SSML simple : voix neutre, débit légèrement ralenti, légère pause après
      * chaque ponctuation forte pour un rendu naturel. Le contenu est échappé XML.
      */
@@ -199,6 +208,7 @@ public class ProductionExampleAudioService {
                 e.getTitre(),
                 e.getResume(),
                 e.getContenu(),
+                e.getSsmlText(),
                 e.getAudioStatus(),
                 e.getAudioUrl(),
                 e.getAudioVoice(),

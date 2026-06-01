@@ -49,7 +49,16 @@ public class ProductionTaskManager {
             return repository.findByEpreuveAndNiveauCibleAndActiveTrueOrderByTacheNumeroAsc(
                     epreuve, niveauCible);
         }
+        if (tacheNumero != null) {
+            return repository.findByEpreuveAndTacheNumeroAndActiveTrueOrderByNiveauCibleAscCreatedAtAsc(
+                    epreuve, tacheNumero);
+        }
         return repository.findByEpreuveAndActiveTrueOrderByNiveauCibleAscTacheNumeroAsc(epreuve);
+    }
+
+    /** Toutes les taches actives (toutes epreuves/niveaux) — validation des rubriques au boot. */
+    public List<ProductionTask> findAllActive() {
+        return repository.findByActiveTrue();
     }
 
     /** Exemples-modeles d'une categorie (epreuve, tacheNumero). */

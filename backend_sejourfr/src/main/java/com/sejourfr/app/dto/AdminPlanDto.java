@@ -2,6 +2,7 @@ package com.sejourfr.app.dto;
 
 import com.sejourfr.app.enums.BillingCycle;
 import com.sejourfr.app.enums.ModuleAccess;
+import com.sejourfr.app.enums.PlanPurchaseType;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -20,6 +21,7 @@ public record AdminPlanDto(
         BigDecimal originalPrice,
         ModuleAccess moduleAccess,
         int durationDays,
+        PlanPurchaseType purchaseType,
         boolean active,
         String stripePriceId,
         String appleProductId,

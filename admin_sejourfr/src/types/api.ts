@@ -541,6 +541,7 @@ export interface ExampleAudioDto {
   titre: string;
   resume: string | null;
   contenu: string;
+  ssmlText: string | null;
   audioStatus: ExampleAudioStatus;
   audioUrl: string | null;
   audioVoice: string | null;
@@ -581,6 +582,9 @@ export type SubscriptionStatus =
   | "EXPIRED"
   | "REFUNDED";
 
+/** Abonnement récurrent (SUBSCRIPTION) ou pass à durée fixe (ONE_TIME, lot 5). */
+export type PlanPurchaseType = "SUBSCRIPTION" | "ONE_TIME";
+
 /** Vue admin d'un Plan (lecture + édition partielle). */
 export interface AdminPlanDto {
   id: string;
@@ -591,6 +595,7 @@ export interface AdminPlanDto {
   originalPrice: number | null;
   moduleAccess: ModuleAccess;
   durationDays: number;
+  purchaseType: PlanPurchaseType;
   active: boolean;
   stripePriceId: string | null;
   appleProductId: string | null;

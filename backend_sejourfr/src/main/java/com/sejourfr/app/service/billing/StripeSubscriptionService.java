@@ -1,5 +1,6 @@
 package com.sejourfr.app.service.billing;
 
+import com.sejourfr.app.config.BillingProperties;
 import com.sejourfr.app.entity.Plan;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserSubscription;
@@ -57,6 +58,8 @@ public class StripeSubscriptionService {
     private final PlanManager planManager;
     private final UserSubscriptionManager userSubscriptionManager;
     private final MailService mailService;
+    private final OneTimeAccessService oneTimeAccessService;
+    private final BillingProperties billingProperties;
 
     /**
      * Entrée unique appelée par {@code BillingService.handleWebhook}. L'event
@@ -121,10 +124,15 @@ public class StripeSubscriptionService {
         // d'historique one-shot avec le nouveau code.
         String subscriptionId = session.getSubscription();
         if (subscriptionId == null || subscriptionId.isBlank()) {
-            log.warn(
-                    "checkout.session.completed sans subscription (mode={}, session={}) — ignoré.",
-                    session.getMode(), session.getId()
-            );
+            // Pas de subscription = Checkout mode=PAYMENT. En mode passes
+            // one-time (lot 5), c'est le chemin nominal : on crédite le pass.
+            if (billingProperties.isOneTime()) {
+                handleOneTimeCheckout(session);
+            } else {
+                log.warn(
+                        "checkout.session.completed sans subscription (mode={}, session={}) — ignoré.",
+                        session.getMode(), session.getId());
+            }
             return;
         }
 
@@ -156,6 +164,36 @@ public class StripeSubscriptionService {
                     .findBySourceAndOriginalTransactionId(SubscriptionSource.STRIPE, subscriptionId)
                     .ifPresent(this::sendActivationMail);
         }
+    }
+
+    /**
+     * Checkout one-time (mode=PAYMENT, lot 5) : crédite le pass via
+     * {@link OneTimeAccessService}. Le {@code planCode} vient de la metadata
+     * posée à la création ; clé d'unicité = {@code payment_intent} (retrouvable
+     * depuis un charge pour gérer le refund). L'e-mail d'activation est envoyé
+     * par le service de grant (uniquement sur première création).
+     */
+    private void handleOneTimeCheckout(Session session) {
+        UUID userId = parseUserIdOrLog(session.getClientReferenceId(), session.getId());
+        if (userId == null) return;
+
+        String planCode = session.getMetadata() != null ? session.getMetadata().get("planCode") : null;
+        if (planCode == null || planCode.isBlank()) {
+            log.warn("Checkout one-time sans planCode metadata (session={}) — ignoré.", session.getId());
+            return;
+        }
+        Plan plan = planManager.findByCode(planCode).orElse(null);
+        if (plan == null) {
+            log.warn("Checkout one-time planCode inconnu={} (session={}) — ignoré.", planCode, session.getId());
+            return;
+        }
+        String paymentIntent = session.getPaymentIntent();
+        String originalTxn = (paymentIntent != null && !paymentIntent.isBlank())
+                ? paymentIntent : session.getId();
+        oneTimeAccessService.grantOneTimeAccess(
+                userId, plan, SubscriptionSource.STRIPE, originalTxn, session.getId());
+        log.info("Stripe one-time pass accordé user={} plan={} session={}",
+                userId, planCode, session.getId());
     }
 
     // ------------------------------------------------------------------------
@@ -234,7 +272,23 @@ public class StripeSubscriptionService {
         // champ `invoice` sur le Charge.
         String invoiceId = charge.getInvoice();
         if (invoiceId == null || invoiceId.isBlank()) {
-            log.debug("charge.refunded sans invoice (charge={}) — ignoré (non-subscription).", charge.getId());
+            // Pas d'invoice = paiement one-shot (pass lot 5). On retrouve le pass
+            // par son payment_intent (= original_transaction_id côté grant).
+            String paymentIntent = charge.getPaymentIntent();
+            if (paymentIntent != null && !paymentIntent.isBlank()) {
+                userSubscriptionManager
+                        .findBySourceAndOriginalTransactionId(SubscriptionSource.STRIPE, paymentIntent)
+                        .ifPresent(sub -> {
+                            sub.setStatus(SubscriptionStatus.REFUNDED);
+                            sub.setAutoRenew(false);
+                            userSubscriptionManager.save(sub);
+                            log.info("Stripe one-time refund user={} pi={}",
+                                    sub.getUser().getId(), paymentIntent);
+                        });
+            } else {
+                log.debug("charge.refunded sans invoice ni payment_intent (charge={}) — ignoré.",
+                        charge.getId());
+            }
             return;
         }
         // On retrouve la subscription via l'API Stripe pour identifier la

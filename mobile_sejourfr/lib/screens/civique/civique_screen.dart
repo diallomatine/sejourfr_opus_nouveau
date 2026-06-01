@@ -65,7 +65,7 @@ class CiviqueScreen extends ConsumerWidget {
                 title: 'Simuler l\'entretien',
                 description:
                     '40 questions tous thèmes, en 45 minutes. Seuil : 32/40.',
-                ctaLabel: 'Lancer l\'examen blanc',
+                ctaLabel: 'Voir les examens blancs',
                 accent: AppColors.blueDark,
                 accentLight: AppColors.blueLight,
                 accentStart: AppColors.blue,

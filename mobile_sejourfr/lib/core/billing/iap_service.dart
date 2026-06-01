@@ -64,6 +64,16 @@ class IapService {
     return _iap.buyNonConsumable(purchaseParam: param);
   }
 
+  /// Achat d'un PASS one-time (lot 5). Les passes sont des produits
+  /// **consommables** sur les deux stores → `buyConsumable` avec
+  /// `autoConsume: true` pour qu'ils soient ré-achetables après expiration.
+  /// La durée d'accès réelle est posée par le backend (plan.durationDays),
+  /// pas par le store.
+  Future<bool> purchaseConsumable(ProductDetails product) {
+    final param = PurchaseParam(productDetails: product);
+    return _iap.buyConsumable(purchaseParam: param, autoConsume: true);
+  }
+
   /// Déclenche la re-livraison de tous les achats existants. Les events
   /// arrivent ensuite dans [purchaseStream] avec `status = PurchaseStatus.restored`.
   Future<void> restorePurchases() => _iap.restorePurchases();
@@ -113,7 +123,13 @@ class IapProduct {
   final PlanPublicResponse plan;
   final ProductDetails productDetails;
   final PlanModuleTarget module;
-  final PlanPeriodicity periodicity;
+
+  /// Périodicité d'un abonnement récurrent ; **null pour un pass one-time**
+  /// (la durée s'y lit via [plan.durationLabel]).
+  final PlanPeriodicity? periodicity;
+
+  bool get isOneTime => plan.isOneTime;
+  String get durationLabel => plan.durationLabel;
 
   /// Prix local formaté tel que retourné par le store (ex: "9,99 €",
   /// "$9.99"). On l'affiche tel quel — Apple et Google calculent eux-mêmes

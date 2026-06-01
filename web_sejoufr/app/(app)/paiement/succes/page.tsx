@@ -1,19 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
-import type { AuthenticatedUser } from "@/lib/types";
+import {Suspense, useEffect, useRef, useState} from "react";
+import {useSearchParams} from "next/navigation";
+import {useAuth} from "@/lib/auth-context";
+import type {AuthenticatedUser} from "@/lib/types";
 
 type SyncState = "syncing" | "ready" | "timeout";
 
 export default function PaiementSuccesPage() {
-  return (
-    <Suspense fallback={<SuccesSkeleton />}>
-      <SuccesInner />
-    </Suspense>
-  );
+    return (
+        <Suspense fallback={<SuccesSkeleton/>}>
+            <SuccesInner/>
+        </Suspense>
+    );
 }
 
 /**
@@ -26,267 +26,267 @@ export default function PaiementSuccesPage() {
  * — l'utilisateur peut naviguer, son accès sera actif au prochain reload.
  */
 function SuccesInner() {
-  const sp = useSearchParams();
-  const { user, status, refreshUser } = useAuth();
-  const sessionId = sp.get("session_id");
-  const planParam = sp.get("plan");
+    const sp = useSearchParams();
+    const {user, status, refreshUser} = useAuth();
+    const sessionId = sp.get("session_id");
+    const planParam = sp.get("plan");
 
-  const [timedOut, setTimedOut] = useState(false);
-  const synced = isPremium(user);
-  const syncState: SyncState = synced ? "ready" : timedOut ? "timeout" : "syncing";
-  const attemptsRef = useRef(0);
+    const [timedOut, setTimedOut] = useState(false);
+    const synced = isPremium(user);
+    const syncState: SyncState = synced ? "ready" : timedOut ? "timeout" : "syncing";
+    const attemptsRef = useRef(0);
 
-  useEffect(() => {
-    if (status !== "authenticated") return;
-    if (synced) return;
+    useEffect(() => {
+        if (status !== "authenticated") return;
+        if (synced) return;
 
-    let stopped = false;
-    const MAX_ATTEMPTS = 8;
-    const INTERVAL_MS = 1500;
+        let stopped = false;
+        const MAX_ATTEMPTS = 8;
+        const INTERVAL_MS = 1500;
 
-    const tick = async () => {
-      if (stopped) return;
-      attemptsRef.current += 1;
-      try {
-        await refreshUser();
-      } catch {
-        // ignore
-      }
-    };
+        const tick = async () => {
+            if (stopped) return;
+            attemptsRef.current += 1;
+            try {
+                await refreshUser();
+            } catch {
+                // ignore
+            }
+        };
 
-    void tick();
+        void tick();
 
-    const id = window.setInterval(() => {
-      if (attemptsRef.current >= MAX_ATTEMPTS) {
-        window.clearInterval(id);
-        if (!stopped) setTimedOut(true);
-        return;
-      }
-      void tick();
-    }, INTERVAL_MS);
+        const id = window.setInterval(() => {
+            if (attemptsRef.current >= MAX_ATTEMPTS) {
+                window.clearInterval(id);
+                if (!stopped) setTimedOut(true);
+                return;
+            }
+            void tick();
+        }, INTERVAL_MS);
 
-    return () => {
-      stopped = true;
-      window.clearInterval(id);
-    };
-  }, [status, refreshUser, synced]);
+        return () => {
+            stopped = true;
+            window.clearInterval(id);
+        };
+    }, [status, refreshUser, synced]);
 
-  if (status === "loading") return <SuccesSkeleton />;
+    if (status === "loading") return <SuccesSkeleton/>;
 
-  if (!user) {
+    if (!user) {
+        return (
+            <main className="succes">
+                <div className="succes-gate">
+                    <h1>Votre paiement a été reçu.</h1>
+                    <p>Connectez-vous pour finaliser l&apos;activation de votre abonnement.</p>
+                    <Link href="/connexion?next=/paiement/succes" className="btn-primary">
+                        Se connecter →
+                    </Link>
+                </div>
+                <style>{styles}</style>
+            </main>
+        );
+    }
+
+    const planLabel = derivePlanLabel(user, planParam);
+
     return (
-      <main className="succes">
-        <div className="succes-gate">
-          <h1>Votre paiement a été reçu.</h1>
-          <p>Connectez-vous pour finaliser l&apos;activation de votre abonnement.</p>
-          <Link href="/connexion?next=/paiement/succes" className="btn-primary">
-            Se connecter →
-          </Link>
-        </div>
-        <style>{styles}</style>
-      </main>
-    );
-  }
+        <main className="succes">
+            {/* ============ TOPBAR ============ */}
+            <header className="topbar">
+                <div className="breadcrumb">
+                    ACCUEIL <span className="sep">/</span>{" "}
+                    <Link href="/paiement" className="breadcrumb-link">
+                        ABONNEMENT
+                    </Link>{" "}
+                    <span className="sep">/</span> SUCCÈS
+                </div>
+            </header>
 
-  const planLabel = derivePlanLabel(user, planParam);
+            {/* ============ HERO CARD ============ */}
+            <section className={`succes-hero succes-hero-${syncState}`}>
+                <div className="succes-halo" aria-hidden/>
 
-  return (
-    <main className="succes">
-      {/* ============ TOPBAR ============ */}
-      <header className="topbar">
-        <div className="breadcrumb">
-          ACCUEIL <span className="sep">/</span>{" "}
-          <Link href="/paiement" className="breadcrumb-link">
-            ABONNEMENT
-          </Link>{" "}
-          <span className="sep">/</span> SUCCÈS
-        </div>
-      </header>
+                <div className="succes-icon-wrap">
+                    {syncState === "syncing" ? (
+                        <div className="succes-spinner" aria-hidden/>
+                    ) : (
+                        <div className="succes-check" aria-hidden>
+                            <svg viewBox="0 0 32 32" width="32" height="32">
+                                <path
+                                    d="M8 16l5 5 11-12"
+                                    stroke="#fff"
+                                    strokeWidth="3"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    fill="none"
+                                />
+                            </svg>
+                        </div>
+                    )}
+                </div>
 
-      {/* ============ HERO CARD ============ */}
-      <section className={`succes-hero succes-hero-${syncState}`}>
-        <div className="succes-halo" aria-hidden />
+                <div className="succes-eyebrow">
+                    {syncState === "syncing" ? (
+                        <>
+                            <span className="dot dot-blue"/> ACTIVATION EN COURS
+                        </>
+                    ) : syncState === "timeout" ? (
+                        <>
+                            <span className="dot dot-amber"/> ACTIVATION EN ATTENTE
+                        </>
+                    ) : (
+                        <>
+                            <span className="dot dot-green"/> PAIEMENT CONFIRMÉ
+                        </>
+                    )}
+                </div>
 
-        <div className="succes-icon-wrap">
-          {syncState === "syncing" ? (
-            <div className="succes-spinner" aria-hidden />
-          ) : (
-            <div className="succes-check" aria-hidden>
-              <svg viewBox="0 0 32 32" width="32" height="32">
-                <path
-                  d="M8 16l5 5 11-12"
-                  stroke="#fff"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-              </svg>
-            </div>
-          )}
-        </div>
+                <h1 className="succes-h1">
+                    {syncState === "syncing" ? (
+                        <>
+                            Activation de votre <em>{planLabel}</em>…
+                        </>
+                    ) : syncState === "timeout" ? (
+                        <>
+                            Paiement reçu — <em>activation en cours</em>
+                        </>
+                    ) : (
+                        <>
+                            Bienvenue dans <em>{planLabel}</em>.
+                        </>
+                    )}
+                </h1>
 
-        <div className="succes-eyebrow">
-          {syncState === "syncing" ? (
-            <>
-              <span className="dot dot-blue" /> ACTIVATION EN COURS
-            </>
-          ) : syncState === "timeout" ? (
-            <>
-              <span className="dot dot-amber" /> ACTIVATION EN ATTENTE
-            </>
-          ) : (
-            <>
-              <span className="dot dot-green" /> PAIEMENT CONFIRMÉ
-            </>
-          )}
-        </div>
+                <p className="succes-sub">
+                    {syncState === "syncing"
+                        ? "Stripe nous notifie l'activation, ça prend quelques secondes. Ne fermez pas cette page."
+                        : syncState === "timeout"
+                            ? "Votre paiement est validé côté Stripe. La synchronisation côté SejourFR peut prendre une ou deux minutes — votre accès s'ouvrira automatiquement. Vous pouvez naviguer ou revenir sur cette page plus tard."
+                            : `${user.firstName ? `${user.firstName}, votre` : "Votre"} abonnement est actif. Vous avez maintenant accès à ${
+                                user.hasTcf
+                                    ? "tout le contenu : Civique + TCF IRN, examens blancs illimités, révision des erreurs"
+                                    : "tout le contenu civique : la banque complète, examens blancs illimités, révision des erreurs"
+                            }.`}
+                </p>
 
-        <h1 className="succes-h1">
-          {syncState === "syncing" ? (
-            <>
-              Activation de votre <em>{planLabel}</em>…
-            </>
-          ) : syncState === "timeout" ? (
-            <>
-              Paiement reçu — <em>activation en cours</em>
-            </>
-          ) : (
-            <>
-              Bienvenue dans <em>{planLabel}</em>.
-            </>
-          )}
-        </h1>
+                {syncState !== "syncing" && (
+                    <div className="succes-actions">
+                        <Link href="/entrainement" className="btn-primary-red">
+                            Lancer un entraînement <span className="arrow">→</span>
+                        </Link>
+                        <Link href="/dashboard" className="btn-outline">
+                            Tableau de bord
+                        </Link>
+                    </div>
+                )}
+            </section>
 
-        <p className="succes-sub">
-          {syncState === "syncing"
-            ? "Stripe nous notifie l'activation, ça prend quelques secondes. Ne fermez pas cette page."
-            : syncState === "timeout"
-              ? "Votre paiement est validé côté Stripe. La synchronisation côté SejourFR peut prendre une ou deux minutes — votre accès s'ouvrira automatiquement. Vous pouvez naviguer ou revenir sur cette page plus tard."
-              : `${user.firstName ? `${user.firstName}, votre` : "Votre"} abonnement est actif. Vous avez maintenant accès à ${
-                  user.hasTcf
-                    ? "tout le contenu : Civique + TCF IRN, examens blancs illimités, révision des erreurs"
-                    : "tout le contenu civique : la banque complète, examens blancs illimités, révision des erreurs"
-                }.`}
-        </p>
+            {/* ============ NEXT STEPS ============ */}
+            {syncState === "ready" && (
+                <section className="next-section">
+                    <h2 className="next-title">Et maintenant ?</h2>
+                    <div className="next-grid">
+                        <NextCard
+                            num="01"
+                            tone="blue"
+                            title="Lancer un entraînement complet"
+                            body="L'entraînement par thème est désormais illimité. Travaillez vos points faibles à votre rythme."
+                            href="/entrainement"
+                            ctaLabel="S'entraîner"
+                        />
+                        <NextCard
+                            num="02"
+                            tone="red"
+                            title="Passer un examen blanc"
+                            body="En conditions réelles : chronomètre, pas de correction live, score officiel à la fin."
+                            href="/examens-blancs"
+                            ctaLabel="Examens blancs"
+                        />
+                        <NextCard
+                            num="03"
+                            tone="green"
+                            title="Suivre votre progression"
+                            body="Statistiques par thématique, calendrier d'activité et révision ciblée de vos erreurs."
+                            href="/statistiques"
+                            ctaLabel="Mes stats"
+                        />
+                    </div>
+                </section>
+            )}
 
-        {syncState !== "syncing" && (
-          <div className="succes-actions">
-            <Link href="/entrainement" className="btn-primary-red">
-              Lancer un entraînement <span className="arrow">→</span>
-            </Link>
-            <Link href="/dashboard" className="btn-outline">
-              Tableau de bord
-            </Link>
-          </div>
-        )}
-      </section>
-
-      {/* ============ NEXT STEPS ============ */}
-      {syncState === "ready" && (
-        <section className="next-section">
-          <h2 className="next-title">Et maintenant ?</h2>
-          <div className="next-grid">
-            <NextCard
-              num="01"
-              tone="blue"
-              title="Lancer un entraînement complet"
-              body="L'entraînement par thème est désormais illimité. Travaillez vos points faibles à votre rythme."
-              href="/entrainement"
-              ctaLabel="S'entraîner"
-            />
-            <NextCard
-              num="02"
-              tone="red"
-              title="Passer un examen blanc"
-              body="En conditions réelles : chronomètre, pas de correction live, score officiel à la fin."
-              href="/examens-blancs"
-              ctaLabel="Examens blancs"
-            />
-            <NextCard
-              num="03"
-              tone="green"
-              title="Suivre votre progression"
-              body="Statistiques par thématique, calendrier d'activité et révision ciblée de vos erreurs."
-              href="/statistiques"
-              ctaLabel="Mes stats"
-            />
-          </div>
-        </section>
-      )}
-
-      {/* ============ REFERENCE ============ */}
-      {sessionId && (
-        <section className="succes-meta">
-          <span className="succes-meta-label">RÉFÉRENCE TRANSACTION</span>
-          <code className="succes-meta-value">{sessionId}</code>
-          <span className="succes-meta-foot">
+            {/* ============ REFERENCE ============ */}
+            {sessionId && (
+                <section className="succes-meta">
+                    <span className="succes-meta-label">RÉFÉRENCE TRANSACTION</span>
+                    <code className="succes-meta-value">{sessionId}</code>
+                    <span className="succes-meta-foot">
             Conservez cette référence en cas de question sur votre paiement.
             Une question ? Écrivez à{" "}
-            <a href="mailto:hello@sejourfr.fr">hello@sejourfr.fr</a>.
+                        <a href="mailto:support@sejourfr.fr">support@sejourfr.fr</a>.
           </span>
-        </section>
-      )}
+                </section>
+            )}
 
-      <style>{styles}</style>
-    </main>
-  );
+            <style>{styles}</style>
+        </main>
+    );
 }
 
 // ============================================================================
 // NEXT CARD
 // ============================================================================
 function NextCard({
-  num,
-  tone,
-  title,
-  body,
-  href,
-  ctaLabel,
-}: {
-  num: string;
-  tone: "blue" | "red" | "green";
-  title: string;
-  body: string;
-  href: string;
-  ctaLabel: string;
+                      num,
+                      tone,
+                      title,
+                      body,
+                      href,
+                      ctaLabel,
+                  }: {
+    num: string;
+    tone: "blue" | "red" | "green";
+    title: string;
+    body: string;
+    href: string;
+    ctaLabel: string;
 }) {
-  return (
-    <Link href={href} className={`next-card next-card-${tone}`}>
-      <span className={`next-num next-num-${tone}`}>{num}</span>
-      <h3 className="next-card-title">{title}</h3>
-      <p className="next-card-body">{body}</p>
-      <span className={`next-card-cta next-card-cta-${tone}`}>
+    return (
+        <Link href={href} className={`next-card next-card-${tone}`}>
+            <span className={`next-num next-num-${tone}`}>{num}</span>
+            <h3 className="next-card-title">{title}</h3>
+            <p className="next-card-body">{body}</p>
+            <span className={`next-card-cta next-card-cta-${tone}`}>
         {ctaLabel} <span className="arrow">→</span>
       </span>
-    </Link>
-  );
+        </Link>
+    );
 }
 
 // ============================================================================
 // HELPERS
 // ============================================================================
 function isPremium(user: AuthenticatedUser | null): boolean {
-  if (!user) return false;
-  return Boolean(user.hasCivique || user.hasTcf);
+    if (!user) return false;
+    return Boolean(user.hasCivique || user.hasTcf);
 }
 
 function derivePlanLabel(user: AuthenticatedUser, planParam: string | null): string {
-  if (planParam) {
-    if (planParam.startsWith("INTEGRAL")) return "Intégral";
-    if (planParam.startsWith("CIVIQUE")) return "Civique";
-  }
-  if (user.hasTcf) return "Intégral";
-  if (user.hasCivique) return "Civique";
-  return "Premium";
+    if (planParam) {
+        if (planParam.startsWith("INTEGRAL")) return "Intégral";
+        if (planParam.startsWith("CIVIQUE")) return "Civique";
+    }
+    if (user.hasTcf) return "Intégral";
+    if (user.hasCivique) return "Civique";
+    return "Premium";
 }
 
 function SuccesSkeleton() {
-  return (
-    <div className="succes-loading">
-      <style>{`.succes-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
-    </div>
-  );
+    return (
+        <div className="succes-loading">
+            <style>{`.succes-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
+        </div>
+    );
 }
 
 // ============================================================================

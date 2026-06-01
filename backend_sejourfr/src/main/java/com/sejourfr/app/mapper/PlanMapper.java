@@ -17,7 +17,10 @@ public class PlanMapper {
                 p.getPrice(),
                 p.getOriginalPrice(),
                 p.getModuleAccess(),
-                p.getDurationDays()
+                p.getDurationDays(),
+                p.getPurchaseType(),
+                p.getAppleProductId(),
+                p.getGoogleProductId()
         );
     }
 
@@ -32,6 +35,7 @@ public class PlanMapper {
                 p.getOriginalPrice(),
                 p.getModuleAccess(),
                 p.getDurationDays(),
+                p.getPurchaseType(),
                 p.isActive(),
                 p.getStripePriceId(),
                 p.getAppleProductId(),

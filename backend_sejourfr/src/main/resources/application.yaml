@@ -19,6 +19,13 @@ spring:
     # (lots civique). On accepte les migrations "manquantes" appliquees apres
     # une migration de numero superieur.
     out-of-order: true
+    # Tolere une migration retiree du code mais deja appliquee en base (ex.
+    # seed renomme/deplace, comme l'ancien V421 devenu V422). Sans ca, un env
+    # deploye AVANT le retrait echoue au boot sur "Detected applied migration
+    # not resolved locally". N'affecte que les bases qui l'avaient deja
+    # appliquee (l'effet a deja eu lieu) ; les bases neuves ne sont pas
+    # concernees. Evite la chirurgie SQL / flyway repair sur chaque env.
+    ignore-migration-patterns: "*:missing"
   servlet:
     multipart:
       max-file-size: 25MB
@@ -176,11 +183,24 @@ sejourfr:
         Conserver les hesitations, les repetitions, et les eventuelles fautes
         grammaticales telles que prononcees.
   production-evaluation:
-    # Provider LLM actif : openai (defaut) ou anthropic. Pour switcher, changer
-    # cette valeur (ou EVAL_LLM_PROVIDER) et redemarrer le backend. Aucune
+    # Provider LLM actif : openai (defaut), anthropic ou deepseek. Pour switcher,
+    # changer cette valeur (ou EVAL_LLM_PROVIDER) et redemarrer le backend. Aucune
     # migration ni changement cote mobile : le DTO + le tool schema sont
     # identiques, seule la maniere d'appeler le LLM change.
     provider: ${EVAL_LLM_PROVIDER:openai}
+    # Source UNIQUE de TOUTES les instructions d'eval (global + par tache) :
+    # prompts/production-rubrics-<v>.json. Le system prompt et le user message
+    # sont generes depuis ce fichier (plus de .md system/user-template).
+    # prompt-version (ci-dessous) ne gouverne plus que le tool-schema (sortie).
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v3}
+    # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
+    # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
+    # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).
+    niveau-cecrl:
+      source-criteres: [lexique, morphosyntaxe]
+      seuil-b2: 15.0
+      seuil-b1: 12.0
+      seuil-a2: 7.0
     max-audio-duration-seconds: 300
     max-text-words: 300
     min-text-words: 10
@@ -194,11 +214,13 @@ sejourfr:
       api-key: ${EVAL_OPENAI_API_KEY:${OPENAI_API_KEY:}}
       api-url: https://api.openai.com/v1/chat/completions
       model: ${EVAL_OPENAI_MODEL:gpt-4o-mini}
+      # 0 = notation déterministe (même texte → mêmes notes d'un run à l'autre).
+      temperature: ${EVAL_OPENAI_TEMPERATURE:0}
       max-tokens: 2000
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v1.2}
+      prompt-version: ${EVAL_PROMPT_VERSION:v1.5}
       # Tarification gpt-4o-mini (USD / 1M tokens, mai 2026). A surcharger si
       # on bascule sur gpt-4o ou gpt-5 (cout estime persiste dans ai_evaluations).
       cost-per-million-input-tokens: 0.15
@@ -212,6 +234,21 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v1.2}
+      prompt-version: ${EVAL_PROMPT_VERSION:v1.5}
       cost-per-million-input-tokens: 3.0
       cost-per-million-output-tokens: 15.0
+    # DeepSeek : API compatible OpenAI (meme client). Activer avec
+    # EVAL_LLM_PROVIDER=deepseek + EVAL_DEEPSEEK_API_KEY (ou DEEPSEEK_API_KEY).
+    deepseek:
+      api-key: ${EVAL_DEEPSEEK_API_KEY:${DEEPSEEK_API_KEY:}}
+      api-url: https://api.deepseek.com/chat/completions
+      model: ${EVAL_DEEPSEEK_MODEL:deepseek-v4-flash}
+      # DeepSeek V4 : thinking mode ON par défaut casse le tool_choice forcé (400).
+      # On l'envoie {"thinking":{"type":"disabled"}} pour un tool_call déterministe.
+      disable-thinking: ${EVAL_DEEPSEEK_DISABLE_THINKING:true}
+      temperature: ${EVAL_DEEPSEEK_TEMPERATURE:0}
+      max-tokens: 2000
+      timeout-sec: 60
+      prompt-version: ${EVAL_PROMPT_VERSION:v1.5}
+      cost-per-million-input-tokens: 0.27
+      cost-per-million-output-tokens: 1.10

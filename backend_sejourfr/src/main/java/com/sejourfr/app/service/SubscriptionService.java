@@ -89,6 +89,33 @@ public class SubscriptionService {
     public record CurrentAccess(ModuleAccess module, Instant endsAt) {}
 
     /**
+     * Fin d'accès la plus tardive parmi les souscriptions couvrantes dont le
+     * module est AU MOINS {@code minModule} (ordre NONE &lt; CIVIQUE &lt;
+     * INTEGRAL). Sert au calcul de prolongation d'un pass one-time :
+     * <ul>
+     *   <li>acheter un pass CIVIQUE prolonge depuis la fin d'un accès CIVIQUE
+     *       ou INTEGRAL existant ;</li>
+     *   <li>acheter un pass INTEGRAL ne prolonge que depuis un accès INTEGRAL
+     *       existant — un reste CIVIQUE n'est pas cumulé (il est crédité via la
+     *       proration côté Stripe lors de l'upgrade).</li>
+     * </ul>
+     * Renvoie {@code null} si aucun accès couvrant de ce niveau.
+     */
+    public Instant currentEndForAtLeast(UUID userId, ModuleAccess minModule) {
+        Instant now = Instant.now();
+        Instant latest = null;
+        for (UserSubscription s : userSubscriptionManager.findByUserId(userId)) {
+            if (!isCovering(s, now)) continue;
+            if (s.getPlan().getModuleAccess().ordinal() < minModule.ordinal()) continue;
+            Instant endsAt = s.getEndsAt();
+            if (endsAt != null && (latest == null || endsAt.isAfter(latest))) {
+                latest = endsAt;
+            }
+        }
+        return latest;
+    }
+
+    /**
      * Retourne la souscription "qui compte" pour ce user — celle qui ouvre
      * l'accès Premium visible côté app. Critères de sélection :
      *

@@ -4,8 +4,11 @@ import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.SubscriptionSource;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -33,4 +36,22 @@ public interface UserSubscriptionRepository
      */
     Optional<UserSubscription> findBySourceAndOriginalTransactionId(
             SubscriptionSource source, String originalTransactionId);
+
+    /**
+     * Passes one-time ACTIVE dont l'accès expire dans la fenêtre [{@code now},
+     * {@code threshold}] et qui n'ont pas encore reçu le rappel d'expiration.
+     * Utilisé par le job de relance (lot 5). On cible bien les passes via
+     * {@code plan.purchaseType = ONE_TIME}.
+     */
+    @Query("""
+            SELECT s FROM UserSubscription s
+            WHERE s.status = com.sejourfr.app.enums.SubscriptionStatus.ACTIVE
+              AND s.plan.purchaseType = com.sejourfr.app.enums.PlanPurchaseType.ONE_TIME
+              AND s.expiryRemindedAt IS NULL
+              AND s.endsAt IS NOT NULL
+              AND s.endsAt > :now
+              AND s.endsAt <= :threshold
+            """)
+    List<UserSubscription> findOneTimeExpiringSoon(
+            @Param("now") Instant now, @Param("threshold") Instant threshold);
 }

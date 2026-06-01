@@ -46,6 +46,7 @@ export function ExamsModuleView({ module }: { module: ModuleEnum }) {
   useEffect(() => {
     if (status !== "authenticated") return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     Promise.all([
       examApi.list(module).catch((e: unknown) => {
@@ -76,10 +77,21 @@ export function ExamsModuleView({ module }: { module: ModuleEnum }) {
   const isPremium = user !== null && canAccessModule(user, module);
 
   // ========== Stats du module ==========
+  // On ne compte QUE les examens basés sur un template (= ceux listés ci-dessous,
+  // qui peuvent porter le badge « DÉJÀ FAIT »), dédupliqués par template (dernier
+  // essai). Les MOCK_EXAM paramétriques (sans examTemplateId — lancés depuis un
+  // hub, ou les examens module TCF par épreuve) ne correspondent à aucune card :
+  // les inclure ferait diverger le compteur du haut de la liste du bas.
   const moduleStats = useMemo(() => {
-    const finished = attempts.filter(
-      (a) => a.finishedAt && a.score !== null && a.score !== undefined,
-    );
+    const latestByTemplate = new Map<string, AttemptSummaryResponse>();
+    for (const a of attempts) {
+      if (!a.examTemplateId || !a.finishedAt || a.score == null) continue;
+      const cur = latestByTemplate.get(a.examTemplateId);
+      if (!cur || new Date(a.finishedAt) > new Date(cur.finishedAt ?? 0)) {
+        latestByTemplate.set(a.examTemplateId, a);
+      }
+    }
+    const finished = Array.from(latestByTemplate.values());
     if (finished.length === 0) {
       return { total: 0, passed: 0, passRate: 0, bestLabel: null as string | null };
     }

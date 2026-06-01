@@ -32,8 +32,10 @@ class CriterionRow extends StatelessWidget {
       case 'organisation':
       case 'coherence':
         return Icons.format_list_bulleted_rounded;
+      case 'lexique':
       case 'vocabulaire':
         return Icons.book_outlined;
+      case 'morphosyntaxe':
       case 'grammaire':
         return Icons.spellcheck_rounded;
       case 'orthographe':
@@ -51,6 +53,8 @@ class CriterionRow extends StatelessWidget {
     switch (code) {
       case 'pertinence':
         return 'Pertinence du contenu';
+      case 'morphosyntaxe':
+        return 'Correction morphosyntaxique';
       case 'grammaire':
         return 'Correction grammaticale';
       case 'vocabulaire':

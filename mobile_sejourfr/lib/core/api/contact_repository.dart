@@ -2,7 +2,7 @@ import 'api_client.dart';
 
 /// Endpoint public POST `/api/contact` — pas d'auth nécessaire (un visiteur
 /// non connecté doit pouvoir nous écrire). Le backend relaye le message
-/// vers `hello@sejourfr.fr` via `MailService`.
+/// vers `support@sejourfr.fr` via `MailService`.
 class ContactRepository {
   ContactRepository(this._client);
 
