@@ -14,7 +14,6 @@ import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -67,9 +66,11 @@ public class ProductionTask {
     @Column(name = "mots_max")
     private Integer motsMax;
 
+    /** DÉPRÉCIÉ (V428) — non lu par le code (notation centralisée dans
+     *  production-rubrics-<version>.json). Nullable, conservé pour réversibilité. */
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "criteres_evaluation", nullable = false, columnDefinition = "jsonb")
-    private Map<String, Object> criteresEvaluation = new HashMap<>();
+    @Column(name = "criteres_evaluation", columnDefinition = "jsonb")
+    private Map<String, Object> criteresEvaluation;
 
     @Column(name = "is_active", nullable = false)
     private boolean active = false;
@@ -80,7 +81,6 @@ public class ProductionTask {
     @PrePersist
     void prePersist() {
         if (createdAt == null) createdAt = Instant.now();
-        if (criteresEvaluation == null) criteresEvaluation = new HashMap<>();
     }
 
     public UUID getId() { return id; }

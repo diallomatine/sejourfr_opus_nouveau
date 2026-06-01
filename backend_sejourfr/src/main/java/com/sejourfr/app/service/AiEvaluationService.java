@@ -103,6 +103,11 @@ public class AiEvaluationService {
         // `code`). Source = la rubrique de la tache (fallback DB) : evite au mobile
         // de maintenir une table parallele code→libelle qui derive.
         enrichScoresWithLabels(feedback, task);
+        // note_globale calculee SERVEUR a partir des scores par critere ponderes
+        // par la rubrique : on ecrase la valeur du LLM (advisory). Garantit la
+        // coherence global <-> criteres. Si la rubrique est absente, on conserve
+        // la note du LLM (extractNote la relira).
+        applyServerComputedNote(feedback, task, submissionId);
         BigDecimal noteSur20 = extractNote(feedback);
         NiveauCecrl niveau = extractNiveau(feedback);
 
@@ -167,12 +172,11 @@ public class AiEvaluationService {
     @SuppressWarnings("unchecked")
     private void enrichScoresWithLabels(Map<String, Object> feedback, ProductionTask task) {
         Object scoresObj = feedback.get("scores_criteres");
-        // Source des labels = la rubrique de la tache (meme source que les criteres
-        // envoyes au LLM), fallback DB criteres_evaluation.
+        // Source UNIQUE des labels = la rubrique de la tache (meme source que les
+        // criteres envoyes au LLM). Plus de fallback DB.
         Object grilleObj = rubrics.find(task.getEpreuve(), task.getTacheNumero())
                 .map(r -> r.get("criteres"))
-                .orElseGet(() -> task.getCriteresEvaluation() != null
-                        ? task.getCriteresEvaluation().get("criteres") : null);
+                .orElse(null);
         if (!(scoresObj instanceof List<?> scores) || !(grilleObj instanceof List<?> grille)) return;
         Map<String, String> labelByCode = new HashMap<>();
         for (Object g : grille) {
@@ -198,6 +202,70 @@ public class AiEvaluationService {
                 }
             }
         }
+    }
+
+    /** Au-dela de cet ecart |note_LLM − note_calculee|, on log pour calibration. */
+    private static final BigDecimal SEUIL_ECART_CALIBRATION = new BigDecimal("3");
+
+    /**
+     * Recalcule {@code note_globale} cote serveur = {@code round(Σ note_sur_20 × poids)}
+     * a partir des {@code scores_criteres} et des poids de la rubrique, puis
+     * <b>ecrase</b> la valeur du LLM dans {@code feedback}. La note du LLM devient
+     * advisory : un ecart > seuil est logue (calibration). Sans rubrique ou sans
+     * scores exploitables, on ne touche pas a la note du LLM.
+     */
+    private void applyServerComputedNote(Map<String, Object> feedback, ProductionTask task, UUID submissionId) {
+        Object criteres = rubrics.find(task.getEpreuve(), task.getTacheNumero())
+                .map(r -> r.get("criteres")).orElse(null);
+        BigDecimal computed = weightedNote(criteres, feedback.get("scores_criteres"));
+        if (computed == null) {
+            log.warn("note_globale non recalculee serveur (submission={} : rubrique/scores manquants) — "
+                + "note LLM conservee.", submissionId);
+            return;
+        }
+        BigDecimal llmNote = extractNote(feedback);
+        if (llmNote != null && llmNote.subtract(computed).abs().compareTo(SEUIL_ECART_CALIBRATION) > 0) {
+            log.warn("Ecart de notation submission={} : LLM={} vs serveur={} (>{}) — a calibrer.",
+                submissionId, llmNote, computed, SEUIL_ECART_CALIBRATION);
+        }
+        feedback.put("note_globale", computed);
+    }
+
+    /**
+     * {@code round(Σ note_sur_20[code] × poids[code])}, arrondi a l'entier le plus
+     * proche (HALF_UP), borne a [0,20]. Retourne null si les criteres/poids ou les
+     * scores sont inexploitables (le hors-sujet — tous les criteres a 0 — rend
+     * coherent 0, puisque Σ(0×poids)=0). Package-private pour le test unitaire.
+     */
+    static BigDecimal weightedNote(Object criteres, Object scoresCriteres) {
+        if (!(criteres instanceof List<?> critList) || !(scoresCriteres instanceof List<?> scores)) {
+            return null;
+        }
+        Map<String, BigDecimal> poidsByCode = new HashMap<>();
+        for (Object c : critList) {
+            if (c instanceof Map<?, ?> m && m.get("code") != null && m.get("poids") instanceof Number n) {
+                poidsByCode.put(m.get("code").toString(), new BigDecimal(n.toString()));
+            }
+        }
+        if (poidsByCode.isEmpty()) return null;
+
+        BigDecimal sum = BigDecimal.ZERO;
+        boolean any = false;
+        for (Object s : scores) {
+            if (!(s instanceof Map<?, ?> m)) continue;
+            Object code = m.get("code");
+            Object note = m.get("note_sur_20");
+            if (code == null || !(note instanceof Number noteNum)) continue;
+            BigDecimal poids = poidsByCode.get(code.toString());
+            if (poids == null) continue;
+            sum = sum.add(new BigDecimal(noteNum.toString()).multiply(poids));
+            any = true;
+        }
+        if (!any) return null;
+        BigDecimal rounded = sum.setScale(0, RoundingMode.HALF_UP);
+        if (rounded.compareTo(BigDecimal.ZERO) < 0) return BigDecimal.ZERO;
+        if (rounded.compareTo(NOTE_MAX) > 0) return NOTE_MAX;
+        return rounded;
     }
 
     private static String formatMinutes(int sec) {

@@ -41,9 +41,16 @@ sous-module comme `audioquestion/`) :
   différent** = implémenter `EvaluationLlmClient` (4 méthodes) + un `case` dans
   `EvaluationLlmConfig`.
 - **`ProductionRubricsProvider`** : charge `prompts/production-rubrics-<version>.json`
-  (`rubrics-version`, défaut `v1`) — **source unique du « comment noter » par tâche**
-  (critères+poids, barème, descripteurs A1-C2, consignes correcteur), lookup
-  `(épreuve, tâche)`. Fallback DB `criteres_evaluation` si une tâche manque.
+  (`rubrics-version`, défaut `v2`) — **source unique ET EXCLUSIVE du « comment noter » par
+  tâche** (critères+poids, barème, descripteurs A1-C2, consignes correcteur). Clé de lookup
+  dérivée de `(épreuve, tâche)` : on retire le préfixe `TCF_` puis on suffixe `_T<n>` →
+  `EE_T1`, `EO_T3`, … **Plus aucun fallback DB `criteres_evaluation`.** Fichier
+  absent/illisible = échec au démarrage (fail-fast). Format racine `{rubrics-version, rubrics:{…}}`.
+- **`ProductionRubricsValidator`** (`@EventListener(ApplicationReadyEvent)`) : garde-fou de
+  démarrage. Refuse de booter si (a) une tâche `is_active=TRUE` (EO/EE) n'a pas de rubrique,
+  (b) `Σ poids ≠ 1.0` (±0.001) sur une rubrique, ou (c) un `code` n'est pas dans le set
+  canonique `{pertinence, coherence, lexique, morphosyntaxe}`. Erreurs loggées en ERROR
+  `[rubriques]` + `IllegalStateException`.
 - `EvaluationPromptBuilder` (charge `system-vX.Y.md` + `user-template-vX.Y.md`, substitue
   `{CONSIGNE}`, `{NIVEAU}`, et injecte la rubrique de la tâche : `{CRITERES}`,
   `{BAREME_NOTE}`, `{DESCRIPTEURS}`, `{CONSIGNES_CORRECTEUR}`). N'injecte **que des données**,
@@ -78,15 +85,28 @@ source** :
    pour chaque `(épreuve, tâche)`, la rubrique fixe — `criteres` (+ poids), `bareme_note`,
    `descripteurs` A1-C2, `consignes_correcteur`. **C'est LE seul endroit à éditer pour ajuster
    la notation d'une tâche.** Versionné via `rubrics-version` (`EVAL_RUBRICS_VERSION`, défaut
-   `v1`), indépendant de `prompt-version`.
-3. **CODE → aucune instruction** : `EvaluationPromptBuilder` n'injecte que des données
-   (production, durée factuelle, rubrique). La durée EO est une simple ligne
+   `v2`), indépendant de `prompt-version`.
+3. **CODE → aucune instruction, données seulement** : `EvaluationPromptBuilder` n'injecte que
+   des données (production, durée factuelle, rubrique). La durée EO est une simple ligne
    `DURÉE (indicative) : …` ; l'ordre de l'ignorer vit une seule fois dans le system prompt.
 
 Le user-template v1.4 expose les slots `{CRITERES}`, `{BAREME_NOTE}`, `{DESCRIPTEURS}`,
-`{CONSIGNES_CORRECTEUR}` (+ `{CONSIGNE}`, `{PRODUCTION}`, `{DUREE_BLOCK}`). Fallback : si une
-tâche n'est pas dans le fichier de rubriques, le builder retombe sur la colonne DB
-`production_tasks.criteres_evaluation` (conservée pour compat/réversibilité).
+`{CONSIGNES_CORRECTEUR}` (+ `{CONSIGNE}`, `{PRODUCTION}`, `{DUREE_BLOCK}`). `{NIVEAU}` porte le
+niveau cible (`production_tasks.niveau_cible`) — il n'est plus dupliqué dans `{CRITERES}`.
+**Plus aucun fallback DB** : la couverture des tâches actives est garantie au boot par
+`ProductionRubricsValidator` (cf. plus haut). La colonne `production_tasks.criteres_evaluation`
+est **dépréciée** (V428, non lue, conservée nullable pour réversibilité).
+
+### `note_globale` calculée serveur (depuis la centralisation rubriques)
+
+`AiEvaluationService` **recalcule** `note_globale = round(Σ note_sur_20[code] × poids[code])`
+à partir de `scores_criteres` (LLM) et des poids de la rubrique (arrondi entier le plus proche,
+HALF_UP, borné `[0,20]`), puis **écrase** la valeur du LLM avant persistance. La note du LLM
+devient *advisory* : un écart `|LLM − serveur| > 3` est loggé en WARN pour calibration. Corrige
+l'incohérence observée (global 16/20 alors que les critères étaient à 2-6/20). Le hors-sujet
+reste cohérent : tous les critères à 0 → `Σ(0×poids)=0`. Sans rubrique/scores exploitables (cas
+limite, tâche désactivée), la note du LLM est conservée (WARN). **Schéma `tool_use` inchangé →
+aucun changement mobile.**
 
 ### Historique des versions
 
@@ -142,9 +162,10 @@ sur `EvaluationFeedback.avertissements` et l'affiche dans `AvertissementsCard`.
 
 **Libellés des critères** — l'IA ne renvoie que le `code` (`pertinence`, `coherence`, …)
 dans `scores_criteres`. `AiEvaluationService.enrichScoresWithLabels` joint le `label` de la
-grille à chaque item avant persistance. Source du label = la rubrique de la tâche
-(`production-rubrics-<v>.json`, fallback `production_tasks.criteres_evaluation`), pas de table
-parallèle côté mobile. Le mobile (`CriterionRow`) utilise `criterion.label` si présent, sinon retombe
+grille à chaque item avant persistance. Source du label = **uniquement** la rubrique de la tâche
+(`production-rubrics-<v>.json`), pas de table parallèle côté mobile. Codes canoniques :
+`pertinence`, `coherence`, `lexique`, `morphosyntaxe` (l'EO n'évalue pas `prononciation`). Le
+mobile (`CriterionRow`) utilise `criterion.label` si présent, sinon retombe
 sur une table locale (fallback pour les évaluations antérieures à v1.2).
 
 ## Config

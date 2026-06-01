@@ -189,7 +189,7 @@ sejourfr:
     # identiques, seule la maniere d'appeler le LLM change.
     provider: ${EVAL_LLM_PROVIDER:openai}
     # Version du fichier de rubriques par tache (prompts/production-rubrics-<v>.json).
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v1}
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v2}
     max-audio-duration-seconds: 300
     max-text-words: 300
     min-text-words: 10

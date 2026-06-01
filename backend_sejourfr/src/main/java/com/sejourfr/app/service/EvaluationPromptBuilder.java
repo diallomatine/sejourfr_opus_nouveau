@@ -10,7 +10,6 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -70,41 +69,34 @@ public class EvaluationPromptBuilder {
             ? ""
             : "CONTEXTE :\n\"" + task.getContexte() + "\"\n";
 
-        // Source UNIQUE du "comment noter" par tache : la rubrique fixe (fichier).
-        // Fallback DB criteres_evaluation si absente (reversibilite). Le system
-        // prompt porte le global ; ce builder n'injecte que des donnees, pas
-        // d'instruction.
-        Map<String, Object> rubric = rubrics.find(task.getEpreuve(), task.getTacheNumero()).orElse(null);
-        Map<String, Object> dbGrille = task.getCriteresEvaluation() != null
-            ? task.getCriteresEvaluation() : Map.of();
+        // Source UNIQUE et exclusive du "comment noter" par tache : la rubrique
+        // fixe (fichier). Plus aucun fallback DB. Le system prompt porte le
+        // global ; ce builder n'injecte que des donnees, pas d'instruction. La
+        // couverture des taches actives est garantie au boot par
+        // ProductionRubricsValidator. Le niveau cible est porte par {NIVEAU}, pas
+        // dupplique dans la grille.
+        Map<String, Object> rubric = rubrics.find(task.getEpreuve(), task.getTacheNumero()).orElse(Map.of());
 
-        Map<String, Object> criteresPourPrompt = new LinkedHashMap<>();
-        Object criteres = rubric != null ? rubric.get("criteres") : dbGrille.get("criteres");
-        if (criteres != null) criteresPourPrompt.put("criteres", criteres);
-        criteresPourPrompt.put("niveau_attendu", nullSafe(task.getNiveauCible()));
+        Object criteres = rubric.get("criteres");
         String criteresJson;
         try {
-            criteresJson = objectMapper.writeValueAsString(criteresPourPrompt);
+            criteresJson = objectMapper.writeValueAsString(criteres != null ? criteres : List.of());
         } catch (Exception e) {
-            criteresJson = "{}";
+            criteresJson = "[]";
         }
 
-        String bareme = rubric != null ? asString(rubric.get("bareme_note")) : "";
+        String bareme = asString(rubric.get("bareme_note"));
         if (bareme.isBlank()) {
             bareme = "0-9 : tache insuffisamment remplie · 10-13 : tache remplie · "
                 + "14-16 : bonne maitrise · 17-20 : excellente maitrise.";
         }
 
-        String descripteurs = rubric != null
-            ? formatDescripteurs(rubric.get("descripteurs"))
-            : asString(dbGrille.get("marqueurs_niveau_superieur"));
+        String descripteurs = formatDescripteurs(rubric.get("descripteurs"));
         if (descripteurs.isBlank()) {
             descripteurs = "(non renseignes pour cette tache — applique les descripteurs CECRL standards.)";
         }
 
-        String consignes = rubric != null
-            ? asString(rubric.get("consignes_correcteur"))
-            : asString(dbGrille.get("consignes_correcteur"));
+        String consignes = asString(rubric.get("consignes_correcteur"));
         if (consignes.isBlank()) consignes = "(aucune)";
 
         // Donnee factuelle uniquement (l'ordre d'ignorer la duree vit dans le

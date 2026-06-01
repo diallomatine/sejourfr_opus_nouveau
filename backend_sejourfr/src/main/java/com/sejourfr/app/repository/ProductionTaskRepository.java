@@ -32,4 +32,7 @@ public interface ProductionTaskRepository extends JpaRepository<ProductionTask, 
 
     /** Inclut les inactives : reserve a l'admin. */
     List<ProductionTask> findByEpreuveOrderByNiveauCibleAscTacheNumeroAsc(EpreuveType epreuve);
+
+    /** Toutes les taches actives, tous epreuves/niveaux : validation des rubriques au boot. */
+    List<ProductionTask> findByActiveTrue();
 }
