@@ -34,9 +34,7 @@ db/migration/
 │   ├── histoire_geo_culture/        V261-V279
 │   └── vivre_en_societe/            V281-V299
 │
-└── 300_tcf/                         V300-V899   contenu TCF (1 centaine par épreuve, 30 numéros par niveau)
-    ├── 00_shared/                   V300-V399   medias (AUDIO/IMAGE) puis passages — AVANT les questions
-    │                                            (audio V300-V309, images V310-V319, passages V320-V329)
+└── 300_tcf/                         V400-V899   contenu TCF (1 centaine par épreuve, 30 numéros par niveau)
     ├── ce_comprehension_ecrite/     V400-V499   a2=V400-V429, b1=V430-V459, b2=V460-V489
     ├── co_comprehension_orale/      V500-V599   a2=V500-V529, b1=V530-V559, b2=V560-V589
     │   └── audio_drafts/            V800-V899   a2=V800-V829, b1=V830-V859, b2=V860-V889 (audio_question_draft)
@@ -59,7 +57,13 @@ db/migration-dev/                    V900+       seeds dev uniquement (comptes s
   base (déterministes, UUID explicites → rejouables à l'identique sur dev **et** recette).
 - L'ordre d'exécution suit le **numéro V**, jamais le dossier. Respecter les plages
   ci-dessus pour conserver schéma → référence → contenu, et l'ordre des FK (ex. `themes`
-  avant `questions`, `medias`/`passages` avant les questions TCF).
+  avant `questions`).
+- **Médias / audio / passages TCF vivent dans le même fichier que les questions qui les
+  référencent** (CO/CE), pas dans un dossier `00_shared` séparé. Convention de bloc : les
+  `INSERT INTO medias` puis `INSERT INTO passages` en **haut** du fichier, l'`INSERT INTO
+  questions` + `choices` **en dessous** (l'ordre intra-fichier satisfait les FK). Chaque
+  média/passage n'est référencé que par un seul fichier de questions, donc aucun partage
+  inter-fichiers à gérer.
 - Garder les fichiers **courts** : plusieurs lots par niveau plutôt qu'un fichier massif.
 
 ## Ajouter une migration

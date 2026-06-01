@@ -5,6 +5,494 @@
 -- Données régénérées depuis l'état final (déterministe, rejouable dev+recette).
 -- ============================================================================
 
+
+-- medias (AUDIO/IMAGE) — référencés par les questions ci-dessous
+INSERT INTO medias
+  (id, type, url, storage_key, original_filename, content_type, size_bytes, duration_sec,
+   alt_text, created_at, transcript, inline_svg)
+VALUES
+  ('0a5b0e82-dac2-46fe-90a8-94d375bade99', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/8f8611ec-529b-4345-adfc-849f1e8cc868.mp3',
+   'audio/8f8611ec-529b-4345-adfc-849f1e8cc868.mp3', NULL, 'audio/mpeg', NULL, '40', NULL, '2026-05-31 16:50:17.333236+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu envisages de quitter ton entreprise pour monter ta propre boîte ?
+[Homme] J''y pense très sérieusement, oui.
+[Femme] Mais qu''est-ce que ça risque de te coûter, concrètement ?
+[Homme] ...
+
+A. La sécurité financière des trois premières années.
+B. À cause d''une opportunité commerciale qui se présente.
+C. Pour devenir enfin maître de mes choix.
+D. Avec le soutien total de ma compagne, heureusement.',
+   NULL),
+
+  ('243166bf-796e-475f-8c2d-1c73fbd80c5b', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/5c5ff9b2-8991-490b-a3a2-6aa913af26e5.mp3',
+   'audio/5c5ff9b2-8991-490b-a3a2-6aa913af26e5.mp3', NULL, 'audio/mpeg', NULL, '39', NULL, '2026-05-31 16:50:12.550208+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Vous avez eu un gros problème de plomberie au bureau, non ?
+[Homme] Oui, une fuite énorme la semaine dernière.
+[Femme] Et par quel moyen avez-vous résolu cela rapidement ?
+[Homme] ...
+
+A. En faisant appel à un plombier d''urgence le soir même.
+B. Dans la salle de réunion du deuxième étage.
+C. À la suite d''une canalisation vraiment vétuste.
+D. Avec des dégâts plutôt limités, finalement.',
+   NULL),
+
+  ('34c0ea66-ad4d-46ba-9495-9d7fab643241', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/159daee6-52a7-43fb-803e-3b9e1901bbaa.mp3',
+   'audio/159daee6-52a7-43fb-803e-3b9e1901bbaa.mp3', NULL, 'audio/mpeg', NULL, '37', NULL, '2026-05-31 16:50:19.830036+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Vous avez bouclé la phase de tests de votre application ?
+[Femme] Oui, tout est validé depuis vendredi.
+[Homme] Quelle est la prochaine étape, du coup ?
+[Femme] ...
+
+A. Le déploiement en production, sans plus attendre.
+B. Grâce à une équipe particulièrement réactive.
+C. Pendant près de six mois de développement.
+D. Avec un budget assez serré, je l''avoue.',
+   NULL),
+
+  ('49ea7e12-1c17-499d-88e1-a2dd90170d45', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/d93e01ce-41b6-489a-9a1b-6537309e3cff.mp3',
+   'audio/d93e01ce-41b6-489a-9a1b-6537309e3cff.mp3', NULL, 'audio/mpeg', NULL, '39', NULL, '2026-05-31 16:49:36.503491+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu as fini par quitter ton ancien poste, finalement ?
+[Homme] Oui, à la rentrée dernière.
+[Femme] Et qu''est-ce que ça a changé concrètement dans ton quotidien ?
+[Homme] ...
+
+A. Un bien meilleur équilibre entre vie pro et vie perso.
+B. Une lassitude profonde envers ma hiérarchie.
+C. Après une longue réflexion en famille, tout de même.
+D. À titre personnel, plus qu''à titre professionnel.',
+   NULL),
+
+  ('4f94edb0-43cf-4965-bdb1-574edab15a44', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/f9b9e308-4965-491c-a80f-b470ca39e6e6.mp3',
+   'audio/f9b9e308-4965-491c-a80f-b470ca39e6e6.mp3', NULL, 'audio/mpeg', NULL, '39', NULL, '2026-05-31 16:50:11.201271+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu reviens tout juste de ta mission humanitaire au Mali ?
+[Homme] Oui, je suis rentré il y a tout juste une semaine.
+[Femme] Quelle a été la principale difficulté sur place ?
+[Homme] ...
+
+A. L''accès à l''eau potable, malgré tous nos efforts.
+B. Pendant près de quatre mois consécutifs.
+C. Avec une équipe internationale très soudée.
+D. À l''invitation d''une ONG locale réputée.',
+   NULL),
+
+  ('55abab96-0a09-4e60-9720-e9777a3d2ddc', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/48617840-2078-45e9-b3f2-2bd5568e6bd1.mp3',
+   'audio/48617840-2078-45e9-b3f2-2bd5568e6bd1.mp3', NULL, 'audio/mpeg', NULL, '46', NULL, '2026-05-31 16:50:10.200209+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu te souviens du recrutement de notre nouveau directeur, l''an dernier ?
+[Homme] Bien sûr, ça avait fait beaucoup parler.
+[Femme] Surtout que la concurrence interne était particulièrement rude.
+[Homme] C''est vrai. Et avec le recul, qu''est-ce qui a justifié ce choix ?
+[Femme] ...
+
+A. Au terme de trois rounds d''entretiens approfondis.
+B. Son expérience internationale, vraiment unique en son genre.
+C. Devant un comité de sélection paritaire.
+D. Pour un démarrage effectif en septembre suivant.',
+   NULL),
+
+  ('669eb6e0-f759-46f3-86fd-8fe0e98c9dd1', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/e201ce02-5675-4991-8785-30ea9b1fb23e.mp3',
+   'audio/e201ce02-5675-4991-8785-30ea9b1fb23e.mp3', NULL, 'audio/mpeg', NULL, '37', NULL, '2026-05-31 16:50:25.725646+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu as décidé d''accepter cette offre de prêt, finalement ?
+[Homme] Pas encore, j''attends de voir.
+[Femme] Tu l''accepterais à quelles conditions, précisément ?
+[Homme] ...
+
+A. Pour financer l''achat de notre future maison.
+B. Si le taux baisse et que les frais sont supprimés.
+C. Auprès de cette banque en ligne assez récente.
+D. Au plus tard à la fin du mois prochain.',
+   NULL),
+
+  ('6903dec0-b7bf-40a0-9c74-8a0d368addea', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/ad7e9fc7-882d-43bc-8666-dcfadea23765.mp3',
+   'audio/ad7e9fc7-882d-43bc-8666-dcfadea23765.mp3', NULL, 'audio/mpeg', NULL, '39', NULL, '2026-05-31 16:50:16.284403+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu enseignes l''histoire dans un lycée parisien, c''est cela ?
+[Homme] Oui, depuis bientôt huit ans déjà.
+[Femme] En quoi ton approche se distingue-t-elle de tes collègues ?
+[Homme] ...
+
+A. Par un usage très régulier d''archives sonores.
+B. Auprès d''élèves majoritairement issus de la banlieue.
+C. Pour environ vingt heures hebdomadaires en classe.
+D. Grâce à un master en didactique de l''histoire.',
+   NULL),
+
+  ('6f6c3f87-9955-4665-8c97-66f8321fef7c', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/bdf45efb-357c-42c1-8f23-8e426c466adf.mp3',
+   'audio/bdf45efb-357c-42c1-8f23-8e426c466adf.mp3', NULL, 'audio/mpeg', NULL, '39', NULL, '2026-05-31 16:50:24.564528+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Vous aviez un fort taux d''absentéisme, m''as-tu dit ?
+[Femme] Oui, c''était devenu très préoccupant chez nous.
+[Homme] Qu''as-tu concrètement mis en place pour y remédier ?
+[Femme] ...
+
+A. À cause d''un management trop pyramidal au départ.
+B. Des entretiens individuels mensuels avec chaque salarié.
+C. Auprès de ma direction, qui a soutenu la démarche.
+D. Pour retrouver une dynamique d''équipe positive.',
+   NULL),
+
+  ('7425d9be-2868-474a-8767-35c64dacab6a', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/b34b92f8-4389-4e43-aabe-5a20c7edccc4.mp3',
+   'audio/b34b92f8-4389-4e43-aabe-5a20c7edccc4.mp3', NULL, 'audio/mpeg', NULL, '37', NULL, '2026-05-31 16:50:08.265125+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu te lèves vraiment à six heures tous les matins pour courir ?
+[Femme] Oui, ça fait deux mois maintenant.
+[Homme] Mais qu''est-ce qui te motive autant à tenir, dans la durée ?
+[Femme] ...
+
+A. Au lever du jour, dans le parc en bas.
+B. La sensation d''énergie qui rythme toute ma journée.
+C. Sur les conseils insistants de ma médecin.
+D. Pendant trois bons quarts d''heure environ.',
+   NULL),
+
+  ('74ed5b10-5b61-415f-9a4f-8d1706876af1', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/5f219caf-07d9-482d-8c4c-1204e3c56b18.mp3',
+   'audio/5f219caf-07d9-482d-8c4c-1204e3c56b18.mp3', NULL, 'audio/mpeg', NULL, '38', NULL, '2026-05-31 16:50:09.247574+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu vas accepter le poste de directeur qu''on te propose ?
+[Homme] Sans doute, mais avec quelques réserves quand même.
+[Femme] Justement, quelles sont tes réserves principales ?
+[Homme] ...
+
+A. Une équipe d''environ vingt personnes à encadrer.
+B. La charge horaire trop importante annoncée.
+C. À partir du début du trimestre prochain.
+D. Pour relever un vrai défi de carrière.',
+   NULL),
+
+  ('77e88c85-8177-4c02-9ed2-623a7850999d', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/c3b0f227-781f-4754-86ad-6f01e926f6e8.mp3',
+   'audio/c3b0f227-781f-4754-86ad-6f01e926f6e8.mp3', NULL, 'audio/mpeg', NULL, '39', NULL, '2026-05-31 16:49:37.402493+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu as postulé chez Renault, finalement ?
+[Homme] Oui, je dois passer les entretiens la semaine prochaine.
+[Femme] Au fait, par quel biais tu as eu vent du poste ?
+[Homme] ...
+
+A. Par l''intermédiaire d''un ancien collègue à moi.
+B. Pour un salaire légèrement plus avantageux.
+C. Au bout de plusieurs mois d''attente, en fait.
+D. Avec un enthousiasme assez modéré, je dois dire.',
+   NULL),
+
+  ('927b83f0-ff99-4cbf-8bd0-ccc238895f4a', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/a3fd687e-b413-4435-a883-6728406a214a.mp3',
+   'audio/a3fd687e-b413-4435-a883-6728406a214a.mp3', NULL, 'audio/mpeg', NULL, '38', NULL, '2026-05-31 16:50:13.768129+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Vous publiez un nouvel ouvrage le mois prochain, c''est cela ?
+[Femme] Oui, sur les enjeux du numérique en santé.
+[Homme] À qui s''adresse-t-il prioritairement, selon vous ?
+[Femme] ...
+
+A. Aux professionnels de la santé en exercice.
+B. Sur la base d''une longue enquête de terrain.
+C. Aux éditions du Seuil, comme toujours.
+D. Pour éclairer un débat encore confus.',
+   NULL),
+
+  ('93dacfc1-6f6d-41b3-99b8-d6aa3af4ac4d', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/b2ca709b-8ed8-4321-8184-60051aa1eb7c.mp3',
+   'audio/b2ca709b-8ed8-4321-8184-60051aa1eb7c.mp3', NULL, 'audio/mpeg', NULL, '39', NULL, '2026-05-31 16:50:11.850512+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu passes ton oral d''agrégation dans deux semaines, c''est ça ?
+[Femme] Oui, ça approche à grands pas.
+[Homme] Comment tu te prépares concrètement à l''exercice ?
+[Femme] ...
+
+A. À cause d''un programme particulièrement dense cette année.
+B. Pour devenir titulaire dans le secondaire enfin.
+C. Au bout de deux ans de préparation très intensive.
+D. En enchaînant des oraux blancs devant un jury simulé.',
+   NULL),
+
+  ('952e418d-65f3-426f-b6be-6a60bc8587f4', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/8faa7b36-77b6-468a-ba02-edbb1b810104.mp3',
+   'audio/8faa7b36-77b6-468a-ba02-edbb1b810104.mp3', NULL, 'audio/mpeg', NULL, '38', NULL, '2026-05-31 16:50:21.834767+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu as déposé ta demande de naturalisation il y a longtemps ?
+[Femme] Oui, ça fait presque un an déjà.
+[Homme] Sous quel délai peux-tu espérer une réponse, normalement ?
+[Femme] ...
+
+A. À la préfecture de Bobigny, en l''occurrence.
+B. Pour pouvoir voter aux prochaines élections.
+C. Entre douze et dix-huit mois, en moyenne.
+D. Avec l''aide d''une avocate spécialisée.',
+   NULL),
+
+  ('95fe6180-0a31-4b0d-af37-3040bbb68ac7', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/fb25c036-40d7-457c-b374-29ce4e6d84c7.mp3',
+   'audio/fb25c036-40d7-457c-b374-29ce4e6d84c7.mp3', NULL, 'audio/mpeg', NULL, '42', NULL, '2026-05-31 16:49:35.347321+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu sais quoi, j''ai été prise dans la formation de Polytechnique !
+[Homme] Félicitations, c''est extraordinaire !
+[Femme] Oui, ils m''ont rappelée hier.
+[Homme] Mais à ton avis, qu''est-ce qui a fait pencher la balance ?
+[Femme] ...
+
+A. Mon parcours associatif, je pense.
+B. Dès la fin de l''été dernier, en réalité.
+C. Devant un jury de cinq personnes.
+D. Plutôt avec une certaine émotion, à vrai dire.',
+   NULL),
+
+  ('97ac26da-8892-451b-a55e-7890e8e34bc5', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/fa066516-9f9c-4ada-9d54-38de8e0c7a25.mp3',
+   'audio/fa066516-9f9c-4ada-9d54-38de8e0c7a25.mp3', NULL, 'audio/mpeg', NULL, '37', NULL, '2026-05-31 16:49:41.250902+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] J''ai vu que tu parles couramment japonais maintenant.
+[Femme] Pas couramment, mais je me débrouille très bien.
+[Homme] Comment tu t''y es prise pour atteindre ce niveau-là ?
+[Femme] ...
+
+A. En combinant cours du soir et applications mobiles.
+B. Au bout de presque cinq années de pratique.
+C. Pour pouvoir travailler à Tokyo un jour.
+D. Avec une professeure particulièrement exigeante.',
+   NULL),
+
+  ('a9ed05b9-11a0-4efe-a4da-68d59f4dffcc', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/16e79c38-0e3b-400f-a5ca-f550701e68c1.mp3',
+   'audio/16e79c38-0e3b-400f-a5ca-f550701e68c1.mp3', NULL, 'audio/mpeg', NULL, '37', NULL, '2026-05-31 16:50:27.036398+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu joues encore tous les dimanches aux échecs avec ton père ?
+[Femme] Oui, c''est devenu un vrai rituel entre nous.
+[Homme] Et ça remonte à quand, cette habitude ?
+[Femme] ...
+
+A. Sur un échiquier en bois qu''il m''avait offert.
+B. Plutôt avec des parties relativement courtes.
+C. À mes premières années de lycée, je dirais.
+D. Pour qu''on reste connectés malgré tout.',
+   NULL),
+
+  ('ab0a7398-fd53-464e-8c62-09aed2101dce', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/4839fd40-f6a8-4a01-9b6e-2861c464740e.mp3',
+   'audio/4839fd40-f6a8-4a01-9b6e-2861c464740e.mp3', NULL, 'audio/mpeg', NULL, '37', NULL, '2026-05-31 16:50:18.651445+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu vis dans ton nouvel appartement depuis combien de temps ?
+[Homme] Trois mois pleins, maintenant.
+[Femme] Et quel en est le principal inconvénient, finalement ?
+[Homme] ...
+
+A. Un bruit constant venant de la rue.
+B. Près du parc de Belleville, au cinquième étage.
+C. Pour un loyer plutôt raisonnable, c''est vrai.
+D. À la suite d''un déménagement franchement éprouvant.',
+   NULL),
+
+  ('c1c7978a-9094-4378-8006-be21af7c95b8', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/18bd1516-5bb5-4604-a003-0395697a96d4.mp3',
+   'audio/18bd1516-5bb5-4604-a003-0395697a96d4.mp3', NULL, 'audio/mpeg', NULL, '39', NULL, '2026-05-31 16:49:44.085855+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu te souviens de cette histoire d''héritage compliqué chez les Dubois ?
+[Femme] Oui, ça s''éternisait depuis des années.
+[Homme] Justement, je me demandais ce qu''il en était advenu, au final ?
+[Femme] ...
+
+A. Un accord à l''amiable, signé l''été dernier.
+B. À cause de différends entre frères et sœurs.
+C. Par l''intermédiaire d''un notaire de Bordeaux.
+D. Avec une amertume durable, paraît-il.',
+   NULL),
+
+  ('c5ad2e89-f455-4011-b197-e0d5301b1c39', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/04cdf315-c604-4e58-93b9-b488b8c951a1.mp3',
+   'audio/04cdf315-c604-4e58-93b9-b488b8c951a1.mp3', NULL, 'audio/mpeg', NULL, '41', NULL, '2026-05-31 16:49:40.368471+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Vous avez réussi à boucler le dossier de subvention pour le projet ?
+[Homme] Oui, on a eu confirmation lundi.
+[Femme] Bravo. Et concrètement, à quoi va servir cet argent en priorité ?
+[Homme] ...
+
+A. À recruter deux profils techniques dès septembre.
+B. Grâce au soutien d''un partenaire allemand.
+C. Sous réserve d''une évaluation à mi-parcours.
+D. Au moment où les recrutements seront finalisés.',
+   NULL),
+
+  ('c6fb3a75-df22-4495-830a-6f427ed58418', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/b63ad4a8-eeef-4ff3-b998-e609630a0f89.mp3',
+   'audio/b63ad4a8-eeef-4ff3-b998-e609630a0f89.mp3', NULL, 'audio/mpeg', NULL, '38', NULL, '2026-05-31 16:50:07.183927+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu m''as dit que tes enfants se disputaient sur les vacances ?
+[Homme] Oui, c''était un vrai casse-tête à la maison.
+[Femme] Vous avez fini par trouver quel compromis, du coup ?
+[Homme] ...
+
+A. À cause de leurs goûts vraiment opposés.
+B. Après plusieurs soirées de discussion animée.
+C. Avec l''aide précieuse de leur grand-mère.
+D. Une semaine à la mer, puis une semaine à la montagne.',
+   NULL),
+
+  ('cc9e2408-e3ef-4ed5-92ee-2aef8abf4853', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/67d8c125-1e9a-440d-8a57-1a8565376d1e.mp3',
+   'audio/67d8c125-1e9a-440d-8a57-1a8565376d1e.mp3', NULL, 'audio/mpeg', NULL, '36', NULL, '2026-05-31 16:49:39.034468+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu as enfin osé demander à Mathieu une augmentation ?
+[Homme] Oui, je lui en ai parlé lundi matin.
+[Femme] Et au juste, comment a-t-il pris la chose ?
+[Homme] ...
+
+A. Avec une étonnante ouverture d''esprit.
+B. Au cours de notre point hebdomadaire.
+C. Parce que mes résultats parlent d''eux-mêmes.
+D. En soulignant fermement les enjeux pour l''équipe.',
+   NULL),
+
+  ('d5c24ac9-757d-4c34-a49d-2ad6429620dd', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/0c7ba4b8-73e1-4d08-9e1c-63c1b53ac4b6.mp3',
+   'audio/0c7ba4b8-73e1-4d08-9e1c-63c1b53ac4b6.mp3', NULL, 'audio/mpeg', NULL, '37', NULL, '2026-05-31 16:50:20.751222+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu m''as dit que ton fils avait beaucoup changé dernièrement.
+[Homme] Oui, on le retrouve presque méconnaissable.
+[Femme] Qu''est-ce qui a évolué chez lui, précisément ?
+[Homme] ...
+
+A. Depuis son entrée en classe de seconde.
+B. Grâce à un professeur particulier remarquable.
+C. Une autonomie nouvelle dans tous ses choix.
+D. Avec parfois encore quelques moments de doute.',
+   NULL),
+
+  ('de816950-8be6-464c-8cd2-3ea5f060b770', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/86c6c837-fdb4-42a9-9b7b-aedb7db22869.mp3',
+   'audio/86c6c837-fdb4-42a9-9b7b-aedb7db22869.mp3', NULL, 'audio/mpeg', NULL, '39', NULL, '2026-05-31 16:50:15.085379+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] J''ai goûté ton nouveau yaourt fermenté, c''est étonnant.
+[Femme] Oui, ça change vraiment des yaourts classiques.
+[Homme] En quoi est-ce différent au goût, exactement ?
+[Femme] ...
+
+A. Une légère acidité, vraiment originale en bouche.
+B. Depuis presque six mois que j''en achète.
+C. Chez un producteur installé près du marché.
+D. Pour environ trois euros le pot, tout de même.',
+   NULL),
+
+  ('dedbdbb8-32ba-4668-9795-cce441bbec56', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/5bbe2198-647b-4918-bb3f-ff0971b4fde0.mp3',
+   'audio/5bbe2198-647b-4918-bb3f-ff0971b4fde0.mp3', NULL, 'audio/mpeg', NULL, '39', NULL, '2026-05-31 16:49:42.616904+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu as l''air vraiment satisfaite de ta dernière exposition.
+[Femme] Oui, c''est sans doute la mieux reçue jusqu''à présent.
+[Homme] À quoi tient ce succès, selon toi ?
+[Femme] ...
+
+A. À la cohérence d''ensemble entre les œuvres présentées.
+B. Tout près du quai Branly, dans le septième arrondissement.
+C. Jusqu''à la toute fin du mois de mars.
+D. À l''occasion d''un long week-end férié, finalement.',
+   NULL),
+
+  ('e21c7faf-ddc2-413d-adc5-1f8162db02f6', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/71609eba-40d8-4c50-b508-670d7671808f.mp3',
+   'audio/71609eba-40d8-4c50-b508-670d7671808f.mp3', NULL, 'audio/mpeg', NULL, '37', NULL, '2026-05-31 16:49:38.050709+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu reviens tout juste de ton entretien à la mairie ?
+[Homme] Oui, je suis sorti il y a une heure environ.
+[Femme] Et dans quel état d''esprit tu en ressors ?
+[Homme] ...
+
+A. Plutôt confiant, je dois bien dire.
+B. Au bout de presque deux heures de discussion.
+C. Face à un panel de trois élus locaux.
+D. Pour un poste de chargé de mission culture.',
+   NULL),
+
+  ('e825b51a-2bb8-4e88-9de2-4f75b5a39de9', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/332244d9-3873-4a24-9813-962c5c51da3b.mp3',
+   'audio/332244d9-3873-4a24-9813-962c5c51da3b.mp3', NULL, 'audio/mpeg', NULL, '39', NULL, '2026-05-31 16:49:43.300273+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Vous avez réussi à organiser ce mariage entièrement vous-mêmes ?
+[Femme] Avec quelques aides, mais oui, en grande partie.
+[Homme] Comment vous vous y êtes pris pour financer une réception pareille ?
+[Femme] ...
+
+A. En économisant patiemment pendant près de trois ans.
+B. Auprès de nos familles les plus proches, surtout.
+C. Plus de cent cinquante invités, je crois.
+D. Dans une jolie bâtisse au bord de la Loire.',
+   NULL),
+
+  ('f5b33619-1ae6-484f-97b8-cfc23cfb2042', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/640707e2-0b40-40fe-ba11-a73c07bee6b2.mp3',
+   'audio/640707e2-0b40-40fe-ba11-a73c07bee6b2.mp3', NULL, 'audio/mpeg', NULL, '39', NULL, '2026-05-31 16:50:05.954615+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu as l''air vraiment convaincu par cette voiture d''occasion.
+[Femme] Oui, elle paraît en parfait état.
+[Homme] Mais qu''est-ce qui te garantit que ce n''est pas une arnaque ?
+[Femme] ...
+
+A. Auprès d''un concessionnaire de la région, je précise.
+B. Un rapport d''expert indépendant, fourni par écrit.
+C. Pour environ dix mille euros, négociation comprise.
+D. À la suite de longues recherches en ligne.',
+   NULL),
+
+  ('faa763d4-2fe6-4813-86ed-5fc5a617fe44', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/eab24584-bd70-4988-a099-5f663895c7d4.mp3',
+   'audio/eab24584-bd70-4988-a099-5f663895c7d4.mp3', NULL, 'audio/mpeg', NULL, '36', NULL, '2026-05-31 16:50:23.402518+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu reviens enfin du festival d''Avignon ?
+[Femme] Oui, dix jours assez intenses.
+[Homme] Qu''est-ce qui t''a le plus marquée, sur place ?
+[Femme] ...
+
+A. Pendant à peu près une dizaine de jours.
+B. Avec une amie costumière de l''Opéra.
+C. Sous une chaleur parfois écrasante en journée.
+D. Une mise en scène d''Hamlet vraiment inoubliable.',
+   NULL);
+
 -- questions
 INSERT INTO questions
   (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation,

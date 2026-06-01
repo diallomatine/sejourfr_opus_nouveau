@@ -5,6 +5,480 @@
 -- Données régénérées depuis l'état final (déterministe, rejouable dev+recette).
 -- ============================================================================
 
+
+-- medias (AUDIO/IMAGE) — référencés par les questions ci-dessous
+INSERT INTO medias
+  (id, type, url, storage_key, original_filename, content_type, size_bytes, duration_sec,
+   alt_text, created_at, transcript, inline_svg)
+VALUES
+  ('0949c588-3e50-47fb-a44b-eea2fa798cc6', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/6419f107-b92a-423d-a863-f9ea2baaba3a.mp3',
+   'audio/6419f107-b92a-423d-a863-f9ea2baaba3a.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:50:32.317249+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu reviens de ton week-end à la campagne ?
+[Femme] Oui, et franchement, je suis sous le charme.
+[Homme] Qu''est-ce qui t''a le plus surprise, là-bas ?
+[Femme] ...
+
+A. Pendant deux nuits seulement.
+B. Avec mon mari et nos enfants.
+C. Le calme absolu de la nuit.
+D. Près de Chartres, en Eure-et-Loir.',
+   NULL),
+
+  ('0ed06acc-8f74-4198-b87a-f2507db73159', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/2529e126-8253-46bc-9ce1-a0767bcf90fc.mp3',
+   'audio/2529e126-8253-46bc-9ce1-a0767bcf90fc.mp3', NULL, 'audio/mpeg', NULL, '33', NULL, '2026-05-31 16:49:29.716179+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Ça y est, ton rendez-vous à la préfecture est confirmé.
+[Homme] Oui. Et c''est pour quand exactement ?
+[Femme] ...
+
+A. Au guichet numéro quatre.
+B. Pour renouveler mon titre de séjour.
+C. Mercredi prochain, à dix heures.
+D. Avec ma sœur qui m''accompagne.',
+   NULL),
+
+  ('341e223d-e390-4cac-b063-33cc7f097130', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/7a28d13d-f084-48bd-b20a-93a734139728.mp3',
+   'audio/7a28d13d-f084-48bd-b20a-93a734139728.mp3', NULL, 'audio/mpeg', NULL, '35', NULL, '2026-05-31 16:50:30.784008+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu as donné ton dîner d''anniversaire hier soir, c''est ça ?
+[Homme] Oui, à la maison.
+[Femme] Vous étiez combien, finalement ?
+[Homme] ...
+
+A. Avec un menu très convivial.
+B. Une douzaine, en comptant les enfants.
+C. Jusqu''à minuit, environ.
+D. Dans le jardin, sous la tonnelle.',
+   NULL),
+
+  ('36ac02fa-0576-4237-8ca7-f641149bdde4', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/b1c8a511-f1e5-42c9-80c2-6fcd985292ad.mp3',
+   'audio/b1c8a511-f1e5-42c9-80c2-6fcd985292ad.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:49:34.402085+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] J''ai vu que tu t''étais inscrite à la piscine.
+[Femme] Oui, depuis le mois dernier. Et toi, tu y vas à quelle fréquence ?
+[Homme] ...
+
+A. Deux fois par semaine, en moyenne.
+B. Pendant une heure à chaque séance.
+C. Tout près de mon travail.
+D. Pour me remettre tranquillement en forme.',
+   NULL),
+
+  ('39a110a2-17db-43f1-aad6-8a278b69768c', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/795d7e15-63c0-40fd-a7db-49e862909f28.mp3',
+   'audio/795d7e15-63c0-40fd-a7db-49e862909f28.mp3', NULL, 'audio/mpeg', NULL, '33', NULL, '2026-05-31 16:49:29.201079+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu as enfin réussi à monter ton étagère toute seule ?
+[Femme] Oui, hier après-midi.
+[Homme] Mais tu as fait comment ?
+[Femme] ...
+
+A. Pendant deux heures environ.
+B. En suivant la notice étape par étape.
+C. Parce que j''en avais vraiment besoin.
+D. Dans le salon, contre le mur.',
+   NULL),
+
+  ('3fb10d17-2d34-40e1-a449-02a775e96cc3', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/099a3851-fad2-42c2-a4de-f0347a875fd0.mp3',
+   'audio/099a3851-fad2-42c2-a4de-f0347a875fd0.mp3', NULL, 'audio/mpeg', NULL, '32', NULL, '2026-05-31 16:50:32.996823+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu peux me passer ça, sur la table de la cuisine ?
+[Homme] Tu parles de quoi, exactement ?
+[Femme] ...
+
+A. Sur la grande table, juste là.
+B. Pour préparer le repas de ce soir.
+C. Le grand bol bleu, à droite.
+D. Avec le couvercle en verre.',
+   NULL),
+
+  ('3fec2966-96d3-435b-bb31-5e3addf91138', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/8489f1d7-73e3-4ae1-a5c0-15549487f11d.mp3',
+   'audio/8489f1d7-73e3-4ae1-a5c0-15549487f11d.mp3', NULL, 'audio/mpeg', NULL, '33', NULL, '2026-05-31 16:49:30.65061+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu reviens tout juste d''Italie, c''est ça ?
+[Femme] Oui ! Et toi, tu y étais resté combien de temps déjà ?
+[Homme] ...
+
+A. Trois semaines, l''été dernier.
+B. À Rome surtout, puis à Florence.
+C. Avec deux amis de la fac.
+D. Pour voir tous les musées possibles.',
+   NULL),
+
+  ('4071f7a9-34a3-4745-94bc-1d1185545893', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/225d77e4-c260-4469-bf5b-63a128d38aa4.mp3',
+   'audio/225d77e4-c260-4469-bf5b-63a128d38aa4.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:50:52.836489+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu vas souvent voir ta famille en province ?
+[Femme] Plusieurs fois par an, oui.
+[Homme] C''est à quelle distance, déjà ?
+[Femme] ...
+
+A. À environ trois cent cinquante kilomètres.
+B. Toutes les six semaines à peu près.
+C. En train direct, sans correspondance.
+D. Pour passer toutes les fêtes ensemble.',
+   NULL),
+
+  ('42fba0eb-2b3c-48d7-83ce-dc8be8eb086e', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/d5aedab7-2d21-439b-b919-dfc9900d6989.mp3',
+   'audio/d5aedab7-2d21-439b-b919-dfc9900d6989.mp3', NULL, 'audio/mpeg', NULL, '33', NULL, '2026-05-31 16:49:33.208764+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] J''étais à un concert génial hier soir.
+[Femme] Ah, super ! Tu y étais avec qui ?
+[Homme] ...
+
+A. À la salle Pleyel, à Paris.
+B. Avec ma sœur et son copain.
+C. Jusqu''à minuit, environ.
+D. Parce que j''adore ce groupe depuis longtemps.',
+   NULL),
+
+  ('44c895f2-40e6-4dee-9c8f-e443517e8d3e', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/0f231a62-f02e-42bb-b8ed-6847e07969b7.mp3',
+   'audio/0f231a62-f02e-42bb-b8ed-6847e07969b7.mp3', NULL, 'audio/mpeg', NULL, '36', NULL, '2026-05-31 16:50:47.117795+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu as bien aimé le repas chez les Dupont, hier ?
+[Homme] C''était excellent, vraiment.
+[Femme] Tu as préféré quoi, dans tout ce qu''elle a servi ?
+[Homme] ...
+
+A. Pour environ une dizaine d''invités.
+B. Jusqu''à très tard dans la nuit.
+C. Avec les voisins du dessus, aussi.
+D. Le tiramisu fait maison, sans hésiter.',
+   NULL),
+
+  ('4b62d51d-ddaf-4899-a7b8-895342ee640e', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/d939ce2e-f757-4124-9f29-f7eb45dc18f2.mp3',
+   'audio/d939ce2e-f757-4124-9f29-f7eb45dc18f2.mp3', NULL, 'audio/mpeg', NULL, '36', NULL, '2026-05-31 16:50:29.168587+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu m''avais dit que tu cuisinais tout le repas toi-même.
+[Femme] Oui, j''ai passé l''après-midi en cuisine.
+[Homme] Et tu as préparé quoi, alors ?
+[Femme] ...
+
+A. Pendant presque quatre bonnes heures.
+B. Pour une douzaine d''invités, je l''ai dit.
+C. Un tajine d''agneau aux pruneaux.
+D. Avec ma mère qui m''a aidée pour le dessert.',
+   NULL),
+
+  ('4e593d6a-88ac-40f2-8045-9539bd9cdc3c', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/7da0d4e5-6acf-4a44-b0fe-ffc8bcb4b000.mp3',
+   'audio/7da0d4e5-6acf-4a44-b0fe-ffc8bcb4b000.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:50:51.484425+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu m''as parlé d''un rendez-vous important à venir.
+[Femme] Oui, un entretien d''embauche très attendu.
+[Homme] C''est prévu pour quelle date ?
+[Femme] ...
+
+A. Pour un poste de chef de projet.
+B. Au siège de l''entreprise à La Défense.
+C. Le quinze du mois prochain.
+D. Avec deux responsables des ressources humaines.',
+   NULL),
+
+  ('4eae4795-2772-4830-b958-07348ca9a151', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/8761af5e-c37b-49d1-8de4-86db6deef71d.mp3',
+   'audio/8761af5e-c37b-49d1-8de4-86db6deef71d.mp3', NULL, 'audio/mpeg', NULL, '35', NULL, '2026-05-31 16:50:42.201822+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu connais bien le quartier, tu m''as dit.
+[Homme] J''y vis depuis dix ans, oui.
+[Femme] Tu me recommanderais quel restaurant pour ce soir ?
+[Homme] ...
+
+A. Pour environ trente euros la personne.
+B. Le petit italien au coin de la rue.
+C. À deux pas de la station de métro.
+D. Plutôt vers vingt heures, pour bien dîner.',
+   NULL),
+
+  ('5d0b528c-9282-4639-8e14-8c3d7ab7cbf1', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/71413ccc-e8fa-4f89-a680-6e1dea3a25d5.mp3',
+   'audio/71413ccc-e8fa-4f89-a680-6e1dea3a25d5.mp3', NULL, 'audio/mpeg', NULL, '36', NULL, '2026-05-31 16:49:33.753597+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] J''hésite entre les deux paires de chaussures pour le mariage.
+[Homme] Montre-moi, voir.
+[Femme] Alors, tu préfères laquelle ?
+[Homme] ...
+
+A. La noire, sans hésiter, elle est plus chic.
+B. Chez un cordonnier près du métro.
+C. Environ soixante euros la paire.
+D. Plutôt pour aller travailler, en fait.',
+   NULL),
+
+  ('61484468-fabf-4458-82a0-f7b0d84fac6c', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/23cdb629-9edc-46b3-9940-858e06b0a267.mp3',
+   'audio/23cdb629-9edc-46b3-9940-858e06b0a267.mp3', NULL, 'audio/mpeg', NULL, '33', NULL, '2026-05-31 16:50:48.150939+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] J''ai croisé ton nouveau voisin hier matin. Il a l''air sympa. Il fait quoi dans la vie ?
+[Homme] ...
+
+A. Depuis quelques mois seulement chez nous.
+B. Architecte dans une petite agence parisienne.
+C. Au troisième étage, juste au-dessus.
+D. Avec sa famille au grand complet.',
+   NULL),
+
+  ('6d4e80c5-1ac8-4c93-9554-4d2993095d7a', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/25fdfe4a-1e33-4384-88ac-b2082aa6ce99.mp3',
+   'audio/25fdfe4a-1e33-4384-88ac-b2082aa6ce99.mp3', NULL, 'audio/mpeg', NULL, '36', NULL, '2026-05-31 16:50:31.250376+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu écoutes de la musique au travail ?
+[Homme] Tout le temps, ça m''aide à me concentrer.
+[Femme] Et quel style, plutôt ?
+[Homme] ...
+
+A. Avec un casque sans fil très pratique.
+B. Pendant toute la journée, sans discontinuer.
+C. Pour rester bien concentré, justement.
+D. Du jazz instrumental, surtout.',
+   NULL),
+
+  ('70fc56b1-4569-4b04-b834-49540d8437db', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/1729bff6-fc12-4c46-817b-25727dff1c8f.mp3',
+   'audio/1729bff6-fc12-4c46-817b-25727dff1c8f.mp3', NULL, 'audio/mpeg', NULL, '30', NULL, '2026-05-31 16:50:33.585264+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] J''ai vu sur ta photo ton nouveau vélo. Il est de quelle couleur en vrai ?
+[Homme] ...
+
+A. Un vélo électrique tout neuf.
+B. Bleu foncé avec des liserés blancs.
+C. Pour mes trajets au travail.
+D. Chez un magasin de la Bastille.',
+   NULL),
+
+  ('71d9023c-1673-4c7f-80b7-a7a633f23d81', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/3fecf5c6-36f1-40fe-a6aa-b435cce02e89.mp3',
+   'audio/3fecf5c6-36f1-40fe-a6aa-b435cce02e89.mp3', NULL, 'audio/mpeg', NULL, '36', NULL, '2026-05-31 16:50:31.70034+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu as fini par trouver un cadeau d''anniversaire pour ta nièce ?
+[Homme] Oui, j''ai eu de la chance.
+[Femme] Tu lui as offert quoi, finalement ?
+[Homme] ...
+
+A. Pour ses huit ans, comme prévu.
+B. Une jolie raquette de tennis.
+C. Dans un magasin de sport de la galerie.
+D. Avec ma femme, samedi après-midi.',
+   NULL),
+
+  ('8b41ec26-fc24-4fd2-abbb-f142ae82dbdd', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/f8fe2a5f-f134-4585-b576-637a6c3639ca.mp3',
+   'audio/f8fe2a5f-f134-4585-b576-637a6c3639ca.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:49:32.037043+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] J''ai enfin trouvé une superbe robe pour le mariage de ma cousine !
+[Femme] Ah, génial. Tu l''as dénichée où ?
+[Homme] ...
+
+A. Avec ma mère, samedi dernier.
+B. Plutôt longue, avec des manches.
+C. Pour environ quatre-vingts euros.
+D. Dans une petite boutique du centre-ville.',
+   NULL),
+
+  ('8baec140-a67d-4ac7-9213-d3a66ccc17d3', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/2a48d52e-80fd-4294-a2d3-ed62b0518c9c.mp3',
+   'audio/2a48d52e-80fd-4294-a2d3-ed62b0518c9c.mp3', NULL, 'audio/mpeg', NULL, '35', NULL, '2026-05-31 16:49:32.565867+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu as fini de lire le roman que je t''avais prêté ?
+[Femme] Oui, hier soir.
+[Homme] Et alors, tu en as pensé quoi ?
+[Femme] ...
+
+A. Sur ma table de chevet, tranquillement.
+B. En deux semaines, à peu près.
+C. À ma grande surprise, beaucoup de bien.
+D. Surtout dans le métro, le matin.',
+   NULL),
+
+  ('8c18e1d7-bf1b-46e2-ac14-0ad24dce220b', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/44ef364b-3750-4f26-b0b8-c0389a2b78f2.mp3',
+   'audio/44ef364b-3750-4f26-b0b8-c0389a2b78f2.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:50:49.668762+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] On se voit cette semaine pour le café qu''on s''était promis ?
+[Femme] Oui, avec plaisir ! Tu es libre quand ?
+[Homme] ...
+
+A. Pour rattraper le temps perdu, vraiment.
+B. Avec ma collègue Catherine, aussi.
+C. Mercredi après-midi, sans souci.
+D. Dans un café près de Bastille.',
+   NULL),
+
+  ('a217288b-2738-4ba8-bc3c-9cfd49fd9223', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/240ca5b7-3ee7-4e57-9489-4fb84679220e.mp3',
+   'audio/240ca5b7-3ee7-4e57-9489-4fb84679220e.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:50:41.669589+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu reviens du garage avec ta voiture ?
+[Femme] Oui, ils m''ont fait toute la révision.
+[Homme] Et ça t''a coûté combien en tout ?
+[Femme] ...
+
+A. Près de quatre cents euros, finalement.
+B. Pendant presque deux heures de travail.
+C. Avec le changement des freins inclus.
+D. Chez un garagiste vraiment de confiance.',
+   NULL),
+
+  ('a4bb4653-eea7-43bd-9389-e1f7bd0c2eba', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/122d23d0-0297-42e9-9e68-4536a34bca68.mp3',
+   'audio/122d23d0-0297-42e9-9e68-4536a34bca68.mp3', NULL, 'audio/mpeg', NULL, '32', NULL, '2026-05-31 16:50:28.350964+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu pars chez le médecin tout à l''heure ?
+[Femme] Oui, c''est confirmé.
+[Homme] Et à quelle heure exactement ?
+[Femme] ...
+
+A. À seize heures trente, normalement.
+B. Pour un simple contrôle annuel.
+C. Près de la place du marché.
+D. Avec mon nouveau généraliste.',
+   NULL),
+
+  ('bf27b420-860c-4bd7-9cf3-4e5782c92e8f', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/edc163b6-628d-4561-9ef1-cabff2bbbb39.mp3',
+   'audio/edc163b6-628d-4561-9ef1-cabff2bbbb39.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:49:30.132677+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu as fait toutes les courses pour la fête de ce soir ?
+[Homme] Oui, je rentre tout juste du supermarché.
+[Femme] Et tu as pris combien de bouteilles de vin ?
+[Homme] ...
+
+A. Du rouge et un peu de blanc.
+B. Six, comme on s''était dit.
+C. Pour à peu près trente euros.
+D. Chez le caviste de la place.',
+   NULL),
+
+  ('ca839640-2c55-433f-8cdf-efd52a7c559e', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/3ba23b74-0333-4059-9443-c5158dfe3c6e.mp3',
+   'audio/3ba23b74-0333-4059-9443-c5158dfe3c6e.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:50:50.267427+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Alors, tes plans pour le week-end qui arrive ?
+[Femme] Rien d''extraordinaire, tu sais. Et toi, tu fais quoi ?
+[Homme] ...
+
+A. À cause du beau temps annoncé.
+B. Avec ma cousine en visite à Paris.
+C. Pour me reposer un peu, surtout.
+D. Du rangement et un peu de lecture.',
+   NULL),
+
+  ('db38be0d-cb81-40a8-876d-d55acbf69438', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/58065788-11e9-4d9d-9d06-b7cbb8846bc0.mp3',
+   'audio/58065788-11e9-4d9d-9d06-b7cbb8846bc0.mp3', NULL, 'audio/mpeg', NULL, '35', NULL, '2026-05-31 16:49:31.417697+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Léa a pleuré toute la soirée hier.
+[Homme] Vraiment ? Elle qui est si calme d''habitude.
+[Femme] Tu sais pourquoi ?
+[Homme] ...
+
+A. Pendant plus d''une heure, je crois.
+B. À cause d''une dispute avec sa sœur.
+C. Pour qu''on lui prête un peu d''attention.
+D. Dans sa chambre, toute seule.',
+   NULL),
+
+  ('dd02714e-f01c-4d47-b9df-843503246dc1', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/fdf85567-de6d-4f06-99c1-bd9ea63c442c.mp3',
+   'audio/fdf85567-de6d-4f06-99c1-bd9ea63c442c.mp3', NULL, 'audio/mpeg', NULL, '35', NULL, '2026-05-31 16:50:29.717778+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu as appris la nouvelle pour la promotion de ton frère ?
+[Femme] Oui, il m''a appelée hier.
+[Homme] Tu as ressenti quoi, en l''apprenant ?
+[Femme] ...
+
+A. Une vraie fierté pour lui, à vrai dire.
+B. À cause de tous ses efforts, je crois.
+C. Pendant un long appel téléphonique.
+D. Avec ma sœur qui était présente.',
+   NULL),
+
+  ('ecf25678-09dd-40e2-9ee1-20ad8b3f623a', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/297b9903-e141-420d-a450-e3e4b90ae6cb.mp3',
+   'audio/297b9903-e141-420d-a450-e3e4b90ae6cb.mp3', NULL, 'audio/mpeg', NULL, '35', NULL, '2026-05-31 16:50:50.901142+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Homme] Tu as l''air de bien connaître les habitants de cet immeuble.
+[Femme] Oui, j''y vis depuis longtemps.
+[Homme] Et qui habite juste en face de toi ?
+[Femme] ...
+
+A. Une famille avec deux jeunes enfants.
+B. Au troisième étage gauche, comme moi.
+C. Depuis bientôt cinq ans, je crois.
+D. Pour un loyer relativement modéré.',
+   NULL),
+
+  ('f3c50fc2-2bb1-4e90-9f91-d090f2419ac4', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/2f9869ae-a89d-4d03-ba1b-bb80ce0ba0d6.mp3',
+   'audio/2f9869ae-a89d-4d03-ba1b-bb80ce0ba0d6.mp3', NULL, 'audio/mpeg', NULL, '35', NULL, '2026-05-31 16:50:49.100879+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu reviens tout juste de Normandie, je crois ?
+[Homme] Oui, trois jours formidables.
+[Femme] Vous avez eu quel temps, là-bas ?
+[Homme] ...
+
+A. Avec une amie d''enfance et son fils.
+B. Pendant le week-end de Pâques exactement.
+C. À côté de Deauville, sur la côte.
+D. Du soleil presque tout le séjour.',
+   NULL),
+
+  ('fc71a32c-394f-44d2-82c6-a986cf56068b', 'AUDIO',
+   'https://pub-a92171f43ec34a52807a396f17f58ba9.r2.dev/audio/d7b14534-1944-41d6-820c-ad002a5d3e86.mp3',
+   'audio/d7b14534-1944-41d6-820c-ad002a5d3e86.mp3', NULL, 'audio/mpeg', NULL, '34', NULL, '2026-05-31 16:50:30.251182+02',
+   'Écoutez l''extrait sonore et les quatre propositions. Choisissez la bonne réponse.
+
+[Femme] Tu pars travailler tôt, dis-moi.
+[Homme] Oui, j''ai presque une heure de trajet.
+[Femme] Tu y vas comment, en général ?
+[Homme] ...
+
+A. À six heures et quart précises.
+B. Pour une bonne heure environ.
+C. À cause des bouchons constants en voiture.
+D. En train, puis à pied jusqu''au bureau.',
+   NULL);
+
 -- questions
 INSERT INTO questions
   (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation,
