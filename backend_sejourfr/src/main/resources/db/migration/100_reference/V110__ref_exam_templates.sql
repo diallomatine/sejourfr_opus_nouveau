@@ -6,122 +6,355 @@
 -- ============================================================================
 
 -- exam_templates
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('44444444-0000-0000-0000-000000000001','CIVIQUE',NULL,'Examen civique - 40 questions','2700','40','32','officiel-civique-40q',NULL,NULL,NULL,'false','false','0','2026-05-27 17:09:15.999159+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000001','CIVIQUE',NULL,'Examen civique — Découverte','2700','40','32','civique-decouverte','40 questions · 45 min · Tous parcours · Gratuit','Premier examen blanc 100 % gratuit pour découvrir le format de l''épreuve civique sur les 5 thématiques officielles, tous parcours confondus.',NULL,'true','true','1','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000002','CIVIQUE',NULL,'Examen civique CSP — Mix complet n°1','2700','40','32','civique-csp-mix-01','40 questions · 45 min · CSP','Examen blanc complet ciblé CSP : 8 questions par thématique officielle, sélectionnées dans le niveau attendu pour un titre de séjour.','CSP','false','true','2','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000003','CIVIQUE',NULL,'Examen civique CSP — Focus Institutions','2700','40','32','civique-csp-institutions','40 questions · 45 min · CSP','Plongée intensive sur le système institutionnel et politique français au niveau CSP.','CSP','false','true','3','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000004','CIVIQUE',NULL,'Examen civique CSP — Focus Histoire & Géographie','2700','40','32','civique-csp-histoire','40 questions · 45 min · CSP','Repères historiques, géographiques et culturels essentiels pour le titre de séjour.','CSP','false','true','4','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000005','CIVIQUE',NULL,'Examen civique CSP — Focus Vivre en société','2700','40','32','civique-csp-societe','40 questions · 45 min · CSP','Vie quotidienne, services publics et vivre-ensemble au niveau CSP.','CSP','false','true','5','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000006','CIVIQUE',NULL,'Examen civique CR — Mix complet n°1','2700','40','32','civique-cr-mix-01','40 questions · 45 min · CR','Examen blanc complet ciblé CR (carte de résident) sur les 5 thématiques officielles.','CR','false','true','6','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000007','CIVIQUE',NULL,'Examen civique CR — Mix complet n°2','2700','40','32','civique-cr-mix-02','40 questions · 45 min · CR','Variante du mix CR pour renforcer la révision : nouvelles questions tirées à chaque tentative.','CR','false','true','7','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000008','CIVIQUE',NULL,'Examen civique CR — Focus Institutions','2700','40','32','civique-cr-institutions','40 questions · 45 min · CR','Approfondissement du système institutionnel français pour la carte de résident.','CR','false','true','8','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000009','CIVIQUE',NULL,'Examen civique CR — Focus Droits et devoirs','2700','40','32','civique-cr-droits','40 questions · 45 min · CR','Charte des droits et devoirs du citoyen français, au niveau attendu pour la CR.','CR','false','true','9','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000010','CIVIQUE',NULL,'Examen civique CR — Focus Histoire & Géographie','2700','40','32','civique-cr-histoire','40 questions · 45 min · CR','Histoire, géographie et patrimoine culturel français pour la carte de résident.','CR','false','true','10','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000011','CIVIQUE',NULL,'Examen civique CR — Focus Vivre en société','2700','40','32','civique-cr-societe','40 questions · 45 min · CR','Vie quotidienne et services publics au niveau CR.','CR','false','true','11','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000012','CIVIQUE',NULL,'Examen civique NAT — Mix complet n°1','2700','40','32','civique-nat-mix-01','40 questions · 45 min · Naturalisation','Examen blanc complet niveau naturalisation, le plus exigeant des trois parcours civiques.','NAT','false','true','12','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000013','CIVIQUE',NULL,'Examen civique NAT — Mix complet n°2','2700','40','32','civique-nat-mix-02','40 questions · 45 min · Naturalisation','Variante du mix naturalisation pour préparer l''entretien d''assimilation.','NAT','false','true','13','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000014','CIVIQUE',NULL,'Examen civique NAT — Focus Institutions','2700','40','32','civique-nat-institutions','40 questions · 45 min · Naturalisation','Maîtrise du système institutionnel attendue pour devenir Français.','NAT','false','true','14','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000015','CIVIQUE',NULL,'Examen civique NAT — Focus Droits et devoirs','2700','40','32','civique-nat-droits','40 questions · 45 min · Naturalisation','Droits et devoirs du citoyen, exigés pour la naturalisation.','NAT','false','true','15','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000016','CIVIQUE',NULL,'Examen civique NAT — Focus Histoire & Géographie','2700','40','32','civique-nat-histoire','40 questions · 45 min · Naturalisation','Histoire et géographie de France au niveau naturalisation.','NAT','false','true','16','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000017','CIVIQUE',NULL,'Examen civique tous parcours — Mix n°1','2700','40','32','civique-tous-mix-01','40 questions · 45 min · Tous parcours','Pour les indécis ou pour s''entraîner large : un mix sur les 3 parcours.',NULL,'false','true','17','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000018','CIVIQUE',NULL,'Examen civique tous parcours — Mix n°2','2700','40','32','civique-tous-mix-02','40 questions · 45 min · Tous parcours','Deuxième mix multi-parcours pour varier les sessions de révision.',NULL,'false','true','18','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000019','CIVIQUE',NULL,'Examen civique — Focus Principes et valeurs','2700','40','32','civique-principes','40 questions · 45 min · Tous parcours','Liberté, égalité, fraternité, laïcité : les principes fondateurs de la République.',NULL,'false','true','19','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-cccc-0000-0000-000000000020','CIVIQUE',NULL,'Examen civique — Marathon Institutions + Histoire','2700','40','32','civique-marathon','40 questions · 45 min · Tous parcours','Combo des deux thématiques structurantes : système politique et repères historiques.',NULL,'false','true','20','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('44444444-0000-0000-0000-000000000002','TCF','A2','TCF blanc - A2','1800','30','18','officiel-tcf-a2-30q',NULL,NULL,NULL,'false','false','0','2026-05-27 17:09:15.999159+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('44444444-0000-0000-0000-000000000003','TCF','B1','TCF blanc - B1','1800','30','21','officiel-tcf-b1-30q',NULL,NULL,NULL,'false','false','0','2026-05-27 17:09:15.999159+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('44444444-0000-0000-0000-000000000004','TCF','B2','TCF blanc - B2','1800','30','24','officiel-tcf-b2-30q',NULL,NULL,NULL,'false','false','0','2026-05-27 17:09:15.999159+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000001','TCF',NULL,'TCF IRN — Diagnostic gratuit','5400','60','0','tcf-diagnostic','60 questions · 90 min · Gratuit','Découvrez le format du TCF IRN en conditions réelles : 60 questions tirées sur les niveaux A2, B1 et B2. Votre score détermine votre niveau CECRL estimé.',NULL,'true','true','1','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000002','TCF',NULL,'TCF IRN — Diagnostic complet n°1','5400','60','0','tcf-mix-01','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','2','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000003','TCF',NULL,'TCF IRN — Diagnostic complet n°2','5400','60','0','tcf-mix-02','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','3','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000004','TCF',NULL,'TCF IRN — Diagnostic complet n°3','5400','60','0','tcf-mix-03','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','4','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000005','TCF',NULL,'TCF IRN — Diagnostic complet n°4','5400','60','0','tcf-mix-04','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','5','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000006','TCF',NULL,'TCF IRN — Diagnostic complet n°5','5400','60','0','tcf-mix-05','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','6','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000007','TCF',NULL,'TCF IRN — Diagnostic complet n°6','5400','60','0','tcf-mix-06','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','7','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000008','TCF',NULL,'TCF IRN — Diagnostic complet n°7','5400','60','0','tcf-mix-07','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','8','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000009','TCF',NULL,'TCF IRN — Diagnostic complet n°8','5400','60','0','tcf-mix-08','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','9','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000010','TCF',NULL,'TCF IRN — Diagnostic complet n°9','5400','60','0','tcf-mix-09','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','10','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000011','TCF',NULL,'TCF IRN — Diagnostic complet n°10','5400','60','0','tcf-mix-10','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','11','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000012','TCF',NULL,'TCF IRN — Diagnostic complet n°11','5400','60','0','tcf-mix-11','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','12','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000013','TCF',NULL,'TCF IRN — Diagnostic complet n°12','5400','60','0','tcf-mix-12','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','13','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000014','TCF',NULL,'TCF IRN — Diagnostic complet n°13','5400','60','0','tcf-mix-13','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','14','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000015','TCF',NULL,'TCF IRN — Diagnostic complet n°14','5400','60','0','tcf-mix-14','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','15','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000016','TCF',NULL,'TCF IRN — Diagnostic complet n°15','5400','60','0','tcf-mix-15','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','16','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000017','TCF',NULL,'TCF IRN — Diagnostic complet n°16','5400','60','0','tcf-mix-16','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','17','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000018','TCF',NULL,'TCF IRN — Diagnostic complet n°17','5400','60','0','tcf-mix-17','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','18','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000019','TCF',NULL,'TCF IRN — Diagnostic complet n°18','5400','60','0','tcf-mix-18','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','19','2026-05-27 17:09:16.042197+02',NULL);
-INSERT INTO exam_templates (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug, subtitle, description, target_procedure, is_free, is_published, "position", created_at, updated_at) VALUES ('50000000-aaaa-0000-0000-000000000020','TCF',NULL,'TCF IRN — Diagnostic complet n°19','5400','60','0','tcf-mix-19','60 questions · 90 min · Diagnostic CECRL','Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',NULL,'false','true','20','2026-05-27 17:09:16.042197+02',NULL);
+INSERT INTO exam_templates
+  (id, module, target_level, name, duration_seconds, total_questions, passing_score, slug,
+   subtitle, description, target_procedure, is_free, is_published, "position", created_at,
+   updated_at)
+VALUES
+  ('44444444-0000-0000-0000-000000000001', 'CIVIQUE', NULL, 'Examen civique - 40 questions', '2700', '40', '32',
+   'officiel-civique-40q', NULL,
+   NULL,
+   NULL, 'false', 'false', '0', '2026-05-27 17:09:15.999159+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000001', 'CIVIQUE', NULL, 'Examen civique — Découverte', '2700', '40', '32', 'civique-decouverte',
+   '40 questions · 45 min · Tous parcours · Gratuit',
+   'Premier examen blanc 100 % gratuit pour découvrir le format de l''épreuve civique sur les 5 thématiques officielles, tous parcours confondus.',
+   NULL, 'true', 'true', '1', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000002', 'CIVIQUE', NULL, 'Examen civique CSP — Mix complet n°1', '2700', '40', '32',
+   'civique-csp-mix-01', '40 questions · 45 min · CSP',
+   'Examen blanc complet ciblé CSP : 8 questions par thématique officielle, sélectionnées dans le niveau attendu pour un titre de séjour.',
+   'CSP', 'false', 'true', '2', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000003', 'CIVIQUE', NULL, 'Examen civique CSP — Focus Institutions', '2700', '40', '32',
+   'civique-csp-institutions', '40 questions · 45 min · CSP',
+   'Plongée intensive sur le système institutionnel et politique français au niveau CSP.',
+   'CSP', 'false', 'true', '3', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000004', 'CIVIQUE', NULL, 'Examen civique CSP — Focus Histoire & Géographie', '2700', '40', '32',
+   'civique-csp-histoire', '40 questions · 45 min · CSP',
+   'Repères historiques, géographiques et culturels essentiels pour le titre de séjour.',
+   'CSP', 'false', 'true', '4', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000005', 'CIVIQUE', NULL, 'Examen civique CSP — Focus Vivre en société', '2700', '40', '32',
+   'civique-csp-societe', '40 questions · 45 min · CSP',
+   'Vie quotidienne, services publics et vivre-ensemble au niveau CSP.',
+   'CSP', 'false', 'true', '5', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000006', 'CIVIQUE', NULL, 'Examen civique CR — Mix complet n°1', '2700', '40', '32',
+   'civique-cr-mix-01', '40 questions · 45 min · CR',
+   'Examen blanc complet ciblé CR (carte de résident) sur les 5 thématiques officielles.',
+   'CR', 'false', 'true', '6', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000007', 'CIVIQUE', NULL, 'Examen civique CR — Mix complet n°2', '2700', '40', '32',
+   'civique-cr-mix-02', '40 questions · 45 min · CR',
+   'Variante du mix CR pour renforcer la révision : nouvelles questions tirées à chaque tentative.',
+   'CR', 'false', 'true', '7', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000008', 'CIVIQUE', NULL, 'Examen civique CR — Focus Institutions', '2700', '40', '32',
+   'civique-cr-institutions', '40 questions · 45 min · CR',
+   'Approfondissement du système institutionnel français pour la carte de résident.',
+   'CR', 'false', 'true', '8', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000009', 'CIVIQUE', NULL, 'Examen civique CR — Focus Droits et devoirs', '2700', '40', '32',
+   'civique-cr-droits', '40 questions · 45 min · CR',
+   'Charte des droits et devoirs du citoyen français, au niveau attendu pour la CR.',
+   'CR', 'false', 'true', '9', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000010', 'CIVIQUE', NULL, 'Examen civique CR — Focus Histoire & Géographie', '2700', '40', '32',
+   'civique-cr-histoire', '40 questions · 45 min · CR',
+   'Histoire, géographie et patrimoine culturel français pour la carte de résident.',
+   'CR', 'false', 'true', '10', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000011', 'CIVIQUE', NULL, 'Examen civique CR — Focus Vivre en société', '2700', '40', '32',
+   'civique-cr-societe', '40 questions · 45 min · CR',
+   'Vie quotidienne et services publics au niveau CR.',
+   'CR', 'false', 'true', '11', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000012', 'CIVIQUE', NULL, 'Examen civique NAT — Mix complet n°1', '2700', '40', '32',
+   'civique-nat-mix-01', '40 questions · 45 min · Naturalisation',
+   'Examen blanc complet niveau naturalisation, le plus exigeant des trois parcours civiques.',
+   'NAT', 'false', 'true', '12', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000013', 'CIVIQUE', NULL, 'Examen civique NAT — Mix complet n°2', '2700', '40', '32',
+   'civique-nat-mix-02', '40 questions · 45 min · Naturalisation',
+   'Variante du mix naturalisation pour préparer l''entretien d''assimilation.',
+   'NAT', 'false', 'true', '13', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000014', 'CIVIQUE', NULL, 'Examen civique NAT — Focus Institutions', '2700', '40', '32',
+   'civique-nat-institutions', '40 questions · 45 min · Naturalisation',
+   'Maîtrise du système institutionnel attendue pour devenir Français.',
+   'NAT', 'false', 'true', '14', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000015', 'CIVIQUE', NULL, 'Examen civique NAT — Focus Droits et devoirs', '2700', '40', '32',
+   'civique-nat-droits', '40 questions · 45 min · Naturalisation',
+   'Droits et devoirs du citoyen, exigés pour la naturalisation.',
+   'NAT', 'false', 'true', '15', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000016', 'CIVIQUE', NULL, 'Examen civique NAT — Focus Histoire & Géographie', '2700', '40', '32',
+   'civique-nat-histoire', '40 questions · 45 min · Naturalisation',
+   'Histoire et géographie de France au niveau naturalisation.',
+   'NAT', 'false', 'true', '16', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000017', 'CIVIQUE', NULL, 'Examen civique tous parcours — Mix n°1', '2700', '40', '32',
+   'civique-tous-mix-01', '40 questions · 45 min · Tous parcours',
+   'Pour les indécis ou pour s''entraîner large : un mix sur les 3 parcours.',
+   NULL, 'false', 'true', '17', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000018', 'CIVIQUE', NULL, 'Examen civique tous parcours — Mix n°2', '2700', '40', '32',
+   'civique-tous-mix-02', '40 questions · 45 min · Tous parcours',
+   'Deuxième mix multi-parcours pour varier les sessions de révision.',
+   NULL, 'false', 'true', '18', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000019', 'CIVIQUE', NULL, 'Examen civique — Focus Principes et valeurs', '2700', '40', '32',
+   'civique-principes', '40 questions · 45 min · Tous parcours',
+   'Liberté, égalité, fraternité, laïcité : les principes fondateurs de la République.',
+   NULL, 'false', 'true', '19', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-cccc-0000-0000-000000000020', 'CIVIQUE', NULL, 'Examen civique — Marathon Institutions + Histoire', '2700', '40', '32',
+   'civique-marathon', '40 questions · 45 min · Tous parcours',
+   'Combo des deux thématiques structurantes : système politique et repères historiques.',
+   NULL, 'false', 'true', '20', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('44444444-0000-0000-0000-000000000002', 'TCF', 'A2', 'TCF blanc - A2', '1800', '30', '18', 'officiel-tcf-a2-30q', NULL,
+   NULL,
+   NULL, 'false', 'false', '0', '2026-05-27 17:09:15.999159+02', NULL),
+
+  ('44444444-0000-0000-0000-000000000003', 'TCF', 'B1', 'TCF blanc - B1', '1800', '30', '21', 'officiel-tcf-b1-30q', NULL,
+   NULL,
+   NULL, 'false', 'false', '0', '2026-05-27 17:09:15.999159+02', NULL),
+
+  ('44444444-0000-0000-0000-000000000004', 'TCF', 'B2', 'TCF blanc - B2', '1800', '30', '24', 'officiel-tcf-b2-30q', NULL,
+   NULL,
+   NULL, 'false', 'false', '0', '2026-05-27 17:09:15.999159+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000001', 'TCF', NULL, 'TCF IRN — Diagnostic gratuit', '5400', '60', '0', 'tcf-diagnostic',
+   '60 questions · 90 min · Gratuit',
+   'Découvrez le format du TCF IRN en conditions réelles : 60 questions tirées sur les niveaux A2, B1 et B2. Votre score détermine votre niveau CECRL estimé.',
+   NULL, 'true', 'true', '1', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000002', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°1', '5400', '60', '0', 'tcf-mix-01',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '2', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000003', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°2', '5400', '60', '0', 'tcf-mix-02',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '3', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000004', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°3', '5400', '60', '0', 'tcf-mix-03',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '4', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000005', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°4', '5400', '60', '0', 'tcf-mix-04',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '5', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000006', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°5', '5400', '60', '0', 'tcf-mix-05',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '6', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000007', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°6', '5400', '60', '0', 'tcf-mix-06',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '7', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000008', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°7', '5400', '60', '0', 'tcf-mix-07',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '8', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000009', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°8', '5400', '60', '0', 'tcf-mix-08',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '9', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000010', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°9', '5400', '60', '0', 'tcf-mix-09',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '10', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000011', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°10', '5400', '60', '0', 'tcf-mix-10',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '11', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000012', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°11', '5400', '60', '0', 'tcf-mix-11',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '12', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000013', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°12', '5400', '60', '0', 'tcf-mix-12',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '13', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000014', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°13', '5400', '60', '0', 'tcf-mix-13',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '14', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000015', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°14', '5400', '60', '0', 'tcf-mix-14',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '15', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000016', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°15', '5400', '60', '0', 'tcf-mix-15',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '16', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000017', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°16', '5400', '60', '0', 'tcf-mix-16',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '17', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000018', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°17', '5400', '60', '0', 'tcf-mix-17',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '18', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000019', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°18', '5400', '60', '0', 'tcf-mix-18',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '19', '2026-05-27 17:09:16.042197+02', NULL),
+
+  ('50000000-aaaa-0000-0000-000000000020', 'TCF', NULL, 'TCF IRN — Diagnostic complet n°19', '5400', '60', '0', 'tcf-mix-19',
+   '60 questions · 90 min · Diagnostic CECRL',
+   'Diagnostic complet du niveau CECRL : 60 questions réparties sur A2, B1, B2. Tirage différent à chaque tentative.',
+   NULL, 'false', 'true', '20', '2026-05-27 17:09:16.042197+02', NULL);
 
 -- exam_template_rules
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('d9c7b29a-7286-4bb8-93f1-95fa3602eeae','50000000-aaaa-0000-0000-000000000001',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('48aea380-63ca-495f-88ae-665ea22df054','50000000-aaaa-0000-0000-000000000002',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('68525a5b-b264-4041-ac89-1f37d1ceea02','50000000-aaaa-0000-0000-000000000003',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('60729c92-b545-46ab-a0fc-093a35a835de','50000000-aaaa-0000-0000-000000000004',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('efb6ff30-edb7-47ab-a32f-9d2a1e5fda90','50000000-aaaa-0000-0000-000000000005',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('4a7ce257-aa72-43fd-9950-c4b2ea3cda83','50000000-aaaa-0000-0000-000000000006',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('03594bc4-9c5e-422d-9a6a-0c6df02c2b5a','50000000-aaaa-0000-0000-000000000007',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('5d30ecc8-c6fc-41fb-821e-adb9a993eebb','50000000-aaaa-0000-0000-000000000008',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('650c1c55-8b38-45d3-b17c-c33816322ea6','50000000-aaaa-0000-0000-000000000009',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('dbb698eb-eb47-45ff-a8ad-b9c1be8b109a','50000000-aaaa-0000-0000-000000000010',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('c1ff0757-e5e8-429a-bc37-b790b0a9c0a0','50000000-aaaa-0000-0000-000000000011',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('8cbfd62d-46b0-4c40-98a8-f719c26804b4','50000000-aaaa-0000-0000-000000000012',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('6cfc449b-c9d3-4690-93ab-beb44256d1db','50000000-aaaa-0000-0000-000000000013',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('cbf5e275-5669-49f8-b40a-d23c6ccbddaa','50000000-aaaa-0000-0000-000000000014',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('edefcfb9-397a-4635-b3dd-bc964b346d9c','50000000-aaaa-0000-0000-000000000015',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('e27e1cae-0756-4598-8ca5-debd191165d1','50000000-aaaa-0000-0000-000000000016',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('e6c345c5-d0b2-4f2a-9545-8c87c0238e2a','50000000-aaaa-0000-0000-000000000017',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('ede07596-0e3e-490b-8441-20b7db4c8dd3','50000000-aaaa-0000-0000-000000000018',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('b5b4c26d-c819-4a24-aba8-35b2587ffed2','50000000-aaaa-0000-0000-000000000019',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('8aa76d33-6bcc-485f-ab53-864b2365dbff','50000000-aaaa-0000-0000-000000000020',NULL,NULL,'60',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('47175446-8ece-4fa8-8323-e742978d6cf4','50000000-cccc-0000-0000-000000000001','11111111-0000-0000-0000-000000000001',NULL,'8',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('4b0e97b3-169d-41b5-9201-413caf925da6','50000000-cccc-0000-0000-000000000001','11111111-0000-0000-0000-000000000002',NULL,'8',NULL,'2');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('48d01355-fc44-4623-b816-5fdd4d57979c','50000000-cccc-0000-0000-000000000001','11111111-0000-0000-0000-000000000003',NULL,'8',NULL,'3');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('3442b1ed-1d82-403f-965f-9781320a7660','50000000-cccc-0000-0000-000000000001','11111111-0000-0000-0000-000000000004',NULL,'8',NULL,'4');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('8047f74f-4a3d-4a5b-ba9c-07b4708ecdf4','50000000-cccc-0000-0000-000000000001','11111111-0000-0000-0000-000000000005',NULL,'8',NULL,'5');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('956b3058-85a9-4ab0-bcc8-e6ffb0f0f8b4','50000000-cccc-0000-0000-000000000002','11111111-0000-0000-0000-000000000001',NULL,'8','CSP','1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('5bc3f2b1-46ff-42a8-853b-de99745549f0','50000000-cccc-0000-0000-000000000002','11111111-0000-0000-0000-000000000002',NULL,'8','CSP','2');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('349b6aa7-5948-448f-b62d-156e4870c95b','50000000-cccc-0000-0000-000000000002','11111111-0000-0000-0000-000000000003',NULL,'8','CSP','3');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('e4e051f1-bad9-4b9c-8ff2-3b9ad0adbd8f','50000000-cccc-0000-0000-000000000002','11111111-0000-0000-0000-000000000004',NULL,'8','CSP','4');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('7201e916-6ae3-4865-b1e4-b0039e7bb3de','50000000-cccc-0000-0000-000000000002','11111111-0000-0000-0000-000000000005',NULL,'8','CSP','5');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('91fbaf0c-eebc-46a5-8bd6-849024847464','50000000-cccc-0000-0000-000000000003','11111111-0000-0000-0000-000000000002',NULL,'40','CSP','1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('83a04189-d8a6-45e5-9217-f636d1d1089b','50000000-cccc-0000-0000-000000000004','11111111-0000-0000-0000-000000000004',NULL,'40','CSP','1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('8aea7fb1-7ef0-4125-834d-9782592fa3d6','50000000-cccc-0000-0000-000000000005','11111111-0000-0000-0000-000000000005',NULL,'40','CSP','1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('a4aa42f9-91a0-4798-9e44-4462a4512d47','50000000-cccc-0000-0000-000000000006','11111111-0000-0000-0000-000000000001',NULL,'8','CR','1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('86c4f1d1-0c7d-434d-b16a-cb7f1ce1c43c','50000000-cccc-0000-0000-000000000006','11111111-0000-0000-0000-000000000002',NULL,'8','CR','2');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('63efe8d1-61e9-45f3-a4af-72ba7d73b1fb','50000000-cccc-0000-0000-000000000006','11111111-0000-0000-0000-000000000003',NULL,'8','CR','3');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('85448dc9-14b0-43ed-9ffd-16d0be7aa43a','50000000-cccc-0000-0000-000000000006','11111111-0000-0000-0000-000000000004',NULL,'8','CR','4');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('b3edabf6-fd9c-4b7c-94d5-886f02cb2868','50000000-cccc-0000-0000-000000000006','11111111-0000-0000-0000-000000000005',NULL,'8','CR','5');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('e9ea4270-9228-4306-9072-5bfe3a69eb96','50000000-cccc-0000-0000-000000000007','11111111-0000-0000-0000-000000000001',NULL,'8','CR','1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('61a451b9-63f9-4d6a-8f35-f6888772f5cb','50000000-cccc-0000-0000-000000000007','11111111-0000-0000-0000-000000000002',NULL,'8','CR','2');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('e7344c5a-3e2c-402b-bc5f-eb49ac4c6b35','50000000-cccc-0000-0000-000000000007','11111111-0000-0000-0000-000000000003',NULL,'8','CR','3');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('22280ca5-8b12-4d5c-a4c2-0d9bb278901c','50000000-cccc-0000-0000-000000000007','11111111-0000-0000-0000-000000000004',NULL,'8','CR','4');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('38f764f3-2b71-4ab0-abaa-50bed8e308a2','50000000-cccc-0000-0000-000000000007','11111111-0000-0000-0000-000000000005',NULL,'8','CR','5');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('c3771865-84dd-4095-8529-145c3469c46b','50000000-cccc-0000-0000-000000000008','11111111-0000-0000-0000-000000000002',NULL,'40','CR','1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('64ebb4f5-53d3-4655-9ac9-ac67cb4edca1','50000000-cccc-0000-0000-000000000009','11111111-0000-0000-0000-000000000003',NULL,'40','CR','1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('30377d06-459b-492a-a772-bfbaf5a4950d','50000000-cccc-0000-0000-000000000010','11111111-0000-0000-0000-000000000004',NULL,'40','CR','1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('e6d7105e-6895-4cc0-b728-6c931f484301','50000000-cccc-0000-0000-000000000011','11111111-0000-0000-0000-000000000005',NULL,'40','CR','1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('aa112bbc-2834-4642-9d08-4e74370e865d','50000000-cccc-0000-0000-000000000012','11111111-0000-0000-0000-000000000001',NULL,'8','NAT','1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('ddb76ec0-6b56-4983-910c-b120aacb72eb','50000000-cccc-0000-0000-000000000012','11111111-0000-0000-0000-000000000002',NULL,'8','NAT','2');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('0ac970ee-5c2d-46fe-8c6f-54e938a622e6','50000000-cccc-0000-0000-000000000012','11111111-0000-0000-0000-000000000003',NULL,'8','NAT','3');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('5591c061-2d59-4893-a6fe-d21574822712','50000000-cccc-0000-0000-000000000012','11111111-0000-0000-0000-000000000004',NULL,'8','NAT','4');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('95068854-8f2c-4dde-942e-8e3e3d15ce10','50000000-cccc-0000-0000-000000000012','11111111-0000-0000-0000-000000000005',NULL,'8','NAT','5');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('042af122-3279-410a-b5e5-e3894e367343','50000000-cccc-0000-0000-000000000013','11111111-0000-0000-0000-000000000001',NULL,'8','NAT','1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('af482d10-2102-4f3e-8578-a50240313ee5','50000000-cccc-0000-0000-000000000013','11111111-0000-0000-0000-000000000002',NULL,'8','NAT','2');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('63d76fe7-09ce-42c2-82ac-24a9d001de1a','50000000-cccc-0000-0000-000000000013','11111111-0000-0000-0000-000000000003',NULL,'8','NAT','3');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('464b5c4a-c62b-44f9-a350-21ab0c080a95','50000000-cccc-0000-0000-000000000013','11111111-0000-0000-0000-000000000004',NULL,'8','NAT','4');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('40357277-21ba-4552-beb1-d790f06d6b2f','50000000-cccc-0000-0000-000000000013','11111111-0000-0000-0000-000000000005',NULL,'8','NAT','5');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('50fb3296-8ed1-4188-b251-153860266958','50000000-cccc-0000-0000-000000000014','11111111-0000-0000-0000-000000000002',NULL,'40','NAT','1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('95a1e149-0dc5-4d69-acee-7793fdfd41c3','50000000-cccc-0000-0000-000000000015','11111111-0000-0000-0000-000000000003',NULL,'40','NAT','1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('ff8a28d4-ccfd-4cf5-bbf2-5ac40fdb9ccf','50000000-cccc-0000-0000-000000000016','11111111-0000-0000-0000-000000000004',NULL,'40','NAT','1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('ec6b1a5b-ee00-462e-83bb-319532416ba4','50000000-cccc-0000-0000-000000000017','11111111-0000-0000-0000-000000000001',NULL,'8',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('229ec74a-e343-44fe-afeb-f01707c05b1c','50000000-cccc-0000-0000-000000000017','11111111-0000-0000-0000-000000000002',NULL,'8',NULL,'2');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('4aaacb94-0411-4611-abe9-c55826977b53','50000000-cccc-0000-0000-000000000017','11111111-0000-0000-0000-000000000003',NULL,'8',NULL,'3');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('47953560-3fbe-488b-a7c7-54f1390e7609','50000000-cccc-0000-0000-000000000017','11111111-0000-0000-0000-000000000004',NULL,'8',NULL,'4');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('54ccad67-d388-4591-9c20-73dfe57b1955','50000000-cccc-0000-0000-000000000017','11111111-0000-0000-0000-000000000005',NULL,'8',NULL,'5');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('1c3f72bf-f195-4297-9568-8a467198da4b','50000000-cccc-0000-0000-000000000018','11111111-0000-0000-0000-000000000001',NULL,'8',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('578b7f89-2d43-44bd-b36a-c07e9b147d87','50000000-cccc-0000-0000-000000000018','11111111-0000-0000-0000-000000000002',NULL,'8',NULL,'2');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('ec5391e0-867f-49f4-8c28-44742a2cf651','50000000-cccc-0000-0000-000000000018','11111111-0000-0000-0000-000000000003',NULL,'8',NULL,'3');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('8d9532e8-e0ff-4690-966a-f502e0de117c','50000000-cccc-0000-0000-000000000018','11111111-0000-0000-0000-000000000004',NULL,'8',NULL,'4');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('cdd9c584-e26d-4e0d-bd0a-0b4e743c4499','50000000-cccc-0000-0000-000000000018','11111111-0000-0000-0000-000000000005',NULL,'8',NULL,'5');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('65c89889-34dc-43dc-a32b-b9f54472667e','50000000-cccc-0000-0000-000000000019','11111111-0000-0000-0000-000000000001',NULL,'40',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('0f3c37eb-4367-4d39-a749-902dd897ba8f','50000000-cccc-0000-0000-000000000020','11111111-0000-0000-0000-000000000002',NULL,'20',NULL,'1');
-INSERT INTO exam_template_rules (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position") VALUES ('8f73618e-e242-4ee1-9d7d-54632de5322d','50000000-cccc-0000-0000-000000000020','11111111-0000-0000-0000-000000000004',NULL,'20',NULL,'2');
+INSERT INTO exam_template_rules
+  (id, exam_template_id, theme_id, question_type, question_count, difficulty, "position")
+VALUES
+  ('d9c7b29a-7286-4bb8-93f1-95fa3602eeae', '50000000-aaaa-0000-0000-000000000001', NULL, NULL, '60', NULL, '1'),
+  ('48aea380-63ca-495f-88ae-665ea22df054', '50000000-aaaa-0000-0000-000000000002', NULL, NULL, '60', NULL, '1'),
+  ('68525a5b-b264-4041-ac89-1f37d1ceea02', '50000000-aaaa-0000-0000-000000000003', NULL, NULL, '60', NULL, '1'),
+  ('60729c92-b545-46ab-a0fc-093a35a835de', '50000000-aaaa-0000-0000-000000000004', NULL, NULL, '60', NULL, '1'),
+  ('efb6ff30-edb7-47ab-a32f-9d2a1e5fda90', '50000000-aaaa-0000-0000-000000000005', NULL, NULL, '60', NULL, '1'),
+  ('4a7ce257-aa72-43fd-9950-c4b2ea3cda83', '50000000-aaaa-0000-0000-000000000006', NULL, NULL, '60', NULL, '1'),
+  ('03594bc4-9c5e-422d-9a6a-0c6df02c2b5a', '50000000-aaaa-0000-0000-000000000007', NULL, NULL, '60', NULL, '1'),
+  ('5d30ecc8-c6fc-41fb-821e-adb9a993eebb', '50000000-aaaa-0000-0000-000000000008', NULL, NULL, '60', NULL, '1'),
+  ('650c1c55-8b38-45d3-b17c-c33816322ea6', '50000000-aaaa-0000-0000-000000000009', NULL, NULL, '60', NULL, '1'),
+  ('dbb698eb-eb47-45ff-a8ad-b9c1be8b109a', '50000000-aaaa-0000-0000-000000000010', NULL, NULL, '60', NULL, '1'),
+  ('c1ff0757-e5e8-429a-bc37-b790b0a9c0a0', '50000000-aaaa-0000-0000-000000000011', NULL, NULL, '60', NULL, '1'),
+  ('8cbfd62d-46b0-4c40-98a8-f719c26804b4', '50000000-aaaa-0000-0000-000000000012', NULL, NULL, '60', NULL, '1'),
+  ('6cfc449b-c9d3-4690-93ab-beb44256d1db', '50000000-aaaa-0000-0000-000000000013', NULL, NULL, '60', NULL, '1'),
+  ('cbf5e275-5669-49f8-b40a-d23c6ccbddaa', '50000000-aaaa-0000-0000-000000000014', NULL, NULL, '60', NULL, '1'),
+  ('edefcfb9-397a-4635-b3dd-bc964b346d9c', '50000000-aaaa-0000-0000-000000000015', NULL, NULL, '60', NULL, '1'),
+  ('e27e1cae-0756-4598-8ca5-debd191165d1', '50000000-aaaa-0000-0000-000000000016', NULL, NULL, '60', NULL, '1'),
+  ('e6c345c5-d0b2-4f2a-9545-8c87c0238e2a', '50000000-aaaa-0000-0000-000000000017', NULL, NULL, '60', NULL, '1'),
+  ('ede07596-0e3e-490b-8441-20b7db4c8dd3', '50000000-aaaa-0000-0000-000000000018', NULL, NULL, '60', NULL, '1'),
+  ('b5b4c26d-c819-4a24-aba8-35b2587ffed2', '50000000-aaaa-0000-0000-000000000019', NULL, NULL, '60', NULL, '1'),
+  ('8aa76d33-6bcc-485f-ab53-864b2365dbff', '50000000-aaaa-0000-0000-000000000020', NULL, NULL, '60', NULL, '1'),
+  ('47175446-8ece-4fa8-8323-e742978d6cf4', '50000000-cccc-0000-0000-000000000001', '11111111-0000-0000-0000-000000000001', NULL, '8',
+   NULL, '1'),
+  ('4b0e97b3-169d-41b5-9201-413caf925da6', '50000000-cccc-0000-0000-000000000001', '11111111-0000-0000-0000-000000000002', NULL, '8',
+   NULL, '2'),
+  ('48d01355-fc44-4623-b816-5fdd4d57979c', '50000000-cccc-0000-0000-000000000001', '11111111-0000-0000-0000-000000000003', NULL, '8',
+   NULL, '3'),
+  ('3442b1ed-1d82-403f-965f-9781320a7660', '50000000-cccc-0000-0000-000000000001', '11111111-0000-0000-0000-000000000004', NULL, '8',
+   NULL, '4'),
+  ('8047f74f-4a3d-4a5b-ba9c-07b4708ecdf4', '50000000-cccc-0000-0000-000000000001', '11111111-0000-0000-0000-000000000005', NULL, '8',
+   NULL, '5'),
+  ('956b3058-85a9-4ab0-bcc8-e6ffb0f0f8b4', '50000000-cccc-0000-0000-000000000002', '11111111-0000-0000-0000-000000000001', NULL, '8',
+   'CSP', '1'),
+  ('5bc3f2b1-46ff-42a8-853b-de99745549f0', '50000000-cccc-0000-0000-000000000002', '11111111-0000-0000-0000-000000000002', NULL, '8',
+   'CSP', '2'),
+  ('349b6aa7-5948-448f-b62d-156e4870c95b', '50000000-cccc-0000-0000-000000000002', '11111111-0000-0000-0000-000000000003', NULL, '8',
+   'CSP', '3'),
+  ('e4e051f1-bad9-4b9c-8ff2-3b9ad0adbd8f', '50000000-cccc-0000-0000-000000000002', '11111111-0000-0000-0000-000000000004', NULL, '8',
+   'CSP', '4'),
+  ('7201e916-6ae3-4865-b1e4-b0039e7bb3de', '50000000-cccc-0000-0000-000000000002', '11111111-0000-0000-0000-000000000005', NULL, '8',
+   'CSP', '5'),
+  ('91fbaf0c-eebc-46a5-8bd6-849024847464', '50000000-cccc-0000-0000-000000000003', '11111111-0000-0000-0000-000000000002', NULL,
+   '40', 'CSP', '1'),
+  ('83a04189-d8a6-45e5-9217-f636d1d1089b', '50000000-cccc-0000-0000-000000000004', '11111111-0000-0000-0000-000000000004', NULL,
+   '40', 'CSP', '1'),
+  ('8aea7fb1-7ef0-4125-834d-9782592fa3d6', '50000000-cccc-0000-0000-000000000005', '11111111-0000-0000-0000-000000000005', NULL,
+   '40', 'CSP', '1'),
+  ('a4aa42f9-91a0-4798-9e44-4462a4512d47', '50000000-cccc-0000-0000-000000000006', '11111111-0000-0000-0000-000000000001', NULL, '8',
+   'CR', '1'),
+  ('86c4f1d1-0c7d-434d-b16a-cb7f1ce1c43c', '50000000-cccc-0000-0000-000000000006', '11111111-0000-0000-0000-000000000002', NULL, '8',
+   'CR', '2'),
+  ('63efe8d1-61e9-45f3-a4af-72ba7d73b1fb', '50000000-cccc-0000-0000-000000000006', '11111111-0000-0000-0000-000000000003', NULL, '8',
+   'CR', '3'),
+  ('85448dc9-14b0-43ed-9ffd-16d0be7aa43a', '50000000-cccc-0000-0000-000000000006', '11111111-0000-0000-0000-000000000004', NULL, '8',
+   'CR', '4'),
+  ('b3edabf6-fd9c-4b7c-94d5-886f02cb2868', '50000000-cccc-0000-0000-000000000006', '11111111-0000-0000-0000-000000000005', NULL, '8',
+   'CR', '5'),
+  ('e9ea4270-9228-4306-9072-5bfe3a69eb96', '50000000-cccc-0000-0000-000000000007', '11111111-0000-0000-0000-000000000001', NULL, '8',
+   'CR', '1'),
+  ('61a451b9-63f9-4d6a-8f35-f6888772f5cb', '50000000-cccc-0000-0000-000000000007', '11111111-0000-0000-0000-000000000002', NULL, '8',
+   'CR', '2'),
+  ('e7344c5a-3e2c-402b-bc5f-eb49ac4c6b35', '50000000-cccc-0000-0000-000000000007', '11111111-0000-0000-0000-000000000003', NULL, '8',
+   'CR', '3'),
+  ('22280ca5-8b12-4d5c-a4c2-0d9bb278901c', '50000000-cccc-0000-0000-000000000007', '11111111-0000-0000-0000-000000000004', NULL, '8',
+   'CR', '4'),
+  ('38f764f3-2b71-4ab0-abaa-50bed8e308a2', '50000000-cccc-0000-0000-000000000007', '11111111-0000-0000-0000-000000000005', NULL, '8',
+   'CR', '5'),
+  ('c3771865-84dd-4095-8529-145c3469c46b', '50000000-cccc-0000-0000-000000000008', '11111111-0000-0000-0000-000000000002', NULL,
+   '40', 'CR', '1'),
+  ('64ebb4f5-53d3-4655-9ac9-ac67cb4edca1', '50000000-cccc-0000-0000-000000000009', '11111111-0000-0000-0000-000000000003', NULL,
+   '40', 'CR', '1'),
+  ('30377d06-459b-492a-a772-bfbaf5a4950d', '50000000-cccc-0000-0000-000000000010', '11111111-0000-0000-0000-000000000004', NULL,
+   '40', 'CR', '1'),
+  ('e6d7105e-6895-4cc0-b728-6c931f484301', '50000000-cccc-0000-0000-000000000011', '11111111-0000-0000-0000-000000000005', NULL,
+   '40', 'CR', '1'),
+  ('aa112bbc-2834-4642-9d08-4e74370e865d', '50000000-cccc-0000-0000-000000000012', '11111111-0000-0000-0000-000000000001', NULL, '8',
+   'NAT', '1'),
+  ('ddb76ec0-6b56-4983-910c-b120aacb72eb', '50000000-cccc-0000-0000-000000000012', '11111111-0000-0000-0000-000000000002', NULL, '8',
+   'NAT', '2'),
+  ('0ac970ee-5c2d-46fe-8c6f-54e938a622e6', '50000000-cccc-0000-0000-000000000012', '11111111-0000-0000-0000-000000000003', NULL, '8',
+   'NAT', '3'),
+  ('5591c061-2d59-4893-a6fe-d21574822712', '50000000-cccc-0000-0000-000000000012', '11111111-0000-0000-0000-000000000004', NULL, '8',
+   'NAT', '4'),
+  ('95068854-8f2c-4dde-942e-8e3e3d15ce10', '50000000-cccc-0000-0000-000000000012', '11111111-0000-0000-0000-000000000005', NULL, '8',
+   'NAT', '5'),
+  ('042af122-3279-410a-b5e5-e3894e367343', '50000000-cccc-0000-0000-000000000013', '11111111-0000-0000-0000-000000000001', NULL, '8',
+   'NAT', '1'),
+  ('af482d10-2102-4f3e-8578-a50240313ee5', '50000000-cccc-0000-0000-000000000013', '11111111-0000-0000-0000-000000000002', NULL, '8',
+   'NAT', '2'),
+  ('63d76fe7-09ce-42c2-82ac-24a9d001de1a', '50000000-cccc-0000-0000-000000000013', '11111111-0000-0000-0000-000000000003', NULL, '8',
+   'NAT', '3'),
+  ('464b5c4a-c62b-44f9-a350-21ab0c080a95', '50000000-cccc-0000-0000-000000000013', '11111111-0000-0000-0000-000000000004', NULL, '8',
+   'NAT', '4'),
+  ('40357277-21ba-4552-beb1-d790f06d6b2f', '50000000-cccc-0000-0000-000000000013', '11111111-0000-0000-0000-000000000005', NULL, '8',
+   'NAT', '5'),
+  ('50fb3296-8ed1-4188-b251-153860266958', '50000000-cccc-0000-0000-000000000014', '11111111-0000-0000-0000-000000000002', NULL,
+   '40', 'NAT', '1'),
+  ('95a1e149-0dc5-4d69-acee-7793fdfd41c3', '50000000-cccc-0000-0000-000000000015', '11111111-0000-0000-0000-000000000003', NULL,
+   '40', 'NAT', '1'),
+  ('ff8a28d4-ccfd-4cf5-bbf2-5ac40fdb9ccf', '50000000-cccc-0000-0000-000000000016', '11111111-0000-0000-0000-000000000004', NULL,
+   '40', 'NAT', '1'),
+  ('ec6b1a5b-ee00-462e-83bb-319532416ba4', '50000000-cccc-0000-0000-000000000017', '11111111-0000-0000-0000-000000000001', NULL, '8',
+   NULL, '1'),
+  ('229ec74a-e343-44fe-afeb-f01707c05b1c', '50000000-cccc-0000-0000-000000000017', '11111111-0000-0000-0000-000000000002', NULL, '8',
+   NULL, '2'),
+  ('4aaacb94-0411-4611-abe9-c55826977b53', '50000000-cccc-0000-0000-000000000017', '11111111-0000-0000-0000-000000000003', NULL, '8',
+   NULL, '3'),
+  ('47953560-3fbe-488b-a7c7-54f1390e7609', '50000000-cccc-0000-0000-000000000017', '11111111-0000-0000-0000-000000000004', NULL, '8',
+   NULL, '4'),
+  ('54ccad67-d388-4591-9c20-73dfe57b1955', '50000000-cccc-0000-0000-000000000017', '11111111-0000-0000-0000-000000000005', NULL, '8',
+   NULL, '5'),
+  ('1c3f72bf-f195-4297-9568-8a467198da4b', '50000000-cccc-0000-0000-000000000018', '11111111-0000-0000-0000-000000000001', NULL, '8',
+   NULL, '1'),
+  ('578b7f89-2d43-44bd-b36a-c07e9b147d87', '50000000-cccc-0000-0000-000000000018', '11111111-0000-0000-0000-000000000002', NULL, '8',
+   NULL, '2'),
+  ('ec5391e0-867f-49f4-8c28-44742a2cf651', '50000000-cccc-0000-0000-000000000018', '11111111-0000-0000-0000-000000000003', NULL, '8',
+   NULL, '3'),
+  ('8d9532e8-e0ff-4690-966a-f502e0de117c', '50000000-cccc-0000-0000-000000000018', '11111111-0000-0000-0000-000000000004', NULL, '8',
+   NULL, '4'),
+  ('cdd9c584-e26d-4e0d-bd0a-0b4e743c4499', '50000000-cccc-0000-0000-000000000018', '11111111-0000-0000-0000-000000000005', NULL, '8',
+   NULL, '5'),
+  ('65c89889-34dc-43dc-a32b-b9f54472667e', '50000000-cccc-0000-0000-000000000019', '11111111-0000-0000-0000-000000000001', NULL,
+   '40', NULL, '1'),
+  ('0f3c37eb-4367-4d39-a749-902dd897ba8f', '50000000-cccc-0000-0000-000000000020', '11111111-0000-0000-0000-000000000002', NULL,
+   '20', NULL, '1'),
+  ('8f73618e-e242-4ee1-9d7d-54632de5322d', '50000000-cccc-0000-0000-000000000020', '11111111-0000-0000-0000-000000000004', NULL,
+   '20', NULL, '2');

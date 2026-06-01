@@ -6,255 +6,1060 @@
 -- ============================================================================
 
 -- questions
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000005','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','MISE_SITUATION','Peut-on choisir de ne pas appliquer une loi parce qu''on est en désaccord avec elle ?','Non. La loi s''impose à tous les citoyens. Le désaccord se manifeste par les voies légales : vote, débat, recours juridique. Ne pas respecter la loi expose à des sanctions.','true','2026-05-27 17:40:29.835446+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000006','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','En France, qui est tenu de respecter la loi ?','Tout le monde, sans exception : citoyens, résidents, dirigeants politiques, agents publics. La loi s''applique de la même manière à tous.','true','2026-05-27 17:40:29.835446+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000007','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Que fait l''autorité judiciaire en France ?','L''autorité judiciaire applique la loi, juge les litiges et protège les libertés individuelles. Elle est indépendante des autres pouvoirs.','true','2026-05-27 17:40:29.835446+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000008','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Quel type de pouvoir est exercé par un juge ?','Le juge exerce le pouvoir judiciaire : il dit le droit, tranche les litiges et applique les sanctions prévues par la loi.','true','2026-05-27 17:40:29.835446+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000009','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','À qui revient l''exercice de l''autorité judiciaire en France ?','L''autorité judiciaire est exercée par les magistrats (juges et procureurs), au sein des tribunaux et des cours.','true','2026-05-27 17:40:29.835446+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000000a','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'NAT','CONNAISSANCE','Un ministre commet une infraction. Échappe-t-il à la justice ?','Non. Un ministre, comme tout citoyen, doit répondre de ses actes devant la justice. Pour les actes commis dans l''exercice de ses fonctions, il est jugé par la Cour de justice de la République.','true','2026-05-27 17:40:29.835446+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000000b','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Quels représentants sont élus lors des élections législatives ?','Les élections législatives permettent d''élire les députés qui siègent à l''Assemblée nationale. Ils représentent les circonscriptions.','true','2026-05-27 17:40:29.835446+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000000c','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'NAT','CONNAISSANCE','De combien de députés l''Assemblée nationale est-elle composée ?','L''Assemblée nationale compte 577 députés, élus pour cinq ans au suffrage universel direct dans 577 circonscriptions.','true','2026-05-27 17:40:29.835446+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000000d','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'NAT','CONNAISSANCE','Comment sont élus les sénateurs français ?','Les sénateurs sont élus au suffrage universel indirect par un collège de grands électeurs (députés, conseillers régionaux, départementaux, municipaux). Le Sénat est renouvelé par moitié tous les trois ans.','true','2026-05-27 17:40:29.841492+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000000e','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Qui les citoyens élisent-ils lors des élections municipales ?','Les élections municipales permettent d''élire les conseillers municipaux qui, eux, élisent ensuite le maire et ses adjoints. Elles ont lieu tous les six ans.','true','2026-05-27 17:40:29.841492+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000000f','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Qui est élu lors d''une élection présidentielle française ?','L''élection présidentielle permet d''élire le président de la République au suffrage universel direct, pour un mandat de cinq ans.','true','2026-05-27 17:40:29.841492+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000010','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','À partir de quel âge peut-on voter en France ?','En France, on peut voter à partir de 18 ans, sous réserve d''être citoyen français et inscrit sur les listes électorales.','true','2026-05-27 17:40:29.841492+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000011','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Quelle est la durée d''un mandat présidentiel en France ?','Le mandat présidentiel est de 5 ans (quinquennat) depuis la réforme constitutionnelle de 2000. Il était auparavant de 7 ans (septennat).','true','2026-05-27 17:40:29.841492+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000012','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Combien de temps dure le mandat d''un député français ?','Les députés sont élus pour 5 ans à l''Assemblée nationale, sauf en cas de dissolution décidée par le président de la République.','true','2026-05-27 17:40:29.841492+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000013','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Pour quelle durée un sénateur est-il élu ?','Les sénateurs sont élus pour 6 ans. Le Sénat est renouvelable par moitié tous les 3 ans.','true','2026-05-27 17:40:29.841492+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000014','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Qui détient le pouvoir exécutif en France ?','Le pouvoir exécutif est détenu par le président de la République et le gouvernement (Premier ministre et ministres).','true','2026-05-27 17:40:29.841492+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000015','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Quelle condition est requise pour pouvoir voter aux élections nationales en France ?','Pour voter aux élections nationales (présidentielles, législatives), il faut être de nationalité française, majeur (18 ans), jouir de ses droits civiques et être inscrit sur les listes électorales.','true','2026-05-27 17:40:29.841492+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000016','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','En général, qui a le droit de voter aux élections nationales françaises ?','Seuls les citoyens français majeurs jouissant de leurs droits civiques peuvent voter aux élections nationales. Les ressortissants européens peuvent voter aux municipales et européennes.','true','2026-05-27 17:40:29.841492+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000017','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'NAT','CONNAISSANCE','Que désigne l''expression "suffrage universel" ?','Le suffrage universel signifie que le droit de vote est ouvert à tous les citoyens majeurs, sans condition de richesse, de sexe ou de niveau d''éducation.','true','2026-05-27 17:40:29.841492+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000018','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Quelle proposition décrit correctement le statut des partis politiques en France ?','Les partis politiques sont libres : plusieurs partis peuvent exister, défendre des idées différentes et participer aux élections. C''est le principe du pluralisme politique.','true','2026-05-27 17:40:29.841492+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000019','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Quelle est la fonction principale des députés à l''Assemblée nationale ?','Les députés votent les lois, examinent le budget de l''État et contrôlent l''action du gouvernement. Ils représentent la nation au Parlement.','true','2026-05-27 17:40:29.847265+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000001a','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Quels sont les trois pouvoirs séparés dans un État démocratique selon Montesquieu ?','La séparation des pouvoirs (théorie de Montesquieu, reprise par la République française) distingue le pouvoir exécutif, le pouvoir législatif et le pouvoir judiciaire, qui doivent être indépendants les uns des autres.','true','2026-05-27 17:40:29.847265+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000001b','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Qui exerce le pouvoir législatif en France ?','Le pouvoir législatif est exercé par le Parlement, composé de l''Assemblée nationale et du Sénat. Il vote les lois et le budget de l''État.','true','2026-05-27 17:40:29.847265+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000001c','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Quelle autorité prononce la sanction contre l''auteur d''un vol ?','L''auteur d''un vol est jugé et sanctionné par un tribunal, qui relève de l''autorité judiciaire. La peine dépend de la gravité des faits.','true','2026-05-27 17:40:29.847265+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000001d','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Comment les députés français sont-ils choisis ?','Les députés sont élus directement par les citoyens français, au suffrage universel direct, dans le cadre de leur circonscription.','true','2026-05-27 17:40:29.847265+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000001e','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Quelle institution a la responsabilité de voter les lois en France ?','Les lois sont votées par le Parlement (Assemblée nationale et Sénat). C''est le pouvoir législatif.','true','2026-05-27 17:40:29.847265+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000001f','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Quel responsable politique habite et travaille au palais de l''Élysée ?','Le palais de l''Élysée, situé à Paris, est la résidence officielle du président de la République française depuis 1848.','true','2026-05-27 17:40:29.847265+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000020','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'NAT','CONNAISSANCE','Combien la France compte-t-elle de départements (métropole et outre-mer) ?','La France compte 101 départements : 96 en métropole (avec la Corse divisée en deux) et 5 départements d''outre-mer (Guadeloupe, Martinique, Guyane, La Réunion, Mayotte).','true','2026-05-27 17:40:29.847265+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000021','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Qui est le représentant de l''État dans un département français ?','Le préfet représente l''État dans le département. Il est nommé par décret en Conseil des ministres et assure la mise en œuvre des politiques nationales sur le territoire.','true','2026-05-27 17:40:29.847265+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000022','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Qui est à la tête d''une commune en France ?','Une commune est dirigée par le maire, élu par les conseillers municipaux après les élections municipales. Il est aussi officier d''état civil et de police judiciaire.','true','2026-05-27 17:40:29.847265+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000023','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Le président de la République française dispose-t-il de pouvoirs sans limite ?','Non. Le président détient des pouvoirs importants mais limités par la Constitution, la séparation des pouvoirs, le contrôle du Parlement et la justice. Il n''est pas un monarque absolu.','true','2026-05-27 17:40:29.847265+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000024','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Comment définir la fonction de préfet ?','Le préfet est un haut fonctionnaire de l''État nommé par le président en Conseil des ministres. Il représente l''État et le gouvernement dans le département, et veille à l''application des lois.','true','2026-05-27 17:40:29.847265+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000025','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Quelle est la mission principale du Parlement français ?','Le Parlement vote les lois et le budget de l''État, et contrôle l''action du gouvernement. Il est composé de l''Assemblée nationale et du Sénat.','true','2026-05-27 17:40:29.855383+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000026','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Comment qualifier le régime politique de la France aujourd''hui ?','La France est une république parlementaire et semi-présidentielle. Le président partage le pouvoir exécutif avec un gouvernement responsable devant l''Assemblée nationale.','true','2026-05-27 17:40:29.855383+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000027','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'NAT','CONNAISSANCE','Au 1er janvier 2025, combien d''États membres compte l''Union européenne ?','Au 1er janvier 2025, l''Union européenne compte 27 États membres. Le Royaume-Uni en est sorti en 2020 (Brexit).','true','2026-05-27 17:40:29.855383+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000028','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Parmi ces pays, lequel ne fait pas partie de l''Union européenne ?','La Suisse n''est pas membre de l''Union européenne, bien qu''elle entretienne des accords bilatéraux étroits avec elle. Le Royaume-Uni en est sorti en 2020.','true','2026-05-27 17:40:29.855383+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-000000000029','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'NAT','CONNAISSANCE','Quelle condition est exigée pour voter aux élections européennes en France ?','Pour voter aux élections européennes en France, il faut être citoyen de l''Union européenne (Français ou ressortissant d''un autre pays de l''UE), majeur, inscrit sur les listes électorales et jouir de ses droits civiques.','true','2026-05-27 17:40:29.855383+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000002a','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Tous les combien d''années les élections européennes ont-elles lieu ?','Les élections européennes ont lieu tous les 5 ans. Elles permettent d''élire les députés du Parlement européen.','true','2026-05-27 17:40:29.855383+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000002b','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Lequel de ces pays est l''un des fondateurs de la Communauté économique européenne (futur UE) ?','Les six pays fondateurs de la CEE en 1957 (Traité de Rome) sont : la France, l''Allemagne (RFA à l''époque), l''Italie, la Belgique, les Pays-Bas et le Luxembourg.','true','2026-05-27 17:40:29.855383+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000002c','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Quelle est la monnaie en circulation en France ?','La France utilise l''euro depuis le 1er janvier 2002 (date de mise en circulation des pièces et billets). Avant, la monnaie était le franc.','true','2026-05-27 17:40:29.855383+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000002d','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Comment sont élus les députés au Parlement européen ?','Les députés européens sont élus directement par les citoyens européens, au suffrage universel direct, dans chaque État membre.','true','2026-05-27 17:40:29.855383+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000001-0000-0000-0000-00000000002e','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'NAT','CONNAISSANCE','À quelle date est commémorée chaque année la Journée de l''Europe ?','La Journée de l''Europe est célébrée le 9 mai, date anniversaire de la déclaration Schuman (1950), qui a posé les fondations de la construction européenne.','true','2026-05-27 17:40:29.855383+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000001','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Comment appelle-t-on l''ensemble formé par le Premier ministre et les ministres ?','Le Premier ministre et les ministres forment ensemble le gouvernement, qui dirige l''administration de l''État.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000002','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Où réside et travaille le Premier ministre français ?','Le Premier ministre réside et travaille à l''hôtel Matignon, situé à Paris. C''est le siège officiel du chef du gouvernement.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000003','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Le président de la République est-il élu directement par les citoyens ?','Oui. Depuis 1962, le président de la République est élu au suffrage universel direct, c''est-à-dire directement par tous les citoyens français majeurs.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000004','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Combien de tours comporte l''élection présidentielle française ?','L''élection présidentielle comporte deux tours. Si aucun candidat n''obtient plus de 50% des voix au premier tour, les deux candidats arrivés en tête s''affrontent au second tour.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000005','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Le président de la République peut-il être réélu pour un nouveau mandat ?','Oui, mais il ne peut exercer plus de deux mandats consécutifs depuis la révision constitutionnelle de 2008.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000006','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Qui est le chef des armées françaises ?','Le président de la République est le chef des armées. Il préside les conseils et comités supérieurs de la défense nationale (article 15 de la Constitution).','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000007','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Le président peut-il demander aux citoyens de voter sur une question importante ?','Oui. Le président peut organiser un référendum pour faire décider directement les Français sur un sujet d''intérêt national. Le Brexit britannique était par exemple un référendum.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000008','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Le président représente-t-il la France à l''étranger ?','Oui. Le président de la République représente la France lors des déplacements officiels à l''étranger, des sommets internationaux et des rencontres avec les autres chefs d''État.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
+INSERT INTO questions
+  (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation,
+   is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code)
+VALUES
+  ('f2000001-0000-0000-0000-000000000005', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Peut-on choisir de ne pas appliquer une loi parce qu''on est en désaccord avec elle ?',
+   'Non. La loi s''impose à tous les citoyens. Le désaccord se manifeste par les voies légales : vote, débat, recours juridique. Ne pas respecter la loi expose à des sanctions.',
+   'true', '2026-05-27 17:40:29.835446+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000006', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'En France, qui est tenu de respecter la loi ?',
+   'Tout le monde, sans exception : citoyens, résidents, dirigeants politiques, agents publics. La loi s''applique de la même manière à tous.',
+   'true', '2026-05-27 17:40:29.835446+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000007', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Que fait l''autorité judiciaire en France ?',
+   'L''autorité judiciaire applique la loi, juge les litiges et protège les libertés individuelles. Elle est indépendante des autres pouvoirs.',
+   'true', '2026-05-27 17:40:29.835446+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000008', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quel type de pouvoir est exercé par un juge ?',
+   'Le juge exerce le pouvoir judiciaire : il dit le droit, tranche les litiges et applique les sanctions prévues par la loi.',
+   'true', '2026-05-27 17:40:29.835446+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000009', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'À qui revient l''exercice de l''autorité judiciaire en France ?',
+   'L''autorité judiciaire est exercée par les magistrats (juges et procureurs), au sein des tribunaux et des cours.',
+   'true', '2026-05-27 17:40:29.835446+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000000a', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Un ministre commet une infraction. Échappe-t-il à la justice ?',
+   'Non. Un ministre, comme tout citoyen, doit répondre de ses actes devant la justice. Pour les actes commis dans l''exercice de ses fonctions, il est jugé par la Cour de justice de la République.',
+   'true', '2026-05-27 17:40:29.835446+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000000b', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quels représentants sont élus lors des élections législatives ?',
+   'Les élections législatives permettent d''élire les députés qui siègent à l''Assemblée nationale. Ils représentent les circonscriptions.',
+   'true', '2026-05-27 17:40:29.835446+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000000c', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'De combien de députés l''Assemblée nationale est-elle composée ?',
+   'L''Assemblée nationale compte 577 députés, élus pour cinq ans au suffrage universel direct dans 577 circonscriptions.',
+   'true', '2026-05-27 17:40:29.835446+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000000d', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Comment sont élus les sénateurs français ?',
+   'Les sénateurs sont élus au suffrage universel indirect par un collège de grands électeurs (députés, conseillers régionaux, départementaux, municipaux). Le Sénat est renouvelé par moitié tous les trois ans.',
+   'true', '2026-05-27 17:40:29.841492+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000000e', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Qui les citoyens élisent-ils lors des élections municipales ?',
+   'Les élections municipales permettent d''élire les conseillers municipaux qui, eux, élisent ensuite le maire et ses adjoints. Elles ont lieu tous les six ans.',
+   'true', '2026-05-27 17:40:29.841492+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000000f', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Qui est élu lors d''une élection présidentielle française ?',
+   'L''élection présidentielle permet d''élire le président de la République au suffrage universel direct, pour un mandat de cinq ans.',
+   'true', '2026-05-27 17:40:29.841492+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000010', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'À partir de quel âge peut-on voter en France ?',
+   'En France, on peut voter à partir de 18 ans, sous réserve d''être citoyen français et inscrit sur les listes électorales.',
+   'true', '2026-05-27 17:40:29.841492+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000011', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle est la durée d''un mandat présidentiel en France ?',
+   'Le mandat présidentiel est de 5 ans (quinquennat) depuis la réforme constitutionnelle de 2000. Il était auparavant de 7 ans (septennat).',
+   'true', '2026-05-27 17:40:29.841492+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000012', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Combien de temps dure le mandat d''un député français ?',
+   'Les députés sont élus pour 5 ans à l''Assemblée nationale, sauf en cas de dissolution décidée par le président de la République.',
+   'true', '2026-05-27 17:40:29.841492+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000013', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Pour quelle durée un sénateur est-il élu ?',
+   'Les sénateurs sont élus pour 6 ans. Le Sénat est renouvelable par moitié tous les 3 ans.',
+   'true', '2026-05-27 17:40:29.841492+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000014', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Qui détient le pouvoir exécutif en France ?',
+   'Le pouvoir exécutif est détenu par le président de la République et le gouvernement (Premier ministre et ministres).',
+   'true', '2026-05-27 17:40:29.841492+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000015', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle condition est requise pour pouvoir voter aux élections nationales en France ?',
+   'Pour voter aux élections nationales (présidentielles, législatives), il faut être de nationalité française, majeur (18 ans), jouir de ses droits civiques et être inscrit sur les listes électorales.',
+   'true', '2026-05-27 17:40:29.841492+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000016', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'En général, qui a le droit de voter aux élections nationales françaises ?',
+   'Seuls les citoyens français majeurs jouissant de leurs droits civiques peuvent voter aux élections nationales. Les ressortissants européens peuvent voter aux municipales et européennes.',
+   'true', '2026-05-27 17:40:29.841492+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000017', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne l''expression "suffrage universel" ?',
+   'Le suffrage universel signifie que le droit de vote est ouvert à tous les citoyens majeurs, sans condition de richesse, de sexe ou de niveau d''éducation.',
+   'true', '2026-05-27 17:40:29.841492+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000018', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle proposition décrit correctement le statut des partis politiques en France ?',
+   'Les partis politiques sont libres : plusieurs partis peuvent exister, défendre des idées différentes et participer aux élections. C''est le principe du pluralisme politique.',
+   'true', '2026-05-27 17:40:29.841492+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000019', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle est la fonction principale des députés à l''Assemblée nationale ?',
+   'Les députés votent les lois, examinent le budget de l''État et contrôlent l''action du gouvernement. Ils représentent la nation au Parlement.',
+   'true', '2026-05-27 17:40:29.847265+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000001a', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quels sont les trois pouvoirs séparés dans un État démocratique selon Montesquieu ?',
+   'La séparation des pouvoirs (théorie de Montesquieu, reprise par la République française) distingue le pouvoir exécutif, le pouvoir législatif et le pouvoir judiciaire, qui doivent être indépendants les uns des autres.',
+   'true', '2026-05-27 17:40:29.847265+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000001b', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Qui exerce le pouvoir législatif en France ?',
+   'Le pouvoir législatif est exercé par le Parlement, composé de l''Assemblée nationale et du Sénat. Il vote les lois et le budget de l''État.',
+   'true', '2026-05-27 17:40:29.847265+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000001c', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle autorité prononce la sanction contre l''auteur d''un vol ?',
+   'L''auteur d''un vol est jugé et sanctionné par un tribunal, qui relève de l''autorité judiciaire. La peine dépend de la gravité des faits.',
+   'true', '2026-05-27 17:40:29.847265+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000001d', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Comment les députés français sont-ils choisis ?',
+   'Les députés sont élus directement par les citoyens français, au suffrage universel direct, dans le cadre de leur circonscription.',
+   'true', '2026-05-27 17:40:29.847265+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000001e', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quelle institution a la responsabilité de voter les lois en France ?',
+   'Les lois sont votées par le Parlement (Assemblée nationale et Sénat). C''est le pouvoir législatif.',
+   'true', '2026-05-27 17:40:29.847265+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000001f', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quel responsable politique habite et travaille au palais de l''Élysée ?',
+   'Le palais de l''Élysée, situé à Paris, est la résidence officielle du président de la République française depuis 1848.',
+   'true', '2026-05-27 17:40:29.847265+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000020', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Combien la France compte-t-elle de départements (métropole et outre-mer) ?',
+   'La France compte 101 départements : 96 en métropole (avec la Corse divisée en deux) et 5 départements d''outre-mer (Guadeloupe, Martinique, Guyane, La Réunion, Mayotte).',
+   'true', '2026-05-27 17:40:29.847265+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000021', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Qui est le représentant de l''État dans un département français ?',
+   'Le préfet représente l''État dans le département. Il est nommé par décret en Conseil des ministres et assure la mise en œuvre des politiques nationales sur le territoire.',
+   'true', '2026-05-27 17:40:29.847265+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000022', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Qui est à la tête d''une commune en France ?',
+   'Une commune est dirigée par le maire, élu par les conseillers municipaux après les élections municipales. Il est aussi officier d''état civil et de police judiciaire.',
+   'true', '2026-05-27 17:40:29.847265+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000023', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Le président de la République française dispose-t-il de pouvoirs sans limite ?',
+   'Non. Le président détient des pouvoirs importants mais limités par la Constitution, la séparation des pouvoirs, le contrôle du Parlement et la justice. Il n''est pas un monarque absolu.',
+   'true', '2026-05-27 17:40:29.847265+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000024', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Comment définir la fonction de préfet ?',
+   'Le préfet est un haut fonctionnaire de l''État nommé par le président en Conseil des ministres. Il représente l''État et le gouvernement dans le département, et veille à l''application des lois.',
+   'true', '2026-05-27 17:40:29.847265+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000025', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle est la mission principale du Parlement français ?',
+   'Le Parlement vote les lois et le budget de l''État, et contrôle l''action du gouvernement. Il est composé de l''Assemblée nationale et du Sénat.',
+   'true', '2026-05-27 17:40:29.855383+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000026', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Comment qualifier le régime politique de la France aujourd''hui ?',
+   'La France est une république parlementaire et semi-présidentielle. Le président partage le pouvoir exécutif avec un gouvernement responsable devant l''Assemblée nationale.',
+   'true', '2026-05-27 17:40:29.855383+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000027', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Au 1er janvier 2025, combien d''États membres compte l''Union européenne ?',
+   'Au 1er janvier 2025, l''Union européenne compte 27 États membres. Le Royaume-Uni en est sorti en 2020 (Brexit).',
+   'true', '2026-05-27 17:40:29.855383+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000028', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Parmi ces pays, lequel ne fait pas partie de l''Union européenne ?',
+   'La Suisse n''est pas membre de l''Union européenne, bien qu''elle entretienne des accords bilatéraux étroits avec elle. Le Royaume-Uni en est sorti en 2020.',
+   'true', '2026-05-27 17:40:29.855383+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-000000000029', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quelle condition est exigée pour voter aux élections européennes en France ?',
+   'Pour voter aux élections européennes en France, il faut être citoyen de l''Union européenne (Français ou ressortissant d''un autre pays de l''UE), majeur, inscrit sur les listes électorales et jouir de ses droits civiques.',
+   'true', '2026-05-27 17:40:29.855383+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000002a', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Tous les combien d''années les élections européennes ont-elles lieu ?',
+   'Les élections européennes ont lieu tous les 5 ans. Elles permettent d''élire les députés du Parlement européen.',
+   'true', '2026-05-27 17:40:29.855383+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000002b', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Lequel de ces pays est l''un des fondateurs de la Communauté économique européenne (futur UE) ?',
+   'Les six pays fondateurs de la CEE en 1957 (Traité de Rome) sont : la France, l''Allemagne (RFA à l''époque), l''Italie, la Belgique, les Pays-Bas et le Luxembourg.',
+   'true', '2026-05-27 17:40:29.855383+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000002c', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quelle est la monnaie en circulation en France ?',
+   'La France utilise l''euro depuis le 1er janvier 2002 (date de mise en circulation des pièces et billets). Avant, la monnaie était le franc.',
+   'true', '2026-05-27 17:40:29.855383+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000002d', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Comment sont élus les députés au Parlement européen ?',
+   'Les députés européens sont élus directement par les citoyens européens, au suffrage universel direct, dans chaque État membre.',
+   'true', '2026-05-27 17:40:29.855383+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000001-0000-0000-0000-00000000002e', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'À quelle date est commémorée chaque année la Journée de l''Europe ?',
+   'La Journée de l''Europe est célébrée le 9 mai, date anniversaire de la déclaration Schuman (1950), qui a posé les fondations de la construction européenne.',
+   'true', '2026-05-27 17:40:29.855383+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000001', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Comment appelle-t-on l''ensemble formé par le Premier ministre et les ministres ?',
+   'Le Premier ministre et les ministres forment ensemble le gouvernement, qui dirige l''administration de l''État.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000002', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Où réside et travaille le Premier ministre français ?',
+   'Le Premier ministre réside et travaille à l''hôtel Matignon, situé à Paris. C''est le siège officiel du chef du gouvernement.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000003', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Le président de la République est-il élu directement par les citoyens ?',
+   'Oui. Depuis 1962, le président de la République est élu au suffrage universel direct, c''est-à-dire directement par tous les citoyens français majeurs.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000004', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Combien de tours comporte l''élection présidentielle française ?',
+   'L''élection présidentielle comporte deux tours. Si aucun candidat n''obtient plus de 50% des voix au premier tour, les deux candidats arrivés en tête s''affrontent au second tour.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000005', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Le président de la République peut-il être réélu pour un nouveau mandat ?',
+   'Oui, mais il ne peut exercer plus de deux mandats consécutifs depuis la révision constitutionnelle de 2008.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000006', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Qui est le chef des armées françaises ?',
+   'Le président de la République est le chef des armées. Il préside les conseils et comités supérieurs de la défense nationale (article 15 de la Constitution).',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000007', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Le président peut-il demander aux citoyens de voter sur une question importante ?',
+   'Oui. Le président peut organiser un référendum pour faire décider directement les Français sur un sujet d''intérêt national. Le Brexit britannique était par exemple un référendum.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000008', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Le président représente-t-il la France à l''étranger ?',
+   'Oui. Le président de la République représente la France lors des déplacements officiels à l''étranger, des sommets internationaux et des rencontres avec les autres chefs d''État.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL);
 
 -- choices
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('bce38419-5c51-43f8-a016-f56e4249c9ee','f2000001-0000-0000-0000-000000000005','Non, la loi s''applique à tous, même en cas de désaccord','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d348f3c7-79c9-4ecf-9072-ff2b2b55fd1c','f2000001-0000-0000-0000-000000000005','Oui, c''est une liberté personnelle','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('668b9601-c515-4ac1-b2ab-1c6b3986a3e0','f2000001-0000-0000-0000-000000000005','Oui, en cas de croyance religieuse','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e601cdcd-8bd7-48ac-8e5a-2b76c86337fd','f2000001-0000-0000-0000-000000000005','Oui, le week-end','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e468db5e-c655-4523-92ef-1f4806638ba2','f2000001-0000-0000-0000-000000000006','Toute personne présente sur le territoire','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('edb1e236-dd5f-4d9a-a529-48db85e7aec5','f2000001-0000-0000-0000-000000000006','Uniquement les Français','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('f9d98273-55a9-4279-858d-e82b72ab594d','f2000001-0000-0000-0000-000000000006','Uniquement les adultes','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8956651c-4542-4698-a2d0-805b95b57770','f2000001-0000-0000-0000-000000000006','Uniquement les personnes condamnées','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('09edd51f-7147-4953-88d4-75aa6d3ba9cd','f2000001-0000-0000-0000-000000000007','Elle applique la loi et protège les libertés','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('113ee3d7-f875-442b-af56-b769609e78ff','f2000001-0000-0000-0000-000000000007','Elle vote les lois','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('726b71ce-fa09-4545-af9f-55f856883009','f2000001-0000-0000-0000-000000000007','Elle nomme les ministres','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('45f116f3-c64b-44a8-b19b-efe52b799aa4','f2000001-0000-0000-0000-000000000007','Elle gère les écoles publiques','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9cf0ff3f-d943-48b1-9f6c-00c2cc470c46','f2000001-0000-0000-0000-000000000008','Le pouvoir judiciaire','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('535355fb-99b7-42dc-b515-517f29aa9302','f2000001-0000-0000-0000-000000000008','Le pouvoir exécutif','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a4229072-e3a8-4f17-88c0-0390e56735ac','f2000001-0000-0000-0000-000000000008','Le pouvoir législatif','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('21adb0a3-b1e2-4316-ae46-b927a0ec9cb3','f2000001-0000-0000-0000-000000000008','Le pouvoir constitutionnel','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('55940151-7ab9-43b3-8f12-065a1f44b721','f2000001-0000-0000-0000-000000000009','Les magistrats (juges et procureurs)','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5342717d-06c1-4e88-abd5-7898deb29dd7','f2000001-0000-0000-0000-000000000009','Les députés','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('f9743cc3-5a67-48cf-8e10-0ae3fc866dfc','f2000001-0000-0000-0000-000000000009','Les préfets','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7571afd3-643a-413e-8bc4-1dcd886ff91f','f2000001-0000-0000-0000-000000000009','Le président de la République seul','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d04eb46f-784e-4b0a-a42a-ef3bde38250e','f2000001-0000-0000-0000-00000000000a','Non, il peut être jugé comme tout citoyen','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b2f63113-a478-4924-84cb-6d4c2fa1b2f1','f2000001-0000-0000-0000-00000000000a','Oui, les ministres ont une immunité totale','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('41332407-01df-420a-bcfa-2bc7ca260251','f2000001-0000-0000-0000-00000000000a','Oui, jusqu''à la fin de son mandat','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('184fece1-0c76-4ce3-a8d2-7e53dde01c26','f2000001-0000-0000-0000-00000000000a','Oui, seul le président peut le juger','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('31e62378-5cab-414f-80fd-c68df7af83b2','f2000001-0000-0000-0000-00000000000b','Les députés','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('cae6f02f-38a7-4127-b897-ae6e62a5b1ab','f2000001-0000-0000-0000-00000000000b','Les sénateurs','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ada8f23c-10dc-464e-9b59-fb58bede6ad4','f2000001-0000-0000-0000-00000000000b','Le président de la République','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ac0a52d8-d5fb-449a-b164-51872bf582bd','f2000001-0000-0000-0000-00000000000b','Les maires','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('cf416a07-cc18-4b33-8be0-7751e300436e','f2000001-0000-0000-0000-00000000000c','577','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('816f103d-02bd-411d-9349-d7027e00f3b2','f2000001-0000-0000-0000-00000000000c','348','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7848d824-b9e1-42da-aa40-e7425cb0097d','f2000001-0000-0000-0000-00000000000c','1 000','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('eb27d9ce-e02f-4762-8a28-784ea1469b47','f2000001-0000-0000-0000-00000000000c','200','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('65827c6a-bd74-4e6c-832c-800de87bff3d','f2000001-0000-0000-0000-00000000000d','Au suffrage universel indirect, par des grands électeurs','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('74c47f43-ceae-4364-bc00-8318e2ddd776','f2000001-0000-0000-0000-00000000000d','Au suffrage universel direct des citoyens','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('44e39122-6312-4d90-ae41-9da5f98bd815','f2000001-0000-0000-0000-00000000000d','Par tirage au sort','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('864ac4b8-ad08-4d73-aa64-0562a0c779c7','f2000001-0000-0000-0000-00000000000d','Par nomination du président','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('032825c3-2096-4f60-b91d-db0dc6550841','f2000001-0000-0000-0000-00000000000e','Les conseillers municipaux','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3755e877-f1b1-437b-b8b9-d8c79fbc7578','f2000001-0000-0000-0000-00000000000e','Le président de la République','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c9fd7c50-290b-4d26-893a-362c3782d3c3','f2000001-0000-0000-0000-00000000000e','Les sénateurs','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('72ddf07d-1b5c-4ae9-a465-69316fa7cbee','f2000001-0000-0000-0000-00000000000e','Les juges du tribunal','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3a7c1428-d7bc-4815-a558-54642cb97e08','f2000001-0000-0000-0000-00000000000f','Le président de la République','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b98520b6-9183-4c84-9f49-e323e2f9056c','f2000001-0000-0000-0000-00000000000f','Le Premier ministre','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7498090c-7d5e-4e64-8a1e-5d8b10038263','f2000001-0000-0000-0000-00000000000f','Les ministres','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('cdae838e-69af-48df-9883-98540ee46b33','f2000001-0000-0000-0000-00000000000f','Les préfets','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('063b2c2c-91b6-40d4-ae3a-e2af3328d32e','f2000001-0000-0000-0000-000000000010','18 ans','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('55466ecc-2427-457f-87a7-aeefeef5d78f','f2000001-0000-0000-0000-000000000010','16 ans','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2a58f471-139b-4aab-a102-72fd1af48de0','f2000001-0000-0000-0000-000000000010','21 ans','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d8c6930b-828e-4285-8649-5ee220564c03','f2000001-0000-0000-0000-000000000010','25 ans','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8668d78d-a37e-4383-b937-92db4c18f530','f2000001-0000-0000-0000-000000000011','5 ans','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('871b17d4-23a7-47ae-aa07-a7a603405a8b','f2000001-0000-0000-0000-000000000011','4 ans','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9dbccbf1-ad43-46ff-9e66-93599f5186d2','f2000001-0000-0000-0000-000000000011','7 ans','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4141a2bc-017f-4e3d-aa74-b667be45554f','f2000001-0000-0000-0000-000000000011','10 ans','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ce6c2e1d-7ec8-47c1-979c-4349e89b5bcd','f2000001-0000-0000-0000-000000000012','5 ans','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('12ffbf21-ff57-40e9-89f5-d80136988fbd','f2000001-0000-0000-0000-000000000012','3 ans','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d2764a16-2034-49d2-8c48-79e891d3f8ab','f2000001-0000-0000-0000-000000000012','6 ans','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7054a9bf-0328-4a64-bdeb-9d7ecee7165d','f2000001-0000-0000-0000-000000000012','10 ans','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('44c6339d-5f3a-4285-880d-55e9770029db','f2000001-0000-0000-0000-000000000013','6 ans','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('6bba8310-6542-4e54-bebb-952d64ee3538','f2000001-0000-0000-0000-000000000013','5 ans','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b2b650f2-8ef1-4976-a8e7-6b580c4bc67b','f2000001-0000-0000-0000-000000000013','4 ans','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5514be96-253f-4857-be0b-2eca53b9869d','f2000001-0000-0000-0000-000000000013','9 ans','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ae844e44-bafe-4cf8-a76f-46c8bc6ec6c2','f2000001-0000-0000-0000-000000000014','Le président et le gouvernement','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('6994e430-cd88-4278-879c-5a484b17a8e3','f2000001-0000-0000-0000-000000000014','Le Parlement uniquement','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('38aed58a-3fc9-4f01-a363-037a6d37d6ef','f2000001-0000-0000-0000-000000000014','Les juges','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d11c3661-916f-416f-8561-396b18adf067','f2000001-0000-0000-0000-000000000014','Le Conseil constitutionnel','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5eb291bd-1305-4951-ac9e-b207f9686a04','f2000001-0000-0000-0000-000000000015','Être français, majeur et inscrit sur les listes','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ba436c2d-8df8-4c34-87ed-3cf93c420b80','f2000001-0000-0000-0000-000000000015','Avoir le bac','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('6b6cd502-e170-4b34-9225-bd8eeae39b8c','f2000001-0000-0000-0000-000000000015','Posséder un logement','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('711db3cd-363b-4895-be64-28834f2cec65','f2000001-0000-0000-0000-000000000015','Avoir fait son service militaire','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('12748812-6695-4147-967d-5a93729083dd','f2000001-0000-0000-0000-000000000016','Les citoyens français majeurs avec droits civiques','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c966b517-666a-417b-8127-c5dab48baef2','f2000001-0000-0000-0000-000000000016','Tous les habitants, français ou non','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7666705d-a772-4bd8-b259-1081d999332b','f2000001-0000-0000-0000-000000000016','Uniquement les contribuables','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e10aa474-3811-443b-b1f9-cb25538b3dd0','f2000001-0000-0000-0000-000000000016','Uniquement les hommes','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('da4ab4bd-3e07-4e5a-981d-100e411d6731','f2000001-0000-0000-0000-000000000017','Le droit de vote ouvert à tous les citoyens majeurs','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e968eb80-cad0-4256-b02c-6f257390f633','f2000001-0000-0000-0000-000000000017','Le vote réservé aux propriétaires','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7047dacb-2815-421e-bd19-10ea04f99406','f2000001-0000-0000-0000-000000000017','Le vote réservé aux hommes','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('02145d03-1ea2-4163-a3f8-177cb0f37d5c','f2000001-0000-0000-0000-000000000017','Le vote des étrangers à toutes les élections','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('0d7e9c17-6967-405b-8ae4-cbaa06bf36ea','f2000001-0000-0000-0000-000000000018','Plusieurs partis peuvent exister et concourir librement aux élections','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('01346db8-f45b-4359-940e-1beffba34298','f2000001-0000-0000-0000-000000000018','Un seul parti unique est autorisé','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a712f999-26b6-46bf-b353-1b48c4028839','f2000001-0000-0000-0000-000000000018','Les partis sont interdits par la Constitution','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4930c8b3-71c6-4711-a28a-96d3a0d72f37','f2000001-0000-0000-0000-000000000018','Seuls deux partis sont autorisés','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b283471a-3323-4035-90b2-d61525eb28bc','f2000001-0000-0000-0000-000000000019','Voter les lois et contrôler le gouvernement','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9ab251c5-f3a8-4a31-add9-7bf394ed4e86','f2000001-0000-0000-0000-000000000019','Nommer le président','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7953c47a-c5cf-4d8a-8ede-00d0ee366402','f2000001-0000-0000-0000-000000000019','Diriger l''armée','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ffc1ef23-f5c1-4287-aa16-cc8343503a83','f2000001-0000-0000-0000-000000000019','Juger les criminels','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('f98eb12a-cdc2-46d3-a036-a670c83e7581','f2000001-0000-0000-0000-00000000001a','Exécutif, législatif et judiciaire','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5e3daff9-e7a2-486b-aefd-94b4e0ab8fbd','f2000001-0000-0000-0000-00000000001a','Civil, militaire et religieux','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9a475865-0d69-4f77-b0fb-1020eec89871','f2000001-0000-0000-0000-00000000001a','National, régional et local','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9e7c1094-02f7-4427-9d75-31741cfd47f5','f2000001-0000-0000-0000-00000000001a','Politique, économique et social','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2244f3aa-980b-49c8-9ffa-efa5a168693e','f2000001-0000-0000-0000-00000000001b','Le Parlement (Assemblée nationale et Sénat)','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a6ed58a0-b8f8-44cc-8697-d4117b8504f6','f2000001-0000-0000-0000-00000000001b','Le président seul','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('fb1dbc7a-f91c-44b9-9ca2-97b9904c3203','f2000001-0000-0000-0000-00000000001b','Les juges','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('45feba9f-82ce-4cef-b980-9a2bf7b5fe1d','f2000001-0000-0000-0000-00000000001b','Les préfets','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2aadc821-4792-4a6d-977c-9920ff13552c','f2000001-0000-0000-0000-00000000001c','Un tribunal (autorité judiciaire)','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d2040e7f-30b2-42ef-8d42-d5c9f142135b','f2000001-0000-0000-0000-00000000001c','Le maire de la commune','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e6394485-0037-409e-9f1b-71695f881f04','f2000001-0000-0000-0000-00000000001c','Le président directement','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a4897358-dd14-4e3c-b214-8437cc6df897','f2000001-0000-0000-0000-00000000001c','Le voisin de la victime','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9576468e-688f-446c-b61a-9323c7867445','f2000001-0000-0000-0000-00000000001d','Par les citoyens français au suffrage direct','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('f02d6269-71cc-4c13-86c7-1e70d53486ca','f2000001-0000-0000-0000-00000000001d','Par le président de la République','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('0b22515f-2359-40f8-9a29-7f185d6a07c8','f2000001-0000-0000-0000-00000000001d','Par les sénateurs','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('cc6db5aa-ac63-48cd-9dd5-f59c19d0f886','f2000001-0000-0000-0000-00000000001d','Par les maires','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ace7e3fa-2287-40b2-9922-51492101d06b','f2000001-0000-0000-0000-00000000001e','Le Parlement','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('618a31c5-c666-431c-b7f7-ffa2468fe104','f2000001-0000-0000-0000-00000000001e','Le président','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3acdd5ec-69fa-475c-ae50-af10b25384f9','f2000001-0000-0000-0000-00000000001e','Le Conseil d''État','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e21c6db6-9a2f-4b92-8b79-39e3f46391ef','f2000001-0000-0000-0000-00000000001e','Les juges','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9324b63a-619a-494f-b1c7-3be6a87f1312','f2000001-0000-0000-0000-00000000001f','Le président de la République','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('052e4caa-9016-42b3-8d45-4b1e54fb0e01','f2000001-0000-0000-0000-00000000001f','Le Premier ministre','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('93633d1c-64c7-44fa-9692-65bdd658cdbc','f2000001-0000-0000-0000-00000000001f','Le président du Sénat','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('821754a0-d890-4319-af7a-d2ba2ff396f7','f2000001-0000-0000-0000-00000000001f','Le maire de Paris','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7d2dff19-4f8c-4a50-b41c-669b121413c6','f2000001-0000-0000-0000-000000000020','101','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('34f8268c-25b4-433a-acd3-b04381de1389','f2000001-0000-0000-0000-000000000020','50','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9762b7a6-fa52-4307-801e-4dba3bccd568','f2000001-0000-0000-0000-000000000020','500','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('fa631e2c-429e-44d8-9e99-ad4ee7fff05d','f2000001-0000-0000-0000-000000000020','13','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('eff849b8-8a04-496d-bf63-251c58fc2c75','f2000001-0000-0000-0000-000000000021','Le préfet','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d1eed1cb-1347-48aa-835a-27b2207cac09','f2000001-0000-0000-0000-000000000021','Le maire du chef-lieu','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('25ad5b02-dfb2-427d-8185-39a746489cb9','f2000001-0000-0000-0000-000000000021','Le président du conseil départemental','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('efc20437-9f03-404d-b1c0-c0bc56f0a96b','f2000001-0000-0000-0000-000000000021','Le procureur','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('637b368a-257f-4d44-b2fc-9137eb3e6304','f2000001-0000-0000-0000-000000000022','Le maire','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('1851d73e-3041-49aa-b448-3ac547488676','f2000001-0000-0000-0000-000000000022','Le préfet','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4a26e9e9-7066-4cd9-9c96-ccaa9d20fb34','f2000001-0000-0000-0000-000000000022','Le député','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ee287cb8-acd9-4b91-a9f3-94b80b757f06','f2000001-0000-0000-0000-000000000022','Le président de la République','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3121e693-49bd-421a-b871-5a0d80e9c4b5','f2000001-0000-0000-0000-000000000023','Non, ses pouvoirs sont limités par la Constitution','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2a862536-9c9a-496b-ad53-08b003995709','f2000001-0000-0000-0000-000000000023','Oui, il a tous les pouvoirs','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('06754981-35d3-40bc-94df-b33d29f8d83a','f2000001-0000-0000-0000-000000000023','Oui, sauf en période de paix','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('1d7e103b-8333-40ad-ae14-30271c53f94e','f2000001-0000-0000-0000-000000000023','Oui, jusqu''au prochain référendum','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ff2046f0-3691-4aef-bf5a-1e1cb48c8b7c','f2000001-0000-0000-0000-000000000024','Le représentant de l''État dans un département','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e941809e-31ae-4c0b-9042-b9cf7acabd56','f2000001-0000-0000-0000-000000000024','Un élu de la population','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('aad9c04f-762d-467e-997a-71c6d1196e68','f2000001-0000-0000-0000-000000000024','Un juge de la Cour de cassation','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9802cbd9-e26c-4442-af0c-24dcf5bc619e','f2000001-0000-0000-0000-000000000024','Le maire le plus âgé du département','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2a167769-8910-4208-b61d-3df3603b829f','f2000001-0000-0000-0000-000000000025','Voter les lois et contrôler le gouvernement','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7de0ecaa-908b-460c-a101-b40f5749becf','f2000001-0000-0000-0000-000000000025','Diriger l''armée','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('89598e42-417f-4f3e-8390-6e89eac258c3','f2000001-0000-0000-0000-000000000025','Nommer le président','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('aa4e5331-b7b7-43e5-beba-642740d259e5','f2000001-0000-0000-0000-000000000025','Réviser la Constitution sans vote','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('dcde5bb5-a154-4fe4-90a5-8c6bed894f91','f2000001-0000-0000-0000-000000000026','Une république démocratique semi-présidentielle','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4ffad9ab-0d23-49bf-8e97-5c223919c13a','f2000001-0000-0000-0000-000000000026','Une monarchie constitutionnelle','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('964e4f1f-296f-46aa-9674-5540049dc90d','f2000001-0000-0000-0000-000000000026','Un État fédéral','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c1f49cba-f442-45bc-beec-10c9dec8d355','f2000001-0000-0000-0000-000000000026','Une dictature militaire','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c4e7f504-180b-4c70-afdb-89d3fca4feda','f2000001-0000-0000-0000-000000000027','27','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('131289c3-866b-4029-bc77-33f15a8c4beb','f2000001-0000-0000-0000-000000000027','15','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('01a20e4a-85df-463a-8d5a-90e749274c0a','f2000001-0000-0000-0000-000000000027','50','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('0c1ab84a-046c-49f9-a4ee-8dc651d4908a','f2000001-0000-0000-0000-000000000027','12','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('069346e4-1379-417f-8b90-41d9d99907e7','f2000001-0000-0000-0000-000000000028','La Suisse','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('764facc5-b0df-405a-8767-024c06086565','f2000001-0000-0000-0000-000000000028','L''Espagne','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d4177392-4fbb-408c-8f5c-9c0b55ea9c93','f2000001-0000-0000-0000-000000000028','L''Italie','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('dd5edff2-2891-4841-bd71-85b9c09f5897','f2000001-0000-0000-0000-000000000028','La Belgique','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('bed529ee-651a-43a6-aa3a-c22c2aff7933','f2000001-0000-0000-0000-000000000029','Être citoyen de l''Union européenne, majeur, inscrit','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('498168af-b19d-422f-b51e-e83acc537a13','f2000001-0000-0000-0000-000000000029','Être fonctionnaire européen','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('849c099c-ea21-48a4-a304-4ad959ae9638','f2000001-0000-0000-0000-000000000029','Vivre depuis 20 ans dans le pays','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('f2c39bb9-198e-4bc9-9529-07f6204779cb','f2000001-0000-0000-0000-000000000029','Parler couramment l''anglais','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9f13e34a-0d0a-484d-994b-b13693ff07a3','f2000001-0000-0000-0000-00000000002a','Tous les 5 ans','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('657e50ac-90f4-44da-8817-0824bab8554c','f2000001-0000-0000-0000-00000000002a','Tous les ans','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('49e3c165-578b-460e-bf43-b0222f2fe780','f2000001-0000-0000-0000-00000000002a','Tous les 10 ans','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d4855a3f-f624-454c-87a8-9f2b5412f6d8','f2000001-0000-0000-0000-00000000002a','Tous les 2 ans','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2901e982-61ca-464a-aad1-e6a17262ec5d','f2000001-0000-0000-0000-00000000002b','La France','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('21198d42-5678-45b6-bb08-a631c4b85ccc','f2000001-0000-0000-0000-00000000002b','Le Royaume-Uni','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('76c9c783-3c3a-4730-b815-19dd294a759e','f2000001-0000-0000-0000-00000000002b','L''Espagne','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b33f3833-4edf-43a6-9ce3-45f8156bd93d','f2000001-0000-0000-0000-00000000002b','La Pologne','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9bcbe9ab-f21e-4d88-b174-fbd72c94e26a','f2000001-0000-0000-0000-00000000002c','L''euro','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9f1c9c1c-6208-4310-8735-43c3693feb2c','f2000001-0000-0000-0000-00000000002c','Le franc','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('db065ded-7a0a-4715-9805-bdb356ed6cf0','f2000001-0000-0000-0000-00000000002c','Le dollar','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('464bfc1f-20e6-4b91-878a-4a64fba76202','f2000001-0000-0000-0000-00000000002c','La livre sterling','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5452a744-edbf-4e27-834f-76b6c68549f7','f2000001-0000-0000-0000-00000000002d','Directement par les citoyens de l''Union européenne','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('154453aa-187a-449c-b782-771bebf4f0c9','f2000001-0000-0000-0000-00000000002d','Par les gouvernements nationaux uniquement','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e2a55c6e-71b2-4a44-a682-63b822038c94','f2000001-0000-0000-0000-00000000002d','Par la Commission européenne','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ac84c102-af1a-4d14-9f6c-bc6547725943','f2000001-0000-0000-0000-00000000002d','Par tirage au sort','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('368025db-60ef-4115-b2de-20be91b48c14','f2000001-0000-0000-0000-00000000002e','Le 9 mai','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('1a9e9250-5e91-4977-b069-dee332bc4ab9','f2000001-0000-0000-0000-00000000002e','Le 14 juillet','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('712c5664-7ccc-4e47-a879-9e8a357c59c6','f2000001-0000-0000-0000-00000000002e','Le 11 novembre','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('85435938-6944-4b93-9bb5-ccc80f876f06','f2000001-0000-0000-0000-00000000002e','Le 1er mai','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('de878682-640c-423a-9bc3-93310e021bae','f2000002-0000-0000-0000-000000000001','Le gouvernement','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('107c8acb-c564-4a7f-99fb-551b469e54b7','f2000002-0000-0000-0000-000000000001','Le Parlement','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('89aac188-4a1d-4f39-bd16-ca1d27396825','f2000002-0000-0000-0000-000000000001','Le Sénat','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('40ddf120-06cb-4fb4-95de-337fc1b62ec6','f2000002-0000-0000-0000-000000000001','La justice','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('77013a77-1cce-4e0c-a813-472b16e484ce','f2000002-0000-0000-0000-000000000002','À l''hôtel Matignon','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('35718d9a-8b8f-42c1-8d23-b1b01a87b804','f2000002-0000-0000-0000-000000000002','Au palais de l''Élysée','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('646e764d-cedf-4b74-a5e6-699c7d8bd975','f2000002-0000-0000-0000-000000000002','Au palais Bourbon','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e9c2928c-bf4a-49d8-b0e4-ce883728d4b7','f2000002-0000-0000-0000-000000000002','Au palais du Luxembourg','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('319b5acf-aa43-4f5d-8802-e7bff5dc79b2','f2000002-0000-0000-0000-000000000003','Oui, au suffrage universel direct','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('f8186a20-3417-4845-b5ba-43d4b1b7e848','f2000002-0000-0000-0000-000000000003','Non, il est élu par les députés','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5226680a-d8f2-4c74-83d8-a6deef5105d3','f2000002-0000-0000-0000-000000000003','Non, il est nommé à vie','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('afacf8d0-8e2a-427b-a2f8-1aa6c6b67142','f2000002-0000-0000-0000-000000000003','Non, il est désigné par tirage au sort','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7af7a7aa-f42a-44f8-aced-949ef1cd02f3','f2000002-0000-0000-0000-000000000004','Deux tours','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a8a5ee13-5680-497d-acc9-d66c8be81709','f2000002-0000-0000-0000-000000000004','Un seul tour','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7b7558b2-821f-4a62-8140-a271f5f18903','f2000002-0000-0000-0000-000000000004','Trois tours','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b3c1155d-03e5-439d-a776-e2a28b2c2879','f2000002-0000-0000-0000-000000000004','Aucun tour, c''est une nomination','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('293e8a91-67b7-402f-b616-bcd6b8c75bf6','f2000002-0000-0000-0000-000000000005','Oui, mais deux mandats consécutifs au maximum','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5b2958b5-f938-4414-90e0-d9fb2a135f98','f2000002-0000-0000-0000-000000000005','Non, jamais','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a1cf22bf-e395-4994-bcb2-db002313a9ce','f2000002-0000-0000-0000-000000000005','Oui, sans aucune limite','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2980ab0c-98b9-44f4-a33d-216a8566ba2e','f2000002-0000-0000-0000-000000000005','Oui, mais une seule fois sur toute la vie','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('96e2e460-4e45-4d28-8b56-f9ff5532ea9b','f2000002-0000-0000-0000-000000000006','Le président de la République','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ff268b6e-763e-47dd-a354-bb6bd7d86d6d','f2000002-0000-0000-0000-000000000006','Le ministre de la Défense','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9ffe48d7-a4b4-4719-affd-6f2fbc241ea7','f2000002-0000-0000-0000-000000000006','Le Premier ministre','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('91d17002-754c-4f1f-a4da-b8c7b443d07d','f2000002-0000-0000-0000-000000000006','Le général le plus âgé','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d06036e1-72e6-40c1-a6ec-eafcbe5c2cec','f2000002-0000-0000-0000-000000000007','Oui, par un référendum','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('21e73a9b-6793-415c-bbd1-24f743cb629d','f2000002-0000-0000-0000-000000000007','Non, seul le Parlement décide','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7c3eabc7-f706-4f96-950f-aab521446d6e','f2000002-0000-0000-0000-000000000007','Non, jamais','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('6106a321-3a18-4661-b061-ccdb2c84d1d8','f2000002-0000-0000-0000-000000000007','Uniquement avec accord de l''ONU','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5cccaea9-918a-4c8e-8017-53244f10818d','f2000002-0000-0000-0000-000000000008','Oui, c''est l''une de ses fonctions','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('de8a9fe3-8e5f-4bf4-8f61-10f322160001','f2000002-0000-0000-0000-000000000008','Non, ce rôle revient au maire de Paris','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3b1fae73-365b-4ee0-87bf-e02af4ca364b','f2000002-0000-0000-0000-000000000008','Non, uniquement les ambassadeurs','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8ac3f272-69f5-45e4-9214-ea39372841a1','f2000002-0000-0000-0000-000000000008','Uniquement en cas de guerre','false','3');
+INSERT INTO choices
+  (id, question_id, label, is_correct, display_order)
+VALUES
+  ('bce38419-5c51-43f8-a016-f56e4249c9ee', 'f2000001-0000-0000-0000-000000000005',
+   'Non, la loi s''applique à tous, même en cas de désaccord',
+   'true', '0'),
+
+  ('d348f3c7-79c9-4ecf-9072-ff2b2b55fd1c', 'f2000001-0000-0000-0000-000000000005',
+   'Oui, c''est une liberté personnelle',
+   'false', '1'),
+
+  ('668b9601-c515-4ac1-b2ab-1c6b3986a3e0', 'f2000001-0000-0000-0000-000000000005',
+   'Oui, en cas de croyance religieuse',
+   'false', '2'),
+
+  ('e601cdcd-8bd7-48ac-8e5a-2b76c86337fd', 'f2000001-0000-0000-0000-000000000005',
+   'Oui, le week-end',
+   'false', '3'),
+
+  ('e468db5e-c655-4523-92ef-1f4806638ba2', 'f2000001-0000-0000-0000-000000000006',
+   'Toute personne présente sur le territoire',
+   'true', '0'),
+
+  ('edb1e236-dd5f-4d9a-a529-48db85e7aec5', 'f2000001-0000-0000-0000-000000000006',
+   'Uniquement les Français',
+   'false', '1'),
+
+  ('f9d98273-55a9-4279-858d-e82b72ab594d', 'f2000001-0000-0000-0000-000000000006',
+   'Uniquement les adultes',
+   'false', '2'),
+
+  ('8956651c-4542-4698-a2d0-805b95b57770', 'f2000001-0000-0000-0000-000000000006',
+   'Uniquement les personnes condamnées',
+   'false', '3'),
+
+  ('09edd51f-7147-4953-88d4-75aa6d3ba9cd', 'f2000001-0000-0000-0000-000000000007',
+   'Elle applique la loi et protège les libertés',
+   'true', '0'),
+
+  ('113ee3d7-f875-442b-af56-b769609e78ff', 'f2000001-0000-0000-0000-000000000007',
+   'Elle vote les lois',
+   'false', '1'),
+
+  ('726b71ce-fa09-4545-af9f-55f856883009', 'f2000001-0000-0000-0000-000000000007',
+   'Elle nomme les ministres',
+   'false', '2'),
+
+  ('45f116f3-c64b-44a8-b19b-efe52b799aa4', 'f2000001-0000-0000-0000-000000000007',
+   'Elle gère les écoles publiques',
+   'false', '3'),
+
+  ('9cf0ff3f-d943-48b1-9f6c-00c2cc470c46', 'f2000001-0000-0000-0000-000000000008',
+   'Le pouvoir judiciaire',
+   'true', '0'),
+
+  ('535355fb-99b7-42dc-b515-517f29aa9302', 'f2000001-0000-0000-0000-000000000008',
+   'Le pouvoir exécutif',
+   'false', '1'),
+
+  ('a4229072-e3a8-4f17-88c0-0390e56735ac', 'f2000001-0000-0000-0000-000000000008',
+   'Le pouvoir législatif',
+   'false', '2'),
+
+  ('21adb0a3-b1e2-4316-ae46-b927a0ec9cb3', 'f2000001-0000-0000-0000-000000000008',
+   'Le pouvoir constitutionnel',
+   'false', '3'),
+
+  ('55940151-7ab9-43b3-8f12-065a1f44b721', 'f2000001-0000-0000-0000-000000000009',
+   'Les magistrats (juges et procureurs)',
+   'true', '0'),
+
+  ('5342717d-06c1-4e88-abd5-7898deb29dd7', 'f2000001-0000-0000-0000-000000000009',
+   'Les députés',
+   'false', '1'),
+
+  ('f9743cc3-5a67-48cf-8e10-0ae3fc866dfc', 'f2000001-0000-0000-0000-000000000009',
+   'Les préfets',
+   'false', '2'),
+
+  ('7571afd3-643a-413e-8bc4-1dcd886ff91f', 'f2000001-0000-0000-0000-000000000009',
+   'Le président de la République seul',
+   'false', '3'),
+
+  ('d04eb46f-784e-4b0a-a42a-ef3bde38250e', 'f2000001-0000-0000-0000-00000000000a',
+   'Non, il peut être jugé comme tout citoyen',
+   'true', '0'),
+
+  ('b2f63113-a478-4924-84cb-6d4c2fa1b2f1', 'f2000001-0000-0000-0000-00000000000a',
+   'Oui, les ministres ont une immunité totale',
+   'false', '1'),
+
+  ('41332407-01df-420a-bcfa-2bc7ca260251', 'f2000001-0000-0000-0000-00000000000a',
+   'Oui, jusqu''à la fin de son mandat',
+   'false', '2'),
+
+  ('184fece1-0c76-4ce3-a8d2-7e53dde01c26', 'f2000001-0000-0000-0000-00000000000a',
+   'Oui, seul le président peut le juger',
+   'false', '3'),
+
+  ('31e62378-5cab-414f-80fd-c68df7af83b2', 'f2000001-0000-0000-0000-00000000000b',
+   'Les députés',
+   'true', '0'),
+
+  ('cae6f02f-38a7-4127-b897-ae6e62a5b1ab', 'f2000001-0000-0000-0000-00000000000b',
+   'Les sénateurs',
+   'false', '1'),
+
+  ('ada8f23c-10dc-464e-9b59-fb58bede6ad4', 'f2000001-0000-0000-0000-00000000000b',
+   'Le président de la République',
+   'false', '2'),
+
+  ('ac0a52d8-d5fb-449a-b164-51872bf582bd', 'f2000001-0000-0000-0000-00000000000b',
+   'Les maires',
+   'false', '3'),
+
+  ('cf416a07-cc18-4b33-8be0-7751e300436e', 'f2000001-0000-0000-0000-00000000000c',
+   '577',
+   'true', '0'),
+
+  ('816f103d-02bd-411d-9349-d7027e00f3b2', 'f2000001-0000-0000-0000-00000000000c',
+   '348',
+   'false', '1'),
+
+  ('7848d824-b9e1-42da-aa40-e7425cb0097d', 'f2000001-0000-0000-0000-00000000000c',
+   '1 000',
+   'false', '2'),
+
+  ('eb27d9ce-e02f-4762-8a28-784ea1469b47', 'f2000001-0000-0000-0000-00000000000c',
+   '200',
+   'false', '3'),
+
+  ('65827c6a-bd74-4e6c-832c-800de87bff3d', 'f2000001-0000-0000-0000-00000000000d',
+   'Au suffrage universel indirect, par des grands électeurs',
+   'true', '0'),
+
+  ('74c47f43-ceae-4364-bc00-8318e2ddd776', 'f2000001-0000-0000-0000-00000000000d',
+   'Au suffrage universel direct des citoyens',
+   'false', '1'),
+
+  ('44e39122-6312-4d90-ae41-9da5f98bd815', 'f2000001-0000-0000-0000-00000000000d',
+   'Par tirage au sort',
+   'false', '2'),
+
+  ('864ac4b8-ad08-4d73-aa64-0562a0c779c7', 'f2000001-0000-0000-0000-00000000000d',
+   'Par nomination du président',
+   'false', '3'),
+
+  ('032825c3-2096-4f60-b91d-db0dc6550841', 'f2000001-0000-0000-0000-00000000000e',
+   'Les conseillers municipaux',
+   'true', '0'),
+
+  ('3755e877-f1b1-437b-b8b9-d8c79fbc7578', 'f2000001-0000-0000-0000-00000000000e',
+   'Le président de la République',
+   'false', '1'),
+
+  ('c9fd7c50-290b-4d26-893a-362c3782d3c3', 'f2000001-0000-0000-0000-00000000000e',
+   'Les sénateurs',
+   'false', '2'),
+
+  ('72ddf07d-1b5c-4ae9-a465-69316fa7cbee', 'f2000001-0000-0000-0000-00000000000e',
+   'Les juges du tribunal',
+   'false', '3'),
+
+  ('3a7c1428-d7bc-4815-a558-54642cb97e08', 'f2000001-0000-0000-0000-00000000000f',
+   'Le président de la République',
+   'true', '0'),
+
+  ('b98520b6-9183-4c84-9f49-e323e2f9056c', 'f2000001-0000-0000-0000-00000000000f',
+   'Le Premier ministre',
+   'false', '1'),
+
+  ('7498090c-7d5e-4e64-8a1e-5d8b10038263', 'f2000001-0000-0000-0000-00000000000f',
+   'Les ministres',
+   'false', '2'),
+
+  ('cdae838e-69af-48df-9883-98540ee46b33', 'f2000001-0000-0000-0000-00000000000f',
+   'Les préfets',
+   'false', '3'),
+
+  ('063b2c2c-91b6-40d4-ae3a-e2af3328d32e', 'f2000001-0000-0000-0000-000000000010',
+   '18 ans',
+   'true', '0'),
+
+  ('55466ecc-2427-457f-87a7-aeefeef5d78f', 'f2000001-0000-0000-0000-000000000010',
+   '16 ans',
+   'false', '1'),
+
+  ('2a58f471-139b-4aab-a102-72fd1af48de0', 'f2000001-0000-0000-0000-000000000010',
+   '21 ans',
+   'false', '2'),
+
+  ('d8c6930b-828e-4285-8649-5ee220564c03', 'f2000001-0000-0000-0000-000000000010',
+   '25 ans',
+   'false', '3'),
+
+  ('8668d78d-a37e-4383-b937-92db4c18f530', 'f2000001-0000-0000-0000-000000000011',
+   '5 ans',
+   'true', '0'),
+
+  ('871b17d4-23a7-47ae-aa07-a7a603405a8b', 'f2000001-0000-0000-0000-000000000011',
+   '4 ans',
+   'false', '1'),
+
+  ('9dbccbf1-ad43-46ff-9e66-93599f5186d2', 'f2000001-0000-0000-0000-000000000011',
+   '7 ans',
+   'false', '2'),
+
+  ('4141a2bc-017f-4e3d-aa74-b667be45554f', 'f2000001-0000-0000-0000-000000000011',
+   '10 ans',
+   'false', '3'),
+
+  ('ce6c2e1d-7ec8-47c1-979c-4349e89b5bcd', 'f2000001-0000-0000-0000-000000000012',
+   '5 ans',
+   'true', '0'),
+
+  ('12ffbf21-ff57-40e9-89f5-d80136988fbd', 'f2000001-0000-0000-0000-000000000012',
+   '3 ans',
+   'false', '1'),
+
+  ('d2764a16-2034-49d2-8c48-79e891d3f8ab', 'f2000001-0000-0000-0000-000000000012',
+   '6 ans',
+   'false', '2'),
+
+  ('7054a9bf-0328-4a64-bdeb-9d7ecee7165d', 'f2000001-0000-0000-0000-000000000012',
+   '10 ans',
+   'false', '3'),
+
+  ('44c6339d-5f3a-4285-880d-55e9770029db', 'f2000001-0000-0000-0000-000000000013',
+   '6 ans',
+   'true', '0'),
+
+  ('6bba8310-6542-4e54-bebb-952d64ee3538', 'f2000001-0000-0000-0000-000000000013',
+   '5 ans',
+   'false', '1'),
+
+  ('b2b650f2-8ef1-4976-a8e7-6b580c4bc67b', 'f2000001-0000-0000-0000-000000000013',
+   '4 ans',
+   'false', '2'),
+
+  ('5514be96-253f-4857-be0b-2eca53b9869d', 'f2000001-0000-0000-0000-000000000013',
+   '9 ans',
+   'false', '3'),
+
+  ('ae844e44-bafe-4cf8-a76f-46c8bc6ec6c2', 'f2000001-0000-0000-0000-000000000014',
+   'Le président et le gouvernement',
+   'true', '0'),
+
+  ('6994e430-cd88-4278-879c-5a484b17a8e3', 'f2000001-0000-0000-0000-000000000014',
+   'Le Parlement uniquement',
+   'false', '1'),
+
+  ('38aed58a-3fc9-4f01-a363-037a6d37d6ef', 'f2000001-0000-0000-0000-000000000014',
+   'Les juges',
+   'false', '2'),
+
+  ('d11c3661-916f-416f-8561-396b18adf067', 'f2000001-0000-0000-0000-000000000014',
+   'Le Conseil constitutionnel',
+   'false', '3'),
+
+  ('5eb291bd-1305-4951-ac9e-b207f9686a04', 'f2000001-0000-0000-0000-000000000015',
+   'Être français, majeur et inscrit sur les listes',
+   'true', '0'),
+
+  ('ba436c2d-8df8-4c34-87ed-3cf93c420b80', 'f2000001-0000-0000-0000-000000000015',
+   'Avoir le bac',
+   'false', '1'),
+
+  ('6b6cd502-e170-4b34-9225-bd8eeae39b8c', 'f2000001-0000-0000-0000-000000000015',
+   'Posséder un logement',
+   'false', '2'),
+
+  ('711db3cd-363b-4895-be64-28834f2cec65', 'f2000001-0000-0000-0000-000000000015',
+   'Avoir fait son service militaire',
+   'false', '3'),
+
+  ('12748812-6695-4147-967d-5a93729083dd', 'f2000001-0000-0000-0000-000000000016',
+   'Les citoyens français majeurs avec droits civiques',
+   'true', '0'),
+
+  ('c966b517-666a-417b-8127-c5dab48baef2', 'f2000001-0000-0000-0000-000000000016',
+   'Tous les habitants, français ou non',
+   'false', '1'),
+
+  ('7666705d-a772-4bd8-b259-1081d999332b', 'f2000001-0000-0000-0000-000000000016',
+   'Uniquement les contribuables',
+   'false', '2'),
+
+  ('e10aa474-3811-443b-b1f9-cb25538b3dd0', 'f2000001-0000-0000-0000-000000000016',
+   'Uniquement les hommes',
+   'false', '3'),
+
+  ('da4ab4bd-3e07-4e5a-981d-100e411d6731', 'f2000001-0000-0000-0000-000000000017',
+   'Le droit de vote ouvert à tous les citoyens majeurs',
+   'true', '0'),
+
+  ('e968eb80-cad0-4256-b02c-6f257390f633', 'f2000001-0000-0000-0000-000000000017',
+   'Le vote réservé aux propriétaires',
+   'false', '1'),
+
+  ('7047dacb-2815-421e-bd19-10ea04f99406', 'f2000001-0000-0000-0000-000000000017',
+   'Le vote réservé aux hommes',
+   'false', '2'),
+
+  ('02145d03-1ea2-4163-a3f8-177cb0f37d5c', 'f2000001-0000-0000-0000-000000000017',
+   'Le vote des étrangers à toutes les élections',
+   'false', '3'),
+
+  ('0d7e9c17-6967-405b-8ae4-cbaa06bf36ea', 'f2000001-0000-0000-0000-000000000018',
+   'Plusieurs partis peuvent exister et concourir librement aux élections',
+   'true', '0'),
+
+  ('01346db8-f45b-4359-940e-1beffba34298', 'f2000001-0000-0000-0000-000000000018',
+   'Un seul parti unique est autorisé',
+   'false', '1'),
+
+  ('a712f999-26b6-46bf-b353-1b48c4028839', 'f2000001-0000-0000-0000-000000000018',
+   'Les partis sont interdits par la Constitution',
+   'false', '2'),
+
+  ('4930c8b3-71c6-4711-a28a-96d3a0d72f37', 'f2000001-0000-0000-0000-000000000018',
+   'Seuls deux partis sont autorisés',
+   'false', '3'),
+
+  ('b283471a-3323-4035-90b2-d61525eb28bc', 'f2000001-0000-0000-0000-000000000019',
+   'Voter les lois et contrôler le gouvernement',
+   'true', '0'),
+
+  ('9ab251c5-f3a8-4a31-add9-7bf394ed4e86', 'f2000001-0000-0000-0000-000000000019',
+   'Nommer le président',
+   'false', '1'),
+
+  ('7953c47a-c5cf-4d8a-8ede-00d0ee366402', 'f2000001-0000-0000-0000-000000000019',
+   'Diriger l''armée',
+   'false', '2'),
+
+  ('ffc1ef23-f5c1-4287-aa16-cc8343503a83', 'f2000001-0000-0000-0000-000000000019',
+   'Juger les criminels',
+   'false', '3'),
+
+  ('f98eb12a-cdc2-46d3-a036-a670c83e7581', 'f2000001-0000-0000-0000-00000000001a',
+   'Exécutif, législatif et judiciaire',
+   'true', '0'),
+
+  ('5e3daff9-e7a2-486b-aefd-94b4e0ab8fbd', 'f2000001-0000-0000-0000-00000000001a',
+   'Civil, militaire et religieux',
+   'false', '1'),
+
+  ('9a475865-0d69-4f77-b0fb-1020eec89871', 'f2000001-0000-0000-0000-00000000001a',
+   'National, régional et local',
+   'false', '2'),
+
+  ('9e7c1094-02f7-4427-9d75-31741cfd47f5', 'f2000001-0000-0000-0000-00000000001a',
+   'Politique, économique et social',
+   'false', '3'),
+
+  ('2244f3aa-980b-49c8-9ffa-efa5a168693e', 'f2000001-0000-0000-0000-00000000001b',
+   'Le Parlement (Assemblée nationale et Sénat)',
+   'true', '0'),
+
+  ('a6ed58a0-b8f8-44cc-8697-d4117b8504f6', 'f2000001-0000-0000-0000-00000000001b',
+   'Le président seul',
+   'false', '1'),
+
+  ('fb1dbc7a-f91c-44b9-9ca2-97b9904c3203', 'f2000001-0000-0000-0000-00000000001b',
+   'Les juges',
+   'false', '2'),
+
+  ('45feba9f-82ce-4cef-b980-9a2bf7b5fe1d', 'f2000001-0000-0000-0000-00000000001b',
+   'Les préfets',
+   'false', '3'),
+
+  ('2aadc821-4792-4a6d-977c-9920ff13552c', 'f2000001-0000-0000-0000-00000000001c',
+   'Un tribunal (autorité judiciaire)',
+   'true', '0'),
+
+  ('d2040e7f-30b2-42ef-8d42-d5c9f142135b', 'f2000001-0000-0000-0000-00000000001c',
+   'Le maire de la commune',
+   'false', '1'),
+
+  ('e6394485-0037-409e-9f1b-71695f881f04', 'f2000001-0000-0000-0000-00000000001c',
+   'Le président directement',
+   'false', '2'),
+
+  ('a4897358-dd14-4e3c-b214-8437cc6df897', 'f2000001-0000-0000-0000-00000000001c',
+   'Le voisin de la victime',
+   'false', '3'),
+
+  ('9576468e-688f-446c-b61a-9323c7867445', 'f2000001-0000-0000-0000-00000000001d',
+   'Par les citoyens français au suffrage direct',
+   'true', '0'),
+
+  ('f02d6269-71cc-4c13-86c7-1e70d53486ca', 'f2000001-0000-0000-0000-00000000001d',
+   'Par le président de la République',
+   'false', '1'),
+
+  ('0b22515f-2359-40f8-9a29-7f185d6a07c8', 'f2000001-0000-0000-0000-00000000001d',
+   'Par les sénateurs',
+   'false', '2'),
+
+  ('cc6db5aa-ac63-48cd-9dd5-f59c19d0f886', 'f2000001-0000-0000-0000-00000000001d',
+   'Par les maires',
+   'false', '3'),
+
+  ('ace7e3fa-2287-40b2-9922-51492101d06b', 'f2000001-0000-0000-0000-00000000001e',
+   'Le Parlement',
+   'true', '0'),
+
+  ('618a31c5-c666-431c-b7f7-ffa2468fe104', 'f2000001-0000-0000-0000-00000000001e',
+   'Le président',
+   'false', '1'),
+
+  ('3acdd5ec-69fa-475c-ae50-af10b25384f9', 'f2000001-0000-0000-0000-00000000001e',
+   'Le Conseil d''État',
+   'false', '2'),
+
+  ('e21c6db6-9a2f-4b92-8b79-39e3f46391ef', 'f2000001-0000-0000-0000-00000000001e',
+   'Les juges',
+   'false', '3'),
+
+  ('9324b63a-619a-494f-b1c7-3be6a87f1312', 'f2000001-0000-0000-0000-00000000001f',
+   'Le président de la République',
+   'true', '0'),
+
+  ('052e4caa-9016-42b3-8d45-4b1e54fb0e01', 'f2000001-0000-0000-0000-00000000001f',
+   'Le Premier ministre',
+   'false', '1'),
+
+  ('93633d1c-64c7-44fa-9692-65bdd658cdbc', 'f2000001-0000-0000-0000-00000000001f',
+   'Le président du Sénat',
+   'false', '2'),
+
+  ('821754a0-d890-4319-af7a-d2ba2ff396f7', 'f2000001-0000-0000-0000-00000000001f',
+   'Le maire de Paris',
+   'false', '3'),
+
+  ('7d2dff19-4f8c-4a50-b41c-669b121413c6', 'f2000001-0000-0000-0000-000000000020',
+   '101',
+   'true', '0'),
+
+  ('34f8268c-25b4-433a-acd3-b04381de1389', 'f2000001-0000-0000-0000-000000000020',
+   '50',
+   'false', '1'),
+
+  ('9762b7a6-fa52-4307-801e-4dba3bccd568', 'f2000001-0000-0000-0000-000000000020',
+   '500',
+   'false', '2'),
+
+  ('fa631e2c-429e-44d8-9e99-ad4ee7fff05d', 'f2000001-0000-0000-0000-000000000020',
+   '13',
+   'false', '3'),
+
+  ('eff849b8-8a04-496d-bf63-251c58fc2c75', 'f2000001-0000-0000-0000-000000000021',
+   'Le préfet',
+   'true', '0'),
+
+  ('d1eed1cb-1347-48aa-835a-27b2207cac09', 'f2000001-0000-0000-0000-000000000021',
+   'Le maire du chef-lieu',
+   'false', '1'),
+
+  ('25ad5b02-dfb2-427d-8185-39a746489cb9', 'f2000001-0000-0000-0000-000000000021',
+   'Le président du conseil départemental',
+   'false', '2'),
+
+  ('efc20437-9f03-404d-b1c0-c0bc56f0a96b', 'f2000001-0000-0000-0000-000000000021',
+   'Le procureur',
+   'false', '3'),
+
+  ('637b368a-257f-4d44-b2fc-9137eb3e6304', 'f2000001-0000-0000-0000-000000000022',
+   'Le maire',
+   'true', '0'),
+
+  ('1851d73e-3041-49aa-b448-3ac547488676', 'f2000001-0000-0000-0000-000000000022',
+   'Le préfet',
+   'false', '1'),
+
+  ('4a26e9e9-7066-4cd9-9c96-ccaa9d20fb34', 'f2000001-0000-0000-0000-000000000022',
+   'Le député',
+   'false', '2'),
+
+  ('ee287cb8-acd9-4b91-a9f3-94b80b757f06', 'f2000001-0000-0000-0000-000000000022',
+   'Le président de la République',
+   'false', '3'),
+
+  ('3121e693-49bd-421a-b871-5a0d80e9c4b5', 'f2000001-0000-0000-0000-000000000023',
+   'Non, ses pouvoirs sont limités par la Constitution',
+   'true', '0'),
+
+  ('2a862536-9c9a-496b-ad53-08b003995709', 'f2000001-0000-0000-0000-000000000023',
+   'Oui, il a tous les pouvoirs',
+   'false', '1'),
+
+  ('06754981-35d3-40bc-94df-b33d29f8d83a', 'f2000001-0000-0000-0000-000000000023',
+   'Oui, sauf en période de paix',
+   'false', '2'),
+
+  ('1d7e103b-8333-40ad-ae14-30271c53f94e', 'f2000001-0000-0000-0000-000000000023',
+   'Oui, jusqu''au prochain référendum',
+   'false', '3'),
+
+  ('ff2046f0-3691-4aef-bf5a-1e1cb48c8b7c', 'f2000001-0000-0000-0000-000000000024',
+   'Le représentant de l''État dans un département',
+   'true', '0'),
+
+  ('e941809e-31ae-4c0b-9042-b9cf7acabd56', 'f2000001-0000-0000-0000-000000000024',
+   'Un élu de la population',
+   'false', '1'),
+
+  ('aad9c04f-762d-467e-997a-71c6d1196e68', 'f2000001-0000-0000-0000-000000000024',
+   'Un juge de la Cour de cassation',
+   'false', '2'),
+
+  ('9802cbd9-e26c-4442-af0c-24dcf5bc619e', 'f2000001-0000-0000-0000-000000000024',
+   'Le maire le plus âgé du département',
+   'false', '3'),
+
+  ('2a167769-8910-4208-b61d-3df3603b829f', 'f2000001-0000-0000-0000-000000000025',
+   'Voter les lois et contrôler le gouvernement',
+   'true', '0'),
+
+  ('7de0ecaa-908b-460c-a101-b40f5749becf', 'f2000001-0000-0000-0000-000000000025',
+   'Diriger l''armée',
+   'false', '1'),
+
+  ('89598e42-417f-4f3e-8390-6e89eac258c3', 'f2000001-0000-0000-0000-000000000025',
+   'Nommer le président',
+   'false', '2'),
+
+  ('aa4e5331-b7b7-43e5-beba-642740d259e5', 'f2000001-0000-0000-0000-000000000025',
+   'Réviser la Constitution sans vote',
+   'false', '3'),
+
+  ('dcde5bb5-a154-4fe4-90a5-8c6bed894f91', 'f2000001-0000-0000-0000-000000000026',
+   'Une république démocratique semi-présidentielle',
+   'true', '0'),
+
+  ('4ffad9ab-0d23-49bf-8e97-5c223919c13a', 'f2000001-0000-0000-0000-000000000026',
+   'Une monarchie constitutionnelle',
+   'false', '1'),
+
+  ('964e4f1f-296f-46aa-9674-5540049dc90d', 'f2000001-0000-0000-0000-000000000026',
+   'Un État fédéral',
+   'false', '2'),
+
+  ('c1f49cba-f442-45bc-beec-10c9dec8d355', 'f2000001-0000-0000-0000-000000000026',
+   'Une dictature militaire',
+   'false', '3'),
+
+  ('c4e7f504-180b-4c70-afdb-89d3fca4feda', 'f2000001-0000-0000-0000-000000000027',
+   '27',
+   'true', '0'),
+
+  ('131289c3-866b-4029-bc77-33f15a8c4beb', 'f2000001-0000-0000-0000-000000000027',
+   '15',
+   'false', '1'),
+
+  ('01a20e4a-85df-463a-8d5a-90e749274c0a', 'f2000001-0000-0000-0000-000000000027',
+   '50',
+   'false', '2'),
+
+  ('0c1ab84a-046c-49f9-a4ee-8dc651d4908a', 'f2000001-0000-0000-0000-000000000027',
+   '12',
+   'false', '3'),
+
+  ('069346e4-1379-417f-8b90-41d9d99907e7', 'f2000001-0000-0000-0000-000000000028',
+   'La Suisse',
+   'true', '0'),
+
+  ('764facc5-b0df-405a-8767-024c06086565', 'f2000001-0000-0000-0000-000000000028',
+   'L''Espagne',
+   'false', '1'),
+
+  ('d4177392-4fbb-408c-8f5c-9c0b55ea9c93', 'f2000001-0000-0000-0000-000000000028',
+   'L''Italie',
+   'false', '2'),
+
+  ('dd5edff2-2891-4841-bd71-85b9c09f5897', 'f2000001-0000-0000-0000-000000000028',
+   'La Belgique',
+   'false', '3'),
+
+  ('bed529ee-651a-43a6-aa3a-c22c2aff7933', 'f2000001-0000-0000-0000-000000000029',
+   'Être citoyen de l''Union européenne, majeur, inscrit',
+   'true', '0'),
+
+  ('498168af-b19d-422f-b51e-e83acc537a13', 'f2000001-0000-0000-0000-000000000029',
+   'Être fonctionnaire européen',
+   'false', '1'),
+
+  ('849c099c-ea21-48a4-a304-4ad959ae9638', 'f2000001-0000-0000-0000-000000000029',
+   'Vivre depuis 20 ans dans le pays',
+   'false', '2'),
+
+  ('f2c39bb9-198e-4bc9-9529-07f6204779cb', 'f2000001-0000-0000-0000-000000000029',
+   'Parler couramment l''anglais',
+   'false', '3'),
+
+  ('9f13e34a-0d0a-484d-994b-b13693ff07a3', 'f2000001-0000-0000-0000-00000000002a',
+   'Tous les 5 ans',
+   'true', '0'),
+
+  ('657e50ac-90f4-44da-8817-0824bab8554c', 'f2000001-0000-0000-0000-00000000002a',
+   'Tous les ans',
+   'false', '1'),
+
+  ('49e3c165-578b-460e-bf43-b0222f2fe780', 'f2000001-0000-0000-0000-00000000002a',
+   'Tous les 10 ans',
+   'false', '2'),
+
+  ('d4855a3f-f624-454c-87a8-9f2b5412f6d8', 'f2000001-0000-0000-0000-00000000002a',
+   'Tous les 2 ans',
+   'false', '3'),
+
+  ('2901e982-61ca-464a-aad1-e6a17262ec5d', 'f2000001-0000-0000-0000-00000000002b',
+   'La France',
+   'true', '0'),
+
+  ('21198d42-5678-45b6-bb08-a631c4b85ccc', 'f2000001-0000-0000-0000-00000000002b',
+   'Le Royaume-Uni',
+   'false', '1'),
+
+  ('76c9c783-3c3a-4730-b815-19dd294a759e', 'f2000001-0000-0000-0000-00000000002b',
+   'L''Espagne',
+   'false', '2'),
+
+  ('b33f3833-4edf-43a6-9ce3-45f8156bd93d', 'f2000001-0000-0000-0000-00000000002b',
+   'La Pologne',
+   'false', '3'),
+
+  ('9bcbe9ab-f21e-4d88-b174-fbd72c94e26a', 'f2000001-0000-0000-0000-00000000002c',
+   'L''euro',
+   'true', '0'),
+
+  ('9f1c9c1c-6208-4310-8735-43c3693feb2c', 'f2000001-0000-0000-0000-00000000002c',
+   'Le franc',
+   'false', '1'),
+
+  ('db065ded-7a0a-4715-9805-bdb356ed6cf0', 'f2000001-0000-0000-0000-00000000002c',
+   'Le dollar',
+   'false', '2'),
+
+  ('464bfc1f-20e6-4b91-878a-4a64fba76202', 'f2000001-0000-0000-0000-00000000002c',
+   'La livre sterling',
+   'false', '3'),
+
+  ('5452a744-edbf-4e27-834f-76b6c68549f7', 'f2000001-0000-0000-0000-00000000002d',
+   'Directement par les citoyens de l''Union européenne',
+   'true', '0'),
+
+  ('154453aa-187a-449c-b782-771bebf4f0c9', 'f2000001-0000-0000-0000-00000000002d',
+   'Par les gouvernements nationaux uniquement',
+   'false', '1'),
+
+  ('e2a55c6e-71b2-4a44-a682-63b822038c94', 'f2000001-0000-0000-0000-00000000002d',
+   'Par la Commission européenne',
+   'false', '2'),
+
+  ('ac84c102-af1a-4d14-9f6c-bc6547725943', 'f2000001-0000-0000-0000-00000000002d',
+   'Par tirage au sort',
+   'false', '3'),
+
+  ('368025db-60ef-4115-b2de-20be91b48c14', 'f2000001-0000-0000-0000-00000000002e',
+   'Le 9 mai',
+   'true', '0'),
+
+  ('1a9e9250-5e91-4977-b069-dee332bc4ab9', 'f2000001-0000-0000-0000-00000000002e',
+   'Le 14 juillet',
+   'false', '1'),
+
+  ('712c5664-7ccc-4e47-a879-9e8a357c59c6', 'f2000001-0000-0000-0000-00000000002e',
+   'Le 11 novembre',
+   'false', '2'),
+
+  ('85435938-6944-4b93-9bb5-ccc80f876f06', 'f2000001-0000-0000-0000-00000000002e',
+   'Le 1er mai',
+   'false', '3'),
+
+  ('de878682-640c-423a-9bc3-93310e021bae', 'f2000002-0000-0000-0000-000000000001',
+   'Le gouvernement',
+   'true', '0'),
+
+  ('107c8acb-c564-4a7f-99fb-551b469e54b7', 'f2000002-0000-0000-0000-000000000001',
+   'Le Parlement',
+   'false', '1'),
+
+  ('89aac188-4a1d-4f39-bd16-ca1d27396825', 'f2000002-0000-0000-0000-000000000001',
+   'Le Sénat',
+   'false', '2'),
+
+  ('40ddf120-06cb-4fb4-95de-337fc1b62ec6', 'f2000002-0000-0000-0000-000000000001',
+   'La justice',
+   'false', '3'),
+
+  ('77013a77-1cce-4e0c-a813-472b16e484ce', 'f2000002-0000-0000-0000-000000000002',
+   'À l''hôtel Matignon',
+   'true', '0'),
+
+  ('35718d9a-8b8f-42c1-8d23-b1b01a87b804', 'f2000002-0000-0000-0000-000000000002',
+   'Au palais de l''Élysée',
+   'false', '1'),
+
+  ('646e764d-cedf-4b74-a5e6-699c7d8bd975', 'f2000002-0000-0000-0000-000000000002',
+   'Au palais Bourbon',
+   'false', '2'),
+
+  ('e9c2928c-bf4a-49d8-b0e4-ce883728d4b7', 'f2000002-0000-0000-0000-000000000002',
+   'Au palais du Luxembourg',
+   'false', '3'),
+
+  ('319b5acf-aa43-4f5d-8802-e7bff5dc79b2', 'f2000002-0000-0000-0000-000000000003',
+   'Oui, au suffrage universel direct',
+   'true', '0'),
+
+  ('f8186a20-3417-4845-b5ba-43d4b1b7e848', 'f2000002-0000-0000-0000-000000000003',
+   'Non, il est élu par les députés',
+   'false', '1'),
+
+  ('5226680a-d8f2-4c74-83d8-a6deef5105d3', 'f2000002-0000-0000-0000-000000000003',
+   'Non, il est nommé à vie',
+   'false', '2'),
+
+  ('afacf8d0-8e2a-427b-a2f8-1aa6c6b67142', 'f2000002-0000-0000-0000-000000000003',
+   'Non, il est désigné par tirage au sort',
+   'false', '3'),
+
+  ('7af7a7aa-f42a-44f8-aced-949ef1cd02f3', 'f2000002-0000-0000-0000-000000000004',
+   'Deux tours',
+   'true', '0'),
+
+  ('a8a5ee13-5680-497d-acc9-d66c8be81709', 'f2000002-0000-0000-0000-000000000004',
+   'Un seul tour',
+   'false', '1'),
+
+  ('7b7558b2-821f-4a62-8140-a271f5f18903', 'f2000002-0000-0000-0000-000000000004',
+   'Trois tours',
+   'false', '2'),
+
+  ('b3c1155d-03e5-439d-a776-e2a28b2c2879', 'f2000002-0000-0000-0000-000000000004',
+   'Aucun tour, c''est une nomination',
+   'false', '3'),
+
+  ('293e8a91-67b7-402f-b616-bcd6b8c75bf6', 'f2000002-0000-0000-0000-000000000005',
+   'Oui, mais deux mandats consécutifs au maximum',
+   'true', '0'),
+
+  ('5b2958b5-f938-4414-90e0-d9fb2a135f98', 'f2000002-0000-0000-0000-000000000005',
+   'Non, jamais',
+   'false', '1'),
+
+  ('a1cf22bf-e395-4994-bcb2-db002313a9ce', 'f2000002-0000-0000-0000-000000000005',
+   'Oui, sans aucune limite',
+   'false', '2'),
+
+  ('2980ab0c-98b9-44f4-a33d-216a8566ba2e', 'f2000002-0000-0000-0000-000000000005',
+   'Oui, mais une seule fois sur toute la vie',
+   'false', '3'),
+
+  ('96e2e460-4e45-4d28-8b56-f9ff5532ea9b', 'f2000002-0000-0000-0000-000000000006',
+   'Le président de la République',
+   'true', '0'),
+
+  ('ff268b6e-763e-47dd-a354-bb6bd7d86d6d', 'f2000002-0000-0000-0000-000000000006',
+   'Le ministre de la Défense',
+   'false', '1'),
+
+  ('9ffe48d7-a4b4-4719-affd-6f2fbc241ea7', 'f2000002-0000-0000-0000-000000000006',
+   'Le Premier ministre',
+   'false', '2'),
+
+  ('91d17002-754c-4f1f-a4da-b8c7b443d07d', 'f2000002-0000-0000-0000-000000000006',
+   'Le général le plus âgé',
+   'false', '3'),
+
+  ('d06036e1-72e6-40c1-a6ec-eafcbe5c2cec', 'f2000002-0000-0000-0000-000000000007',
+   'Oui, par un référendum',
+   'true', '0'),
+
+  ('21e73a9b-6793-415c-bbd1-24f743cb629d', 'f2000002-0000-0000-0000-000000000007',
+   'Non, seul le Parlement décide',
+   'false', '1'),
+
+  ('7c3eabc7-f706-4f96-950f-aab521446d6e', 'f2000002-0000-0000-0000-000000000007',
+   'Non, jamais',
+   'false', '2'),
+
+  ('6106a321-3a18-4661-b061-ccdb2c84d1d8', 'f2000002-0000-0000-0000-000000000007',
+   'Uniquement avec accord de l''ONU',
+   'false', '3'),
+
+  ('5cccaea9-918a-4c8e-8017-53244f10818d', 'f2000002-0000-0000-0000-000000000008',
+   'Oui, c''est l''une de ses fonctions',
+   'true', '0'),
+
+  ('de8a9fe3-8e5f-4bf4-8f61-10f322160001', 'f2000002-0000-0000-0000-000000000008',
+   'Non, ce rôle revient au maire de Paris',
+   'false', '1'),
+
+  ('3b1fae73-365b-4ee0-87bf-e02af4ca364b', 'f2000002-0000-0000-0000-000000000008',
+   'Non, uniquement les ambassadeurs',
+   'false', '2'),
+
+  ('8ac3f272-69f5-45e4-9214-ea39372841a1', 'f2000002-0000-0000-0000-000000000008',
+   'Uniquement en cas de guerre',
+   'false', '3');

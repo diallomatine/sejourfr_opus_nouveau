@@ -6,255 +6,1060 @@
 -- ============================================================================
 
 -- questions
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000009','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Qui dirige la politique du gouvernement au quotidien ?','Le Premier ministre dirige l''action du gouvernement (article 21 de la Constitution). Il coordonne le travail des ministres.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000000a','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Que désigne le Conseil des ministres ?','Le Conseil des ministres est la réunion hebdomadaire du président, du Premier ministre et des ministres, en général le mercredi matin à l''Élysée. C''est là qu''on prend les décisions politiques importantes.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000000b','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Que fait un ministre dans le gouvernement ?','Chaque ministre dirige un domaine particulier (éducation, justice, santé, économie, etc.). Il propose et applique les politiques publiques de son secteur.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000000c','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Le président peut-il renvoyer le Premier ministre ?','Oui. Le président peut mettre fin aux fonctions du Premier ministre sur la présentation par celui-ci de la démission du gouvernement (article 8 de la Constitution).','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000000d','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Le président de la République signe-t-il les lois votées par le Parlement ?','Oui. Après le vote du Parlement, le président promulgue (signe officiellement) la loi, qui est ensuite publiée au Journal officiel pour entrer en vigueur.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000000e','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Le président peut-il dissoudre l''Assemblée nationale ?','Oui. Le président de la République peut dissoudre l''Assemblée nationale, ce qui déclenche de nouvelles élections législatives. Cette décision est prévue à l''article 12 de la Constitution.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000000f','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Comment appelle-t-on la résidence officielle du Premier ministre ?','La résidence officielle du Premier ministre est l''hôtel Matignon. On parle souvent de "Matignon" pour désigner le Premier ministre et ses services.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000010','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Où siègent les députés français ?','Les députés siègent au Palais Bourbon, à Paris, qui est le lieu de réunion de l''Assemblée nationale.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000011','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Où siègent les sénateurs français ?','Les sénateurs siègent au palais du Luxembourg, situé à Paris dans le 6e arrondissement. C''est le lieu de réunion du Sénat.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000012','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Une loi votée par le Parlement s''applique-t-elle à toute la France ?','Oui. Une loi votée par le Parlement et promulguée par le président s''applique sur tout le territoire national, sauf disposition spécifique pour l''outre-mer.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000013','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Que vote le Parlement en plus des lois ?','Le Parlement vote également le budget de l''État (loi de finances) chaque année. Il fixe les recettes (impôts) et les dépenses publiques.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000014','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Les députés représentent-ils les habitants de leur région uniquement ?','Les députés représentent toute la nation, pas seulement leur circonscription. Cependant, ils sont élus dans une circonscription locale et y conservent un ancrage de terrain.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000015','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Un député peut-il poser des questions au gouvernement ?','Oui. Les députés peuvent poser des questions au gouvernement, notamment lors des séances de "questions au gouvernement" diffusées à la télévision.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000016','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Un citoyen peut-il visiter l''Assemblée nationale ?','Oui. L''Assemblée nationale (Palais Bourbon) et le Sénat (palais du Luxembourg) sont ouverts au public lors de visites organisées, notamment pendant les Journées du patrimoine.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000017','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Le Sénat peut-il proposer des lois ?','Oui. Le Sénat, comme l''Assemblée nationale, peut proposer et voter des lois. Une loi doit être adoptée dans les mêmes termes par les deux chambres pour être valable.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000018','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','L''Assemblée nationale et le Sénat sont-ils à Paris ?','Oui, les deux assemblées du Parlement français siègent à Paris : l''Assemblée nationale au Palais Bourbon et le Sénat au palais du Luxembourg.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000019','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','L''Assemblée nationale peut-elle renverser le gouvernement ?','Oui. L''Assemblée nationale peut voter une motion de censure pour forcer la démission du gouvernement. C''est l''un des contrôles du Parlement sur l''exécutif.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000001a','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Une personne accusée d''un délit a-t-elle le droit à un avocat ?','Oui. Toute personne mise en cause a le droit d''être défendue par un avocat. Si elle n''a pas les moyens, elle peut bénéficier de l''aide juridictionnelle (avocat aux frais de l''État).','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000001b','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Toute personne accusée est-elle considérée comme coupable avant son jugement ?','Non. La présomption d''innocence est un principe fondamental : toute personne est considérée comme innocente tant qu''elle n''a pas été jugée coupable.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000001c','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Que fait la police nationale ?','La police nationale est chargée de maintenir l''ordre public, prévenir et constater les infractions, protéger les personnes et les biens. Elle agit dans les communes urbaines.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000001d','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Quel numéro d''urgence européen permet de joindre la police partout en Europe ?','Le 112 est le numéro d''urgence européen, gratuit et accessible 24h/24 dans tous les pays de l''Union européenne. En France, le 17 reste le numéro spécifique de la police.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000001e','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Quel numéro permet de joindre la police en France (hors numéro européen) ?','En France, le 17 est le numéro d''urgence dédié à la police et à la gendarmerie. Il est gratuit et accessible 24h/24.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000001f','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Comment s''appelle l''argent que l''État collecte auprès des citoyens et entreprises ?','L''argent que l''État collecte est appelé "impôts". Les impôts financent les services publics (écoles, hôpitaux, police, routes...).','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000020','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Tout le monde paie-t-il des impôts en France ?','Toute personne qui consomme paie au moins la TVA (incluse dans les prix). En revanche, l''impôt sur le revenu n''est payé que par les personnes dont les revenus dépassent un certain seuil.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000021','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Comment appelle-t-on les bâtiments où se réunissent les conseillers municipaux ?','Les conseils municipaux se réunissent dans la mairie (ou hôtel de ville pour les grandes communes), siège officiel de la commune.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000022','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Le maire peut-il célébrer un mariage civil ?','Oui. Le maire (ou un adjoint au maire) est officier d''état civil. Il célèbre les mariages civils à la mairie, en présence des futurs époux et de leurs témoins.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000023','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Si une commune a 5 000 habitants, combien aura-t-elle de maires ?','Une commune n''a toujours qu''un seul maire, quelle que soit sa taille. Il peut être assisté de plusieurs adjoints au maire.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000024','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Quel symbole de l''Union européenne est composé d''étoiles dorées sur fond bleu ?','Le drapeau européen est constitué d''un cercle de douze étoiles dorées sur fond bleu. Les douze étoiles ne représentent pas les pays mais l''harmonie et l''unité.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000025','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Combien d''étoiles compte le drapeau de l''Union européenne ?','Le drapeau européen comporte douze étoiles dorées, disposées en cercle. Ce nombre est fixé et ne change pas en fonction du nombre d''États membres.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000026','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Comment se nomme l''hymne officiel de l''Union européenne ?','L''hymne européen est "L''Ode à la joie", extrait de la 9e symphonie de Beethoven. Il a été adopté par le Conseil de l''Europe en 1972, puis par l''Union européenne en 1985.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000027','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','L''euro est-il utilisé par tous les pays de l''Union européenne ?','Non. L''euro est utilisé par 20 pays de l''Union européenne (zone euro). Certains pays comme la Pologne ou la Suède ont conservé leur monnaie nationale.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000028','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','CONNAISSANCE','Avec une carte d''identité française, peut-on voyager librement dans l''Union européenne ?','Oui. La libre circulation dans l''espace Schengen et l''Union européenne permet aux citoyens français de voyager avec une simple carte d''identité dans la plupart des pays européens.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000029','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','MISE_SITUATION','Je viens d''avoir 18 ans et je suis français. Que dois-je faire pour pouvoir voter ?','Pour voter, il faut s''inscrire sur les listes électorales de sa commune. Depuis 2019, cette inscription est en général automatique à 18 ans, mais il faut vérifier qu''elle a bien été faite.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000002a','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','MISE_SITUATION','Le jour des élections, je suis malade et ne peux pas me déplacer. Puis-je donner mon vote à quelqu''un ?','Oui. Vous pouvez donner procuration à un autre électeur (mandataire) pour qu''il vote à votre place. La demande se fait dans un commissariat, une gendarmerie ou en ligne.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000002b','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','MISE_SITUATION','Je veux contester un arrêté pris par le maire de ma commune. Quels sont mes recours ?','Vous pouvez faire un recours administratif auprès du maire ou saisir le tribunal administratif. Ce dernier peut annuler un arrêté illégal.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000002c','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','MISE_SITUATION','On me propose d''acheter mon vote contre de l''argent. Que faire ?','Acheter un vote ou se faire payer pour voter est un délit pénal grave (corruption électorale). Vous devez refuser et pouvez signaler les faits à la police ou au procureur.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000002d','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','MISE_SITUATION','Au bureau de vote, l''isoloir est-il obligatoire pour glisser mon bulletin dans l''enveloppe ?','Oui. L''isoloir garantit le secret du vote. Tout électeur doit y passer pour mettre son bulletin dans l''enveloppe, sans être vu.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000002e','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','MISE_SITUATION','Je veux poser une question au député de ma circonscription. Est-ce possible ?','Oui. Les députés reçoivent les habitants de leur circonscription dans leur permanence parlementaire. On peut prendre rendez-vous ou écrire pour exposer un problème.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000002f','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','MISE_SITUATION','Je veux demander un acte de naissance. À quelle administration dois-je m''adresser ?','Pour obtenir un acte de naissance, il faut s''adresser à la mairie de la commune où la personne est née. La demande peut souvent se faire en ligne.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000030','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','MISE_SITUATION','Quelqu''un me dit que je ne dois pas voter parce que je suis une femme. Est-ce vrai ?','Non. Toutes les femmes françaises majeures ont le droit de vote depuis 1944, exactement comme les hommes. Vouloir les en empêcher constitue une discrimination interdite.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000031','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','MISE_SITUATION','Je suis victime d''un vol dans la rue. Que dois-je faire pour le signaler officiellement ?','Vous devez déposer plainte au commissariat de police ou à la gendarmerie. Vous pouvez aussi appeler le 17 (police) en cas d''urgence ou faire une pré-plainte en ligne.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000032','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CSP','MISE_SITUATION','Je viens d''emménager dans une nouvelle commune. Dois-je changer mon inscription électorale ?','Oui. Pour voter dans votre nouvelle commune, vous devez vous inscrire sur ses listes électorales (en mairie ou en ligne). Sinon vous resterez inscrit dans votre ancienne commune.','true','2026-05-27 17:40:29.867051+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000033','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Quel article de la Constitution définit le rôle du président comme garant des institutions ?','L''article 5 dispose que le président veille au respect de la Constitution, assure le fonctionnement régulier des pouvoirs publics et garantit l''indépendance nationale.','true','2026-05-27 17:40:29.884451+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000034','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Quel article permet au gouvernement d''engager sa responsabilité sur un texte de loi ?','L''article 49 alinéa 3 de la Constitution permet au gouvernement de faire adopter un texte sans vote, sauf si une motion de censure est adoptée.','true','2026-05-27 17:40:29.884451+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000035','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Quel est l''âge minimum pour être candidat à la présidence de la République ?','Depuis 2011, il faut avoir 18 ans pour être candidat à l''élection présidentielle. Auparavant, il fallait 23 ans.','true','2026-05-27 17:40:29.884451+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000036','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Combien faut-il de parrainages d''élus pour être candidat à la présidentielle ?','Il faut 500 parrainages d''élus (maires, députés, sénateurs, conseillers régionaux/départementaux) d''au moins 30 départements différents.','true','2026-05-27 17:40:29.884451+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000037','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Quelle institution est consultée avant l''adoption de tout projet de loi ?','Le Conseil d''État est consulté sur les projets de loi avant leur examen en Conseil des ministres. Il donne un avis juridique au gouvernement.','true','2026-05-27 17:40:29.884451+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000038','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Quelle est la plus haute juridiction de l''ordre administratif ?','Le Conseil d''État est la plus haute juridiction administrative. Il juge les litiges entre particuliers et administration.','true','2026-05-27 17:40:29.884451+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-000000000039','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Quelle est la plus haute juridiction de l''ordre judiciaire ?','La Cour de cassation est la juridiction suprême judiciaire. Elle vérifie la bonne application de la loi par les tribunaux.','true','2026-05-27 17:40:29.884451+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f2000002-0000-0000-0000-00000000003a','CIVIQUE','11111111-0000-0000-0000-000000000002',NULL,NULL,'CR','CONNAISSANCE','Quelle juridiction juge les contraventions ?','Les contraventions (infractions les moins graves) sont jugées par le tribunal de police. Les délits relèvent du tribunal correctionnel, les crimes de la cour d''assises.','true','2026-05-27 17:40:29.884451+02',NULL,'ACTIVE',NULL,NULL,NULL);
+INSERT INTO questions
+  (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation,
+   is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code)
+VALUES
+  ('f2000002-0000-0000-0000-000000000009', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Qui dirige la politique du gouvernement au quotidien ?',
+   'Le Premier ministre dirige l''action du gouvernement (article 21 de la Constitution). Il coordonne le travail des ministres.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000000a', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Que désigne le Conseil des ministres ?',
+   'Le Conseil des ministres est la réunion hebdomadaire du président, du Premier ministre et des ministres, en général le mercredi matin à l''Élysée. C''est là qu''on prend les décisions politiques importantes.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000000b', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Que fait un ministre dans le gouvernement ?',
+   'Chaque ministre dirige un domaine particulier (éducation, justice, santé, économie, etc.). Il propose et applique les politiques publiques de son secteur.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000000c', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Le président peut-il renvoyer le Premier ministre ?',
+   'Oui. Le président peut mettre fin aux fonctions du Premier ministre sur la présentation par celui-ci de la démission du gouvernement (article 8 de la Constitution).',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000000d', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Le président de la République signe-t-il les lois votées par le Parlement ?',
+   'Oui. Après le vote du Parlement, le président promulgue (signe officiellement) la loi, qui est ensuite publiée au Journal officiel pour entrer en vigueur.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000000e', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Le président peut-il dissoudre l''Assemblée nationale ?',
+   'Oui. Le président de la République peut dissoudre l''Assemblée nationale, ce qui déclenche de nouvelles élections législatives. Cette décision est prévue à l''article 12 de la Constitution.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000000f', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Comment appelle-t-on la résidence officielle du Premier ministre ?',
+   'La résidence officielle du Premier ministre est l''hôtel Matignon. On parle souvent de "Matignon" pour désigner le Premier ministre et ses services.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000010', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Où siègent les députés français ?',
+   'Les députés siègent au Palais Bourbon, à Paris, qui est le lieu de réunion de l''Assemblée nationale.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000011', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Où siègent les sénateurs français ?',
+   'Les sénateurs siègent au palais du Luxembourg, situé à Paris dans le 6e arrondissement. C''est le lieu de réunion du Sénat.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000012', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Une loi votée par le Parlement s''applique-t-elle à toute la France ?',
+   'Oui. Une loi votée par le Parlement et promulguée par le président s''applique sur tout le territoire national, sauf disposition spécifique pour l''outre-mer.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000013', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Que vote le Parlement en plus des lois ?',
+   'Le Parlement vote également le budget de l''État (loi de finances) chaque année. Il fixe les recettes (impôts) et les dépenses publiques.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000014', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Les députés représentent-ils les habitants de leur région uniquement ?',
+   'Les députés représentent toute la nation, pas seulement leur circonscription. Cependant, ils sont élus dans une circonscription locale et y conservent un ancrage de terrain.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000015', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Un député peut-il poser des questions au gouvernement ?',
+   'Oui. Les députés peuvent poser des questions au gouvernement, notamment lors des séances de "questions au gouvernement" diffusées à la télévision.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000016', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Un citoyen peut-il visiter l''Assemblée nationale ?',
+   'Oui. L''Assemblée nationale (Palais Bourbon) et le Sénat (palais du Luxembourg) sont ouverts au public lors de visites organisées, notamment pendant les Journées du patrimoine.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000017', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Le Sénat peut-il proposer des lois ?',
+   'Oui. Le Sénat, comme l''Assemblée nationale, peut proposer et voter des lois. Une loi doit être adoptée dans les mêmes termes par les deux chambres pour être valable.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000018', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'L''Assemblée nationale et le Sénat sont-ils à Paris ?',
+   'Oui, les deux assemblées du Parlement français siègent à Paris : l''Assemblée nationale au Palais Bourbon et le Sénat au palais du Luxembourg.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000019', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'L''Assemblée nationale peut-elle renverser le gouvernement ?',
+   'Oui. L''Assemblée nationale peut voter une motion de censure pour forcer la démission du gouvernement. C''est l''un des contrôles du Parlement sur l''exécutif.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000001a', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Une personne accusée d''un délit a-t-elle le droit à un avocat ?',
+   'Oui. Toute personne mise en cause a le droit d''être défendue par un avocat. Si elle n''a pas les moyens, elle peut bénéficier de l''aide juridictionnelle (avocat aux frais de l''État).',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000001b', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Toute personne accusée est-elle considérée comme coupable avant son jugement ?',
+   'Non. La présomption d''innocence est un principe fondamental : toute personne est considérée comme innocente tant qu''elle n''a pas été jugée coupable.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000001c', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Que fait la police nationale ?',
+   'La police nationale est chargée de maintenir l''ordre public, prévenir et constater les infractions, protéger les personnes et les biens. Elle agit dans les communes urbaines.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000001d', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quel numéro d''urgence européen permet de joindre la police partout en Europe ?',
+   'Le 112 est le numéro d''urgence européen, gratuit et accessible 24h/24 dans tous les pays de l''Union européenne. En France, le 17 reste le numéro spécifique de la police.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000001e', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quel numéro permet de joindre la police en France (hors numéro européen) ?',
+   'En France, le 17 est le numéro d''urgence dédié à la police et à la gendarmerie. Il est gratuit et accessible 24h/24.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000001f', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Comment s''appelle l''argent que l''État collecte auprès des citoyens et entreprises ?',
+   'L''argent que l''État collecte est appelé "impôts". Les impôts financent les services publics (écoles, hôpitaux, police, routes...).',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000020', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Tout le monde paie-t-il des impôts en France ?',
+   'Toute personne qui consomme paie au moins la TVA (incluse dans les prix). En revanche, l''impôt sur le revenu n''est payé que par les personnes dont les revenus dépassent un certain seuil.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000021', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Comment appelle-t-on les bâtiments où se réunissent les conseillers municipaux ?',
+   'Les conseils municipaux se réunissent dans la mairie (ou hôtel de ville pour les grandes communes), siège officiel de la commune.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000022', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Le maire peut-il célébrer un mariage civil ?',
+   'Oui. Le maire (ou un adjoint au maire) est officier d''état civil. Il célèbre les mariages civils à la mairie, en présence des futurs époux et de leurs témoins.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000023', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Si une commune a 5 000 habitants, combien aura-t-elle de maires ?',
+   'Une commune n''a toujours qu''un seul maire, quelle que soit sa taille. Il peut être assisté de plusieurs adjoints au maire.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000024', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quel symbole de l''Union européenne est composé d''étoiles dorées sur fond bleu ?',
+   'Le drapeau européen est constitué d''un cercle de douze étoiles dorées sur fond bleu. Les douze étoiles ne représentent pas les pays mais l''harmonie et l''unité.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000025', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Combien d''étoiles compte le drapeau de l''Union européenne ?',
+   'Le drapeau européen comporte douze étoiles dorées, disposées en cercle. Ce nombre est fixé et ne change pas en fonction du nombre d''États membres.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000026', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Comment se nomme l''hymne officiel de l''Union européenne ?',
+   'L''hymne européen est "L''Ode à la joie", extrait de la 9e symphonie de Beethoven. Il a été adopté par le Conseil de l''Europe en 1972, puis par l''Union européenne en 1985.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000027', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'L''euro est-il utilisé par tous les pays de l''Union européenne ?',
+   'Non. L''euro est utilisé par 20 pays de l''Union européenne (zone euro). Certains pays comme la Pologne ou la Suède ont conservé leur monnaie nationale.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000028', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Avec une carte d''identité française, peut-on voyager librement dans l''Union européenne ?',
+   'Oui. La libre circulation dans l''espace Schengen et l''Union européenne permet aux citoyens français de voyager avec une simple carte d''identité dans la plupart des pays européens.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000029', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Je viens d''avoir 18 ans et je suis français. Que dois-je faire pour pouvoir voter ?',
+   'Pour voter, il faut s''inscrire sur les listes électorales de sa commune. Depuis 2019, cette inscription est en général automatique à 18 ans, mais il faut vérifier qu''elle a bien été faite.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000002a', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Le jour des élections, je suis malade et ne peux pas me déplacer. Puis-je donner mon vote à quelqu''un ?',
+   'Oui. Vous pouvez donner procuration à un autre électeur (mandataire) pour qu''il vote à votre place. La demande se fait dans un commissariat, une gendarmerie ou en ligne.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000002b', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Je veux contester un arrêté pris par le maire de ma commune. Quels sont mes recours ?',
+   'Vous pouvez faire un recours administratif auprès du maire ou saisir le tribunal administratif. Ce dernier peut annuler un arrêté illégal.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000002c', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'On me propose d''acheter mon vote contre de l''argent. Que faire ?',
+   'Acheter un vote ou se faire payer pour voter est un délit pénal grave (corruption électorale). Vous devez refuser et pouvez signaler les faits à la police ou au procureur.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000002d', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Au bureau de vote, l''isoloir est-il obligatoire pour glisser mon bulletin dans l''enveloppe ?',
+   'Oui. L''isoloir garantit le secret du vote. Tout électeur doit y passer pour mettre son bulletin dans l''enveloppe, sans être vu.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000002e', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Je veux poser une question au député de ma circonscription. Est-ce possible ?',
+   'Oui. Les députés reçoivent les habitants de leur circonscription dans leur permanence parlementaire. On peut prendre rendez-vous ou écrire pour exposer un problème.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000002f', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Je veux demander un acte de naissance. À quelle administration dois-je m''adresser ?',
+   'Pour obtenir un acte de naissance, il faut s''adresser à la mairie de la commune où la personne est née. La demande peut souvent se faire en ligne.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000030', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Quelqu''un me dit que je ne dois pas voter parce que je suis une femme. Est-ce vrai ?',
+   'Non. Toutes les femmes françaises majeures ont le droit de vote depuis 1944, exactement comme les hommes. Vouloir les en empêcher constitue une discrimination interdite.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000031', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Je suis victime d''un vol dans la rue. Que dois-je faire pour le signaler officiellement ?',
+   'Vous devez déposer plainte au commissariat de police ou à la gendarmerie. Vous pouvez aussi appeler le 17 (police) en cas d''urgence ou faire une pré-plainte en ligne.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000032', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CSP', 'MISE_SITUATION',
+   'Je viens d''emménager dans une nouvelle commune. Dois-je changer mon inscription électorale ?',
+   'Oui. Pour voter dans votre nouvelle commune, vous devez vous inscrire sur ses listes électorales (en mairie ou en ligne). Sinon vous resterez inscrit dans votre ancienne commune.',
+   'true', '2026-05-27 17:40:29.867051+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000033', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quel article de la Constitution définit le rôle du président comme garant des institutions ?',
+   'L''article 5 dispose que le président veille au respect de la Constitution, assure le fonctionnement régulier des pouvoirs publics et garantit l''indépendance nationale.',
+   'true', '2026-05-27 17:40:29.884451+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000034', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quel article permet au gouvernement d''engager sa responsabilité sur un texte de loi ?',
+   'L''article 49 alinéa 3 de la Constitution permet au gouvernement de faire adopter un texte sans vote, sauf si une motion de censure est adoptée.',
+   'true', '2026-05-27 17:40:29.884451+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000035', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quel est l''âge minimum pour être candidat à la présidence de la République ?',
+   'Depuis 2011, il faut avoir 18 ans pour être candidat à l''élection présidentielle. Auparavant, il fallait 23 ans.',
+   'true', '2026-05-27 17:40:29.884451+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000036', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Combien faut-il de parrainages d''élus pour être candidat à la présidentielle ?',
+   'Il faut 500 parrainages d''élus (maires, députés, sénateurs, conseillers régionaux/départementaux) d''au moins 30 départements différents.',
+   'true', '2026-05-27 17:40:29.884451+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000037', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle institution est consultée avant l''adoption de tout projet de loi ?',
+   'Le Conseil d''État est consulté sur les projets de loi avant leur examen en Conseil des ministres. Il donne un avis juridique au gouvernement.',
+   'true', '2026-05-27 17:40:29.884451+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000038', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle est la plus haute juridiction de l''ordre administratif ?',
+   'Le Conseil d''État est la plus haute juridiction administrative. Il juge les litiges entre particuliers et administration.',
+   'true', '2026-05-27 17:40:29.884451+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-000000000039', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle est la plus haute juridiction de l''ordre judiciaire ?',
+   'La Cour de cassation est la juridiction suprême judiciaire. Elle vérifie la bonne application de la loi par les tribunaux.',
+   'true', '2026-05-27 17:40:29.884451+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f2000002-0000-0000-0000-00000000003a', 'CIVIQUE', '11111111-0000-0000-0000-000000000002', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle juridiction juge les contraventions ?',
+   'Les contraventions (infractions les moins graves) sont jugées par le tribunal de police. Les délits relèvent du tribunal correctionnel, les crimes de la cour d''assises.',
+   'true', '2026-05-27 17:40:29.884451+02', NULL, 'ACTIVE', NULL, NULL, NULL);
 
 -- choices
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c0a03e0f-d865-465e-8f36-fd3e33fa6260','f2000002-0000-0000-0000-000000000009','Le Premier ministre','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a26abab0-8544-4188-82a5-563fc8d8d48b','f2000002-0000-0000-0000-000000000009','Le président du Sénat','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('69c5b3ed-27ee-4913-a5b8-a4ce97f8a295','f2000002-0000-0000-0000-000000000009','Le président de l''Assemblée nationale','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d027cd86-5285-4cbf-8b2b-ebf29a813d08','f2000002-0000-0000-0000-000000000009','Le préfet de Paris','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('987dcdda-7df1-4f83-8f91-4186a918521d','f2000002-0000-0000-0000-00000000000a','La réunion hebdomadaire du président et des ministres','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('488ed575-f433-4f4c-bd1f-082835873f34','f2000002-0000-0000-0000-00000000000a','Un tribunal spécial','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7c3a014f-d024-4ecb-9d65-f9e03b9a87ca','f2000002-0000-0000-0000-00000000000a','Une assemblée de citoyens','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c1c9dd21-d88a-4c4c-aedb-a863d69fdf81','f2000002-0000-0000-0000-00000000000a','Un service de la mairie','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('0105cf43-a910-4070-a70f-cf0b2e31f65b','f2000002-0000-0000-0000-00000000000b','Il dirige un domaine d''action publique (santé, éducation...)','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('01085086-ff2e-41c2-bb9e-a4048a909897','f2000002-0000-0000-0000-00000000000b','Il juge les criminels','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('cb013a37-2766-4212-ac09-b33a10d19971','f2000002-0000-0000-0000-00000000000b','Il vote les lois directement','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('726b6766-732d-497f-8d51-a9e736991ee5','f2000002-0000-0000-0000-00000000000b','Il dirige une mairie','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3cdcc824-6aaf-44cd-ba40-1785ff52101d','f2000002-0000-0000-0000-00000000000c','Oui, lorsque le Premier ministre présente la démission du gouvernement','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('88089dc9-4c6a-42b9-85eb-271223cc29fc','f2000002-0000-0000-0000-00000000000c','Non, jamais','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('544948dd-929a-4017-b2ec-98f57a95427a','f2000002-0000-0000-0000-00000000000c','Oui, avec accord du pape','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('26a588e4-cc04-4aae-a7dc-8f59393e50ea','f2000002-0000-0000-0000-00000000000c','Uniquement en cas de guerre','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('859ccca3-5cf4-4dc0-83f1-dfbbf6007582','f2000002-0000-0000-0000-00000000000d','Oui, il promulgue les lois après leur vote','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7a2b91ef-0b87-4e82-856b-7156f917b479','f2000002-0000-0000-0000-00000000000d','Non, c''est le pape','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('00202955-d25c-4f3a-9844-4a4fbb289473','f2000002-0000-0000-0000-00000000000d','Non, le préfet le fait','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('27e5c096-21f5-4d38-925c-bedbfd6ac66c','f2000002-0000-0000-0000-00000000000d','Non, c''est automatique sans signature','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('66891e06-7ddc-4389-ab49-38fe2930bb15','f2000002-0000-0000-0000-00000000000e','Oui, en provoquant de nouvelles élections législatives','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5d616824-b32c-4b4a-986a-4c3555d9ffd7','f2000002-0000-0000-0000-00000000000e','Non, jamais','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8968d7f5-8cd4-4dff-acc5-d666383ffd7b','f2000002-0000-0000-0000-00000000000e','Oui, mais le Sénat doit confirmer','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('47f27dfd-62e2-4a57-bf78-dc18832c2d33','f2000002-0000-0000-0000-00000000000e','Oui, mais l''ONU doit valider','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('71457862-3b0c-426c-b32e-0ec641c9ee47','f2000002-0000-0000-0000-00000000000f','Matignon','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5d0fe6cb-8e08-4295-938b-2ece48b2d48f','f2000002-0000-0000-0000-00000000000f','L''Élysée','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('1510d761-9b63-4b3b-a165-c39483d41ba9','f2000002-0000-0000-0000-00000000000f','Le Louvre','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('20e8f278-8135-4665-88c7-ebb7f420d544','f2000002-0000-0000-0000-00000000000f','Versailles','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8a12f3fc-e169-4c6e-8309-fbea601e7421','f2000002-0000-0000-0000-000000000010','Au Palais Bourbon (Assemblée nationale)','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('42afa88f-8617-4f11-9206-065ec4ce866c','f2000002-0000-0000-0000-000000000010','Au palais du Luxembourg','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9b8cce6f-00a9-4889-9bf7-591d1550a98e','f2000002-0000-0000-0000-000000000010','À l''Élysée','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e79e264a-1edf-417b-885f-30977c7e0a59','f2000002-0000-0000-0000-000000000010','Au Louvre','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ab522332-3987-4c7f-b769-5a6a690858fa','f2000002-0000-0000-0000-000000000011','Au palais du Luxembourg','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c242ec5f-e93e-48e0-8cba-67059aa06fa8','f2000002-0000-0000-0000-000000000011','Au Palais Bourbon','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d58c71ff-2704-42b1-a5d8-5dee36844252','f2000002-0000-0000-0000-000000000011','À l''Élysée','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('cb80253d-42d2-423f-ad43-430d9426cb53','f2000002-0000-0000-0000-000000000011','À Versailles','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a41c9764-0e49-4f52-8a19-447a53f3b628','f2000002-0000-0000-0000-000000000012','Oui, sur tout le territoire national','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('65b9fb4b-9f59-45c4-b2e5-6a40b2b6e513','f2000002-0000-0000-0000-000000000012','Non, uniquement à Paris','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9d1487d9-5881-4f68-acf9-8eb83bf2dafe','f2000002-0000-0000-0000-000000000012','Uniquement dans la commune où elle est votée','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('27a877df-e3b5-4f80-acf3-33e5166fcd45','f2000002-0000-0000-0000-000000000012','Uniquement la première année','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b8e9aad6-c654-4857-81f4-9e0dcb28619a','f2000002-0000-0000-0000-000000000013','Le budget annuel de l''État','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8e4ce85e-0811-4e7f-8440-d7ad969b965e','f2000002-0000-0000-0000-000000000013','Les émissions de télévision','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('1e28c053-7ef5-4340-ae1f-5542aababeb4','f2000002-0000-0000-0000-000000000013','Les décisions de justice','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('acafa1de-34f9-4480-8e78-8242d2521c2e','f2000002-0000-0000-0000-000000000013','Les nominations religieuses','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9a3a209a-1f00-4c80-9969-575b55e0b289','f2000002-0000-0000-0000-000000000014','Ils représentent la nation entière','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3506420d-80b6-413c-b322-28cfb32156d8','f2000002-0000-0000-0000-000000000014','Uniquement leur commune','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5ba4b89b-8bcb-4991-98b4-f5ffbcfbaea0','f2000002-0000-0000-0000-000000000014','Uniquement leur famille','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('97818d01-6fe0-4809-8ad7-3069e3867b45','f2000002-0000-0000-0000-000000000014','Uniquement les électeurs ayant voté pour eux','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c0436c5e-c906-412f-b015-2d7fddbe3555','f2000002-0000-0000-0000-000000000015','Oui, lors des séances de questions au gouvernement','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('621abcf7-b352-409e-a6be-8f2eac06edb9','f2000002-0000-0000-0000-000000000015','Non, le silence est obligatoire','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('657d8cae-967a-4224-a5cb-1cfd0f463cbf','f2000002-0000-0000-0000-000000000015','Uniquement par écrit pendant la nuit','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('149b4856-30b8-42e8-9272-19ee45ddba44','f2000002-0000-0000-0000-000000000015','Uniquement avec autorisation du président','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3a541236-18e1-4b99-b065-06be943987c3','f2000002-0000-0000-0000-000000000016','Oui, lors des visites organisées','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('6f94c8c9-4975-4c7d-bdd0-f4eb27be6b40','f2000002-0000-0000-0000-000000000016','Non, l''accès est interdit à tous','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('6b0c4137-716c-4696-b6de-70fc4d9a32fa','f2000002-0000-0000-0000-000000000016','Uniquement les ambassadeurs étrangers','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e2bc24a7-7a30-4471-add4-ff813b2e2cb4','f2000002-0000-0000-0000-000000000016','Uniquement les militaires','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('f0ad2083-4ef8-4b02-96dc-caf4eb1b675e','f2000002-0000-0000-0000-000000000017','Oui, au même titre que l''Assemblée nationale','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d9f701ab-502a-4bae-b277-f905d80f6800','f2000002-0000-0000-0000-000000000017','Non, c''est interdit','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e10cd483-a3ba-47e9-a5e2-9797fa073465','f2000002-0000-0000-0000-000000000017','Uniquement sur la fiscalité','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8f326d53-24e5-4e2e-9b60-e462fd748c14','f2000002-0000-0000-0000-000000000017','Uniquement avec autorisation du Pape','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('88d79e5c-2902-4e91-9e32-25f6ed6d786b','f2000002-0000-0000-0000-000000000018','Oui, les deux à Paris','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('f06d5907-6375-485b-9303-37d437ea79f3','f2000002-0000-0000-0000-000000000018','Non, à Versailles uniquement','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9cef6f5f-5d67-4583-8b19-1a7e987ce9e9','f2000002-0000-0000-0000-000000000018','L''une à Marseille, l''autre à Lyon','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('dbc07db5-e607-47fb-a917-cd7a543babe5','f2000002-0000-0000-0000-000000000018','Aucun siège fixe','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('96e27160-7c84-4668-b8b3-a07086e2505e','f2000002-0000-0000-0000-000000000019','Oui, par une motion de censure','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4c6965a3-0afd-49b3-b5f7-db42828bfe34','f2000002-0000-0000-0000-000000000019','Non, jamais','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c377bcd6-d570-4505-9b02-239f191063dd','f2000002-0000-0000-0000-000000000019','Uniquement avec accord du président','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9add919f-0ac7-46d9-8bcd-b3eff3974710','f2000002-0000-0000-0000-000000000019','Uniquement en période de guerre','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('22d90e76-500c-48d8-93e1-038356d3afd0','f2000002-0000-0000-0000-00000000001a','Oui, et l''aide juridictionnelle existe pour les plus modestes','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('6dda6861-7fc4-43c9-a351-6191ea0db0c1','f2000002-0000-0000-0000-00000000001a','Non, jamais','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('1e76aba8-ab32-4391-a122-3b1e6e02001a','f2000002-0000-0000-0000-00000000001a','Uniquement les hommes y ont droit','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4916f2a5-0959-42eb-bd3c-8cde88180dbf','f2000002-0000-0000-0000-00000000001a','Uniquement si le délit est léger','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a94fc1a8-8dd5-45ed-b701-fba897715fa8','f2000002-0000-0000-0000-00000000001b','Non, elle bénéficie de la présomption d''innocence','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4099bd1a-bd31-43dd-a0b6-3641c48b907c','f2000002-0000-0000-0000-00000000001b','Oui, automatiquement','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('37b91bbd-214b-48d2-9541-b98f08951241','f2000002-0000-0000-0000-00000000001b','Cela dépend du juge','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('897024b3-bbe1-4e7b-a429-14fc8f0a73db','f2000002-0000-0000-0000-00000000001b','Cela dépend de la commune','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('506b2f2c-e078-490f-996d-d2116156a6ca','f2000002-0000-0000-0000-00000000001c','Elle assure la sécurité et constate les infractions','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('16492053-21fc-46d5-af62-da22a5db94f1','f2000002-0000-0000-0000-00000000001c','Elle vote les lois','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('6bc6e7f8-a817-4f8f-af72-457addf6c1f9','f2000002-0000-0000-0000-00000000001c','Elle gère les écoles','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('6e40ced1-07f0-4663-93d4-a2a53fd01845','f2000002-0000-0000-0000-00000000001c','Elle distribue le courrier','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('f34cbb4c-26f7-45f6-bbb8-90d2d845e4c4','f2000002-0000-0000-0000-00000000001d','Le 112','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d19a583a-4efe-41fc-9d4c-02e53e584315','f2000002-0000-0000-0000-00000000001d','Le 911','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('1b563e92-7aa0-4217-9acd-7354f2e7266e','f2000002-0000-0000-0000-00000000001d','Le 333','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3e0d989b-ea45-45e3-9152-2b40f663edab','f2000002-0000-0000-0000-00000000001d','Le 100','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('01d606d8-d112-479f-96b3-e56b3571acae','f2000002-0000-0000-0000-00000000001e','Le 17','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b6c56401-86a7-4a20-84fe-6606d9c984a9','f2000002-0000-0000-0000-00000000001e','Le 15','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e2cd9c97-70e2-43de-9d52-f41091689c68','f2000002-0000-0000-0000-00000000001e','Le 18','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('30fe775f-41e2-47c1-9dd3-5e3fdb51745b','f2000002-0000-0000-0000-00000000001e','Le 20','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('90d74896-dbb6-4a08-9b8a-b26dbc34045e','f2000002-0000-0000-0000-00000000001f','Les impôts','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('1b3086a3-b522-4cc3-b2a0-704d75c6ad1f','f2000002-0000-0000-0000-00000000001f','Les dons','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ee5f4801-e063-4845-89b1-f195f0ff8212','f2000002-0000-0000-0000-00000000001f','Les héritages','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('068befee-5b18-463f-8e95-73c071793ab3','f2000002-0000-0000-0000-00000000001f','Les pourboires','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('64343864-5fa5-4714-b0d6-f2c95e84d2df','f2000002-0000-0000-0000-000000000020','Tous paient au moins la TVA, mais pas l''impôt sur le revenu','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4343ce1a-eac1-4c4d-8eca-02662da1866b','f2000002-0000-0000-0000-000000000020','Personne ne paie d''impôt','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c78ea87a-2b06-4ec7-8fb9-50dade8718c5','f2000002-0000-0000-0000-000000000020','Uniquement les chefs d''entreprise','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('05590120-3cd2-44ae-a08b-24888a461016','f2000002-0000-0000-0000-000000000020','Uniquement les retraités','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d37a2d9a-37df-4ceb-9a61-a082017d70ff','f2000002-0000-0000-0000-000000000021','La mairie (ou hôtel de ville)','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7eb6583f-c86c-43e2-bb7e-92bea76e901a','f2000002-0000-0000-0000-000000000021','La cathédrale','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ee03b31c-2687-4fef-959f-c23d28c98439','f2000002-0000-0000-0000-000000000021','Le stade municipal','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('231abd0f-0c35-4420-91eb-0318b6917401','f2000002-0000-0000-0000-000000000021','Le bureau de poste','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2530c0e1-b762-41dd-8b35-edc5dcedc563','f2000002-0000-0000-0000-000000000022','Oui, c''est l''une de ses fonctions d''état civil','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('09e18798-4141-4671-9e9e-77bde5355584','f2000002-0000-0000-0000-000000000022','Non, seul un prêtre peut le faire','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('36738ddc-269a-4967-bae7-7d0f2c0bd3ab','f2000002-0000-0000-0000-000000000022','Non, c''est le préfet','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ab82f03b-b6f8-4fc7-b036-9661b43f8b2f','f2000002-0000-0000-0000-000000000022','Uniquement les couples français','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('84ba6f60-05c9-4a35-a8a1-82f832933af5','f2000002-0000-0000-0000-000000000023','Un seul maire (avec des adjoints)','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('fab06d88-d873-4e27-abe8-f5dca544790a','f2000002-0000-0000-0000-000000000023','Cinq maires','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c08841e7-1bae-45ba-807e-0bda7f2d3000','f2000002-0000-0000-0000-000000000023','Un par quartier','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8d5c983d-45fa-424f-bfe6-18e6a40cd4e7','f2000002-0000-0000-0000-000000000023','Un par âge (jeune, adulte, aîné)','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3cd8026a-8438-47f6-b2d4-99806ac7805a','f2000002-0000-0000-0000-000000000024','Le drapeau européen','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('994dc7e8-8db7-4e33-bca7-328d748017b9','f2000002-0000-0000-0000-000000000024','Le drapeau de l''ONU','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('add5207b-e470-4af6-a58a-a9360287437a','f2000002-0000-0000-0000-000000000024','Le drapeau de l''OTAN','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('eba5ccd9-ac6e-4423-8715-727680312d24','f2000002-0000-0000-0000-000000000024','Le drapeau de l''UNESCO','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e801204f-e31e-40cf-bd7d-3b56fda8fa72','f2000002-0000-0000-0000-000000000025','12 étoiles','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('34bd190a-3b5a-485c-8c9f-c2ee0106d99c','f2000002-0000-0000-0000-000000000025','27 étoiles','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('452401ae-f62d-40eb-bdce-11f5fff03adb','f2000002-0000-0000-0000-000000000025','50 étoiles','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('388e5d5f-2cf5-4a68-a241-b50051de426c','f2000002-0000-0000-0000-000000000025','6 étoiles','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('32c9a90e-4be0-4bf4-9ea4-9e57af1a7e1a','f2000002-0000-0000-0000-000000000026','L''Ode à la joie de Beethoven','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('078fc4fd-7e47-46d0-86a3-39c9eaf1fbf9','f2000002-0000-0000-0000-000000000026','La Marseillaise','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9edf2869-06e0-4031-ae18-0327a2ac8de9','f2000002-0000-0000-0000-000000000026','Imagine de John Lennon','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2be33d45-454c-42b8-a38b-4395eaa1fca6','f2000002-0000-0000-0000-000000000026','Aucun hymne n''est défini','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('af26d633-3608-4294-bdee-b7acc2e6a487','f2000002-0000-0000-0000-000000000027','Non, seulement par les pays de la zone euro','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8f20a111-d923-4513-8617-15be49044c3b','f2000002-0000-0000-0000-000000000027','Oui, tous les 27 pays utilisent l''euro','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e6967f01-d350-434d-be1a-fd9553556e33','f2000002-0000-0000-0000-000000000027','Non, seule la France utilise l''euro','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('92be0e31-5d7d-43c7-af65-a4bad52fc4df','f2000002-0000-0000-0000-000000000027','Oui, ainsi qu''en Russie et en Chine','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a63556db-d037-49fe-b8a5-f7379dc2d4c3','f2000002-0000-0000-0000-000000000028','Oui, dans la majorité des pays européens','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a0c1308b-b14c-41db-a151-50b011cebf63','f2000002-0000-0000-0000-000000000028','Non, il faut toujours un passeport','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('decc3b6c-afe3-4e42-a163-120d75c178d5','f2000002-0000-0000-0000-000000000028','Uniquement le visa diplomatique','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('f56b479c-d73d-423d-8c6c-5f44427c75e3','f2000002-0000-0000-0000-000000000028','Uniquement avec un guide officiel','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a3905a5f-8c12-451f-9656-16067a464f4c','f2000002-0000-0000-0000-000000000029','M''inscrire (ou vérifier mon inscription) sur les listes électorales','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('bee61103-f59d-47c8-af42-555275eeea03','f2000002-0000-0000-0000-000000000029','Demander une autorisation au préfet','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('abf5cf54-a1da-4a68-a31a-b71e7a9c406f','f2000002-0000-0000-0000-000000000029','Passer un examen civique payé','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('73b295db-7da4-478e-a8d1-935555e775f5','f2000002-0000-0000-0000-000000000029','Rien, le président m''envoie une convocation','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('23be1357-3397-484f-953f-fa8f877764a1','f2000002-0000-0000-0000-00000000002a','Oui, en établissant une procuration de vote','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('053fe81f-bc3c-4e55-97d5-97ef3da60b7b','f2000002-0000-0000-0000-00000000002a','Non, le vote est strictement personnel','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5ce9d05f-2715-4e21-9180-1a77c25967fb','f2000002-0000-0000-0000-00000000002a','Uniquement si la personne est de ma famille','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('cff7a58a-ff5f-4b86-8f74-7b260f49f2d9','f2000002-0000-0000-0000-00000000002a','Uniquement avec accord médical','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a0274f43-06b9-4c69-b8e4-38cd55ec3760','f2000002-0000-0000-0000-00000000002b','Saisir le tribunal administratif','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('1fe988df-1e50-4e8f-9d9c-840a2d479b9c','f2000002-0000-0000-0000-00000000002b','Aucun recours possible','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b0dda804-3b7c-4e91-8f6f-a1a7bfa5c507','f2000002-0000-0000-0000-00000000002b','Demander au préfet de battre le maire','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('fd24d9dd-51ac-48c3-a25c-ef4870e7744b','f2000002-0000-0000-0000-00000000002b','Quitter la commune','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ffbff00b-51bb-4adc-afb7-4e8fdd0948f0','f2000002-0000-0000-0000-00000000002c','Refuser et signaler les faits à la police','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('40e7bf8a-4657-4c19-bcde-5476316a5c08','f2000002-0000-0000-0000-00000000002c','Accepter, c''est légal','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2522521f-43c7-4043-bcf1-217ec872c824','f2000002-0000-0000-0000-00000000002c','Négocier un meilleur prix','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('1af5ab2d-34f3-45d2-9c75-73975fc8f5e5','f2000002-0000-0000-0000-00000000002c','Faire payer plusieurs personnes','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('f603c9da-2041-4c2c-915c-a99704a8ca3c','f2000002-0000-0000-0000-00000000002d','Oui, c''est obligatoire pour préserver le secret','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4e67629d-7897-43be-8d26-53abb9e9dc5f','f2000002-0000-0000-0000-00000000002d','Non, je peux le faire au comptoir','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e5b16771-7ee3-4bf0-b3c7-11cbfc099915','f2000002-0000-0000-0000-00000000002d','Uniquement si je suis adulte','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('15c7e0b9-f18b-4785-896e-14502e95ead7','f2000002-0000-0000-0000-00000000002d','Uniquement le jour de l''élection','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('678cca1a-f7b7-487f-a750-15006f4aa3bb','f2000002-0000-0000-0000-00000000002e','Oui, dans leur permanence parlementaire','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3b8cbe77-929b-4228-9e09-aeb163c09c6a','f2000002-0000-0000-0000-00000000002e','Non, c''est strictement interdit','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c5e64376-3ea3-43bb-a1a9-d21aad6ccf00','f2000002-0000-0000-0000-00000000002e','Uniquement par voie d''huissier','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ed3d0cd3-b004-4aa1-88c5-c4eac1efef48','f2000002-0000-0000-0000-00000000002e','Uniquement en présence d''un avocat','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('28ab6ed2-df80-4fd3-a349-eac988c4a3f2','f2000002-0000-0000-0000-00000000002f','À la mairie de la commune de naissance','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('fd3d44e6-1fdd-4829-9c95-7bf3379f46ff','f2000002-0000-0000-0000-00000000002f','Au Parlement','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('968777a2-20b2-4349-9104-39a0a6d05c5a','f2000002-0000-0000-0000-00000000002f','À l''Élysée','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('f91233a7-40a4-4c9a-a261-f9d1655acde8','f2000002-0000-0000-0000-00000000002f','À l''église du quartier','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('10f5f7d5-776b-4398-ba17-e7ba9c77753d','f2000002-0000-0000-0000-000000000030','Non, les femmes ont le droit de vote depuis 1944','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('fed26e12-efed-494f-ad38-b1ed0eb6cce2','f2000002-0000-0000-0000-000000000030','Oui, c''est une règle ancienne','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c868ec6d-39ca-465c-9cdf-de466d76c08f','f2000002-0000-0000-0000-000000000030','Uniquement les femmes mariées votent','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('1b3c3b7d-33b9-4264-964e-8002372a3b7a','f2000002-0000-0000-0000-000000000030','Uniquement les femmes de plus de 35 ans','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c4d04d47-776a-4e79-8661-a7753c1de731','f2000002-0000-0000-0000-000000000031','Déposer plainte au commissariat ou à la gendarmerie','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('cb8e76b1-1a37-4473-adf8-a6a087c74b9f','f2000002-0000-0000-0000-000000000031','Demander à un voisin de gérer','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('86f328ef-85e1-42a2-8465-e735d48bd2d2','f2000002-0000-0000-0000-000000000031','Écrire un message à l''Élysée','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a5b696cb-6e87-48e4-9336-16239f838207','f2000002-0000-0000-0000-000000000031','Faire justice moi-même','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d223a301-8bd1-4365-9a69-cd5264e4afe0','f2000002-0000-0000-0000-000000000032','Oui, m''inscrire sur les listes de ma nouvelle commune','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('39f82fe5-3858-406c-ad22-427d47bf1309','f2000002-0000-0000-0000-000000000032','Non, l''inscription se fait automatiquement par GPS','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('79a6ec15-ef40-45c3-b3ce-b1708c29161c','f2000002-0000-0000-0000-000000000032','Non, j''ai 10 ans pour le faire','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('364c7d33-3acf-4eb4-b143-16804a76e974','f2000002-0000-0000-0000-000000000032','Non, je vote dans toutes les communes','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('79162c67-ba1f-49e0-9630-2965986d3765','f2000002-0000-0000-0000-000000000033','L''article 5','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('350910d0-d8e2-4a10-ac48-16e666fb7bed','f2000002-0000-0000-0000-000000000033','L''article 89','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('6f9bf856-1f7f-42a0-a87f-805b40e5b2bc','f2000002-0000-0000-0000-000000000033','L''article 1er','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('53415f6e-49f9-4c6c-9c63-f71685ea8dde','f2000002-0000-0000-0000-000000000033','L''article 49','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d839da9b-ee2e-4b4c-873b-a3d0385e3f55','f2000002-0000-0000-0000-000000000034','L''article 49 alinéa 3','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('12c7b4d8-856e-40ee-83e2-7200b6dd0622','f2000002-0000-0000-0000-000000000034','L''article 1er','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('fd0af7cc-4e71-43da-a040-58b3f5849ac5','f2000002-0000-0000-0000-000000000034','L''article 12','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('fa62a79a-0eb7-426a-8b7e-670fa8335218','f2000002-0000-0000-0000-000000000034','L''article 89','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3414a934-053b-4053-a5ff-c864baf38739','f2000002-0000-0000-0000-000000000035','18 ans','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ee667310-7c89-4cc1-9b08-70ac3d1cd48b','f2000002-0000-0000-0000-000000000035','23 ans','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d9bfbebd-d7ef-49c5-91d8-aa1a341f59eb','f2000002-0000-0000-0000-000000000035','25 ans','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5c5913a0-b7c1-4e6c-8be8-150bb5c40653','f2000002-0000-0000-0000-000000000035','35 ans','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a052fa14-5432-4489-9f13-34913834eee5','f2000002-0000-0000-0000-000000000036','500 parrainages d''élus','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('99d2919f-a80d-494f-99d2-5f4bfee6ffe3','f2000002-0000-0000-0000-000000000036','100 parrainages','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('16914a18-098b-411b-bba1-d114bc7532b0','f2000002-0000-0000-0000-000000000036','5 000 parrainages','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('98e4d74d-56d6-42e9-ac24-b176856c70e1','f2000002-0000-0000-0000-000000000036','Aucun parrainage requis','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c126c8ba-0c2c-4e53-9c04-c5aa0c271a14','f2000002-0000-0000-0000-000000000037','Le Conseil d''État','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('bc46734b-6ea6-4e87-a80d-61a78c8b757b','f2000002-0000-0000-0000-000000000037','La Cour de cassation','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('01c17361-cd48-493a-92ec-ccc7c86d05f1','f2000002-0000-0000-0000-000000000037','Le Conseil constitutionnel uniquement','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a3118134-a58c-4328-b75f-3da68d499c02','f2000002-0000-0000-0000-000000000037','L''Académie française','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('37be1ba6-1e27-4250-9f69-47c3594e6a95','f2000002-0000-0000-0000-000000000038','Le Conseil d''État','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('587044fe-b9f6-4d69-906a-955c17f5fc75','f2000002-0000-0000-0000-000000000038','La Cour de cassation','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5ec26b9d-23ac-4484-89f7-77bb0590e6c6','f2000002-0000-0000-0000-000000000038','Le Conseil constitutionnel','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('bcaabe7c-d1f8-46ed-b36a-ddd377a829a9','f2000002-0000-0000-0000-000000000038','L''Assemblée nationale','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4dfcf0cb-245c-4d98-b70f-18dc736ffe71','f2000002-0000-0000-0000-000000000039','La Cour de cassation','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4358c2cd-8b4d-4faa-a3cc-5d08997497e1','f2000002-0000-0000-0000-000000000039','Le Conseil d''État','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d6f0547b-4551-43a4-a6bd-156891426e1a','f2000002-0000-0000-0000-000000000039','Le Sénat','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e06a256e-04aa-4200-8edb-f0fff7efb401','f2000002-0000-0000-0000-000000000039','Le tribunal de police','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a2384020-62b1-4475-95dd-0c91c7d347c4','f2000002-0000-0000-0000-00000000003a','Le tribunal de police','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4d053ccc-56d5-4e05-9092-d20df5c0c979','f2000002-0000-0000-0000-00000000003a','La cour d''assises','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d09e992c-6cd1-40d9-9ee4-ac02d048dfdd','f2000002-0000-0000-0000-00000000003a','Le Conseil constitutionnel','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5870389e-64b9-4fdc-9cd8-6d67891868fc','f2000002-0000-0000-0000-00000000003a','Le Conseil d''État','false','3');
+INSERT INTO choices
+  (id, question_id, label, is_correct, display_order)
+VALUES
+  ('c0a03e0f-d865-465e-8f36-fd3e33fa6260', 'f2000002-0000-0000-0000-000000000009',
+   'Le Premier ministre',
+   'true', '0'),
+
+  ('a26abab0-8544-4188-82a5-563fc8d8d48b', 'f2000002-0000-0000-0000-000000000009',
+   'Le président du Sénat',
+   'false', '1'),
+
+  ('69c5b3ed-27ee-4913-a5b8-a4ce97f8a295', 'f2000002-0000-0000-0000-000000000009',
+   'Le président de l''Assemblée nationale',
+   'false', '2'),
+
+  ('d027cd86-5285-4cbf-8b2b-ebf29a813d08', 'f2000002-0000-0000-0000-000000000009',
+   'Le préfet de Paris',
+   'false', '3'),
+
+  ('987dcdda-7df1-4f83-8f91-4186a918521d', 'f2000002-0000-0000-0000-00000000000a',
+   'La réunion hebdomadaire du président et des ministres',
+   'true', '0'),
+
+  ('488ed575-f433-4f4c-bd1f-082835873f34', 'f2000002-0000-0000-0000-00000000000a',
+   'Un tribunal spécial',
+   'false', '1'),
+
+  ('7c3a014f-d024-4ecb-9d65-f9e03b9a87ca', 'f2000002-0000-0000-0000-00000000000a',
+   'Une assemblée de citoyens',
+   'false', '2'),
+
+  ('c1c9dd21-d88a-4c4c-aedb-a863d69fdf81', 'f2000002-0000-0000-0000-00000000000a',
+   'Un service de la mairie',
+   'false', '3'),
+
+  ('0105cf43-a910-4070-a70f-cf0b2e31f65b', 'f2000002-0000-0000-0000-00000000000b',
+   'Il dirige un domaine d''action publique (santé, éducation...)',
+   'true', '0'),
+
+  ('01085086-ff2e-41c2-bb9e-a4048a909897', 'f2000002-0000-0000-0000-00000000000b',
+   'Il juge les criminels',
+   'false', '1'),
+
+  ('cb013a37-2766-4212-ac09-b33a10d19971', 'f2000002-0000-0000-0000-00000000000b',
+   'Il vote les lois directement',
+   'false', '2'),
+
+  ('726b6766-732d-497f-8d51-a9e736991ee5', 'f2000002-0000-0000-0000-00000000000b',
+   'Il dirige une mairie',
+   'false', '3'),
+
+  ('3cdcc824-6aaf-44cd-ba40-1785ff52101d', 'f2000002-0000-0000-0000-00000000000c',
+   'Oui, lorsque le Premier ministre présente la démission du gouvernement',
+   'true', '0'),
+
+  ('88089dc9-4c6a-42b9-85eb-271223cc29fc', 'f2000002-0000-0000-0000-00000000000c',
+   'Non, jamais',
+   'false', '1'),
+
+  ('544948dd-929a-4017-b2ec-98f57a95427a', 'f2000002-0000-0000-0000-00000000000c',
+   'Oui, avec accord du pape',
+   'false', '2'),
+
+  ('26a588e4-cc04-4aae-a7dc-8f59393e50ea', 'f2000002-0000-0000-0000-00000000000c',
+   'Uniquement en cas de guerre',
+   'false', '3'),
+
+  ('859ccca3-5cf4-4dc0-83f1-dfbbf6007582', 'f2000002-0000-0000-0000-00000000000d',
+   'Oui, il promulgue les lois après leur vote',
+   'true', '0'),
+
+  ('7a2b91ef-0b87-4e82-856b-7156f917b479', 'f2000002-0000-0000-0000-00000000000d',
+   'Non, c''est le pape',
+   'false', '1'),
+
+  ('00202955-d25c-4f3a-9844-4a4fbb289473', 'f2000002-0000-0000-0000-00000000000d',
+   'Non, le préfet le fait',
+   'false', '2'),
+
+  ('27e5c096-21f5-4d38-925c-bedbfd6ac66c', 'f2000002-0000-0000-0000-00000000000d',
+   'Non, c''est automatique sans signature',
+   'false', '3'),
+
+  ('66891e06-7ddc-4389-ab49-38fe2930bb15', 'f2000002-0000-0000-0000-00000000000e',
+   'Oui, en provoquant de nouvelles élections législatives',
+   'true', '0'),
+
+  ('5d616824-b32c-4b4a-986a-4c3555d9ffd7', 'f2000002-0000-0000-0000-00000000000e',
+   'Non, jamais',
+   'false', '1'),
+
+  ('8968d7f5-8cd4-4dff-acc5-d666383ffd7b', 'f2000002-0000-0000-0000-00000000000e',
+   'Oui, mais le Sénat doit confirmer',
+   'false', '2'),
+
+  ('47f27dfd-62e2-4a57-bf78-dc18832c2d33', 'f2000002-0000-0000-0000-00000000000e',
+   'Oui, mais l''ONU doit valider',
+   'false', '3'),
+
+  ('71457862-3b0c-426c-b32e-0ec641c9ee47', 'f2000002-0000-0000-0000-00000000000f',
+   'Matignon',
+   'true', '0'),
+
+  ('5d0fe6cb-8e08-4295-938b-2ece48b2d48f', 'f2000002-0000-0000-0000-00000000000f',
+   'L''Élysée',
+   'false', '1'),
+
+  ('1510d761-9b63-4b3b-a165-c39483d41ba9', 'f2000002-0000-0000-0000-00000000000f',
+   'Le Louvre',
+   'false', '2'),
+
+  ('20e8f278-8135-4665-88c7-ebb7f420d544', 'f2000002-0000-0000-0000-00000000000f',
+   'Versailles',
+   'false', '3'),
+
+  ('8a12f3fc-e169-4c6e-8309-fbea601e7421', 'f2000002-0000-0000-0000-000000000010',
+   'Au Palais Bourbon (Assemblée nationale)',
+   'true', '0'),
+
+  ('42afa88f-8617-4f11-9206-065ec4ce866c', 'f2000002-0000-0000-0000-000000000010',
+   'Au palais du Luxembourg',
+   'false', '1'),
+
+  ('9b8cce6f-00a9-4889-9bf7-591d1550a98e', 'f2000002-0000-0000-0000-000000000010',
+   'À l''Élysée',
+   'false', '2'),
+
+  ('e79e264a-1edf-417b-885f-30977c7e0a59', 'f2000002-0000-0000-0000-000000000010',
+   'Au Louvre',
+   'false', '3'),
+
+  ('ab522332-3987-4c7f-b769-5a6a690858fa', 'f2000002-0000-0000-0000-000000000011',
+   'Au palais du Luxembourg',
+   'true', '0'),
+
+  ('c242ec5f-e93e-48e0-8cba-67059aa06fa8', 'f2000002-0000-0000-0000-000000000011',
+   'Au Palais Bourbon',
+   'false', '1'),
+
+  ('d58c71ff-2704-42b1-a5d8-5dee36844252', 'f2000002-0000-0000-0000-000000000011',
+   'À l''Élysée',
+   'false', '2'),
+
+  ('cb80253d-42d2-423f-ad43-430d9426cb53', 'f2000002-0000-0000-0000-000000000011',
+   'À Versailles',
+   'false', '3'),
+
+  ('a41c9764-0e49-4f52-8a19-447a53f3b628', 'f2000002-0000-0000-0000-000000000012',
+   'Oui, sur tout le territoire national',
+   'true', '0'),
+
+  ('65b9fb4b-9f59-45c4-b2e5-6a40b2b6e513', 'f2000002-0000-0000-0000-000000000012',
+   'Non, uniquement à Paris',
+   'false', '1'),
+
+  ('9d1487d9-5881-4f68-acf9-8eb83bf2dafe', 'f2000002-0000-0000-0000-000000000012',
+   'Uniquement dans la commune où elle est votée',
+   'false', '2'),
+
+  ('27a877df-e3b5-4f80-acf3-33e5166fcd45', 'f2000002-0000-0000-0000-000000000012',
+   'Uniquement la première année',
+   'false', '3'),
+
+  ('b8e9aad6-c654-4857-81f4-9e0dcb28619a', 'f2000002-0000-0000-0000-000000000013',
+   'Le budget annuel de l''État',
+   'true', '0'),
+
+  ('8e4ce85e-0811-4e7f-8440-d7ad969b965e', 'f2000002-0000-0000-0000-000000000013',
+   'Les émissions de télévision',
+   'false', '1'),
+
+  ('1e28c053-7ef5-4340-ae1f-5542aababeb4', 'f2000002-0000-0000-0000-000000000013',
+   'Les décisions de justice',
+   'false', '2'),
+
+  ('acafa1de-34f9-4480-8e78-8242d2521c2e', 'f2000002-0000-0000-0000-000000000013',
+   'Les nominations religieuses',
+   'false', '3'),
+
+  ('9a3a209a-1f00-4c80-9969-575b55e0b289', 'f2000002-0000-0000-0000-000000000014',
+   'Ils représentent la nation entière',
+   'true', '0'),
+
+  ('3506420d-80b6-413c-b322-28cfb32156d8', 'f2000002-0000-0000-0000-000000000014',
+   'Uniquement leur commune',
+   'false', '1'),
+
+  ('5ba4b89b-8bcb-4991-98b4-f5ffbcfbaea0', 'f2000002-0000-0000-0000-000000000014',
+   'Uniquement leur famille',
+   'false', '2'),
+
+  ('97818d01-6fe0-4809-8ad7-3069e3867b45', 'f2000002-0000-0000-0000-000000000014',
+   'Uniquement les électeurs ayant voté pour eux',
+   'false', '3'),
+
+  ('c0436c5e-c906-412f-b015-2d7fddbe3555', 'f2000002-0000-0000-0000-000000000015',
+   'Oui, lors des séances de questions au gouvernement',
+   'true', '0'),
+
+  ('621abcf7-b352-409e-a6be-8f2eac06edb9', 'f2000002-0000-0000-0000-000000000015',
+   'Non, le silence est obligatoire',
+   'false', '1'),
+
+  ('657d8cae-967a-4224-a5cb-1cfd0f463cbf', 'f2000002-0000-0000-0000-000000000015',
+   'Uniquement par écrit pendant la nuit',
+   'false', '2'),
+
+  ('149b4856-30b8-42e8-9272-19ee45ddba44', 'f2000002-0000-0000-0000-000000000015',
+   'Uniquement avec autorisation du président',
+   'false', '3'),
+
+  ('3a541236-18e1-4b99-b065-06be943987c3', 'f2000002-0000-0000-0000-000000000016',
+   'Oui, lors des visites organisées',
+   'true', '0'),
+
+  ('6f94c8c9-4975-4c7d-bdd0-f4eb27be6b40', 'f2000002-0000-0000-0000-000000000016',
+   'Non, l''accès est interdit à tous',
+   'false', '1'),
+
+  ('6b0c4137-716c-4696-b6de-70fc4d9a32fa', 'f2000002-0000-0000-0000-000000000016',
+   'Uniquement les ambassadeurs étrangers',
+   'false', '2'),
+
+  ('e2bc24a7-7a30-4471-add4-ff813b2e2cb4', 'f2000002-0000-0000-0000-000000000016',
+   'Uniquement les militaires',
+   'false', '3'),
+
+  ('f0ad2083-4ef8-4b02-96dc-caf4eb1b675e', 'f2000002-0000-0000-0000-000000000017',
+   'Oui, au même titre que l''Assemblée nationale',
+   'true', '0'),
+
+  ('d9f701ab-502a-4bae-b277-f905d80f6800', 'f2000002-0000-0000-0000-000000000017',
+   'Non, c''est interdit',
+   'false', '1'),
+
+  ('e10cd483-a3ba-47e9-a5e2-9797fa073465', 'f2000002-0000-0000-0000-000000000017',
+   'Uniquement sur la fiscalité',
+   'false', '2'),
+
+  ('8f326d53-24e5-4e2e-9b60-e462fd748c14', 'f2000002-0000-0000-0000-000000000017',
+   'Uniquement avec autorisation du Pape',
+   'false', '3'),
+
+  ('88d79e5c-2902-4e91-9e32-25f6ed6d786b', 'f2000002-0000-0000-0000-000000000018',
+   'Oui, les deux à Paris',
+   'true', '0'),
+
+  ('f06d5907-6375-485b-9303-37d437ea79f3', 'f2000002-0000-0000-0000-000000000018',
+   'Non, à Versailles uniquement',
+   'false', '1'),
+
+  ('9cef6f5f-5d67-4583-8b19-1a7e987ce9e9', 'f2000002-0000-0000-0000-000000000018',
+   'L''une à Marseille, l''autre à Lyon',
+   'false', '2'),
+
+  ('dbc07db5-e607-47fb-a917-cd7a543babe5', 'f2000002-0000-0000-0000-000000000018',
+   'Aucun siège fixe',
+   'false', '3'),
+
+  ('96e27160-7c84-4668-b8b3-a07086e2505e', 'f2000002-0000-0000-0000-000000000019',
+   'Oui, par une motion de censure',
+   'true', '0'),
+
+  ('4c6965a3-0afd-49b3-b5f7-db42828bfe34', 'f2000002-0000-0000-0000-000000000019',
+   'Non, jamais',
+   'false', '1'),
+
+  ('c377bcd6-d570-4505-9b02-239f191063dd', 'f2000002-0000-0000-0000-000000000019',
+   'Uniquement avec accord du président',
+   'false', '2'),
+
+  ('9add919f-0ac7-46d9-8bcd-b3eff3974710', 'f2000002-0000-0000-0000-000000000019',
+   'Uniquement en période de guerre',
+   'false', '3'),
+
+  ('22d90e76-500c-48d8-93e1-038356d3afd0', 'f2000002-0000-0000-0000-00000000001a',
+   'Oui, et l''aide juridictionnelle existe pour les plus modestes',
+   'true', '0'),
+
+  ('6dda6861-7fc4-43c9-a351-6191ea0db0c1', 'f2000002-0000-0000-0000-00000000001a',
+   'Non, jamais',
+   'false', '1'),
+
+  ('1e76aba8-ab32-4391-a122-3b1e6e02001a', 'f2000002-0000-0000-0000-00000000001a',
+   'Uniquement les hommes y ont droit',
+   'false', '2'),
+
+  ('4916f2a5-0959-42eb-bd3c-8cde88180dbf', 'f2000002-0000-0000-0000-00000000001a',
+   'Uniquement si le délit est léger',
+   'false', '3'),
+
+  ('a94fc1a8-8dd5-45ed-b701-fba897715fa8', 'f2000002-0000-0000-0000-00000000001b',
+   'Non, elle bénéficie de la présomption d''innocence',
+   'true', '0'),
+
+  ('4099bd1a-bd31-43dd-a0b6-3641c48b907c', 'f2000002-0000-0000-0000-00000000001b',
+   'Oui, automatiquement',
+   'false', '1'),
+
+  ('37b91bbd-214b-48d2-9541-b98f08951241', 'f2000002-0000-0000-0000-00000000001b',
+   'Cela dépend du juge',
+   'false', '2'),
+
+  ('897024b3-bbe1-4e7b-a429-14fc8f0a73db', 'f2000002-0000-0000-0000-00000000001b',
+   'Cela dépend de la commune',
+   'false', '3'),
+
+  ('506b2f2c-e078-490f-996d-d2116156a6ca', 'f2000002-0000-0000-0000-00000000001c',
+   'Elle assure la sécurité et constate les infractions',
+   'true', '0'),
+
+  ('16492053-21fc-46d5-af62-da22a5db94f1', 'f2000002-0000-0000-0000-00000000001c',
+   'Elle vote les lois',
+   'false', '1'),
+
+  ('6bc6e7f8-a817-4f8f-af72-457addf6c1f9', 'f2000002-0000-0000-0000-00000000001c',
+   'Elle gère les écoles',
+   'false', '2'),
+
+  ('6e40ced1-07f0-4663-93d4-a2a53fd01845', 'f2000002-0000-0000-0000-00000000001c',
+   'Elle distribue le courrier',
+   'false', '3'),
+
+  ('f34cbb4c-26f7-45f6-bbb8-90d2d845e4c4', 'f2000002-0000-0000-0000-00000000001d',
+   'Le 112',
+   'true', '0'),
+
+  ('d19a583a-4efe-41fc-9d4c-02e53e584315', 'f2000002-0000-0000-0000-00000000001d',
+   'Le 911',
+   'false', '1'),
+
+  ('1b563e92-7aa0-4217-9acd-7354f2e7266e', 'f2000002-0000-0000-0000-00000000001d',
+   'Le 333',
+   'false', '2'),
+
+  ('3e0d989b-ea45-45e3-9152-2b40f663edab', 'f2000002-0000-0000-0000-00000000001d',
+   'Le 100',
+   'false', '3'),
+
+  ('01d606d8-d112-479f-96b3-e56b3571acae', 'f2000002-0000-0000-0000-00000000001e',
+   'Le 17',
+   'true', '0'),
+
+  ('b6c56401-86a7-4a20-84fe-6606d9c984a9', 'f2000002-0000-0000-0000-00000000001e',
+   'Le 15',
+   'false', '1'),
+
+  ('e2cd9c97-70e2-43de-9d52-f41091689c68', 'f2000002-0000-0000-0000-00000000001e',
+   'Le 18',
+   'false', '2'),
+
+  ('30fe775f-41e2-47c1-9dd3-5e3fdb51745b', 'f2000002-0000-0000-0000-00000000001e',
+   'Le 20',
+   'false', '3'),
+
+  ('90d74896-dbb6-4a08-9b8a-b26dbc34045e', 'f2000002-0000-0000-0000-00000000001f',
+   'Les impôts',
+   'true', '0'),
+
+  ('1b3086a3-b522-4cc3-b2a0-704d75c6ad1f', 'f2000002-0000-0000-0000-00000000001f',
+   'Les dons',
+   'false', '1'),
+
+  ('ee5f4801-e063-4845-89b1-f195f0ff8212', 'f2000002-0000-0000-0000-00000000001f',
+   'Les héritages',
+   'false', '2'),
+
+  ('068befee-5b18-463f-8e95-73c071793ab3', 'f2000002-0000-0000-0000-00000000001f',
+   'Les pourboires',
+   'false', '3'),
+
+  ('64343864-5fa5-4714-b0d6-f2c95e84d2df', 'f2000002-0000-0000-0000-000000000020',
+   'Tous paient au moins la TVA, mais pas l''impôt sur le revenu',
+   'true', '0'),
+
+  ('4343ce1a-eac1-4c4d-8eca-02662da1866b', 'f2000002-0000-0000-0000-000000000020',
+   'Personne ne paie d''impôt',
+   'false', '1'),
+
+  ('c78ea87a-2b06-4ec7-8fb9-50dade8718c5', 'f2000002-0000-0000-0000-000000000020',
+   'Uniquement les chefs d''entreprise',
+   'false', '2'),
+
+  ('05590120-3cd2-44ae-a08b-24888a461016', 'f2000002-0000-0000-0000-000000000020',
+   'Uniquement les retraités',
+   'false', '3'),
+
+  ('d37a2d9a-37df-4ceb-9a61-a082017d70ff', 'f2000002-0000-0000-0000-000000000021',
+   'La mairie (ou hôtel de ville)',
+   'true', '0'),
+
+  ('7eb6583f-c86c-43e2-bb7e-92bea76e901a', 'f2000002-0000-0000-0000-000000000021',
+   'La cathédrale',
+   'false', '1'),
+
+  ('ee03b31c-2687-4fef-959f-c23d28c98439', 'f2000002-0000-0000-0000-000000000021',
+   'Le stade municipal',
+   'false', '2'),
+
+  ('231abd0f-0c35-4420-91eb-0318b6917401', 'f2000002-0000-0000-0000-000000000021',
+   'Le bureau de poste',
+   'false', '3'),
+
+  ('2530c0e1-b762-41dd-8b35-edc5dcedc563', 'f2000002-0000-0000-0000-000000000022',
+   'Oui, c''est l''une de ses fonctions d''état civil',
+   'true', '0'),
+
+  ('09e18798-4141-4671-9e9e-77bde5355584', 'f2000002-0000-0000-0000-000000000022',
+   'Non, seul un prêtre peut le faire',
+   'false', '1'),
+
+  ('36738ddc-269a-4967-bae7-7d0f2c0bd3ab', 'f2000002-0000-0000-0000-000000000022',
+   'Non, c''est le préfet',
+   'false', '2'),
+
+  ('ab82f03b-b6f8-4fc7-b036-9661b43f8b2f', 'f2000002-0000-0000-0000-000000000022',
+   'Uniquement les couples français',
+   'false', '3'),
+
+  ('84ba6f60-05c9-4a35-a8a1-82f832933af5', 'f2000002-0000-0000-0000-000000000023',
+   'Un seul maire (avec des adjoints)',
+   'true', '0'),
+
+  ('fab06d88-d873-4e27-abe8-f5dca544790a', 'f2000002-0000-0000-0000-000000000023',
+   'Cinq maires',
+   'false', '1'),
+
+  ('c08841e7-1bae-45ba-807e-0bda7f2d3000', 'f2000002-0000-0000-0000-000000000023',
+   'Un par quartier',
+   'false', '2'),
+
+  ('8d5c983d-45fa-424f-bfe6-18e6a40cd4e7', 'f2000002-0000-0000-0000-000000000023',
+   'Un par âge (jeune, adulte, aîné)',
+   'false', '3'),
+
+  ('3cd8026a-8438-47f6-b2d4-99806ac7805a', 'f2000002-0000-0000-0000-000000000024',
+   'Le drapeau européen',
+   'true', '0'),
+
+  ('994dc7e8-8db7-4e33-bca7-328d748017b9', 'f2000002-0000-0000-0000-000000000024',
+   'Le drapeau de l''ONU',
+   'false', '1'),
+
+  ('add5207b-e470-4af6-a58a-a9360287437a', 'f2000002-0000-0000-0000-000000000024',
+   'Le drapeau de l''OTAN',
+   'false', '2'),
+
+  ('eba5ccd9-ac6e-4423-8715-727680312d24', 'f2000002-0000-0000-0000-000000000024',
+   'Le drapeau de l''UNESCO',
+   'false', '3'),
+
+  ('e801204f-e31e-40cf-bd7d-3b56fda8fa72', 'f2000002-0000-0000-0000-000000000025',
+   '12 étoiles',
+   'true', '0'),
+
+  ('34bd190a-3b5a-485c-8c9f-c2ee0106d99c', 'f2000002-0000-0000-0000-000000000025',
+   '27 étoiles',
+   'false', '1'),
+
+  ('452401ae-f62d-40eb-bdce-11f5fff03adb', 'f2000002-0000-0000-0000-000000000025',
+   '50 étoiles',
+   'false', '2'),
+
+  ('388e5d5f-2cf5-4a68-a241-b50051de426c', 'f2000002-0000-0000-0000-000000000025',
+   '6 étoiles',
+   'false', '3'),
+
+  ('32c9a90e-4be0-4bf4-9ea4-9e57af1a7e1a', 'f2000002-0000-0000-0000-000000000026',
+   'L''Ode à la joie de Beethoven',
+   'true', '0'),
+
+  ('078fc4fd-7e47-46d0-86a3-39c9eaf1fbf9', 'f2000002-0000-0000-0000-000000000026',
+   'La Marseillaise',
+   'false', '1'),
+
+  ('9edf2869-06e0-4031-ae18-0327a2ac8de9', 'f2000002-0000-0000-0000-000000000026',
+   'Imagine de John Lennon',
+   'false', '2'),
+
+  ('2be33d45-454c-42b8-a38b-4395eaa1fca6', 'f2000002-0000-0000-0000-000000000026',
+   'Aucun hymne n''est défini',
+   'false', '3'),
+
+  ('af26d633-3608-4294-bdee-b7acc2e6a487', 'f2000002-0000-0000-0000-000000000027',
+   'Non, seulement par les pays de la zone euro',
+   'true', '0'),
+
+  ('8f20a111-d923-4513-8617-15be49044c3b', 'f2000002-0000-0000-0000-000000000027',
+   'Oui, tous les 27 pays utilisent l''euro',
+   'false', '1'),
+
+  ('e6967f01-d350-434d-be1a-fd9553556e33', 'f2000002-0000-0000-0000-000000000027',
+   'Non, seule la France utilise l''euro',
+   'false', '2'),
+
+  ('92be0e31-5d7d-43c7-af65-a4bad52fc4df', 'f2000002-0000-0000-0000-000000000027',
+   'Oui, ainsi qu''en Russie et en Chine',
+   'false', '3'),
+
+  ('a63556db-d037-49fe-b8a5-f7379dc2d4c3', 'f2000002-0000-0000-0000-000000000028',
+   'Oui, dans la majorité des pays européens',
+   'true', '0'),
+
+  ('a0c1308b-b14c-41db-a151-50b011cebf63', 'f2000002-0000-0000-0000-000000000028',
+   'Non, il faut toujours un passeport',
+   'false', '1'),
+
+  ('decc3b6c-afe3-4e42-a163-120d75c178d5', 'f2000002-0000-0000-0000-000000000028',
+   'Uniquement le visa diplomatique',
+   'false', '2'),
+
+  ('f56b479c-d73d-423d-8c6c-5f44427c75e3', 'f2000002-0000-0000-0000-000000000028',
+   'Uniquement avec un guide officiel',
+   'false', '3'),
+
+  ('a3905a5f-8c12-451f-9656-16067a464f4c', 'f2000002-0000-0000-0000-000000000029',
+   'M''inscrire (ou vérifier mon inscription) sur les listes électorales',
+   'true', '0'),
+
+  ('bee61103-f59d-47c8-af42-555275eeea03', 'f2000002-0000-0000-0000-000000000029',
+   'Demander une autorisation au préfet',
+   'false', '1'),
+
+  ('abf5cf54-a1da-4a68-a31a-b71e7a9c406f', 'f2000002-0000-0000-0000-000000000029',
+   'Passer un examen civique payé',
+   'false', '2'),
+
+  ('73b295db-7da4-478e-a8d1-935555e775f5', 'f2000002-0000-0000-0000-000000000029',
+   'Rien, le président m''envoie une convocation',
+   'false', '3'),
+
+  ('23be1357-3397-484f-953f-fa8f877764a1', 'f2000002-0000-0000-0000-00000000002a',
+   'Oui, en établissant une procuration de vote',
+   'true', '0'),
+
+  ('053fe81f-bc3c-4e55-97d5-97ef3da60b7b', 'f2000002-0000-0000-0000-00000000002a',
+   'Non, le vote est strictement personnel',
+   'false', '1'),
+
+  ('5ce9d05f-2715-4e21-9180-1a77c25967fb', 'f2000002-0000-0000-0000-00000000002a',
+   'Uniquement si la personne est de ma famille',
+   'false', '2'),
+
+  ('cff7a58a-ff5f-4b86-8f74-7b260f49f2d9', 'f2000002-0000-0000-0000-00000000002a',
+   'Uniquement avec accord médical',
+   'false', '3'),
+
+  ('a0274f43-06b9-4c69-b8e4-38cd55ec3760', 'f2000002-0000-0000-0000-00000000002b',
+   'Saisir le tribunal administratif',
+   'true', '0'),
+
+  ('1fe988df-1e50-4e8f-9d9c-840a2d479b9c', 'f2000002-0000-0000-0000-00000000002b',
+   'Aucun recours possible',
+   'false', '1'),
+
+  ('b0dda804-3b7c-4e91-8f6f-a1a7bfa5c507', 'f2000002-0000-0000-0000-00000000002b',
+   'Demander au préfet de battre le maire',
+   'false', '2'),
+
+  ('fd24d9dd-51ac-48c3-a25c-ef4870e7744b', 'f2000002-0000-0000-0000-00000000002b',
+   'Quitter la commune',
+   'false', '3'),
+
+  ('ffbff00b-51bb-4adc-afb7-4e8fdd0948f0', 'f2000002-0000-0000-0000-00000000002c',
+   'Refuser et signaler les faits à la police',
+   'true', '0'),
+
+  ('40e7bf8a-4657-4c19-bcde-5476316a5c08', 'f2000002-0000-0000-0000-00000000002c',
+   'Accepter, c''est légal',
+   'false', '1'),
+
+  ('2522521f-43c7-4043-bcf1-217ec872c824', 'f2000002-0000-0000-0000-00000000002c',
+   'Négocier un meilleur prix',
+   'false', '2'),
+
+  ('1af5ab2d-34f3-45d2-9c75-73975fc8f5e5', 'f2000002-0000-0000-0000-00000000002c',
+   'Faire payer plusieurs personnes',
+   'false', '3'),
+
+  ('f603c9da-2041-4c2c-915c-a99704a8ca3c', 'f2000002-0000-0000-0000-00000000002d',
+   'Oui, c''est obligatoire pour préserver le secret',
+   'true', '0'),
+
+  ('4e67629d-7897-43be-8d26-53abb9e9dc5f', 'f2000002-0000-0000-0000-00000000002d',
+   'Non, je peux le faire au comptoir',
+   'false', '1'),
+
+  ('e5b16771-7ee3-4bf0-b3c7-11cbfc099915', 'f2000002-0000-0000-0000-00000000002d',
+   'Uniquement si je suis adulte',
+   'false', '2'),
+
+  ('15c7e0b9-f18b-4785-896e-14502e95ead7', 'f2000002-0000-0000-0000-00000000002d',
+   'Uniquement le jour de l''élection',
+   'false', '3'),
+
+  ('678cca1a-f7b7-487f-a750-15006f4aa3bb', 'f2000002-0000-0000-0000-00000000002e',
+   'Oui, dans leur permanence parlementaire',
+   'true', '0'),
+
+  ('3b8cbe77-929b-4228-9e09-aeb163c09c6a', 'f2000002-0000-0000-0000-00000000002e',
+   'Non, c''est strictement interdit',
+   'false', '1'),
+
+  ('c5e64376-3ea3-43bb-a1a9-d21aad6ccf00', 'f2000002-0000-0000-0000-00000000002e',
+   'Uniquement par voie d''huissier',
+   'false', '2'),
+
+  ('ed3d0cd3-b004-4aa1-88c5-c4eac1efef48', 'f2000002-0000-0000-0000-00000000002e',
+   'Uniquement en présence d''un avocat',
+   'false', '3'),
+
+  ('28ab6ed2-df80-4fd3-a349-eac988c4a3f2', 'f2000002-0000-0000-0000-00000000002f',
+   'À la mairie de la commune de naissance',
+   'true', '0'),
+
+  ('fd3d44e6-1fdd-4829-9c95-7bf3379f46ff', 'f2000002-0000-0000-0000-00000000002f',
+   'Au Parlement',
+   'false', '1'),
+
+  ('968777a2-20b2-4349-9104-39a0a6d05c5a', 'f2000002-0000-0000-0000-00000000002f',
+   'À l''Élysée',
+   'false', '2'),
+
+  ('f91233a7-40a4-4c9a-a261-f9d1655acde8', 'f2000002-0000-0000-0000-00000000002f',
+   'À l''église du quartier',
+   'false', '3'),
+
+  ('10f5f7d5-776b-4398-ba17-e7ba9c77753d', 'f2000002-0000-0000-0000-000000000030',
+   'Non, les femmes ont le droit de vote depuis 1944',
+   'true', '0'),
+
+  ('fed26e12-efed-494f-ad38-b1ed0eb6cce2', 'f2000002-0000-0000-0000-000000000030',
+   'Oui, c''est une règle ancienne',
+   'false', '1'),
+
+  ('c868ec6d-39ca-465c-9cdf-de466d76c08f', 'f2000002-0000-0000-0000-000000000030',
+   'Uniquement les femmes mariées votent',
+   'false', '2'),
+
+  ('1b3c3b7d-33b9-4264-964e-8002372a3b7a', 'f2000002-0000-0000-0000-000000000030',
+   'Uniquement les femmes de plus de 35 ans',
+   'false', '3'),
+
+  ('c4d04d47-776a-4e79-8661-a7753c1de731', 'f2000002-0000-0000-0000-000000000031',
+   'Déposer plainte au commissariat ou à la gendarmerie',
+   'true', '0'),
+
+  ('cb8e76b1-1a37-4473-adf8-a6a087c74b9f', 'f2000002-0000-0000-0000-000000000031',
+   'Demander à un voisin de gérer',
+   'false', '1'),
+
+  ('86f328ef-85e1-42a2-8465-e735d48bd2d2', 'f2000002-0000-0000-0000-000000000031',
+   'Écrire un message à l''Élysée',
+   'false', '2'),
+
+  ('a5b696cb-6e87-48e4-9336-16239f838207', 'f2000002-0000-0000-0000-000000000031',
+   'Faire justice moi-même',
+   'false', '3'),
+
+  ('d223a301-8bd1-4365-9a69-cd5264e4afe0', 'f2000002-0000-0000-0000-000000000032',
+   'Oui, m''inscrire sur les listes de ma nouvelle commune',
+   'true', '0'),
+
+  ('39f82fe5-3858-406c-ad22-427d47bf1309', 'f2000002-0000-0000-0000-000000000032',
+   'Non, l''inscription se fait automatiquement par GPS',
+   'false', '1'),
+
+  ('79a6ec15-ef40-45c3-b3ce-b1708c29161c', 'f2000002-0000-0000-0000-000000000032',
+   'Non, j''ai 10 ans pour le faire',
+   'false', '2'),
+
+  ('364c7d33-3acf-4eb4-b143-16804a76e974', 'f2000002-0000-0000-0000-000000000032',
+   'Non, je vote dans toutes les communes',
+   'false', '3'),
+
+  ('79162c67-ba1f-49e0-9630-2965986d3765', 'f2000002-0000-0000-0000-000000000033',
+   'L''article 5',
+   'true', '0'),
+
+  ('350910d0-d8e2-4a10-ac48-16e666fb7bed', 'f2000002-0000-0000-0000-000000000033',
+   'L''article 89',
+   'false', '1'),
+
+  ('6f9bf856-1f7f-42a0-a87f-805b40e5b2bc', 'f2000002-0000-0000-0000-000000000033',
+   'L''article 1er',
+   'false', '2'),
+
+  ('53415f6e-49f9-4c6c-9c63-f71685ea8dde', 'f2000002-0000-0000-0000-000000000033',
+   'L''article 49',
+   'false', '3'),
+
+  ('d839da9b-ee2e-4b4c-873b-a3d0385e3f55', 'f2000002-0000-0000-0000-000000000034',
+   'L''article 49 alinéa 3',
+   'true', '0'),
+
+  ('12c7b4d8-856e-40ee-83e2-7200b6dd0622', 'f2000002-0000-0000-0000-000000000034',
+   'L''article 1er',
+   'false', '1'),
+
+  ('fd0af7cc-4e71-43da-a040-58b3f5849ac5', 'f2000002-0000-0000-0000-000000000034',
+   'L''article 12',
+   'false', '2'),
+
+  ('fa62a79a-0eb7-426a-8b7e-670fa8335218', 'f2000002-0000-0000-0000-000000000034',
+   'L''article 89',
+   'false', '3'),
+
+  ('3414a934-053b-4053-a5ff-c864baf38739', 'f2000002-0000-0000-0000-000000000035',
+   '18 ans',
+   'true', '0'),
+
+  ('ee667310-7c89-4cc1-9b08-70ac3d1cd48b', 'f2000002-0000-0000-0000-000000000035',
+   '23 ans',
+   'false', '1'),
+
+  ('d9bfbebd-d7ef-49c5-91d8-aa1a341f59eb', 'f2000002-0000-0000-0000-000000000035',
+   '25 ans',
+   'false', '2'),
+
+  ('5c5913a0-b7c1-4e6c-8be8-150bb5c40653', 'f2000002-0000-0000-0000-000000000035',
+   '35 ans',
+   'false', '3'),
+
+  ('a052fa14-5432-4489-9f13-34913834eee5', 'f2000002-0000-0000-0000-000000000036',
+   '500 parrainages d''élus',
+   'true', '0'),
+
+  ('99d2919f-a80d-494f-99d2-5f4bfee6ffe3', 'f2000002-0000-0000-0000-000000000036',
+   '100 parrainages',
+   'false', '1'),
+
+  ('16914a18-098b-411b-bba1-d114bc7532b0', 'f2000002-0000-0000-0000-000000000036',
+   '5 000 parrainages',
+   'false', '2'),
+
+  ('98e4d74d-56d6-42e9-ac24-b176856c70e1', 'f2000002-0000-0000-0000-000000000036',
+   'Aucun parrainage requis',
+   'false', '3'),
+
+  ('c126c8ba-0c2c-4e53-9c04-c5aa0c271a14', 'f2000002-0000-0000-0000-000000000037',
+   'Le Conseil d''État',
+   'true', '0'),
+
+  ('bc46734b-6ea6-4e87-a80d-61a78c8b757b', 'f2000002-0000-0000-0000-000000000037',
+   'La Cour de cassation',
+   'false', '1'),
+
+  ('01c17361-cd48-493a-92ec-ccc7c86d05f1', 'f2000002-0000-0000-0000-000000000037',
+   'Le Conseil constitutionnel uniquement',
+   'false', '2'),
+
+  ('a3118134-a58c-4328-b75f-3da68d499c02', 'f2000002-0000-0000-0000-000000000037',
+   'L''Académie française',
+   'false', '3'),
+
+  ('37be1ba6-1e27-4250-9f69-47c3594e6a95', 'f2000002-0000-0000-0000-000000000038',
+   'Le Conseil d''État',
+   'true', '0'),
+
+  ('587044fe-b9f6-4d69-906a-955c17f5fc75', 'f2000002-0000-0000-0000-000000000038',
+   'La Cour de cassation',
+   'false', '1'),
+
+  ('5ec26b9d-23ac-4484-89f7-77bb0590e6c6', 'f2000002-0000-0000-0000-000000000038',
+   'Le Conseil constitutionnel',
+   'false', '2'),
+
+  ('bcaabe7c-d1f8-46ed-b36a-ddd377a829a9', 'f2000002-0000-0000-0000-000000000038',
+   'L''Assemblée nationale',
+   'false', '3'),
+
+  ('4dfcf0cb-245c-4d98-b70f-18dc736ffe71', 'f2000002-0000-0000-0000-000000000039',
+   'La Cour de cassation',
+   'true', '0'),
+
+  ('4358c2cd-8b4d-4faa-a3cc-5d08997497e1', 'f2000002-0000-0000-0000-000000000039',
+   'Le Conseil d''État',
+   'false', '1'),
+
+  ('d6f0547b-4551-43a4-a6bd-156891426e1a', 'f2000002-0000-0000-0000-000000000039',
+   'Le Sénat',
+   'false', '2'),
+
+  ('e06a256e-04aa-4200-8edb-f0fff7efb401', 'f2000002-0000-0000-0000-000000000039',
+   'Le tribunal de police',
+   'false', '3'),
+
+  ('a2384020-62b1-4475-95dd-0c91c7d347c4', 'f2000002-0000-0000-0000-00000000003a',
+   'Le tribunal de police',
+   'true', '0'),
+
+  ('4d053ccc-56d5-4e05-9092-d20df5c0c979', 'f2000002-0000-0000-0000-00000000003a',
+   'La cour d''assises',
+   'false', '1'),
+
+  ('d09e992c-6cd1-40d9-9ee4-ac02d048dfdd', 'f2000002-0000-0000-0000-00000000003a',
+   'Le Conseil constitutionnel',
+   'false', '2'),
+
+  ('5870389e-64b9-4fdc-9cd8-6d67891868fc', 'f2000002-0000-0000-0000-00000000003a',
+   'Le Conseil d''État',
+   'false', '3');

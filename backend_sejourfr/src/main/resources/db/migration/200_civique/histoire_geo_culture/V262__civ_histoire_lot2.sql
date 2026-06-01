@@ -6,255 +6,1060 @@
 -- ============================================================================
 
 -- questions
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000004','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Sous quelle République vivons-nous actuellement en France ?','La France vit actuellement sous la Ve République, instaurée par la Constitution de 1958 à l''initiative du général de Gaulle.','true','2026-05-27 17:40:29.994036+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000005','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'NAT','CONNAISSANCE','Que désigne la Shoah ?','La Shoah désigne l''extermination systématique de 6 millions de Juifs (dont 1,5 million d''enfants) par l''Allemagne nazie pendant la Seconde Guerre mondiale (1939-1945).','true','2026-05-27 17:40:29.994036+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000006','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CR','CONNAISSANCE','Lequel de ces territoires a été colonisé par la France à un moment de son histoire ?','La France a colonisé de nombreux territoires : Algérie, Maroc, Tunisie, Indochine (Vietnam), Madagascar, Sénégal, Côte d''Ivoire, Antilles, etc. La plupart sont devenus indépendants au XXe siècle.','true','2026-05-27 17:40:29.994036+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000007','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'NAT','CONNAISSANCE','Quel homme politique a rendu l''école obligatoire et laïque à la fin du XIXe siècle ?','Jules Ferry, ministre de l''Instruction publique, a fait voter les lois de 1881-1882 rendant l''école primaire gratuite, laïque et obligatoire pour les enfants de 6 à 13 ans.','true','2026-05-27 17:40:29.994036+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000008','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','À quelles dates la Seconde Guerre mondiale s''est-elle déroulée ?','La Seconde Guerre mondiale a eu lieu de 1939 à 1945. Elle a opposé les Alliés (France, Royaume-Uni, USA, URSS) aux puissances de l''Axe (Allemagne, Italie, Japon).','true','2026-05-27 17:40:29.994036+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000009','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','À quelles dates la Première Guerre mondiale s''est-elle déroulée ?','La Première Guerre mondiale a eu lieu de 1914 à 1918. Elle a opposé la Triple-Entente (France, Royaume-Uni, Russie, USA en 1917) aux Empires centraux (Allemagne, Autriche-Hongrie).','true','2026-05-27 17:40:29.994036+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000000a','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'NAT','CONNAISSANCE','En quelle année a été créée la Communauté économique européenne (CEE) ?','La CEE a été créée en 1957 par le traité de Rome, signé par 6 pays fondateurs (France, Allemagne, Italie, Belgique, Pays-Bas, Luxembourg).','true','2026-05-27 17:40:29.994036+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000000b','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CR','CONNAISSANCE','Que commémore le 11 novembre, jour férié en France ?','Le 11 novembre commémore l''armistice de 1918, qui a mis fin à la Première Guerre mondiale. C''est un hommage aux soldats morts pour la France.','true','2026-05-27 17:40:29.994036+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000000c','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'NAT','CONNAISSANCE','Quel a été le premier président de la Ve République ?','Charles de Gaulle a été le premier président de la Ve République (1959-1969). Il a fondé le régime en 1958, été élu par les grands électeurs en 1958 puis au suffrage universel direct en 1965.','true','2026-05-27 17:40:29.994036+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000000d','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'NAT','CONNAISSANCE','En quelle année l''esclavage a-t-il été définitivement aboli en France ?','L''esclavage a été definitivement aboli en France en 1848 par un décret signé par Victor Schoelcher, sous la IIe République.','true','2026-05-27 17:40:29.999981+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000000e','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'NAT','CONNAISSANCE','Depuis quelle année l''école publique est-elle gratuite en France ?','L''école publique est gratuite en France depuis 1881 (loi Ferry du 16 juin 1881). L''obligation et la laïcité ont suivi en 1882.','true','2026-05-27 17:40:29.999981+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000000f','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CR','CONNAISSANCE','Combien de républiques la France a-t-elle connues à ce jour ?','La France a connu 5 républiques : Ire (1792-1804), IIe (1848-1852), IIIe (1870-1940), IVe (1946-1958) et Ve (depuis 1958).','true','2026-05-27 17:40:29.999981+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000010','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CR','CONNAISSANCE','Quel roi était sur le trône au moment de la Révolution française ?','Louis XVI était roi de France lorsque la Révolution a éclaté en 1789. Il a été guillotiné le 21 janvier 1793 après l''abolition de la monarchie.','true','2026-05-27 17:40:29.999981+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000011','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CR','CONNAISSANCE','Qui est l''instigateur de la Ve République ?','Charles de Gaulle a fondé la Ve République en 1958 à la suite de la crise algérienne. La nouvelle Constitution a été adoptée par référendum.','true','2026-05-27 17:40:29.999981+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000012','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Que commémore le 14 juillet ?','Le 14 juillet est la fête nationale française. Elle commémore la prise de la Bastille en 1789 (début de la Révolution) et la fête de la Fédération en 1790 (union nationale).','true','2026-05-27 17:40:29.999981+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000013','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Quelle guerre s''est déroulée entre 1914 et 1918 ?','La Première Guerre mondiale s''est déroulée de 1914 à 1918. Elle s''est terminée par l''armistice du 11 novembre 1918, signé à Rethondes.','true','2026-05-27 17:40:29.999981+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000014','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'NAT','CONNAISSANCE','Pourquoi l''année 1958 est-elle marquante pour la France ?','1958 est l''année de la fondation de la Ve République, avec l''adoption d''une nouvelle Constitution sous l''impulsion de Charles de Gaulle, mettant fin à la IVe République en crise.','true','2026-05-27 17:40:29.999981+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000015','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Quel fleuve traverse la France ?','Plusieurs grands fleuves traversent la France : la Loire (le plus long), la Seine (qui passe à Paris), le Rhône (qui se jette dans la Méditerranée), la Garonne (Bordeaux).','true','2026-05-27 17:40:29.999981+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000016','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Quelle ville parmi ces propositions est française ?','Paris, Marseille, Lyon, Toulouse, Nice, Bordeaux, Lille, Strasbourg sont parmi les principales villes françaises.','true','2026-05-27 17:40:29.999981+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000017','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Quel océan borde la côte ouest de la France métropolitaine ?','La côte ouest de la France métropolitaine est bordée par l''océan Atlantique. La côte sud par la mer Méditerranée, la côte nord par la Manche et la mer du Nord.','true','2026-05-27 17:40:29.999981+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000018','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Qu''est-ce que Paris ?','Paris est la capitale de la France, la ville la plus peuplée du pays (environ 2,1 millions d''habitants intra-muros, plus de 12 millions pour l''aire urbaine).','true','2026-05-27 17:40:29.999981+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000019','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Quelle est la ville capitale de la France ?','Paris est la capitale de la France. C''est le siège des institutions nationales (Assemblée, Élysée, Sénat, Matignon).','true','2026-05-27 17:40:30.005165+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000001a','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Sur quel continent se trouve la France métropolitaine ?','La France métropolitaine se situe sur le continent européen, dans l''Europe occidentale.','true','2026-05-27 17:40:30.005165+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000001b','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CR','CONNAISSANCE','Quelle île est un département français d''outre-mer ?','Les départements d''outre-mer français incluent : la Guadeloupe, la Martinique, la Réunion (toutes des îles), la Guyane (en Amérique du Sud) et Mayotte.','true','2026-05-27 17:40:30.005165+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000001c','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'NAT','CONNAISSANCE','Combien de régions compte la France métropolitaine depuis 2016 ?','Depuis la réforme territoriale de 2016, la France métropolitaine compte 13 régions (contre 22 auparavant). S''ajoutent les régions d''outre-mer.','true','2026-05-27 17:40:30.005165+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000001d','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CR','CONNAISSANCE','Quelle ville française est un important port maritime ?','Marseille (Méditerranée), Le Havre (Atlantique), Dunkerque (mer du Nord) sont parmi les principaux ports français.','true','2026-05-27 17:40:30.005165+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000001e','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CR','CONNAISSANCE','Quelle mer borde la France au sud ?','La mer Méditerranée borde la France au sud (côtes provençale, languedocienne et corse). Au nord se trouvent la Manche et la mer du Nord, à l''ouest l''océan Atlantique.','true','2026-05-27 17:40:30.005165+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000001f','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CR','CONNAISSANCE','Quelle ville française est située au bord de la mer Méditerranée ?','Plusieurs villes françaises bordent la Méditerranée : Marseille, Nice, Montpellier, Toulon, Cannes, Perpignan, Ajaccio (Corse).','true','2026-05-27 17:40:30.005165+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000020','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CR','CONNAISSANCE','Où se trouve la Corse ?','La Corse est une île française située en mer Méditerranée, au sud-est de la France métropolitaine. C''est une collectivité territoriale unique depuis 2018.','true','2026-05-27 17:40:30.005165+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000021','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'NAT','CONNAISSANCE','Quelle chaîne de montagnes se trouve entre la France et l''Italie ?','Les Alpes constituent la frontière naturelle entre la France et l''Italie (et la Suisse). Le Mont-Blanc, plus haut sommet d''Europe occidentale (4 809 m), s''y trouve.','true','2026-05-27 17:40:30.005165+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000022','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CR','CONNAISSANCE','Qui était Molière ?','Molière (Jean-Baptiste Poquelin, 1622-1673) était un dramaturge français du XVIIe siècle. Il est considéré comme l''un des plus grands auteurs de comédie. Œuvres : Le Tartuffe, L''Avare, Le Misanthrope.','true','2026-05-27 17:40:30.005165+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000023','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'NAT','CONNAISSANCE','Qui était Charles Baudelaire ?','Charles Baudelaire (1821-1867) était un poète français du XIXe siècle, auteur des Fleurs du mal, un des recueils majeurs de la poésie française.','true','2026-05-27 17:40:30.005165+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000024','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'NAT','CONNAISSANCE','Qui était George Sand ?','George Sand (Aurore Dupin, 1804-1876) était une romancière française du XIXe siècle, figure du romantisme et pionnière de la cause féminine.','true','2026-05-27 17:40:30.005165+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000025','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'NAT','CONNAISSANCE','Qui était Simone de Beauvoir ?','Simone de Beauvoir (1908-1986) était une philosophe et écrivaine française du XXe siècle, figure majeure de l''existentialisme et du féminisme (Le Deuxième Sexe, 1949).','true','2026-05-27 17:40:30.010627+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000026','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CR','CONNAISSANCE','Qui était Albert Camus ?','Albert Camus (1913-1960) était un écrivain et philosophe français, prix Nobel de littérature 1957. Romans : L''Étranger, La Peste. Essais : Le Mythe de Sisyphe, L''Homme révolté.','true','2026-05-27 17:40:30.010627+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000027','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'NAT','CONNAISSANCE','Qui était Paul Cézanne ?','Paul Cézanne (1839-1906) était un peintre français, considéré comme l''un des précurseurs du cubisme. Ses paysages provençaux et ses natures mortes sont mondialement connus.','true','2026-05-27 17:40:30.010627+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000028','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'NAT','CONNAISSANCE','Qui était Marc Chagall ?','Marc Chagall (1887-1985) était un peintre français d''origine russe (juif), une des grandes figures de l''art moderne. Il a peint le plafond de l''Opéra Garnier de Paris.','true','2026-05-27 17:40:30.010627+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-000000000029','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'NAT','CONNAISSANCE','Qui était Joséphine Baker ?','Joséphine Baker (1906-1975), américaine devenue française, était une chanteuse, danseuse et résistante. Première femme noire entrée au Panthéon en 2021 pour son engagement contre le racisme et pour la France libre.','true','2026-05-27 17:40:30.010627+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000002a','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CR','CONNAISSANCE','Laquelle de ces personnes a été une chanteuse française célèbre ?','Plusieurs chanteuses françaises célèbres : Édith Piaf, Dalida, Mireille Mathieu, Barbara, Catherine Deneuve, Vanessa Paradis, Mylène Farmer, Patricia Kaas.','true','2026-05-27 17:40:30.010627+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000002b','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Qu''est-ce que le Louvre ?','Le Louvre est un musée situé à Paris, l''un des plus visités au monde. Il abrite des œuvres célèbres comme la Joconde de Léonard de Vinci ou la Vénus de Milo.','true','2026-05-27 17:40:30.010627+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000002c','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CR','CONNAISSANCE','Qui était Jean de La Fontaine ?','Jean de La Fontaine (1621-1695) était un poète français du XVIIe siècle, célèbre pour ses Fables (Le Corbeau et le Renard, La Cigale et la Fourmi, etc.).','true','2026-05-27 17:40:30.010627+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000002d','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CR','CONNAISSANCE','Lequel de ces écrivains est français ?','Parmi les grands écrivains français : Victor Hugo, Émile Zola, Marcel Proust, Albert Camus, Simone de Beauvoir, Antoine de Saint-Exupéry, Marguerite Duras.','true','2026-05-27 17:40:30.010627+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000002e','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Dans quelle ville française se trouve la tour Eiffel ?','La tour Eiffel se trouve à Paris. Construite par Gustave Eiffel pour l''Exposition universelle de 1889, elle est l''un des monuments les plus visités au monde.','true','2026-05-27 17:40:30.010627+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000001-0000-0000-0000-00000000002f','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Quand célèbre-t-on Noël en France ?','Noël est célébré le 25 décembre. C''est une fête chrétienne célébrant la naissance de Jésus, devenue aussi une fête populaire et familiale en France.','true','2026-05-27 17:40:30.010627+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000002-0000-0000-0000-000000000001','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Quelle ville est appelée la ''ville lumière'' ?','Paris est surnommée la ''ville lumière'' depuis le XVIIIe siècle. Ce surnom évoque à la fois son rayonnement intellectuel et sa précocité dans l''éclairage public urbain.','true','2026-05-27 17:40:30.021056+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000002-0000-0000-0000-000000000002','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Quel monument se trouve au centre de Paris ?','Plusieurs monuments emblématiques se trouvent à Paris : tour Eiffel, Notre-Dame, Louvre, Arc de Triomphe, Panthéon, basilique du Sacré-Cœur.','true','2026-05-27 17:40:30.021056+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000002-0000-0000-0000-000000000003','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Sur quelle place s''élève l''Arc de Triomphe à Paris ?','L''Arc de Triomphe se trouve sur la place Charles-de-Gaulle (anciennement place de l''Étoile), au sommet des Champs-Élysées.','true','2026-05-27 17:40:30.021056+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000002-0000-0000-0000-000000000004','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Combien la France a-t-elle de côtes maritimes (en simplifié) ?','La France a trois façades maritimes : mer du Nord/Manche au nord, océan Atlantique à l''ouest, mer Méditerranée au sud, plus les outre-mer.','true','2026-05-27 17:40:30.021056+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000002-0000-0000-0000-000000000005','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Comment s''appelle le fleuve qui traverse Paris ?','La Seine traverse Paris d''est en ouest. Elle a façonné le paysage parisien et borde de nombreux monuments (Notre-Dame, Louvre, tour Eiffel).','true','2026-05-27 17:40:30.021056+02',NULL,'ACTIVE',NULL,NULL,NULL);
-INSERT INTO questions (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation, is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code) VALUES ('f4000002-0000-0000-0000-000000000006','CIVIQUE','11111111-0000-0000-0000-000000000004',NULL,NULL,'CSP','CONNAISSANCE','Quel monument célèbre a été inauguré en 1889 ?','La tour Eiffel a été construite pour l''Exposition universelle de 1889 à Paris, pour célébrer le centenaire de la Révolution française. Elle mesure 330 m de haut.','true','2026-05-27 17:40:30.021056+02',NULL,'ACTIVE',NULL,NULL,NULL);
+INSERT INTO questions
+  (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation,
+   is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code)
+VALUES
+  ('f4000001-0000-0000-0000-000000000004', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Sous quelle République vivons-nous actuellement en France ?',
+   'La France vit actuellement sous la Ve République, instaurée par la Constitution de 1958 à l''initiative du général de Gaulle.',
+   'true', '2026-05-27 17:40:29.994036+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000005', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne la Shoah ?',
+   'La Shoah désigne l''extermination systématique de 6 millions de Juifs (dont 1,5 million d''enfants) par l''Allemagne nazie pendant la Seconde Guerre mondiale (1939-1945).',
+   'true', '2026-05-27 17:40:29.994036+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000006', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Lequel de ces territoires a été colonisé par la France à un moment de son histoire ?',
+   'La France a colonisé de nombreux territoires : Algérie, Maroc, Tunisie, Indochine (Vietnam), Madagascar, Sénégal, Côte d''Ivoire, Antilles, etc. La plupart sont devenus indépendants au XXe siècle.',
+   'true', '2026-05-27 17:40:29.994036+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000007', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quel homme politique a rendu l''école obligatoire et laïque à la fin du XIXe siècle ?',
+   'Jules Ferry, ministre de l''Instruction publique, a fait voter les lois de 1881-1882 rendant l''école primaire gratuite, laïque et obligatoire pour les enfants de 6 à 13 ans.',
+   'true', '2026-05-27 17:40:29.994036+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000008', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'À quelles dates la Seconde Guerre mondiale s''est-elle déroulée ?',
+   'La Seconde Guerre mondiale a eu lieu de 1939 à 1945. Elle a opposé les Alliés (France, Royaume-Uni, USA, URSS) aux puissances de l''Axe (Allemagne, Italie, Japon).',
+   'true', '2026-05-27 17:40:29.994036+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000009', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'À quelles dates la Première Guerre mondiale s''est-elle déroulée ?',
+   'La Première Guerre mondiale a eu lieu de 1914 à 1918. Elle a opposé la Triple-Entente (France, Royaume-Uni, Russie, USA en 1917) aux Empires centraux (Allemagne, Autriche-Hongrie).',
+   'true', '2026-05-27 17:40:29.994036+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000000a', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'En quelle année a été créée la Communauté économique européenne (CEE) ?',
+   'La CEE a été créée en 1957 par le traité de Rome, signé par 6 pays fondateurs (France, Allemagne, Italie, Belgique, Pays-Bas, Luxembourg).',
+   'true', '2026-05-27 17:40:29.994036+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000000b', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Que commémore le 11 novembre, jour férié en France ?',
+   'Le 11 novembre commémore l''armistice de 1918, qui a mis fin à la Première Guerre mondiale. C''est un hommage aux soldats morts pour la France.',
+   'true', '2026-05-27 17:40:29.994036+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000000c', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quel a été le premier président de la Ve République ?',
+   'Charles de Gaulle a été le premier président de la Ve République (1959-1969). Il a fondé le régime en 1958, été élu par les grands électeurs en 1958 puis au suffrage universel direct en 1965.',
+   'true', '2026-05-27 17:40:29.994036+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000000d', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'En quelle année l''esclavage a-t-il été définitivement aboli en France ?',
+   'L''esclavage a été definitivement aboli en France en 1848 par un décret signé par Victor Schoelcher, sous la IIe République.',
+   'true', '2026-05-27 17:40:29.999981+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000000e', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Depuis quelle année l''école publique est-elle gratuite en France ?',
+   'L''école publique est gratuite en France depuis 1881 (loi Ferry du 16 juin 1881). L''obligation et la laïcité ont suivi en 1882.',
+   'true', '2026-05-27 17:40:29.999981+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000000f', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Combien de républiques la France a-t-elle connues à ce jour ?',
+   'La France a connu 5 républiques : Ire (1792-1804), IIe (1848-1852), IIIe (1870-1940), IVe (1946-1958) et Ve (depuis 1958).',
+   'true', '2026-05-27 17:40:29.999981+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000010', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quel roi était sur le trône au moment de la Révolution française ?',
+   'Louis XVI était roi de France lorsque la Révolution a éclaté en 1789. Il a été guillotiné le 21 janvier 1793 après l''abolition de la monarchie.',
+   'true', '2026-05-27 17:40:29.999981+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000011', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Qui est l''instigateur de la Ve République ?',
+   'Charles de Gaulle a fondé la Ve République en 1958 à la suite de la crise algérienne. La nouvelle Constitution a été adoptée par référendum.',
+   'true', '2026-05-27 17:40:29.999981+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000012', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Que commémore le 14 juillet ?',
+   'Le 14 juillet est la fête nationale française. Elle commémore la prise de la Bastille en 1789 (début de la Révolution) et la fête de la Fédération en 1790 (union nationale).',
+   'true', '2026-05-27 17:40:29.999981+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000013', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quelle guerre s''est déroulée entre 1914 et 1918 ?',
+   'La Première Guerre mondiale s''est déroulée de 1914 à 1918. Elle s''est terminée par l''armistice du 11 novembre 1918, signé à Rethondes.',
+   'true', '2026-05-27 17:40:29.999981+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000014', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Pourquoi l''année 1958 est-elle marquante pour la France ?',
+   '1958 est l''année de la fondation de la Ve République, avec l''adoption d''une nouvelle Constitution sous l''impulsion de Charles de Gaulle, mettant fin à la IVe République en crise.',
+   'true', '2026-05-27 17:40:29.999981+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000015', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quel fleuve traverse la France ?',
+   'Plusieurs grands fleuves traversent la France : la Loire (le plus long), la Seine (qui passe à Paris), le Rhône (qui se jette dans la Méditerranée), la Garonne (Bordeaux).',
+   'true', '2026-05-27 17:40:29.999981+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000016', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quelle ville parmi ces propositions est française ?',
+   'Paris, Marseille, Lyon, Toulouse, Nice, Bordeaux, Lille, Strasbourg sont parmi les principales villes françaises.',
+   'true', '2026-05-27 17:40:29.999981+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000017', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quel océan borde la côte ouest de la France métropolitaine ?',
+   'La côte ouest de la France métropolitaine est bordée par l''océan Atlantique. La côte sud par la mer Méditerranée, la côte nord par la Manche et la mer du Nord.',
+   'true', '2026-05-27 17:40:29.999981+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000018', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Qu''est-ce que Paris ?',
+   'Paris est la capitale de la France, la ville la plus peuplée du pays (environ 2,1 millions d''habitants intra-muros, plus de 12 millions pour l''aire urbaine).',
+   'true', '2026-05-27 17:40:29.999981+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000019', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quelle est la ville capitale de la France ?',
+   'Paris est la capitale de la France. C''est le siège des institutions nationales (Assemblée, Élysée, Sénat, Matignon).',
+   'true', '2026-05-27 17:40:30.005165+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000001a', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Sur quel continent se trouve la France métropolitaine ?',
+   'La France métropolitaine se situe sur le continent européen, dans l''Europe occidentale.',
+   'true', '2026-05-27 17:40:30.005165+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000001b', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle île est un département français d''outre-mer ?',
+   'Les départements d''outre-mer français incluent : la Guadeloupe, la Martinique, la Réunion (toutes des îles), la Guyane (en Amérique du Sud) et Mayotte.',
+   'true', '2026-05-27 17:40:30.005165+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000001c', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Combien de régions compte la France métropolitaine depuis 2016 ?',
+   'Depuis la réforme territoriale de 2016, la France métropolitaine compte 13 régions (contre 22 auparavant). S''ajoutent les régions d''outre-mer.',
+   'true', '2026-05-27 17:40:30.005165+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000001d', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle ville française est un important port maritime ?',
+   'Marseille (Méditerranée), Le Havre (Atlantique), Dunkerque (mer du Nord) sont parmi les principaux ports français.',
+   'true', '2026-05-27 17:40:30.005165+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000001e', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle mer borde la France au sud ?',
+   'La mer Méditerranée borde la France au sud (côtes provençale, languedocienne et corse). Au nord se trouvent la Manche et la mer du Nord, à l''ouest l''océan Atlantique.',
+   'true', '2026-05-27 17:40:30.005165+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000001f', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Quelle ville française est située au bord de la mer Méditerranée ?',
+   'Plusieurs villes françaises bordent la Méditerranée : Marseille, Nice, Montpellier, Toulon, Cannes, Perpignan, Ajaccio (Corse).',
+   'true', '2026-05-27 17:40:30.005165+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000020', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Où se trouve la Corse ?',
+   'La Corse est une île française située en mer Méditerranée, au sud-est de la France métropolitaine. C''est une collectivité territoriale unique depuis 2018.',
+   'true', '2026-05-27 17:40:30.005165+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000021', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quelle chaîne de montagnes se trouve entre la France et l''Italie ?',
+   'Les Alpes constituent la frontière naturelle entre la France et l''Italie (et la Suisse). Le Mont-Blanc, plus haut sommet d''Europe occidentale (4 809 m), s''y trouve.',
+   'true', '2026-05-27 17:40:30.005165+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000022', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Qui était Molière ?',
+   'Molière (Jean-Baptiste Poquelin, 1622-1673) était un dramaturge français du XVIIe siècle. Il est considéré comme l''un des plus grands auteurs de comédie. Œuvres : Le Tartuffe, L''Avare, Le Misanthrope.',
+   'true', '2026-05-27 17:40:30.005165+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000023', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Qui était Charles Baudelaire ?',
+   'Charles Baudelaire (1821-1867) était un poète français du XIXe siècle, auteur des Fleurs du mal, un des recueils majeurs de la poésie française.',
+   'true', '2026-05-27 17:40:30.005165+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000024', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Qui était George Sand ?',
+   'George Sand (Aurore Dupin, 1804-1876) était une romancière française du XIXe siècle, figure du romantisme et pionnière de la cause féminine.',
+   'true', '2026-05-27 17:40:30.005165+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000025', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Qui était Simone de Beauvoir ?',
+   'Simone de Beauvoir (1908-1986) était une philosophe et écrivaine française du XXe siècle, figure majeure de l''existentialisme et du féminisme (Le Deuxième Sexe, 1949).',
+   'true', '2026-05-27 17:40:30.010627+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000026', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Qui était Albert Camus ?',
+   'Albert Camus (1913-1960) était un écrivain et philosophe français, prix Nobel de littérature 1957. Romans : L''Étranger, La Peste. Essais : Le Mythe de Sisyphe, L''Homme révolté.',
+   'true', '2026-05-27 17:40:30.010627+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000027', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Qui était Paul Cézanne ?',
+   'Paul Cézanne (1839-1906) était un peintre français, considéré comme l''un des précurseurs du cubisme. Ses paysages provençaux et ses natures mortes sont mondialement connus.',
+   'true', '2026-05-27 17:40:30.010627+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000028', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Qui était Marc Chagall ?',
+   'Marc Chagall (1887-1985) était un peintre français d''origine russe (juif), une des grandes figures de l''art moderne. Il a peint le plafond de l''Opéra Garnier de Paris.',
+   'true', '2026-05-27 17:40:30.010627+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-000000000029', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Qui était Joséphine Baker ?',
+   'Joséphine Baker (1906-1975), américaine devenue française, était une chanteuse, danseuse et résistante. Première femme noire entrée au Panthéon en 2021 pour son engagement contre le racisme et pour la France libre.',
+   'true', '2026-05-27 17:40:30.010627+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000002a', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Laquelle de ces personnes a été une chanteuse française célèbre ?',
+   'Plusieurs chanteuses françaises célèbres : Édith Piaf, Dalida, Mireille Mathieu, Barbara, Catherine Deneuve, Vanessa Paradis, Mylène Farmer, Patricia Kaas.',
+   'true', '2026-05-27 17:40:30.010627+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000002b', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Qu''est-ce que le Louvre ?',
+   'Le Louvre est un musée situé à Paris, l''un des plus visités au monde. Il abrite des œuvres célèbres comme la Joconde de Léonard de Vinci ou la Vénus de Milo.',
+   'true', '2026-05-27 17:40:30.010627+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000002c', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Qui était Jean de La Fontaine ?',
+   'Jean de La Fontaine (1621-1695) était un poète français du XVIIe siècle, célèbre pour ses Fables (Le Corbeau et le Renard, La Cigale et la Fourmi, etc.).',
+   'true', '2026-05-27 17:40:30.010627+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000002d', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Lequel de ces écrivains est français ?',
+   'Parmi les grands écrivains français : Victor Hugo, Émile Zola, Marcel Proust, Albert Camus, Simone de Beauvoir, Antoine de Saint-Exupéry, Marguerite Duras.',
+   'true', '2026-05-27 17:40:30.010627+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000002e', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Dans quelle ville française se trouve la tour Eiffel ?',
+   'La tour Eiffel se trouve à Paris. Construite par Gustave Eiffel pour l''Exposition universelle de 1889, elle est l''un des monuments les plus visités au monde.',
+   'true', '2026-05-27 17:40:30.010627+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000001-0000-0000-0000-00000000002f', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quand célèbre-t-on Noël en France ?',
+   'Noël est célébré le 25 décembre. C''est une fête chrétienne célébrant la naissance de Jésus, devenue aussi une fête populaire et familiale en France.',
+   'true', '2026-05-27 17:40:30.010627+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000002-0000-0000-0000-000000000001', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quelle ville est appelée la ''ville lumière'' ?',
+   'Paris est surnommée la ''ville lumière'' depuis le XVIIIe siècle. Ce surnom évoque à la fois son rayonnement intellectuel et sa précocité dans l''éclairage public urbain.',
+   'true', '2026-05-27 17:40:30.021056+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000002-0000-0000-0000-000000000002', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quel monument se trouve au centre de Paris ?',
+   'Plusieurs monuments emblématiques se trouvent à Paris : tour Eiffel, Notre-Dame, Louvre, Arc de Triomphe, Panthéon, basilique du Sacré-Cœur.',
+   'true', '2026-05-27 17:40:30.021056+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000002-0000-0000-0000-000000000003', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Sur quelle place s''élève l''Arc de Triomphe à Paris ?',
+   'L''Arc de Triomphe se trouve sur la place Charles-de-Gaulle (anciennement place de l''Étoile), au sommet des Champs-Élysées.',
+   'true', '2026-05-27 17:40:30.021056+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000002-0000-0000-0000-000000000004', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Combien la France a-t-elle de côtes maritimes (en simplifié) ?',
+   'La France a trois façades maritimes : mer du Nord/Manche au nord, océan Atlantique à l''ouest, mer Méditerranée au sud, plus les outre-mer.',
+   'true', '2026-05-27 17:40:30.021056+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000002-0000-0000-0000-000000000005', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Comment s''appelle le fleuve qui traverse Paris ?',
+   'La Seine traverse Paris d''est en ouest. Elle a façonné le paysage parisien et borde de nombreux monuments (Notre-Dame, Louvre, tour Eiffel).',
+   'true', '2026-05-27 17:40:30.021056+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f4000002-0000-0000-0000-000000000006', 'CIVIQUE', '11111111-0000-0000-0000-000000000004', NULL, NULL, 'CSP', 'CONNAISSANCE',
+   'Quel monument célèbre a été inauguré en 1889 ?',
+   'La tour Eiffel a été construite pour l''Exposition universelle de 1889 à Paris, pour célébrer le centenaire de la Révolution française. Elle mesure 330 m de haut.',
+   'true', '2026-05-27 17:40:30.021056+02', NULL, 'ACTIVE', NULL, NULL, NULL);
 
 -- choices
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('05de6577-a5fb-47cb-ace8-d9196378cbcf','f4000001-0000-0000-0000-000000000004','La Ve République (depuis 1958)','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('aae9fc7f-2307-4b5d-8400-350d766ab471','f4000001-0000-0000-0000-000000000004','La IIIe République','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c3260639-aa08-4779-848b-bbcae5f557f5','f4000001-0000-0000-0000-000000000004','La VIe République','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('79a5b1a3-706e-4611-ad20-359ecca0fe28','f4000001-0000-0000-0000-000000000004','La Ire République','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('59ac0ad5-acde-4681-bc08-60d6864563d2','f4000001-0000-0000-0000-000000000005','L''extermination des Juifs par les nazis pendant la Seconde Guerre','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c1144b19-d18f-4c42-b997-01d52de88c50','f4000001-0000-0000-0000-000000000005','Une fête religieuse','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('676150b1-825d-465d-af06-cc87789caad9','f4000001-0000-0000-0000-000000000005','Une bataille napoléonienne','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('07b2680b-b39d-4a64-8d43-e9dd7210a3b5','f4000001-0000-0000-0000-000000000005','Un mouvement artistique','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('1d876fe8-ff69-4ff4-ae88-082ef596cbad','f4000001-0000-0000-0000-000000000006','L''Algérie','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('51c28f8a-d8fc-47f8-b9ae-967b054129fe','f4000001-0000-0000-0000-000000000006','Le Royaume-Uni','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a30b3d73-837e-448d-9088-b6dba0e5fe0a','f4000001-0000-0000-0000-000000000006','L''Allemagne','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2b0af13e-fdef-4fc4-8cb8-859fa2746de0','f4000001-0000-0000-0000-000000000006','La Russie','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a34246d7-3e1a-4735-84b7-4999e80c209c','f4000001-0000-0000-0000-000000000007','Jules Ferry','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9192aaeb-99c3-4fde-9d15-8a60fbb87a69','f4000001-0000-0000-0000-000000000007','Napoléon Bonaparte','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('838fc8f1-d7c4-403c-a241-c47f122dabd4','f4000001-0000-0000-0000-000000000007','Louis XIV','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('12b0f774-d03c-46a0-8e56-e66fce18a242','f4000001-0000-0000-0000-000000000007','François Mitterrand','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c56b1c1c-96e6-4ec7-9d83-4ca6ef2f0e52','f4000001-0000-0000-0000-000000000008','1939-1945','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b5549477-7231-45c3-83f6-c3167e87ef94','f4000001-0000-0000-0000-000000000008','1914-1918','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ad87fb14-4348-4f13-bdda-f7942a4317f0','f4000001-0000-0000-0000-000000000008','1870-1871','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d6fa8d97-a3f2-4c04-81ab-cf2568b07c58','f4000001-0000-0000-0000-000000000008','1958-1962','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('14db2caf-2511-4db5-98db-e4469073ff28','f4000001-0000-0000-0000-000000000009','1914-1918','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('69591e0f-9002-4791-9d61-b75b35cc79c0','f4000001-0000-0000-0000-000000000009','1939-1945','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d65e3fc4-8355-4d6c-982c-5a0a8b5129f4','f4000001-0000-0000-0000-000000000009','1939-1944','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('be53929c-e4cb-438e-adfb-bb9fca7bcbb1','f4000001-0000-0000-0000-000000000009','1870-1871','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e72c93aa-9e2c-4a59-a1e6-1011b03181b7','f4000001-0000-0000-0000-00000000000a','1957 (traité de Rome)','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('dbaf27fc-32bc-41fe-b7fd-588287137a4b','f4000001-0000-0000-0000-00000000000a','1945','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d6922a5a-b577-4428-b0f4-a3a6ce4421a1','f4000001-0000-0000-0000-00000000000a','1968','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7d6345a8-f515-4aee-b706-af35f31aac8a','f4000001-0000-0000-0000-00000000000a','1992','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('14d95b1a-8283-43bb-acaa-cf4d798533c6','f4000001-0000-0000-0000-00000000000b','L''armistice de la Première Guerre mondiale (1918)','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7fc4fa4b-7686-4ebf-9665-c4f2da1518af','f4000001-0000-0000-0000-00000000000b','La Révolution française','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9a87ec03-d5f2-44f8-8870-c09c2b544acf','f4000001-0000-0000-0000-00000000000b','La fin de l''esclavage','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('29eb13d4-4447-45b8-a1a0-ce2417a8a664','f4000001-0000-0000-0000-00000000000b','La fête nationale','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('25ff44fb-686f-49be-8370-617bbc2d86df','f4000001-0000-0000-0000-00000000000c','Charles de Gaulle','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a13ef586-8f06-439f-af80-8d1496a18e75','f4000001-0000-0000-0000-00000000000c','Vincent Auriol','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('0e412847-c4ea-489f-b325-84cdea429430','f4000001-0000-0000-0000-00000000000c','Georges Pompidou','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('326f3875-1e1f-40d9-bd02-4f1adf66f578','f4000001-0000-0000-0000-00000000000c','François Mitterrand','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d38be637-4d1c-413f-8b7c-cd15b34a3550','f4000001-0000-0000-0000-00000000000d','1848 (décret de Victor Schoelcher)','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('04122412-6413-467c-bfcf-9ca94025a600','f4000001-0000-0000-0000-00000000000d','1789','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('0bfa25cc-3f3c-44ac-92cc-220633f8ae12','f4000001-0000-0000-0000-00000000000d','1881','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('92fbdc22-d38a-4dd0-bbf1-80389c2fc809','f4000001-0000-0000-0000-00000000000d','1944','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d74bdcab-720a-4111-9b70-39a02b0200f9','f4000001-0000-0000-0000-00000000000e','1881 (loi Ferry)','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8d077838-f806-40f6-8cb2-0d804edb00f5','f4000001-0000-0000-0000-00000000000e','1789','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4535b78d-ad21-4c19-a0d6-20893bf4bd8d','f4000001-0000-0000-0000-00000000000e','1905','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b118e616-ae0d-4dad-b065-fa1c5cca87d8','f4000001-0000-0000-0000-00000000000e','1958','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c3496ad7-6b81-4932-95f5-d0ff276f4ebc','f4000001-0000-0000-0000-00000000000f','Cinq républiques','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a68c6870-e677-44e3-8c31-aa47488035ad','f4000001-0000-0000-0000-00000000000f','Trois républiques','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('1f5680c7-66a8-4776-8e13-3dfd0833fd7d','f4000001-0000-0000-0000-00000000000f','Sept républiques','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e0ea9193-4628-4feb-a1a7-ff29217e0dad','f4000001-0000-0000-0000-00000000000f','Une seule','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8cc0620a-d242-4c4e-832f-3ea19562c3cb','f4000001-0000-0000-0000-000000000010','Louis XVI','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('29034994-74f8-442c-bfaf-3b0da23868a2','f4000001-0000-0000-0000-000000000010','Louis XIV','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('794dbac5-67c7-4bfc-b52c-e947600305ed','f4000001-0000-0000-0000-000000000010','Henri IV','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('08c4580f-29fe-4ea9-a935-3ec00870af20','f4000001-0000-0000-0000-000000000010','Napoléon Ier','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4f9e9951-94b5-4acb-9ca0-27f4e34dcc31','f4000001-0000-0000-0000-000000000011','Charles de Gaulle','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e341d16f-5690-49a3-b153-31b6e8b9a6ab','f4000001-0000-0000-0000-000000000011','Vincent Auriol','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9662ed88-1b32-4e71-919a-a02a99f4de8d','f4000001-0000-0000-0000-000000000011','Napoléon III','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('93d66149-0aba-4ef6-bdfa-5c0920067890','f4000001-0000-0000-0000-000000000011','Robespierre','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8b1a81a0-07cd-4626-9272-20ada41a30a5','f4000001-0000-0000-0000-000000000012','La prise de la Bastille (1789)','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d95d0aea-ba34-4edf-b06a-ac7abda83611','f4000001-0000-0000-0000-000000000012','L''armistice de 1918','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2a588130-8d97-42d8-a3d7-f9fff3866be0','f4000001-0000-0000-0000-000000000012','L''abolition de l''esclavage','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5f40d576-600a-4d61-8d3c-b79c9a4b2c78','f4000001-0000-0000-0000-000000000012','La fin de la guerre d''Algérie','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('f36fda0c-84de-4951-9b8d-fea46a491696','f4000001-0000-0000-0000-000000000013','La Première Guerre mondiale','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('db3b04d7-40b7-44fc-beac-96b1f7eab106','f4000001-0000-0000-0000-000000000013','La Seconde Guerre mondiale','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('beeb91de-94a2-4722-8661-2630ec9aa0b8','f4000001-0000-0000-0000-000000000013','La guerre d''Algerie','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b59d8ed8-1969-417f-b439-9887a1872349','f4000001-0000-0000-0000-000000000013','La Révolution française','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3d62aa53-53a8-48fd-b46e-116fc5141383','f4000001-0000-0000-0000-000000000014','Adoption de la Constitution de la Ve République','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2a1c65d2-01fa-4f50-b522-d686642da414','f4000001-0000-0000-0000-000000000014','Fin de la Seconde Guerre mondiale','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ddca0c50-06e4-4c78-b1eb-b56b1ba2783f','f4000001-0000-0000-0000-000000000014','Début de la Révolution','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('f956ba6b-7fb8-4c16-8645-03fd1b939b5c','f4000001-0000-0000-0000-000000000014','Abolition de l''esclavage','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('440e5585-1dcc-4235-969e-b47e39cb3344','f4000001-0000-0000-0000-000000000015','La Seine','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5e651fe8-41ba-46cf-9cb5-a48f395e1f5b','f4000001-0000-0000-0000-000000000015','Le Nil','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4feceb40-37e4-4e77-874d-892c8765181a','f4000001-0000-0000-0000-000000000015','Le Danube','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ce02989b-5006-4bf0-9215-7c9c70786f8a','f4000001-0000-0000-0000-000000000015','L''Amazone','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8af79f26-e950-406e-b444-04118bc2d01a','f4000001-0000-0000-0000-000000000016','Marseille','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('f9ac1c10-0322-4562-9399-adc3cb295240','f4000001-0000-0000-0000-000000000016','Berlin','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a91db5b4-bc6a-4881-a53a-1a1a787b8fb9','f4000001-0000-0000-0000-000000000016','Madrid','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('98c6fab5-aa9d-43d4-862f-59a6c3433777','f4000001-0000-0000-0000-000000000016','Londres','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('98467215-d513-43a6-a749-c03eb80f9722','f4000001-0000-0000-0000-000000000017','L''océan Atlantique','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a41d6e5b-c30c-4581-9fd3-337c00934226','f4000001-0000-0000-0000-000000000017','L''océan Pacifique','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('bde89a69-b665-4b79-b582-081a03638fc9','f4000001-0000-0000-0000-000000000017','L''océan Indien','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('7fd3d54f-aa07-4449-b412-638d14982796','f4000001-0000-0000-0000-000000000017','L''océan Arctique','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('32c5c9bd-7b4f-44eb-a9eb-6a89d6a60fa0','f4000001-0000-0000-0000-000000000018','La capitale de la France','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('f994e621-ce31-46a7-9baf-af6587aa0ad9','f4000001-0000-0000-0000-000000000018','Une région','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3438ae3e-0cb8-4a10-a107-9f8606135716','f4000001-0000-0000-0000-000000000018','Un fleuve','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e33079fe-7bc7-4e79-bd39-31b2916aa6c7','f4000001-0000-0000-0000-000000000018','Un département d''outre-mer','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('30fa14a4-697d-4bcc-92ae-5a96d50dd48b','f4000001-0000-0000-0000-000000000019','Paris','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('06e832c6-c232-453d-8a53-11a335bd6a9c','f4000001-0000-0000-0000-000000000019','Lyon','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2e693c09-8999-4ecc-b78e-2b0c06bd5e8a','f4000001-0000-0000-0000-000000000019','Marseille','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('86cdf3cb-9374-4431-9907-a552657b4684','f4000001-0000-0000-0000-000000000019','Toulouse','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('90accb11-122e-429c-8fbc-af4903a0d0b1','f4000001-0000-0000-0000-00000000001a','L''Europe','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('aaf4b364-95c4-466f-b26f-04d1337d0dd7','f4000001-0000-0000-0000-00000000001a','L''Afrique','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('268c68b0-cbb4-4324-aea0-9661780af292','f4000001-0000-0000-0000-00000000001a','L''Asie','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9c384a9f-2e1b-45f4-8bd8-834d40beb44e','f4000001-0000-0000-0000-00000000001a','L''Amérique','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a1c58312-a179-4d61-ad12-2e6e7308ec2f','f4000001-0000-0000-0000-00000000001b','La Réunion','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3586ca60-d34a-47cc-a35c-7d215aeb1748','f4000001-0000-0000-0000-00000000001b','Madagascar','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8f545477-6e41-46c5-a81f-8854ed50bb45','f4000001-0000-0000-0000-00000000001b','Cuba','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b1c926bc-53a5-49d5-bf2f-d9798bbd3f57','f4000001-0000-0000-0000-00000000001b','Haïti','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2de0a650-2ccc-498b-921d-8cf16b075c21','f4000001-0000-0000-0000-00000000001c','13 régions','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c6f72f88-cf22-4a10-9476-e2abbb3fbcff','f4000001-0000-0000-0000-00000000001c','22 régions','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('181b1f39-91f2-475c-9156-df29d16cea90','f4000001-0000-0000-0000-00000000001c','10 régions','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('83ac83ad-145a-4947-8b53-3c6429a5ffa7','f4000001-0000-0000-0000-00000000001c','27 régions','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b0ba6595-4126-4661-9bb7-239242d32641','f4000001-0000-0000-0000-00000000001d','Marseille','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('efb6b173-6a36-4225-a8ca-f122e561e0a0','f4000001-0000-0000-0000-00000000001d','Lyon','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b1cbcc90-453c-407c-ab50-b0336e70693d','f4000001-0000-0000-0000-00000000001d','Toulouse','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d4a9425f-86d4-49f4-9fde-a5ca4820ee7b','f4000001-0000-0000-0000-00000000001d','Strasbourg','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b194e80f-b33a-4db0-b22a-aba5fdc1b4b0','f4000001-0000-0000-0000-00000000001e','La mer Méditerranée','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d9107171-50fb-4e3f-a6a2-64ef7a93b3d0','f4000001-0000-0000-0000-00000000001e','La mer Baltique','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3150b2e9-749b-4e0c-852e-a7754c6a6b72','f4000001-0000-0000-0000-00000000001e','La mer Noire','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d0eecf44-739c-48b3-9526-5d9be38b7cc2','f4000001-0000-0000-0000-00000000001e','La mer du Nord','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('cd215647-6ec6-4ee4-9e46-b50463e50bb4','f4000001-0000-0000-0000-00000000001f','Marseille','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('39a62f85-0b40-4b1c-9187-4a667d49937d','f4000001-0000-0000-0000-00000000001f','Strasbourg','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('3ac2d0f0-17a6-40ba-b943-f82b7470afbc','f4000001-0000-0000-0000-00000000001f','Lille','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('cf2acb1e-51a7-4dfe-bb64-d9cd69ccf25f','f4000001-0000-0000-0000-00000000001f','Brest','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d4ea198f-7fad-4b3e-908c-21334c76b873','f4000001-0000-0000-0000-000000000020','En mer Méditerranée, au sud-est de la France','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('52b14e63-39a7-4340-ba03-2a441d770a2c','f4000001-0000-0000-0000-000000000020','Dans l''océan Atlantique','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('68b847f7-7466-4094-9034-1d2445be4c82','f4000001-0000-0000-0000-000000000020','Au nord de la France','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b5b5944b-ad9f-4a47-bcd1-a897c56adb3d','f4000001-0000-0000-0000-000000000020','En Amérique','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('877342b3-aba5-405b-98d7-48b219360526','f4000001-0000-0000-0000-000000000021','Les Alpes','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e10c5258-81d1-4295-9a7d-34b303e41ed7','f4000001-0000-0000-0000-000000000021','Les Pyrénées','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5437cb96-9935-484d-ba85-85cdb7617b1a','f4000001-0000-0000-0000-000000000021','Les Vosges','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('35bddb49-095c-40f9-8e57-6bb82a74cf90','f4000001-0000-0000-0000-000000000021','Le Massif central','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d98de829-2ce6-478f-a03d-98ffbb028ee5','f4000001-0000-0000-0000-000000000022','Un dramaturge français du XVIIe siècle','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('0406d808-65cd-48a0-9a66-d97243730cf4','f4000001-0000-0000-0000-000000000022','Un peintre du XIXe siècle','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('0a2eaa18-c023-4d75-90f0-120d661d6521','f4000001-0000-0000-0000-000000000022','Un roi de France','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8250f08a-d43f-4be4-9eaa-b64f9ce2039b','f4000001-0000-0000-0000-000000000022','Un explorateur','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('280f2900-3419-4464-b3a8-488a2d3066a9','f4000001-0000-0000-0000-000000000023','Un poète français (auteur des Fleurs du mal)','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('14aa396b-5284-457c-bea0-7176dfb2d2f5','f4000001-0000-0000-0000-000000000023','Un peintre romantique','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4bf2d3da-5df5-42ac-b066-a7c59586f5f0','f4000001-0000-0000-0000-000000000023','Un compositeur','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('38d7097d-f484-43cc-8dc5-f83152f09a52','f4000001-0000-0000-0000-000000000023','Un homme politique','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('79a87bf6-bad3-41f9-8d62-0142deaeb096','f4000001-0000-0000-0000-000000000024','Une romancière française du XIXe siècle','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('68c39ea3-354c-45ca-be9e-3f8a8a23f276','f4000001-0000-0000-0000-000000000024','Une chanteuse contemporaine','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('82b93feb-46a0-498e-9f94-7eb8c3a5a301','f4000001-0000-0000-0000-000000000024','Une scientifique','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('633f17b5-e17d-4966-ad75-bf2cd6e03b6c','f4000001-0000-0000-0000-000000000024','Une reine de France','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2ff8d2cd-8824-4e5e-ba08-0cd096145a64','f4000001-0000-0000-0000-000000000025','Une philosophe et écrivaine française féministe','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e88dd318-adee-4741-99d7-0fd2e8d6161f','f4000001-0000-0000-0000-000000000025','Une chanteuse de jazz','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('96b1380d-6586-48c1-9144-9266cf1af92b','f4000001-0000-0000-0000-000000000025','Une politicienne du XIXe siècle','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('62c80c19-3aa4-4013-a0bd-aa29af6ecbce','f4000001-0000-0000-0000-000000000025','Une artiste peintre','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('20cf3a39-9321-4180-a359-877583e47a8d','f4000001-0000-0000-0000-000000000026','Un écrivain français, prix Nobel de littérature','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('62f51acb-7269-4101-9819-477c219e43a3','f4000001-0000-0000-0000-000000000026','Un peintre cubiste','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8285bf8c-98a7-4383-90df-4dd771012add','f4000001-0000-0000-0000-000000000026','Un président','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('8a2400a5-44ae-465b-a836-48d6d0092cb1','f4000001-0000-0000-0000-000000000026','Un sportif','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('35a220bf-2da7-4667-a6bb-e97e3ae4f575','f4000001-0000-0000-0000-000000000027','Un peintre français précurseur du cubisme','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('cda98a09-b3f7-42a4-9021-5510b7a96e15','f4000001-0000-0000-0000-000000000027','Un compositeur classique','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('277bf8d7-efbc-4551-b398-5df939fcbd29','f4000001-0000-0000-0000-000000000027','Un philosophe','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d158b79a-4897-4a65-91d8-a2da6206a1f9','f4000001-0000-0000-0000-000000000027','Un homme d''État','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('61bd47e1-c3ec-45f1-9d4a-e245cc86d8f1','f4000001-0000-0000-0000-000000000028','Un peintre français d''origine russe','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d91049bb-f5bf-40e7-b608-5682695196e7','f4000001-0000-0000-0000-000000000028','Un sculpteur antique','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e5f1c37c-65b8-4024-9ad5-6598e7cf6151','f4000001-0000-0000-0000-000000000028','Un physicien','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('0cc9e5f2-2365-4da0-933f-7af5ae48194b','f4000001-0000-0000-0000-000000000028','Un explorateur','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c9d4b080-aabc-4d13-94f2-538618c4997a','f4000001-0000-0000-0000-000000000029','Une chanteuse américano-française et résistante (au Panthéon)','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2d745c71-a8ec-4369-8fbd-debbddfbe212','f4000001-0000-0000-0000-000000000029','Une scientifique','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('29ab679d-78ca-4916-86c7-8f0c76aa3443','f4000001-0000-0000-0000-000000000029','Une reine d''Angleterre','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('13671891-abbb-48ce-8ba1-7c744936c54a','f4000001-0000-0000-0000-000000000029','Une politicienne contemporaine','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c89f8f2a-4333-4058-877d-4b2fdbc01abd','f4000001-0000-0000-0000-00000000002a','Édith Piaf','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('087113d9-d83c-408c-8729-0b0920bd823d','f4000001-0000-0000-0000-00000000002a','Marie Curie','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('1400ee81-fe11-4594-8f96-bd4f480deb22','f4000001-0000-0000-0000-00000000002a','Jeanne d''Arc','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c10716ed-c396-4c62-8fb1-ebb044ed1f3b','f4000001-0000-0000-0000-00000000002a','Simone Veil','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ef91ebe4-c3d1-4f99-8dc4-dd9ada4d119c','f4000001-0000-0000-0000-00000000002b','Un musée parisien mondialement connu','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('28a07dd3-7a15-43dd-ab98-17a4dda7b2cb','f4000001-0000-0000-0000-00000000002b','Un parc','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('30c78184-7bbe-4075-bf59-d1a8cda70eed','f4000001-0000-0000-0000-00000000002b','Un fleuve','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('44f18e4e-da5e-4549-b253-54a88292458a','f4000001-0000-0000-0000-00000000002b','Un théâtre','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a7009b67-8871-4bd7-aa8d-3c3faa259344','f4000001-0000-0000-0000-00000000002c','Un poète français du XVIIe siècle, auteur des Fables','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('82cb4c44-1fe5-49ce-a41e-35b13997577c','f4000001-0000-0000-0000-00000000002c','Un philosophe des Lumières','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d877774a-93ed-4072-b437-59f177e513d0','f4000001-0000-0000-0000-00000000002c','Un peintre baroque','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('be44d17d-3f31-4e97-8c82-198371e17c27','f4000001-0000-0000-0000-00000000002c','Un roi','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b24a6d9f-8953-46d1-a998-92aed6490144','f4000001-0000-0000-0000-00000000002d','Victor Hugo','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('02142f03-9325-4eaa-8516-f2b695bdacfc','f4000001-0000-0000-0000-00000000002d','William Shakespeare','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('af35bd6c-636f-4914-8bd9-8a877c9e9b0f','f4000001-0000-0000-0000-00000000002d','Goethe','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('a1136f80-e9dc-41d0-baba-618c90e7e2aa','f4000001-0000-0000-0000-00000000002d','Cervantes','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('6b2173ac-cc13-4e13-9a26-e37d642fdb41','f4000001-0000-0000-0000-00000000002e','À Paris','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('bd107b3f-8971-4bcf-85b6-4a1a16851fa1','f4000001-0000-0000-0000-00000000002e','À Lyon','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('624c13ff-1e4a-43d3-a687-74e0c3563cf1','f4000001-0000-0000-0000-00000000002e','À Marseille','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d928ce73-f15c-4615-afce-8d6565a4b667','f4000001-0000-0000-0000-00000000002e','À Bordeaux','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('cd7d1b5f-a2bf-4a30-9500-bd387687e4b3','f4000001-0000-0000-0000-00000000002f','Le 25 décembre','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2b26ffe9-000b-46f1-8533-0d91ff187a8f','f4000001-0000-0000-0000-00000000002f','Le 1er janvier','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('4bdbfd76-8515-490d-885e-d2a815082287','f4000001-0000-0000-0000-00000000002f','Le 14 juillet','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('6d3ed004-d20c-4979-be89-536f7246e1f1','f4000001-0000-0000-0000-00000000002f','Le 11 novembre','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('fd92acb6-ee84-4190-9636-1cd527df7472','f4000002-0000-0000-0000-000000000001','Paris','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('ea9391c3-f310-443e-85f3-8ca9cfa4ce77','f4000002-0000-0000-0000-000000000001','Marseille','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('328549d1-0c24-4b44-9e3b-77ea41ffdf62','f4000002-0000-0000-0000-000000000001','Lyon','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('2111013e-b9b0-4648-b3e1-23a6957604d3','f4000002-0000-0000-0000-000000000001','Toulouse','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d25fa787-95b2-48ff-9099-4e5ce198a6b7','f4000002-0000-0000-0000-000000000002','La tour Eiffel','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('901f0246-1db3-4e95-8dd2-b58a2278fc40','f4000002-0000-0000-0000-000000000002','La statue de la Liberté','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('01f60861-6798-4cf6-8c53-ce7c55715293','f4000002-0000-0000-0000-000000000002','Big Ben','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5c03235a-1c70-4879-b90d-2ccac4739c0e','f4000002-0000-0000-0000-000000000002','Le Colisée','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('0744b83e-84dd-44e1-9b47-98a466ae6d89','f4000002-0000-0000-0000-000000000003','Place Charles-de-Gaulle (l''Étoile)','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('20a7b614-8ef5-4a34-9d60-717ae25db42b','f4000002-0000-0000-0000-000000000003','Place de la Concorde','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b420e060-a4f7-4166-8339-1f85d4b904d4','f4000002-0000-0000-0000-000000000003','Place de la Bastille','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('87ae11d4-1837-4008-85ee-6d8feeaa111e','f4000002-0000-0000-0000-000000000003','Place de la République','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('b7a761cf-52d9-4251-8a31-e2b4cf9ad88d','f4000002-0000-0000-0000-000000000004','Trois grandes façades maritimes','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('0ac7b33e-943d-48a0-a870-c8af17843870','f4000002-0000-0000-0000-000000000004','Aucune','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('472a6d76-39c6-49cf-a1fc-a0768cf06d24','f4000002-0000-0000-0000-000000000004','Une seule','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('c0f51cc2-e24b-47c1-b75f-dcd80e4412ad','f4000002-0000-0000-0000-000000000004','Dix différentes','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e544ccb1-b6ce-4004-8b1a-90b40f31bdee','f4000002-0000-0000-0000-000000000005','La Seine','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('d45102b1-b332-404e-bf53-cb3036818a14','f4000002-0000-0000-0000-000000000005','La Loire','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('34008aeb-19b2-4c38-a69b-2e8c9aaa55c0','f4000002-0000-0000-0000-000000000005','Le Rhône','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('11fa2ed2-c5ba-496d-aa01-ad71c7c92e95','f4000002-0000-0000-0000-000000000005','La Garonne','false','3');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('78a6d714-72af-4884-bc5f-0ff797d0173b','f4000002-0000-0000-0000-000000000006','La tour Eiffel','true','0');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('9836f770-4616-4181-a032-fea049fcb36e','f4000002-0000-0000-0000-000000000006','Le Panthéon','false','1');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('5fd55b2d-39a5-4649-9b38-dd8e1e4d45f0','f4000002-0000-0000-0000-000000000006','L''Arc de Triomphe','false','2');
-INSERT INTO choices (id, question_id, label, is_correct, display_order) VALUES ('e8112502-0d9a-4ce4-8622-72b43e4f5536','f4000002-0000-0000-0000-000000000006','La basilique du Sacré-Cœur','false','3');
+INSERT INTO choices
+  (id, question_id, label, is_correct, display_order)
+VALUES
+  ('05de6577-a5fb-47cb-ace8-d9196378cbcf', 'f4000001-0000-0000-0000-000000000004',
+   'La Ve République (depuis 1958)',
+   'true', '0'),
+
+  ('aae9fc7f-2307-4b5d-8400-350d766ab471', 'f4000001-0000-0000-0000-000000000004',
+   'La IIIe République',
+   'false', '1'),
+
+  ('c3260639-aa08-4779-848b-bbcae5f557f5', 'f4000001-0000-0000-0000-000000000004',
+   'La VIe République',
+   'false', '2'),
+
+  ('79a5b1a3-706e-4611-ad20-359ecca0fe28', 'f4000001-0000-0000-0000-000000000004',
+   'La Ire République',
+   'false', '3'),
+
+  ('59ac0ad5-acde-4681-bc08-60d6864563d2', 'f4000001-0000-0000-0000-000000000005',
+   'L''extermination des Juifs par les nazis pendant la Seconde Guerre',
+   'true', '0'),
+
+  ('c1144b19-d18f-4c42-b997-01d52de88c50', 'f4000001-0000-0000-0000-000000000005',
+   'Une fête religieuse',
+   'false', '1'),
+
+  ('676150b1-825d-465d-af06-cc87789caad9', 'f4000001-0000-0000-0000-000000000005',
+   'Une bataille napoléonienne',
+   'false', '2'),
+
+  ('07b2680b-b39d-4a64-8d43-e9dd7210a3b5', 'f4000001-0000-0000-0000-000000000005',
+   'Un mouvement artistique',
+   'false', '3'),
+
+  ('1d876fe8-ff69-4ff4-ae88-082ef596cbad', 'f4000001-0000-0000-0000-000000000006',
+   'L''Algérie',
+   'true', '0'),
+
+  ('51c28f8a-d8fc-47f8-b9ae-967b054129fe', 'f4000001-0000-0000-0000-000000000006',
+   'Le Royaume-Uni',
+   'false', '1'),
+
+  ('a30b3d73-837e-448d-9088-b6dba0e5fe0a', 'f4000001-0000-0000-0000-000000000006',
+   'L''Allemagne',
+   'false', '2'),
+
+  ('2b0af13e-fdef-4fc4-8cb8-859fa2746de0', 'f4000001-0000-0000-0000-000000000006',
+   'La Russie',
+   'false', '3'),
+
+  ('a34246d7-3e1a-4735-84b7-4999e80c209c', 'f4000001-0000-0000-0000-000000000007',
+   'Jules Ferry',
+   'true', '0'),
+
+  ('9192aaeb-99c3-4fde-9d15-8a60fbb87a69', 'f4000001-0000-0000-0000-000000000007',
+   'Napoléon Bonaparte',
+   'false', '1'),
+
+  ('838fc8f1-d7c4-403c-a241-c47f122dabd4', 'f4000001-0000-0000-0000-000000000007',
+   'Louis XIV',
+   'false', '2'),
+
+  ('12b0f774-d03c-46a0-8e56-e66fce18a242', 'f4000001-0000-0000-0000-000000000007',
+   'François Mitterrand',
+   'false', '3'),
+
+  ('c56b1c1c-96e6-4ec7-9d83-4ca6ef2f0e52', 'f4000001-0000-0000-0000-000000000008',
+   '1939-1945',
+   'true', '0'),
+
+  ('b5549477-7231-45c3-83f6-c3167e87ef94', 'f4000001-0000-0000-0000-000000000008',
+   '1914-1918',
+   'false', '1'),
+
+  ('ad87fb14-4348-4f13-bdda-f7942a4317f0', 'f4000001-0000-0000-0000-000000000008',
+   '1870-1871',
+   'false', '2'),
+
+  ('d6fa8d97-a3f2-4c04-81ab-cf2568b07c58', 'f4000001-0000-0000-0000-000000000008',
+   '1958-1962',
+   'false', '3'),
+
+  ('14db2caf-2511-4db5-98db-e4469073ff28', 'f4000001-0000-0000-0000-000000000009',
+   '1914-1918',
+   'true', '0'),
+
+  ('69591e0f-9002-4791-9d61-b75b35cc79c0', 'f4000001-0000-0000-0000-000000000009',
+   '1939-1945',
+   'false', '1'),
+
+  ('d65e3fc4-8355-4d6c-982c-5a0a8b5129f4', 'f4000001-0000-0000-0000-000000000009',
+   '1939-1944',
+   'false', '2'),
+
+  ('be53929c-e4cb-438e-adfb-bb9fca7bcbb1', 'f4000001-0000-0000-0000-000000000009',
+   '1870-1871',
+   'false', '3'),
+
+  ('e72c93aa-9e2c-4a59-a1e6-1011b03181b7', 'f4000001-0000-0000-0000-00000000000a',
+   '1957 (traité de Rome)',
+   'true', '0'),
+
+  ('dbaf27fc-32bc-41fe-b7fd-588287137a4b', 'f4000001-0000-0000-0000-00000000000a',
+   '1945',
+   'false', '1'),
+
+  ('d6922a5a-b577-4428-b0f4-a3a6ce4421a1', 'f4000001-0000-0000-0000-00000000000a',
+   '1968',
+   'false', '2'),
+
+  ('7d6345a8-f515-4aee-b706-af35f31aac8a', 'f4000001-0000-0000-0000-00000000000a',
+   '1992',
+   'false', '3'),
+
+  ('14d95b1a-8283-43bb-acaa-cf4d798533c6', 'f4000001-0000-0000-0000-00000000000b',
+   'L''armistice de la Première Guerre mondiale (1918)',
+   'true', '0'),
+
+  ('7fc4fa4b-7686-4ebf-9665-c4f2da1518af', 'f4000001-0000-0000-0000-00000000000b',
+   'La Révolution française',
+   'false', '1'),
+
+  ('9a87ec03-d5f2-44f8-8870-c09c2b544acf', 'f4000001-0000-0000-0000-00000000000b',
+   'La fin de l''esclavage',
+   'false', '2'),
+
+  ('29eb13d4-4447-45b8-a1a0-ce2417a8a664', 'f4000001-0000-0000-0000-00000000000b',
+   'La fête nationale',
+   'false', '3'),
+
+  ('25ff44fb-686f-49be-8370-617bbc2d86df', 'f4000001-0000-0000-0000-00000000000c',
+   'Charles de Gaulle',
+   'true', '0'),
+
+  ('a13ef586-8f06-439f-af80-8d1496a18e75', 'f4000001-0000-0000-0000-00000000000c',
+   'Vincent Auriol',
+   'false', '1'),
+
+  ('0e412847-c4ea-489f-b325-84cdea429430', 'f4000001-0000-0000-0000-00000000000c',
+   'Georges Pompidou',
+   'false', '2'),
+
+  ('326f3875-1e1f-40d9-bd02-4f1adf66f578', 'f4000001-0000-0000-0000-00000000000c',
+   'François Mitterrand',
+   'false', '3'),
+
+  ('d38be637-4d1c-413f-8b7c-cd15b34a3550', 'f4000001-0000-0000-0000-00000000000d',
+   '1848 (décret de Victor Schoelcher)',
+   'true', '0'),
+
+  ('04122412-6413-467c-bfcf-9ca94025a600', 'f4000001-0000-0000-0000-00000000000d',
+   '1789',
+   'false', '1'),
+
+  ('0bfa25cc-3f3c-44ac-92cc-220633f8ae12', 'f4000001-0000-0000-0000-00000000000d',
+   '1881',
+   'false', '2'),
+
+  ('92fbdc22-d38a-4dd0-bbf1-80389c2fc809', 'f4000001-0000-0000-0000-00000000000d',
+   '1944',
+   'false', '3'),
+
+  ('d74bdcab-720a-4111-9b70-39a02b0200f9', 'f4000001-0000-0000-0000-00000000000e',
+   '1881 (loi Ferry)',
+   'true', '0'),
+
+  ('8d077838-f806-40f6-8cb2-0d804edb00f5', 'f4000001-0000-0000-0000-00000000000e',
+   '1789',
+   'false', '1'),
+
+  ('4535b78d-ad21-4c19-a0d6-20893bf4bd8d', 'f4000001-0000-0000-0000-00000000000e',
+   '1905',
+   'false', '2'),
+
+  ('b118e616-ae0d-4dad-b065-fa1c5cca87d8', 'f4000001-0000-0000-0000-00000000000e',
+   '1958',
+   'false', '3'),
+
+  ('c3496ad7-6b81-4932-95f5-d0ff276f4ebc', 'f4000001-0000-0000-0000-00000000000f',
+   'Cinq républiques',
+   'true', '0'),
+
+  ('a68c6870-e677-44e3-8c31-aa47488035ad', 'f4000001-0000-0000-0000-00000000000f',
+   'Trois républiques',
+   'false', '1'),
+
+  ('1f5680c7-66a8-4776-8e13-3dfd0833fd7d', 'f4000001-0000-0000-0000-00000000000f',
+   'Sept républiques',
+   'false', '2'),
+
+  ('e0ea9193-4628-4feb-a1a7-ff29217e0dad', 'f4000001-0000-0000-0000-00000000000f',
+   'Une seule',
+   'false', '3'),
+
+  ('8cc0620a-d242-4c4e-832f-3ea19562c3cb', 'f4000001-0000-0000-0000-000000000010',
+   'Louis XVI',
+   'true', '0'),
+
+  ('29034994-74f8-442c-bfaf-3b0da23868a2', 'f4000001-0000-0000-0000-000000000010',
+   'Louis XIV',
+   'false', '1'),
+
+  ('794dbac5-67c7-4bfc-b52c-e947600305ed', 'f4000001-0000-0000-0000-000000000010',
+   'Henri IV',
+   'false', '2'),
+
+  ('08c4580f-29fe-4ea9-a935-3ec00870af20', 'f4000001-0000-0000-0000-000000000010',
+   'Napoléon Ier',
+   'false', '3'),
+
+  ('4f9e9951-94b5-4acb-9ca0-27f4e34dcc31', 'f4000001-0000-0000-0000-000000000011',
+   'Charles de Gaulle',
+   'true', '0'),
+
+  ('e341d16f-5690-49a3-b153-31b6e8b9a6ab', 'f4000001-0000-0000-0000-000000000011',
+   'Vincent Auriol',
+   'false', '1'),
+
+  ('9662ed88-1b32-4e71-919a-a02a99f4de8d', 'f4000001-0000-0000-0000-000000000011',
+   'Napoléon III',
+   'false', '2'),
+
+  ('93d66149-0aba-4ef6-bdfa-5c0920067890', 'f4000001-0000-0000-0000-000000000011',
+   'Robespierre',
+   'false', '3'),
+
+  ('8b1a81a0-07cd-4626-9272-20ada41a30a5', 'f4000001-0000-0000-0000-000000000012',
+   'La prise de la Bastille (1789)',
+   'true', '0'),
+
+  ('d95d0aea-ba34-4edf-b06a-ac7abda83611', 'f4000001-0000-0000-0000-000000000012',
+   'L''armistice de 1918',
+   'false', '1'),
+
+  ('2a588130-8d97-42d8-a3d7-f9fff3866be0', 'f4000001-0000-0000-0000-000000000012',
+   'L''abolition de l''esclavage',
+   'false', '2'),
+
+  ('5f40d576-600a-4d61-8d3c-b79c9a4b2c78', 'f4000001-0000-0000-0000-000000000012',
+   'La fin de la guerre d''Algérie',
+   'false', '3'),
+
+  ('f36fda0c-84de-4951-9b8d-fea46a491696', 'f4000001-0000-0000-0000-000000000013',
+   'La Première Guerre mondiale',
+   'true', '0'),
+
+  ('db3b04d7-40b7-44fc-beac-96b1f7eab106', 'f4000001-0000-0000-0000-000000000013',
+   'La Seconde Guerre mondiale',
+   'false', '1'),
+
+  ('beeb91de-94a2-4722-8661-2630ec9aa0b8', 'f4000001-0000-0000-0000-000000000013',
+   'La guerre d''Algerie',
+   'false', '2'),
+
+  ('b59d8ed8-1969-417f-b439-9887a1872349', 'f4000001-0000-0000-0000-000000000013',
+   'La Révolution française',
+   'false', '3'),
+
+  ('3d62aa53-53a8-48fd-b46e-116fc5141383', 'f4000001-0000-0000-0000-000000000014',
+   'Adoption de la Constitution de la Ve République',
+   'true', '0'),
+
+  ('2a1c65d2-01fa-4f50-b522-d686642da414', 'f4000001-0000-0000-0000-000000000014',
+   'Fin de la Seconde Guerre mondiale',
+   'false', '1'),
+
+  ('ddca0c50-06e4-4c78-b1eb-b56b1ba2783f', 'f4000001-0000-0000-0000-000000000014',
+   'Début de la Révolution',
+   'false', '2'),
+
+  ('f956ba6b-7fb8-4c16-8645-03fd1b939b5c', 'f4000001-0000-0000-0000-000000000014',
+   'Abolition de l''esclavage',
+   'false', '3'),
+
+  ('440e5585-1dcc-4235-969e-b47e39cb3344', 'f4000001-0000-0000-0000-000000000015',
+   'La Seine',
+   'true', '0'),
+
+  ('5e651fe8-41ba-46cf-9cb5-a48f395e1f5b', 'f4000001-0000-0000-0000-000000000015',
+   'Le Nil',
+   'false', '1'),
+
+  ('4feceb40-37e4-4e77-874d-892c8765181a', 'f4000001-0000-0000-0000-000000000015',
+   'Le Danube',
+   'false', '2'),
+
+  ('ce02989b-5006-4bf0-9215-7c9c70786f8a', 'f4000001-0000-0000-0000-000000000015',
+   'L''Amazone',
+   'false', '3'),
+
+  ('8af79f26-e950-406e-b444-04118bc2d01a', 'f4000001-0000-0000-0000-000000000016',
+   'Marseille',
+   'true', '0'),
+
+  ('f9ac1c10-0322-4562-9399-adc3cb295240', 'f4000001-0000-0000-0000-000000000016',
+   'Berlin',
+   'false', '1'),
+
+  ('a91db5b4-bc6a-4881-a53a-1a1a787b8fb9', 'f4000001-0000-0000-0000-000000000016',
+   'Madrid',
+   'false', '2'),
+
+  ('98c6fab5-aa9d-43d4-862f-59a6c3433777', 'f4000001-0000-0000-0000-000000000016',
+   'Londres',
+   'false', '3'),
+
+  ('98467215-d513-43a6-a749-c03eb80f9722', 'f4000001-0000-0000-0000-000000000017',
+   'L''océan Atlantique',
+   'true', '0'),
+
+  ('a41d6e5b-c30c-4581-9fd3-337c00934226', 'f4000001-0000-0000-0000-000000000017',
+   'L''océan Pacifique',
+   'false', '1'),
+
+  ('bde89a69-b665-4b79-b582-081a03638fc9', 'f4000001-0000-0000-0000-000000000017',
+   'L''océan Indien',
+   'false', '2'),
+
+  ('7fd3d54f-aa07-4449-b412-638d14982796', 'f4000001-0000-0000-0000-000000000017',
+   'L''océan Arctique',
+   'false', '3'),
+
+  ('32c5c9bd-7b4f-44eb-a9eb-6a89d6a60fa0', 'f4000001-0000-0000-0000-000000000018',
+   'La capitale de la France',
+   'true', '0'),
+
+  ('f994e621-ce31-46a7-9baf-af6587aa0ad9', 'f4000001-0000-0000-0000-000000000018',
+   'Une région',
+   'false', '1'),
+
+  ('3438ae3e-0cb8-4a10-a107-9f8606135716', 'f4000001-0000-0000-0000-000000000018',
+   'Un fleuve',
+   'false', '2'),
+
+  ('e33079fe-7bc7-4e79-bd39-31b2916aa6c7', 'f4000001-0000-0000-0000-000000000018',
+   'Un département d''outre-mer',
+   'false', '3'),
+
+  ('30fa14a4-697d-4bcc-92ae-5a96d50dd48b', 'f4000001-0000-0000-0000-000000000019',
+   'Paris',
+   'true', '0'),
+
+  ('06e832c6-c232-453d-8a53-11a335bd6a9c', 'f4000001-0000-0000-0000-000000000019',
+   'Lyon',
+   'false', '1'),
+
+  ('2e693c09-8999-4ecc-b78e-2b0c06bd5e8a', 'f4000001-0000-0000-0000-000000000019',
+   'Marseille',
+   'false', '2'),
+
+  ('86cdf3cb-9374-4431-9907-a552657b4684', 'f4000001-0000-0000-0000-000000000019',
+   'Toulouse',
+   'false', '3'),
+
+  ('90accb11-122e-429c-8fbc-af4903a0d0b1', 'f4000001-0000-0000-0000-00000000001a',
+   'L''Europe',
+   'true', '0'),
+
+  ('aaf4b364-95c4-466f-b26f-04d1337d0dd7', 'f4000001-0000-0000-0000-00000000001a',
+   'L''Afrique',
+   'false', '1'),
+
+  ('268c68b0-cbb4-4324-aea0-9661780af292', 'f4000001-0000-0000-0000-00000000001a',
+   'L''Asie',
+   'false', '2'),
+
+  ('9c384a9f-2e1b-45f4-8bd8-834d40beb44e', 'f4000001-0000-0000-0000-00000000001a',
+   'L''Amérique',
+   'false', '3'),
+
+  ('a1c58312-a179-4d61-ad12-2e6e7308ec2f', 'f4000001-0000-0000-0000-00000000001b',
+   'La Réunion',
+   'true', '0'),
+
+  ('3586ca60-d34a-47cc-a35c-7d215aeb1748', 'f4000001-0000-0000-0000-00000000001b',
+   'Madagascar',
+   'false', '1'),
+
+  ('8f545477-6e41-46c5-a81f-8854ed50bb45', 'f4000001-0000-0000-0000-00000000001b',
+   'Cuba',
+   'false', '2'),
+
+  ('b1c926bc-53a5-49d5-bf2f-d9798bbd3f57', 'f4000001-0000-0000-0000-00000000001b',
+   'Haïti',
+   'false', '3'),
+
+  ('2de0a650-2ccc-498b-921d-8cf16b075c21', 'f4000001-0000-0000-0000-00000000001c',
+   '13 régions',
+   'true', '0'),
+
+  ('c6f72f88-cf22-4a10-9476-e2abbb3fbcff', 'f4000001-0000-0000-0000-00000000001c',
+   '22 régions',
+   'false', '1'),
+
+  ('181b1f39-91f2-475c-9156-df29d16cea90', 'f4000001-0000-0000-0000-00000000001c',
+   '10 régions',
+   'false', '2'),
+
+  ('83ac83ad-145a-4947-8b53-3c6429a5ffa7', 'f4000001-0000-0000-0000-00000000001c',
+   '27 régions',
+   'false', '3'),
+
+  ('b0ba6595-4126-4661-9bb7-239242d32641', 'f4000001-0000-0000-0000-00000000001d',
+   'Marseille',
+   'true', '0'),
+
+  ('efb6b173-6a36-4225-a8ca-f122e561e0a0', 'f4000001-0000-0000-0000-00000000001d',
+   'Lyon',
+   'false', '1'),
+
+  ('b1cbcc90-453c-407c-ab50-b0336e70693d', 'f4000001-0000-0000-0000-00000000001d',
+   'Toulouse',
+   'false', '2'),
+
+  ('d4a9425f-86d4-49f4-9fde-a5ca4820ee7b', 'f4000001-0000-0000-0000-00000000001d',
+   'Strasbourg',
+   'false', '3'),
+
+  ('b194e80f-b33a-4db0-b22a-aba5fdc1b4b0', 'f4000001-0000-0000-0000-00000000001e',
+   'La mer Méditerranée',
+   'true', '0'),
+
+  ('d9107171-50fb-4e3f-a6a2-64ef7a93b3d0', 'f4000001-0000-0000-0000-00000000001e',
+   'La mer Baltique',
+   'false', '1'),
+
+  ('3150b2e9-749b-4e0c-852e-a7754c6a6b72', 'f4000001-0000-0000-0000-00000000001e',
+   'La mer Noire',
+   'false', '2'),
+
+  ('d0eecf44-739c-48b3-9526-5d9be38b7cc2', 'f4000001-0000-0000-0000-00000000001e',
+   'La mer du Nord',
+   'false', '3'),
+
+  ('cd215647-6ec6-4ee4-9e46-b50463e50bb4', 'f4000001-0000-0000-0000-00000000001f',
+   'Marseille',
+   'true', '0'),
+
+  ('39a62f85-0b40-4b1c-9187-4a667d49937d', 'f4000001-0000-0000-0000-00000000001f',
+   'Strasbourg',
+   'false', '1'),
+
+  ('3ac2d0f0-17a6-40ba-b943-f82b7470afbc', 'f4000001-0000-0000-0000-00000000001f',
+   'Lille',
+   'false', '2'),
+
+  ('cf2acb1e-51a7-4dfe-bb64-d9cd69ccf25f', 'f4000001-0000-0000-0000-00000000001f',
+   'Brest',
+   'false', '3'),
+
+  ('d4ea198f-7fad-4b3e-908c-21334c76b873', 'f4000001-0000-0000-0000-000000000020',
+   'En mer Méditerranée, au sud-est de la France',
+   'true', '0'),
+
+  ('52b14e63-39a7-4340-ba03-2a441d770a2c', 'f4000001-0000-0000-0000-000000000020',
+   'Dans l''océan Atlantique',
+   'false', '1'),
+
+  ('68b847f7-7466-4094-9034-1d2445be4c82', 'f4000001-0000-0000-0000-000000000020',
+   'Au nord de la France',
+   'false', '2'),
+
+  ('b5b5944b-ad9f-4a47-bcd1-a897c56adb3d', 'f4000001-0000-0000-0000-000000000020',
+   'En Amérique',
+   'false', '3'),
+
+  ('877342b3-aba5-405b-98d7-48b219360526', 'f4000001-0000-0000-0000-000000000021',
+   'Les Alpes',
+   'true', '0'),
+
+  ('e10c5258-81d1-4295-9a7d-34b303e41ed7', 'f4000001-0000-0000-0000-000000000021',
+   'Les Pyrénées',
+   'false', '1'),
+
+  ('5437cb96-9935-484d-ba85-85cdb7617b1a', 'f4000001-0000-0000-0000-000000000021',
+   'Les Vosges',
+   'false', '2'),
+
+  ('35bddb49-095c-40f9-8e57-6bb82a74cf90', 'f4000001-0000-0000-0000-000000000021',
+   'Le Massif central',
+   'false', '3'),
+
+  ('d98de829-2ce6-478f-a03d-98ffbb028ee5', 'f4000001-0000-0000-0000-000000000022',
+   'Un dramaturge français du XVIIe siècle',
+   'true', '0'),
+
+  ('0406d808-65cd-48a0-9a66-d97243730cf4', 'f4000001-0000-0000-0000-000000000022',
+   'Un peintre du XIXe siècle',
+   'false', '1'),
+
+  ('0a2eaa18-c023-4d75-90f0-120d661d6521', 'f4000001-0000-0000-0000-000000000022',
+   'Un roi de France',
+   'false', '2'),
+
+  ('8250f08a-d43f-4be4-9eaa-b64f9ce2039b', 'f4000001-0000-0000-0000-000000000022',
+   'Un explorateur',
+   'false', '3'),
+
+  ('280f2900-3419-4464-b3a8-488a2d3066a9', 'f4000001-0000-0000-0000-000000000023',
+   'Un poète français (auteur des Fleurs du mal)',
+   'true', '0'),
+
+  ('14aa396b-5284-457c-bea0-7176dfb2d2f5', 'f4000001-0000-0000-0000-000000000023',
+   'Un peintre romantique',
+   'false', '1'),
+
+  ('4bf2d3da-5df5-42ac-b066-a7c59586f5f0', 'f4000001-0000-0000-0000-000000000023',
+   'Un compositeur',
+   'false', '2'),
+
+  ('38d7097d-f484-43cc-8dc5-f83152f09a52', 'f4000001-0000-0000-0000-000000000023',
+   'Un homme politique',
+   'false', '3'),
+
+  ('79a87bf6-bad3-41f9-8d62-0142deaeb096', 'f4000001-0000-0000-0000-000000000024',
+   'Une romancière française du XIXe siècle',
+   'true', '0'),
+
+  ('68c39ea3-354c-45ca-be9e-3f8a8a23f276', 'f4000001-0000-0000-0000-000000000024',
+   'Une chanteuse contemporaine',
+   'false', '1'),
+
+  ('82b93feb-46a0-498e-9f94-7eb8c3a5a301', 'f4000001-0000-0000-0000-000000000024',
+   'Une scientifique',
+   'false', '2'),
+
+  ('633f17b5-e17d-4966-ad75-bf2cd6e03b6c', 'f4000001-0000-0000-0000-000000000024',
+   'Une reine de France',
+   'false', '3'),
+
+  ('2ff8d2cd-8824-4e5e-ba08-0cd096145a64', 'f4000001-0000-0000-0000-000000000025',
+   'Une philosophe et écrivaine française féministe',
+   'true', '0'),
+
+  ('e88dd318-adee-4741-99d7-0fd2e8d6161f', 'f4000001-0000-0000-0000-000000000025',
+   'Une chanteuse de jazz',
+   'false', '1'),
+
+  ('96b1380d-6586-48c1-9144-9266cf1af92b', 'f4000001-0000-0000-0000-000000000025',
+   'Une politicienne du XIXe siècle',
+   'false', '2'),
+
+  ('62c80c19-3aa4-4013-a0bd-aa29af6ecbce', 'f4000001-0000-0000-0000-000000000025',
+   'Une artiste peintre',
+   'false', '3'),
+
+  ('20cf3a39-9321-4180-a359-877583e47a8d', 'f4000001-0000-0000-0000-000000000026',
+   'Un écrivain français, prix Nobel de littérature',
+   'true', '0'),
+
+  ('62f51acb-7269-4101-9819-477c219e43a3', 'f4000001-0000-0000-0000-000000000026',
+   'Un peintre cubiste',
+   'false', '1'),
+
+  ('8285bf8c-98a7-4383-90df-4dd771012add', 'f4000001-0000-0000-0000-000000000026',
+   'Un président',
+   'false', '2'),
+
+  ('8a2400a5-44ae-465b-a836-48d6d0092cb1', 'f4000001-0000-0000-0000-000000000026',
+   'Un sportif',
+   'false', '3'),
+
+  ('35a220bf-2da7-4667-a6bb-e97e3ae4f575', 'f4000001-0000-0000-0000-000000000027',
+   'Un peintre français précurseur du cubisme',
+   'true', '0'),
+
+  ('cda98a09-b3f7-42a4-9021-5510b7a96e15', 'f4000001-0000-0000-0000-000000000027',
+   'Un compositeur classique',
+   'false', '1'),
+
+  ('277bf8d7-efbc-4551-b398-5df939fcbd29', 'f4000001-0000-0000-0000-000000000027',
+   'Un philosophe',
+   'false', '2'),
+
+  ('d158b79a-4897-4a65-91d8-a2da6206a1f9', 'f4000001-0000-0000-0000-000000000027',
+   'Un homme d''État',
+   'false', '3'),
+
+  ('61bd47e1-c3ec-45f1-9d4a-e245cc86d8f1', 'f4000001-0000-0000-0000-000000000028',
+   'Un peintre français d''origine russe',
+   'true', '0'),
+
+  ('d91049bb-f5bf-40e7-b608-5682695196e7', 'f4000001-0000-0000-0000-000000000028',
+   'Un sculpteur antique',
+   'false', '1'),
+
+  ('e5f1c37c-65b8-4024-9ad5-6598e7cf6151', 'f4000001-0000-0000-0000-000000000028',
+   'Un physicien',
+   'false', '2'),
+
+  ('0cc9e5f2-2365-4da0-933f-7af5ae48194b', 'f4000001-0000-0000-0000-000000000028',
+   'Un explorateur',
+   'false', '3'),
+
+  ('c9d4b080-aabc-4d13-94f2-538618c4997a', 'f4000001-0000-0000-0000-000000000029',
+   'Une chanteuse américano-française et résistante (au Panthéon)',
+   'true', '0'),
+
+  ('2d745c71-a8ec-4369-8fbd-debbddfbe212', 'f4000001-0000-0000-0000-000000000029',
+   'Une scientifique',
+   'false', '1'),
+
+  ('29ab679d-78ca-4916-86c7-8f0c76aa3443', 'f4000001-0000-0000-0000-000000000029',
+   'Une reine d''Angleterre',
+   'false', '2'),
+
+  ('13671891-abbb-48ce-8ba1-7c744936c54a', 'f4000001-0000-0000-0000-000000000029',
+   'Une politicienne contemporaine',
+   'false', '3'),
+
+  ('c89f8f2a-4333-4058-877d-4b2fdbc01abd', 'f4000001-0000-0000-0000-00000000002a',
+   'Édith Piaf',
+   'true', '0'),
+
+  ('087113d9-d83c-408c-8729-0b0920bd823d', 'f4000001-0000-0000-0000-00000000002a',
+   'Marie Curie',
+   'false', '1'),
+
+  ('1400ee81-fe11-4594-8f96-bd4f480deb22', 'f4000001-0000-0000-0000-00000000002a',
+   'Jeanne d''Arc',
+   'false', '2'),
+
+  ('c10716ed-c396-4c62-8fb1-ebb044ed1f3b', 'f4000001-0000-0000-0000-00000000002a',
+   'Simone Veil',
+   'false', '3'),
+
+  ('ef91ebe4-c3d1-4f99-8dc4-dd9ada4d119c', 'f4000001-0000-0000-0000-00000000002b',
+   'Un musée parisien mondialement connu',
+   'true', '0'),
+
+  ('28a07dd3-7a15-43dd-ab98-17a4dda7b2cb', 'f4000001-0000-0000-0000-00000000002b',
+   'Un parc',
+   'false', '1'),
+
+  ('30c78184-7bbe-4075-bf59-d1a8cda70eed', 'f4000001-0000-0000-0000-00000000002b',
+   'Un fleuve',
+   'false', '2'),
+
+  ('44f18e4e-da5e-4549-b253-54a88292458a', 'f4000001-0000-0000-0000-00000000002b',
+   'Un théâtre',
+   'false', '3'),
+
+  ('a7009b67-8871-4bd7-aa8d-3c3faa259344', 'f4000001-0000-0000-0000-00000000002c',
+   'Un poète français du XVIIe siècle, auteur des Fables',
+   'true', '0'),
+
+  ('82cb4c44-1fe5-49ce-a41e-35b13997577c', 'f4000001-0000-0000-0000-00000000002c',
+   'Un philosophe des Lumières',
+   'false', '1'),
+
+  ('d877774a-93ed-4072-b437-59f177e513d0', 'f4000001-0000-0000-0000-00000000002c',
+   'Un peintre baroque',
+   'false', '2'),
+
+  ('be44d17d-3f31-4e97-8c82-198371e17c27', 'f4000001-0000-0000-0000-00000000002c',
+   'Un roi',
+   'false', '3'),
+
+  ('b24a6d9f-8953-46d1-a998-92aed6490144', 'f4000001-0000-0000-0000-00000000002d',
+   'Victor Hugo',
+   'true', '0'),
+
+  ('02142f03-9325-4eaa-8516-f2b695bdacfc', 'f4000001-0000-0000-0000-00000000002d',
+   'William Shakespeare',
+   'false', '1'),
+
+  ('af35bd6c-636f-4914-8bd9-8a877c9e9b0f', 'f4000001-0000-0000-0000-00000000002d',
+   'Goethe',
+   'false', '2'),
+
+  ('a1136f80-e9dc-41d0-baba-618c90e7e2aa', 'f4000001-0000-0000-0000-00000000002d',
+   'Cervantes',
+   'false', '3'),
+
+  ('6b2173ac-cc13-4e13-9a26-e37d642fdb41', 'f4000001-0000-0000-0000-00000000002e',
+   'À Paris',
+   'true', '0'),
+
+  ('bd107b3f-8971-4bcf-85b6-4a1a16851fa1', 'f4000001-0000-0000-0000-00000000002e',
+   'À Lyon',
+   'false', '1'),
+
+  ('624c13ff-1e4a-43d3-a687-74e0c3563cf1', 'f4000001-0000-0000-0000-00000000002e',
+   'À Marseille',
+   'false', '2'),
+
+  ('d928ce73-f15c-4615-afce-8d6565a4b667', 'f4000001-0000-0000-0000-00000000002e',
+   'À Bordeaux',
+   'false', '3'),
+
+  ('cd7d1b5f-a2bf-4a30-9500-bd387687e4b3', 'f4000001-0000-0000-0000-00000000002f',
+   'Le 25 décembre',
+   'true', '0'),
+
+  ('2b26ffe9-000b-46f1-8533-0d91ff187a8f', 'f4000001-0000-0000-0000-00000000002f',
+   'Le 1er janvier',
+   'false', '1'),
+
+  ('4bdbfd76-8515-490d-885e-d2a815082287', 'f4000001-0000-0000-0000-00000000002f',
+   'Le 14 juillet',
+   'false', '2'),
+
+  ('6d3ed004-d20c-4979-be89-536f7246e1f1', 'f4000001-0000-0000-0000-00000000002f',
+   'Le 11 novembre',
+   'false', '3'),
+
+  ('fd92acb6-ee84-4190-9636-1cd527df7472', 'f4000002-0000-0000-0000-000000000001',
+   'Paris',
+   'true', '0'),
+
+  ('ea9391c3-f310-443e-85f3-8ca9cfa4ce77', 'f4000002-0000-0000-0000-000000000001',
+   'Marseille',
+   'false', '1'),
+
+  ('328549d1-0c24-4b44-9e3b-77ea41ffdf62', 'f4000002-0000-0000-0000-000000000001',
+   'Lyon',
+   'false', '2'),
+
+  ('2111013e-b9b0-4648-b3e1-23a6957604d3', 'f4000002-0000-0000-0000-000000000001',
+   'Toulouse',
+   'false', '3'),
+
+  ('d25fa787-95b2-48ff-9099-4e5ce198a6b7', 'f4000002-0000-0000-0000-000000000002',
+   'La tour Eiffel',
+   'true', '0'),
+
+  ('901f0246-1db3-4e95-8dd2-b58a2278fc40', 'f4000002-0000-0000-0000-000000000002',
+   'La statue de la Liberté',
+   'false', '1'),
+
+  ('01f60861-6798-4cf6-8c53-ce7c55715293', 'f4000002-0000-0000-0000-000000000002',
+   'Big Ben',
+   'false', '2'),
+
+  ('5c03235a-1c70-4879-b90d-2ccac4739c0e', 'f4000002-0000-0000-0000-000000000002',
+   'Le Colisée',
+   'false', '3'),
+
+  ('0744b83e-84dd-44e1-9b47-98a466ae6d89', 'f4000002-0000-0000-0000-000000000003',
+   'Place Charles-de-Gaulle (l''Étoile)',
+   'true', '0'),
+
+  ('20a7b614-8ef5-4a34-9d60-717ae25db42b', 'f4000002-0000-0000-0000-000000000003',
+   'Place de la Concorde',
+   'false', '1'),
+
+  ('b420e060-a4f7-4166-8339-1f85d4b904d4', 'f4000002-0000-0000-0000-000000000003',
+   'Place de la Bastille',
+   'false', '2'),
+
+  ('87ae11d4-1837-4008-85ee-6d8feeaa111e', 'f4000002-0000-0000-0000-000000000003',
+   'Place de la République',
+   'false', '3'),
+
+  ('b7a761cf-52d9-4251-8a31-e2b4cf9ad88d', 'f4000002-0000-0000-0000-000000000004',
+   'Trois grandes façades maritimes',
+   'true', '0'),
+
+  ('0ac7b33e-943d-48a0-a870-c8af17843870', 'f4000002-0000-0000-0000-000000000004',
+   'Aucune',
+   'false', '1'),
+
+  ('472a6d76-39c6-49cf-a1fc-a0768cf06d24', 'f4000002-0000-0000-0000-000000000004',
+   'Une seule',
+   'false', '2'),
+
+  ('c0f51cc2-e24b-47c1-b75f-dcd80e4412ad', 'f4000002-0000-0000-0000-000000000004',
+   'Dix différentes',
+   'false', '3'),
+
+  ('e544ccb1-b6ce-4004-8b1a-90b40f31bdee', 'f4000002-0000-0000-0000-000000000005',
+   'La Seine',
+   'true', '0'),
+
+  ('d45102b1-b332-404e-bf53-cb3036818a14', 'f4000002-0000-0000-0000-000000000005',
+   'La Loire',
+   'false', '1'),
+
+  ('34008aeb-19b2-4c38-a69b-2e8c9aaa55c0', 'f4000002-0000-0000-0000-000000000005',
+   'Le Rhône',
+   'false', '2'),
+
+  ('11fa2ed2-c5ba-496d-aa01-ad71c7c92e95', 'f4000002-0000-0000-0000-000000000005',
+   'La Garonne',
+   'false', '3'),
+
+  ('78a6d714-72af-4884-bc5f-0ff797d0173b', 'f4000002-0000-0000-0000-000000000006',
+   'La tour Eiffel',
+   'true', '0'),
+
+  ('9836f770-4616-4181-a032-fea049fcb36e', 'f4000002-0000-0000-0000-000000000006',
+   'Le Panthéon',
+   'false', '1'),
+
+  ('5fd55b2d-39a5-4649-9b38-dd8e1e4d45f0', 'f4000002-0000-0000-0000-000000000006',
+   'L''Arc de Triomphe',
+   'false', '2'),
+
+  ('e8112502-0d9a-4ce4-8622-72b43e4f5536', 'f4000002-0000-0000-0000-000000000006',
+   'La basilique du Sacré-Cœur',
+   'false', '3');
