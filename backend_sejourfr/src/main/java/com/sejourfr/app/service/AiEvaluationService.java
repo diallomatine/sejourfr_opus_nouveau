@@ -46,7 +46,6 @@ public class AiEvaluationService {
     private final EvaluationLlmClient llmClient;
     private final EvaluationPromptBuilder promptBuilder;
     private final ProductionRubricsProvider rubrics;
-    @SuppressWarnings("unused")
     private final ProductionEvaluationProperties props;
 
     private static BigDecimal extractNote(Map<String, Object> feedback) {
@@ -109,14 +108,19 @@ public class AiEvaluationService {
         // la note du LLM (extractNote la relira).
         applyServerComputedNote(feedback, task, submissionId);
         BigDecimal noteSur20 = extractNote(feedback);
-        NiveauCecrl niveau = extractNiveau(feedback);
+        // niveau_cecrl du LLM = advisory (conserve en base, jamais affiche). Le
+        // niveau AFFICHE est calcule serveur depuis lexique+morphosyntaxe, comme
+        // note_globale. On lit le brut AVANT d'ecraser feedback.niveau_cecrl.
+        NiveauCecrl niveauIa = extractNiveau(feedback);
+        NiveauCecrl niveauCalcule = applyServerComputedNiveau(feedback, noteSur20, niveauIa, submissionId);
 
         AiEvaluation eval = new AiEvaluation();
         eval.setSubmission(sub);
         eval.setModeleUtilise(llmClient.getModelName());
         eval.setPromptVersion(llmClient.getPromptVersion());
         eval.setNoteSur20(noteSur20);
-        eval.setNiveauCecrl(niveau);
+        eval.setNiveauCecrl(niveauCalcule);
+        eval.setNiveauCecrlIa(niveauIa);
         eval.setFeedbackJson(feedback);
         eval.setTokensInput(outcome.inputTokens());
         eval.setTokensOutput(outcome.outputTokens());
@@ -127,8 +131,8 @@ public class AiEvaluationService {
         sub.setErreurMessage(null);
         submissionManager.save(sub);
 
-        log.info("AiEvaluation persistee submission={} note={} niveau={} model={}",
-                submissionId, noteSur20, niveau, llmClient.getModelName());
+        log.info("AiEvaluation persistee submission={} note={} niveau={} (LLM={}) model={}",
+                submissionId, noteSur20, niveauCalcule, niveauIa, llmClient.getModelName());
         return eval;
     }
 
@@ -266,6 +270,99 @@ public class AiEvaluationService {
         if (rounded.compareTo(BigDecimal.ZERO) < 0) return BigDecimal.ZERO;
         if (rounded.compareTo(NOTE_MAX) > 0) return NOTE_MAX;
         return rounded;
+    }
+
+    /**
+     * Calcule le {@code niveau_cecrl} SERVEUR depuis lexique+morphosyntaxe et le
+     * persiste comme niveau affiche, en <b>ecrasant</b> {@code feedback.niveau_cecrl}
+     * (le mobile lit ce champ). Le niveau du LLM ({@code niveauIa}) reste advisory.
+     * Si un critere source manque, WARN + fallback sur la moyenne ponderee (note).
+     * Logue un compteur de divergence (≥1 cran) IA vs calcul pour la calibration.
+     *
+     * @return le niveau calcule, ou le niveau LLM si le calcul est impossible.
+     */
+    private NiveauCecrl applyServerComputedNiveau(Map<String, Object> feedback, BigDecimal noteGlobale,
+                                                  NiveauCecrl niveauIa, UUID submissionId) {
+        List<String> sourceCodes = props.getNiveauCecrl().getSourceCriteres();
+        Object scores = feedback.get("scores_criteres");
+        if (!sourceCriteriaPresent(scores, sourceCodes)) {
+            log.warn("niveau_cecrl : critere(s) porteur(s) {} manquant(s) dans scores_criteres "
+                + "(submission={}) — fallback sur la moyenne ponderee.", sourceCodes, submissionId);
+        }
+        NiveauCecrl calcule = computeNiveau(scores, sourceCodes, noteGlobale, props.getNiveauCecrl());
+        if (calcule == null) {
+            log.warn("niveau_cecrl non calculable serveur (submission={}) — niveau LLM conserve.", submissionId);
+            return niveauIa; // feedback.niveau_cecrl reste la valeur LLM
+        }
+        if (niveauIa != null && niveauIa != calcule) {
+            String sens = niveauIa.ordinal() < calcule.ordinal() ? "sous-estimation LLM" : "sur-estimation LLM";
+            log.info("Divergence niveau submission={} : LLM={} vs calcule={} ({}) — calibration.",
+                submissionId, niveauIa, calcule, sens);
+        }
+        feedback.put("niveau_cecrl", calcule.name());
+        return calcule;
+    }
+
+    private static boolean sourceCriteriaPresent(Object scoresCriteres, List<String> sourceCodes) {
+        if (!(scoresCriteres instanceof List<?> scores)) return false;
+        java.util.Set<String> present = new java.util.HashSet<>();
+        for (Object s : scores) {
+            if (s instanceof Map<?, ?> m && m.get("code") != null && m.get("note_sur_20") instanceof Number) {
+                present.add(m.get("code").toString());
+            }
+        }
+        return present.containsAll(sourceCodes);
+    }
+
+    /**
+     * {@code competence = moyenne(note_sur_20[source-criteres])} → bande CECRL via
+     * les seuils config (plafond B2). Hors-sujet ({@code note_globale == 0}) →
+     * {@code A1_NON_ATTEINT}. Si un critere source manque, fallback sur la moyenne
+     * ponderee deja calculee ({@code note_globale}). Retourne null si rien
+     * d'exploitable. Package-private pour le test unitaire.
+     */
+    static NiveauCecrl computeNiveau(Object scoresCriteres, List<String> sourceCodes,
+                                     BigDecimal noteGlobale, ProductionEvaluationProperties.NiveauCecrl seuils) {
+        if (noteGlobale != null && noteGlobale.compareTo(BigDecimal.ZERO) == 0) {
+            return NiveauCecrl.A1_NON_ATTEINT; // hors-sujet : coherent avec note_globale = 0
+        }
+        Map<String, BigDecimal> byCode = new HashMap<>();
+        if (scoresCriteres instanceof List<?> scores) {
+            for (Object s : scores) {
+                if (s instanceof Map<?, ?> m && m.get("code") != null && m.get("note_sur_20") instanceof Number n) {
+                    byCode.put(m.get("code").toString(), new BigDecimal(n.toString()));
+                }
+            }
+        }
+        List<BigDecimal> src = new ArrayList<>();
+        for (String code : sourceCodes) {
+            BigDecimal v = byCode.get(code);
+            if (v != null) src.add(v);
+        }
+
+        BigDecimal competence;
+        if (!sourceCodes.isEmpty() && src.size() == sourceCodes.size()) {
+            competence = moyenne(src);
+        } else if (noteGlobale != null) {
+            competence = noteGlobale; // fallback : moyenne ponderee des criteres presents
+        } else if (!src.isEmpty()) {
+            competence = moyenne(src);
+        } else {
+            return null;
+        }
+
+        double c = competence.doubleValue();
+        if (c >= seuils.getSeuilB2()) return NiveauCecrl.B2; // plafond B2
+        if (c >= seuils.getSeuilB1()) return NiveauCecrl.B1;
+        if (c >= seuils.getSeuilA2()) return NiveauCecrl.A2;
+        if (c > 0) return NiveauCecrl.A1;
+        return NiveauCecrl.A1_NON_ATTEINT;
+    }
+
+    private static BigDecimal moyenne(List<BigDecimal> values) {
+        BigDecimal sum = BigDecimal.ZERO;
+        for (BigDecimal v : values) sum = sum.add(v);
+        return sum.divide(BigDecimal.valueOf(values.size()), 4, RoundingMode.HALF_UP);
     }
 
     private static String formatMinutes(int sec) {

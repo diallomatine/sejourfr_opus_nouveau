@@ -2,6 +2,7 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.CalibrationStatsDto;
 import com.sejourfr.app.dto.HumanCalibrationNoteDto;
+import com.sejourfr.app.dto.NiveauCalibrationStatsDto;
 import com.sejourfr.app.dto.ProductionSubmissionDto;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.HumanCalibrationNote;
@@ -169,6 +170,22 @@ public class AdminCalibrationService {
         return new CalibrationStatsDto(
                 total, moyenne, moyenneAbs, ecartType,
                 horsCible, pourcentage, SEUIL_HORS_CIBLE, calibre);
+    }
+
+    /**
+     * Ecart NIVEAU CECRL : LLM brut ({@code niveau_cecrl_ia}) vs calcule serveur
+     * ({@code niveau_cecrl}). Le detail de la tendance (sous/sur-estimation) est
+     * trace au fil de l'eau dans les logs d'{@code AiEvaluationService}.
+     */
+    @Transactional(readOnly = true)
+    public NiveauCalibrationStatsDto niveauStats() {
+        long total = aiEvaluationManager.countWithBothNiveaux();
+        long divergents = aiEvaluationManager.countNiveauDivergent();
+        BigDecimal pourcentage = total == 0
+                ? BigDecimal.ZERO
+                : BigDecimal.valueOf(divergents).multiply(BigDecimal.valueOf(100))
+                    .divide(BigDecimal.valueOf(total), 1, RoundingMode.HALF_UP);
+        return new NiveauCalibrationStatsDto(total, divergents, pourcentage);
     }
 
     // ------------------------------------------------------------------------

@@ -52,9 +52,15 @@ public class AiEvaluation {
     @Column(name = "note_sur_20", precision = 4, scale = 1)
     private BigDecimal noteSur20;
 
+    /** Niveau CECRL CALCULÉ serveur (lexique + morphosyntaxe). Valeur affichée au mobile. */
     @Enumerated(EnumType.STRING)
     @Column(name = "niveau_cecrl", length = 20)
     private NiveauCecrl niveauCecrl;
+
+    /** Niveau CECRL brut renvoyé par le LLM. Interne (calibration), jamais exposé au mobile. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "niveau_cecrl_ia", length = 20)
+    private NiveauCecrl niveauCecrlIa;
 
     /** Structure : note_globale + scores_criteres[] + points_forts[] + points_a_ameliorer[] + suggestions[] + exemples_corriges[]. */
     @JdbcTypeCode(SqlTypes.JSON)
@@ -99,6 +105,9 @@ public class AiEvaluation {
 
     public NiveauCecrl getNiveauCecrl() { return niveauCecrl; }
     public void setNiveauCecrl(NiveauCecrl niveauCecrl) { this.niveauCecrl = niveauCecrl; }
+
+    public NiveauCecrl getNiveauCecrlIa() { return niveauCecrlIa; }
+    public void setNiveauCecrlIa(NiveauCecrl niveauCecrlIa) { this.niveauCecrlIa = niveauCecrlIa; }
 
     public Map<String, Object> getFeedbackJson() { return feedbackJson; }
     public void setFeedbackJson(Map<String, Object> feedbackJson) { this.feedbackJson = feedbackJson; }

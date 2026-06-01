@@ -118,6 +118,33 @@ reste cohérent : tous les critères à 0 → `Σ(0×poids)=0`. Sans rubrique/sc
 limite, tâche désactivée), la note du LLM est conservée (WARN). **Schéma `tool_use` inchangé →
 aucun changement mobile.**
 
+### `niveau_cecrl` calculé serveur (le niveau LLM est advisory, jamais affiché)
+
+Comme pour la note, le `niveau_cecrl` **affiché** n'est plus celui du LLM : `AiEvaluationService`
+le calcule à partir des **critères porteurs du niveau** (`lexique` + `morphosyntaxe`, configurables
+via `niveau-cecrl.source-criteres`). Motivation : le LLM est fiable par critère mais sous-estime le
+niveau absolu sur texte court (observé : lexique 16 + morpho 16 → bande B2, mais le LLM renvoie B1).
+
+`competence = moyenne(notes des source-critères)` → bande via les seuils config
+(`seuil-b2=15`, `seuil-b1=12`, `seuil-a2=7`) :
+
+| competence | niveau |
+|---|---|
+| ≥ 15 | B2 |
+| 12 – <15 | B1 |
+| 7 – <12 | A2 |
+| > 0 – <7 | A1 |
+| hors-sujet (`note_globale = 0`) | A1_NON_ATTEINT |
+
+Plafond **B2** (cible naturalisation ; C1/C2 non fiables sur T1). Si un critère source manque :
+WARN + fallback sur `note_globale` (moyenne pondérée déjà calculée) — jamais de crash. Le niveau
+calculé **écrase** `feedback.niveau_cecrl` (lu par le mobile) ; le niveau brut du LLM est conservé en
+base dans **`ai_evaluations.niveau_cecrl_ia`** (V429, interne, **jamais exposé**) pour mesurer
+l'écart. Une divergence ≥ 1 cran IA vs calcul est loggée (sens sous/sur-estimation) et agrégée par
+`AdminCalibrationService.niveauStats()` → `GET /api/admin/calibration/stats/niveau`. Seuils
+ajustables sans redéploiement. `EvaluationResultDto.niveauCecrl` = niveau **calculé** →
+**aucun changement Flutter**.
+
 ### Historique des versions
 
 - **v1.1** : distinction **note_globale (qualité de la tâche)** vs **niveau_cecrl (compétence

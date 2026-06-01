@@ -32,6 +32,7 @@ public class ProductionEvaluationProperties {
     private Anthropic anthropic = new Anthropic();
     private OpenAi openai = new OpenAi();
     private DeepSeek deepseek = new DeepSeek();
+    private NiveauCecrl niveauCecrl = new NiveauCecrl();
     /**
      * Plafond audio accepte pour une submission EO (defaut: 5 min).
      */
@@ -99,6 +100,14 @@ public class ProductionEvaluationProperties {
 
     public void setDeepseek(DeepSeek deepseek) {
         this.deepseek = deepseek;
+    }
+
+    public NiveauCecrl getNiveauCecrl() {
+        return niveauCecrl;
+    }
+
+    public void setNiveauCecrl(NiveauCecrl niveauCecrl) {
+        this.niveauCecrl = niveauCecrl;
     }
 
     public int getMaxAudioDurationSeconds() {
@@ -528,6 +537,57 @@ public class ProductionEvaluationProperties {
 
         public void setCostPerMillionOutputTokens(double v) {
             this.costPerMillionOutputTokens = v;
+        }
+    }
+
+    /**
+     * Seuils du niveau CECRL CALCULE serveur (cf. {@code AiEvaluationService}).
+     * Le niveau affiche n'est plus celui du LLM : il est derive des criteres
+     * porteurs du niveau ({@code source-criteres}, par defaut lexique +
+     * morphosyntaxe), via {@code competence = moyenne(source)} comparee aux
+     * seuils. Plafond B2 (cible naturalisation ; C1/C2 non fiables sur T1).
+     * Ajustables sans redeploiement (recalibration apres analyse du dashboard).
+     */
+    public static class NiveauCecrl {
+        /** Codes de criteres porteurs du niveau (moyennes pour {@code competence}). */
+        private java.util.List<String> sourceCriteres = java.util.List.of("lexique", "morphosyntaxe");
+        /** competence >= seuilB2 -> B2. */
+        private double seuilB2 = 15.0;
+        /** competence >= seuilB1 -> B1. */
+        private double seuilB1 = 12.0;
+        /** competence >= seuilA2 -> A2 ; < seuilA2 (mais > 0) -> A1 ; hors-sujet -> A1_NON_ATTEINT. */
+        private double seuilA2 = 7.0;
+
+        public java.util.List<String> getSourceCriteres() {
+            return sourceCriteres;
+        }
+
+        public void setSourceCriteres(java.util.List<String> sourceCriteres) {
+            this.sourceCriteres = sourceCriteres;
+        }
+
+        public double getSeuilB2() {
+            return seuilB2;
+        }
+
+        public void setSeuilB2(double seuilB2) {
+            this.seuilB2 = seuilB2;
+        }
+
+        public double getSeuilB1() {
+            return seuilB1;
+        }
+
+        public void setSeuilB1(double seuilB1) {
+            this.seuilB1 = seuilB1;
+        }
+
+        public double getSeuilA2() {
+            return seuilA2;
+        }
+
+        public void setSeuilA2(double seuilA2) {
+            this.seuilA2 = seuilA2;
         }
     }
 }
