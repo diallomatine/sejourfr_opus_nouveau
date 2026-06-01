@@ -43,7 +43,8 @@ class DonutChartScore extends StatelessWidget {
 
   String _formatNote() {
     if (noteSur20 == null) return '—';
-    if (noteSur20 == noteSur20!.truncateToDouble()) return noteSur20!.toInt().toString();
+    if (noteSur20 == noteSur20!.truncateToDouble())
+      return noteSur20!.toInt().toString();
     return noteSur20!.toStringAsFixed(1).replaceAll('.', ',');
   }
 
@@ -97,7 +98,7 @@ class DonutChartScore extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Niveau estime',
+                      'Niveau estimé',
                       style: AppFonts.jakarta(
                         size: 13,
                         color: AppColors.muted,
@@ -106,7 +107,8 @@ class DonutChartScore extends StatelessWidget {
                     const SizedBox(height: 4),
                     if (niveau != null)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: _violetLight,
                           borderRadius: BorderRadius.circular(8),
