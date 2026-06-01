@@ -91,14 +91,13 @@ final _singleLetterChoice = RegExp(r'^[A-Za-z]$');
 /// Ordre d'affichage des choix, partagé entre le runner et le rapport pour
 /// qu'un même attempt présente les choix dans le même ordre des deux côtés.
 ///
-/// Pour les questions TCF CO en mode FULL_AUDIO (tous les labels sont une seule
-/// lettre A/B/C/D), on trie par label pour un affichage A→D — la lettre étant
-/// la clé de réponse citée par l'audio et l'explication. Les questions normales
-/// gardent leur ordre d'origine (shuffle backend, seedé par AttemptQuestion.id).
-List<ChoiceDto> orderedDisplayChoices(List<ChoiceDto> choices) {
-  final allLetters = choices.isNotEmpty &&
-      choices.every((c) => _singleLetterChoice.hasMatch(c.label.trim()));
-  if (!allLetters) return choices;
+/// Pour les questions TCF CO en mode FULL_AUDIO ([QuestionDto.usesLetterKeyChoices]),
+/// on trie par label pour un affichage A→D — la lettre étant la clé de réponse
+/// citée par l'audio et l'explication. Les autres questions gardent leur ordre
+/// d'origine (shuffle backend, seedé par AttemptQuestion.id).
+List<ChoiceDto> orderedDisplayChoices(QuestionDto question) {
+  final choices = question.choices;
+  if (!question.usesLetterKeyChoices) return choices;
   return [...choices]..sort((a, b) =>
       a.label.trim().toUpperCase().compareTo(b.label.trim().toUpperCase()));
 }
@@ -141,6 +140,19 @@ class QuestionDto {
   bool get hasAudio => media?.type == MediaType.audio;
   bool get hasImage => media?.type == MediaType.image;
   bool get hasVideo => media?.type == MediaType.video;
+
+  /// Questions TCF CO en mode FULL_AUDIO : le contenu des réponses vit dans
+  /// l'audio, les labels en base ne sont que des lettres A/B/C/D (la clé citée
+  /// par l'audio et l'explication). Le runner affiche alors cette lettre dans
+  /// la pastille et masque le texte redondant.
+  ///
+  /// Restreint au type CO : sans ce garde-fou, une question STRUCTURE dont une
+  /// réponse est une lettre isolée (« y », « en »…) déclenchait à tort ce mode
+  /// et affichait « Y » à la place de la pastille C.
+  bool get usesLetterKeyChoices =>
+      questionType == QuestionType.co &&
+      choices.isNotEmpty &&
+      choices.every((c) => _singleLetterChoice.hasMatch(c.label.trim()));
 
   factory QuestionDto.fromJson(Map<String, dynamic> json) => QuestionDto(
         id: json['id'] as String,

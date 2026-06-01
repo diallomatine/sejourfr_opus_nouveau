@@ -173,7 +173,7 @@ class _RunnerView extends ConsumerWidget {
                   _StatementBlock(text: question.statement),
                   const SizedBox(height: 20),
                   ...() {
-                    final choices = orderedDisplayChoices(question.choices);
+                    final choices = orderedDisplayChoices(question);
                     return List.generate(choices.length, (i) {
                       final c = choices[i];
                       final isSelected = selected.contains(c.id);
@@ -189,6 +189,7 @@ class _RunnerView extends ConsumerWidget {
                           selected: isSelected,
                           showCorrection: showCorr,
                           isCorrect: isCorrect,
+                          letterKeyMode: question.usesLetterKeyChoices,
                           onTap: () => ref
                               .read(
                                   runnerControllerProvider(attemptId).notifier)
