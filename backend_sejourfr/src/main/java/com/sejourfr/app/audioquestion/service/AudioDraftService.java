@@ -11,6 +11,7 @@ import com.sejourfr.app.entity.Choice;
 import com.sejourfr.app.entity.Media;
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.Theme;
+import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.MediaType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionStatus;
@@ -81,14 +82,20 @@ public class AudioDraftService {
     }
 
     @Transactional(readOnly = true)
-    public Page<AudioDraftDto> listPendingReview(Pageable pageable) {
-        return draftRepository.findByStatus(AudioDraftStatus.AUDIO_PENDING_REVIEW, pageable)
-            .map(AudioDraftDto::from);
+    public Page<AudioDraftDto> listPendingReview(Difficulty difficulty, Pageable pageable) {
+        Page<AudioQuestionDraft> page = difficulty == null
+            ? draftRepository.findByStatus(AudioDraftStatus.AUDIO_PENDING_REVIEW, pageable)
+            : draftRepository.findByStatusAndDifficulty(
+                AudioDraftStatus.AUDIO_PENDING_REVIEW, difficulty, pageable);
+        return page.map(AudioDraftDto::from);
     }
 
     @Transactional(readOnly = true)
-    public long countPendingReview() {
-        return draftRepository.countByStatus(AudioDraftStatus.AUDIO_PENDING_REVIEW);
+    public long countPendingReview(Difficulty difficulty) {
+        return difficulty == null
+            ? draftRepository.countByStatus(AudioDraftStatus.AUDIO_PENDING_REVIEW)
+            : draftRepository.countByStatusAndDifficulty(
+                AudioDraftStatus.AUDIO_PENDING_REVIEW, difficulty);
     }
 
     /**
@@ -99,8 +106,8 @@ public class AudioDraftService {
      *   - status -> AUDIO_PENDING_REVIEW avec audio_url, audio_duration_sec, etc.
      *   - en cas d'erreur : status remis a TEXT_VALIDATED, batch_id efface (retry possible)
      */
-    public BatchGenerationResultDto generateBatchAudio() {
-        List<UUID> draftIds = pickAndReserveBatch();
+    public BatchGenerationResultDto generateBatchAudio(Difficulty difficulty) {
+        List<UUID> draftIds = pickAndReserveBatch(difficulty);
         if (draftIds.isEmpty()) {
             return new BatchGenerationResultDto(null, 0, 0, 0, List.of());
         }
@@ -134,11 +141,12 @@ public class AudioDraftService {
         return new BatchGenerationResultDto(batchId, draftIds.size(), succeeded, failed, outcomes);
     }
 
-    private List<UUID> pickAndReserveBatch() {
+    private List<UUID> pickAndReserveBatch(Difficulty difficulty) {
         return txTemplate.execute(status -> {
-            List<AudioQuestionDraft> picked = draftRepository.findTop10ByStatusOrderByCreatedAtAsc(
-                AudioDraftStatus.TEXT_VALIDATED
-            );
+            List<AudioQuestionDraft> picked = difficulty == null
+                ? draftRepository.findTop10ByStatusOrderByCreatedAtAsc(AudioDraftStatus.TEXT_VALIDATED)
+                : draftRepository.findTop10ByStatusAndDifficultyOrderByCreatedAtAsc(
+                    AudioDraftStatus.TEXT_VALIDATED, difficulty);
             if (picked.isEmpty()) return List.<UUID>of();
             UUID batchId = UUID.randomUUID();
             List<UUID> ids = new ArrayList<>(picked.size());

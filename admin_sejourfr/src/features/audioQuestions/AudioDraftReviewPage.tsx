@@ -11,37 +11,53 @@ import { Textarea } from "../../components/ui/Form";
 import { useToast } from "../../components/ui/Toast";
 import type {
   AudioDraftDto,
+  AudioLevel,
   BatchGenerationResultDto,
 } from "../../types/api";
 import styles from "./AudioDraftReviewPage.module.css";
 
 const PAGE_SIZE = 10;
+const LEVELS: AudioLevel[] = ["A2", "B1", "B2"];
 
 export function AudioDraftReviewPage() {
   const [page, setPage] = useState(0);
+  // null = tous niveaux. Cadre à la fois les drafts listés (à valider) et le
+  // batch de génération (on ne génère que les TEXT_VALIDATED du niveau choisi).
+  const [level, setLevel] = useState<AudioLevel | null>(null);
   const [rejectTarget, setRejectTarget] = useState<AudioDraftDto | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const queryClient = useQueryClient();
   const toast = useToast();
 
+  function selectLevel(next: AudioLevel | null) {
+    setLevel(next);
+    setPage(0);
+  }
+
   const listQuery = useQuery({
-    queryKey: ["audioDrafts", "pendingReview", page],
-    queryFn: () => audioDraftsApi.pendingReview({ page, size: PAGE_SIZE }),
+    queryKey: ["audioDrafts", "pendingReview", level, page],
+    queryFn: () =>
+      audioDraftsApi.pendingReview({ page, size: PAGE_SIZE, difficulty: level ?? undefined }),
   });
 
   const countQuery = useQuery({
-    queryKey: ["audioDrafts", "pendingReview", "count"],
-    queryFn: () => audioDraftsApi.pendingReviewCount(),
+    queryKey: ["audioDrafts", "pendingReview", "count", level],
+    queryFn: () => audioDraftsApi.pendingReviewCount(level ?? undefined),
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
 
   const batchMutation = useMutation({
-    mutationFn: () => audioDraftsApi.batchGenerate(),
+    mutationFn: () => audioDraftsApi.batchGenerate(level ?? undefined),
     onSuccess: (result: BatchGenerationResultDto) => {
       queryClient.invalidateQueries({ queryKey: ["audioDrafts"] });
       if (result.requested === 0) {
-        toast.show("Aucun draft TEXT_VALIDATED disponible.", "info");
+        toast.show(
+          level
+            ? `Aucun draft ${level} TEXT_VALIDATED disponible.`
+            : "Aucun draft TEXT_VALIDATED disponible.",
+          "info",
+        );
       } else {
         toast.show(
           `Batch lance : ${result.succeeded} succes, ${result.failed} echec(s).`,
@@ -88,13 +104,42 @@ export function AudioDraftReviewPage() {
         title="Audio"
         emphasis="a valider"
         actions={
-          <Button
-            variant="primary"
-            onClick={() => batchMutation.mutate()}
-            disabled={batchMutation.isPending}
-          >
-            {batchMutation.isPending ? "Generation en cours..." : "Generer 10 audios"}
-          </Button>
+          <div className={styles.headerActions}>
+            <div
+              className={styles.levelFilter}
+              role="group"
+              aria-label="Filtrer par niveau"
+            >
+              <button
+                type="button"
+                className={`${styles.levelChip} ${level === null ? styles.levelChipActive : ""}`}
+                onClick={() => selectLevel(null)}
+              >
+                Tous
+              </button>
+              {LEVELS.map((lvl) => (
+                <button
+                  key={lvl}
+                  type="button"
+                  className={`${styles.levelChip} ${level === lvl ? styles.levelChipActive : ""}`}
+                  onClick={() => selectLevel(lvl)}
+                >
+                  {lvl}
+                </button>
+              ))}
+            </div>
+            <Button
+              variant="primary"
+              onClick={() => batchMutation.mutate()}
+              disabled={batchMutation.isPending}
+            >
+              {batchMutation.isPending
+                ? "Generation en cours..."
+                : level
+                  ? `Generer 10 audios (${level})`
+                  : "Generer 10 audios"}
+            </Button>
+          </div>
         }
       />
 
@@ -102,8 +147,10 @@ export function AudioDraftReviewPage() {
         title="A relire"
         sub={
           pendingCount > 0
-            ? `${pendingCount} draft${pendingCount > 1 ? "s" : ""} en attente d'ecoute`
-            : "Aucun draft en attente. Lance un batch pour en generer."
+            ? `${pendingCount} draft${pendingCount > 1 ? "s" : ""}${level ? ` ${level}` : ""} en attente d'ecoute`
+            : level
+              ? `Aucun draft ${level} en attente. Lance un batch ${level} pour en generer.`
+              : "Aucun draft en attente. Lance un batch pour en generer."
         }
       >
         {listQuery.isLoading && (

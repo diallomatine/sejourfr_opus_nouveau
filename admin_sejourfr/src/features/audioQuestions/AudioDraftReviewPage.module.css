@@ -5,6 +5,49 @@
   padding-bottom: 48px;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.levelFilter {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+}
+
+.levelChip {
+  appearance: none;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 7px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.levelChip:hover {
+  color: var(--ink);
+}
+
+.levelChipActive {
+  background: var(--blue);
+  color: #fff;
+}
+
+.levelChipActive:hover {
+  color: #fff;
+}
+
 .spinnerWrap {
   display: flex;
   justify-content: center;

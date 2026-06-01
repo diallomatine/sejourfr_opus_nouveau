@@ -1,6 +1,7 @@
 import { apiRequest } from "./http";
 import type {
   AudioDraftDto,
+  AudioLevel,
   BatchGenerationResultDto,
   PageResponse,
   PendingReviewCountDto,
@@ -9,12 +10,14 @@ import type {
 export interface PendingReviewParams {
   page?: number;
   size?: number;
+  difficulty?: AudioLevel;
 }
 
 export const audioDraftsApi = {
-  batchGenerate() {
+  batchGenerate(difficulty?: AudioLevel) {
     return apiRequest<BatchGenerationResultDto>("/api/admin/audio-drafts/batch-generate", {
       method: "POST",
+      query: difficulty ? { difficulty } : undefined,
     });
   },
 
@@ -24,8 +27,10 @@ export const audioDraftsApi = {
     });
   },
 
-  pendingReviewCount() {
-    return apiRequest<PendingReviewCountDto>("/api/admin/audio-drafts/pending-review/count");
+  pendingReviewCount(difficulty?: AudioLevel) {
+    return apiRequest<PendingReviewCountDto>("/api/admin/audio-drafts/pending-review/count", {
+      query: difficulty ? { difficulty } : undefined,
+    });
   },
 
   validate(id: string) {
