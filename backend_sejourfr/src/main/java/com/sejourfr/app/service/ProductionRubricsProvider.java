@@ -18,21 +18,24 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Source UNIQUE et exclusive du "comment noter" propre a chaque tache : charge
- * le fichier {@code prompts/production-rubrics-<version>.json} (criteres + poids,
- * bareme, descripteurs par niveau, consignes correcteur), indexe par
- * {@code (epreuve, tache)}.
+ * Source UNIQUE de TOUTES les instructions a l'IA d'evaluation : charge le
+ * fichier {@code prompts/production-rubrics-<version>.json} (v3+).
  *
- * <p>Plus aucun fallback vers {@code production_tasks.criteres_evaluation} : la
- * notation vit a 100 % dans le fichier. Ajuster le bareme = editer le JSON, zero
- * migration. La coherence (toutes les taches actives couvertes, poids = 1, codes
- * canoniques) est verifiee au demarrage par {@link ProductionRubricsValidator}.
+ * <p>Deux blocs :
+ * <ul>
+ *   <li>{@code commun} : le GLOBAL — {@code sections} (liste ordonnee
+ *       {@code {titre, contenu}}) + {@code few_shot} (ancres de calibration).
+ *       Rendu tel quel dans le system prompt par {@link EvaluationPromptBuilder}.</li>
+ *   <li>{@code rubrics.<EE|EO>_T<n>} : le PAR-TACHE — {@code criteres} (+poids+label),
+ *       {@code bareme_note}, {@code descripteurs} A1-C2, {@code consignes_correcteur}.</li>
+ * </ul>
  *
- * <p>Format attendu (v2+) : un objet racine {@code {rubrics-version, rubrics:{...}}}
- * dont la map {@code rubrics} associe une cle plate {@code <EPREUVE>_T<n>}
- * (ex: {@code EE_T1}, {@code EO_T3}) a sa rubrique. La cle de lookup est derivee
- * de {@code (epreuve, tacheNumero)} : on retire le prefixe {@code TCF_} de
- * l'epreuve puis on suffixe {@code _T<n>}.
+ * <p>Le code ne fait que RENDRE ce fichier : aucune instruction de notation en
+ * dur, plus aucun fallback DB {@code criteres_evaluation}. La cle de tache est
+ * derivee de {@code (epreuve, tacheNumero)} : on retire le prefixe {@code TCF_}
+ * puis on suffixe {@code _T<n>} ({@code TCF_EE} + 1 -> {@code EE_T1}). Coherence
+ * verifiee au boot par {@link ProductionRubricsValidator}. Le tool-schema (contrat
+ * de sortie) reste un fichier separe, hors de ce provider.
  */
 @Component
 public class ProductionRubricsProvider {
@@ -42,6 +45,8 @@ public class ProductionRubricsProvider {
 
     private final ProductionEvaluationProperties props;
     private final ObjectMapper objectMapper;
+    /** Bloc {@code commun} (sections + few_shot), global a toutes les taches. */
+    private Map<String, Object> commun = Map.of();
     /** Cle "EE_T1" -> rubrique de la tache. */
     private Map<String, Map<String, Object>> rubrics = Map.of();
 
@@ -58,6 +63,13 @@ public class ProductionRubricsProvider {
         try (InputStream is = new ClassPathResource(path).getInputStream()) {
             String json = StreamUtils.copyToString(is, StandardCharsets.UTF_8);
             Map<String, Object> root = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+
+            if (!(root.get("commun") instanceof Map<?, ?> communNode)) {
+                throw new IllegalStateException("cle racine 'commun' absente ou invalide");
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> communMap = (Map<String, Object>) communNode;
+
             if (!(root.get("rubrics") instanceof Map<?, ?> rubricsNode)) {
                 throw new IllegalStateException("cle racine 'rubrics' absente ou invalide");
             }
@@ -71,26 +83,42 @@ public class ProductionRubricsProvider {
             if (built.isEmpty()) {
                 throw new IllegalStateException("aucune rubrique chargee");
             }
+            this.commun = Map.copyOf(communMap);
             this.rubrics = Map.copyOf(built);
-            log.info("Rubriques production chargees ({}) : {} taches", version, rubrics.size());
+            log.info("Rubriques production chargees ({}) : {} sections communes, {} taches",
+                version, sectionCount(), rubrics.size());
         } catch (Exception e) {
-            // La notation n'a plus de fallback DB : un fichier absent/illisible est
-            // une erreur de config bloquante (fail-fast au demarrage).
+            // Source unique des instructions : un fichier absent/illisible est une
+            // erreur de config bloquante (fail-fast au demarrage).
             throw new IllegalStateException(
                 "Rubriques production introuvables/illisibles (" + path
                     + ") — verifier sejourfr.production-evaluation.rubrics-version", e);
         }
     }
 
-    /** Rubrique fixe d'une tache, vide si absente. */
-    public Optional<Map<String, Object>> find(EpreuveType epreuve, int tacheNumero) {
+    /** Bloc {@code commun} (global) : {@code sections} + {@code few_shot}. */
+    public Map<String, Object> getCommun() {
+        return commun;
+    }
+
+    /** Rubrique d'une tache (cle {@code <EE|EO>_T<n>}), vide si absente. */
+    public Optional<Map<String, Object>> getTask(EpreuveType epreuve, int tacheNumero) {
         if (epreuve == null) return Optional.empty();
         return Optional.ofNullable(rubrics.get(key(epreuve, tacheNumero)));
+    }
+
+    /** Alias historique de {@link #getTask(EpreuveType, int)}. */
+    public Optional<Map<String, Object>> find(EpreuveType epreuve, int tacheNumero) {
+        return getTask(epreuve, tacheNumero);
     }
 
     /** Vue immuable de toutes les rubriques chargees (cle -> rubrique), pour la validation au boot. */
     public Map<String, Map<String, Object>> all() {
         return rubrics;
+    }
+
+    private int sectionCount() {
+        return commun.get("sections") instanceof java.util.List<?> l ? l.size() : 0;
     }
 
     /**

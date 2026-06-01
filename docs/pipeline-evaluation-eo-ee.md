@@ -41,20 +41,23 @@ sous-module comme `audioquestion/`) :
   différent** = implémenter `EvaluationLlmClient` (4 méthodes) + un `case` dans
   `EvaluationLlmConfig`.
 - **`ProductionRubricsProvider`** : charge `prompts/production-rubrics-<version>.json`
-  (`rubrics-version`, défaut `v2`) — **source unique ET EXCLUSIVE du « comment noter » par
-  tâche** (critères+poids, barème, descripteurs A1-C2, consignes correcteur). Clé de lookup
-  dérivée de `(épreuve, tâche)` : on retire le préfixe `TCF_` puis on suffixe `_T<n>` →
-  `EE_T1`, `EO_T3`, … **Plus aucun fallback DB `criteres_evaluation`.** Fichier
-  absent/illisible = échec au démarrage (fail-fast). Format racine `{rubrics-version, rubrics:{…}}`.
+  (`rubrics-version`, défaut `v3`) — **source unique de TOUTES les instructions à l'IA**.
+  Deux blocs : `commun` (global : `sections` ordonnées `{titre, contenu}` + `few_shot`) et
+  `rubrics.<EE|EO>_T<n>` (par tâche : critères+poids+label, barème, descripteurs A1-C2,
+  consignes). `getCommun()` + `getTask(épreuve, tâche)`. Clé de lookup dérivée de
+  `(épreuve, tâche)` : retire `TCF_` puis suffixe `_T<n>` → `EE_T1`, `EO_T3`. **Plus aucun
+  fallback DB `criteres_evaluation`.** Fichier absent/illisible = échec au démarrage (fail-fast).
 - **`ProductionRubricsValidator`** (`@EventListener(ApplicationReadyEvent)`) : garde-fou de
-  démarrage. Refuse de booter si (a) une tâche `is_active=TRUE` (EO/EE) n'a pas de rubrique,
-  (b) `Σ poids ≠ 1.0` (±0.001) sur une rubrique, ou (c) un `code` n'est pas dans le set
-  canonique `{pertinence, coherence, lexique, morphosyntaxe}`. Erreurs loggées en ERROR
-  `[rubriques]` + `IllegalStateException`.
-- `EvaluationPromptBuilder` (charge `system-vX.Y.md` + `user-template-vX.Y.md`, substitue
-  `{CONSIGNE}`, `{NIVEAU}`, et injecte la rubrique de la tâche : `{CRITERES}`,
-  `{BAREME_NOTE}`, `{DESCRIPTEURS}`, `{CONSIGNES_CORRECTEUR}`). N'injecte **que des données**,
-  aucune instruction (cf. archi 2 couches dans Prompts).
+  démarrage. Refuse de booter si (a) `commun.sections` vide ou `few_shot` absent, (b) une tâche
+  `is_active=TRUE` (EO/EE) n'a pas de rubrique, (c) `Σ poids ≠ 1.0` (±0.001) sur une rubrique,
+  ou (d) un `code` n'est pas dans `{pertinence, coherence, lexique, morphosyntaxe}`. Erreurs
+  loggées en ERROR `[rubriques]` + `IllegalStateException`.
+- `EvaluationPromptBuilder` : **génère** les prompts depuis le JSON, **plus aucun `.md`**.
+  `buildSystemPrompt()` = `commun.sections` rendues `# titre\ncontenu` + `few_shot` (identique
+  pour toutes les tâches, mis en cache). `buildUserPrompt(...)` = **données seulement** :
+  épreuve/tâche, niveau cible + consigne + longueur attendue (DB), contexte (DB), puis
+  critères/barème/descripteurs/consignes du bloc tâche, la production, la durée factuelle (EO),
+  et la ligne finale « appelle submit_evaluation ». Aucune instruction de notation en dur.
 - `AiEvaluationService` (orchestration : prompt + LLM + persistance `AiEvaluation`)
 - `ProductionAudioStorageService` (R2 privé + URL signée via `S3Presigner` ; le bean est
   ajouté à `audioquestion/config/CloudflareR2Config.java`)
@@ -66,36 +69,43 @@ sous-module comme `audioquestion/`) :
 
 ## Prompts
 
-Dans
-`src/main/resources/prompts/production-evaluation-{system,user-template,tool-schema}-vX.Y.{md,json}`.
-Chargés à la demande selon `prompt-version` du provider actif (**default `v1.4`**). Versionnés
-dans `ai_evaluations.prompt_version` ; toute modif structurante = nouveau triplet `vX.Y`
-(les anciens fichiers restent en place pour permettre un rollback via
-`EVAL_PROMPT_VERSION=v1.2` / `v1.3`).
+### Architecture des instructions à l'IA (depuis v3) — UN seul fichier, 0 dans le code
 
-### Architecture des instructions à l'IA (depuis v1.4) — 2 couches, 0 dans le code
+Règle d'or : **toutes** les instructions à l'IA vivent dans
+`prompts/production-rubrics-<version>.json` (piloté par `EVAL_RUBRICS_VERSION`, défaut `v3`).
+Le code ne fait que **rendre** ce fichier — aucune instruction de notation en dur, ni dans des
+`.md`, ni dans le code.
 
-Règle d'or : on n'éparpille pas le « comment noter ». Trois niveaux, chacun avec **une seule
-source** :
+1. **GLOBAL → `commun`** (rendu dans le **system prompt** par `EvaluationPromptBuilder`) :
+   `sections` (liste ordonnée `{titre, contenu}` = rôle, deux dimensions note/niveau, échelle
+   CECRL, barème absolu, cohérence note↔niveau, hors-sujet, oral=transcription, longueur,
+   méthode, format) + `few_shot` (ancres de calibration production→scores→niveau). Mutualisé :
+   le barème absolu, la tolérance transcription orale, la règle de longueur vivent **une seule
+   fois** ici ; les blocs par tâche n'y renvoient que par « cf. bloc commun ».
+2. **PAR TÂCHE → `rubrics.<EE|EO>_T<n>`** : `criteres` (+ poids + label), `bareme_note` (nuance
+   spécifique uniquement), `descripteurs` A1-C2, `consignes_correcteur` (spécifique uniquement).
+   Rendus dans le **user message** à côté des données DB.
+3. **CODE → aucune instruction, assemblage seulement** : `buildSystemPrompt()` concatène
+   `commun.sections` (`# titre\ncontenu`) + `few_shot` (mis en cache). `buildUserPrompt(...)`
+   assemble des **données** : épreuve/tâche, `{NIVEAU}` = `production_tasks.niveau_cible`,
+   consigne (DB), longueur attendue = `mots_min`-`mots_max` (DB, EE), contexte (DB), critères /
+   barème / descripteurs / consignes (fichier), production, durée factuelle (EO), et la ligne
+   finale « appelle submit_evaluation ».
 
-1. **GLOBAL → le system prompt** (`system-vX.Y.md`) : échelle CECRL, note≠niveau, hors-sujet,
-   oral = transcription (on n'évalue pas prononciation/débit/durée), méthode, format de sortie.
-   Identique pour toutes les tâches.
-2. **PAR TÂCHE → `prompts/production-rubrics-<v>.json`** (via `ProductionRubricsProvider`) :
-   pour chaque `(épreuve, tâche)`, la rubrique fixe — `criteres` (+ poids), `bareme_note`,
-   `descripteurs` A1-C2, `consignes_correcteur`. **C'est LE seul endroit à éditer pour ajuster
-   la notation d'une tâche.** Versionné via `rubrics-version` (`EVAL_RUBRICS_VERSION`, défaut
-   `v2`), indépendant de `prompt-version`.
-3. **CODE → aucune instruction, données seulement** : `EvaluationPromptBuilder` n'injecte que
-   des données (production, durée factuelle, rubrique). La durée EO est une simple ligne
-   `DURÉE (indicative) : …` ; l'ordre de l'ignorer vit une seule fois dans le system prompt.
+**Tool-schema = contrat de sortie, séparé.** `production-evaluation-tool-schema-vX.Y.json` reste
+chargé par les clients LLM selon `prompt-version` (défaut `v1.5`) et versionné dans
+`ai_evaluations.prompt_version`. Ce n'est PAS une instruction de notation → il ne fond pas dans le
+fichier rubriques.
 
-Le user-template v1.4 expose les slots `{CRITERES}`, `{BAREME_NOTE}`, `{DESCRIPTEURS}`,
-`{CONSIGNES_CORRECTEUR}` (+ `{CONSIGNE}`, `{PRODUCTION}`, `{DUREE_BLOCK}`). `{NIVEAU}` porte le
-niveau cible (`production_tasks.niveau_cible`) — il n'est plus dupliqué dans `{CRITERES}`.
-**Plus aucun fallback DB** : la couverture des tâches actives est garantie au boot par
-`ProductionRubricsValidator` (cf. plus haut). La colonne `production_tasks.criteres_evaluation`
-est **dépréciée** (V428, non lue, conservée nullable pour réversibilité).
+**Rollback** : les prompts désormais inutilisés sont archivés dans
+`src/main/resources/prompts/old/` (anciens `system`/`user-template`/`tool-schema` ≤ v1.4,
+`production-rubrics-v1/v2.json`, `audio-question-system-v1.md`) — toujours sur le classpath mais
+plus chargés. Seuls restent dans `prompts/` : `production-rubrics-v3.json`,
+`production-evaluation-tool-schema-v1.5.json`, `audio-question-system-v2.md`,
+`audio-question-tool-schema.json`. Revenir en arrière = remonter les fichiers voulus dans
+`prompts/` + restaurer le code .md-based + `EVAL_RUBRICS_VERSION=v2`.
+
+La colonne `production_tasks.criteres_evaluation` est **dépréciée** (V428, non lue, nullable).
 
 ### `note_globale` calculée serveur (depuis la centralisation rubriques)
 
@@ -121,9 +131,17 @@ aucun changement mobile.**
 - **v1.3** : **EO évaluée comme du texte transcrit** — l'IA ne note plus prononciation /
   intonation / débit / durée (elle n'a pas l'audio). Les blocs débit/durée Java passent en
   informatif.
-- **v1.4** (actif) : **archi rubriques par tâche** (ci-dessus). user-template gagne
-  `{BAREME_NOTE}` + `{DESCRIPTEURS}`, la notice de transcription est absorbée dans le system
-  prompt, le bloc « débit » est supprimé, la durée devient une donnée factuelle.
+- **v1.4 / v1.5** : **archi rubriques par tâche** (`.md` system + user-template). user-template
+  gagne `{BAREME_NOTE}` + `{DESCRIPTEURS}`, la notice de transcription est absorbée dans le system
+  prompt, le bloc « débit » est supprimé, la durée devient une donnée factuelle. v1.5 ajoute le
+  contrôle de cohérence note↔niveau + le tool-schema `v1.5`.
+- **rubrics v2** : `criteres_evaluation` DB abandonné, rubrique par tâche = source unique du
+  « comment noter » (critères/barème/descripteurs/consignes), `note_globale` recalculée serveur.
+- **rubrics v3** (actif) : **le fichier devient la source unique de TOUTES les instructions**
+  (global + par tâche). Le `commun` (sections + few-shot) est rendu dans le system prompt, le bloc
+  tâche dans le user message ; les `.md` system/user-template ne sont **plus lus** (le code ne fait
+  qu'assembler le JSON). `EVAL_RUBRICS_VERSION=v3` pilote tout le contenu d'éval ; `prompt-version`
+  ne gouverne plus que le tool-schema. Schéma `tool_use` inchangé → aucun changement mobile.
 
 Le schéma `tool_use` est inchangé depuis v1.1 (mêmes champs) — aucun changement côté mobile
 pour parser l'output.

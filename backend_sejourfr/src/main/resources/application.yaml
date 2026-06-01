@@ -188,8 +188,11 @@ sejourfr:
     # migration ni changement cote mobile : le DTO + le tool schema sont
     # identiques, seule la maniere d'appeler le LLM change.
     provider: ${EVAL_LLM_PROVIDER:openai}
-    # Version du fichier de rubriques par tache (prompts/production-rubrics-<v>.json).
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v2}
+    # Source UNIQUE de TOUTES les instructions d'eval (global + par tache) :
+    # prompts/production-rubrics-<v>.json. Le system prompt et le user message
+    # sont generes depuis ce fichier (plus de .md system/user-template).
+    # prompt-version (ci-dessous) ne gouverne plus que le tool-schema (sortie).
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v3}
     max-audio-duration-seconds: 300
     max-text-words: 300
     min-text-words: 10
@@ -209,7 +212,7 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v1.4}
+      prompt-version: ${EVAL_PROMPT_VERSION:v1.5}
       # Tarification gpt-4o-mini (USD / 1M tokens, mai 2026). A surcharger si
       # on bascule sur gpt-4o ou gpt-5 (cout estime persiste dans ai_evaluations).
       cost-per-million-input-tokens: 0.15
@@ -223,7 +226,7 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v1.4}
+      prompt-version: ${EVAL_PROMPT_VERSION:v1.5}
       cost-per-million-input-tokens: 3.0
       cost-per-million-output-tokens: 15.0
     # DeepSeek : API compatible OpenAI (meme client). Activer avec
@@ -238,6 +241,6 @@ sejourfr:
       temperature: ${EVAL_DEEPSEEK_TEMPERATURE:0}
       max-tokens: 2000
       timeout-sec: 60
-      prompt-version: ${EVAL_PROMPT_VERSION:v1.4}
+      prompt-version: ${EVAL_PROMPT_VERSION:v1.5}
       cost-per-million-input-tokens: 0.27
       cost-per-million-output-tokens: 1.10

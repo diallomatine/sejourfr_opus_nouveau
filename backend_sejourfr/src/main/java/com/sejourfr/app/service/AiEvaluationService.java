@@ -87,7 +87,7 @@ public class AiEvaluationService {
 
         ProductionInput input = loadInput(sub, task);
         Integer dureeSec = task.getEpreuve() == EpreuveType.TCF_EO ? sub.getMediaDurationSec() : null;
-        String systemPrompt = promptBuilder.buildSystemPrompt(task.getEpreuve());
+        String systemPrompt = promptBuilder.buildSystemPrompt();
         String userPrompt = promptBuilder.buildUserPrompt(task, input.production(), input.litteral(), dureeSec);
 
         EvaluationLlmClient.Outcome outcome = llmClient.evaluate(systemPrompt, userPrompt);

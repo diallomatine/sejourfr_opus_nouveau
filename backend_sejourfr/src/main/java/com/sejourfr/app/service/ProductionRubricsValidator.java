@@ -43,6 +43,15 @@ public class ProductionRubricsValidator {
     public void validate() {
         List<String> errors = new ArrayList<>();
 
+        // 0. Bloc commun (global rendu dans le system prompt) : sections + few-shot.
+        Map<String, Object> commun = rubrics.getCommun();
+        if (!(commun.get("sections") instanceof List<?> sections) || sections.isEmpty()) {
+            errors.add("commun.sections absent ou vide (le system prompt serait vide).");
+        }
+        if (!(commun.get("few_shot") instanceof List<?> fewShot) || fewShot.isEmpty()) {
+            errors.add("commun.few_shot absent ou vide.");
+        }
+
         // 1. Coherence interne de chaque rubrique (poids = 1, codes canoniques).
         for (Map.Entry<String, Map<String, Object>> e : rubrics.all().entrySet()) {
             validateRubric(e.getKey(), e.getValue(), errors);
