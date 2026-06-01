@@ -35,7 +35,11 @@ class QuestionMediaView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (media.hasInlineSvg) {
+    final hasUrl = media.url.isNotEmpty;
+    // Priorité url > inlineSvg : le backend ne pose normalement que l'un des
+    // deux, mais si les deux sont présents on rend l'image distante (cas
+    // CO_IMAGE où l'image est servie depuis R2).
+    if (media.hasInlineSvg && !hasUrl) {
       return _InlineSvgMedia(svg: media.inlineSvg!);
     }
     final url = ApiConfig.resolveMediaUrl(media.url);

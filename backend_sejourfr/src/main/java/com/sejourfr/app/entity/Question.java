@@ -42,6 +42,15 @@ public class Question {
     @JoinColumn(name = "media_id")
     private Media media;
 
+    /**
+     * Second média audio, utilisé uniquement par les questions {@code CO_IMAGE} :
+     * {@link #media} porte alors l'image support et ce champ l'audio des 4
+     * propositions lues. NULL pour tous les autres types.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "audio_media_id")
+    private Media audioMedia;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 8)
     private Difficulty difficulty;
@@ -118,6 +127,9 @@ public class Question {
 
     public Media getMedia() { return media; }
     public void setMedia(Media media) { this.media = media; }
+
+    public Media getAudioMedia() { return audioMedia; }
+    public void setAudioMedia(Media audioMedia) { this.audioMedia = audioMedia; }
 
     public Difficulty getDifficulty() { return difficulty; }
     public void setDifficulty(Difficulty difficulty) { this.difficulty = difficulty; }

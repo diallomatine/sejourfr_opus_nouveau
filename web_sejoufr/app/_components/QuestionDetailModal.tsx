@@ -126,16 +126,28 @@ export function QuestionDetailModal({
           </div>
         )}
 
-        <h2 className="rvd-statement">{question.statement}</h2>
+        {question.audioMedia && (
+          <div className="rvd-media">
+            <MediaView media={question.audioMedia} />
+          </div>
+        )}
+
+        <h2 className="rvd-statement">
+          {question.questionType === "CO_IMAGE"
+            ? question.statement ||
+              "Écoutez les propositions et choisissez celle qui correspond à l'image."
+            : question.statement}
+        </h2>
 
         <div className="rvd-choices">
           {orderedChoices(question.choices).map((c, i) => {
-            // FULL_AUDIO : label réduit à une lettre (clé citée par
-            // l'explication) → on l'affiche dans la pastille, on masque le
-            // texte redondant ; les choix sont déjà triés A→D.
-            const letterOnly = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
-            const letter = letterOnly
-              ? letterOnly[1].toUpperCase()
+            // FULL_AUDIO / CO_IMAGE : le texte du choix vit dans l'audio → on
+            // affiche la lettre dans la pastille et on masque le label redondant ;
+            // les choix sont déjà triés A→D.
+            const letterMatch = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
+            const letterOnly = question.questionType === "CO_IMAGE" || letterMatch !== null;
+            const letter = letterMatch
+              ? letterMatch[1].toUpperCase()
               : String.fromCharCode(65 + i);
             return (
               <div key={c.id} className={`rvd-choice ${c.correct ? "is-correct" : ""}`}>

@@ -17,6 +17,9 @@ CREATE TABLE audio_question_draft (
     explanation         text,
     choices             jsonb NOT NULL,
     voice_recommended   varchar(50),
+    inline_svg          text,
+    image_url           text,
+    image_alt_text      text,
     status              varchar(20) DEFAULT 'TEXT_VALIDATED'::varchar NOT NULL,
     audio_url           text,
     audio_duration_sec  integer,
@@ -37,3 +40,6 @@ CREATE INDEX idx_audio_draft_batch ON audio_question_draft (batch_id) WHERE (bat
 COMMENT ON TABLE audio_question_draft IS 'Brouillons de questions audio CO (workflow batch). Transcripts + SSML pre-generes hors-ligne, audio synthese par lots de 10.';
 COMMENT ON COLUMN audio_question_draft.choices IS 'Tableau JSONB de 4 choix : [{label: string, is_correct: boolean, display_order: int}].';
 COMMENT ON COLUMN audio_question_draft.batch_id IS 'Regroupe les drafts traites dans une meme execution de batch-generate. NULL avant traitement.';
+COMMENT ON COLUMN audio_question_draft.inline_svg IS 'Image support SVG inline pour les drafts CO_IMAGE (image affichee + 4 propositions lues en audio). NULL pour un draft CO classique.';
+COMMENT ON COLUMN audio_question_draft.image_url IS 'Image support hebergee sur R2 (upload realiste). Prioritaire sur inline_svg a l''affichage. NULL pour un draft CO classique.';
+COMMENT ON COLUMN audio_question_draft.image_alt_text IS 'Texte alternatif de l''image support (accessibilite). CO_IMAGE uniquement.';

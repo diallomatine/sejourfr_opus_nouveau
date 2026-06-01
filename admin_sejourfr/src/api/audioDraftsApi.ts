@@ -40,4 +40,13 @@ export const audioDraftsApi = {
       body: { reason },
     });
   },
+
+  replaceImage(id: string, file: File) {
+    const form = new FormData();
+    form.append("file", file);
+    return apiRequest<AudioDraftDto>(`/api/admin/audio-drafts/${id}/image`, {
+      method: "POST",
+      formData: form,
+    });
+  },
 };

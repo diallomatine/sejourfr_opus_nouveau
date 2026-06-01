@@ -4,7 +4,7 @@ export const CIVIQUE_LEVELS: Difficulty[] = ["CSP", "CR", "NAT"];
 export const TCF_LEVELS: Difficulty[] = ["A2", "B1", "B2"];
 
 const CIVIQUE_TYPES: QuestionType[] = ["CONNAISSANCE", "MISE_SITUATION"];
-const TCF_TYPES: QuestionType[] = ["CO", "CE", "STRUCTURE"];
+const TCF_TYPES: QuestionType[] = ["CO", "CO_IMAGE", "CE", "STRUCTURE"];
 
 export function levelsForModule(module: Module): Difficulty[] {
   return module === "CIVIQUE" ? CIVIQUE_LEVELS : TCF_LEVELS;
@@ -18,6 +18,7 @@ export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   CONNAISSANCE: "Connaissance",
   MISE_SITUATION: "Mise en situation",
   CO: "Compréhension orale",
+  CO_IMAGE: "Compréhension orale (image)",
   CE: "Compréhension écrite",
   STRUCTURE: "Structure de la langue",
 };
@@ -26,6 +27,7 @@ export const QUESTION_TYPE_SHORT: Record<QuestionType, string> = {
   CONNAISSANCE: "Connaissance",
   MISE_SITUATION: "Mise en situation",
   CO: "CO",
+  CO_IMAGE: "CO image",
   CE: "CE",
   STRUCTURE: "Structure",
 };
@@ -43,6 +45,7 @@ export function tagToneForType(
     case "MISE_SITUATION":
       return "mise";
     case "CO":
+    case "CO_IMAGE":
       return "co";
     case "CE":
       return "ce";

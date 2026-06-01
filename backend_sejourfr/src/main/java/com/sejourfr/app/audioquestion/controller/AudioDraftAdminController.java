@@ -15,7 +15,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 import java.util.UUID;
@@ -55,6 +57,13 @@ public class AudioDraftAdminController {
     @PostMapping("/{id}/validate")
     public AudioDraftDto validate(@PathVariable UUID id) {
         return draftService.validateDraft(id, currentUser.getId());
+    }
+
+    @PostMapping(value = "/{id}/image", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public AudioDraftDto replaceImage(
+            @PathVariable UUID id,
+            @RequestPart("file") MultipartFile file) {
+        return draftService.replaceDraftImage(id, file);
     }
 
     @PostMapping("/{id}/reject")

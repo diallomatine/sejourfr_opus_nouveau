@@ -4,6 +4,7 @@ import '../api/api_config.dart';
 import '../models/question_models.dart';
 import '../theme/app_theme.dart';
 import '../../screens/question_runner/widgets/audio_player.dart';
+import '../../screens/question_runner/widgets/question_media_view.dart';
 
 /// Bottomsheet de détail d'une question : chips niveau/type, audio rejouable
 /// (CO), passage (CE), statement, choices avec marquage correct vert /
@@ -88,6 +89,19 @@ class QuestionDetailSheet extends StatelessWidget {
                   // peut réécouter autant qu'il veut pour comprendre son erreur.
                   SejourAudioPlayer(
                     url: ApiConfig.resolveMediaUrl(question.media!.url),
+                  ),
+                ],
+                // CO_IMAGE : l'image vit dans media, l'audio des propositions
+                // dans audioMedia. On rend les deux en révision pour que le
+                // contexte de l'erreur soit complet.
+                if (question.hasImage) ...[
+                  const SizedBox(height: 14),
+                  QuestionMediaView(media: question.media!),
+                ],
+                if (question.audioMedia != null) ...[
+                  const SizedBox(height: 14),
+                  SejourAudioPlayer(
+                    url: ApiConfig.resolveMediaUrl(question.audioMedia!.url),
                   ),
                 ],
                 if (question.passageText != null &&

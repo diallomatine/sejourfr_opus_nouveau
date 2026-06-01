@@ -115,6 +115,7 @@ class QuestionDto {
     required this.choices,
     this.passageText,
     this.media,
+    this.audioMedia,
     this.userSelectedChoiceIds = const [],
   });
 
@@ -129,6 +130,11 @@ class QuestionDto {
   final List<ChoiceDto> choices;
   final String? passageText;
   final MediaDto? media;
+
+  /// Média audio additionnel, distinct de [media]. Pour une question
+  /// CO_IMAGE : [media] porte l'IMAGE affichée, [audioMedia] porte l'AUDIO
+  /// qui énonce les propositions A/B/C/D. Null pour tous les autres types.
+  final MediaDto? audioMedia;
 
   /// Choix sélectionnés par l'utilisateur lors de sa dernière tentative —
   /// renseigné uniquement dans la version "review" (`GET /api/me/questions/:id/review`).
@@ -146,11 +152,14 @@ class QuestionDto {
   /// par l'audio et l'explication). Le runner affiche alors cette lettre dans
   /// la pastille et masque le texte redondant.
   ///
-  /// Restreint au type CO : sans ce garde-fou, une question STRUCTURE dont une
-  /// réponse est une lettre isolée (« y », « en »…) déclenchait à tort ce mode
-  /// et affichait « Y » à la place de la pastille C.
+  /// Restreint aux types CO et CO_IMAGE : sans ce garde-fou, une question
+  /// STRUCTURE dont une réponse est une lettre isolée (« y », « en »…)
+  /// déclenchait à tort ce mode et affichait « Y » à la place de la pastille C.
+  /// En CO_IMAGE les propositions sont toujours des lettres nues (le contenu
+  /// vit dans l'audio).
   bool get usesLetterKeyChoices =>
-      questionType == QuestionType.co &&
+      (questionType == QuestionType.co ||
+          questionType == QuestionType.coImage) &&
       choices.isNotEmpty &&
       choices.every((c) => _singleLetterChoice.hasMatch(c.label.trim()));
 
@@ -175,6 +184,9 @@ class QuestionDto {
                     url: json['mediaUrl'] as String,
                   ))
             : MediaDto.fromJson(json['media'] as Map<String, dynamic>),
+        audioMedia: json['audioMedia'] == null
+            ? null
+            : MediaDto.fromJson(json['audioMedia'] as Map<String, dynamic>),
         choices: (json['choices'] as List<dynamic>?)
                 ?.map((c) => ChoiceDto.fromJson(c as Map<String, dynamic>))
                 .toList() ??

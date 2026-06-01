@@ -80,6 +80,51 @@ public class CloudflareR2Client {
         throw ex;
     }
 
+    /**
+     * Upload generique d'une image sur R2. La cle complete est fournie par
+     * l'appelant (ex : questions/images/{id}/{uuid}.png). Cache immutable comme
+     * pour l'audio : on garantit l'unicite de la cle a chaque remplacement.
+     */
+    @Retryable(
+        retryFor = R2UploadException.class,
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 1000, multiplier = 2, random = true)
+    )
+    public R2UploadResult uploadImage(String objectKey, byte[] bytes, String contentType) {
+        if (!props.isConfigured()) {
+            throw new AudioServicesUnavailableException(
+                "R2 non configure (account-id, access-key-id, secret-access-key, public-url-base requis)"
+            );
+        }
+        PutObjectRequest request = PutObjectRequest.builder()
+            .bucket(props.getBucketName())
+            .key(objectKey)
+            .contentType(contentType)
+            .contentLength((long) bytes.length)
+            .cacheControl(CACHE_CONTROL)
+            .build();
+        try {
+            long start = System.currentTimeMillis();
+            s3Client.putObject(request, RequestBody.fromBytes(bytes));
+            long duration = System.currentTimeMillis() - start;
+            String publicUrl = props.getPublicUrlBase().replaceAll("/+$", "") + "/" + objectKey;
+            log.info("R2 image upload OK key={} size={}B duration={}ms", objectKey, bytes.length, duration);
+            return new R2UploadResult(objectKey, publicUrl);
+        } catch (S3Exception e) {
+            throw new R2UploadException(
+                "R2 upload " + e.statusCode() + " : " + e.awsErrorDetails().errorMessage(), e
+            );
+        } catch (SdkException e) {
+            throw new R2UploadException("R2 upload erreur reseau : " + e.getMessage(), e);
+        }
+    }
+
+    @Recover
+    public R2UploadResult recoverImageUpload(R2UploadException ex, String objectKey, byte[] bytes, String contentType) {
+        log.error("R2 image upload indisponible apres retries : {}", ex.getMessage());
+        throw ex;
+    }
+
     @Recover
     public R2UploadResult recoverPassthrough(AudioGenerationException ex, UUID mediaId, byte[] mp3Bytes) {
         throw ex;
@@ -87,6 +132,12 @@ public class CloudflareR2Client {
 
     /** Best-effort. N'echoue jamais (rollback contexte) : log + swallow. */
     public void deleteAudio(String objectKey) {
+        deleteObject(objectKey);
+    }
+
+    /** Suppression generique best-effort d'un objet R2 (audio ou image). */
+    public void deleteObject(String objectKey) {
+        if (objectKey == null) return;
         if (!props.isConfigured()) {
             log.warn("R2 non configure, skip delete {}", objectKey);
             return;

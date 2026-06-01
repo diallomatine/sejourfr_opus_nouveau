@@ -65,6 +65,20 @@ public class AudioQuestionDraft {
     @Column(name = "voice_recommended", length = 50)
     private String voiceRecommended;
 
+    /**
+     * Image support d'un draft CO_IMAGE. {@link #inlineSvg} = SVG généré
+     * (offline-first), {@link #imageUrl} = image hébergée sur R2 (prioritaire
+     * si renseignée). NULL pour un draft CO classique.
+     */
+    @Column(name = "inline_svg", columnDefinition = "text")
+    private String inlineSvg;
+
+    @Column(name = "image_url", columnDefinition = "text")
+    private String imageUrl;
+
+    @Column(name = "image_alt_text", columnDefinition = "text")
+    private String imageAltText;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private AudioDraftStatus status = AudioDraftStatus.TEXT_VALIDATED;
@@ -141,6 +155,15 @@ public class AudioQuestionDraft {
 
     public String getVoiceRecommended() { return voiceRecommended; }
     public void setVoiceRecommended(String voiceRecommended) { this.voiceRecommended = voiceRecommended; }
+
+    public String getInlineSvg() { return inlineSvg; }
+    public void setInlineSvg(String inlineSvg) { this.inlineSvg = inlineSvg; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+
+    public String getImageAltText() { return imageAltText; }
+    public void setImageAltText(String imageAltText) { this.imageAltText = imageAltText; }
 
     public AudioDraftStatus getStatus() { return status; }
     public void setStatus(AudioDraftStatus status) { this.status = status; }

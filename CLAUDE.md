@@ -33,7 +33,12 @@ mobile. Web : 1 examen blanc + 10 QCM d'entraînement par module pour convertir.
 - **Epreuve** (granularité fine, orthogonale à `mode`/`module`) : `CIVIQUE` / `TCF_CO` /
   `TCF_CE` / `TCF_STRUCTURE` / `TCF_EO` / `TCF_EE` / `TCF_COMPLET`. `TCF_COMPLET` est un
   conteneur d'examen blanc TCF ; sous-attempts liés via `attempts.parent_attempt_id`.
-- **QuestionType** : `KNOWLEDGE` / `SITUATION`
+- **QuestionType** : `CONNAISSANCE` / `MISE_SITUATION` (civique) · `CO` / `CO_IMAGE` / `CE` /
+  `STRUCTURE` (TCF). `CO_IMAGE` = format de Compréhension orale « image + 4 propositions
+  lues » : `media_id` porte l'image, `audio_media_id` l'audio, choix en lettres A/B/C/D.
+  Tiré dans les mêmes pools que `CO` (un filtre `CO` inclut `CO_IMAGE`). Publié depuis un
+  `audio_question_draft` portant une image (`inline_svg` ou `image_url`). Image
+  remplaçable côté admin via `POST /api/admin/{questions,audio-drafts}/{id}/image` (R2).
 - **Difficulty** : `EASY` / `MEDIUM` / `HARD`
 - **MediaType** : `AUDIO` / `IMAGE` / `VIDEO`
 - **NiveauCecrl** (eval IA EO/EE) : `A1_NON_ATTEINT` / `A1` / `A2` / `B1` / `B2` / `C1` /

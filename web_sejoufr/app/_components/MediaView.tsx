@@ -11,16 +11,19 @@ import type { MediaResponse } from "@/lib/types";
  * donc `dangerouslySetInnerHTML` est acceptable ici.
  */
 export function MediaView({ media }: { media: MediaResponse }) {
+  // Priorité url > inlineSvg : le backend ne pose normalement qu'un seul des
+  // deux, mais si une image porte les deux (cas CO_IMAGE), on privilégie l'URL.
+  const preferUrl = media.type === "IMAGE" && !!media.url;
   return (
     <div className="mediaview">
-      {media.inlineSvg ? (
+      {media.inlineSvg && !preferUrl ? (
         <div
           className="mediaview-svg"
           dangerouslySetInnerHTML={{ __html: media.inlineSvg }}
           role="img"
           aria-label="Document"
         />
-      ) : media.type === "IMAGE" ? (
+      ) : media.type === "IMAGE" && media.url ? (
         <img src={media.url} alt="Document" className="mediaview-img" />
       ) : media.type === "AUDIO" ? (
         <audio src={media.url} controls className="mediaview-audio">

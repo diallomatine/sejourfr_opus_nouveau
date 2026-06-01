@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { audioDraftsApi } from "../../api/audioDraftsApi";
 import { Button } from "../../components/ui/Button";
@@ -230,49 +230,130 @@ interface DraftCardProps {
   validating: boolean;
 }
 
+const ACCEPTED_IMAGE_TYPES = "image/jpeg,image/png,image/webp";
+
 function DraftCard({ draft, onValidate, onReject, validating }: DraftCardProps) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [current, setCurrent] = useState<AudioDraftDto>(draft);
+  const [imageReplaced, setImageReplaced] = useState(false);
+
+  const imageMutation = useMutation({
+    mutationFn: (file: File) => audioDraftsApi.replaceImage(current.id, file),
+    onSuccess: (updated: AudioDraftDto) => {
+      setCurrent(updated);
+      setImageReplaced(true);
+      queryClient.invalidateQueries({ queryKey: ["audioDrafts"] });
+      toast.show("Image remplacee.", "success");
+    },
+    onError: (err: unknown) =>
+      toast.show(err instanceof Error ? err.message : "Erreur upload image", "error"),
+  });
+
+  const hasImage = current.imageUrl !== null || current.inlineSvg !== null;
+
+  function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) {
+      setImageReplaced(false);
+      imageMutation.mutate(file);
+    }
+  }
+
   return (
     <article className={styles.card}>
       <header className={styles.cardHeader}>
         <div className={styles.cardMeta}>
-          {draft.difficulty && (
-            <Tag tone={draft.difficulty.toLowerCase() as "a2" | "b1" | "b2"}>
-              {draft.difficulty}
+          {current.difficulty && (
+            <Tag tone={current.difficulty.toLowerCase() as "a2" | "b1" | "b2"}>
+              {current.difficulty}
             </Tag>
           )}
-          {draft.competenceCode && <Tag tone="co">{draft.competenceCode}</Tag>}
-          {draft.themeName && <Tag tone="muted">{draft.themeName}</Tag>}
-          {draft.audioVoiceUsed && (
-            <span className={styles.voiceTech}>{draft.audioVoiceUsed}</span>
+          {current.competenceCode && <Tag tone="co">{current.competenceCode}</Tag>}
+          {current.themeName && <Tag tone="muted">{current.themeName}</Tag>}
+          {current.audioVoiceUsed && (
+            <span className={styles.voiceTech}>{current.audioVoiceUsed}</span>
           )}
-          {draft.audioDurationSec !== null && (
+          {current.audioDurationSec !== null && (
             <span className={styles.voiceTech}>
-              ~{draft.audioDurationSec}s
+              ~{current.audioDurationSec}s
             </span>
           )}
         </div>
       </header>
 
-      {draft.audioUrl && (
+      {current.audioUrl && (
         <audio
           controls
-          src={draft.audioUrl}
+          src={current.audioUrl}
           className={styles.audio}
           preload="none"
         />
       )}
 
+      {hasImage && (
+        <section className={styles.imageBlock}>
+          <div className={styles.imageHeader}>
+            <span className={styles.smallLabel}>Image support</span>
+            <span className={styles.imageSource}>
+              {current.imageUrl
+                ? "Image personnalisee (R2)"
+                : "SVG genere"}
+            </span>
+          </div>
+
+          <div className={styles.imagePreview}>
+            {current.imageUrl ? (
+              <img
+                src={current.imageUrl}
+                alt={current.imageAltText ?? ""}
+                className={styles.image}
+              />
+            ) : (
+              <div
+                className={styles.image}
+                role="img"
+                aria-label={current.imageAltText ?? "Image support"}
+                dangerouslySetInnerHTML={{ __html: current.inlineSvg ?? "" }}
+              />
+            )}
+          </div>
+
+          {imageReplaced && (
+            <p className={styles.imageSuccess}>Nouvelle image enregistree.</p>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPTED_IMAGE_TYPES}
+            className={styles.fileInput}
+            onChange={onPickFile}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={imageMutation.isPending}
+          >
+            {imageMutation.isPending ? "Upload..." : "Remplacer l'image"}
+          </Button>
+        </section>
+      )}
+
       <div className={styles.grid}>
         <section className={styles.transcript}>
           <div className={styles.smallLabel}>Transcript</div>
-          <p>{draft.transcriptText}</p>
+          <p>{current.transcriptText}</p>
         </section>
 
         <section className={styles.questionBlock}>
           <div className={styles.smallLabel}>Question</div>
-          <p className={styles.statement}>{draft.statement}</p>
+          <p className={styles.statement}>{current.statement}</p>
           <ol className={styles.choices}>
-            {draft.choices.map((c, idx) => (
+            {current.choices.map((c, idx) => (
               <li
                 key={idx}
                 className={`${styles.choice} ${c.isCorrect ? styles.choiceCorrect : ""}`}
@@ -286,10 +367,10 @@ function DraftCard({ draft, onValidate, onReject, validating }: DraftCardProps) 
             ))}
           </ol>
 
-          {draft.explanation && (
+          {current.explanation && (
             <>
               <div className={styles.smallLabel}>Explication</div>
-              <p className={styles.explanation}>{draft.explanation}</p>
+              <p className={styles.explanation}>{current.explanation}</p>
             </>
           )}
         </section>

@@ -15,6 +15,7 @@ CREATE TABLE questions (
     theme_id        uuid NOT NULL REFERENCES themes(id),
     passage_id      uuid REFERENCES passages(id),
     media_id        uuid REFERENCES medias(id),
+    audio_media_id  uuid REFERENCES medias(id),
     difficulty      varchar(8) NOT NULL,
     question_type   varchar(24) NOT NULL,
     statement       text NOT NULL,
@@ -40,6 +41,8 @@ CREATE INDEX idx_questions_competence_code ON questions (competence_code);
 COMMENT ON COLUMN questions.status IS 'Cycle de vie : DRAFT (brouillon admin, non utilisable), ACTIVE (utilisable), ARCHIVED (retiré).';
 COMMENT ON COLUMN questions.tcf_sub_theme IS 'Sous-thème TCF CO (santé, transports, ...), null pour les questions civique ou non audio.';
 COMMENT ON COLUMN questions.audio_mode IS 'Mode d''audio pour les questions de Compréhension Orale : WRITTEN_QUESTION (document seul) ou FULL_AUDIO (tout lu). NULL pour les questions non audio.';
+COMMENT ON COLUMN questions.media_id IS 'Média principal : image (CE, CO_IMAGE) ou audio (CO). Pour CO_IMAGE, porte l''image.';
+COMMENT ON COLUMN questions.audio_media_id IS 'Second média audio, utilisé uniquement par CO_IMAGE (image dans media_id + audio des 4 propositions ici). NULL sinon.';
 
 -- ---------------------------------------------------------------------------
 -- choices

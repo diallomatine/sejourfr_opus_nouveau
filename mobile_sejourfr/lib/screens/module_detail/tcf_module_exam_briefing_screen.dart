@@ -283,6 +283,7 @@ class _BriefingCopy {
         );
       case QuestionType.connaissance:
       case QuestionType.miseSituation:
+      case QuestionType.coImage:
         // Ces types ne sont pas exposés via le briefing module exam (cf.
         // validation backend `startModuleExam`). Garde un fallback pour
         // l'exhaustivité du switch.
