@@ -1,5 +1,5 @@
 -- ============================================================================
--- V470 — TCF Expression : exemples-modèles EO
+-- V720 — TCF Expression : exemples-modèles EO
 -- ----------------------------------------------------------------------------
 -- Table production_examples (FK -> production_tasks). Réponses modèles EO (dialogues + ssml).
 -- Données régénérées depuis l'état final (déterministe, rejouable dev+recette).
