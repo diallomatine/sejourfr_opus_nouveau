@@ -174,6 +174,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isOnOnboarding = loc == AppRoutes.onboarding;
       final isOnTargetPath = loc == AppRoutes.targetPath;
       final isOnSplash = loc == AppRoutes.splash;
+      // Page publique : la WebView légale (CGU / confidentialité) est ouverte
+      // depuis login & inscription, donc accessible sans être connecté.
+      final isOnPublicPage = loc == AppRoutes.helpWebview;
 
       // Si user connecté : pas d'auth flow, pas d'onboarding, pas de splash.
       if (isAuth) {
@@ -199,7 +202,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         return AppRoutes.onboarding;
       }
 
-      if (onboardingSeen && !isOnAuthFlow && !isOnOnboarding) {
+      if (onboardingSeen && !isOnAuthFlow && !isOnOnboarding && !isOnPublicPage) {
         return AppRoutes.login;
       }
 
