@@ -240,6 +240,11 @@ masque le bouton d'achat IAP. Pareil dans l'autre sens.
   Stripe `handleCheckoutCompleted` quand création neuve ; Apple/Google
   `activateFromReceipt` quand la ligne `user_subscriptions` n'existait pas
   encore (les restaurations sur un originalTransactionId connu n'envoient pas).
+- **Premier achat vs prolongation (achat unique)** : `OneTimeAccessService`
+  distingue les deux selon qu'un accès de module ≥ était déjà en cours
+  (`currentEndForAtLeast`). Premier achat → `sendSubscriptionActivatedEmail`
+  (bienvenue) ; prolongation → `sendAccessExtendedEmail` (template
+  `access-extended.html`, wording « durées cumulées, accès ouvert jusqu'au … »).
 - **Résiliation** envoyée sur transition `oldStatus ≠ CANCELED → newStatus = CANCELED`.
   Triggers : `SubscriptionCancellationService.cancelStripe` (cancel via notre
   endpoint, le webhook qui arrive après ne renvoie pas car oldStatus est déjà
@@ -247,9 +252,20 @@ masque le bouton d'achat IAP. Pareil dans l'autre sens.
   directement dans Stripe), Apple `DID_CHANGE_RENEWAL_STATUS`, Google
   `subscriptionsv2.get` → SUBSCRIPTION_STATE_CANCELED. Pas de mail sur
   expiration naturelle ni sur refund/revoke (sémantique différente).
-- Format : HTML inline CSS (compat Gmail/Outlook), logo en image inline CID
-  depuis `backend_sejourfr/src/main/resources/static/mail/logo.png`. Envoi
-  **asynchrone** (`@Async` sur `sendSubscriptionActivatedEmail` /
+- **Templates HTML externalisés** dans `backend_sejourfr/src/main/resources/mail/`
+  (`layout.html` + un fragment par email : `access-activated`, `access-expiring`,
+  `subscription-canceled`, `password-reset`, `email-change`), rendus par
+  `MailTemplateRenderer` (placeholders `{{escaped}}` / `{{{raw}}}`). Inline CSS
+  (compat Gmail/Outlook) + preheader, logo en image inline CID depuis
+  `resources/static/mail/logo.png`. **Tous** les emails clients (y compris reset
+  mot de passe + changement d'email) passent par ce layout brandé.
+- **Wording achat unique** : aucun « abonnement » / « renouvellement automatique »
+  côté client. `sendSubscriptionActivatedEmail(..., boolean autoRenew)` —
+  `autoRenew=false` (achat unique : « accès ouvert jusqu'au … ») posé par
+  `OneTimeAccessService` ; `autoRenew=true` (récurrent dormant : « prochain
+  renouvellement… ») posé par les flux Stripe/Apple/Google abonnement.
+  `sendSubscriptionCanceledEmail` n'est déclenché que par ces flux dormants.
+- Envoi **asynchrone** (`@Async` sur `sendSubscriptionActivatedEmail` /
   `sendSubscriptionCanceledEmail`, `@EnableAsync` global) : le SMTP est hors du
   chemin critique, donc `verify-receipt`/`cancel` répondent sans attendre l'envoi
   (sinon un SMTP lent/injoignable bloquait la requête ~15-20 s). Un mail raté log
