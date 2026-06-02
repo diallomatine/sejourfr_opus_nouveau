@@ -1,13 +1,17 @@
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/api/api_config.dart';
 import '../../../core/auth/auth_controller.dart';
 import '../../../core/auth/social_auth_config.dart';
 import '../../../core/auth/social_sign_in_service.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/app_theme.dart';
 
 /// Boutons "Continuer avec Google" (toutes plateformes) et "Continuer avec
@@ -21,6 +25,7 @@ class SocialAuthButtons extends ConsumerStatefulWidget {
     super.key,
     required this.onError,
     this.onSuccess,
+    this.canProceed,
   });
 
   /// Affichage de l'erreur dans le formulaire parent (sauf annulation user).
@@ -28,6 +33,11 @@ class SocialAuthButtons extends ConsumerStatefulWidget {
 
   /// Callback optionnel apres login reussi (avant que le router redirige).
   final VoidCallback? onSuccess;
+
+  /// Garde-fou optionnel evalue avant de lancer un sign-in. Renvoyer `false`
+  /// annule l'action — utilise sur l'inscription pour exiger l'acceptation des
+  /// CGU avant de creer un compte via un provider social. `null` => pas de garde.
+  final bool Function()? canProceed;
 
   @override
   ConsumerState<SocialAuthButtons> createState() => _SocialAuthButtonsState();
@@ -38,12 +48,39 @@ enum _LoadingProvider { google, apple }
 class _SocialAuthButtonsState extends ConsumerState<SocialAuthButtons> {
   _LoadingProvider? _loading;
 
+  late final TapGestureRecognizer _cguTap;
+  late final TapGestureRecognizer _privacyTap;
+
   bool get _busy => _loading != null;
   bool get _showGoogle => SocialAuthConfig.isGoogleConfigured;
   bool get _showApple =>
       Platform.isIOS && SocialAuthConfig.isAppleConfigured;
 
+  @override
+  void initState() {
+    super.initState();
+    _cguTap = TapGestureRecognizer()
+      ..onTap = () => _openLegal('cgu', 'Conditions d\'utilisation');
+    _privacyTap = TapGestureRecognizer()
+      ..onTap = () => _openLegal('confidentialite', 'Confidentialité');
+  }
+
+  @override
+  void dispose() {
+    _cguTap.dispose();
+    _privacyTap.dispose();
+    super.dispose();
+  }
+
+  void _openLegal(String path, String title) {
+    final url = '${ApiConfig.webBaseUrl}/$path';
+    context.push(
+      '${AppRoutes.helpWebview}?url=$url&title=${Uri.encodeComponent(title)}',
+    );
+  }
+
   Future<void> _runGoogle() async {
+    if (!(widget.canProceed?.call() ?? true)) return;
     setState(() => _loading = _LoadingProvider.google);
     try {
       await ref.read(authControllerProvider.notifier).loginWithGoogle();
@@ -59,6 +96,7 @@ class _SocialAuthButtonsState extends ConsumerState<SocialAuthButtons> {
   }
 
   Future<void> _runApple() async {
+    if (!(widget.canProceed?.call() ?? true)) return;
     setState(() => _loading = _LoadingProvider.apple);
     try {
       await ref.read(authControllerProvider.notifier).loginWithApple();
@@ -119,7 +157,44 @@ class _SocialAuthButtonsState extends ConsumerState<SocialAuthButtons> {
             loading: _loading == _LoadingProvider.apple,
             onPressed: _busy ? null : _runApple,
           ),
+        const SizedBox(height: 14),
+        _legalNotice(),
       ],
+    );
+  }
+
+  /// Mention passive : le sign-in social peut créer un compte → on rappelle
+  /// l'acceptation des CGU + confidentialité (avec liens), valable connexion
+  /// comme inscription. Ne liste que les providers réellement affichés.
+  Widget _legalNotice() {
+    final providers =
+        [if (_showGoogle) 'Google', if (_showApple) 'Apple'].join(' ou ');
+    final linkStyle = AppFonts.jakarta(
+      size: 11.5,
+      color: AppColors.blue,
+      weight: FontWeight.w700,
+      height: 1.5,
+    );
+    return Text.rich(
+      TextSpan(
+        style: AppFonts.jakarta(size: 11.5, color: AppColors.muted2, height: 1.5),
+        children: [
+          TextSpan(text: 'En continuant avec $providers, vous acceptez les '),
+          TextSpan(
+            text: 'Conditions d\'utilisation',
+            style: linkStyle,
+            recognizer: _cguTap,
+          ),
+          const TextSpan(text: ' et la '),
+          TextSpan(
+            text: 'Politique de confidentialité',
+            style: linkStyle,
+            recognizer: _privacyTap,
+          ),
+          const TextSpan(text: '.'),
+        ],
+      ),
+      textAlign: TextAlign.center,
     );
   }
 }

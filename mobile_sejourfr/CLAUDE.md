@@ -337,6 +337,26 @@ sur iOS) dans `mobile_sejourfr/.env` (cf. § Démarrage local). Sans valeurs, le
 Google ne sont pas affichés. Apple s'affiche toujours sur iOS dès que l'entitlement est
 activé (pas de clé à fournir).
 
+## Connexion & inscription — « Se souvenir » + consentement CGU
+
+- **« Enregistrer mes identifiants »** (`login_screen.dart`) : `AppCheckbox`
+  (`core/widgets/app_checkbox.dart`). Cochée + login OK → email/mot de passe
+  chiffrés dans le Keychain/EncryptedSharedPreferences via
+  `TokenStorage.saveCredentials` ; au boot du login on prefill + on coche.
+  Décochée → `clearCredentials`. Stockés **à part de la session** : un `logout`
+  vide les tokens mais conserve les identifiants enregistrés.
+- **Acceptation CGU + confidentialité à l'inscription** (`register_screen.dart`) :
+  `AppCheckbox` (`labelTappable: false`) avec liens `Text.rich`
+  (`TapGestureRecognizer`) ouvrant `${webBaseUrl}/{cgu,confidentialite}` dans la
+  WebView (`AppRoutes.helpWebview`, mêmes URLs que le Centre d'aide). Case
+  **obligatoire** : `_ensureAccepted()` garde le bouton « Créer mon compte » ET
+  le social sign-in (`SocialAuthButtons.canProceed`).
+- **Mention passive sous les boutons sociaux** (`social_auth_buttons.dart`,
+  visible login + inscription) : « En continuant avec Google ou Apple, vous
+  acceptez les CGU et la Politique de confidentialité » (liens WebView). Couvre
+  la création de compte via social depuis l'écran de connexion (non gardée par
+  la case d'inscription). Ne liste que les providers réellement affichés.
+
 ## Bottom nav et hubs Civique / TCF
 
 La bottom nav a 5 onglets : **Accueil · Civique · TCF · Progression · Profil**. Les onglets Civique et
