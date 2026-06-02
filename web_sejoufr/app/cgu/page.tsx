@@ -10,12 +10,12 @@ import { SITE } from "@/lib/site";
 export const metadata: Metadata = {
   title: "Conditions générales d'utilisation | SejourFR",
   description:
-    "CGU de SejourFR : modalités d'inscription, abonnement, droit de rétractation, médiation et engagements des utilisateurs.",
+    "CGU de SejourFR : modalités d'inscription, passes d'accès, droit de rétractation, médiation et engagements des utilisateurs.",
   alternates: { canonical: "/cgu" },
   openGraph: {
     title: "Conditions générales d'utilisation — SejourFR",
     description:
-      "Inscription, abonnement, paiement, droit de rétractation 14 jours et règles d'utilisation de la plateforme.",
+      "Inscription, passes d'accès, paiement, droit de rétractation 14 jours et règles d'utilisation de la plateforme.",
     type: "website",
     url: `${SITE.url}/cgu`,
   },
@@ -47,7 +47,7 @@ export default function CguPage() {
   return (
     <LegalPageLayout
       title="Conditions générales d'utilisation"
-      description="Les CGU encadrent la relation entre SejourFR et ses utilisateurs et incluent les conditions de vente des abonnements payants."
+      description="Les CGU encadrent la relation entre SejourFR et ses utilisateurs et incluent les conditions de vente des passes d'accès payants."
       sections={SECTIONS}
       currentPath="/cgu"
     >
@@ -69,7 +69,7 @@ export default function CguPage() {
         </p>
         <p>
           L'utilisation de la Plateforme implique l'acceptation pleine et entière
-          des présentes CGU. En créant un compte ou en souscrivant un abonnement,
+          des présentes CGU. En créant un compte ou en achetant un pass d'accès,
           vous reconnaissez avoir lu, compris et accepté l'intégralité des
           présentes CGU.
         </p>
@@ -108,7 +108,7 @@ export default function CguPage() {
           </li>
           <li>
             <strong>Contenu Premium</strong> : ensemble des contenus accessibles
-            uniquement aux Utilisateurs ayant souscrit un abonnement payant.
+            uniquement aux Utilisateurs ayant acheté un pass d'accès payant.
           </li>
           <li>
             <strong>Examen civique</strong> : examen officiel exigé en France
@@ -152,12 +152,27 @@ export default function CguPage() {
 
         <LegalSubsection number="3.3" title="Suppression de compte">
           <p>
-            L'Utilisateur peut supprimer son compte à tout moment depuis son
-            espace personnel ou en envoyant une demande à{" "}
+            L'Utilisateur peut <strong>supprimer son compte à tout moment</strong>,
+            directement depuis l'application mobile (Profil &gt; Supprimer mon
+            compte) ou en envoyant une demande à{" "}
             <a href={`mailto:${editor.email}`}>{editor.email}</a>.
-            La suppression entraîne la perte définitive des données associées au
-            compte (progression, historique, favoris, etc.), sous réserve des
-            obligations légales de conservation.
+          </p>
+          <p>
+            La suppression entraîne l'<strong>effacement des données
+            personnelles</strong> et des données de progression de l'Utilisateur
+            (progression, historique, favoris, etc.). Certaines données peuvent
+            être conservées de manière anonymisée lorsque la loi l'impose
+            (notamment les données de facturation, conservées pour la durée
+            légale applicable). La suppression met fin à l'accès aux Contenus
+            Premium dans les conditions de l'article 7.4, sans remboursement de
+            la période restant à courir.
+          </p>
+          <p>
+            Un abonnement souscrit via l'App Store ou Google Play (le cas
+            échéant) doit, pour cesser tout renouvellement, être résilié
+            séparément par l'Utilisateur depuis les réglages de sa boutique
+            d'application — la suppression du compte SejourFR ne résilie pas à
+            elle seule un tel abonnement.
           </p>
         </LegalSubsection>
       </LegalSection>
@@ -199,8 +214,8 @@ export default function CguPage() {
           </ul>
         </LegalSubsection>
 
-        <LegalSubsection number="4.2" title="Abonnement Premium">
-          <p>L'abonnement Premium donne accès, pour le ou les modules souscrits, à :</p>
+        <LegalSubsection number="4.2" title="Accès Premium">
+          <p>Le pass Premium donne accès, pour le ou les modules concernés, à :</p>
           <ul>
             <li>
               L'intégralité du catalogue de questions, organisées par thématique ;
@@ -219,10 +234,10 @@ export default function CguPage() {
             </li>
           </ul>
           <p>
-            Les modalités précises de l'offre (plans disponibles, durée
-            d'engagement, contenu de chaque plan) sont présentées sur la page{" "}
-            <Link href="/tarifs">Tarifs</Link> et confirmées au moment de la
-            souscription.
+            Les modalités précises de l'offre (passes disponibles, durée
+            d'accès, contenu de chaque pass) sont présentées sur la page{" "}
+            <Link href="/tarifs">Tarifs</Link> et confirmées au moment de
+            l'achat.
           </p>
         </LegalSubsection>
 
@@ -279,8 +294,8 @@ export default function CguPage() {
         <LegalSubsection number="6.1" title="Prix">
           <p>
             Les tarifs en vigueur sont indiqués sur la page{" "}
-            <Link href="/tarifs">Tarifs</Link> et rappelés au moment de la
-            souscription. Les prix sont indiqués en euros, toutes taxes
+            <Link href="/tarifs">Tarifs</Link> et rappelés au moment de
+            l'achat. Les prix sont indiqués en euros, toutes taxes
             comprises, le cas échéant assorties de la TVA française au taux de{" "}
             {subscription.vatRate}.
           </p>
@@ -296,12 +311,27 @@ export default function CguPage() {
           </p>
         </LegalSubsection>
 
-        <LegalSubsection number="6.3" title="Reconduction">
+        <LegalSubsection number="6.3" title="Passes d'accès à durée déterminée">
           <p>
-            Les modalités de reconduction (renouvellement automatique ou non,
-            résiliation, préavis) propres à chaque plan sont précisées sur la
-            page <Link href="/tarifs">Tarifs</Link> et confirmées dans le récapitulatif
-            de commande avant validation du paiement.
+            Les offres payantes prennent la forme de <strong>passes d'accès à
+            durée déterminée</strong>, réglés en un <strong>paiement
+            unique</strong>. Chaque pass ouvre l'accès aux Contenus Premium pour
+            la durée indiquée sur la page <Link href="/tarifs">Tarifs</Link>{" "}
+            (par exemple 3 mois, 6 semaines ou 1 an), à compter de la validation
+            du paiement.
+          </p>
+          <p>
+            Les passes <strong>ne font l'objet d'aucune reconduction ni
+            renouvellement automatique</strong> : à l'expiration de la durée,
+            l'accès Premium prend fin et l'Utilisateur peut, s'il le souhaite,
+            acheter un nouveau pass. L'achat d'un nouveau pass avant l'expiration
+            du précédent proroge la durée d'accès, les durées se cumulant.
+          </p>
+          <p>
+            Lorsque l'achat est réalisé via une boutique d'application{" "}
+            (<strong>App Store d'Apple</strong> ou <strong>Google Play</strong>),
+            il est en outre soumis aux conditions de la boutique concernée, qui
+            agit comme intermédiaire de paiement.
           </p>
         </LegalSubsection>
 
@@ -317,8 +347,8 @@ export default function CguPage() {
       <LegalSection id="article-7" number={7} title="Droit de rétractation">
         <p>
           Conformément à l'article L221-18 du Code de la consommation, vous
-          disposez d'un délai de <strong>14 jours</strong> à compter de la
-          souscription pour exercer votre droit de rétractation, sans avoir à
+          disposez d'un délai de <strong>14 jours</strong> à compter de
+          l'achat pour exercer votre droit de rétractation, sans avoir à
           justifier de motifs ni à payer de pénalités.
         </p>
 
@@ -366,6 +396,45 @@ export default function CguPage() {
             vous accédez immédiatement aux Contenus Premium après votre
             paiement, vous reconnaissez expressément renoncer à votre droit de
             rétractation.
+          </p>
+        </LegalSubsection>
+
+        <LegalSubsection
+          number="7.4"
+          title="Absence de remboursement après exécution"
+        >
+          <p>
+            Sous réserve de l'exercice du droit de rétractation dans les
+            conditions de l'article 7.1 et hors renonciation prévue à l'article
+            7.3, le prix d'un pass d'accès est <strong>dû en totalité dès
+            l'achat</strong> et n'ouvre droit à <strong>aucun
+            remboursement</strong>, total ou partiel, une fois l'accès aux
+            Contenus Premium ouvert.
+          </p>
+          <p>
+            En particulier, <strong>aucune somme n'est remboursée</strong> au
+            prorata de la durée non utilisée si l'Utilisateur cesse d'utiliser le
+            service, demande la suppression de son compte (article 3) ou se voit
+            retirer l'accès pour un manquement à ses obligations (article 8),
+            avant le terme de son pass.
+          </p>
+          <LegalCallout
+            tone="warning"
+            title="Suppression de compte et accès payant"
+          >
+            <p>
+              La suppression du compte met fin <strong>immédiatement et
+              définitivement</strong> à l'accès aux Contenus Premium. La période
+              payée restant à courir est <strong>perdue et non
+              remboursable</strong>.
+            </p>
+          </LegalCallout>
+          <p>
+            Les achats effectués via l'App Store ou Google Play relèvent des
+            conditions de remboursement propres à ces boutiques : toute demande
+            de remboursement à ce titre doit être adressée{" "}
+            <strong>directement à Apple ou à Google</strong>, SejourFR n'ayant
+            pas la maîtrise de ces transactions.
           </p>
         </LegalSubsection>
       </LegalSection>
@@ -438,8 +507,8 @@ export default function CguPage() {
           </p>
           <p>
             Dans toute la mesure permise par la loi, la responsabilité de
-            SejourFR est par ailleurs limitée au montant de l'abonnement payé
-            par l'Utilisateur sur les 12 derniers mois.
+            SejourFR est par ailleurs limitée au montant des passes d'accès
+            payés par l'Utilisateur sur les 12 derniers mois.
           </p>
         </LegalSubsection>
       </LegalSection>

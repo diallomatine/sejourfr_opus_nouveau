@@ -122,7 +122,7 @@ lib/
     │                                    mots_card, writing_zone, criterion_row,
     │                                    feedback_block, transcription_section, etc.
     ├── review/                    Favoris + erreurs récentes (tabs)
-    └── profile/                   Compte + paramètres + logout
+    └── profile/                   Compte + paramètres + logout + suppression de compte
 ```
 
 **Règle simple** : si une feature a son domaine métier (login, training, exam, runner...), elle a son dossier
@@ -752,7 +752,11 @@ vend du contenu digital). L'ancien `openSubscriptionWeb()` est supprimé.
 - `screens/paywall/paywall_screen.dart` — UI plein écran avec toggle
   périodicité (mensuel/trimestriel/annuel) + 2 cards Civique/Intégral.
   Prix lus depuis le store en devise locale. Bouton « Restaurer mes achats »
-  obligatoire pour validation Apple.
+  obligatoire pour validation Apple. **Guideline 2.3.10** : tout texte de store
+  est conditionné par plateforme via le helper `_storeName` (`Platform.isIOS`) —
+  on n'affiche JAMAIS « Google Play » sur iOS ni « App Store » sur Android
+  (`_TrustRow`, `_LegalLinks`). Le reste du billing passe déjà par
+  `IapService.currentSource`.
 
 **Flow d'achat** :
 1. User tap CTA premium → `showPaywallSheet(context)` push l'écran.
@@ -833,6 +837,19 @@ gère la réponse :
   `https://apps.apple.com/account/subscriptions` ouvre directement les
   Settings → Subscriptions ; sur Android, redirige vers la fiche Play.
   Le statut local ne bascule QUE quand le webhook du store confirme.
+
+## Suppression de compte (App Store 5.1.1(v))
+
+Entrée « Supprimer mon compte » dans `profile_screen.dart` (section Compte, tile
+rouge `_confirmDeleteAccount`). Flow : dialog de confirmation → `AuthController.
+deleteAccount()` (`DELETE /api/account`, **n'altère PAS la session**) → si un
+abonnement Apple/Google reste à résilier, dialog « Compte supprimé » avec le
+`manualActionMessage` du backend (affiché tant que l'écran est monté) → puis
+`AuthController.logout()` vide la session et le router redirige vers `/login`.
+On sépare volontairement l'appel réseau de la déconnexion pour que le message
+d'action manuelle s'affiche avant la redirection. Modèle `core/models/
+account_models.dart` (`AccountDeletionResult`), miroir de `AccountDeletionResponse`.
+Backend : anonymisation (cf. CLAUDE.md racine + `docs/api-endpoints.md`).
 
 ## Roadmap (ce qui n'est pas encore fait)
 

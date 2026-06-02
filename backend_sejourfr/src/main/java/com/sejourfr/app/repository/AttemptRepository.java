@@ -8,6 +8,7 @@ import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -28,6 +29,16 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
     long countByExamTemplateId(UUID examTemplateId);
 
     List<Attempt> findByUserIdOrderByStartedAtDesc(UUID userId);
+
+    /**
+     * Purge de tous les attempts d'un user (suppression de compte). Le DELETE
+     * SQL déclenche les FK cascade base : {@code attempt_questions} → {@code
+     * answers}, {@code production_submissions} → {@code transcriptions} /
+     * {@code ai_evaluations}, et les sous-attempts ({@code parent_attempt_id}).
+     */
+    @Modifying
+    @Query("DELETE FROM Attempt a WHERE a.user.id = :userId")
+    int deleteByUserId(@Param("userId") UUID userId);
 
 
     @Query("""

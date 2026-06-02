@@ -43,6 +43,11 @@ public class AttemptManager {
         return repository.countByExamTemplateId(examTemplateId);
     }
 
+    /** Purge tous les attempts d'un user (suppression de compte). */
+    public int deleteByUserId(UUID userId) {
+        return repository.deleteByUserId(userId);
+    }
+
     /**
      * Lookup sécurisé d'un attempt guest : exige user IS NULL ET même IP.
      */

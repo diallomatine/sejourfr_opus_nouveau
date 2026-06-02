@@ -111,6 +111,14 @@ class ProfileScreen extends ConsumerWidget {
               accent: AppColors.blue,
               onTap: () => context.push(AppRoutes.personalInfo),
             ),
+            const SizedBox(height: 8),
+            _SettingTile(
+              icon: Icons.delete_outline_rounded,
+              title: 'Supprimer mon compte',
+              subtitle: 'Suppression définitive de vos données',
+              accent: AppColors.red,
+              onTap: () => _confirmDeleteAccount(context, ref),
+            ),
             // TODO à remettre en place après.
             /*const SizedBox(height: 8),
             _SettingTile(
@@ -183,6 +191,88 @@ class ProfileScreen extends ConsumerWidget {
     );
     if (result == true) {
       await ref.read(authControllerProvider.notifier).logout();
+    }
+  }
+
+  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+    final auth = ref.read(authControllerProvider);
+    final hasPaidAccess = auth is AuthAuthenticated && auth.user.isPremium;
+    final message = 'Cette action est irréversible. Vos progrès, examens, '
+        'favoris et informations personnelles seront définitivement supprimés.'
+        '${hasPaidAccess ? '\n\nVotre accès payant en cours sera perdu et ne '
+            'fait l\'objet d\'aucun remboursement.' : ''}';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Supprimer votre compte ?',
+          style: AppFonts.fraunces(size: 20, weight: FontWeight.w600),
+        ),
+        content: Text(
+          message,
+          style: AppFonts.jakarta(size: 13.5, color: AppColors.muted, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(
+              'Supprimer',
+              style: AppFonts.jakarta(
+                color: AppColors.red,
+                weight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final controller = ref.read(authControllerProvider.notifier);
+    try {
+      final result = await controller.deleteAccount();
+
+      // On affiche d'abord, tant que l'écran est monté, le message d'action
+      // manuelle si un abonnement Apple/Google reste à résilier côté store.
+      if (context.mounted &&
+          result.hasActiveSubscription &&
+          result.manualActionMessage != null) {
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(
+              'Compte supprimé',
+              style: AppFonts.fraunces(size: 20, weight: FontWeight.w600),
+            ),
+            content: Text(
+              result.manualActionMessage!,
+              style:
+                  AppFonts.jakarta(size: 13.5, color: AppColors.muted, height: 1.5),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Compris'),
+              ),
+            ],
+          ),
+        );
+      }
+      // Vide la session locale → le router redirige vers /login.
+      await controller.logout();
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Échec de la suppression. Réessayez.'),
+          ),
+        );
+      }
     }
   }
 }

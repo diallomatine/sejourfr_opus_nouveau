@@ -35,4 +35,9 @@ public class UserQuestionStatusManager {
     public UserQuestionStatus save(UserQuestionStatus status) {
         return repository.save(status);
     }
+
+    /** Purge les favoris / statuts par-question d'un user (suppression de compte). */
+    public int deleteByUserId(UUID userId) {
+        return repository.deleteByUserId(userId);
+    }
 }

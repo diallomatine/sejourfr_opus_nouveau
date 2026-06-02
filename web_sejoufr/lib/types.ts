@@ -789,3 +789,14 @@ export interface CancelSubscriptionResponse {
   message: string;
   redirectUrl: string | null;
 }
+
+/** Réponse de `DELETE /api/account` (suppression de compte).
+ * La suppression aboutit toujours (`deleted=true`, anonymisation côté serveur) ;
+ * `manualActionMessage` n'est rempli que si un abonnement Apple/Google reste à
+ * résilier manuellement dans le store. */
+export interface AccountDeletionResponse {
+  deleted: boolean;
+  hasActiveSubscription: boolean;
+  subscriptionProvider: string | null;
+  manualActionMessage: string | null;
+}

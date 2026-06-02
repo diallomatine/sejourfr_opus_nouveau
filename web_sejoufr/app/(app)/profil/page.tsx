@@ -4,6 +4,7 @@ import Link from "next/link";
 import {useRouter} from "next/navigation";
 import {useEffect, useState} from "react";
 import {useAuth} from "@/lib/auth-context";
+import {accountApi} from "@/lib/api";
 import type {TargetProcedure} from "@/lib/types";
 
 const EXAM_DATE_KEY = "sejourfr.examDate";
@@ -13,14 +14,20 @@ const EXAM_DATE_KEY = "sejourfr.examDate";
  * 2 colonnes (infos perso + abonnement), paramètres du compte (cartes), 2 colonnes
  * (activité + conseil). Branchée sur la vraie data, sans inventer d'activité chiffrée.
  *  - Parcours (CSP/CR/NAT) → /parcours · Mot de passe → /mot-de-passe-oublie
- *  - Édition nom/email + suppression compte = modales "bientôt" (endpoints à venir)
+ *  - Suppression compte = DELETE /api/account (anonymisation backend) + logout + redirect
+ *  - Édition nom/email = modale "bientôt" (endpoint à venir)
  *  - Date d'examen en localStorage (synchro dashboard)
  */
 export default function ProfilPage() {
     const router = useRouter();
     const {user, status, logout} = useAuth();
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-    const [showDeleteSoon, setShowDeleteSoon] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+    // Message d'action manuelle (résiliation Apple/Google) affiché après
+    // suppression, avant la redirection finale.
+    const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
     const [showEditNameSoon, setShowEditNameSoon] = useState(false);
     const [examDate, setExamDate] = useState<string | null>(null);
 
@@ -32,15 +39,40 @@ export default function ProfilPage() {
     }, []);
 
     useEffect(() => {
-        if (!showLogoutConfirm && !showDeleteSoon && !showEditNameSoon) return;
+        if (!showLogoutConfirm && !showDeleteConfirm && !deleteNotice && !showEditNameSoon) return;
         const prev = document.body.style.overflow;
         document.body.style.overflow = "hidden";
         return () => {
             document.body.style.overflow = prev;
         };
-    }, [showLogoutConfirm, showDeleteSoon, showEditNameSoon]);
+    }, [showLogoutConfirm, showDeleteConfirm, deleteNotice, showEditNameSoon]);
 
     function handleLogout() {
+        logout();
+        router.push("/");
+    }
+
+    async function handleDeleteAccount() {
+        setDeleting(true);
+        setDeleteError(null);
+        try {
+            const result = await accountApi.deleteAccount();
+            setShowDeleteConfirm(false);
+            // Abonnement Apple/Google à résilier à la main → on affiche le
+            // message avant de fermer la session. Sinon on sort directement.
+            if (result.hasActiveSubscription && result.manualActionMessage) {
+                setDeleteNotice(result.manualActionMessage);
+            } else {
+                finalizeDeletion();
+            }
+        } catch {
+            setDeleteError("Échec de la suppression. Réessayez ou contactez le support.");
+        } finally {
+            setDeleting(false);
+        }
+    }
+
+    function finalizeDeletion() {
         logout();
         router.push("/");
     }
@@ -211,13 +243,16 @@ export default function ProfilPage() {
                     <span className="pr-card-cta">Gérer</span>
                 </Link>
 
-                <button type="button" className="pr-card pr-card-danger" onClick={() => setShowDeleteSoon(true)}>
+                <button type="button" className="pr-card pr-card-danger" onClick={() => {
+                    setDeleteError(null);
+                    setShowDeleteConfirm(true);
+                }}>
                     <div className="pr-card-head">
                         <span className="pr-card-icon tone-red" aria-hidden>🗑️</span>
                         <span className="pr-card-badge">RGPD</span>
                     </div>
-                    <h3>Données personnelles</h3>
-                    <p>Supprimer mon historique et fermer mon compte, conformément au RGPD.</p>
+                    <h3>Supprimer mon compte</h3>
+                    <p>Effacer mes données et fermer définitivement mon compte, conformément au RGPD.</p>
                     <span className="pr-card-cta">Ouvrir</span>
                 </button>
             </section>
@@ -296,14 +331,34 @@ export default function ProfilPage() {
                     onCancel={() => setShowLogoutConfirm(false)}
                 />
             )}
-            {showDeleteSoon && (
+            {showDeleteConfirm && (
                 <ConfirmModal
-                    title="Suppression du compte"
-                    body="Cette fonctionnalité arrive bientôt. En attendant, envoyez-nous un email à support@sejourfr.fr depuis l'adresse de votre compte et nous procéderons à la suppression manuellement, conformément au RGPD."
-                    confirmLabel="J'ai compris"
+                    title="Supprimer votre compte ?"
+                    body={
+                        (deleteError ? `${deleteError}\n\n` : "") +
+                        "Cette action est irréversible. Vos progrès, examens, favoris et " +
+                        "informations personnelles seront définitivement supprimés." +
+                        (user.isPremium
+                            ? " Votre accès payant en cours sera perdu et ne fait l'objet d'aucun remboursement."
+                            : "")
+                    }
+                    confirmLabel={deleting ? "Suppression…" : "Supprimer mon compte"}
+                    confirmTone="danger"
+                    onConfirm={handleDeleteAccount}
+                    onCancel={() => {
+                        if (deleting) return;
+                        setShowDeleteConfirm(false);
+                    }}
+                />
+            )}
+            {deleteNotice && (
+                <ConfirmModal
+                    title="Compte supprimé"
+                    body={deleteNotice}
+                    confirmLabel="Compris"
                     confirmTone="neutral"
-                    onConfirm={() => setShowDeleteSoon(false)}
-                    onCancel={() => setShowDeleteSoon(false)}
+                    onConfirm={finalizeDeletion}
+                    onCancel={finalizeDeletion}
                     singleAction
                 />
             )}

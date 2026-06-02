@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import '../api/auth_repository.dart';
 import '../api/billing_repository.dart';
 import '../api/repositories.dart';
+import '../models/account_models.dart';
 import '../models/auth_models.dart';
 import '../models/billing_models.dart';
 import 'social_sign_in_service.dart';
@@ -205,6 +206,15 @@ class AuthController extends StateNotifier<AuthState> {
     await _socialService.signOutAll();
     await _storage.clear();
     state = const AuthUnauthenticated();
+  }
+
+  /// Supprime définitivement le compte côté backend (anonymisation). Ne touche
+  /// PAS la session : l'écran appelant peut ainsi afficher un éventuel message
+  /// d'action manuelle (résiliation Apple/Google) tant qu'il est encore monté,
+  /// puis appeler [logout] pour vider la session et déclencher la redirection.
+  /// Lève si l'appel réseau échoue — la session locale reste alors intacte.
+  Future<AccountDeletionResult> deleteAccount() async {
+    return _repo.deleteAccount();
   }
 
   /// Recharge les infos du user depuis le backend et met à jour le state.
