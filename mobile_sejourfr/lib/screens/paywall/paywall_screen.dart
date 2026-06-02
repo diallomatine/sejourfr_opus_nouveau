@@ -97,32 +97,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 ? null
                 : () => Navigator.of(context, rootNavigator: true).maybePop(),
           ),
-          actions: [
-            TextButton(
-              onPressed: state.purchaseInProgress
-                  ? null
-                  : () => ref
-                      .read(billingControllerProvider.notifier)
-                      .restorePurchases(),
-              child: (state.purchaseInProgress && state.purchasingSku == null)
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(AppColors.muted),
-                      ),
-                    )
-                  : Text(
-                      'Restaurer',
-                      style: AppFonts.jakarta(
-                        size: 13,
-                        weight: FontWeight.w600,
-                        color: AppColors.muted,
-                      ),
-                    ),
-            ),
-          ],
         ),
         body: SafeArea(
           top: false,
@@ -199,6 +173,24 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             const SizedBox(height: 16),
           ],
           ...(oneTime ? _buildOneTimeCards(state) : _buildPlanCards(state)),
+          const SizedBox(height: 20),
+          AppButton(
+            label: 'Restaurer mes achats',
+            variant: AppButtonVariant.secondary,
+            icon: Icons.restore_rounded,
+            isLoading: state.purchaseInProgress && state.purchasingSku == null,
+            onPressed: state.purchaseInProgress
+                ? null
+                : () => ref
+                    .read(billingControllerProvider.notifier)
+                    .restorePurchases(),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Déjà acheté sur un autre appareil ? Récupérez votre accès ici.',
+            textAlign: TextAlign.center,
+            style: AppFonts.jakarta(size: 12, color: AppColors.muted, height: 1.5),
+          ),
           const SizedBox(height: 24),
           _TrustRow(),
           const SizedBox(height: 14),

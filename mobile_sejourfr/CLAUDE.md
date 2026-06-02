@@ -801,10 +801,15 @@ vend du contenu digital). L'ancien `openSubscriptionWeb()` est supprimé.
   N'ACQUITTE PAS le store. Au prochain démarrage le `purchaseStream`
   re-livre l'achat → retry automatique. Le user n'a pas payé deux fois.
 
-**Restore purchases** : bouton « Restaurer » → `IapService.restorePurchases()`
-→ les achats existants reviennent via `purchaseStream` avec
-`PurchaseStatus.restored` → même flow que `purchased` (verify-receipt +
-refresh user).
+**Restore purchases** : bouton **« Restaurer mes achats »** (variante secondary,
+sous les cartes du paywall — plus visible que l'ancienne action discrète de
+l'AppBar, supprimée) → `IapService.restorePurchases()` → les achats existants
+reviennent via `purchaseStream` avec `PurchaseStatus.restored` → même flow que
+`purchased` (verify-receipt + refresh user). **Garde-fou anti-spinner-infini** :
+si le store n'a rien à restaurer, il n'émet aucun event → `BillingController`
+arme un `Timer` (`_restoreTimeout`, 8 s) qui débloque l'UI avec « Aucun achat à
+restaurer pour ce compte. ». Le timeout est désarmé (`_endRestore`) dès qu'un
+event arrive (restauration réelle).
 
 **SKUs** : le mobile lit les Product IDs store **directement depuis le backend**
 (`PlanPublicResponse.appleProductId` / `googleProductId`, exposés par
