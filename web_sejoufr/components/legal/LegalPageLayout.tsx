@@ -7,7 +7,7 @@ interface Props {
   title: string;
   description?: string;
   sections: SidebarSection[];
-  currentPath: "/mentions-legales" | "/cgu" | "/confidentialite";
+  currentPath: "/mentions-legales" | "/cgu" | "/confidentialite" | "/a-propos";
   children: React.ReactNode;
 }
 

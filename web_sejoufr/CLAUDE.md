@@ -105,6 +105,9 @@ app/
 │   ├── paiement/page.tsx, succes/page.tsx        # Stripe Payment Link
 │
 ├── inscription/, connexion/, mot-de-passe-oublie/, reinitialiser-mot-de-passe/
+├── a-propos/page.tsx             # disclaimer non-affiliation + sources officielles (conformité
+│                                 #   stores ; LegalPageLayout, miroir de l'écran /about mobile ;
+│                                 #   aussi lié depuis le footer : ligne disclaimer + colonne Légal)
 └── examen-blanc/page.tsx         # ancienne route publique (à dépublier en V2)
 
 lib/

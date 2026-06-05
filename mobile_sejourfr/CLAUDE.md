@@ -863,6 +863,20 @@ gère la réponse :
   Settings → Subscriptions ; sur Android, redirige vers la fiche Play.
   Le statut local ne bascule QUE quand le webhook du store confirme.
 
+## Page « À propos » (conformité stores — Misleading Claims)
+
+`screens/help/about_screen.dart`, route publique `AppRoutes.about = /about` (exemptée du
+redirect login comme la WebView légale). Écran **natif** (consultable offline) exigé par la
+Misleading Claims policy Google Play : encart disclaimer de non-affiliation (fond `blueLight`,
+texte `ink` — **jamais de rouge** dans cet encart) + 4 liens sources officielles
+(service-public.fr, immigration.interieur.gouv.fr, france-education-international.fr, ofii.fr)
+ouverts via `url_launcher` en `LaunchMode.externalApplication` (snackbar si échec hors ligne).
+Trois points d'entrée : tile « À propos de SejourFR » du profil (section Aide & informations
+légales), tile du Centre d'aide, et la note `_IndependenceNote` en bas du home (« Outil
+indépendant — non affilié à l'État français · En savoir plus »). **Ne pas reformuler le
+disclaimer d'une manière qui affaiblirait la non-affiliation.** Pas de référence cross-store
+dans cet écran. Équivalent web : `/a-propos`.
+
 ## Suppression de compte (App Store 5.1.1(v))
 
 Entrée « Supprimer mon compte » dans `profile_screen.dart` (section Compte, tile

@@ -5,10 +5,11 @@ const PAGES = [
   { href: "/mentions-legales", label: "Mentions légales" },
   { href: "/cgu", label: "Conditions d'utilisation" },
   { href: "/confidentialite", label: "Politique de confidentialité" },
+  { href: "/a-propos", label: "À propos & sources officielles" },
 ];
 
 interface Props {
-  currentPath: "/mentions-legales" | "/cgu" | "/confidentialite";
+  currentPath: "/mentions-legales" | "/cgu" | "/confidentialite" | "/a-propos";
 }
 
 export function LegalFooterNav({ currentPath }: Props) {

@@ -84,6 +84,15 @@ class HelpCenterScreen extends StatelessWidget {
                 '${AppRoutes.helpWebview}?url=$webBase/confidentialite&title=Confidentialit%C3%A9',
               ),
             ),
+            const SizedBox(height: 10),
+            _HelpTile(
+              icon: Icons.info_outline_rounded,
+              accent: AppColors.blue,
+              title: 'À propos de SejourFR',
+              subtitle:
+                  'Outil indépendant, non affilié à l\'État. Sources officielles.',
+              onTap: () => context.push(AppRoutes.about),
+            ),
           ],
         ),
       ),

@@ -61,6 +61,7 @@ const resourceLinks = [
 ];
 
 const legalLinks = [
+    {href: "/a-propos", label: "À propos"},
     {href: "/cgu", label: "CGU"},
     {href: "/mentions-legales", label: "Mentions légales"},
     {href: "/confidentialite", label: "Confidentialité"},
@@ -129,6 +130,16 @@ export function Footer() {
             </div>
 
             <div className="footer-bar">
+                <div className="container-x">
+                    <p className="footer-disclaimer">
+                        SejourFR est un outil d&apos;entraînement indépendant, non affilié au
+                        gouvernement français, à l&apos;OFII, au ministère de l&apos;Intérieur ni à
+                        France Éducation International.{" "}
+                        <Link href="/a-propos" className="footer-disclaimer-link">
+                            En savoir plus
+                        </Link>
+                    </p>
+                </div>
                 <div className="container-x footer-bar-inner">
           <span>
             © {new Date().getFullYear()} SejourFR. Tous droits réservés.
@@ -284,6 +295,22 @@ export function Footer() {
           position: relative;
           border-top: 1px solid rgba(255, 255, 255, 0.10);
         }
+        .footer-disclaimer {
+          margin: 0;
+          padding-top: 20px;
+          font-size: 12px;
+          line-height: 1.6;
+          color: rgba(255, 255, 255, 0.75);
+          font-weight: 500;
+        }
+        .footer-disclaimer-link {
+          color: #fff;
+          font-weight: 600;
+          text-decoration: underline;
+          text-underline-offset: 2px;
+          transition: opacity 0.2s ease;
+        }
+        .footer-disclaimer-link:hover { opacity: 0.8; }
         .footer-bar-inner {
           display: flex;
           flex-wrap: wrap;

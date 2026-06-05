@@ -198,6 +198,8 @@ class HomeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               const _DailyTip(),
+              const SizedBox(height: 16),
+              const _IndependenceNote(),
             ],
           ),
         ),
@@ -919,6 +921,55 @@ class _ShortcutTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// NOTE D'INDÉPENDANCE — disclaimer court de non-affiliation (conformité
+// stores). Le « En savoir plus » pousse la page À propos (disclaimer complet
+// + sources officielles).
+// ---------------------------------------------------------------------------
+
+class _IndependenceNote extends StatelessWidget {
+  const _IndependenceNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => context.push(AppRoutes.about),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Text.rich(
+              TextSpan(
+                style: AppFonts.jakarta(
+                  size: 11.5,
+                  color: AppColors.muted,
+                  height: 1.4,
+                ),
+                children: [
+                  const TextSpan(
+                    text: 'Outil indépendant — non affilié à l\'État français · ',
+                  ),
+                  TextSpan(
+                    text: 'En savoir plus',
+                    style: AppFonts.jakarta(
+                      size: 11.5,
+                      color: AppColors.blue,
+                      weight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
       ),
     );
   }

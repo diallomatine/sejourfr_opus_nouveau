@@ -22,6 +22,7 @@ import '../../screens/tcf_production/tcf_production_module.dart';
 import '../../screens/module_detail/tcf_qcm_detail_screen.dart';
 import '../../screens/module_detail/tcf_qcm_exams_screen.dart';
 import '../../screens/onboarding/onboarding_screen.dart';
+import '../../screens/help/about_screen.dart';
 import '../../screens/help/contact_screen.dart';
 import '../../screens/help/help_center_screen.dart';
 import '../../screens/help/in_app_webview_screen.dart';
@@ -127,6 +128,10 @@ class AppRoutes {
   static const contact = '/help/contact';
   static const helpWebview = '/help/page';
 
+  // Page « À propos » native (disclaimer de non-affiliation + sources
+  // officielles — conformité stores). Publique comme la WebView légale.
+  static const about = '/about';
+
   // Édition des informations personnelles (firstName/lastName/email/password).
   static const personalInfo = '/profile/personal-info';
 
@@ -174,9 +179,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isOnOnboarding = loc == AppRoutes.onboarding;
       final isOnTargetPath = loc == AppRoutes.targetPath;
       final isOnSplash = loc == AppRoutes.splash;
-      // Page publique : la WebView légale (CGU / confidentialité) est ouverte
-      // depuis login & inscription, donc accessible sans être connecté.
-      final isOnPublicPage = loc == AppRoutes.helpWebview;
+      // Pages publiques : la WebView légale (CGU / confidentialité) est
+      // ouverte depuis login & inscription, et la page « À propos »
+      // (disclaimer non-affiliation) doit rester consultable sans compte.
+      final isOnPublicPage =
+          loc == AppRoutes.helpWebview || loc == AppRoutes.about;
 
       // Si user connecté : pas d'auth flow, pas d'onboarding, pas de splash.
       if (isAuth) {
@@ -261,6 +268,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.contact,
         builder: (_, __) => const ContactScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.about,
+        builder: (_, __) => const AboutScreen(),
       ),
       GoRoute(
         path: AppRoutes.helpWebview,
