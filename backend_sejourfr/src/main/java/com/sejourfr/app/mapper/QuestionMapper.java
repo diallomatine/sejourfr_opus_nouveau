@@ -8,9 +8,11 @@ import com.sejourfr.app.dto.QuestionDto;
 import com.sejourfr.app.dto.QuestionPublicResponse;
 import com.sejourfr.app.dto.QuestionReviewResponse;
 import com.sejourfr.app.entity.Choice;
+import com.sejourfr.app.entity.Media;
 import com.sejourfr.app.entity.Passage;
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.enums.MediaType;
+import com.sejourfr.app.enums.QuestionType;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -53,6 +55,8 @@ public class QuestionMapper {
                 q.getMedia() != null ? q.getMedia().getUrl() : null,
                 q.getMedia() != null ? q.getMedia().getType() : null,
                 q.getMedia() != null ? q.getMedia().getInlineSvg() : null,
+                q.getAudioMedia() != null ? q.getAudioMedia().getId() : null,
+                q.getAudioMedia() != null ? q.getAudioMedia().getUrl() : null,
                 q.getDifficulty(),
                 q.getQuestionType(),
                 q.getStatement(),
@@ -120,6 +124,7 @@ public class QuestionMapper {
                 revealCorrect ? q.getExplanation() : null,
                 q.getPassage() != null ? q.getPassage().getContent() : null,
                 toMedia(q),
+                toAudioMedia(q),
                 choices
         );
     }
@@ -142,20 +147,30 @@ public class QuestionMapper {
                 q.getPassage() != null ? q.getPassage().getContent() : null,
                 q.getExplanation(),
                 toMedia(q),
+                toAudioMedia(q),
                 choices,
                 userSelectedChoiceIds != null ? userSelectedChoiceIds : List.of()
         );
     }
 
     private MediaResponse toMedia(Question q) {
-        if (q.getMedia() == null) return null;
+        return toMediaResponse(q.getMedia());
+    }
+
+    /** Second média audio des questions CO_IMAGE. NULL pour les autres types. */
+    private MediaResponse toAudioMedia(Question q) {
+        return toMediaResponse(q.getAudioMedia());
+    }
+
+    private MediaResponse toMediaResponse(Media media) {
+        if (media == null) return null;
         return new MediaResponse(
-                q.getMedia().getId(),
-                q.getMedia().getType(),
-                q.getMedia().getUrl(),
-                q.getMedia().getDurationSeconds(),
-                q.getMedia().getTranscript(),
-                q.getMedia().getInlineSvg()
+                media.getId(),
+                media.getType(),
+                media.getUrl(),
+                media.getDurationSeconds(),
+                media.getTranscript(),
+                media.getInlineSvg()
         );
     }
 
@@ -166,6 +181,8 @@ public class QuestionMapper {
      * choix — l'ordre affiché doit suivre l'audio.
      */
     private static boolean isAudioQuestion(Question q) {
+        if (q.getQuestionType() == QuestionType.CO_IMAGE) return true;
+        if (q.getAudioMedia() != null) return true;
         if (q.getAudioMode() != null) return true;
         return q.getMedia() != null && q.getMedia().getType() == MediaType.AUDIO;
     }

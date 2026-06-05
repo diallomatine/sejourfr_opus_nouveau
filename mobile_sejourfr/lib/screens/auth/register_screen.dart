@@ -1,11 +1,15 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/api/api_config.dart';
 import '../../core/auth/auth_controller.dart';
+import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
+import '../../core/widgets/app_checkbox.dart';
 import '../../core/widgets/eyebrow.dart';
 import 'login_screen.dart';
 import 'widgets/social_auth_buttons.dart';
@@ -27,17 +31,49 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   bool _obscure = true;
   bool _submitting = false;
+  bool _accepted = false;
   String? _error;
   Map<String, String>? _fieldErrors;
 
+  late final TapGestureRecognizer _cguTap;
+  late final TapGestureRecognizer _privacyTap;
+
+  static const _acceptError =
+      'Veuillez accepter les conditions d\'utilisation et la politique de confidentialité.';
+
+  @override
+  void initState() {
+    super.initState();
+    _cguTap = TapGestureRecognizer()
+      ..onTap = () => _openLegal('cgu', 'Conditions d\'utilisation');
+    _privacyTap = TapGestureRecognizer()
+      ..onTap = () => _openLegal('confidentialite', 'Confidentialité');
+  }
+
   @override
   void dispose() {
+    _cguTap.dispose();
+    _privacyTap.dispose();
     _firstName.dispose();
     _lastName.dispose();
     _email.dispose();
     _password.dispose();
     _passwordConfirm.dispose();
     super.dispose();
+  }
+
+  void _openLegal(String path, String title) {
+    final url = '${ApiConfig.webBaseUrl}/$path';
+    context.push(
+      '${AppRoutes.helpWebview}?url=$url&title=${Uri.encodeComponent(title)}',
+    );
+  }
+
+  /// Garde-fou commun (formulaire + social) : exige l'acceptation des CGU.
+  bool _ensureAccepted() {
+    if (_accepted) return true;
+    setState(() => _error = _acceptError);
+    return false;
   }
 
   Future<void> _submit() async {
@@ -50,6 +86,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       setState(() => _error = 'Les mots de passe ne correspondent pas.');
       return;
     }
+    if (!_ensureAccepted()) return;
     setState(() => _submitting = true);
     try {
       await ref.read(authControllerProvider.notifier).register(
@@ -165,6 +202,49 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     prefixIcon: Icons.lock_outline,
                     validator: (v) => (v?.isEmpty ?? true) ? 'Confirmation requise' : null,
                   ),
+                  const SizedBox(height: 18),
+                  AppCheckbox(
+                    value: _accepted,
+                    labelTappable: false,
+                    onChanged: (v) => setState(() {
+                      _accepted = v;
+                      if (v && _error == _acceptError) _error = null;
+                    }),
+                    label: Text.rich(
+                      TextSpan(
+                        style: AppFonts.jakarta(
+                          size: 12.5,
+                          color: AppColors.muted,
+                          height: 1.5,
+                        ),
+                        children: [
+                          const TextSpan(text: 'J\'ai lu et j\'accepte les '),
+                          TextSpan(
+                            text: 'Conditions d\'utilisation',
+                            style: AppFonts.jakarta(
+                              size: 12.5,
+                              color: AppColors.blue,
+                              weight: FontWeight.w700,
+                              height: 1.5,
+                            ),
+                            recognizer: _cguTap,
+                          ),
+                          const TextSpan(text: ' et la '),
+                          TextSpan(
+                            text: 'Politique de confidentialité',
+                            style: AppFonts.jakarta(
+                              size: 12.5,
+                              color: AppColors.blue,
+                              weight: FontWeight.w700,
+                              height: 1.5,
+                            ),
+                            recognizer: _privacyTap,
+                          ),
+                          const TextSpan(text: '.'),
+                        ],
+                      ),
+                    ),
+                  ),
                   if (_error != null) ...[
                     const SizedBox(height: 14),
                     AuthFormField.errorBox(_error!),
@@ -177,6 +257,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   SocialAuthButtons(
                     onError: (msg) => setState(() => _error = msg),
+                    canProceed: _ensureAccepted,
                   ),
                   const SizedBox(height: 16),
                   Row(

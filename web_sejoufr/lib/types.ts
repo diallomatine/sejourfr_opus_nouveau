@@ -13,6 +13,7 @@ export type QuestionType =
   | "CONNAISSANCE"
   | "MISE_SITUATION"
   | "CO"
+  | "CO_IMAGE"
   | "CE"
   | "STRUCTURE";
 export type AttemptType = "TRAINING" | "MOCK_EXAM" | "REVIEW";
@@ -44,6 +45,7 @@ export function questionTypeLabel(type: QuestionType): string {
     case "MISE_SITUATION":
       return "Mise en situation";
     case "CO":
+    case "CO_IMAGE":
       return "Compréhension orale";
     case "CE":
       return "Compréhension écrite";
@@ -118,7 +120,7 @@ export interface ThemeUserResponse {
 export interface MediaResponse {
   id: string;
   type: MediaType;
-  url: string;
+  url?: string;
   durationSeconds?: number;
   transcript?: string;
   /**
@@ -149,6 +151,12 @@ export interface QuestionPublicResponse {
   explanation?: string | null;
   passageText?: string;
   media?: MediaResponse;
+  /**
+   * Audio joué sous l'image pour les questions CO_IMAGE (intro + 4 propositions
+   * lues). Renseigné uniquement pour `questionType === "CO_IMAGE"` : `media`
+   * porte alors l'image, `audioMedia` l'audio.
+   */
+  audioMedia?: MediaResponse;
   audioMode?: AudioMode | null;
   choices: ChoicePublicResponse[];
 }
@@ -191,6 +199,7 @@ export interface QuestionReviewResponse {
   statement: string;
   passageText?: string;
   media?: MediaResponse;
+  audioMedia?: MediaResponse;
   audioMode?: AudioMode | null;
   explanation?: string | null;
   choices: ChoiceFullResponse[];
@@ -779,4 +788,15 @@ export interface CancelSubscriptionResponse {
   action: "DONE" | "REDIRECT";
   message: string;
   redirectUrl: string | null;
+}
+
+/** Réponse de `DELETE /api/account` (suppression de compte).
+ * La suppression aboutit toujours (`deleted=true`, anonymisation côté serveur) ;
+ * `manualActionMessage` n'est rempli que si un abonnement Apple/Google reste à
+ * résilier manuellement dans le store. */
+export interface AccountDeletionResponse {
+  deleted: boolean;
+  hasActiveSubscription: boolean;
+  subscriptionProvider: string | null;
+  manualActionMessage: string | null;
 }

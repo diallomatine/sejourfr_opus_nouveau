@@ -5,6 +5,7 @@ import 'package:sejourfr_mobile/core/router/app_router.dart';
 
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_models.dart';
+import '../../core/models/enums.dart';
 import '../../core/models/question_models.dart';
 import '../../core/providers/lots_provider.dart';
 import '../../core/theme/app_theme.dart';
@@ -166,14 +167,32 @@ class _RunnerView extends ConsumerWidget {
                         maxPlays: state.activeAttempt.isModuleExam ? 1 : null,
                       ),
                     ),
+                  // CO_IMAGE : l'image (media) est au-dessus, l'audio qui énonce
+                  // les propositions A/B/C/D vit dans audioMedia → second player
+                  // juste en dessous. Mêmes conditions examen que le média
+                  // principal (auto-play 2s, lecture unique en examen module).
+                  if (question.audioMedia != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: QuestionMediaView(
+                        media: question.audioMedia!,
+                        examMode: state.activeAttempt.isModuleExam,
+                        maxPlays: state.activeAttempt.isModuleExam ? 1 : null,
+                      ),
+                    ),
                   if (question.passageText != null) ...[
                     _PassageBlock(text: question.passageText!),
                     const SizedBox(height: 16),
                   ],
-                  _StatementBlock(text: question.statement),
+                  _StatementBlock(
+                    text: question.statement.trim().isEmpty &&
+                            question.questionType == QuestionType.coImage
+                        ? 'Écoutez les propositions et choisissez celle qui correspond à l\'image.'
+                        : question.statement,
+                  ),
                   const SizedBox(height: 20),
                   ...() {
-                    final choices = orderedDisplayChoices(question.choices);
+                    final choices = orderedDisplayChoices(question);
                     return List.generate(choices.length, (i) {
                       final c = choices[i];
                       final isSelected = selected.contains(c.id);
@@ -189,6 +208,7 @@ class _RunnerView extends ConsumerWidget {
                           selected: isSelected,
                           showCorrection: showCorr,
                           isCorrect: isCorrect,
+                          letterKeyMode: question.usesLetterKeyChoices,
                           onTap: () => ref
                               .read(
                                   runnerControllerProvider(attemptId).notifier)

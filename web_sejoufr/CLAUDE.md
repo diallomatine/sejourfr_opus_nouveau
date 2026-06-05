@@ -42,6 +42,7 @@ Backend Spring Boot Java 21 séparé, qui tourne sur `http://localhost:8080`.
 | GET     | `/api/billing/payment-link?planCode=…` | Checkout Session Stripe (mode subscription)     | oui  |
 | GET     | `/api/billing/subscription-status`     | statut Premium agrégé (Stripe + Apple + Google) | oui  |
 | POST    | `/api/billing/cancel`                  | résiliation de l'abonnement courant             | oui  |
+| DELETE  | `/api/account`                         | suppression de compte (anonymisation)           | oui  |
 
 ### Enums Spring miroirs côté TS (dans `lib/types.ts`)
 
@@ -414,10 +415,15 @@ des stubs/fallbacks côté web :
   les champs sont en lecture seule sur `/profil`.
 - `POST /api/me/change-password` — workaround actuel : la page profil envoie
   vers `/mot-de-passe-oublie` qui utilise le flow par email.
-- `DELETE /api/me/account` — la page profil affiche une modal "bientôt" qui
-  invite à écrire à support@sejourfr.fr.
 - `POST /api/auth/logout` (révocation serveur du refresh token) — actuellement
   on clear juste le storage côté client.
+
+**Suppression de compte (branchée)** : `DELETE /api/account` (anonymisation
+backend) est appelé depuis la carte « Supprimer mon compte » du `/profil` via
+`accountApi.deleteAccount()` (`lib/api.ts`) → modale de confirmation (avertit de
+la perte de l'accès payant non remboursable si `user.isPremium`) → si
+`manualActionMessage` (abonnement store à résilier), modale d'info → `logout()` +
+redirect `/`. Type miroir `AccountDeletionResponse` dans `lib/types.ts`.
 
 ## À faire ensuite (transverse, hors vagues)
 

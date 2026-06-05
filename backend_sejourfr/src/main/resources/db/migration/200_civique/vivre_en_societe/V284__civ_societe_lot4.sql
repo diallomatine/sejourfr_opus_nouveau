@@ -1,0 +1,1065 @@
+-- ============================================================================
+-- V284 — Civique : Vivre en société (lot 4)
+-- ----------------------------------------------------------------------------
+-- Questions + choix. Filtre: 11111111-0000-0000-0000-000000000005 .
+-- Données régénérées depuis l'état final (déterministe, rejouable dev+recette).
+-- ============================================================================
+
+-- questions
+INSERT INTO questions
+  (id, module, theme_id, passage_id, media_id, difficulty, question_type, statement, explanation,
+   is_active, created_at, updated_at, status, tcf_sub_theme, audio_mode, competence_code)
+VALUES
+  ('f5000002-0000-0000-0000-000000000059', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'CR', 'MISE_SITUATION',
+   'Mon employeur me doit du salaire en retard. Que faire ?',
+   'Réclamer par écrit (lettre recommandée). En cas de refus, saisir l''inspection du travail puis les prud''hommes. On peut aussi faire un signalement à l''URSSAF si la situation se prolonge.',
+   'true', '2026-05-27 17:40:30.108699+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000005a', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'CR', 'MISE_SITUATION',
+   'Je veux comprendre la mutuelle d''entreprise. Est-elle obligatoire ?',
+   'Depuis 2016, l''employeur du privé doit proposer une complémentaire santé (mutuelle) à tous ses salariés et prendre en charge au moins 50% de la cotisation. Le salarié peut parfois en être dispensé.',
+   'true', '2026-05-27 17:40:30.108699+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000005b', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'CR', 'MISE_SITUATION',
+   'Je veux scolariser mon enfant en milieu d''année. Est-ce possible ?',
+   'Oui. Une scolarisation en cours d''année est possible (déménagement, arrivée en France). Il faut s''adresser à la mairie. L''enfant est accueilli à l''école de secteur. Des dispositifs UPE2A existent pour les non francophones.',
+   'true', '2026-05-27 17:40:30.108699+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000005c', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'CR', 'MISE_SITUATION',
+   'Je veux savoir comment fonctionne le RSA. Qui peut en bénéficier ?',
+   'Le RSA est ouvert aux personnes de 25 ans et plus (ou 18-24 ans sous conditions) qui résident en France de manière stable, avec des revenus en dessous d''un certain plafond. La CAF l''examine.',
+   'true', '2026-05-27 17:40:30.108699+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000005d', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quels sont les critères pour obtenir la nationalité française par naturalisation ?',
+   'Pour la naturalisation : être majeur, justifier d''un séjour régulier en France (5 ans en général), maîtriser le français (niveau B2), connaître l''histoire/culture/société française, avoir des ressources, ne pas avoir de condamnation grave, adhérer aux valeurs républicaines.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000005e', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne le ''droit du sol'' en droit français ?',
+   'Le droit du sol attribue automatiquement la nationalité française à un enfant né en France de parents étrangers, sous certaines conditions de résidence en France à sa majorité.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000005f', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne le ''droit du sang'' en droit français ?',
+   'Le droit du sang attribue la nationalité française à un enfant si l''un de ses parents (au moins) est français, quel que soit le lieu de naissance.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000060', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quelle cérémonie marque l''obtention de la nationalité française par naturalisation ?',
+   'Une cérémonie d''accueil dans la citoyenneté française est organisée en préfecture. Les nouveaux Français y reçoivent leur décret de naturalisation et la Charte des droits et devoirs du citoyen français.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000061', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne la ''déclaration de nationalité française'' après un mariage ?',
+   'Un étranger marié à un Français peut acquérir la nationalité française par déclaration après 4 ans de mariage (5 si la communauté de vie n''a pas commencé en France ou si l''époux ne réside pas en France).',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000062', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne la ''double nationalité'' en droit français ?',
+   'La France autorise la double (ou multiple) nationalité : un Français peut conserver ou acquérir une autre nationalité. Tous les pays ne l''autorisent pas (certains exigent de renoncer à la nationalité d''origine).',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000063', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Comment un mineur étranger né en France acquiert-il la nationalité française ?',
+   'L''enfant né en France de parents étrangers acquiert automatiquement la nationalité française à sa majorité, s''il réside en France depuis l''âge de 11 ans (au moins 5 ans). Peut être anticipée dès 13 ans.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000064', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne l''OFPRA ?',
+   'L''Office français de protection des réfugiés et apatrides examine les demandes d''asile et accorde le statut de réfugié ou la protection subsidiaire en France.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000065', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quelle est la différence entre ''statut de réfugié'' et ''protection subsidiaire'' ?',
+   'Le statut de réfugié est accordé aux personnes persécutées pour leurs convictions (Convention de Genève, 1951). La protection subsidiaire concerne ceux exposés à un risque grave (peine de mort, torture, conflit armé) sans rentrer dans la Convention de Genève.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000066', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quelle institution européenne assure les politiques migratoires communes ?',
+   'L''agence européenne Frontex coordonne la gestion des frontières extérieures de l''UE. L''EASO (devenue EUAA) coordonne les politiques d''asile entre États membres.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000067', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que prévoit le règlement Dublin pour les demandeurs d''asile en Europe ?',
+   'Le règlement Dublin détermine quel État membre est responsable de l''examen d''une demande d''asile (généralement le premier pays d''entrée). Vise à éviter les demandes multiples et l''''asylum shopping''.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000068', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne la ''CMU-C'' devenue ''C2S'' ?',
+   'La Couverture maladie universelle complémentaire (CMU-C), devenue Complémentaire santé solidaire (C2S) en 2019, est une mutuelle gratuite ou peu chère pour les personnes à faibles revenus.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000069', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne l''AME (Aide médicale d''État) ?',
+   'L''AME permet aux étrangers en situation irrégulière résidant en France depuis 3 mois et à faibles revenus de bénéficier d''une prise en charge des frais de santé.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000006a', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne le RSA-Jeunes en France ?',
+   'Le RSA-Jeunes est une variante du RSA pour les 18-24 ans, accessible sous des conditions strictes (avoir travaillé 2 ans sur les 3 dernières années). Le contrat d''engagement jeune (CEJ) le complète.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000006b', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne l''allocation aux adultes handicapés (AAH) ?',
+   'L''AAH est versée aux personnes handicapées (taux >= 80% ou 50-79% avec restriction d''emploi) dont les revenus sont en dessous d''un plafond. Elle compense les difficultés liées au handicap.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000006c', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne la MDPH ?',
+   'La Maison départementale des personnes handicapées (MDPH) est le guichet unique départemental pour toutes les demandes des personnes handicapées : allocations, cartes, orientation, scolarisation.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000006d', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quel sigle désigne l''organisme qui certifie le niveau de français des candidats à la nationalité ?',
+   'Le TCF (Test de connaissance du français) et le DELF/DALF sont des tests reconnus pour évaluer le niveau de français. Le TCF Intégration, Résident, Naturalité (IRN) est spécifiquement adapté.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000006e', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne l''examen civique obligatoire pour la naturalisation depuis 2026 ?',
+   'Depuis le 1er janvier 2026, les candidats au CSP, CR ou à la naturalisation doivent réussir un examen civique (QCM de 40 questions, 32 bonnes réponses minimum) sur la France et ses valeurs.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000006f', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quelles sont les valeurs républicaines auxquelles le nouveau Français doit adhérer ?',
+   'Les valeurs républicaines : Liberté, Égalité, Fraternité, Laïcité, Démocratie, État de droit, respect des autres, séparation des pouvoirs, égalité femmes-hommes, refus des violences et discriminations.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000070', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne la ''Charte des droits et devoirs du citoyen français'' ?',
+   'Document remis aux nouveaux Français lors de la cérémonie de naturalisation, il rappelle les valeurs, droits et devoirs essentiels du citoyen français. Signé par le candidat.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000071', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Le mariage en France implique-t-il les mêmes droits pour les deux conjoints ?',
+   'Oui. Depuis 1970 (puis renforcements ultérieurs), les conjoints sont égaux en droits et devoirs. Plus aucune notion de ''chef de famille''.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000072', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quel événement marque l''inscription de l''IVG dans la Constitution ?',
+   'Le 8 mars 2024 (Journée internationale des droits des femmes), la France est devenue le premier pays au monde à inscrire la liberté de recourir à l''IVG dans sa Constitution.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000073', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quel est le délai légal pour l''IVG en France ?',
+   'L''IVG est légale jusqu''à 14 semaines de grossesse (16 semaines d''aménorrhée), suite à la loi du 2 mars 2022 qui a allongé le délai de 12 à 14 semaines.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000074', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quel principe encadre la gestation pour autrui (GPA) en France ?',
+   'La GPA (gestation pour autrui, c''est-à-dire les mères porteuses) est interdite en France au nom du principe d''indisponibilité du corps humain. Une convention GPA est nulle.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000075', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'La PMA (procréation médicalement assistée) est-elle ouverte à toutes les femmes en France ?',
+   'Depuis la loi de bioéthique du 2 août 2021, la PMA est ouverte aux couples de femmes et aux femmes seules, en plus des couples hétérosexuels. Elle est prise en charge par la Sécurité sociale.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000076', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quel âge impose le mariage civil en France ?',
+   'L''âge minimum pour se marier est de 18 ans. Une dispense exceptionnelle peut être accordée par le procureur pour motifs graves (rare en pratique). Le mariage de mineur est très encadré.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000077', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quel principe régit le partage des biens dans le mariage par défaut en France ?',
+   'Par défaut, les époux sont sous le régime de la communauté réduite aux acquêts : les biens acquis pendant le mariage sont communs, les biens d''avant et les héritages sont propres. D''autres régimes existent (séparation, communauté universelle).',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000078', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne la ''réserve héréditaire'' en droit français ?',
+   'La réserve héréditaire est la part du patrimoine réservée aux héritiers réservataires (enfants principalement). On ne peut pas les déshériter complètement par testament.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000079', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Quel âge permet d''être électeur en France ?',
+   'Il faut avoir 18 ans (majorité civique) pour pouvoir voter en France, sous condition d''être français (sauf élections européennes/municipales pour les ressortissants UE) et inscrit sur les listes électorales.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000007a', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne le ''permis de conduire à points'' français ?',
+   'Le permis de conduire français est doté de 12 points (6 pour les nouveaux conducteurs pendant 3 ans). Les infractions retirent des points. La perte totale entraîne l''invalidation.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000007b', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne l''AGS (Association pour la gestion du régime de garantie des salaires) ?',
+   'L''AGS garantit le paiement des salaires des employés en cas de faillite de leur employeur. Elle est financée par une cotisation patronale obligatoire.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000007c', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'CONNAISSANCE',
+   'Que désigne le ''CSE'' depuis 2017 ?',
+   'Le Comité social et économique (CSE) a remplacé les anciennes instances représentatives du personnel (DP, CE, CHSCT) depuis 2017 (entrée en vigueur progressive jusqu''en 2020). Une seule instance unique.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000007d', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'MISE_SITUATION',
+   'Je veux déposer une demande de naturalisation française. Quelles sont les principales étapes ?',
+   '1. Vérifier l''éligibilité (5 ans de résidence régulière, niveau B2, intégration). 2. Réunir le dossier (état civil, fiches d''imposition, justificatifs). 3. Déposer en ligne. 4. Examen civique. 5. Entretien d''assimilation. 6. Décret de naturalisation et cérémonie.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000007e', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'MISE_SITUATION',
+   'Je passe l''examen civique pour ma naturalisation. Quel score minimum ?',
+   'Il faut obtenir au moins 32 réponses correctes sur 40 (80%) pour réussir l''examen civique introduit par le décret du 1er janvier 2026.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-00000000007f', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'MISE_SITUATION',
+   'Je veux préparer la cérémonie d''accueil dans la citoyenneté française. À quoi m''attendre ?',
+   'Réception officielle en préfecture en présence du préfet ou du maire. Remise du décret de naturalisation et de la Charte des droits et devoirs. Souvent moment d''émotion et de solennité, avec Marseillaise et symboles républicains.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000080', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'MISE_SITUATION',
+   'Je découvre que je peux perdre la nationalité française. Dans quels cas ?',
+   'La nationalité française peut être retirée en cas de fraude lors de l''acquisition (dans les 2 ans). La déchéance (rare) frappe ceux condamnés pour terrorisme/crimes graves contre la nation, et binationaux ayant acquis la nationalité française.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000081', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'MISE_SITUATION',
+   'Je veux comprendre l''impact d''un casier judiciaire sur ma demande de nationalité. Quels repères ?',
+   'Toute condamnation à au moins 6 mois de prison ferme rend en principe la naturalisation impossible (sauf réhabilitation). Une condamnation pour terrorisme ou crime contre les intérêts de la nation est un obstacle absolu.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000082', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'MISE_SITUATION',
+   'Je veux faire reconnaître mes diplômes étrangers en France. À qui m''adresser ?',
+   'Le Centre ENIC-NARIC (au sein de France Éducation international) délivre une attestation de comparabilité des diplômes étrangers. Cela facilite l''inscription à une formation ou un emploi.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000083', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'MISE_SITUATION',
+   'Je veux comprendre la différence entre nationalité et citoyenneté. Quelle distinction ?',
+   'La nationalité est le lien juridique d''une personne avec un État. La citoyenneté est le statut conférant des droits politiques (vote, éligibilité). En France, citoyenneté et nationalité sont généralement liées pour les Français.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000084', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'MISE_SITUATION',
+   'Je viens d''obtenir la nationalité française. Quels droits nouveaux ?',
+   'Le droit de vote à toutes les élections (présidentielle, législatives, etc.), l''éligibilité à tous les mandats électifs, l''accès aux emplois publics réservés aux Français, la protection consulaire française à l''étranger.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000085', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'MISE_SITUATION',
+   'Je veux comprendre ce qu''implique ''l''assimilation à la communauté française'' lors de l''examen pour la nationalité.',
+   'L''entretien d''assimilation évalue : connaissance de l''histoire/culture française, adhésion aux valeurs républicaines (laïcité, égalité F/H), maîtrise de la langue, intégration sociale et professionnelle, absence de polygamie.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-000000000086', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'NAT', 'MISE_SITUATION',
+   'Je veux comprendre pourquoi la laïcité est si centrale en France. Quels repères ?',
+   'La laïcité est issue de la loi de 1905 (séparation des Églises et de l''État) et est inscrite dans la Constitution (article 1er). Elle garantit la liberté de conscience, la neutralité religieuse de l''État, et l''égalité des citoyens.',
+   'true', '2026-05-27 17:40:30.128245+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-0000000000e1', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Que désigne la ''prime d''activité'' ?',
+   'La prime d''activité est versée par la CAF aux travailleurs (salariés ou indépendants) aux faibles revenus, pour compléter leur rémunération et inciter au travail.',
+   'true', '2026-05-27 17:40:30.108699+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-0000000000e2', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Qu''est-ce qu''un dossier de surendettement ?',
+   'Le dossier de surendettement, déposé à la Banque de France, est ouvert aux particuliers qui ne peuvent plus rembourser leurs dettes. Une commission examine et peut proposer un plan d''apurement ou un effacement.',
+   'true', '2026-05-27 17:40:30.108699+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-0000000000e3', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'Qu''est-ce qu''une convention collective ?',
+   'Une convention collective est un accord conclu entre syndicats de salariés et organisations patronales d''un secteur. Elle complète le Code du travail (salaires minimaux, congés, primes...).',
+   'true', '2026-05-27 17:40:30.108699+02', NULL, 'ACTIVE', NULL, NULL, NULL),
+
+  ('f5000002-0000-0000-0000-0000000000e4', 'CIVIQUE', '11111111-0000-0000-0000-000000000005', NULL, NULL, 'CR', 'CONNAISSANCE',
+   'À qui s''adresse un demandeur d''asile en France ?',
+   'Le demandeur d''asile doit s''adresser à la GUDA (guichet unique demandeur d''asile) puis à l''OFPRA, qui examine la demande de protection internationale (statut de réfugié, protection subsidiaire).',
+   'true', '2026-05-27 17:40:30.108699+02', NULL, 'ACTIVE', NULL, NULL, NULL);
+
+-- choices
+INSERT INTO choices
+  (id, question_id, label, is_correct, display_order)
+VALUES
+  ('2468ede0-5731-462c-9659-22bd8a168d50', 'f5000002-0000-0000-0000-000000000059',
+   'Réclamer par écrit puis prud''hommes / inspection du travail',
+   'true', '0'),
+
+  ('bc35ac9f-043b-4dd7-99ea-d7f250ac1de3', 'f5000002-0000-0000-0000-000000000059',
+   'Ne rien faire',
+   'false', '1'),
+
+  ('17eda8f6-1660-4d19-8d38-454b32e9d83c', 'f5000002-0000-0000-0000-000000000059',
+   'Quitter sans rien dire',
+   'false', '2'),
+
+  ('c9023e97-fce2-40d7-9ad1-a4f94feb7c9e', 'f5000002-0000-0000-0000-000000000059',
+   'Voler la caisse',
+   'false', '3'),
+
+  ('8c913e89-82a6-46b4-a4cb-353a160f7b89', 'f5000002-0000-0000-0000-00000000005a',
+   'Obligatoire depuis 2016, 50% pris en charge par l''employeur',
+   'true', '0'),
+
+  ('1ee04d68-bb5e-44c8-a464-39d3694dc6e9', 'f5000002-0000-0000-0000-00000000005a',
+   'Strictement interdite',
+   'false', '1'),
+
+  ('f2c58be5-fb1a-4f67-bb8e-008d7a086317', 'f5000002-0000-0000-0000-00000000005a',
+   'Choisie librement par le salarié',
+   'false', '2'),
+
+  ('7660559d-1e23-4374-84c5-4dd9571895be', 'f5000002-0000-0000-0000-00000000005a',
+   'Toujours payée 100% par le salarié',
+   'false', '3'),
+
+  ('d5024cb0-f2bc-406a-b148-e5126c0fae6a', 'f5000002-0000-0000-0000-00000000005b',
+   'Oui, inscription en mairie à tout moment',
+   'true', '0'),
+
+  ('443033fe-be86-40ef-84bf-4287fa546a78', 'f5000002-0000-0000-0000-00000000005b',
+   'Non, impossible',
+   'false', '1'),
+
+  ('4f83f9a3-8aba-4e8a-9a0c-58f261108d5c', 'f5000002-0000-0000-0000-00000000005b',
+   'Uniquement en septembre',
+   'false', '2'),
+
+  ('24d2de59-5dc8-4d55-9c96-d8cb335c2249', 'f5000002-0000-0000-0000-00000000005b',
+   'Uniquement pour les Français',
+   'false', '3'),
+
+  ('7cdcf987-ab19-459c-9b9d-3dea0228459a', 'f5000002-0000-0000-0000-00000000005c',
+   'Personnes à faibles revenus, en général dès 25 ans',
+   'true', '0'),
+
+  ('e9c60582-7b85-43e1-b7c6-0cae1652a497', 'f5000002-0000-0000-0000-00000000005c',
+   'Uniquement les retraités',
+   'false', '1'),
+
+  ('9b4fd5df-fcbc-4801-bc1f-5482408226a7', 'f5000002-0000-0000-0000-00000000005c',
+   'Uniquement les Français',
+   'false', '2'),
+
+  ('4a797360-3ca1-46ad-bf67-dfa3da1b5cdb', 'f5000002-0000-0000-0000-00000000005c',
+   'Uniquement les enfants',
+   'false', '3'),
+
+  ('2ffbf5cd-21bf-4485-abf0-f307a4816eb6', 'f5000002-0000-0000-0000-00000000005d',
+   'Séjour, langue B2, connaissance société, ressources, intégrité',
+   'true', '0'),
+
+  ('56cda027-c16a-4b31-bbc6-675e89237b4b', 'f5000002-0000-0000-0000-00000000005d',
+   'Être né en France',
+   'false', '1'),
+
+  ('f6964d70-ef5f-4e5f-870d-61e9c60bf0a7', 'f5000002-0000-0000-0000-00000000005d',
+   'Avoir un parent français uniquement',
+   'false', '2'),
+
+  ('d1b8787e-8004-4db1-a57f-5d98f9d01397', 'f5000002-0000-0000-0000-00000000005d',
+   'Aucun critère requis',
+   'false', '3'),
+
+  ('370ff350-be82-49af-93ad-d75f4f9a5c2f', 'f5000002-0000-0000-0000-00000000005e',
+   'L''acquisition de la nationalité par naissance en France (sous conditions)',
+   'true', '0'),
+
+  ('f9201861-2463-4b1e-91d5-b464779c4436', 'f5000002-0000-0000-0000-00000000005e',
+   'Le droit de propriété immobilière',
+   'false', '1'),
+
+  ('d096c3be-18f4-4a20-ad82-ce6d9a34ce5a', 'f5000002-0000-0000-0000-00000000005e',
+   'Le droit à l''agriculture',
+   'false', '2'),
+
+  ('52d84063-e7ea-4ac8-b0a9-f20bca60a1ba', 'f5000002-0000-0000-0000-00000000005e',
+   'Le droit au logement',
+   'false', '3'),
+
+  ('4bec6023-282a-46fa-9081-4febeaa4ed5c', 'f5000002-0000-0000-0000-00000000005f',
+   'Acquisition par filiation (parent français)',
+   'true', '0'),
+
+  ('5c0165a1-bfa3-4273-9f67-091e0b3752a4', 'f5000002-0000-0000-0000-00000000005f',
+   'Une transfusion sanguine',
+   'false', '1'),
+
+  ('914a1516-ca04-477c-af7b-6747a3b7264a', 'f5000002-0000-0000-0000-00000000005f',
+   'Le droit à la chasse',
+   'false', '2'),
+
+  ('811942c0-a2ef-4f9f-8ab0-e547fe456651', 'f5000002-0000-0000-0000-00000000005f',
+   'Le droit du commerce',
+   'false', '3'),
+
+  ('8719bc78-0545-4da2-a5b6-5ee7298b02a7', 'f5000002-0000-0000-0000-000000000060',
+   'Une cérémonie d''accueil en préfecture',
+   'true', '0'),
+
+  ('8fbfe1bd-c987-4435-bd10-d7b58610706f', 'f5000002-0000-0000-0000-000000000060',
+   'Une visite à l''Élysée',
+   'false', '1'),
+
+  ('bffd99b6-1c2d-4043-95c6-e73640809b33', 'f5000002-0000-0000-0000-000000000060',
+   'Une fête au village d''origine',
+   'false', '2'),
+
+  ('2560ad0d-d170-4d95-8968-cf22fb2bfcae', 'f5000002-0000-0000-0000-000000000060',
+   'Aucune cérémonie',
+   'false', '3'),
+
+  ('24b39e8a-5f80-4499-8614-c0fe56dfe901', 'f5000002-0000-0000-0000-000000000061',
+   'Acquisition de la nationalité après mariage avec un Français (4 ans en général)',
+   'true', '0'),
+
+  ('b380c06e-8488-4967-a158-68c300d5b81b', 'f5000002-0000-0000-0000-000000000061',
+   'Une déclaration au consulat',
+   'false', '1'),
+
+  ('37b0a589-1916-4f97-953b-145c96b2dcae', 'f5000002-0000-0000-0000-000000000061',
+   'Un divorce',
+   'false', '2'),
+
+  ('1738f05a-6a84-44f5-a6b8-2a31a0a680b6', 'f5000002-0000-0000-0000-000000000061',
+   'Aucune procédure',
+   'false', '3'),
+
+  ('2f7c7450-f63b-4825-b8a2-e0cbf6e92a35', 'f5000002-0000-0000-0000-000000000062',
+   'Posséder la nationalité française et une autre nationalité',
+   'true', '0'),
+
+  ('fabd70e5-dbb3-4f63-9bb2-e2979ac229df', 'f5000002-0000-0000-0000-000000000062',
+   'Être marié deux fois',
+   'false', '1'),
+
+  ('c7bb86a5-6be0-4fa7-a63c-fbe89c96322a', 'f5000002-0000-0000-0000-000000000062',
+   'Avoir deux passeports d''un même pays',
+   'false', '2'),
+
+  ('af5d7425-74b1-4b4d-9ef1-41284e5008e4', 'f5000002-0000-0000-0000-000000000062',
+   'Être apatride',
+   'false', '3'),
+
+  ('b909cfb2-c099-41c1-9c97-ae5bfac27ff9', 'f5000002-0000-0000-0000-000000000063',
+   'Automatiquement à 18 ans sous condition de résidence',
+   'true', '0'),
+
+  ('7e831212-b396-45e2-9619-488cd85a65d3', 'f5000002-0000-0000-0000-000000000063',
+   'À la naissance automatiquement',
+   'false', '1'),
+
+  ('d0fe5460-2cb5-4c1d-932f-d3b95d59909c', 'f5000002-0000-0000-0000-000000000063',
+   'Jamais',
+   'false', '2'),
+
+  ('04cc784a-ee5d-4e4c-a2cb-33fd2ff18ca9', 'f5000002-0000-0000-0000-000000000063',
+   'À 25 ans uniquement',
+   'false', '3'),
+
+  ('f8a2bb1b-be5a-4c70-835d-88e661b865e3', 'f5000002-0000-0000-0000-000000000064',
+   'L''organisme qui examine les demandes d''asile',
+   'true', '0'),
+
+  ('c042bece-6a17-464a-843d-88849ad30997', 'f5000002-0000-0000-0000-000000000064',
+   'Un syndicat',
+   'false', '1'),
+
+  ('b3f19948-04c3-4e23-b96d-7633f0e0ee13', 'f5000002-0000-0000-0000-000000000064',
+   'Un parti politique',
+   'false', '2'),
+
+  ('8b6b18b1-252a-4797-b04d-b33dddc6dadf', 'f5000002-0000-0000-0000-000000000064',
+   'Une banque',
+   'false', '3'),
+
+  ('ef8faddd-5eeb-40cd-ae91-9431b5593625', 'f5000002-0000-0000-0000-000000000065',
+   'Réfugié = persécutions ; subsidiaire = risque grave sans persécution',
+   'true', '0'),
+
+  ('031af2ff-c483-4967-8d54-3f1265663349', 'f5000002-0000-0000-0000-000000000065',
+   'Aucune différence',
+   'false', '1'),
+
+  ('06a52808-900a-45e7-98d9-e151bb651dad', 'f5000002-0000-0000-0000-000000000065',
+   'Réfugié est temporaire, subsidiaire définitif',
+   'false', '2'),
+
+  ('c72e069e-de46-4c67-a064-4ff8c64e8dcc', 'f5000002-0000-0000-0000-000000000065',
+   'Les deux sont identiques',
+   'false', '3'),
+
+  ('53ece924-8443-482f-acee-7386a1b28c6a', 'f5000002-0000-0000-0000-000000000066',
+   'Frontex (frontières) et EUAA (asile)',
+   'true', '0'),
+
+  ('209b4ec2-b56d-41db-8416-b2e242a0e17d', 'f5000002-0000-0000-0000-000000000066',
+   'L''OTAN',
+   'false', '1'),
+
+  ('0b8f01a8-ebba-4cdb-a135-5899385bbf61', 'f5000002-0000-0000-0000-000000000066',
+   'L''ONU uniquement',
+   'false', '2'),
+
+  ('721d3cdb-5f0b-4bf2-81c1-a7e26878f6f0', 'f5000002-0000-0000-0000-000000000066',
+   'Le pape',
+   'false', '3'),
+
+  ('75aac049-95b2-4925-80ee-b52e72aae9be', 'f5000002-0000-0000-0000-000000000067',
+   'Désignation de l''État responsable de la demande d''asile',
+   'true', '0'),
+
+  ('0c055d2b-1418-4d0c-ac41-b58ed62e4371', 'f5000002-0000-0000-0000-000000000067',
+   'Un commerce européen',
+   'false', '1'),
+
+  ('bb731992-9828-41ca-a30f-b1183a478ba0', 'f5000002-0000-0000-0000-000000000067',
+   'Un permis de conduire européen',
+   'false', '2'),
+
+  ('eaba06b1-48d0-4515-bc98-ca149f1dd1f9', 'f5000002-0000-0000-0000-000000000067',
+   'Un programme touristique',
+   'false', '3'),
+
+  ('817ce927-083f-4cd3-aea5-46a27806a3b7', 'f5000002-0000-0000-0000-000000000068',
+   'Une mutuelle solidaire pour personnes à faibles revenus',
+   'true', '0'),
+
+  ('695cfc50-bd31-41da-8796-746f3cffd432', 'f5000002-0000-0000-0000-000000000068',
+   'Une assurance auto',
+   'false', '1'),
+
+  ('18e5965b-fda3-45d9-90df-68f4145e2af9', 'f5000002-0000-0000-0000-000000000068',
+   'Un syndicat',
+   'false', '2'),
+
+  ('2b5ff865-360e-439a-924b-2215c4d4605e', 'f5000002-0000-0000-0000-000000000068',
+   'Une bourse étudiante',
+   'false', '3'),
+
+  ('f689a493-a62e-46ff-a977-396995c38357', 'f5000002-0000-0000-0000-000000000069',
+   'Une aide médicale pour étrangers en situation irrégulière',
+   'true', '0'),
+
+  ('7e986988-589c-4328-a706-17c84ba85bbf', 'f5000002-0000-0000-0000-000000000069',
+   'Une assurance pour pilotes',
+   'false', '1'),
+
+  ('91bda258-0021-4dfa-adba-40555e404ee8', 'f5000002-0000-0000-0000-000000000069',
+   'Un syndicat de médecins',
+   'false', '2'),
+
+  ('9e63c68c-3ff6-42b2-8cd8-84a3d77f53f1', 'f5000002-0000-0000-0000-000000000069',
+   'Une bourse universitaire',
+   'false', '3'),
+
+  ('78802475-9b27-4a0e-9695-15e5227d49cc', 'f5000002-0000-0000-0000-00000000006a',
+   'Une variante du RSA pour les 18-24 ans très restrictive',
+   'true', '0'),
+
+  ('fb045be3-6696-4041-aa56-1808ad87f186', 'f5000002-0000-0000-0000-00000000006a',
+   'Un service militaire',
+   'false', '1'),
+
+  ('47941f52-76bd-49c1-ba2a-8d97cc3a959e', 'f5000002-0000-0000-0000-00000000006a',
+   'Un programme touristique',
+   'false', '2'),
+
+  ('6151bc51-ac43-444e-9f9e-194b67838343', 'f5000002-0000-0000-0000-00000000006a',
+   'Un permis de chasse',
+   'false', '3'),
+
+  ('6138a9ba-8fe5-4006-987f-c79dcf114188', 'f5000002-0000-0000-0000-00000000006b',
+   'Une allocation pour les personnes en situation de handicap',
+   'true', '0'),
+
+  ('714c0e9e-aa90-4b73-ab5b-dd5dd1fbdc82', 'f5000002-0000-0000-0000-00000000006b',
+   'Une assurance vie',
+   'false', '1'),
+
+  ('759a9c8e-1f33-4a18-ac21-cf553b2f95ac', 'f5000002-0000-0000-0000-00000000006b',
+   'Une retraite',
+   'false', '2'),
+
+  ('20eba108-e2e4-4556-87ae-1634ff3df2d2', 'f5000002-0000-0000-0000-00000000006b',
+   'Un syndicat',
+   'false', '3'),
+
+  ('20633bd2-356d-4d9e-a622-8a1a8263bf17', 'f5000002-0000-0000-0000-00000000006c',
+   'Le guichet unique pour les personnes handicapées',
+   'true', '0'),
+
+  ('d1e1de27-786e-4e97-ae83-e80abdc1a6b8', 'f5000002-0000-0000-0000-00000000006c',
+   'Un syndicat',
+   'false', '1'),
+
+  ('8802d7c0-7a83-41c3-8e00-1c487726ba91', 'f5000002-0000-0000-0000-00000000006c',
+   'Un parti politique',
+   'false', '2'),
+
+  ('4e9f7ae2-5995-45fe-8304-e019a402eba8', 'f5000002-0000-0000-0000-00000000006c',
+   'Une mutuelle',
+   'false', '3'),
+
+  ('f01028c4-244c-4c02-8a29-7b616751fc45', 'f5000002-0000-0000-0000-00000000006d',
+   'Le TCF (Test de connaissance du français) IRN',
+   'true', '0'),
+
+  ('1096d5f9-4e7a-48c2-81b0-91c283f740ea', 'f5000002-0000-0000-0000-00000000006d',
+   'Le permis de conduire',
+   'false', '1'),
+
+  ('69cda618-b1d6-4d96-8329-79304414a645', 'f5000002-0000-0000-0000-00000000006d',
+   'L''INSEE',
+   'false', '2'),
+
+  ('e406455f-bb56-406d-a0a4-d0aa523ff3a7', 'f5000002-0000-0000-0000-00000000006d',
+   'L''ENA',
+   'false', '3'),
+
+  ('30d40d39-1b3a-4794-93ba-d188f0c08015', 'f5000002-0000-0000-0000-00000000006e',
+   'Un QCM de 40 questions à passer avec au moins 32/40',
+   'true', '0'),
+
+  ('f7c12dbb-6141-4624-985f-d1cbddc937c6', 'f5000002-0000-0000-0000-00000000006e',
+   'Un examen militaire',
+   'false', '1'),
+
+  ('c8019454-ad29-4e3c-b51d-fa0b2cfdaec4', 'f5000002-0000-0000-0000-00000000006e',
+   'Un test médical',
+   'false', '2'),
+
+  ('f3f8586e-8dfd-480a-98f7-cff65ecf6cd8', 'f5000002-0000-0000-0000-00000000006e',
+   'Un sport',
+   'false', '3'),
+
+  ('27a10ed6-fc99-4023-8dd0-57cc637e868e', 'f5000002-0000-0000-0000-00000000006f',
+   'Liberté, Égalité, Fraternité, Laïcité, Démocratie, égalité F/H',
+   'true', '0'),
+
+  ('bcc00cef-7f81-42d6-ae06-86a1449aa954', 'f5000002-0000-0000-0000-00000000006f',
+   'L''obéissance absolue',
+   'false', '1'),
+
+  ('d50f4c73-718a-41b9-b72b-2b3bf260bec4', 'f5000002-0000-0000-0000-00000000006f',
+   'La soumission à une religion',
+   'false', '2'),
+
+  ('d1b8918d-8a2f-40c1-b110-42c0b9654a9c', 'f5000002-0000-0000-0000-00000000006f',
+   'Aucune valeur',
+   'false', '3'),
+
+  ('1576264f-7b7c-41df-81e7-9a5418763984', 'f5000002-0000-0000-0000-000000000070',
+   'Document remis aux naturalisés rappelant valeurs/droits/devoirs',
+   'true', '0'),
+
+  ('c1a9d60d-a539-4bcc-afd9-668ef1d94f29', 'f5000002-0000-0000-0000-000000000070',
+   'Un permis de conduire',
+   'false', '1'),
+
+  ('741c55e6-3c23-4e3a-acdf-afb0a5a23934', 'f5000002-0000-0000-0000-000000000070',
+   'Un contrat de travail',
+   'false', '2'),
+
+  ('ce8ed5b7-e56c-430a-89af-00312b1d8882', 'f5000002-0000-0000-0000-000000000070',
+   'Un livre religieux',
+   'false', '3'),
+
+  ('8f21be0d-1978-4dc7-a450-4e7ca7ab8818', 'f5000002-0000-0000-0000-000000000071',
+   'Oui, égalité entre conjoints depuis 1970',
+   'true', '0'),
+
+  ('1c66de99-abc5-403b-a6d8-3364de44a0ba', 'f5000002-0000-0000-0000-000000000071',
+   'Non, le mari décide tout',
+   'false', '1'),
+
+  ('b2b50a0e-bf9c-4d40-a4c5-54904216d237', 'f5000002-0000-0000-0000-000000000071',
+   'Non, la femme décide tout',
+   'false', '2'),
+
+  ('b8959166-783e-41aa-a54e-011ff00b5281', 'f5000002-0000-0000-0000-000000000071',
+   'Cela dépend de la religion',
+   'false', '3'),
+
+  ('0b89de3c-5a1f-48c0-b99b-b1c3ef6847f0', 'f5000002-0000-0000-0000-000000000072',
+   'Inscription de l''IVG dans la Constitution (8 mars 2024)',
+   'true', '0'),
+
+  ('69893dd7-0bd6-4222-a474-65e3430c7d76', 'f5000002-0000-0000-0000-000000000072',
+   'Interdiction de l''IVG',
+   'false', '1'),
+
+  ('afb2ffa1-6dfd-4209-b264-1051297249ca', 'f5000002-0000-0000-0000-000000000072',
+   'Levée du secret médical',
+   'false', '2'),
+
+  ('695f47fb-6057-4a2f-96e1-91ad2dfe0bd5', 'f5000002-0000-0000-0000-000000000072',
+   'Réforme du divorce',
+   'false', '3'),
+
+  ('1b1c85cd-4a66-401c-b149-5e9628d420f8', 'f5000002-0000-0000-0000-000000000073',
+   '14 semaines de grossesse (depuis 2022)',
+   'true', '0'),
+
+  ('58dbafea-71a4-4868-8282-5803adf8b321', 'f5000002-0000-0000-0000-000000000073',
+   '5 semaines uniquement',
+   'false', '1'),
+
+  ('1e3ed245-a2c7-4272-9ad4-61f06794a173', 'f5000002-0000-0000-0000-000000000073',
+   'Aucun délai',
+   'false', '2'),
+
+  ('1d661669-881b-485d-9551-6074f837d756', 'f5000002-0000-0000-0000-000000000073',
+   '20 semaines',
+   'false', '3'),
+
+  ('44f342a9-bd97-4443-89f1-bdeff30cb789', 'f5000002-0000-0000-0000-000000000074',
+   'La GPA est interdite en France',
+   'true', '0'),
+
+  ('909c753c-d891-4791-a81e-a36f50e2859a', 'f5000002-0000-0000-0000-000000000074',
+   'La GPA est libre',
+   'false', '1'),
+
+  ('845fd79f-26f9-488b-bb5f-0fcb6035e489', 'f5000002-0000-0000-0000-000000000074',
+   'La GPA est subventionnée',
+   'false', '2'),
+
+  ('0801396c-73fe-4e68-b315-a820b4c7343d', 'f5000002-0000-0000-0000-000000000074',
+   'La GPA est obligatoire',
+   'false', '3'),
+
+  ('0b7c520f-7b82-4373-bdc0-dbdc0414505f', 'f5000002-0000-0000-0000-000000000075',
+   'Oui, depuis la loi de 2021, y compris pour les femmes seules et couples de femmes',
+   'true', '0'),
+
+  ('02aba512-d0cb-4cfd-8943-f7c10b3a224a', 'f5000002-0000-0000-0000-000000000075',
+   'Non, uniquement les couples mariés hétérosexuels',
+   'false', '1'),
+
+  ('6a6952ba-e5a5-4e85-a28f-5e4f58807030', 'f5000002-0000-0000-0000-000000000075',
+   'Uniquement les femmes étrangères',
+   'false', '2'),
+
+  ('222b5d45-931d-450e-b656-065cd13be993', 'f5000002-0000-0000-0000-000000000075',
+   'Interdite en France',
+   'false', '3'),
+
+  ('be3812ed-b9d5-427f-83a2-4bf0c6114184', 'f5000002-0000-0000-0000-000000000076',
+   '18 ans (dispense exceptionnelle possible)',
+   'true', '0'),
+
+  ('388aec3d-b020-4ee9-ba30-8e12e64d6ce1', 'f5000002-0000-0000-0000-000000000076',
+   '15 ans',
+   'false', '1'),
+
+  ('0d04a75d-77a2-415c-9ad4-52085b5e7193', 'f5000002-0000-0000-0000-000000000076',
+   '21 ans',
+   'false', '2'),
+
+  ('b5c3117d-1b47-44a5-86f2-7c16b12fac1a', 'f5000002-0000-0000-0000-000000000076',
+   'Pas d''âge minimum',
+   'false', '3'),
+
+  ('251de74d-372d-42a3-8724-e152796db0f6', 'f5000002-0000-0000-0000-000000000077',
+   'La communauté réduite aux acquêts par défaut',
+   'true', '0'),
+
+  ('9e86b975-3322-44e6-bc2e-a94499b1d8ab', 'f5000002-0000-0000-0000-000000000077',
+   'La communauté universelle automatique',
+   'false', '1'),
+
+  ('997b84ac-c226-4879-9bc9-954a2610b9f4', 'f5000002-0000-0000-0000-000000000077',
+   'La séparation totale automatique',
+   'false', '2'),
+
+  ('2f075c88-c989-444e-a815-fd221b23404c', 'f5000002-0000-0000-0000-000000000077',
+   'Aucun régime défini',
+   'false', '3'),
+
+  ('1482d056-86ca-486e-bf13-7d964195003d', 'f5000002-0000-0000-0000-000000000078',
+   'La part minimale due aux héritiers réservataires',
+   'true', '0'),
+
+  ('763fa43e-bccb-4df7-9ac9-4c5de3c4b20e', 'f5000002-0000-0000-0000-000000000078',
+   'Une amende',
+   'false', '1'),
+
+  ('35ffd19e-846f-4c8c-83c2-e3e1852e9e7f', 'f5000002-0000-0000-0000-000000000078',
+   'Une réserve militaire',
+   'false', '2'),
+
+  ('a188755a-cc9a-4f04-8cd2-d767e5b1c355', 'f5000002-0000-0000-0000-000000000078',
+   'Une assurance vie',
+   'false', '3'),
+
+  ('d79dcc0c-d1e2-4004-8d5d-b0d64b1db47a', 'f5000002-0000-0000-0000-000000000079',
+   '18 ans (avec conditions de nationalité et d''inscription)',
+   'true', '0'),
+
+  ('d700808d-91c6-4eb5-b642-ff29a95170c8', 'f5000002-0000-0000-0000-000000000079',
+   '16 ans',
+   'false', '1'),
+
+  ('4f871ce9-cd2e-4e65-a66f-985db7d41c7d', 'f5000002-0000-0000-0000-000000000079',
+   '21 ans',
+   'false', '2'),
+
+  ('1d859b02-4aa4-49b6-9675-c94687ed2c5d', 'f5000002-0000-0000-0000-000000000079',
+   '25 ans',
+   'false', '3'),
+
+  ('7dde8933-6da3-48b3-ac38-d67ae9c0cac5', 'f5000002-0000-0000-0000-00000000007a',
+   'Un système de 12 points retirés en cas d''infraction',
+   'true', '0'),
+
+  ('9fcdb102-fc7b-428a-9e18-76f5de220b22', 'f5000002-0000-0000-0000-00000000007a',
+   'Un examen oral',
+   'false', '1'),
+
+  ('1ba4c117-5ae5-4c65-b582-e434508baefd', 'f5000002-0000-0000-0000-00000000007a',
+   'Un permis à vie sans limite',
+   'false', '2'),
+
+  ('b9c4b703-fd7b-454b-b9e0-e30963fd4332', 'f5000002-0000-0000-0000-00000000007a',
+   'Un permis européen unique',
+   'false', '3'),
+
+  ('438522dd-5701-4f9e-9276-73b60dea45bb', 'f5000002-0000-0000-0000-00000000007b',
+   'Garantie de paiement des salaires en cas de faillite employeur',
+   'true', '0'),
+
+  ('def07a2b-1181-4248-93f9-614b16cfe718', 'f5000002-0000-0000-0000-00000000007b',
+   'Un syndicat',
+   'false', '1'),
+
+  ('ffac1e6d-ae1f-4adf-a3a3-5dadbd6d9fab', 'f5000002-0000-0000-0000-00000000007b',
+   'Une assurance auto',
+   'false', '2'),
+
+  ('6f474f6b-be76-479c-85ed-269ee560c2b5', 'f5000002-0000-0000-0000-00000000007b',
+   'Un parti politique',
+   'false', '3'),
+
+  ('a0a512d5-bc87-4e2b-af63-617e89d18d18', 'f5000002-0000-0000-0000-00000000007c',
+   'Comité social et économique (instance unique des salariés)',
+   'true', '0'),
+
+  ('da4ee2a6-05db-4e7a-94ae-63911a46c154', 'f5000002-0000-0000-0000-00000000007c',
+   'Un syndicat patronal',
+   'false', '1'),
+
+  ('b5ac2644-9bf2-4da0-bc74-1a937526f4f6', 'f5000002-0000-0000-0000-00000000007c',
+   'Une administration fiscale',
+   'false', '2'),
+
+  ('d654fa2e-6517-4ae9-8c48-af0e9802d757', 'f5000002-0000-0000-0000-00000000007c',
+   'Un parti politique',
+   'false', '3'),
+
+  ('56f50d2c-203f-4e1a-adc8-1ae2eb3391af', 'f5000002-0000-0000-0000-00000000007d',
+   'Éligibilité, dossier, examen civique, entretien, décret',
+   'true', '0'),
+
+  ('fcd97941-8266-493b-9097-f620ff2ba0e9', 'f5000002-0000-0000-0000-00000000007d',
+   'Aucune démarche spécifique',
+   'false', '1'),
+
+  ('7cf43c40-01c9-435e-ba4c-01992c436da7', 'f5000002-0000-0000-0000-00000000007d',
+   'Demander au pape',
+   'false', '2'),
+
+  ('63508428-a397-43eb-9edb-145118e26621', 'f5000002-0000-0000-0000-00000000007d',
+   'Verser une caution',
+   'false', '3'),
+
+  ('750c7e07-f5bc-4bd1-9195-f2430401a410', 'f5000002-0000-0000-0000-00000000007e',
+   '32/40 minimum (80%)',
+   'true', '0'),
+
+  ('a8e5fb48-daa9-461d-8317-147de7257d40', 'f5000002-0000-0000-0000-00000000007e',
+   '20/40',
+   'false', '1'),
+
+  ('3cc7e630-eafd-4097-8d28-be6f8b04f961', 'f5000002-0000-0000-0000-00000000007e',
+   '10/40',
+   'false', '2'),
+
+  ('040419b7-195b-423e-b55f-8fcdc0ed4962', 'f5000002-0000-0000-0000-00000000007e',
+   'Aucun minimum',
+   'false', '3'),
+
+  ('e0dbe7af-0b42-4174-a960-dbcc145b1794', 'f5000002-0000-0000-0000-00000000007f',
+   'Réception officielle en préfecture avec remise du décret',
+   'true', '0'),
+
+  ('94988728-d055-4ff2-9465-568b61fca337', 'f5000002-0000-0000-0000-00000000007f',
+   'Une fête privée',
+   'false', '1'),
+
+  ('e728760b-0fe1-45e0-967b-09edbf53edc3', 'f5000002-0000-0000-0000-00000000007f',
+   'Aucune cérémonie',
+   'false', '2'),
+
+  ('4b6d7770-89a5-4ba7-a8d8-559d8d3a6fb0', 'f5000002-0000-0000-0000-00000000007f',
+   'Une messe religieuse',
+   'false', '3'),
+
+  ('ec89ab7c-e635-47e0-9096-65c13d218834', 'f5000002-0000-0000-0000-000000000080',
+   'Fraude à l''acquisition ou déchéance pour terrorisme grave',
+   'true', '0'),
+
+  ('92332ad7-bca6-4441-ac3c-59137d768480', 'f5000002-0000-0000-0000-000000000080',
+   'Aucune perte possible',
+   'false', '1'),
+
+  ('2e4ba163-fb53-4ba3-9588-c11a25efb3d8', 'f5000002-0000-0000-0000-000000000080',
+   'Sur simple décision administrative',
+   'false', '2'),
+
+  ('8432fe3f-d685-4462-921a-be3263d3b24d', 'f5000002-0000-0000-0000-000000000080',
+   'À 65 ans automatiquement',
+   'false', '3'),
+
+  ('bbd34011-82b5-4597-9ec4-fcbfb95eb244', 'f5000002-0000-0000-0000-000000000081',
+   'Condamnation à 6 mois ferme = en principe rejet',
+   'true', '0'),
+
+  ('1972c2d5-af80-4f33-a944-34ed79dd2bfb', 'f5000002-0000-0000-0000-000000000081',
+   'Aucune incidence',
+   'false', '1'),
+
+  ('47624c55-b22a-4b5a-8f35-234b96eabe24', 'f5000002-0000-0000-0000-000000000081',
+   'Avantage pour la demande',
+   'false', '2'),
+
+  ('92b6a9fc-7667-4287-9dc5-9fde96736464', 'f5000002-0000-0000-0000-000000000081',
+   'Cela accélère la procédure',
+   'false', '3'),
+
+  ('92e4efa3-8e12-486d-9c7d-e6580d931335', 'f5000002-0000-0000-0000-000000000082',
+   'Au centre ENIC-NARIC',
+   'true', '0'),
+
+  ('49ecbe51-23bc-473c-8345-15ecc3fc661e', 'f5000002-0000-0000-0000-000000000082',
+   'Au commissariat',
+   'false', '1'),
+
+  ('e32dbaa0-f443-4bcb-b078-e1a553337950', 'f5000002-0000-0000-0000-000000000082',
+   'À la mairie uniquement',
+   'false', '2'),
+
+  ('7161050c-0feb-4bd3-84e7-d6f3e8895b6e', 'f5000002-0000-0000-0000-000000000082',
+   'Au pape',
+   'false', '3'),
+
+  ('9cede89f-0285-4eaa-8163-68fc7e290123', 'f5000002-0000-0000-0000-000000000083',
+   'Nationalité = lien juridique ; Citoyenneté = droits politiques',
+   'true', '0'),
+
+  ('f08479c9-e0f1-416c-89c2-f9255dc8288b', 'f5000002-0000-0000-0000-000000000083',
+   'Aucune différence',
+   'false', '1'),
+
+  ('b3ef7b32-ab9e-4501-8298-b1ca400466ec', 'f5000002-0000-0000-0000-000000000083',
+   'La nationalité est temporaire',
+   'false', '2'),
+
+  ('b05f5670-822c-4a7a-9470-dc0db6adc25a', 'f5000002-0000-0000-0000-000000000083',
+   'La citoyenneté est privée',
+   'false', '3'),
+
+  ('eeb14ab7-124f-4c38-976f-7b3832b308a2', 'f5000002-0000-0000-0000-000000000084',
+   'Vote toutes élections, éligibilité, emplois publics, protection consulaire',
+   'true', '0'),
+
+  ('6668247e-2d80-474a-84fc-35114c14ba89', 'f5000002-0000-0000-0000-000000000084',
+   'Aucun nouveau droit',
+   'false', '1'),
+
+  ('ad4ac1c8-dd50-49e6-a246-b3965d140bd3', 'f5000002-0000-0000-0000-000000000084',
+   'Uniquement le droit de port d''arme',
+   'false', '2'),
+
+  ('c88a2b90-1f94-441e-99e7-de52df4fce95', 'f5000002-0000-0000-0000-000000000084',
+   'Uniquement le droit à la santé',
+   'false', '3'),
+
+  ('7f1eaf01-e1eb-499b-9b79-e8f2e9042d55', 'f5000002-0000-0000-0000-000000000085',
+   'Évaluation langue, valeurs, intégration, connaissance société',
+   'true', '0'),
+
+  ('ab562ff3-0f9a-4498-acad-abc1e954d369', 'f5000002-0000-0000-0000-000000000085',
+   'Test religieux',
+   'false', '1'),
+
+  ('5bcd0e2a-4247-47f4-a2c0-658b1b95e054', 'f5000002-0000-0000-0000-000000000085',
+   'Examen militaire',
+   'false', '2'),
+
+  ('47feadc4-5a8d-423f-98bd-52d6e15ea33b', 'f5000002-0000-0000-0000-000000000085',
+   'Examen sportif',
+   'false', '3'),
+
+  ('d474685b-bc10-474a-9f89-339dfb720f16', 'f5000002-0000-0000-0000-000000000086',
+   'Loi de 1905, principe constitutionnel, liberté de conscience',
+   'true', '0'),
+
+  ('613fdc2b-d122-4413-ac79-e9b0070c903e', 'f5000002-0000-0000-0000-000000000086',
+   'Une coutume folklorique',
+   'false', '1'),
+
+  ('f49a07f3-7195-4ec7-ad78-8d50a4a812b7', 'f5000002-0000-0000-0000-000000000086',
+   'Une obligation religieuse',
+   'false', '2'),
+
+  ('5dff7a18-1f22-4eec-89be-47847f64877e', 'f5000002-0000-0000-0000-000000000086',
+   'Un décret récent',
+   'false', '3'),
+
+  ('65676f4f-d8f3-4584-ad89-860b7f2a1870', 'f5000002-0000-0000-0000-0000000000e1',
+   'Une aide aux travailleurs à faibles revenus',
+   'true', '0'),
+
+  ('393c17b3-438f-45d3-8249-c5ab2dd5ae97', 'f5000002-0000-0000-0000-0000000000e1',
+   'Une prime pour faire du sport',
+   'false', '1'),
+
+  ('bd9b0147-fffe-47d9-941d-b5fbe67ea9e2', 'f5000002-0000-0000-0000-0000000000e1',
+   'Une cotisation patronale',
+   'false', '2'),
+
+  ('72168da0-225b-4175-acc2-7c79c793546e', 'f5000002-0000-0000-0000-0000000000e1',
+   'Un impôt',
+   'false', '3'),
+
+  ('faf24d29-4c1e-47a7-99ae-8e958c105984', 'f5000002-0000-0000-0000-0000000000e2',
+   'Une procédure auprès de la Banque de France pour les dettes excessives',
+   'true', '0'),
+
+  ('2385aac7-d295-4a98-8e4e-86ca14d4d798', 'f5000002-0000-0000-0000-0000000000e2',
+   'Une déclaration aux impôts',
+   'false', '1'),
+
+  ('8dac932a-8b03-4010-94d6-9f5f2473638a', 'f5000002-0000-0000-0000-0000000000e2',
+   'Un mariage civil',
+   'false', '2'),
+
+  ('970229a3-5aef-48a3-b717-6b0c4e20d645', 'f5000002-0000-0000-0000-0000000000e2',
+   'Un permis de chasse',
+   'false', '3'),
+
+  ('d8a05870-be3b-477c-b2f4-de31864cf179', 'f5000002-0000-0000-0000-0000000000e3',
+   'Un accord syndical-patronal complétant le Code du travail',
+   'true', '0'),
+
+  ('7bca4145-1e46-4675-9c48-0858c9f1cf32', 'f5000002-0000-0000-0000-0000000000e3',
+   'Une loi parlementaire',
+   'false', '1'),
+
+  ('11e4ac2a-20f5-4038-af3c-a7163db61e93', 'f5000002-0000-0000-0000-0000000000e3',
+   'Une norme européenne',
+   'false', '2'),
+
+  ('30741834-6d75-4383-b810-0a56dd4bb743', 'f5000002-0000-0000-0000-0000000000e3',
+   'Un décret présidentiel',
+   'false', '3'),
+
+  ('32f9cbcb-2e7c-4ecf-87f8-0d3bf7512d69', 'f5000002-0000-0000-0000-0000000000e4',
+   'À l''OFPRA via la GUDA',
+   'true', '0'),
+
+  ('3d389284-4af6-40f9-9503-3c67a3e88c98', 'f5000002-0000-0000-0000-0000000000e4',
+   'Au commissariat',
+   'false', '1'),
+
+  ('4680f7d9-75b8-4952-9d4f-0827fec468d2', 'f5000002-0000-0000-0000-0000000000e4',
+   'À la mairie uniquement',
+   'false', '2'),
+
+  ('6f51ed11-f217-4706-a7a5-25fbd8771dff', 'f5000002-0000-0000-0000-0000000000e4',
+   'Au pape',
+   'false', '3');

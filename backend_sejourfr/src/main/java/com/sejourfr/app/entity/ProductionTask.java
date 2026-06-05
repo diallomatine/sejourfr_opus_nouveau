@@ -9,12 +9,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
-import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -66,12 +63,6 @@ public class ProductionTask {
     @Column(name = "mots_max")
     private Integer motsMax;
 
-    /** DÉPRÉCIÉ (V428) — non lu par le code (notation centralisée dans
-     *  production-rubrics-<version>.json). Nullable, conservé pour réversibilité. */
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "criteres_evaluation", columnDefinition = "jsonb")
-    private Map<String, Object> criteresEvaluation;
-
     @Column(name = "is_active", nullable = false)
     private boolean active = false;
 
@@ -112,11 +103,6 @@ public class ProductionTask {
 
     public Integer getMotsMax() { return motsMax; }
     public void setMotsMax(Integer motsMax) { this.motsMax = motsMax; }
-
-    public Map<String, Object> getCriteresEvaluation() { return criteresEvaluation; }
-    public void setCriteresEvaluation(Map<String, Object> criteresEvaluation) {
-        this.criteresEvaluation = criteresEvaluation;
-    }
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }

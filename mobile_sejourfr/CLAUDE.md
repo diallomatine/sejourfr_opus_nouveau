@@ -122,7 +122,7 @@ lib/
     │                                    mots_card, writing_zone, criterion_row,
     │                                    feedback_block, transcription_section, etc.
     ├── review/                    Favoris + erreurs récentes (tabs)
-    └── profile/                   Compte + paramètres + logout
+    └── profile/                   Compte + paramètres + logout + suppression de compte
 ```
 
 **Règle simple** : si une feature a son domaine métier (login, training, exam, runner...), elle a son dossier
@@ -336,6 +336,26 @@ depuis Play a le SHA-1 Play App Signing, pas celui de ta clé release : sans lui
 sur iOS) dans `mobile_sejourfr/.env` (cf. § Démarrage local). Sans valeurs, les boutons
 Google ne sont pas affichés. Apple s'affiche toujours sur iOS dès que l'entitlement est
 activé (pas de clé à fournir).
+
+## Connexion & inscription — « Se souvenir » + consentement CGU
+
+- **« Enregistrer mes identifiants »** (`login_screen.dart`) : `AppCheckbox`
+  (`core/widgets/app_checkbox.dart`). Cochée + login OK → email/mot de passe
+  chiffrés dans le Keychain/EncryptedSharedPreferences via
+  `TokenStorage.saveCredentials` ; au boot du login on prefill + on coche.
+  Décochée → `clearCredentials`. Stockés **à part de la session** : un `logout`
+  vide les tokens mais conserve les identifiants enregistrés.
+- **Acceptation CGU + confidentialité à l'inscription** (`register_screen.dart`) :
+  `AppCheckbox` (`labelTappable: false`) avec liens `Text.rich`
+  (`TapGestureRecognizer`) ouvrant `${webBaseUrl}/{cgu,confidentialite}` dans la
+  WebView (`AppRoutes.helpWebview`, mêmes URLs que le Centre d'aide). Case
+  **obligatoire** : `_ensureAccepted()` garde le bouton « Créer mon compte » ET
+  le social sign-in (`SocialAuthButtons.canProceed`).
+- **Mention passive sous les boutons sociaux** (`social_auth_buttons.dart`,
+  visible login + inscription) : « En continuant avec Google ou Apple, vous
+  acceptez les CGU et la Politique de confidentialité » (liens WebView). Couvre
+  la création de compte via social depuis l'écran de connexion (non gardée par
+  la case d'inscription). Ne liste que les providers réellement affichés.
 
 ## Bottom nav et hubs Civique / TCF
 
@@ -752,7 +772,11 @@ vend du contenu digital). L'ancien `openSubscriptionWeb()` est supprimé.
 - `screens/paywall/paywall_screen.dart` — UI plein écran avec toggle
   périodicité (mensuel/trimestriel/annuel) + 2 cards Civique/Intégral.
   Prix lus depuis le store en devise locale. Bouton « Restaurer mes achats »
-  obligatoire pour validation Apple.
+  obligatoire pour validation Apple. **Guideline 2.3.10** : tout texte de store
+  est conditionné par plateforme via le helper `_storeName` (`Platform.isIOS`) —
+  on n'affiche JAMAIS « Google Play » sur iOS ni « App Store » sur Android
+  (`_TrustRow`, `_LegalLinks`). Le reste du billing passe déjà par
+  `IapService.currentSource`.
 
 **Flow d'achat** :
 1. User tap CTA premium → `showPaywallSheet(context)` push l'écran.
@@ -777,10 +801,15 @@ vend du contenu digital). L'ancien `openSubscriptionWeb()` est supprimé.
   N'ACQUITTE PAS le store. Au prochain démarrage le `purchaseStream`
   re-livre l'achat → retry automatique. Le user n'a pas payé deux fois.
 
-**Restore purchases** : bouton « Restaurer » → `IapService.restorePurchases()`
-→ les achats existants reviennent via `purchaseStream` avec
-`PurchaseStatus.restored` → même flow que `purchased` (verify-receipt +
-refresh user).
+**Restore purchases** : bouton **« Restaurer mes achats »** (variante secondary,
+sous les cartes du paywall — plus visible que l'ancienne action discrète de
+l'AppBar, supprimée) → `IapService.restorePurchases()` → les achats existants
+reviennent via `purchaseStream` avec `PurchaseStatus.restored` → même flow que
+`purchased` (verify-receipt + refresh user). **Garde-fou anti-spinner-infini** :
+si le store n'a rien à restaurer, il n'émet aucun event → `BillingController`
+arme un `Timer` (`_restoreTimeout`, 8 s) qui débloque l'UI avec « Aucun achat à
+restaurer pour ce compte. ». Le timeout est désarmé (`_endRestore`) dès qu'un
+event arrive (restauration réelle).
 
 **SKUs** : le mobile lit les Product IDs store **directement depuis le backend**
 (`PlanPublicResponse.appleProductId` / `googleProductId`, exposés par
@@ -833,6 +862,19 @@ gère la réponse :
   `https://apps.apple.com/account/subscriptions` ouvre directement les
   Settings → Subscriptions ; sur Android, redirige vers la fiche Play.
   Le statut local ne bascule QUE quand le webhook du store confirme.
+
+## Suppression de compte (App Store 5.1.1(v))
+
+Entrée « Supprimer mon compte » dans `profile_screen.dart` (section Compte, tile
+rouge `_confirmDeleteAccount`). Flow : dialog de confirmation → `AuthController.
+deleteAccount()` (`DELETE /api/account`, **n'altère PAS la session**) → si un
+abonnement Apple/Google reste à résilier, dialog « Compte supprimé » avec le
+`manualActionMessage` du backend (affiché tant que l'écran est monté) → puis
+`AuthController.logout()` vide la session et le router redirige vers `/login`.
+On sépare volontairement l'appel réseau de la déconnexion pour que le message
+d'action manuelle s'affiche avant la redirection. Modèle `core/models/
+account_models.dart` (`AccountDeletionResult`), miroir de `AccountDeletionResponse`.
+Backend : anonymisation (cf. CLAUDE.md racine + `docs/api-endpoints.md`).
 
 ## Roadmap (ce qui n'est pas encore fait)
 

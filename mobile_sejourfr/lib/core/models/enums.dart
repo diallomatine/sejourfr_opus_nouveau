@@ -54,6 +54,7 @@ enum QuestionType {
   connaissance('CONNAISSANCE'),
   miseSituation('MISE_SITUATION'),
   co('CO'),
+  coImage('CO_IMAGE'),
   ce('CE'),
   structure('STRUCTURE');
 
@@ -71,6 +72,8 @@ enum QuestionType {
         return 'Mise en situation';
       case QuestionType.co:
         return 'Compréhension orale';
+      case QuestionType.coImage:
+        return 'Compréhension orale (image)';
       case QuestionType.ce:
         return 'Compréhension écrite';
       case QuestionType.structure:

@@ -3,6 +3,7 @@ package com.sejourfr.app.repository;
 import com.sejourfr.app.entity.UserQuestionStatus;
 import com.sejourfr.app.enums.Module;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -28,4 +29,9 @@ public interface UserQuestionStatusRepository extends JpaRepository<UserQuestion
           AND (:module IS NULL OR s.question.module = :module)
         """)
     List<UUID> findFavoriteQuestionIds(@Param("userId") UUID userId, @Param("module") Module module);
+
+    /** Purge des favoris / statuts par-question d'un user (suppression de compte). */
+    @Modifying
+    @Query("DELETE FROM UserQuestionStatus s WHERE s.user.id = :userId")
+    int deleteByUserId(@Param("userId") UUID userId);
 }

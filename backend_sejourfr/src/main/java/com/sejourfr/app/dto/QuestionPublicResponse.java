@@ -27,6 +27,9 @@ public record QuestionPublicResponse(
         String explanation,
         String passageText,
         MediaResponse media,
+        // Second média audio, renseigné uniquement pour les questions CO_IMAGE
+        // (media = image support, audioMedia = audio des 4 propositions lues).
+        MediaResponse audioMedia,
         List<ChoicePublicResponse> choices
 ) {
 }

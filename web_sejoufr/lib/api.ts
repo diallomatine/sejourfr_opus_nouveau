@@ -287,6 +287,17 @@ export const authApi = {
     },
 };
 
+export const accountApi = {
+    /** Supprime le compte de l'utilisateur courant (anonymisation côté serveur).
+     * Le backend identifie le user via le Bearer — aucun paramètre. */
+    async deleteAccount(): Promise<import("./types").AccountDeletionResponse> {
+        return apiFetch<import("./types").AccountDeletionResponse>("/api/account", {
+            method: "DELETE",
+            auth: true,
+        });
+    },
+};
+
 // ============================================================================
 // Endpoints Themes
 // ============================================================================

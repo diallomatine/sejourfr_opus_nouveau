@@ -7,6 +7,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
+import '../../core/widgets/app_checkbox.dart';
 import '../../core/widgets/eyebrow.dart';
 import '../../core/widgets/sejourfr_logo.dart';
 import 'widgets/social_auth_buttons.dart';
@@ -20,11 +21,29 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _email = TextEditingController(text: 'user@sejourfr.fr');
-  final _password = TextEditingController(text: 'User123!');
+  final _email = TextEditingController();
+  final _password = TextEditingController();
   bool _obscure = true;
   bool _submitting = false;
+  bool _remember = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final creds = await ref.read(tokenStorageProvider).readCredentials();
+    if (creds != null && mounted) {
+      setState(() {
+        _email.text = creds.email;
+        _password.text = creds.password;
+        _remember = true;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -37,11 +56,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _error = null);
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
+    // Capturé avant l'await : après un login réussi, le router redirige et ce
+    // widget peut être démonté — on n'utilise donc plus `ref` ensuite.
+    final storage = ref.read(tokenStorageProvider);
+    final email = _email.text.trim();
+    final password = _password.text;
     try {
       await ref.read(authControllerProvider.notifier).login(
-            email: _email.text.trim(),
-            password: _password.text,
+            email: email,
+            password: password,
           );
+      // Succès : on enregistre (ou efface) les identifiants selon la case.
+      if (_remember) {
+        await storage.saveCredentials(email, password);
+      } else {
+        await storage.clearCredentials();
+      }
       // Le router redirigera automatiquement vers /home
     } catch (e) {
       final err = ApiClient.toApiException(e);
@@ -128,7 +158,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       validator: (v) =>
                           (v?.isEmpty ?? true) ? 'Mot de passe requis' : null,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
+                    AppCheckbox(
+                      value: _remember,
+                      onChanged: (v) => setState(() => _remember = v),
+                      label: Text(
+                        'Enregistrer mes identifiants',
+                        style: AppFonts.jakarta(size: 13.5, color: AppColors.ink),
+                      ),
+                    ),
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(

@@ -33,7 +33,12 @@ mobile. Web : 1 examen blanc + 10 QCM d'entraînement par module pour convertir.
 - **Epreuve** (granularité fine, orthogonale à `mode`/`module`) : `CIVIQUE` / `TCF_CO` /
   `TCF_CE` / `TCF_STRUCTURE` / `TCF_EO` / `TCF_EE` / `TCF_COMPLET`. `TCF_COMPLET` est un
   conteneur d'examen blanc TCF ; sous-attempts liés via `attempts.parent_attempt_id`.
-- **QuestionType** : `KNOWLEDGE` / `SITUATION`
+- **QuestionType** : `CONNAISSANCE` / `MISE_SITUATION` (civique) · `CO` / `CO_IMAGE` / `CE` /
+  `STRUCTURE` (TCF). `CO_IMAGE` = format de Compréhension orale « image + 4 propositions
+  lues » : `media_id` porte l'image, `audio_media_id` l'audio, choix en lettres A/B/C/D.
+  Tiré dans les mêmes pools que `CO` (un filtre `CO` inclut `CO_IMAGE`). Publié depuis un
+  `audio_question_draft` portant une image (`inline_svg` ou `image_url`). Image
+  remplaçable côté admin via `POST /api/admin/{questions,audio-drafts}/{id}/image` (R2).
 - **Difficulty** : `EASY` / `MEDIUM` / `HARD`
 - **MediaType** : `AUDIO` / `IMAGE` / `VIDEO`
 - **NiveauCecrl** (eval IA EO/EE) : `A1_NON_ATTEINT` / `A1` / `A2` / `B1` / `B2` / `C1` /
@@ -235,6 +240,11 @@ masque le bouton d'achat IAP. Pareil dans l'autre sens.
   Stripe `handleCheckoutCompleted` quand création neuve ; Apple/Google
   `activateFromReceipt` quand la ligne `user_subscriptions` n'existait pas
   encore (les restaurations sur un originalTransactionId connu n'envoient pas).
+- **Premier achat vs prolongation (achat unique)** : `OneTimeAccessService`
+  distingue les deux selon qu'un accès de module ≥ était déjà en cours
+  (`currentEndForAtLeast`). Premier achat → `sendSubscriptionActivatedEmail`
+  (bienvenue) ; prolongation → `sendAccessExtendedEmail` (template
+  `access-extended.html`, wording « durées cumulées, accès ouvert jusqu'au … »).
 - **Résiliation** envoyée sur transition `oldStatus ≠ CANCELED → newStatus = CANCELED`.
   Triggers : `SubscriptionCancellationService.cancelStripe` (cancel via notre
   endpoint, le webhook qui arrive après ne renvoie pas car oldStatus est déjà
@@ -242,9 +252,20 @@ masque le bouton d'achat IAP. Pareil dans l'autre sens.
   directement dans Stripe), Apple `DID_CHANGE_RENEWAL_STATUS`, Google
   `subscriptionsv2.get` → SUBSCRIPTION_STATE_CANCELED. Pas de mail sur
   expiration naturelle ni sur refund/revoke (sémantique différente).
-- Format : HTML inline CSS (compat Gmail/Outlook), logo en image inline CID
-  depuis `backend_sejourfr/src/main/resources/static/mail/logo.png`. Envoi
-  **asynchrone** (`@Async` sur `sendSubscriptionActivatedEmail` /
+- **Templates HTML externalisés** dans `backend_sejourfr/src/main/resources/mail/`
+  (`layout.html` + un fragment par email : `access-activated`, `access-expiring`,
+  `subscription-canceled`, `password-reset`, `email-change`), rendus par
+  `MailTemplateRenderer` (placeholders `{{escaped}}` / `{{{raw}}}`). Inline CSS
+  (compat Gmail/Outlook) + preheader, logo en image inline CID depuis
+  `resources/static/mail/logo.png`. **Tous** les emails clients (y compris reset
+  mot de passe + changement d'email) passent par ce layout brandé.
+- **Wording achat unique** : aucun « abonnement » / « renouvellement automatique »
+  côté client. `sendSubscriptionActivatedEmail(..., boolean autoRenew)` —
+  `autoRenew=false` (achat unique : « accès ouvert jusqu'au … ») posé par
+  `OneTimeAccessService` ; `autoRenew=true` (récurrent dormant : « prochain
+  renouvellement… ») posé par les flux Stripe/Apple/Google abonnement.
+  `sendSubscriptionCanceledEmail` n'est déclenché que par ces flux dormants.
+- Envoi **asynchrone** (`@Async` sur `sendSubscriptionActivatedEmail` /
   `sendSubscriptionCanceledEmail`, `@EnableAsync` global) : le SMTP est hors du
   chemin critique, donc `verify-receipt`/`cancel` répondent sans attendre l'envoi
   (sinon un SMTP lent/injoignable bloquait la requête ~15-20 s). Un mail raté log

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { audioDraftsApi } from "../../api/audioDraftsApi";
 import { Button } from "../../components/ui/Button";
@@ -11,37 +11,53 @@ import { Textarea } from "../../components/ui/Form";
 import { useToast } from "../../components/ui/Toast";
 import type {
   AudioDraftDto,
+  AudioLevel,
   BatchGenerationResultDto,
 } from "../../types/api";
 import styles from "./AudioDraftReviewPage.module.css";
 
 const PAGE_SIZE = 10;
+const LEVELS: AudioLevel[] = ["A2", "B1", "B2"];
 
 export function AudioDraftReviewPage() {
   const [page, setPage] = useState(0);
+  // null = tous niveaux. Cadre à la fois les drafts listés (à valider) et le
+  // batch de génération (on ne génère que les TEXT_VALIDATED du niveau choisi).
+  const [level, setLevel] = useState<AudioLevel | null>(null);
   const [rejectTarget, setRejectTarget] = useState<AudioDraftDto | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const queryClient = useQueryClient();
   const toast = useToast();
 
+  function selectLevel(next: AudioLevel | null) {
+    setLevel(next);
+    setPage(0);
+  }
+
   const listQuery = useQuery({
-    queryKey: ["audioDrafts", "pendingReview", page],
-    queryFn: () => audioDraftsApi.pendingReview({ page, size: PAGE_SIZE }),
+    queryKey: ["audioDrafts", "pendingReview", level, page],
+    queryFn: () =>
+      audioDraftsApi.pendingReview({ page, size: PAGE_SIZE, difficulty: level ?? undefined }),
   });
 
   const countQuery = useQuery({
-    queryKey: ["audioDrafts", "pendingReview", "count"],
-    queryFn: () => audioDraftsApi.pendingReviewCount(),
+    queryKey: ["audioDrafts", "pendingReview", "count", level],
+    queryFn: () => audioDraftsApi.pendingReviewCount(level ?? undefined),
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
 
   const batchMutation = useMutation({
-    mutationFn: () => audioDraftsApi.batchGenerate(),
+    mutationFn: () => audioDraftsApi.batchGenerate(level ?? undefined),
     onSuccess: (result: BatchGenerationResultDto) => {
       queryClient.invalidateQueries({ queryKey: ["audioDrafts"] });
       if (result.requested === 0) {
-        toast.show("Aucun draft TEXT_VALIDATED disponible.", "info");
+        toast.show(
+          level
+            ? `Aucun draft ${level} TEXT_VALIDATED disponible.`
+            : "Aucun draft TEXT_VALIDATED disponible.",
+          "info",
+        );
       } else {
         toast.show(
           `Batch lance : ${result.succeeded} succes, ${result.failed} echec(s).`,
@@ -88,13 +104,42 @@ export function AudioDraftReviewPage() {
         title="Audio"
         emphasis="a valider"
         actions={
-          <Button
-            variant="primary"
-            onClick={() => batchMutation.mutate()}
-            disabled={batchMutation.isPending}
-          >
-            {batchMutation.isPending ? "Generation en cours..." : "Generer 10 audios"}
-          </Button>
+          <div className={styles.headerActions}>
+            <div
+              className={styles.levelFilter}
+              role="group"
+              aria-label="Filtrer par niveau"
+            >
+              <button
+                type="button"
+                className={`${styles.levelChip} ${level === null ? styles.levelChipActive : ""}`}
+                onClick={() => selectLevel(null)}
+              >
+                Tous
+              </button>
+              {LEVELS.map((lvl) => (
+                <button
+                  key={lvl}
+                  type="button"
+                  className={`${styles.levelChip} ${level === lvl ? styles.levelChipActive : ""}`}
+                  onClick={() => selectLevel(lvl)}
+                >
+                  {lvl}
+                </button>
+              ))}
+            </div>
+            <Button
+              variant="primary"
+              onClick={() => batchMutation.mutate()}
+              disabled={batchMutation.isPending}
+            >
+              {batchMutation.isPending
+                ? "Generation en cours..."
+                : level
+                  ? `Generer 10 audios (${level})`
+                  : "Generer 10 audios"}
+            </Button>
+          </div>
         }
       />
 
@@ -102,8 +147,10 @@ export function AudioDraftReviewPage() {
         title="A relire"
         sub={
           pendingCount > 0
-            ? `${pendingCount} draft${pendingCount > 1 ? "s" : ""} en attente d'ecoute`
-            : "Aucun draft en attente. Lance un batch pour en generer."
+            ? `${pendingCount} draft${pendingCount > 1 ? "s" : ""}${level ? ` ${level}` : ""} en attente d'ecoute`
+            : level
+              ? `Aucun draft ${level} en attente. Lance un batch ${level} pour en generer.`
+              : "Aucun draft en attente. Lance un batch pour en generer."
         }
       >
         {listQuery.isLoading && (
@@ -230,49 +277,130 @@ interface DraftCardProps {
   validating: boolean;
 }
 
+const ACCEPTED_IMAGE_TYPES = "image/jpeg,image/png,image/webp";
+
 function DraftCard({ draft, onValidate, onReject, validating }: DraftCardProps) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [current, setCurrent] = useState<AudioDraftDto>(draft);
+  const [imageReplaced, setImageReplaced] = useState(false);
+
+  const imageMutation = useMutation({
+    mutationFn: (file: File) => audioDraftsApi.replaceImage(current.id, file),
+    onSuccess: (updated: AudioDraftDto) => {
+      setCurrent(updated);
+      setImageReplaced(true);
+      queryClient.invalidateQueries({ queryKey: ["audioDrafts"] });
+      toast.show("Image remplacee.", "success");
+    },
+    onError: (err: unknown) =>
+      toast.show(err instanceof Error ? err.message : "Erreur upload image", "error"),
+  });
+
+  const hasImage = current.imageUrl !== null || current.inlineSvg !== null;
+
+  function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) {
+      setImageReplaced(false);
+      imageMutation.mutate(file);
+    }
+  }
+
   return (
     <article className={styles.card}>
       <header className={styles.cardHeader}>
         <div className={styles.cardMeta}>
-          {draft.difficulty && (
-            <Tag tone={draft.difficulty.toLowerCase() as "a2" | "b1" | "b2"}>
-              {draft.difficulty}
+          {current.difficulty && (
+            <Tag tone={current.difficulty.toLowerCase() as "a2" | "b1" | "b2"}>
+              {current.difficulty}
             </Tag>
           )}
-          {draft.competenceCode && <Tag tone="co">{draft.competenceCode}</Tag>}
-          {draft.themeName && <Tag tone="muted">{draft.themeName}</Tag>}
-          {draft.audioVoiceUsed && (
-            <span className={styles.voiceTech}>{draft.audioVoiceUsed}</span>
+          {current.competenceCode && <Tag tone="co">{current.competenceCode}</Tag>}
+          {current.themeName && <Tag tone="muted">{current.themeName}</Tag>}
+          {current.audioVoiceUsed && (
+            <span className={styles.voiceTech}>{current.audioVoiceUsed}</span>
           )}
-          {draft.audioDurationSec !== null && (
+          {current.audioDurationSec !== null && (
             <span className={styles.voiceTech}>
-              ~{draft.audioDurationSec}s
+              ~{current.audioDurationSec}s
             </span>
           )}
         </div>
       </header>
 
-      {draft.audioUrl && (
+      {current.audioUrl && (
         <audio
           controls
-          src={draft.audioUrl}
+          src={current.audioUrl}
           className={styles.audio}
           preload="none"
         />
       )}
 
+      {hasImage && (
+        <section className={styles.imageBlock}>
+          <div className={styles.imageHeader}>
+            <span className={styles.smallLabel}>Image support</span>
+            <span className={styles.imageSource}>
+              {current.imageUrl
+                ? "Image personnalisee (R2)"
+                : "SVG genere"}
+            </span>
+          </div>
+
+          <div className={styles.imagePreview}>
+            {current.imageUrl ? (
+              <img
+                src={current.imageUrl}
+                alt={current.imageAltText ?? ""}
+                className={styles.image}
+              />
+            ) : (
+              <div
+                className={styles.image}
+                role="img"
+                aria-label={current.imageAltText ?? "Image support"}
+                dangerouslySetInnerHTML={{ __html: current.inlineSvg ?? "" }}
+              />
+            )}
+          </div>
+
+          {imageReplaced && (
+            <p className={styles.imageSuccess}>Nouvelle image enregistree.</p>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPTED_IMAGE_TYPES}
+            className={styles.fileInput}
+            onChange={onPickFile}
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={imageMutation.isPending}
+          >
+            {imageMutation.isPending ? "Upload..." : "Remplacer l'image"}
+          </Button>
+        </section>
+      )}
+
       <div className={styles.grid}>
         <section className={styles.transcript}>
           <div className={styles.smallLabel}>Transcript</div>
-          <p>{draft.transcriptText}</p>
+          <p>{current.transcriptText}</p>
         </section>
 
         <section className={styles.questionBlock}>
           <div className={styles.smallLabel}>Question</div>
-          <p className={styles.statement}>{draft.statement}</p>
+          <p className={styles.statement}>{current.statement}</p>
           <ol className={styles.choices}>
-            {draft.choices.map((c, idx) => (
+            {current.choices.map((c, idx) => (
               <li
                 key={idx}
                 className={`${styles.choice} ${c.isCorrect ? styles.choiceCorrect : ""}`}
@@ -286,10 +414,10 @@ function DraftCard({ draft, onValidate, onReject, validating }: DraftCardProps) 
             ))}
           </ol>
 
-          {draft.explanation && (
+          {current.explanation && (
             <>
               <div className={styles.smallLabel}>Explication</div>
-              <p className={styles.explanation}>{draft.explanation}</p>
+              <p className={styles.explanation}>{current.explanation}</p>
             </>
           )}
         </section>

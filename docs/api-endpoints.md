@@ -46,6 +46,12 @@ Cf. `exams-tcf.md`.
 - `GET /api/me/stats?module=...`
 - `POST|DELETE /api/me/questions/{id}/favorite`
 - `GET /api/me/attempts?type=MOCK_EXAM&module=TCF&moduleExamQuestionType=CO|CE`
+- `DELETE /api/account` — suppression de compte (App Store 5.1.1(v)).
+  Anonymise le user (email/nom/mot de passe effacés, `deleted_at` posé), purge
+  les données de pratique, coupe le Premium, révoque les sessions. Renvoie
+  `AccountDeletionResponse {deleted, hasActiveSubscription, subscriptionProvider,
+  manualActionMessage}` — `manualActionMessage` non-null si un abonnement
+  Apple/Google reste à résilier dans le store.
 
 ## EO/EE TCF (production)
 

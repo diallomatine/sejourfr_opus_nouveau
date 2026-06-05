@@ -21,6 +21,12 @@ public interface QuestionRepository
 
     // ------------------------------------------------------------------------
     // Sélection aléatoire pour le runner
+    //
+    // NB : filtrer sur questionType = CO inclut AUSSI les questions CO_IMAGE
+    // (image + 4 propositions lues) — c'est un format de Compréhension orale,
+    // tiré dans les mêmes pools (entraînement, lots, examen module, examen
+    // complet) que les CO classiques. La recherche admin passe par les
+    // Specifications (QuestionSpecifications.hasType) et reste, elle, précise.
     // ------------------------------------------------------------------------
 
     /**
@@ -42,7 +48,10 @@ public interface QuestionRepository
               AND q.module = :module
               AND (:themeId IS NULL OR q.theme.id = :themeId)
               AND (:difficulty IS NULL OR q.difficulty = :difficulty)
-              AND (:questionType IS NULL OR q.questionType = :questionType)
+              AND (:questionType IS NULL
+                   OR q.questionType = :questionType
+                   OR (:questionType = com.sejourfr.app.enums.QuestionType.CO
+                       AND q.questionType = com.sejourfr.app.enums.QuestionType.CO_IMAGE))
             ORDER BY function('random')
             """)
     List<Question> findRandom(
@@ -69,7 +78,10 @@ public interface QuestionRepository
               AND q.module = :module
               AND (:themeId IS NULL OR q.theme.id = :themeId)
               AND (:difficulty IS NULL OR q.difficulty = :difficulty)
-              AND (:questionType IS NULL OR q.questionType = :questionType)
+              AND (:questionType IS NULL
+                   OR q.questionType = :questionType
+                   OR (:questionType = com.sejourfr.app.enums.QuestionType.CO
+                       AND q.questionType = com.sejourfr.app.enums.QuestionType.CO_IMAGE))
               AND q.id NOT IN :excludeIds
             ORDER BY function('random')
             """)
@@ -128,7 +140,10 @@ public interface QuestionRepository
               AND q.module = :module
               AND (:themeId IS NULL OR q.theme.id = :themeId)
               AND (:difficulty IS NULL OR q.difficulty = :difficulty)
-              AND (:questionType IS NULL OR q.questionType = :questionType)
+              AND (:questionType IS NULL
+                   OR q.questionType = :questionType
+                   OR (:questionType = com.sejourfr.app.enums.QuestionType.CO
+                       AND q.questionType = com.sejourfr.app.enums.QuestionType.CO_IMAGE))
               AND q.id NOT IN :excludeIds
             ORDER BY q.createdAt ASC, q.id ASC
             """)
@@ -147,7 +162,10 @@ public interface QuestionRepository
               AND q.module = :module
               AND (:themeId IS NULL OR q.theme.id = :themeId)
               AND (:difficulty IS NULL OR q.difficulty = :difficulty)
-              AND (:questionType IS NULL OR q.questionType = :questionType)
+              AND (:questionType IS NULL
+                   OR q.questionType = :questionType
+                   OR (:questionType = com.sejourfr.app.enums.QuestionType.CO
+                       AND q.questionType = com.sejourfr.app.enums.QuestionType.CO_IMAGE))
             ORDER BY q.createdAt ASC, q.id ASC
             """)
     List<Question> findOrdered(
@@ -198,7 +216,10 @@ public interface QuestionRepository
               AND q.module = :module
               AND (:themeId IS NULL OR q.theme.id = :themeId)
               AND (:difficulty IS NULL OR q.difficulty = :difficulty)
-              AND (:questionType IS NULL OR q.questionType = :questionType)
+              AND (:questionType IS NULL
+                   OR q.questionType = :questionType
+                   OR (:questionType = com.sejourfr.app.enums.QuestionType.CO
+                       AND q.questionType = com.sejourfr.app.enums.QuestionType.CO_IMAGE))
             """)
     long countActiveMatching(
             @Param("module") Module module,

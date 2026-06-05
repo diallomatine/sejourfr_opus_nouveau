@@ -60,9 +60,35 @@ public class User {
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
 
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) createdAt = Instant.now();
+    }
+
+    /**
+     * Anonymise le compte (suppression RGPD / App Store 5.1.1(v)). On garde la
+     * ligne pour conserver l'historique d'abonnement lié (obligation comptable),
+     * mais toutes les données personnelles directes disparaissent et le compte
+     * devient inutilisable : login impossible (password invalide), email libéré
+     * (deleted-{id}@anon.sejourfr, donc l'adresse d'origine peut se réinscrire),
+     * identifiant social détaché (libère l'index unique provider). Idempotent.
+     */
+    public void anonymize() {
+        if (deletedAt != null) {
+            return;
+        }
+        this.email = "deleted-" + id + "@anon.sejourfr";
+        this.firstName = null;
+        this.lastName = null;
+        this.passwordHash = "DELETED";
+        this.providerUserId = null;
+        this.targetProcedure = null;
+        this.targetLevel = null;
+        this.active = false;
+        this.deletedAt = Instant.now();
     }
 
     public UUID getId() { return id; }
@@ -97,6 +123,9 @@ public class User {
 
     public Instant getLastLoginAt() { return lastLoginAt; }
     public void setLastLoginAt(Instant lastLoginAt) { this.lastLoginAt = lastLoginAt; }
+
+    public Instant getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
 
     public AuthProvider getAuthProvider() { return authProvider; }
     public void setAuthProvider(AuthProvider authProvider) { this.authProvider = authProvider; }

@@ -400,6 +400,10 @@ export function QuestionRunner({
   }
 
   const q = current.question;
+  // CO_IMAGE : image affichée + propositions lues en audio, choix réduits à des
+  // lettres A→D. On force le rendu en pastilles-lettres (texte masqué) sur tout
+  // ce type, en plus de la détection par label déjà en place pour le FULL_AUDIO.
+  const isCoImage = q.questionType === "CO_IMAGE";
   const correctIds = state.lastResult?.correctChoiceIds ?? [];
   const isCorrect = state.lastResult?.correct === true;
   const showCorrection = mode === "training" && hasFeedback;
@@ -470,15 +474,26 @@ export function QuestionRunner({
           </div>
         )}
 
-        {/* MEDIA */}
+        {/* MEDIA — image (CO_IMAGE) ou audio/svg/vidéo classique */}
         {q.media && (
           <div className="qr-media">
             <MediaView key={q.id} media={q.media} />
           </div>
         )}
 
-        {/* STATEMENT */}
-        <h2 className="qr-statement">{q.statement}</h2>
+        {/* AUDIO CO_IMAGE — intro + 4 propositions lues, sous l'image */}
+        {q.audioMedia && (
+          <div className="qr-media">
+            <MediaView key={`${q.id}-audio`} media={q.audioMedia} />
+          </div>
+        )}
+
+        {/* STATEMENT / CONSIGNE */}
+        <h2 className="qr-statement">
+          {isCoImage
+            ? q.statement || "Écoutez les propositions et choisissez celle qui correspond à l'image."
+            : q.statement}
+        </h2>
 
         {/* CHOICES */}
         <div className="qr-options" role="radiogroup">
@@ -488,9 +503,12 @@ export function QuestionRunner({
             // est la clé de réponse citée par l'explication. On affiche cette
             // lettre dans la pastille et on masque le texte redondant ; les choix
             // sont déjà triés A→D par orderedChoices.
-            const letterOnly = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
-            const letter = letterOnly
-              ? letterOnly[1].toUpperCase()
+            const letterMatch = /^(?:r[ée]ponse\s+)?([A-D])$/i.exec(c.label.trim());
+            // En CO_IMAGE le texte des choix vit dans l'audio : on masque le
+            // label dans tous les cas et on pose la lettre par position.
+            const letterOnly = isCoImage || letterMatch !== null;
+            const letter = letterMatch
+              ? letterMatch[1].toUpperCase()
               : String.fromCharCode(65 + i);
             const isSel = selected.includes(c.id);
             const isThisCorrect = showCorrection && correctIds.includes(c.id);

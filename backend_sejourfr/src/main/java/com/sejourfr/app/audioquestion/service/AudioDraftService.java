@@ -11,6 +11,7 @@ import com.sejourfr.app.entity.Choice;
 import com.sejourfr.app.entity.Media;
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.Theme;
+import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.MediaType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionStatus;
@@ -18,6 +19,8 @@ import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.repository.MediaRepository;
 import com.sejourfr.app.repository.QuestionRepository;
+import com.sejourfr.app.service.ImageUploadSupport;
+import com.sejourfr.app.service.ImageUploadSupport.ValidatedImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -26,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -78,14 +82,20 @@ public class AudioDraftService {
     }
 
     @Transactional(readOnly = true)
-    public Page<AudioDraftDto> listPendingReview(Pageable pageable) {
-        return draftRepository.findByStatus(AudioDraftStatus.AUDIO_PENDING_REVIEW, pageable)
-            .map(AudioDraftDto::from);
+    public Page<AudioDraftDto> listPendingReview(Difficulty difficulty, Pageable pageable) {
+        Page<AudioQuestionDraft> page = difficulty == null
+            ? draftRepository.findByStatus(AudioDraftStatus.AUDIO_PENDING_REVIEW, pageable)
+            : draftRepository.findByStatusAndDifficulty(
+                AudioDraftStatus.AUDIO_PENDING_REVIEW, difficulty, pageable);
+        return page.map(AudioDraftDto::from);
     }
 
     @Transactional(readOnly = true)
-    public long countPendingReview() {
-        return draftRepository.countByStatus(AudioDraftStatus.AUDIO_PENDING_REVIEW);
+    public long countPendingReview(Difficulty difficulty) {
+        return difficulty == null
+            ? draftRepository.countByStatus(AudioDraftStatus.AUDIO_PENDING_REVIEW)
+            : draftRepository.countByStatusAndDifficulty(
+                AudioDraftStatus.AUDIO_PENDING_REVIEW, difficulty);
     }
 
     /**
@@ -96,8 +106,8 @@ public class AudioDraftService {
      *   - status -> AUDIO_PENDING_REVIEW avec audio_url, audio_duration_sec, etc.
      *   - en cas d'erreur : status remis a TEXT_VALIDATED, batch_id efface (retry possible)
      */
-    public BatchGenerationResultDto generateBatchAudio() {
-        List<UUID> draftIds = pickAndReserveBatch();
+    public BatchGenerationResultDto generateBatchAudio(Difficulty difficulty) {
+        List<UUID> draftIds = pickAndReserveBatch(difficulty);
         if (draftIds.isEmpty()) {
             return new BatchGenerationResultDto(null, 0, 0, 0, List.of());
         }
@@ -131,11 +141,12 @@ public class AudioDraftService {
         return new BatchGenerationResultDto(batchId, draftIds.size(), succeeded, failed, outcomes);
     }
 
-    private List<UUID> pickAndReserveBatch() {
+    private List<UUID> pickAndReserveBatch(Difficulty difficulty) {
         return txTemplate.execute(status -> {
-            List<AudioQuestionDraft> picked = draftRepository.findTop10ByStatusOrderByCreatedAtAsc(
-                AudioDraftStatus.TEXT_VALIDATED
-            );
+            List<AudioQuestionDraft> picked = difficulty == null
+                ? draftRepository.findTop10ByStatusOrderByCreatedAtAsc(AudioDraftStatus.TEXT_VALIDATED)
+                : draftRepository.findTop10ByStatusAndDifficultyOrderByCreatedAtAsc(
+                    AudioDraftStatus.TEXT_VALIDATED, difficulty);
             if (picked.isEmpty()) return List.<UUID>of();
             UUID batchId = UUID.randomUUID();
             List<UUID> ids = new ArrayList<>(picked.size());
@@ -212,26 +223,52 @@ public class AudioDraftService {
 
         Theme theme = draft.getTheme();
 
-        Media media = new Media();
-        media.setType(MediaType.AUDIO);
-        media.setContentType("audio/mpeg");
-        media.setDurationSec(draft.getAudioDurationSec());
-        media.setUrl(draft.getAudioUrl());
-        media.setStorageKey(extractObjectKey(draft.getAudioUrl()));
-        media.setTranscript(draft.getTranscriptText());
-        media = mediaRepository.saveAndFlush(media);
+        Media audioMedia = new Media();
+        audioMedia.setType(MediaType.AUDIO);
+        audioMedia.setContentType("audio/mpeg");
+        audioMedia.setDurationSec(draft.getAudioDurationSec());
+        audioMedia.setUrl(draft.getAudioUrl());
+        audioMedia.setStorageKey(extractObjectKey(draft.getAudioUrl()));
+        audioMedia.setTranscript(draft.getTranscriptText());
+        audioMedia = mediaRepository.saveAndFlush(audioMedia);
+
+        // CO_IMAGE = le draft porte une image support (SVG généré ou image R2) :
+        // l'image va dans media_id, l'audio des 4 propositions dans audio_media_id.
+        // Sinon, CO classique : l'audio seul dans media_id.
+        boolean isCoImage = hasText(draft.getImageUrl()) || hasText(draft.getInlineSvg());
 
         Question q = new Question();
         q.setModule(Module.TCF);
         q.setTheme(theme);
         q.setDifficulty(draft.getDifficulty());
-        q.setQuestionType(QuestionType.CO);
         q.setStatement(draft.getStatement());
         q.setExplanation(draft.getExplanation());
         q.setCompetenceCode(draft.getCompetenceCode());
-        q.setMedia(media);
         q.setActive(true);
         q.setStatus(QuestionStatus.ACTIVE);
+
+        if (isCoImage) {
+            Media image = new Media();
+            image.setType(MediaType.IMAGE);
+            image.setAltText(draft.getImageAltText());
+            // image_url prime sur inline_svg : on ne renseigne qu'un seul des deux
+            // pour que le front (qui affiche inline_svg en priorité s'il est présent)
+            // reste cohérent avec la règle de priorité documentée.
+            if (hasText(draft.getImageUrl())) {
+                image.setUrl(draft.getImageUrl());
+                image.setStorageKey(extractObjectKey(draft.getImageUrl()));
+            } else {
+                image.setInlineSvg(draft.getInlineSvg());
+            }
+            image = mediaRepository.saveAndFlush(image);
+
+            q.setQuestionType(QuestionType.CO_IMAGE);
+            q.setMedia(image);
+            q.setAudioMedia(audioMedia);
+        } else {
+            q.setQuestionType(QuestionType.CO);
+            q.setMedia(audioMedia);
+        }
 
         List<AudioQuestionDraft.DraftChoice> draftChoices = draft.getChoices();
         if (draftChoices != null) {
@@ -251,6 +288,33 @@ public class AudioDraftService {
         AudioQuestionDraft saved = draftRepository.save(draft);
 
         log.info("Draft {} publie en question {} par admin {}", draftId, q.getId(), adminUserId);
+        return AudioDraftDto.from(saved);
+    }
+
+    /**
+     * Remplace l'image support d'un draft CO_IMAGE par une image uploadee (R2).
+     * L'image_url prime : on vide l'inline_svg pour rester coherent avec la
+     * regle de priorite. La cle R2 est unique a chaque upload (cache immutable).
+     */
+    @Transactional
+    public AudioDraftDto replaceDraftImage(UUID draftId, MultipartFile file) {
+        AudioQuestionDraft draft = loadDraft(draftId);
+        if (draft.getStatus() == AudioDraftStatus.PUBLISHED) {
+            throw new IllegalStateException("Draft deja publie, remplacement d'image impossible");
+        }
+        ValidatedImage img = ImageUploadSupport.validate(file);
+        String oldKey = extractObjectKey(draft.getImageUrl());
+        String objectKey = "questions/images/drafts/" + draftId + "/" + UUID.randomUUID() + "." + img.extension();
+        R2UploadResult r2 = r2Client.uploadImage(objectKey, img.bytes(), img.contentType());
+
+        draft.setImageUrl(r2.publicUrl());
+        draft.setInlineSvg(null); // image_url prime sur le SVG genere
+        AudioQuestionDraft saved = draftRepository.save(draft);
+
+        if (oldKey != null && !oldKey.equals(r2.objectKey())) {
+            r2Client.deleteObject(oldKey);
+        }
+        log.info("Draft {} image remplacee key={}", draftId, objectKey);
         return AudioDraftDto.from(saved);
     }
 
@@ -284,13 +348,20 @@ public class AudioDraftService {
     }
 
     /**
-     * Extrait la cle R2 (audio/{uuid}.mp3) depuis une publicUrl.
+     * Extrait la cle R2 depuis une publicUrl (base/key) : tout ce qui suit le
+     * premier "/" apres le domaine. Ex : .../audio/{uuid}.mp3 -> audio/{uuid}.mp3,
+     * .../questions/images/{uuid}.png -> questions/images/{uuid}.png.
      */
     private static String extractObjectKey(String publicUrl) {
         if (publicUrl == null) return null;
-        int idx = publicUrl.indexOf("/audio/");
-        if (idx < 0) return null;
-        return publicUrl.substring(idx + 1);
+        int scheme = publicUrl.indexOf("://");
+        String afterScheme = scheme >= 0 ? publicUrl.substring(scheme + 3) : publicUrl;
+        int firstSlash = afterScheme.indexOf('/');
+        return firstSlash >= 0 ? afterScheme.substring(firstSlash + 1) : null;
+    }
+
+    private static boolean hasText(String s) {
+        return s != null && !s.isBlank();
     }
 
     private static String truncate(String s, int max) {

@@ -23,6 +23,8 @@ public record QuestionReviewResponse(
         String passageText,
         String explanation,
         MediaResponse media,
+        // Second média audio des questions CO_IMAGE (cf. QuestionPublicResponse).
+        MediaResponse audioMedia,
         List<ChoiceReviewResponse> choices,
         // Choix sélectionnés par l'utilisateur lors de sa dernière tentative.
         // Liste vide s'il n'a jamais répondu (cas d'une question favori non

@@ -8,6 +8,7 @@ export type QuestionType =
   | "CONNAISSANCE"
   | "MISE_SITUATION"
   | "CO"
+  | "CO_IMAGE"
   | "CE"
   | "STRUCTURE";
 
@@ -134,6 +135,8 @@ export interface QuestionDto {
   mediaUrl: string | null;
   mediaType: MediaType | null;
   mediaInlineSvg: string | null;
+  audioMediaId: string | null;
+  audioMediaUrl: string | null;
   difficulty: Difficulty;
   questionType: QuestionType;
   statement: string;
@@ -495,6 +498,9 @@ export interface AudioDraftDto {
   explanation: string | null;
   choices: AudioDraftChoiceDto[];
   voiceRecommended: string | null;
+  inlineSvg: string | null;
+  imageUrl: string | null;
+  imageAltText: string | null;
   status: AudioDraftStatus;
   audioUrl: string | null;
   audioDurationSec: number | null;

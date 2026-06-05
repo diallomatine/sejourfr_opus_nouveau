@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -95,32 +97,6 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 ? null
                 : () => Navigator.of(context, rootNavigator: true).maybePop(),
           ),
-          actions: [
-            TextButton(
-              onPressed: state.purchaseInProgress
-                  ? null
-                  : () => ref
-                      .read(billingControllerProvider.notifier)
-                      .restorePurchases(),
-              child: (state.purchaseInProgress && state.purchasingSku == null)
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(AppColors.muted),
-                      ),
-                    )
-                  : Text(
-                      'Restaurer',
-                      style: AppFonts.jakarta(
-                        size: 13,
-                        weight: FontWeight.w600,
-                        color: AppColors.muted,
-                      ),
-                    ),
-            ),
-          ],
         ),
         body: SafeArea(
           top: false,
@@ -197,6 +173,24 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             const SizedBox(height: 16),
           ],
           ...(oneTime ? _buildOneTimeCards(state) : _buildPlanCards(state)),
+          const SizedBox(height: 20),
+          AppButton(
+            label: 'Restaurer mes achats',
+            variant: AppButtonVariant.secondary,
+            icon: Icons.restore_rounded,
+            isLoading: state.purchaseInProgress && state.purchasingSku == null,
+            onPressed: state.purchaseInProgress
+                ? null
+                : () => ref
+                    .read(billingControllerProvider.notifier)
+                    .restorePurchases(),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Déjà acheté sur un autre appareil ? Récupérez votre accès ici.',
+            textAlign: TextAlign.center,
+            style: AppFonts.jakarta(size: 12, color: AppColors.muted, height: 1.5),
+          ),
           const SizedBox(height: 24),
           _TrustRow(),
           const SizedBox(height: 14),
@@ -768,6 +762,11 @@ class _FeatureRow extends StatelessWidget {
   }
 }
 
+/// Nom du store de la plateforme courante. On n'affiche JAMAIS l'autre store —
+/// App Store Guideline 2.3.10 (aucune mention de Google Play sur iOS, et
+/// inversement).
+String get _storeName => Platform.isIOS ? 'App Store' : 'Google Play';
+
 class _TrustRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -777,7 +776,7 @@ class _TrustRow extends StatelessWidget {
         const Icon(Icons.lock_rounded, size: 14, color: AppColors.muted),
         const SizedBox(width: 6),
         Text(
-          'Paiement sécurisé via App Store / Google Play',
+          'Paiement sécurisé via $_storeName',
           style: AppFonts.jakarta(size: 12, color: AppColors.muted),
         ),
       ],
@@ -792,12 +791,15 @@ class _LegalLinks extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final manageHint = Platform.isIOS
+        ? 'Réglages > Apple ID > Abonnements'
+        : 'Google Play > Abonnements';
     return Text(
       oneTime
           ? 'Achat unique, sans abonnement : aucun renouvellement automatique. '
               'L\'accès expire à la fin de la durée choisie.'
           : 'L\'abonnement est géré par le store. Gérez le renouvellement et '
-              'annulez à tout moment dans Réglages > Apple ID / Google Play.',
+              'annulez à tout moment dans $manageHint.',
       textAlign: TextAlign.center,
       style: AppFonts.jakarta(size: 11, color: AppColors.muted, height: 1.5),
     );

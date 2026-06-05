@@ -21,6 +21,9 @@ public record QuestionDto(
         String mediaUrl,
         MediaType mediaType,
         String mediaInlineSvg,
+        // Second média audio (CO_IMAGE) : null pour les autres types.
+        UUID audioMediaId,
+        String audioMediaUrl,
         Difficulty difficulty,
         QuestionType questionType,
         String statement,

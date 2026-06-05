@@ -7,6 +7,7 @@ import com.sejourfr.app.dto.QuestionWriteRequest;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
+import com.sejourfr.app.service.QuestionImageService;
 import com.sejourfr.app.service.QuestionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,8 +25,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
 import java.util.UUID;
@@ -36,6 +39,7 @@ import java.util.UUID;
 public class AdminQuestionController {
 
     private final QuestionService questionService;
+    private final QuestionImageService questionImageService;
 
     @GetMapping
     public PageResponse<QuestionDto> search(
@@ -65,6 +69,13 @@ public class AdminQuestionController {
     @PutMapping("/{id}")
     public QuestionDto update(@PathVariable UUID id, @Valid @RequestBody QuestionWriteRequest req) {
         return questionService.update(id, req);
+    }
+
+    @PostMapping(value = "/{id}/image", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public QuestionDto replaceImage(
+            @PathVariable UUID id,
+            @RequestPart("file") MultipartFile file) {
+        return questionImageService.replaceImage(id, file);
     }
 
     @PatchMapping("/{id}/status")

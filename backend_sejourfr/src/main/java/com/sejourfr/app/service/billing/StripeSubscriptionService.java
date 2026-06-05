@@ -364,7 +364,7 @@ public class StripeSubscriptionService {
         String planName = sub.getPlan() != null ? sub.getPlan().getName() : "Premium";
         mailService.sendSubscriptionActivatedEmail(
                 user.getEmail(), user.getFirstName(), planName,
-                sub.getEndsAt(), sub.getSource().name()
+                sub.getEndsAt(), sub.isAutoRenew()
         );
     }
 

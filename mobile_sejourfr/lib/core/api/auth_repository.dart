@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../models/account_models.dart';
 import '../models/auth_models.dart';
 import 'api_client.dart';
 
@@ -98,6 +99,14 @@ class AuthRepository {
     } catch (_) {
       // Silencieux. Le clear local est garanti par AuthController.logout().
     }
+  }
+
+  /// Supprime le compte de l'utilisateur courant (App Store 5.1.1(v)).
+  /// Authentifié : le backend identifie le user via le Bearer, jamais via un
+  /// paramètre. Renvoie le détail abonnement pour informer l'utilisateur.
+  Future<AccountDeletionResult> deleteAccount() async {
+    final res = await _client.dio.delete<Map<String, dynamic>>('/api/account');
+    return AccountDeletionResult.fromJson(res.data ?? const {});
   }
 
   Options _publicOptions() =>

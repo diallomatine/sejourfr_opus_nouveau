@@ -36,4 +36,9 @@ public class ConversationManager {
     public void delete(Conversation conversation) {
         repository.delete(conversation);
     }
+
+    /** Purge les conversations de support d'un user (suppression de compte). */
+    public int deleteByUserId(UUID userId) {
+        return repository.deleteByUserId(userId);
+    }
 }

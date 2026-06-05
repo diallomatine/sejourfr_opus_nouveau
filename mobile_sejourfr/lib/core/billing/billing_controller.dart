@@ -105,6 +105,14 @@ class BillingController extends StateNotifier<BillingState> {
 
   StreamSubscription<List<PurchaseDetails>>? _purchaseSubscription;
 
+  /// Garde-fou anti-spinner-infini de la restauration : si le store n'a rien à
+  /// restaurer, il n'émet AUCUN event sur [IapService.purchaseStream] → sans ce
+  /// timeout, [purchaseInProgress] resterait true indéfiniment. Armé dans
+  /// [restorePurchases], annulé dès qu'un event arrive (restauration réelle).
+  Timer? _restoreTimeout;
+  bool _restoreInFlight = false;
+  static const _restoreTimeoutDuration = Duration(seconds: 8);
+
   void _subscribePurchaseStream() {
     _purchaseSubscription = _iap.purchaseStream.listen(
       _onPurchasesUpdated,
@@ -327,13 +335,18 @@ class BillingController extends StateNotifier<BillingState> {
       clearError: true,
       clearPurchasingSku: true,
     );
+    _restoreInFlight = true;
     try {
       await _iap.restorePurchases();
       // Les achats restaurés arrivent via purchaseStream → _onPurchasesUpdated
       // qui les renvoie au backend pour rattachement. On ne reset pas
-      // purchaseInProgress ici, c'est le handler stream qui le fera quand
-      // tous les events seront passés.
+      // purchaseInProgress ici, c'est le handler stream qui le fera. Mais si le
+      // store n'a RIEN à restaurer, aucun event n'arrive : on arme un timeout
+      // qui débloque l'UI avec un message clair.
+      _restoreTimeout?.cancel();
+      _restoreTimeout = Timer(_restoreTimeoutDuration, _onRestoreTimeout);
     } catch (e) {
+      _endRestore();
       final d = _describeError(e,
           fallback: 'Impossible de restaurer vos achats. Réessayez.');
       state = state.copyWith(
@@ -345,11 +358,33 @@ class BillingController extends StateNotifier<BillingState> {
     }
   }
 
+  /// Aucun achat restauré dans le délai imparti → rien à restaurer. On débloque
+  /// l'UI (boutons re-cliquables) et on informe l'utilisateur.
+  void _onRestoreTimeout() {
+    if (!_restoreInFlight) return;
+    _restoreInFlight = false;
+    if (!mounted) return;
+    state = state.copyWith(
+      purchaseInProgress: false,
+      clearPurchasingSku: true,
+      error: 'Aucun achat à restaurer pour ce compte.',
+    );
+  }
+
+  void _endRestore() {
+    _restoreInFlight = false;
+    _restoreTimeout?.cancel();
+    _restoreTimeout = null;
+  }
+
   // --------------------------------------------------------------------------
   // Réception des events du store
   // --------------------------------------------------------------------------
 
   Future<void> _onPurchasesUpdated(List<PurchaseDetails> purchases) async {
+    // Un event arrive (achat OU restauration réelle) → on désarme le timeout de
+    // restauration : le flux normal ci-dessous gère désormais purchaseInProgress.
+    if (purchases.isNotEmpty) _endRestore();
     for (final purchase in purchases) {
       switch (purchase.status) {
         case PurchaseStatus.pending:
@@ -479,6 +514,7 @@ class BillingController extends StateNotifier<BillingState> {
 
   @override
   void dispose() {
+    _restoreTimeout?.cancel();
     _purchaseSubscription?.cancel();
     super.dispose();
   }

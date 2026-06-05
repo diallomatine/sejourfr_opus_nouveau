@@ -90,7 +90,8 @@ public class OneTimeAccessService {
         // via la proration Stripe), tandis qu'un re-achat même module cumule.
         Instant currentEnd =
                 subscriptionService.currentEndForAtLeast(userId, plan.getModuleAccess());
-        Instant base = (currentEnd != null && currentEnd.isAfter(now)) ? currentEnd : now;
+        boolean extension = currentEnd != null && currentEnd.isAfter(now);
+        Instant base = extension ? currentEnd : now;
         Instant endsAt = base.plus(plan.getDurationDays(), ChronoUnit.DAYS);
 
         UserSubscription sub = new UserSubscription();
@@ -109,9 +110,15 @@ public class OneTimeAccessService {
         log.info("Pass one-time accordé user={} plan={} source={} endsAt={} (base={})",
                 userId, plan.getCode(), source, endsAt, base);
 
-        mailService.sendSubscriptionActivatedEmail(
-                user.getEmail(), user.getFirstName(), plan.getName(),
-                endsAt, source.name());
+        // Premier achat → email de bienvenue ; prolongation d'un accès en cours
+        // → email « accès prolongé » (wording différent : on rassure sur le cumul).
+        if (extension) {
+            mailService.sendAccessExtendedEmail(
+                    user.getEmail(), user.getFirstName(), plan.getName(), endsAt);
+        } else {
+            mailService.sendSubscriptionActivatedEmail(
+                    user.getEmail(), user.getFirstName(), plan.getName(), endsAt, false);
+        }
 
         return sub;
     }
