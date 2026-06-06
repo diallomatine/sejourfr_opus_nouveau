@@ -123,7 +123,7 @@ function ExamsConnectedHome() {
       </header>
 
       <ModuleExamsSection
-        tone="blue"
+        tone="red"
         icon={<Waves size={22} strokeWidth={1.8} />}
         title="TCF IRN"
         chip="3 épreuves mélangées"
@@ -137,7 +137,7 @@ function ExamsConnectedHome() {
       />
 
       <ModuleExamsSection
-        tone="red"
+        tone="blue"
         icon={<Lightbulb size={22} strokeWidth={1.8} />}
         title="Examen civique"
         chip="5 catégories mélangées"
