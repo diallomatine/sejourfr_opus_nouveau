@@ -261,6 +261,11 @@ public class AttemptService {
 
         Attempt parent = resolveParentAttempt(userId, req.parentAttemptId());
 
+        final boolean isExamSession = Boolean.TRUE.equals(req.exam());
+        if (isExamSession && !subscriptionService.hasTcf(userId)) {
+            enforceFreeProductionExamBudget(userId);
+        }
+
         Attempt attempt = new Attempt();
         attempt.setUser(user);
         attempt.setType(AttemptType.TRAINING);
@@ -268,9 +273,28 @@ public class AttemptService {
         attempt.setEpreuve(req.epreuve());
         attempt.setParentAttempt(parent);
         attempt.setStartedAt(Instant.now());
+        // Session d'examen blanc production : marquée via slotNumber (examen 1).
+        // Les soumissions de cette session passent outre le quota d'entraînement.
+        if (isExamSession) {
+            attempt.setSlotNumber(1);
+        }
         // Pas de QCM -> totalQuestions / timeLimit / threshold restent null.
         attempt = attemptManager.save(attempt);
         return mapper.toResponse(attempt, List.of(), false);
+    }
+
+    /**
+     * Budget freemium des examens blancs production (règles validées
+     * 2026-06-06) : 1ʳᵉ session gratuite ; une 2ᵉ session (refaire l'examen 1)
+     * est tolérée mais consomme les essais d'entraînement EE/EO restants
+     * (le front prévient via une modale) ; au-delà → premium.
+     */
+    private void enforceFreeProductionExamBudget(UUID userId) {
+        long sessions = attemptManager.countProductionExamSessions(userId);
+        if (sessions >= 2) {
+            throw new AccessDeniedException(
+                    "Examens blancs production réservés aux abonnés Intégral au-delà des essais gratuits.");
+        }
     }
 
     private Attempt resolveParentAttempt(UUID userId, UUID parentAttemptId) {
@@ -332,6 +356,14 @@ public class AttemptService {
                 }
                 questions = questionManager.findDemoPool(req.module(), size);
             }
+        } else if (req.lotNumero() != null) {
+            // Série offerte sans compte : uniquement la série 1 de chaque
+            // catégorie (découverte). Les séries 2+ exigent un compte.
+            if (req.lotNumero() != 1) {
+                throw new AccessDeniedException(
+                        "Seule la série 1 est offerte sans compte. Créez un compte gratuit pour continuer.");
+            }
+            return startGuestLot(req, clientIp);
         } else {
             size = FREE_TRAINING_MAX_SIZE;
             questions = questionManager.findDemoPool(req.module(), size);
@@ -351,6 +383,52 @@ public class AttemptService {
         attempt.setTimeLimitSeconds(timeLimit);
         attempt.setPassThreshold(threshold);
         attempt.setStartedAt(Instant.now());
+        attempt = attemptManager.save(attempt);
+
+        List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
+        return mapper.toResponse(attempt, aqList, false);
+    }
+
+    /**
+     * Série 1 guest (anonyme) : même fenêtre déterministe que les comptes
+     * (LotService), attempt persisté avec user NULL + clientIp — utile pour
+     * mesurer combien de visiteurs se testent avant inscription.
+     */
+    private AttemptResponse startGuestLot(StartAttemptRequest req, String clientIp) {
+        final List<Question> questions;
+        if (req.module() == Module.CIVIQUE) {
+            if (req.themeId() == null) {
+                throw new BusinessException("themeId est obligatoire pour une série Civique.");
+            }
+            int effectiveSize = lotService.resolveLotSizeCivique(req.themeId(), 1);
+            questions = questionManager.findLotQuestionsCivique(req.themeId(), 1, effectiveSize);
+        } else {
+            if (req.difficulty() == null) {
+                throw new BusinessException("difficulty est obligatoire pour une série TCF (A2/B1/B2).");
+            }
+            int effectiveSize = lotService.resolveLotSize(
+                    req.module(), req.questionType(), req.difficulty(), 1);
+            questions = questionManager.findLotQuestions(
+                    req.module(), req.questionType(), req.difficulty(), 1, effectiveSize);
+        }
+        if (questions.isEmpty()) {
+            throw new BusinessException("Série 1 indisponible pour ces critères.");
+        }
+
+        Attempt attempt = new Attempt();
+        // user = null (guest)
+        attempt.setClientIp(clientIp);
+        attempt.setType(AttemptType.TRAINING);
+        attempt.setModule(req.module());
+        attempt.setTotalQuestions(questions.size());
+        attempt.setStartedAt(Instant.now());
+        attempt.setLotNumero(1);
+        if (req.module() == Module.CIVIQUE) {
+            attempt.setLotThemeId(req.themeId());
+        } else {
+            attempt.setLotQuestionType(req.questionType());
+            attempt.setLotDifficulty(req.difficulty());
+        }
         attempt = attemptManager.save(attempt);
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);

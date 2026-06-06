@@ -398,6 +398,13 @@ export interface ProductionAttemptStartRequest {
   module: Module;
   epreuve: EpreuveType;
   parentAttemptId?: string | null;
+  /**
+   * True pour une session d'examen blanc production (3 tâches). Marque
+   * l'attempt côté backend : ses soumissions bypassent le quota
+   * d'entraînement, et les sessions d'examen comptent dans le budget
+   * gratuit (1 examen offert, le 2ᵉ consomme les essais EE/EO restants).
+   */
+  exam?: boolean;
 }
 
 /** Tâche EE/EO. La grille d'évaluation n'est volontairement pas exposée. */

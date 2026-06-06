@@ -431,6 +431,46 @@ Tri : n° de règle puis progression croissante ; si rien ne matche → card
 « Rien d'urgent » (CTA examen complet). En dessous : le classement complet
 filtrable (Tous / TCF / Civique) reste comme détail.
 
+### Mode guest & quotas gratuits (validés 2026-06-06)
+
+**Guests (non connectés)** — header public aligné sur la sidebar (Accueil ·
+TCF IRN · Examen civique · Examens blancs · Tarifs, cf. `SiteHeader`) ;
+navigation libre des hubs et pages détail (`DualChromeShell` rend les
+enfants sans sidebar quand `status !== "authenticated"`).
+
+- **Série 1 offerte** par thème civique et par (épreuve TCF × niveau) :
+  pages séries duales — lots via `publicLotApi` (`/api/public/lots`,
+  `PublicLotController` backend), start anonyme via
+  `publicAttemptApi.startDemo({type:"TRAINING", …, lotNumero:1})`
+  (`AttemptService.startGuestLot` : attempt user NULL + clientIp, même
+  fenêtre déterministe que les comptes). Série 2+ → `GuestGateSheet`
+  (modal inscription, badge « Compte gratuit » via `lockedLabel`).
+  Backend : lotNumero ≠ 1 sans compte → 403.
+- **Examen complet 1 jouable** par module sur `/examens-blancs` (même
+  grille `ModuleExamsSection`/`ExamsGrid` que les connectés, `freeSlots=1`,
+  start anonyme MOCK_EXAM template free). Examens 2-20 → `GuestGateSheet`.
+  Les attempts guests sont en base (user NULL + IP) → analytics « combien
+  de visiteurs se testent ».
+- **Examens par thème/épreuve** (`*/examens`) et **EE/EO** : réservés aux
+  comptes (`ModuleDetailGate`).
+
+**Connecté gratuit, EE/EO** (source backend `ProductionSubmissionService` +
+`AttemptService.startProductionAttempt`) :
+
+- **1 essai d'entraînement** par épreuve (EE et EO) à vie (était 2).
+  Modale d'info one-time sur `ProductionHub` (`ConfirmSheet` tone info,
+  localStorage `sejourfr.prodQuotaInfo.<épreuve>`).
+- **1 examen blanc production offert** (examen 1, `ProductionExams`
+  `freeSlots=1`). Le start passe `exam: true`
+  (`ProductionAttemptStartRequest.exam`) → attempt marqué
+  `slotNumber=1` ; ses soumissions bypassent le quota d'entraînement.
+- **Refaire l'examen 1** : autorisé une fois mais consomme les essais
+  d'entraînement restants — `ConfirmSheet` d'avertissement avant
+  (`ProductionExams`, si `past.length ≥ 1`). 3ᵉ session → 403 → paywall.
+- Côté backend, une session d'examen ne compte que si ≥ 1 tâche a été
+  soumise (un start abandonné est gratuit) ; à 2 sessions soumises, les
+  entraînements gratuits sont verrouillés (403). Premium TCF : illimité.
+
 - **Vague 8 (branche `web_refonte`)** ✅ — **Refonte shell app + dashboard**
   (maquette "Tableau de bord" SaaS) :
     - **Sidebar** (`AppSidebar.tsx`) recomposée : Accueil → `/` (landing

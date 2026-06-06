@@ -100,9 +100,9 @@ public class FullTcfExamService {
         // EE + EO : attempts vides — les 3 tâches seront soumises via
         // /api/production-submissions avec attemptId du sous-attempt + parent.
         attemptService.startProductionAttempt(userId, new ProductionAttemptStartRequest(
-                Module.TCF, EpreuveType.TCF_EE, parent.getId()));
+                Module.TCF, EpreuveType.TCF_EE, parent.getId(), null));
         attemptService.startProductionAttempt(userId, new ProductionAttemptStartRequest(
-                Module.TCF, EpreuveType.TCF_EO, parent.getId()));
+                Module.TCF, EpreuveType.TCF_EO, parent.getId(), null));
 
         log.info("Full TCF exam created: parentId={} user={}", parent.getId(), userId);
         return buildResponse(parent);

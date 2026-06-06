@@ -18,7 +18,7 @@ import prod from "./production.module.css";
 /**
  * Écran de saisie d'un sujet (entraînement libre) : crée un attempt à la volée,
  * soumet (texte EE ou audio EO), puis redirige vers le feedback IA. Le paywall
- * Intégral s'ouvre quand le backend renvoie 403 (quota de 2 essais dépassé).
+ * Intégral s'ouvre quand le backend renvoie 403 (essai gratuit déjà utilisé).
  */
 export function ProductionInputPage({config}: {config: ProductionConfig}) {
   const params = useParams<{taskId: string}>();
@@ -119,7 +119,7 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
           title={`Débloquez l'${config.label.toLowerCase()}`}
-          message={`Vous avez utilisé vos 2 essais gratuits d'${config.label.toLowerCase()}. L'abonnement Intégral débloque l'entraînement et les examens blancs EE/EO illimités, plus tout le TCF et le civique.`}
+          message={`Vous avez utilisé votre essai gratuit d'${config.label.toLowerCase()}. L'abonnement Intégral débloque l'entraînement et les examens blancs EE/EO illimités, plus tout le TCF et le civique.`}
         />
       </main>
     </DualChromeShell>

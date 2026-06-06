@@ -21,5 +21,10 @@ import java.util.UUID;
 public record ProductionAttemptStartRequest(
         @NotNull Module module,
         @NotNull EpreuveType epreuve,
-        UUID parentAttemptId
+        UUID parentAttemptId,
+        // True pour une session d'examen blanc production (3 tâches). Marque
+        // l'attempt (slotNumber=1) : les soumissions de cette session passent
+        // outre le quota d'entraînement, et les sessions d'examen comptent
+        // dans le budget gratuit (cf. règles freemium ProductionSubmissionService).
+        Boolean exam
 ) {}

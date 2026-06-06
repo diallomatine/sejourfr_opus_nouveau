@@ -23,6 +23,7 @@ import {
   type ExamSlotData,
   ExamsGrid,
 } from "@/app/_components/hub/DetailParts";
+import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
 import { type ProductionConfig } from "./config";
 import detail from "@/app/_components/hub/detail.module.css";
 
@@ -39,8 +40,10 @@ interface PastSession {
 /**
  * Examens blancs d'une épreuve productive (EE/EO) — maquette sejour_fr.html :
  * 3 stat cards (passés / meilleure note / niveau estimé) + grille de 20
- * examens (3 tâches enchaînées, évaluation IA). Réservé aux abonnés
- * Intégral ; Rapport → session de l'examen, Refaire → nouvelle session.
+ * examens (3 tâches enchaînées, évaluation IA). Comptes gratuits : examen 1
+ * offert ; le refaire consomme les essais d'entraînement EE/EO restants
+ * (avertissement avant) ; au-delà (et examens 2-20) → abonnés Intégral.
+ * Rapport → session de l'examen, Refaire → nouvelle session.
  */
 export function ProductionExams({ config }: { config: ProductionConfig }) {
   const router = useRouter();
@@ -52,6 +55,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [retakeWarningOpen, setRetakeWarningOpen] = useState(false);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -102,16 +106,29 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
     };
   }, [status, config.epreuve]);
 
-  async function start() {
+  function start() {
     if (starting) return;
-    if (!isPremium) {
-      setPaywallOpen(true);
+    // Gratuit : examen 1 offert. Le refaire est possible mais consomme les
+    // essais d'entraînement EE/EO restants → avertissement avant. Le backend
+    // tranche (403 au-delà de 2 sessions) ; `past` ne voit que les sessions
+    // soumises, le compteur autoritaire vit côté serveur.
+    if (!isPremium && past.length >= 1) {
+      setRetakeWarningOpen(true);
       return;
     }
+    void launch();
+  }
+
+  async function launch() {
+    setRetakeWarningOpen(false);
     setError(null);
     setStarting(true);
     try {
-      const attempt = await productionApi.startAttempt({ module: "TCF", epreuve: config.epreuve });
+      const attempt = await productionApi.startAttempt({
+        module: "TCF",
+        epreuve: config.epreuve,
+        exam: true,
+      });
       router.push(`${config.base}/session/${attempt.id}`);
     } catch (e) {
       if (e instanceof ApiException && e.status === 403) setPaywallOpen(true);
@@ -192,7 +209,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
           count={SLOTS}
           exams={slotData}
           premium={isPremium}
-          freeSlots={0}
+          freeSlots={1}
           starting={starting}
           itemLabel="Examen"
           reportPath={(attemptId) => `${config.base}/session/${attemptId}`}
@@ -200,12 +217,23 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
           onLocked={() => setPaywallOpen(true)}
         />
 
+        <ConfirmSheet
+          open={retakeWarningOpen}
+          tone="warning"
+          title="Refaire l'examen 1 ?"
+          message="Refaire cet examen blanc utilisera vos essais gratuits d'entraînement EE et EO : après cette session, les tâches d'entraînement seront réservées aux abonnés Intégral."
+          confirmLabel="Refaire l'examen"
+          cancelLabel="Annuler"
+          onConfirm={() => void launch()}
+          onClose={() => setRetakeWarningOpen(false)}
+        />
+
         <PaywallSheet
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}
           module="INTEGRAL"
-          title={`Débloquez l'examen blanc ${config.shortLabel}`}
-          message="L'examen blanc complet (3 tâches + évaluation IA) est réservé aux abonnés Intégral, qui débloque aussi tout le TCF, le civique et les examens blancs illimités."
+          title={`Débloquez les examens blancs ${config.shortLabel}`}
+          message="Le premier examen blanc (3 tâches + évaluation IA) est offert. Les suivants sont réservés aux abonnés Intégral, qui débloque aussi tout le TCF, le civique et les examens blancs illimités."
         />
       </DetailShell>
     </DualChromeShell>

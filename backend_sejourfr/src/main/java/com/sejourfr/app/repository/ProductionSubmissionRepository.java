@@ -29,6 +29,21 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
             """)
     long countByUserAndEpreuve(@Param("userId") UUID userId, @Param("epreuve") EpreuveType epreuve);
 
+    /**
+     * Variante "entrainement seul" : exclut les soumissions faites dans une
+     * session d'examen blanc production ({@code attempt.slotNumber} non null)
+     * ou dans un examen blanc TCF complet ({@code attempt.parentAttempt} non
+     * null). Sert au quota freemium : 1 essai d'entrainement par epreuve.
+     */
+    @Query("""
+            SELECT COUNT(s) FROM ProductionSubmission s
+            WHERE s.user.id = :userId
+              AND s.productionTask.epreuve = :epreuve
+              AND s.attempt.slotNumber IS NULL
+              AND s.attempt.parentAttempt IS NULL
+            """)
+    long countTrainingByUserAndEpreuve(@Param("userId") UUID userId, @Param("epreuve") EpreuveType epreuve);
+
     /** Historique filtre par epreuve (jointure sur la task). */
     @Query("""
             SELECT s FROM ProductionSubmission s

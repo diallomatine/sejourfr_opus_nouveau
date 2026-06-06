@@ -162,11 +162,13 @@ export function CiviqueHub({ user }: { user: AuthenticatedUser | null }) {
           </span>
           <span className={styles.demoBody}>
             <span className={styles.demoTitle}>
-              Mode démo · {DEMO_BATCH_SIZE} questions par thème
+              {isGuest
+                ? "Découverte gratuite · 1 série offerte par thème"
+                : `Mode démo · ${DEMO_BATCH_SIZE} questions par thème`}
             </span>
             <span className={styles.demoSub}>
               {isGuest
-                ? "Créez un compte pour sauvegarder vos résultats et débloquer l'illimité."
+                ? "Et un examen blanc complet offert. Créez un compte gratuit pour continuer et sauvegarder vos résultats."
                 : "Débloquez l'entraînement illimité et tous les examens blancs civiques."}
             </span>
           </span>

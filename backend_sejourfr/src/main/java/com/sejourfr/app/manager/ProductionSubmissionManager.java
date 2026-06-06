@@ -39,6 +39,11 @@ public class ProductionSubmissionManager {
         return repository.countByUserAndEpreuve(userId, epreuve);
     }
 
+    /** Soumissions d'entrainement seules (hors sessions d'examen blanc). */
+    public long countTrainingByUserAndEpreuve(UUID userId, EpreuveType epreuve) {
+        return repository.countTrainingByUserAndEpreuve(userId, epreuve);
+    }
+
     /** Historique utilisateur, tri descendant, plafonne par {@code limit}. */
     public List<ProductionSubmission> findRecentByUser(UUID userId, int limit) {
         return repository.findByUserIdOrderBySubmittedAtDesc(userId, PageRequest.of(0, limit));

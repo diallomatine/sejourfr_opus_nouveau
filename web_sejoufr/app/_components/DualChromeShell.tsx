@@ -2,6 +2,7 @@
 
 import { AppSidebar } from "./AppSidebar";
 import { MobileSidebarToggle } from "./MobileSidebarToggle";
+import { useAuth } from "@/lib/auth-context";
 
 /**
  * Wrap pour les routes "duales" (/entrainement, /examens-blancs, /sessions)
@@ -13,10 +14,21 @@ import { MobileSidebarToggle } from "./MobileSidebarToggle";
  * Sous 900 px : le drawer mobile (MobileSidebarToggle) prend le relais, et
  * la sidebar fixe horizontale est masquée par la classe `app-shell--has-drawer`.
  *
- * NB : à utiliser uniquement quand `useAuth().status === "authenticated"`.
- * Le rendu guest doit rester sous le chrome public (SiteHeader + Footer).
+ * Guests : pas de sidebar — le contenu est rendu tel quel sous le chrome
+ * public (SiteHeader + Footer), qui reste visible sur les routes duales.
  */
 export function DualChromeShell({ children }: { children: React.ReactNode }) {
+  const { status } = useAuth();
+  if (status !== "authenticated") {
+    return (
+      <div className="dual-shell-guest">
+        {children}
+        <style>{`
+          .dual-shell-guest { min-height: 100vh; background: #F7F8FC; }
+        `}</style>
+      </div>
+    );
+  }
   return (
     <div className="dual-shell app-shell--has-drawer">
       <AppSidebar />

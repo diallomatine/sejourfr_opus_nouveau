@@ -505,6 +505,24 @@ export const lotApi = {
     },
 };
 
+/**
+ * Variante guest de `lotApi` : même découpage de séries sans les derniers
+ * scores. La série 1 est jouable sans compte via `publicAttemptApi.startDemo`
+ * (TRAINING + lotNumero=1), les séries 2+ ouvrent la GuestGateSheet.
+ */
+export const publicLotApi = {
+    listCivique(themeId: string): Promise<LotDto[]> {
+        return apiFetch<LotDto[]>(
+            `/api/public/lots?module=CIVIQUE&themeId=${encodeURIComponent(themeId)}`,
+        );
+    },
+    listTcf(questionType: QuestionType, difficulty: Difficulty): Promise<LotDto[]> {
+        return apiFetch<LotDto[]>(
+            `/api/public/lots?module=TCF&questionType=${questionType}&difficulty=${difficulty}`,
+        );
+    },
+};
+
 // ============================================================================
 // Endpoints User content (favoris, questions ratées, stats, target path)
 // ============================================================================

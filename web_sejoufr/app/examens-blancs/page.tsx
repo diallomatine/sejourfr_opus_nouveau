@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Info, Lightbulb, Target, Waves } from "lucide-react";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
+import { GuestGateSheet } from "@/app/_components/GuestGateSheet";
 import { ExamsGrid } from "@/app/_components/hub/DetailParts";
 import {
   ApiException,
@@ -33,7 +34,11 @@ const CIVIQUE_FULL_EXAM_SLUG = "civique-decouverte";
  * /examens-blancs (maquette sejour_fr.html) : « Examens blancs complets » —
  * une grande card par parcours (TCF IRN 60 Q mélangées · Examen civique 40 Q
  * stratifiées tous thèmes) avec stats, 20 épreuves repliées à 8 (+ Voir tout).
- * Épreuve 1 gratuite, 2+ premium. Les guests gardent la page démo.
+ * Épreuve 1 gratuite, 2+ premium.
+ *
+ * Guests : même grille — l'examen 1 de chaque parcours se joue en anonyme
+ * (publicAttemptApi, attempt user NULL + IP côté backend), les examens 2-20
+ * ouvrent la GuestGateSheet (inscription gratuite).
  */
 export default function ExamensBlancsHomePage() {
   const { status } = useAuth();
@@ -174,6 +179,7 @@ function ModuleExamsSection({
   scoreOutOf,
   premium,
   starting,
+  lockedLabel,
   onStart,
   onLocked,
 }: {
@@ -186,6 +192,7 @@ function ModuleExamsSection({
   scoreOutOf: number;
   premium: boolean;
   starting: boolean;
+  lockedLabel?: string;
   onStart: () => void;
   onLocked: () => void;
 }) {
@@ -220,6 +227,7 @@ function ModuleExamsSection({
         premium={premium}
         starting={starting}
         itemLabel="Épreuve"
+        lockedLabel={lockedLabel}
         collapsedCount={COLLAPSED}
         onStart={onStart}
         onLocked={onLocked}
@@ -240,42 +248,36 @@ function HomeSkeleton() {
 }
 
 // ============================================================================
-// VERSION GUEST — démo gratuite illimitée : même série d'examen rejouable
+// VERSION GUEST — même grille que les connectés : examen 1 jouable en
+// anonyme (analytics : attempt user NULL + clientIp), 2-20 → inscription.
 // ============================================================================
 
 function ExamsGuestHome() {
   const router = useRouter();
   const [exams, setExams] = useState<ExamTemplateSummary[]>([]);
-  const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState<ModuleEnum | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [guestGateOpen, setGuestGateOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
     publicExamApi
       .list()
       .then((list) => {
-        if (cancelled) return;
-        setExams(list);
-        setLoading(false);
+        if (!cancelled) setExams(list);
       })
       .catch((e: unknown) => {
-        if (cancelled) return;
-        setError(
-          e instanceof ApiException
-            ? e.message
-            : "Impossible de charger les examens.",
-        );
-        setLoading(false);
+        if (!cancelled)
+          setError(
+            e instanceof ApiException ? e.message : "Impossible de charger les examens.",
+          );
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  /** Pour la démo guest on prend le premier exam free (ou défaut) de chaque module. */
+  /** Template free de référence de chaque module pour l'examen 1 anonyme. */
   const examsByModule = useMemo(() => {
     const civique =
       exams.find((e) => e.module === "CIVIQUE" && e.free) ??
@@ -290,7 +292,7 @@ function ExamsGuestHome() {
 
   async function startDemo(module: ModuleEnum) {
     const tpl = examsByModule[module];
-    if (!tpl) return;
+    if (!tpl || starting) return;
     setError(null);
     setStarting(module);
     try {
@@ -302,338 +304,74 @@ function ExamsGuestHome() {
       router.push(`/sessions/${a.id}`);
     } catch (e) {
       setError(
-        e instanceof ApiException
-          ? e.message
-          : "Impossible de démarrer la démo.",
+        e instanceof ApiException ? e.message : "Impossible de démarrer l'examen.",
       );
       setStarting(null);
     }
   }
 
   return (
-    <main className="ebh-guest">
-      <div className="guest-banner" role="status">
-        <div className="guest-banner-icon" aria-hidden>
-          <ShieldIcon />
+    <main className="ebh">
+      <header className="ebh-head">
+        <div className="ebh-eyebrow">
+          <Target size={16} aria-hidden />
+          <span>Conditions réelles</span>
         </div>
-        <div className="guest-banner-content">
-          <div className="guest-banner-title">
-            Vous êtes en démo gratuite — un examen blanc par module, sans
-            création de compte.
-          </div>
-          <div className="guest-banner-sub">
-            Vos résultats ne seront pas sauvegardés.{" "}
-            <Link href="/inscription" className="guest-banner-link">
-              Créer un compte gratuit →
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      <header className="guest-topbar">
-        <div className="breadcrumb">
-          ACCUEIL <span className="sep">/</span> EXAMENS BLANCS
-        </div>
-        <h1>
-          Préparez-vous en <em>conditions réelles</em>.
-        </h1>
-        <p className="guest-lede">
-          Lancez un examen blanc pour découvrir le format, le chronomètre et le
-          niveau attendu. Aucun email demandé.
+        <h1>Examens blancs complets</h1>
+        <p>
+          Une épreuve entière par parcours, qui mélange tous les thèmes.
+          Le premier examen de chaque parcours est offert, sans création de
+          compte — vos résultats ne seront pas sauvegardés.
         </p>
       </header>
 
-      {error && <div className="form-error ebh-error">{error}</div>}
+      {error && <div className="ebh-error">{error}</div>}
 
-      <section className="guest-tiles">
-        <GuestExamCard
-          tone="blue"
-          module="CIVIQUE"
-          title="Examen civique"
-          desc="Valeurs et principes de la République. 40 questions chronométrées, seuil de réussite officiel."
-          exam={examsByModule.CIVIQUE}
-          loading={loading}
-          starting={starting === "CIVIQUE"}
-          onStart={() => startDemo("CIVIQUE")}
-        />
-        <GuestExamCard
-          tone="red"
-          module="TCF"
-          title="TCF IRN"
-          desc="Compréhension orale, écrite, structure de la langue. Diagnostic CECRL A2 / B1 / B2."
-          exam={examsByModule.TCF}
-          loading={loading}
-          starting={starting === "TCF"}
-          onStart={() => startDemo("TCF")}
-        />
-      </section>
+      <ModuleExamsSection
+        tone="red"
+        icon={<Waves size={22} strokeWidth={1.8} />}
+        title="TCF IRN"
+        chip="3 épreuves mélangées"
+        brewLine="Brasse toutes les épreuves QCM : Compréhension orale · Compréhension écrite · Structure de la langue."
+        exams={[]}
+        scoreOutOf={60}
+        premium={false}
+        starting={starting === "TCF"}
+        lockedLabel="Compte gratuit"
+        onStart={() => startDemo("TCF")}
+        onLocked={() => setGuestGateOpen(true)}
+      />
 
-      <div className="guest-foot">
-        Pour passer plusieurs examens, consulter l&apos;historique et débloquer
-        les variantes (CSP, CR, naturalisation, A2/B1/B2),{" "}
-        <Link href="/inscription">créez votre compte gratuit</Link>.
+      <ModuleExamsSection
+        tone="blue"
+        icon={<Lightbulb size={22} strokeWidth={1.8} />}
+        title="Examen civique"
+        chip="5 catégories mélangées"
+        brewLine="Brasse tous les thèmes : Principes et valeurs de la République · Système institutionnel et politique · Droits et devoirs · Histoire, géographie et culture · Vivre dans la société française."
+        exams={[]}
+        scoreOutOf={40}
+        premium={false}
+        starting={starting === "CIVIQUE"}
+        lockedLabel="Compte gratuit"
+        onStart={() => startDemo("CIVIQUE")}
+        onLocked={() => setGuestGateOpen(true)}
+      />
+
+      <div className="ebh-guest-foot">
+        Pour passer les examens suivants, retrouver vos scores et suivre votre
+        progression, <Link href="/inscription?next=/examens-blancs">créez votre compte gratuit</Link>.
       </div>
 
-      <style>{guestExamStyles}</style>
+      <GuestGateSheet
+        open={guestGateOpen}
+        onClose={() => setGuestGateOpen(false)}
+        message="Le premier examen blanc de chaque parcours est offert. Créez un compte gratuit pour passer les suivants et conserver vos résultats."
+      />
+
+      <style>{styles}</style>
     </main>
   );
 }
-
-function GuestExamCard({
-  tone,
-  module,
-  title,
-  desc,
-  exam,
-  loading,
-  starting,
-  onStart,
-}: {
-  tone: "blue" | "red";
-  module: ModuleEnum;
-  title: string;
-  desc: string;
-  exam: ExamTemplateSummary | null;
-  loading: boolean;
-  starting: boolean;
-  onStart: () => void;
-}) {
-  const minutes = exam ? Math.round(exam.durationSeconds / 60) : null;
-  const tag = module === "CIVIQUE" ? "EXAMEN CIVIQUE · DÉMO" : "TCF IRN · DÉMO";
-  return (
-    <div className={`gex gex-${tone}`}>
-      <span className={`gex-tag gex-tag-${tone}`}>{tag}</span>
-      <h2 className="gex-title">{title}</h2>
-      <p className="gex-desc">{desc}</p>
-      <div className="gex-meta">
-        <div className="gex-meta-item">
-          <div className="l">QUESTIONS</div>
-          <div className="v">{exam ? exam.totalQuestions : "—"}</div>
-        </div>
-        <div className="gex-meta-item">
-          <div className="l">DURÉE</div>
-          <div className="v">{minutes ? `${minutes} min` : "—"}</div>
-        </div>
-        <div className="gex-meta-item">
-          <div className="l">{module === "CIVIQUE" ? "SEUIL" : "RESTITUTION"}</div>
-          <div className="v">
-            {module === "CIVIQUE"
-              ? exam
-                ? `${exam.passingScore}/${exam.totalQuestions}`
-                : "—"
-              : "Niveau CECRL"}
-          </div>
-        </div>
-      </div>
-      <button
-        type="button"
-        className={`btn btn-${tone === "blue" ? "blue" : "red"} btn-lg gex-cta`}
-        onClick={onStart}
-        disabled={loading || starting || !exam}
-      >
-        {starting ? "Préparation…" : "Démo gratuite →"}
-      </button>
-    </div>
-  );
-}
-
-const guestExamStyles = `
-  .ebh-guest {
-    max-width: 1080px;
-    margin: 0 auto;
-    padding: 32px 24px 80px;
-  }
-  @media (max-width: 760px) {
-    .ebh-guest { padding: 22px 16px 56px; }
-  }
-
-  .guest-banner {
-    display: flex; align-items: center; gap: 14px;
-    background: linear-gradient(135deg, rgba(232, 163, 23, 0.10), rgba(232, 163, 23, 0.02));
-    border: 1px solid rgba(232, 163, 23, 0.35);
-    border-radius: 14px;
-    padding: 14px 18px;
-    margin-bottom: 28px;
-  }
-  .guest-banner-icon {
-    width: 36px; height: 36px;
-    background: var(--color-amber); color: #fff;
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .guest-banner-content { flex: 1; min-width: 0; }
-  .guest-banner-title {
-    font-weight: 700; font-size: 14px;
-    color: var(--color-ink); line-height: 1.3;
-  }
-  .guest-banner-sub {
-    font-size: 12.5px; color: var(--color-muted);
-    line-height: 1.45; margin-top: 4px;
-  }
-  .guest-banner-link {
-    color: var(--color-blue); font-weight: 700;
-    text-decoration: none;
-  }
-  .guest-banner-link:hover { text-decoration: underline; }
-
-  .guest-topbar { margin-bottom: 26px; }
-  .breadcrumb {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--color-muted);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 10px;
-  }
-  .breadcrumb .sep { margin: 0 6px; opacity: 0.5; }
-  .guest-topbar h1 {
-    font-family: var(--font-display);
-    font-size: clamp(28px, 4vw, 40px);
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    margin: 0 0 8px;
-    line-height: 1.1;
-    color: var(--color-ink);
-  }
-  .guest-topbar h1 em {
-    color: var(--color-red);
-    font-style: italic;
-    font-weight: 500;
-  }
-  .guest-lede {
-    color: var(--color-muted);
-    font-size: 15px;
-    line-height: 1.55;
-    margin: 0;
-    max-width: 600px;
-  }
-
-  .guest-tiles {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
-  @media (max-width: 880px) {
-    .guest-tiles { grid-template-columns: 1fr; }
-  }
-
-  .gex {
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 20px;
-    padding: 28px;
-    display: flex; flex-direction: column;
-    transition: all 0.18s;
-    box-shadow: 0 30px 60px -30px rgba(15, 24, 57, 0.18);
-  }
-  .gex-blue:hover:not(.is-locked) { border-color: var(--color-blue); transform: translateY(-3px); }
-  .gex-red:hover:not(.is-locked) { border-color: var(--color-red); transform: translateY(-3px); }
-  .gex.is-locked {
-    background:
-      repeating-linear-gradient(45deg, var(--color-paper) 0 6px, #fff 6px 14px);
-  }
-  .gex-tag {
-    display: inline-block; align-self: flex-start;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.14em;
-    padding: 4px 9px;
-    border-radius: 5px;
-    font-weight: 700;
-    margin-bottom: 14px;
-  }
-  .gex-tag-blue { background: var(--color-blue-light); color: var(--color-blue); }
-  .gex-tag-red { background: var(--color-red-light); color: var(--color-red); }
-  .gex-title {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 28px;
-    letter-spacing: -0.02em;
-    margin: 0 0 10px;
-    color: var(--color-ink);
-    line-height: 1.1;
-  }
-  .gex-desc {
-    color: var(--color-muted);
-    font-size: 14px;
-    line-height: 1.55;
-    margin: 0 0 22px;
-  }
-  .gex-meta {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-bottom: 22px;
-  }
-  .gex-meta-item {
-    background: var(--color-paper);
-    border: 1px solid var(--color-line);
-    border-radius: 10px;
-    padding: 10px;
-  }
-  .gex-meta-item .l {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    letter-spacing: 0.14em;
-    color: var(--color-muted);
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
-  .gex-meta-item .v {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 18px;
-    color: var(--color-ink);
-    letter-spacing: -0.01em;
-    line-height: 1.1;
-  }
-  .gex-cta { align-self: flex-start; margin-top: auto; }
-
-  .gex-locked { display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
-  .gex-locked-msg {
-    font-size: 13.5px;
-    color: var(--color-muted);
-    line-height: 1.5;
-  }
-
-  .ebh-error { margin-bottom: 16px; }
-
-  .guest-foot {
-    margin-top: 28px;
-    text-align: center;
-    font-size: 13px;
-    color: var(--color-muted);
-    line-height: 1.55;
-  }
-  .guest-foot a {
-    color: var(--color-blue); font-weight: 700;
-    text-decoration: none;
-  }
-  .guest-foot a:hover { text-decoration: underline; }
-`;
-
-// ============================================================================
-// ICONS
-// ============================================================================
-const I = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  />
-);
-const ShieldIcon = () => (
-  <I>
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-  </I>
-);
 
 // ============================================================================
 // STYLES
@@ -732,6 +470,19 @@ const styles = `
     margin-bottom: 16px;
   }
   .ebh-brew svg { flex-shrink: 0; margin-top: 2px; color: var(--color-blue); }
+
+  .ebh-guest-foot {
+    margin-top: 6px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--color-muted);
+    line-height: 1.55;
+  }
+  .ebh-guest-foot a {
+    color: var(--color-blue); font-weight: 700;
+    text-decoration: none;
+  }
+  .ebh-guest-foot a:hover { text-decoration: underline; }
 
   /* ===== responsive ===== */
   @media (max-width: 768px) {

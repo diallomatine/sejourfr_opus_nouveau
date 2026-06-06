@@ -158,11 +158,14 @@ export function SeriesProgressCard({ done, total }: { done: number; total: numbe
 export function SerieCard({
   lot,
   locked,
+  lockedLabel = "Premium",
   disabled,
   onClick,
 }: {
   lot: LotDto;
   locked: boolean;
+  /** Texte du badge verrouillé — "Compte gratuit" en contexte guest. */
+  lockedLabel?: string;
   disabled: boolean;
   onClick: () => void;
 }) {
@@ -187,7 +190,7 @@ export function SerieCard({
         <span className={styles.serieSub}>{lot.totalQuestions} questions</span>
         {locked ? (
           <span className={`${styles.serieBadge} ${styles.serieBadgeLock}`}>
-            <Lock size={11} aria-hidden /> Premium
+            <Lock size={11} aria-hidden /> {lockedLabel}
           </span>
         ) : done ? (
           <span className={`${styles.serieBadge} ${styles.serieBadgeDone}`}>
@@ -261,6 +264,7 @@ export function ExamsGrid({
   freeSlots = 1,
   starting,
   itemLabel = "Examen",
+  lockedLabel,
   collapsedCount,
   reportPath,
   onStart,
@@ -273,6 +277,8 @@ export function ExamsGrid({
   freeSlots?: number;
   starting: boolean;
   itemLabel?: string;
+  /** Texte des slots verrouillés — "Compte gratuit" en contexte guest. */
+  lockedLabel?: string;
   collapsedCount?: number;
   /** Cible du bouton Rapport (défaut : /sessions/{id}). */
   reportPath?: (attemptId: string) => string;
@@ -309,6 +315,7 @@ export function ExamsGrid({
               }
               reportHref={exam ? (reportPath?.(exam.id) ?? `/sessions/${exam.id}`) : undefined}
               locked={locked}
+              lockedLabel={lockedLabel}
               starting={starting}
               passThresholdMet={
                 exam && exam.passThreshold != null
@@ -351,6 +358,7 @@ export function ExamCard({
   slot,
   exam,
   locked,
+  lockedLabel = "Premium",
   starting,
   passThresholdMet,
   itemLabel = "Examen",
@@ -361,6 +369,8 @@ export function ExamCard({
   slot: number;
   exam: { id: string; score: number | null; total: number | null } | null;
   locked: boolean;
+  /** Texte du bouton verrouillé — "Compte gratuit" en contexte guest. */
+  lockedLabel?: string;
   starting: boolean;
   passThresholdMet: boolean | null;
   itemLabel?: string;
@@ -413,7 +423,7 @@ export function ExamCard({
             className={`${styles.examBtn} ${styles.examBtnLocked}`}
             onClick={onLocked}
           >
-            <Lock size={14} aria-hidden /> Premium
+            <Lock size={14} aria-hidden /> {lockedLabel}
           </button>
         ) : (
           <button

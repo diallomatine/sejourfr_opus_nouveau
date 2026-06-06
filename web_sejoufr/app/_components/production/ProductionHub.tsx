@@ -7,6 +7,7 @@ import { Mic, PenLine, Target } from "lucide-react";
 import { productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
+  canAccessModule,
   productionTaskSubtitle,
   productionTaskTitle,
   type ProductionSubmissionDto,
@@ -15,6 +16,7 @@ import {
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
 import { DetailShell, LevelChoiceCard } from "@/app/_components/hub/DetailParts";
+import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
 import { type ProductionConfig } from "./config";
 import detail from "@/app/_components/hub/detail.module.css";
 import hub from "@/app/_components/hub/hub.module.css";
@@ -39,6 +41,27 @@ export function ProductionHub({ config }: { config: ProductionConfig }) {
   const [lastPerTask, setLastPerTask] = useState<Map<number, ProductionSubmissionDto>>(new Map());
   const [history, setHistory] = useState<ProductionSubmissionDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [quotaInfoOpen, setQuotaInfoOpen] = useState(false);
+
+  // Info one-time pour les comptes gratuits : 1 essai d'entraînement offert
+  // par épreuve (EE et EO), évalué par l'IA. Mémorisée en localStorage.
+  const quotaInfoKey = `sejourfr.prodQuotaInfo.${config.epreuve}`;
+  useEffect(() => {
+    if (status !== "authenticated" || !user || canAccessModule(user, "TCF")) return;
+    if (typeof window === "undefined") return;
+    if (window.localStorage.getItem(quotaInfoKey)) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setQuotaInfoOpen(true);
+  }, [status, user, quotaInfoKey]);
+
+  function dismissQuotaInfo() {
+    setQuotaInfoOpen(false);
+    try {
+      window.localStorage.setItem(quotaInfoKey, "1");
+    } catch {
+      // stockage indisponible (navigation privée) : la modale reviendra.
+    }
+  }
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -145,6 +168,14 @@ export function ProductionHub({ config }: { config: ProductionConfig }) {
             </div>
           )}
         </section>
+
+        <ConfirmSheet
+          open={quotaInfoOpen}
+          tone="info"
+          title="Un essai gratuit par épreuve"
+          message={`Vous disposez d'un essai d'entraînement gratuit en ${config.shortLabel}, évalué par l'IA (note /20 + niveau CECRL), ainsi qu'un examen blanc complet offert. Pour vous entraîner sans limite, passez à l'abonnement Intégral.`}
+          onClose={dismissQuotaInfo}
+        />
       </DetailShell>
     </DualChromeShell>
   );

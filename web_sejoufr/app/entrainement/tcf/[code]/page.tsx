@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BookOpen, Headphones, SpellCheck, Target } from "lucide-react";
-import { lotApi } from "@/lib/api";
+import { lotApi, publicLotApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type { Difficulty, LotDto, QuestionType } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
-import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
+import { moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
 import { DetailShell, LevelChoiceCard } from "@/app/_components/hub/DetailParts";
 import detail from "@/app/_components/hub/detail.module.css";
 
@@ -85,22 +85,24 @@ function statsFromLots(lots: LotDto[]): LevelStats {
 /**
  * Choix de niveau d'une épreuve TCF QCM (maquette sejour_fr.html) : 3 cards
  * A2/B1/B2 avec donut (moyenne des séries faites) + compteur "x/y séries
- * faites". Un clic ouvre les séries du niveau.
+ * faites". Un clic ouvre les séries du niveau. Navigable en guest (compteurs
+ * sans scores, la série 1 de chaque niveau est jouable sans compte).
  */
 export default function TcfQcmDetailPage() {
   const params = useParams<{ code: string }>();
   const code = (params?.code ?? "").toLowerCase() as TcfCode;
   const config = TCF_QCM[code];
   const router = useRouter();
-  const { user, status } = useAuth();
+  const { status } = useAuth();
 
   const [byLevel, setByLevel] = useState<Record<string, LevelStats>>({});
 
   useEffect(() => {
-    if (status !== "authenticated" || !config) return;
+    if (status === "loading" || !config) return;
     let cancelled = false;
+    const api = status === "authenticated" ? lotApi : publicLotApi;
     Promise.allSettled(
-      LEVELS.map((lv) => lotApi.listTcf(config.questionType, lv.difficulty)),
+      LEVELS.map((lv) => api.listTcf(config.questionType, lv.difficulty)),
     ).then((results) => {
       if (cancelled) return;
       const next: Record<string, LevelStats> = {};
@@ -118,7 +120,6 @@ export default function TcfQcmDetailPage() {
   }, [status, config]);
 
   if (status === "loading") return <div className={ds.gate} />;
-  if (!user) return <ModuleDetailGate next={`/entrainement/tcf/${code}`} />;
   if (!config) {
     return (
       <DualChromeShell>

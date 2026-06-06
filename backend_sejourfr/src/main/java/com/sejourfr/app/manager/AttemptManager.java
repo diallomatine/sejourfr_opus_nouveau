@@ -140,6 +140,12 @@ public class AttemptManager {
         return repository.countByUserIdAndTypeAndFinishedAtIsNotNull(userId, AttemptType.MOCK_EXAM);
     }
 
+    /** Sessions d'examen blanc production soumises du user (budget freemium). */
+    public long countProductionExamSessions(UUID userId) {
+        return repository.countProductionExamSessions(
+                userId, List.of(EpreuveType.TCF_EE, EpreuveType.TCF_EO));
+    }
+
     /** Dernier examen TCF fini porteur d'un niveau CECRL (complet ou module). */
     public Optional<Attempt> findLatestTcfWithCecrlLevel(UUID userId) {
         return repository.findTcfWithCecrlLevel(userId, PageRequest.of(0, 1)).stream().findFirst();
