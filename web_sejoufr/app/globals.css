@@ -18,8 +18,10 @@
   --color-muted-2: #9CA2BD;
   --color-line: #E4E7F2;
   --color-line-2: #EEF0F8;
-  --color-paper: #FAFAF7;
-  --color-paper-2: #F2F1EC;
+  /* Fonds neutres froids (refonte web_refonte, maquette sejour_fr.html) —
+     ex-beiges #FAFAF7/#F2F1EC, désormais teintés bleu comme le shell app. */
+  --color-paper: #F7F8FC;
+  --color-paper-2: #ECEFF7;
   --color-green: #168F5B;
   --color-amber: #E8A317;
 
