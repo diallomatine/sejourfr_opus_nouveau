@@ -59,6 +59,26 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
 
 → Quand un DTO Java change, mettre à jour les 3.
 
+## Freemium (validé 2026-06-06, source backend)
+
+- **Guest (web)** : navigation libre des hubs ; **série 1** offerte par thème
+  civique / (épreuve TCF × niveau) et **examen diagnostic complet 1** par
+  module (templates free de /examens-blancs), joués en anonyme (attempt
+  `user NULL` + `clientIp` — sert d'analytics « combien se testent »). Tirages
+  guests déterministes. Série 2+/examen 2+ → inscription. `GET /api/public/lots`
+  + `POST /api/public/attempts/demo` (TRAINING lotNumero=1 ou MOCK_EXAM
+  template free). **Examens ciblés** (thème civique / épreuve TCF) et EE/EO :
+  compte obligatoire — le backend renvoie 403 sur un MOCK_EXAM guest avec
+  themeId ou moduleExamQuestionType ; côté web les pages `*/examens` restent
+  des vitrines (grille visible, tout verrouillé → GuestGateSheet).
+- **Compte gratuit, EE/EO** : 1 essai d'entraînement par épreuve à vie + 1
+  examen blanc production offert. L'examen est marqué `attempts.slot_number=1`
+  au start (`ProductionAttemptStartRequest.exam`) ; ses soumissions bypassent
+  le quota d'entraînement. Refaire l'examen 1 = toléré une fois mais consomme
+  les essais d'entraînement restants ; une session ne compte que si ≥ 1 tâche
+  soumise. Règles dans `ProductionSubmissionService` /
+  `AttemptService.startProductionAttempt`. QCM : série 1 gratuite, 2+ premium.
+
 ## Identité visuelle (résumé)
 
 - Bleu France `#1E3A8C` + Rouge France `#E1372F` (CTAs critiques seulement).

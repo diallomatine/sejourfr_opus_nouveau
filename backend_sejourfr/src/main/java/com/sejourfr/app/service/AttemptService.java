@@ -14,6 +14,7 @@ import com.sejourfr.app.entity.Choice;
 import com.sejourfr.app.entity.ExamTemplate;
 import com.sejourfr.app.entity.ExamTemplateRule;
 import com.sejourfr.app.entity.Question;
+import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
@@ -30,6 +31,7 @@ import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.manager.ExamTemplateManager;
 import com.sejourfr.app.manager.QuestionManager;
+import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.mapper.AttemptMapper;
 import jakarta.persistence.EntityNotFoundException;
@@ -40,9 +42,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -105,6 +111,7 @@ public class AttemptService {
     private final AnswerManager answerManager;
     private final QuestionManager questionManager;
     private final UserManager userManager;
+    private final ThemeManager themeManager;
     private final ExamTemplateManager examTemplateManager;
     private final SubscriptionService subscriptionService;
     private final LotService lotService;
@@ -192,7 +199,16 @@ public class AttemptService {
             }
             var qType = req.type() == AttemptType.MOCK_EXAM ? null : req.questionType();
             Difficulty effectiveDifficulty = resolveDifficulty(user, req.module(), req.difficulty());
-            questions = questionManager.findRandom(req.module(), themeId, effectiveDifficulty, qType, size);
+            boolean civiqueFullExam = req.type() == AttemptType.MOCK_EXAM
+                    && req.module() == Module.CIVIQUE
+                    && themeId == null;
+            questions = civiqueFullExam
+                    // Examen civique complet : composition stratifiée sur les
+                    // thèmes (8 Q × 5 thèmes), comme les templates. Le tirage
+                    // aléatoire global pouvait concentrer l'examen sur 1-2
+                    // thèmes selon le pool de la difficulté visée.
+                    ? composeCiviqueFullExam(effectiveDifficulty, size)
+                    : questionManager.findRandom(req.module(), themeId, effectiveDifficulty, qType, size);
         }
 
         if (questions.isEmpty()) {
@@ -248,6 +264,11 @@ public class AttemptService {
 
         Attempt parent = resolveParentAttempt(userId, req.parentAttemptId());
 
+        final boolean isExamSession = Boolean.TRUE.equals(req.exam());
+        if (isExamSession && !subscriptionService.hasTcf(userId)) {
+            enforceFreeProductionExamBudget(userId);
+        }
+
         Attempt attempt = new Attempt();
         attempt.setUser(user);
         attempt.setType(AttemptType.TRAINING);
@@ -255,9 +276,28 @@ public class AttemptService {
         attempt.setEpreuve(req.epreuve());
         attempt.setParentAttempt(parent);
         attempt.setStartedAt(Instant.now());
+        // Session d'examen blanc production : marquée via slotNumber (examen 1).
+        // Les soumissions de cette session passent outre le quota d'entraînement.
+        if (isExamSession) {
+            attempt.setSlotNumber(1);
+        }
         // Pas de QCM -> totalQuestions / timeLimit / threshold restent null.
         attempt = attemptManager.save(attempt);
         return mapper.toResponse(attempt, List.of(), false);
+    }
+
+    /**
+     * Budget freemium des examens blancs production (règles validées
+     * 2026-06-06) : 1ʳᵉ session gratuite ; une 2ᵉ session (refaire l'examen 1)
+     * est tolérée mais consomme les essais d'entraînement EE/EO restants
+     * (le front prévient via une modale) ; au-delà → premium.
+     */
+    private void enforceFreeProductionExamBudget(UUID userId) {
+        long sessions = attemptManager.countProductionExamSessions(userId);
+        if (sessions >= 2) {
+            throw new AccessDeniedException(
+                    "Examens blancs production réservés aux abonnés Intégral au-delà des essais gratuits.");
+        }
     }
 
     private Attempt resolveParentAttempt(UUID userId, UUID parentAttemptId) {
@@ -290,6 +330,8 @@ public class AttemptService {
     @Transactional
     public AttemptResponse startGuestDemo(StartAttemptRequest req, String clientIp) {
         // Validation du type (TRAINING / MOCK_EXAM) faite cote PublicAttemptService.
+        // Les examens cibles (theme civique / epreuve TCF) exigent un compte :
+        // seul un template free (diagnostic complet) est jouable en guest.
         int size;
         Integer timeLimit = null;
         Integer threshold = null;
@@ -308,6 +350,9 @@ public class AttemptService {
                 threshold = template.getPassingScore();
                 // Guest sur template free : tirage deterministe.
                 questions = pickQuestionsForTemplate(template, true);
+            } else if (req.moduleExamQuestionType() != null || req.themeId() != null) {
+                throw new AccessDeniedException(
+                        "Les examens blancs par thème ou épreuve sont réservés aux comptes. Créez un compte gratuit pour continuer.");
             } else {
                 if (req.module() == Module.CIVIQUE) {
                     size = CIVIQUE_EXAM_SIZE;
@@ -319,6 +364,14 @@ public class AttemptService {
                 }
                 questions = questionManager.findDemoPool(req.module(), size);
             }
+        } else if (req.lotNumero() != null) {
+            // Série offerte sans compte : uniquement la série 1 de chaque
+            // catégorie (découverte). Les séries 2+ exigent un compte.
+            if (req.lotNumero() != 1) {
+                throw new AccessDeniedException(
+                        "Seule la série 1 est offerte sans compte. Créez un compte gratuit pour continuer.");
+            }
+            return startGuestLot(req, clientIp);
         } else {
             size = FREE_TRAINING_MAX_SIZE;
             questions = questionManager.findDemoPool(req.module(), size);
@@ -338,6 +391,52 @@ public class AttemptService {
         attempt.setTimeLimitSeconds(timeLimit);
         attempt.setPassThreshold(threshold);
         attempt.setStartedAt(Instant.now());
+        attempt = attemptManager.save(attempt);
+
+        List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
+        return mapper.toResponse(attempt, aqList, false);
+    }
+
+    /**
+     * Série 1 guest (anonyme) : même fenêtre déterministe que les comptes
+     * (LotService), attempt persisté avec user NULL + clientIp — utile pour
+     * mesurer combien de visiteurs se testent avant inscription.
+     */
+    private AttemptResponse startGuestLot(StartAttemptRequest req, String clientIp) {
+        final List<Question> questions;
+        if (req.module() == Module.CIVIQUE) {
+            if (req.themeId() == null) {
+                throw new BusinessException("themeId est obligatoire pour une série Civique.");
+            }
+            int effectiveSize = lotService.resolveLotSizeCivique(req.themeId(), 1);
+            questions = questionManager.findLotQuestionsCivique(req.themeId(), 1, effectiveSize);
+        } else {
+            if (req.difficulty() == null) {
+                throw new BusinessException("difficulty est obligatoire pour une série TCF (A2/B1/B2).");
+            }
+            int effectiveSize = lotService.resolveLotSize(
+                    req.module(), req.questionType(), req.difficulty(), 1);
+            questions = questionManager.findLotQuestions(
+                    req.module(), req.questionType(), req.difficulty(), 1, effectiveSize);
+        }
+        if (questions.isEmpty()) {
+            throw new BusinessException("Série 1 indisponible pour ces critères.");
+        }
+
+        Attempt attempt = new Attempt();
+        // user = null (guest)
+        attempt.setClientIp(clientIp);
+        attempt.setType(AttemptType.TRAINING);
+        attempt.setModule(req.module());
+        attempt.setTotalQuestions(questions.size());
+        attempt.setStartedAt(Instant.now());
+        attempt.setLotNumero(1);
+        if (req.module() == Module.CIVIQUE) {
+            attempt.setLotThemeId(req.themeId());
+        } else {
+            attempt.setLotQuestionType(req.questionType());
+            attempt.setLotDifficulty(req.difficulty());
+        }
         attempt = attemptManager.save(attempt);
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
@@ -644,6 +743,44 @@ public class AttemptService {
      *                      (guest ou non-premium sur template free) afin que
      *                      rejouer redonne toujours la meme serie.
      */
+    /**
+     * Composition d'un examen civique complet (40 Q hors template) :
+     * stratifiée sur les thèmes officiels (size / nbThèmes questions par
+     * thème, ex. 8 × 5), complétée par un tirage global si un pool de thème
+     * est trop petit pour la difficulté visée, puis mélangée. Garantit que
+     * l'examen couvre tous les thèmes — comme l'examen réel et les templates.
+     */
+    private List<Question> composeCiviqueFullExam(Difficulty difficulty, int size) {
+        List<Theme> themes = themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE);
+        List<Question> picked = new ArrayList<>(size);
+        Set<UUID> pickedIds = new HashSet<>();
+
+        if (!themes.isEmpty()) {
+            int perTheme = Math.max(1, size / themes.size());
+            for (Theme theme : themes) {
+                if (picked.size() >= size) break;
+                List<Question> qs = questionManager.findRandom(
+                        Module.CIVIQUE, theme.getId(), difficulty, null,
+                        Math.min(perTheme, size - picked.size()));
+                for (Question q : qs) {
+                    if (pickedIds.add(q.getId())) picked.add(q);
+                }
+            }
+        }
+
+        if (picked.size() < size) {
+            List<Question> extra = questionManager.findRandomExcluding(
+                    Module.CIVIQUE, null, difficulty, null, pickedIds, size - picked.size());
+            for (Question q : extra) {
+                if (pickedIds.add(q.getId())) picked.add(q);
+            }
+        }
+
+        // Remélange : sans ça l'examen enchaînerait les questions thème par thème.
+        Collections.shuffle(picked);
+        return picked;
+    }
+
     private List<Question> pickQuestionsForTemplate(ExamTemplate template, boolean deterministic) {
         LinkedHashSet<Question> picked = new LinkedHashSet<>();
         List<UUID> exclude = new ArrayList<>();
@@ -654,6 +791,20 @@ public class AttemptService {
             if (needed <= 0) continue;
 
             UUID themeId = rule.getTheme() != null ? rule.getTheme().getId() : null;
+
+            if (template.getModule() == Module.TCF && themeId == null
+                    && rule.getQuestionType() == null && rule.getDifficulty() == null) {
+                // Regle generique d'un diagnostic TCF (tcf-diagnostic / tcf-mix-*) :
+                // composition sectionnee comme l'examen reel — comprehension
+                // orale puis ecrite, chacune stratifiee A2/B1/B2 (memes
+                // proportions que les examens module). Pas de STRUCTURE : le
+                // TCF IRN n'a que CO et CE en QCM.
+                int coCount = needed - needed / 2;
+                drawTcfEpreuveStrata(picked, exclude, QuestionType.CO, coCount, deterministic);
+                drawTcfEpreuveStrata(picked, exclude, QuestionType.CE, needed / 2, deterministic);
+                continue;
+            }
+
             List<Question> drawn = deterministic
                     ? questionManager.findOrderedExcluding(
                             template.getModule(), themeId, rule.getDifficulty(),
@@ -679,7 +830,58 @@ public class AttemptService {
                 if (picked.add(q)) exclude.add(q.getId());
             }
         }
-        return new ArrayList<>(picked);
+        List<Question> result = new ArrayList<>(picked);
+        if (template.getModule() == Module.TCF) {
+            // L'examen TCF reel est sectionne par epreuve, pas entremele :
+            // comprehension orale → ecrite → structures. Tri stable, donc la
+            // demo deterministe (guest) le reste.
+            result.sort(Comparator.comparingInt(q -> tcfEpreuveRank(q.getQuestionType())));
+        }
+        return result;
+    }
+
+    /**
+     * Pioche une epreuve d'un diagnostic TCF : {@code count} questions du
+     * {@code type} donne, stratifiees A2/B1/B2 (reste distribue a B1 puis A2,
+     * comme le 8+9+8 des examens module), dans l'ordre progressif A2 → B2.
+     * Si une strate est sous-dotee, complete au sein de la meme epreuve sans
+     * contrainte de niveau.
+     */
+    private void drawTcfEpreuveStrata(
+            LinkedHashSet<Question> picked, List<UUID> exclude,
+            QuestionType type, int count, boolean deterministic) {
+        int before = picked.size();
+        int base = count / 3;
+        int rem = count % 3;
+        drawForTemplate(picked, exclude, type, Difficulty.A2, base + (rem == 2 ? 1 : 0), deterministic);
+        drawForTemplate(picked, exclude, type, Difficulty.B1, base + (rem >= 1 ? 1 : 0), deterministic);
+        drawForTemplate(picked, exclude, type, Difficulty.B2, base, deterministic);
+        int missing = count - (picked.size() - before);
+        if (missing > 0) {
+            drawForTemplate(picked, exclude, type, null, missing, deterministic);
+        }
+    }
+
+    private void drawForTemplate(
+            LinkedHashSet<Question> picked, List<UUID> exclude,
+            QuestionType type, Difficulty difficulty, int count, boolean deterministic) {
+        if (count <= 0) return;
+        List<Question> drawn = deterministic
+                ? questionManager.findOrderedExcluding(Module.TCF, null, difficulty, type, exclude, count)
+                : questionManager.findRandomExcluding(Module.TCF, null, difficulty, type, exclude, count);
+        for (Question q : drawn) {
+            if (picked.add(q)) exclude.add(q.getId());
+        }
+    }
+
+    /** Ordre des epreuves d'un examen TCF mixte (cf. pickQuestionsForTemplate). */
+    private static int tcfEpreuveRank(QuestionType type) {
+        return switch (type) {
+            case CO, CO_IMAGE -> 0;
+            case CE -> 1;
+            case STRUCTURE -> 2;
+            default -> 3;
+        };
     }
 
     private List<AttemptQuestion> persistAttemptQuestions(Attempt attempt, List<Question> questions) {
@@ -837,14 +1039,23 @@ public class AttemptService {
         attempt.setScore(score);
 
         if (attempt.getModule() == Module.TCF) {
-            if (attempt.getModuleExamQuestionType() != null) {
-                // Examen module TCF (CO/CE/STRUCTURE) ou sous-attempt CO/CE d'un
-                // examen blanc complet : strates A2/B1/B2 garanties à la
-                // composition → niveau CECRL rigoureux (score calibré + garde-fou
-                // palier), source de vérité unique stockée sur cecrl_level et
-                // projetée sur level_achieved (A2/B1/B2). On persiste aussi le
-                // score pondéré (A2=1, B1=2, B2=3) pour l'affichage X/50.
-                NiveauCecrl cecrl = levelEstimator.estimateQcm(toQcmResults(aqs));
+            // Les examens template TCF (diagnostic CO→CE) ont aussi leurs
+            // strates garanties depuis la composition sectionnée (8 A2 + 9 B1
+            // + 8 B2 par épreuve) : même notation calibrée que les examens module.
+            boolean stratifiedExam = attempt.getModuleExamQuestionType() != null
+                    || (attempt.getType() == AttemptType.MOCK_EXAM && attempt.getExamTemplate() != null);
+            if (stratifiedExam) {
+                // Examen module TCF (CO/CE/STRUCTURE), examen template, ou
+                // sous-attempt CO/CE d'un examen blanc complet : strates
+                // A2/B1/B2 garanties à la composition → niveau CECRL rigoureux
+                // (score calibré + garde-fou palier), source de vérité unique
+                // stockée sur cecrl_level et projetée sur level_achieved
+                // (A2/B1/B2). On persiste aussi le score pondéré
+                // (A2=1, B1=2, B2=3) qui dérive le score calibré 100-499.
+                // Niveau global = plancher des épreuves (règle TCF IRN : il
+                // faut le niveau partout). Mono-épreuve : équivaut à
+                // estimateQcm sur tout l'attempt.
+                NiveauCecrl cecrl = estimatePerEpreuveFloor(aqs);
                 attempt.setCecrlLevel(cecrl);
                 attempt.setLevelAchieved(toTargetLevel(cecrl));
                 attempt.setWeightedScore(computeWeightedScore(aqs, true));
@@ -897,6 +1108,26 @@ public class AttemptService {
     }
 
     /** Projette les questions d'un attempt en entrées d'estimation CECRL. */
+    /**
+     * Niveau d'un examen TCF stratifié : estimation épreuve par épreuve
+     * (CO_IMAGE regroupée sous CO), puis plancher — comme au TCF IRN où le
+     * niveau global est le plus faible des épreuves. Le détail par épreuve
+     * exposé aux fronts est recalculé à la lecture (AttemptMapper).
+     */
+    private NiveauCecrl estimatePerEpreuveFloor(List<AttemptQuestion> aqs) {
+        Map<QuestionType, List<AttemptQuestion>> byEpreuve = new LinkedHashMap<>();
+        for (AttemptQuestion aq : aqs) {
+            QuestionType t = aq.getQuestion().getQuestionType();
+            if (t == null) continue;
+            QuestionType key = t == QuestionType.CO_IMAGE ? QuestionType.CO : t;
+            byEpreuve.computeIfAbsent(key, k -> new ArrayList<>()).add(aq);
+        }
+        List<NiveauCecrl> levels = byEpreuve.values().stream()
+                .map(group -> levelEstimator.estimateQcm(toQcmResults(group)))
+                .toList();
+        return levelEstimator.floor(levels);
+    }
+
     private static List<QcmAnswerResult> toQcmResults(List<AttemptQuestion> aqs) {
         return aqs.stream()
                 .map(aq -> new QcmAnswerResult(

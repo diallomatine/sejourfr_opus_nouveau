@@ -32,9 +32,18 @@ export function SubmissionRow({
         ? "Évaluation en cours…"
         : `${niveauCecrlLabel(s.evaluation?.niveauCecrl)} · ${formatDay(s.submittedAt)}`;
 
+  const toneClass =
+    s.tacheNumero === 1
+      ? styles.rowChipT1
+      : s.tacheNumero === 2
+        ? styles.rowChipT2
+        : s.tacheNumero === 3
+          ? styles.rowChipT3
+          : "";
+
   return (
     <button type="button" className={styles.row} onClick={onClick}>
-      <span className={styles.rowChip}>T{s.tacheNumero ?? "?"}</span>
+      <span className={`${styles.rowChip} ${toneClass}`}>T{s.tacheNumero ?? "?"}</span>
       <span className={styles.rowBody}>
         <span className={styles.rowTitle}>{productionTaskTitle(epreuve, s.tacheNumero ?? 0)}</span>
         <span className={styles.rowSub}>{sub}</span>

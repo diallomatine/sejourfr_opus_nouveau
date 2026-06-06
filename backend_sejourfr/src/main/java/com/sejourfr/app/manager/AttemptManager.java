@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -124,5 +125,29 @@ public class AttemptManager {
     /** Historique des examens blancs TCF complets d'un user (parent TCF_COMPLET uniquement). */
     public List<Attempt> findByUserAndEpreuve(UUID userId, EpreuveType epreuve, int limit) {
         return repository.findByUserAndEpreuve(userId, epreuve, PageRequest.of(0, limit));
+    }
+
+    /**
+     * Jours d'activité distincts du user (date locale Europe/Paris), du plus
+     * récent au plus ancien. Base du calcul de streak du dashboard.
+     */
+    public List<LocalDate> findActivityDates(UUID userId) {
+        return repository.findDistinctActivityDates(userId);
+    }
+
+    /** Nb d'examens blancs (MOCK_EXAM) finis, tous modules confondus. */
+    public long countFinishedMockExams(UUID userId) {
+        return repository.countByUserIdAndTypeAndFinishedAtIsNotNull(userId, AttemptType.MOCK_EXAM);
+    }
+
+    /** Sessions d'examen blanc production soumises du user (budget freemium). */
+    public long countProductionExamSessions(UUID userId) {
+        return repository.countProductionExamSessions(
+                userId, List.of(EpreuveType.TCF_EE, EpreuveType.TCF_EO));
+    }
+
+    /** Dernier examen TCF fini porteur d'un niveau CECRL (complet ou module). */
+    public Optional<Attempt> findLatestTcfWithCecrlLevel(UUID userId) {
+        return repository.findTcfWithCecrlLevel(userId, PageRequest.of(0, 1)).stream().findFirst();
     }
 }

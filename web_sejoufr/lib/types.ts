@@ -273,7 +273,27 @@ export interface AttemptResponse {
   finishedAt?: string;
   score?: number;
   levelAchieved: TargetLevel | null;
+  /** Non-null pour un examen module TCF (CO/CE/STRUCTURE). */
+  moduleExamQuestionType?: QuestionType | null;
+  /** Thème civique scopé (séries + examens thématiques) — sert au retour
+   *  de session vers l'écran d'origine. */
+  themeId?: string | null;
+  /** Score calibré 100-499 + niveau CECRL estimé (examens module TCF). */
+  calibratedScore?: number | null;
+  cecrlLevel?: NiveauCecrl | null;
+  /** Détail par épreuve d'un examen TCF stratifié fini — `cecrlLevel` est le
+   *  plancher de ces niveaux (règle TCF IRN : il faut le niveau partout). */
+  epreuveResults?: AttemptEpreuveResult[];
   questions: AttemptQuestionResponse[];
+}
+
+/** Résultat d'une épreuve au sein d'un examen TCF (CO_IMAGE regroupée sous CO). */
+export interface AttemptEpreuveResult {
+  epreuve: QuestionType;
+  correct: number;
+  total: number;
+  calibratedScore: number;
+  cecrlLevel: NiveauCecrl;
 }
 
 export interface SubmitAnswerRequest {
@@ -335,6 +355,15 @@ export interface AttemptSummaryResponse {
   startedAt: string;
   finishedAt?: string | null;
   score?: number | null;
+  /** Score calibré 100-499 d'un examen TCF stratifié (module ou template). */
+  calibratedScore?: number | null;
+  /** Niveau CECRL estimé sur un examen module TCF (null sinon). */
+  cecrlLevel?: NiveauCecrl | null;
+  /** Non-null pour un examen module TCF scopé à une épreuve (CO/CE/STRUCTURE). */
+  moduleExamQuestionType?: QuestionType | null;
+  /** Thème civique ciblé (lot ou examen thématique) — null pour un examen
+   *  blanc complet 40 Q tous thèmes. */
+  lotThemeId?: string | null;
   /** Template d'examen lié à cet attempt (null si entraînement libre).
    *  Sert à marquer "Fait" sur la liste des examens et à proposer "Voir détails / Refaire". */
   examTemplateId?: string | null;
@@ -383,6 +412,13 @@ export interface ProductionAttemptStartRequest {
   module: Module;
   epreuve: EpreuveType;
   parentAttemptId?: string | null;
+  /**
+   * True pour une session d'examen blanc production (3 tâches). Marque
+   * l'attempt côté backend : ses soumissions bypassent le quota
+   * d'entraînement, et les sessions d'examen comptent dans le budget
+   * gratuit (1 examen offert, le 2ᵉ consomme les essais EE/EO restants).
+   */
+  exam?: boolean;
 }
 
 /** Tâche EE/EO. La grille d'évaluation n'est volontairement pas exposée. */
@@ -710,6 +746,47 @@ export interface UserStatsResponse {
   questionsCorrect: number;
   successRate: number; // 0..1
   byTheme: ThemeStatsResponse[];
+}
+
+/** Une catégorie du dashboard (GET /api/me/dashboard). */
+export interface DashboardCategoryStat {
+  /** Null pour les entrées synthétiques EE/EO. */
+  themeId: string | null;
+  /** Code stable : theme.code (CIV_PRINCIPES, TCF_CO…) ou TCF_EE / TCF_EO. */
+  code: string;
+  label: string;
+  /** Progression 0-100 = réussite × confiance (confiance = min(1,
+   *  répondues / min(40, pool)) ; EE/EO : moyenne des 3 dernières notes /20
+   *  ×5 × min(1, n/3)). Null si jamais travaillé. */
+  percent: number | null;
+  answered: number;
+  /** Pool de questions actives — 0 pour EE/EO. */
+  total: number;
+  /** Examens blancs finis scopés à la catégorie (0 pour EE/EO). */
+  mockExams: number;
+  /** Record / dernier / avant-dernier score brut sur les examens de la
+   *  catégorie (page Progression). Null si pas assez d'examens. */
+  bestMockScore: number | null;
+  lastMockScore: number | null;
+  prevMockScore: number | null;
+  /** Dernier niveau CECRL évalué — EE/EO uniquement. */
+  level: NiveauCecrl | null;
+}
+
+/** GET /api/me/dashboard — agrégat unique du tableau de bord web. */
+export interface DashboardSummaryResponse {
+  currentStreakDays: number;
+  recordStreakDays: number;
+  activeToday: boolean;
+  mockExamsTotal: number;
+  /** Totaux par module (TCF : sous-attempts d'examen complet exclus). */
+  civiqueMockExams: number;
+  tcfMockExams: number;
+  /** Progression globale = moyenne des progressions des catégories renseignées. */
+  globalSuccessPercent: number | null;
+  estimatedTcfLevel: NiveauCecrl | null;
+  civique: DashboardCategoryStat[];
+  tcf: DashboardCategoryStat[];
 }
 
 // ============ HELPERS ============

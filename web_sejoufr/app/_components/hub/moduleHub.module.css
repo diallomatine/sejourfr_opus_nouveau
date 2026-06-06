@@ -1,0 +1,429 @@
+/* Hub module (refonte web_refonte, maquette sejour_fr.html) : header
+   eyebrow + bande de 4 stats + grille de cards catégorie (icône, donut,
+   chips, statut, CTAs). Partagé entre TcfHub et CiviqueHub. */
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 38px 40px 80px;
+}
+
+/* ===== header ===== */
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 26px;
+}
+
+.headText {
+  min-width: 0;
+}
+
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: var(--color-blue);
+}
+
+.eyebrowLabel {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0 0 8px;
+  font-family: var(--font-sans);
+  font-size: clamp(26px, 4vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  line-height: 1.1;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 16px;
+  max-width: 640px;
+  line-height: 1.5;
+}
+
+.headActions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.headBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 11px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  background: #fff;
+  color: var(--color-ink);
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  text-decoration: none;
+  transition: box-shadow 0.18s, border-color 0.18s;
+}
+
+.headBtn:hover {
+  border-color: var(--color-muted-2);
+  box-shadow: 0 4px 12px rgba(15, 24, 57, 0.06);
+}
+
+/* ===== bande de stats ===== */
+
+.statsBand {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(15, 24, 57, 0.04);
+  margin-bottom: 28px;
+  overflow: hidden;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.statCell {
+  padding: 20px 24px;
+  border-right: 1px solid var(--color-line);
+  min-width: 0;
+}
+
+.statCell:last-child {
+  border-right: none;
+}
+
+.statLabel {
+  font-size: 12.5px;
+  color: var(--color-muted-2);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.statValueRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.statValue {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 30px;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+  line-height: 1.1;
+}
+
+.statValueAccent {
+  color: var(--color-blue);
+}
+
+.statHint {
+  font-size: 12.5px;
+  color: var(--color-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===== grille de cards ===== */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 1px 3px rgba(15, 24, 57, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.card:hover {
+  box-shadow: 0 6px 18px rgba(15, 24, 57, 0.07);
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.cardIcon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--color-blue-light);
+  color: var(--color-blue-dark);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+/* Tonalités des icônes de catégorie (une couleur par thème/épreuve). */
+.cardIconGreen {
+  background: color-mix(in srgb, var(--color-green) 14%, #fff);
+  color: var(--color-green);
+}
+
+.cardIconAmber {
+  background: color-mix(in srgb, var(--color-amber) 18%, #fff);
+  color: color-mix(in srgb, var(--color-amber) 75%, var(--color-ink));
+}
+
+.cardIconRed {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
+.cardIconSlate {
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+}
+
+.cardTitles {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardTitle {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+  line-height: 1.15;
+}
+
+.cardDesc {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--color-muted);
+  line-height: 1.45;
+}
+
+/* ===== donut ===== */
+
+.donut {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+}
+
+.donutSvg {
+  transform: rotate(-90deg);
+}
+
+.donutTrack {
+  stroke: var(--color-line-2);
+}
+
+.donutFillBlue {
+  stroke: var(--color-blue);
+}
+
+.donutFillGreen {
+  stroke: var(--color-green);
+}
+
+.donutFillAmber {
+  stroke: var(--color-amber);
+}
+
+.donutCenter {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.donutValue {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 13.5px;
+  line-height: 1;
+  color: var(--color-ink);
+}
+
+/* ===== chips ===== */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-muted);
+  background: var(--color-blue-soft);
+  border: 1px solid var(--color-line);
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/* ===== statut ===== */
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--color-muted-2);
+  padding-top: 4px;
+  margin-top: auto;
+  min-width: 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  font-size: 12.5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.badgeBlue {
+  background: var(--color-blue-light);
+  color: var(--color-blue-dark);
+}
+
+.badgeGreen {
+  background: color-mix(in srgb, var(--color-green) 12%, #fff);
+  color: var(--color-green);
+}
+
+.badgeAmber {
+  background: color-mix(in srgb, var(--color-amber) 14%, #fff);
+  color: color-mix(in srgb, var(--color-amber) 75%, var(--color-ink));
+}
+
+.badgeNone {
+  background: var(--color-line-2);
+  color: var(--color-muted);
+}
+
+.statusMeta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===== CTAs ===== */
+
+.ctaRow {
+  display: flex;
+  gap: 8px;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex: 1;
+  padding: 9px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 999px;
+  text-decoration: none;
+  transition: filter 0.18s, background 0.18s, color 0.18s;
+  white-space: nowrap;
+}
+
+.ctaSoft {
+  background: var(--color-blue-light);
+  color: var(--color-blue-dark);
+}
+
+.ctaSoft:hover {
+  background: var(--color-blue);
+  color: #fff;
+}
+
+.ctaSolid {
+  background: var(--color-blue);
+  color: #fff;
+}
+
+.ctaSolid:hover {
+  background: var(--color-blue-dark);
+}
+
+/* ===== responsive ===== */
+
+@media (max-width: 1000px) {
+  .statsGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .statCell:nth-child(2) {
+    border-right: none;
+  }
+
+  .statCell:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--color-line);
+  }
+}
+
+@media (max-width: 768px) {
+  /* padding-top dégage le burger fixed du drawer mobile (.ms-toggle)
+     quand le hub est rendu dans le shell connecté. */
+  .wrap {
+    padding: 64px 18px 48px;
+  }
+}
+
+@media (max-width: 560px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .statCell {
+    border-right: none;
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .statCell:last-child {
+    border-bottom: none;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

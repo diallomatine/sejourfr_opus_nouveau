@@ -76,6 +76,8 @@ public class TcfProfileService {
                 .orElse(null);
         if (last == null) return EpreuveLevel.empty(epreuve);
 
+        // cecrl_level stocké (plancher posé au finish ; V112 a invalidé les
+        // niveaux de l'ancienne règle), fallback dérivé du score pondéré.
         NiveauCecrl level = last.getCecrlLevel() != null
                 ? levelEstimator.capB2(last.getCecrlLevel())
                 : levelEstimator.levelFromWeighted(last.getWeightedScore(), last.getMaxWeightedScore());

@@ -176,37 +176,70 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
 
             {isTcf && (
               <div className="brf-deroule-block">
-                <div className="brf-section-label">DÉROULÉ DU TCF IRN COMPLET · 90 MIN</div>
+                <div className="brf-section-label">LES 4 ÉPREUVES DU TCF IRN</div>
                 <div className="brf-deroule">
                   <div className="brf-dr-row">
                     <span className="brf-dr-ico" aria-hidden>🎧</span>
                     <span className="brf-dr-label">Compréhension orale</span>
-                    <span className="brf-dr-meta">20 min</span>
+                    <span className="brf-dr-meta">25 questions · 20 min</span>
                   </div>
                   <div className="brf-dr-row">
                     <span className="brf-dr-ico" aria-hidden>📖</span>
                     <span className="brf-dr-label">Compréhension écrite</span>
-                    <span className="brf-dr-meta">30 min</span>
+                    <span className="brf-dr-meta">25 questions · 35 min</span>
                   </div>
-                  <div className="brf-dr-row is-mobile">
-                    <span className="brf-dr-ico" aria-hidden>✍️</span>
-                    <span className="brf-dr-label">Expression écrite</span>
-                    <span className="brf-dr-badge">Sur l&apos;app mobile</span>
-                  </div>
-                  <div className="brf-dr-row is-mobile">
-                    <span className="brf-dr-ico" aria-hidden>🎙️</span>
-                    <span className="brf-dr-label">Expression orale</span>
-                    <span className="brf-dr-badge">Sur l&apos;app mobile</span>
-                  </div>
+                  {isGuest ? (
+                    <>
+                      {/* Guest : EE/EO exigent un compte — rangées grisées,
+                          pas de lien vers leurs examens. */}
+                      <div className="brf-dr-row is-prod is-locked">
+                        <span className="brf-dr-ico" aria-hidden>✍️</span>
+                        <span className="brf-dr-label">Expression écrite</span>
+                        <span className="brf-dr-badge">🔒 Compte requis</span>
+                      </div>
+                      <div className="brf-dr-row is-prod is-locked">
+                        <span className="brf-dr-ico" aria-hidden>🎙️</span>
+                        <span className="brf-dr-label">Expression orale</span>
+                        <span className="brf-dr-badge">🔒 Compte requis</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Link href="/entrainement/tcf/ee/examens" className="brf-dr-row is-prod">
+                        <span className="brf-dr-ico" aria-hidden>✍️</span>
+                        <span className="brf-dr-label">Expression écrite</span>
+                        <span className="brf-dr-badge">Épreuve dédiée · IA →</span>
+                      </Link>
+                      <Link href="/entrainement/tcf/eo/examens" className="brf-dr-row is-prod">
+                        <span className="brf-dr-ico" aria-hidden>🎙️</span>
+                        <span className="brf-dr-label">Expression orale</span>
+                        <span className="brf-dr-badge">Épreuve dédiée · IA →</span>
+                      </Link>
+                    </>
+                  )}
                 </div>
-                <p className="brf-mobile-note">
-                  Sur le web, vous passez les épreuves de{" "}
-                  <strong>compréhension</strong> (orale + écrite). L&apos;
-                  <strong>expression écrite et orale</strong>, évaluées par IA, se
-                  font dans l&apos;application mobile. Le niveau{" "}
-                  <strong>CECRL global</strong> du TCF IRN se calcule sur les 4
-                  épreuves.
-                </p>
+                {isGuest ? (
+                  <p className="brf-mobile-note">
+                    Sans compte, cet examen couvre les épreuves de{" "}
+                    <strong>compréhension</strong> (orale puis écrite).
+                    L&apos;<strong>expression écrite et orale</strong>, évaluées
+                    par l&apos;IA, ne sont pas disponibles en démo —{" "}
+                    <Link href="/inscription?next=/examens-blancs">
+                      créez un compte gratuit
+                    </Link>{" "}
+                    pour les passer. Le niveau <strong>CECRL global</strong> du
+                    TCF IRN se calcule sur les 4 épreuves.
+                  </p>
+                ) : (
+                  <p className="brf-mobile-note">
+                    Cet examen couvre les épreuves de <strong>compréhension</strong>{" "}
+                    (orale + écrite). L&apos;<strong>expression écrite et orale</strong>,
+                    évaluées par l&apos;IA, se passent aussi sur le web — depuis leurs
+                    examens blancs dédiés (liens ci-dessus). Le niveau{" "}
+                    <strong>CECRL global</strong> du TCF IRN se calcule sur les 4
+                    épreuves.
+                  </p>
+                )}
               </div>
             )}
 
@@ -295,16 +328,40 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
                   <li>
                     <span className="ico">4</span>
                     <div>
+                      L&apos;examen enchaîne deux parties, comme le vrai
+                      TCF&nbsp;: la <strong>compréhension orale</strong>
+                      d&apos;abord, puis la <strong>compréhension écrite</strong>.
+                      Un écran vous annonce chaque partie. En orale, chaque
+                      audio se lance seul et n&apos;est joué qu&apos;<strong>une
+                      seule fois</strong> — pas de pause ni de réécoute.
+                    </div>
+                  </li>
+                )}
+                {isTcf && (
+                  <li>
+                    <span className="ico">5</span>
+                    <div>
                       Votre niveau CECRL (A2&nbsp;/&nbsp;B1&nbsp;/&nbsp;B2) est
                       calculé d&apos;après vos réussites sur chaque strate.
                     </div>
                   </li>
                 )}
                 <li>
-                  <span className="ico">{isTcf ? 5 : 4}</span>
+                  <span className="ico">{isTcf ? 6 : 4}</span>
                   <div>
-                    Vous pouvez revenir sur une question précédente avant de
-                    terminer. Le score n&apos;est calculé qu&apos;à la fin.
+                    {isTcf ? (
+                      <>
+                        Vous pouvez revenir sur une question précédente avant de
+                        terminer — sauf en compréhension orale (une question
+                        passée ne se rejoue pas). Le score n&apos;est calculé
+                        qu&apos;à la fin.
+                      </>
+                    ) : (
+                      <>
+                        Vous pouvez revenir sur une question précédente avant de
+                        terminer. Le score n&apos;est calculé qu&apos;à la fin.
+                      </>
+                    )}
                   </div>
                 </li>
               </ol>
@@ -357,7 +414,7 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
                   {starting
                     ? "Préparation…"
                     : isGuest
-                      ? "Démarrer la démo →"
+                      ? "Commencer →"
                       : lastAttempt
                         ? "Refaire l'examen →"
                         : "Démarrer l'examen →"}
@@ -424,13 +481,21 @@ const styles = `
     font-family: var(--font-sans); font-weight: 800; font-size: 12.5px;
     color: var(--color-blue); flex-shrink: 0;
   }
-  .brf-dr-row.is-mobile { background: var(--color-paper-2); }
-  .brf-dr-row.is-mobile .brf-dr-label { color: var(--color-muted); }
+  .brf-dr-row.is-prod {
+    background: var(--color-paper-2);
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+  .brf-dr-row.is-prod:hover { background: var(--color-blue-light); }
+  .brf-dr-row.is-locked { opacity: 0.75; }
+  .brf-dr-row.is-locked:hover { background: var(--color-paper-2); }
+  .brf-dr-row.is-locked .brf-dr-label { color: var(--color-muted); }
+  .brf-mobile-note a { color: var(--color-blue); font-weight: 700; }
   .brf-dr-badge {
     flex-shrink: 0;
     font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
     letter-spacing: 0.06em; text-transform: uppercase;
-    color: var(--color-muted);
+    color: var(--color-blue);
     background: #fff; border: 1px solid var(--color-line);
     padding: 4px 9px; border-radius: 100px;
   }

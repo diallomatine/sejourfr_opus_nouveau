@@ -11,8 +11,11 @@ const securityHeaders = [
     {key: "X-Content-Type-Options", value: "nosniff"},
     {key: "Referrer-Policy", value: "strict-origin-when-cross-origin"},
     {
+        // microphone=(self) : l'épreuve Expression orale enregistre via
+        // MediaRecorder — un blocage total ferait échouer getUserMedia avec
+        // "Permissions policy violation" quel que soit le réglage navigateur.
         key: "Permissions-Policy",
-        value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+        value: "camera=(), microphone=(self), geolocation=(), interest-cohort=()",
     },
     {
         key: "Strict-Transport-Security",
@@ -37,7 +40,7 @@ const nextConfig: NextConfig = {
     // WebSocket inclus) depuis le LAN, pour pouvoir tester sur un téléphone
     // physique branché sur le même réseau. Sans ça, le bundle React n'hydrate
     // pas côté mobile et le site reste statique (drawer ne s'ouvre pas, etc.).
-    allowedDevOrigins: ["192.168.1.36"],
+    allowedDevOrigins: ["192.168.1.15"],
 };
 
 export default nextConfig;

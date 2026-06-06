@@ -8,6 +8,7 @@ import type {
   AttemptSummaryResponse,
   AttemptType,
   AuthenticatedUser,
+  DashboardSummaryResponse,
   Difficulty,
   EpreuveType,
   ExamTemplateSummary,
@@ -504,6 +505,24 @@ export const lotApi = {
     },
 };
 
+/**
+ * Variante guest de `lotApi` : même découpage de séries sans les derniers
+ * scores. La série 1 est jouable sans compte via `publicAttemptApi.startDemo`
+ * (TRAINING + lotNumero=1), les séries 2+ ouvrent la GuestGateSheet.
+ */
+export const publicLotApi = {
+    listCivique(themeId: string): Promise<LotDto[]> {
+        return apiFetch<LotDto[]>(
+            `/api/public/lots?module=CIVIQUE&themeId=${encodeURIComponent(themeId)}`,
+        );
+    },
+    listTcf(questionType: QuestionType, difficulty: Difficulty): Promise<LotDto[]> {
+        return apiFetch<LotDto[]>(
+            `/api/public/lots?module=TCF&questionType=${questionType}&difficulty=${difficulty}`,
+        );
+    },
+};
+
 // ============================================================================
 // Endpoints User content (favoris, questions ratées, stats, target path)
 // ============================================================================
@@ -579,6 +598,33 @@ export const statsApi = {
         return apiFetch<UserStatsResponse>(`/api/me/stats?module=${module}`, {
             auth: true,
         });
+    },
+};
+
+// ============================================================================
+// Endpoint Dashboard (agrégat unique : streak + stats + catégories)
+// ============================================================================
+
+function fetchDashboardSummary(): Promise<DashboardSummaryResponse> {
+    return apiFetch<DashboardSummaryResponse>("/api/me/dashboard", {auth: true});
+}
+
+// Mémo 30 s : la sidebar (streak) et la page dashboard consomment le même
+// agrégat — un seul appel réseau quand les deux montent en même temps.
+let dashboardMemo: {at: number; promise: Promise<DashboardSummaryResponse>} | null = null;
+
+export const dashboardApi = {
+    summary: fetchDashboardSummary,
+    summaryCached(): Promise<DashboardSummaryResponse> {
+        if (dashboardMemo && Date.now() - dashboardMemo.at < 30_000) {
+            return dashboardMemo.promise;
+        }
+        const promise = fetchDashboardSummary().catch((e) => {
+            dashboardMemo = null;
+            throw e;
+        });
+        dashboardMemo = {at: Date.now(), promise};
+        return promise;
     },
 };
 

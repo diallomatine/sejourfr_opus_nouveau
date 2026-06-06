@@ -7,11 +7,9 @@ import styles from "./ModuleDetail.module.css";
  * Écran d'invite à la connexion affiché par les pages détail d'entraînement
  * (connecté uniquement) quand le visiteur n'est pas authentifié.
  *
- * Les anciennes briques à onglets (ModuleDetailShell / ModuleHero / ModuleTabs
- * / LotsGrid / ExamSlots / ErrorsList / SkeletonGrid) ont été retirées lors du
- * passage des pages détail au design single-scroll mobile : elles vivent
- * désormais dans `app/_components/hub/` (HubDetailHeader, LotRow, ExamSlotsView,
- * ExamHistoryList…).
+ * Les briques des pages détail vivent dans `app/_components/hub/DetailParts.tsx`
+ * (DetailShell, LevelChoiceCard, SerieCard, ExamsGrid…) depuis la refonte
+ * web_refonte.
  */
 export function ModuleDetailGate({next}: {next: string}) {
   return (

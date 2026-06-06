@@ -12,8 +12,8 @@ questions.
 
 **Tailles fixes** (constantes dans `LotService.LOT_SIZE_*`) :
 
-- TCF A2 = 15 · B1 = 20 · B2 = 25
-- Civique = 15 (constant, indépendant du thème)
+- **20 questions partout** depuis la refonte web_refonte (TCF A2/B1/B2 et
+  Civique). Côté UI, un lot s'affiche désormais « **Série** ».
 
 ## Règle de découpage
 
@@ -23,7 +23,7 @@ questions.
   IA). Évite d'afficher "0 lot" alors que des questions sont prêtes côté admin.
 - Pool ≥ lotSize → N lots complets de taille standard. Les questions au-delà du dernier
   multiple sont ignorées (elles seront exposées quand un nouveau multiple sera atteint).
-  Exemple A2 avec 47 questions : Lot 1 (1-15), Lot 2 (16-30), Lot 3 (31-45), les 2 restantes
+  Exemple A2 avec 47 questions : Lot 1 (1-20), Lot 2 (21-40), les 7 restantes
   en attente.
 
 `AttemptService.startFromLot` utilise `LotService.resolveLotSize(...)` (TCF) ou

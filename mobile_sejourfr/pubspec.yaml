@@ -1,7 +1,7 @@
 name: sejourfr_mobile
 description: SejourFR — Préparation aux examens civique et TCF
 publish_to: 'none'
-version: 0.1.0+7
+version: 0.1.0+9
 
 environment:
   sdk: '>=3.6.0 <4.0.0'

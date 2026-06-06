@@ -1,35 +1,44 @@
 "use client";
 
-import {useParams, useRouter} from "next/navigation";
-import {useEffect, useState} from "react";
-import {ChevronRight} from "lucide-react";
-import {ApiException, productionApi} from "@/lib/api";
-import {useAuth} from "@/lib/auth-context";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Mic, PenLine, Play, Target } from "lucide-react";
+import { ApiException, productionApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import {
   productionTaskSubtitle,
   productionTaskTitle,
   type ProductionExampleDto,
   type ProductionTaskDto,
 } from "@/lib/types";
-import {DualChromeShell} from "@/app/_components/DualChromeShell";
-import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
-import {HubDetailHeader, SectionLabel} from "@/app/_components/hub/HubParts";
-import {type ProductionConfig} from "./config";
-import hub from "@/app/_components/hub/hub.module.css";
+import { DualChromeShell } from "@/app/_components/DualChromeShell";
+import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
+import { DetailShell } from "@/app/_components/hub/DetailParts";
+import { type ProductionConfig } from "./config";
+import detail from "@/app/_components/hub/detail.module.css";
 import prod from "./production.module.css";
 
 type Tab = "sujets" | "exemples";
 
+/** Tonalité par niveau cible du sujet : la difficulté monte, la couleur chauffe. */
+const NIVEAU_TONES: Record<string, string> = {
+  A2: detail.serieNumGreen,
+  B1: detail.serieNumAmber,
+  B2: detail.serieNumRed,
+};
+
 /**
- * Sujets d'une tâche productive (T1/T2/T3, tous niveaux) + onglet « Exemples »
- * (réponses-modèles ; lecteur audio pour l'EO). Tap sujet → écran d'input.
+ * Une tâche productive (T1/T2/T3) — maquette sejour_fr.html : onglet
+ * « Sujets » (cards par niveau cible → écran d'input) + onglet « Exemples »
+ * (réponses-modèles, lecteur audio pour l'EO).
  */
-export function ProductionSubjects({config}: {config: ProductionConfig}) {
-  const params = useParams<{n: string}>();
+export function ProductionSubjects({ config }: { config: ProductionConfig }) {
+  const params = useParams<{ n: string }>();
   const n = Number(params?.n ?? "0");
   const valid = n >= 1 && n <= 3;
   const router = useRouter();
-  const {user, status} = useAuth();
+  const { user, status } = useAuth();
 
   const [tab, setTab] = useState<Tab>("sujets");
   const [tasks, setTasks] = useState<ProductionTaskDto[]>([]);
@@ -44,7 +53,7 @@ export function ProductionSubjects({config}: {config: ProductionConfig}) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     productionApi
-      .listTasks({epreuve: config.epreuve, tacheNumero: n})
+      .listTasks({ epreuve: config.epreuve, tacheNumero: n })
       .then((list) => {
         if (!cancelled) {
           // Filtre défensif : certains backends ignorent `tacheNumero` sans niveau.
@@ -89,8 +98,11 @@ export function ProductionSubjects({config}: {config: ProductionConfig}) {
   if (!valid) {
     return (
       <DualChromeShell>
-        <main className={hub.hub}>
-          <p className={prod.empty}>Tâche inconnue.</p>
+        <main className={detail.wrap}>
+          <p className={detail.empty}>Tâche inconnue.</p>
+          <Link href={config.base} className={detail.back}>
+            ← Retour à l&apos;épreuve
+          </Link>
         </main>
       </DualChromeShell>
     );
@@ -98,76 +110,96 @@ export function ProductionSubjects({config}: {config: ProductionConfig}) {
 
   return (
     <DualChromeShell>
-      <main className={hub.hub}>
-        <HubDetailHeader
-          backHref={config.base}
-          title={`Tâche ${n} · ${productionTaskTitle(config.epreuve, n)}`}
-          subtitle={productionTaskSubtitle(config.epreuve, n)}
-        />
-
-        <div className={prod.tabs}>
+      <DetailShell
+        backHref={config.base}
+        backLabel={config.label}
+        eyebrowIcon={
+          config.mode === "audio" ? (
+            <Mic size={18} strokeWidth={2} />
+          ) : (
+            <PenLine size={18} strokeWidth={2} />
+          )
+        }
+        eyebrow={`${config.label} · Tâche ${n}`}
+        title={productionTaskTitle(config.epreuve, n)}
+        subtitle={productionTaskSubtitle(config.epreuve, n)}
+        action={
+          <Link href={`${config.base}/examens`} className={detail.headBtn}>
+            <Target size={17} strokeWidth={1.7} aria-hidden />
+            Examens blancs
+          </Link>
+        }
+      >
+        <div className={detail.tabs} role="tablist">
           <button
             type="button"
-            className={`${prod.tab} ${tab === "sujets" ? prod.tabActive : ""}`}
+            role="tab"
+            aria-selected={tab === "sujets"}
+            className={`${detail.tab} ${tab === "sujets" ? detail.tabActive : ""}`}
             onClick={() => setTab("sujets")}
           >
             Sujets
           </button>
           <button
             type="button"
-            className={`${prod.tab} ${tab === "exemples" ? prod.tabActive : ""}`}
+            role="tab"
+            aria-selected={tab === "exemples"}
+            className={`${detail.tab} ${tab === "exemples" ? detail.tabActive : ""}`}
             onClick={() => setTab("exemples")}
           >
             Exemples
           </button>
         </div>
 
-        {error && <div className={prod.error}>{error}</div>}
+        {error && <div className={detail.error}>{error}</div>}
 
         {tab === "sujets" ? (
           loading ? (
-            <p className={prod.loading}>Chargement des sujets…</p>
+            <div className={detail.loading}>Chargement des sujets…</div>
           ) : tasks.length === 0 ? (
-            <p className={prod.empty}>Aucun sujet disponible pour cette tâche.</p>
+            <p className={detail.empty}>Aucun sujet disponible pour cette tâche.</p>
           ) : (
-            <>
-              <SectionLabel label="Choisir un sujet" />
-              <div className={hub.list}>
-                {tasks.map((t, i) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    className={prod.row}
-                    onClick={() => router.push(`${config.base}/${config.inputSegment}/${t.id}`)}
-                  >
-                    <span className={prod.rowChip}>{t.niveauCible}</span>
-                    <span className={prod.rowBody}>
-                      <span className={prod.rowTitle}>Sujet {i + 1}</span>
-                      <span className={prod.rowSub}>{t.consigne}</span>
-                    </span>
-                    <ChevronRight size={20} className={prod.rowChevron} />
-                  </button>
-                ))}
-              </div>
-            </>
+            <div className={detail.serieGrid}>
+              {tasks.map((t, i) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={detail.serieCard}
+                  onClick={() => router.push(`${config.base}/${config.inputSegment}/${t.id}`)}
+                >
+                  <span className={`${detail.serieNum} ${NIVEAU_TONES[t.niveauCible] ?? ""}`}>
+                    {t.niveauCible}
+                  </span>
+                  <span className={detail.serieBody}>
+                    <span className={detail.serieTitle}>Sujet {i + 1}</span>
+                    <span className={detail.serieSub}>{t.consigne}</span>
+                  </span>
+                  <span className={detail.serieAction} aria-hidden>
+                    <Play size={18} />
+                  </span>
+                </button>
+              ))}
+            </div>
           )
         ) : !examplesLoaded ? (
-          <p className={prod.loading}>Chargement des exemples…</p>
+          <div className={detail.loading}>Chargement des exemples…</div>
         ) : examples.length === 0 ? (
-          <p className={prod.empty}>Aucun exemple-modèle pour cette tâche pour l&apos;instant.</p>
+          <p className={detail.empty}>
+            Aucun exemple-modèle pour cette tâche pour l&apos;instant.
+          </p>
         ) : (
-          <div className={hub.list}>
+          <div className={detail.exampleList}>
             {examples.map((ex) => (
               <ExampleCard key={ex.id} example={ex} />
             ))}
           </div>
         )}
-      </main>
+      </DetailShell>
     </DualChromeShell>
   );
 }
 
-function ExampleCard({example: ex}: {example: ProductionExampleDto}) {
+function ExampleCard({ example: ex }: { example: ProductionExampleDto }) {
   return (
     <div className={prod.example}>
       <h3 className={prod.exampleTitle}>
@@ -176,7 +208,7 @@ function ExampleCard({example: ex}: {example: ProductionExampleDto}) {
       </h3>
       {ex.resume && <p className={prod.exampleResume}>{ex.resume}</p>}
       {ex.audioUrl && (
-        <div className={prod.player} style={{maxWidth: "none", marginBottom: 12}}>
+        <div className={prod.player} style={{ maxWidth: "none", marginBottom: 12 }}>
           <audio src={ex.audioUrl} controls preload="none" />
         </div>
       )}

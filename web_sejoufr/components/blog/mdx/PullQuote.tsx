@@ -6,7 +6,9 @@ interface Props {
 export function PullQuote({ attribution, children }: Props) {
   return (
     <blockquote className="mdx-pullquote">
-      <p className="mdx-pullquote-text">{children}</p>
+      {/* div, pas <p> : MDX enveloppe déjà le contenu de la citation dans
+          des <p> — un <p> imbriqué casse l'hydratation React. */}
+      <div className="mdx-pullquote-text">{children}</div>
       {attribution && (
         <footer className="mdx-pullquote-attr">— {attribution}</footer>
       )}
@@ -37,6 +39,15 @@ export function PullQuote({ attribution, children }: Props) {
             font-size: 24px;
           }
         }
+        /* Les <p> MDX internes héritent de la typo de la citation et perdent
+           leurs marges de prose (sauf entre deux paragraphes). */
+        .mdx-pullquote-text p {
+          margin: 0;
+          font: inherit;
+          color: inherit;
+          letter-spacing: inherit;
+        }
+        .mdx-pullquote-text p + p { margin-top: 10px; }
         .mdx-pullquote-attr {
           margin-top: 12px;
           font-family: var(--font-sans);

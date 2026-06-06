@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import {useParams, useRouter} from "next/navigation";
-import {useCallback, useEffect, useRef, useState} from "react";
-import {ChevronRight} from "lucide-react";
-import {ApiException, productionApi} from "@/lib/api";
-import {useAuth} from "@/lib/auth-context";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Check, FileStack, GraduationCap, Mic, PenLine, Play, Sparkles } from "lucide-react";
+import { ApiException, productionApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import {
   cecrlIndex,
   isSubmissionPending,
@@ -16,14 +16,14 @@ import {
   type ProductionTaskDto,
   resolveTcfLevel,
 } from "@/lib/types";
-import {DualChromeShell} from "@/app/_components/DualChromeShell";
-import {PaywallSheet} from "@/app/_components/PaywallSheet";
-import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
-import {HubDetailHeader} from "@/app/_components/hub/HubParts";
-import {EeWritingForm, clearEeDraft} from "./EeWritingForm";
-import {EoRecordingForm} from "./EoRecordingForm";
-import {type ProductionConfig} from "./config";
-import hub from "@/app/_components/hub/hub.module.css";
+import { DualChromeShell } from "@/app/_components/DualChromeShell";
+import { PaywallSheet } from "@/app/_components/PaywallSheet";
+import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
+import { DetailShell, DetailStatCard } from "@/app/_components/hub/DetailParts";
+import { EeWritingForm, clearEeDraft } from "./EeWritingForm";
+import { EoRecordingForm } from "./EoRecordingForm";
+import { type ProductionConfig } from "./config";
+import detail from "@/app/_components/hub/detail.module.css";
 import prod from "./production.module.css";
 
 const TACHES = [1, 2, 3] as const;
@@ -35,11 +35,11 @@ const MAX_POLLS = 40;
  * partageant un même attempt, puis bilan avec niveau CECRL plancher. La phase
  * (saisie vs bilan) est dérivée des soumissions existantes (resume naturel).
  */
-export function ProductionSession({config}: {config: ProductionConfig}) {
-  const params = useParams<{attemptId: string}>();
+export function ProductionSession({ config }: { config: ProductionConfig }) {
+  const params = useParams<{ attemptId: string }>();
   const attemptId = params?.attemptId ?? "";
   const router = useRouter();
-  const {user, status} = useAuth();
+  const { user, status } = useAuth();
   const level = resolveTcfLevel(user);
 
   const [tasks, setTasks] = useState<ProductionTaskDto[]>([]);
@@ -66,7 +66,7 @@ export function ProductionSession({config}: {config: ProductionConfig}) {
   }, []);
 
   const fetchSubs = useCallback(async (): Promise<Map<number, ProductionSubmissionDto>> => {
-    const list = await productionApi.listMine({epreuve: config.epreuve, limit: 100});
+    const list = await productionApi.listMine({ epreuve: config.epreuve, limit: 100 });
     const m = new Map<number, ProductionSubmissionDto>();
     for (const s of list) {
       if (s.attemptId === attemptId && s.tacheNumero != null) m.set(s.tacheNumero, s);
@@ -102,7 +102,7 @@ export function ProductionSession({config}: {config: ProductionConfig}) {
     (async () => {
       try {
         const [allTasks, subs] = await Promise.all([
-          productionApi.listTasks({epreuve: config.epreuve, niveau: level}),
+          productionApi.listTasks({ epreuve: config.epreuve, niveau: level }),
           fetchSubs(),
         ]);
         if (cancelledRef.current) return;
@@ -159,41 +159,53 @@ export function ProductionSession({config}: {config: ProductionConfig}) {
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`${config.base}/session/${attemptId}`} />;
 
-  const doneCount = TACHES.filter((n) => subsByTache.has(n)).length;
   const submitLabel = currentTache < 3 ? "Valider et continuer" : "Valider et terminer";
 
   return (
     <DualChromeShell>
-      <main className={hub.hub}>
-        <HubDetailHeader
-          backHref={`${config.base}/examens`}
-          title={`Examen blanc ${config.shortLabel}`}
-          subtitle={
-            phase === "writing"
-              ? `Tâche ${currentTache} sur 3 · niveau ${level}`
-              : `Bilan · niveau ${level}`
-          }
-        />
+      <DetailShell
+        backHref={`${config.base}/examens`}
+        backLabel="Examens blancs"
+        eyebrowIcon={
+          config.mode === "audio" ? (
+            <Mic size={18} strokeWidth={2} />
+          ) : (
+            <PenLine size={18} strokeWidth={2} />
+          )
+        }
+        eyebrow={config.label}
+        title={phase === "bilan" ? "Bilan de l'examen blanc" : "Examen blanc"}
+        subtitle={
+          phase === "writing"
+            ? `3 tâches enchaînées, niveau ${level} — évaluation IA à la fin.`
+            : `Niveau ${level} · le niveau global retenu est le plancher de vos 3 tâches.`
+        }
+      >
+        {/* Stepper T1 → T2 → T3 */}
+        <ol className={prod.stepper} aria-label="Progression des tâches">
+          {TACHES.map((n) => {
+            const done = subsByTache.has(n);
+            const current = phase === "writing" && n === currentTache;
+            return (
+              <li
+                key={n}
+                className={`${prod.stepperItem} ${
+                  done ? prod.stepperDone : current ? prod.stepperCurrent : ""
+                }`}
+              >
+                <span className={prod.stepperDot} aria-hidden>
+                  {done ? <Check size={13} strokeWidth={3} /> : n}
+                </span>
+                <span className={prod.stepperLabel}>Tâche {n}</span>
+              </li>
+            );
+          })}
+        </ol>
 
-        <div className={prod.steps}>
-          {TACHES.map((n) => (
-            <span
-              key={n}
-              className={`${prod.step} ${
-                subsByTache.has(n)
-                  ? prod.stepDone
-                  : phase === "writing" && n === currentTache
-                    ? prod.stepCurrent
-                    : ""
-              }`}
-            />
-          ))}
-        </div>
-
-        {error && <div className={prod.error}>{error}</div>}
+        {error && <div className={detail.error}>{error}</div>}
 
         {phase === "loading" ? (
-          <p className={prod.loading}>Chargement de la session…</p>
+          <div className={detail.loading}>Chargement de la session…</div>
         ) : phase === "writing" ? (
           currentTask ? (
             config.mode === "audio" ? (
@@ -214,13 +226,13 @@ export function ProductionSession({config}: {config: ProductionConfig}) {
                 submitLabel={submitLabel}
                 onSubmit={(texte) =>
                   send((aid) =>
-                    productionApi.submitText({productionTaskId: currentTask.id, attemptId: aid, texte}),
+                    productionApi.submitText({ productionTaskId: currentTask.id, attemptId: aid, texte }),
                   )
                 }
               />
             )
           ) : (
-            <p className={prod.empty}>
+            <p className={detail.empty}>
               Sujets indisponibles pour le niveau {level} pour l&apos;instant.
             </p>
           )
@@ -228,7 +240,6 @@ export function ProductionSession({config}: {config: ProductionConfig}) {
           <BilanView
             config={config}
             subsByTache={subsByTache}
-            doneCount={doneCount}
             onOpenResult={(id) => router.push(`${config.base}/resultats/${id}`)}
           />
         )}
@@ -240,7 +251,7 @@ export function ProductionSession({config}: {config: ProductionConfig}) {
           title={`Débloquez l'examen blanc ${config.shortLabel}`}
           message="L'examen blanc complet est réservé aux abonnés Intégral."
         />
-      </main>
+      </DetailShell>
     </DualChromeShell>
   );
 }
@@ -248,12 +259,10 @@ export function ProductionSession({config}: {config: ProductionConfig}) {
 function BilanView({
   config,
   subsByTache,
-  doneCount,
   onOpenResult,
 }: {
   config: ProductionConfig;
   subsByTache: Map<number, ProductionSubmissionDto>;
-  doneCount: number;
   onOpenResult: (submissionId: string) => void;
 }) {
   const evaluated = TACHES.map((n) => subsByTache.get(n)).filter(
@@ -263,35 +272,55 @@ function BilanView({
     const s = subsByTache.get(n);
     return s && isSubmissionPending(s);
   });
+
   let plancher: NiveauCecrl | null = null;
   for (const s of evaluated) {
     const niv = s.evaluation?.niveauCecrl ?? null;
     if (!niv) continue;
     if (plancher === null || cecrlIndex(niv) < cecrlIndex(plancher)) plancher = niv;
   }
+  const notes = evaluated
+    .map((s) => s.evaluation?.noteSurVingt)
+    .filter((v): v is number => v != null);
+  const avgNote = notes.length
+    ? Math.round((notes.reduce((sum, v) => sum + v, 0) / notes.length) * 10) / 10
+    : null;
 
   return (
     <>
-      <div className={prod.scoreCard} style={{justifyContent: "center", textAlign: "center"}}>
-        <div className={prod.scoreSide} style={{flex: "unset"}}>
-          <div className={prod.cecrlPill}>
-            <span className={prod.cecrlPillLabel}>Niveau global</span>
-            <span className={prod.cecrlPillVal}>
-              {anyPending && evaluated.length < TACHES.length ? "…" : niveauCecrlLabel(plancher)}
-            </span>
-          </div>
-          <p className={prod.scoreJustif}>
-            {anyPending
-              ? `Évaluation en cours (${doneCount}/3 tâches soumises)…`
-              : "Le niveau global retenu est le plancher de vos 3 tâches."}
-          </p>
-        </div>
+      <div className={detail.statCards}>
+        <DetailStatCard
+          icon={<GraduationCap size={20} />}
+          tone="green"
+          value={
+            anyPending && evaluated.length < TACHES.length
+              ? "…"
+              : niveauCecrlLabel(plancher)
+          }
+          label="Niveau global"
+          sub="plancher des 3 tâches"
+        />
+        <DetailStatCard
+          icon={<Sparkles size={20} />}
+          tone="blue"
+          value={avgNote != null ? `${formatNote(avgNote)}/20` : "—"}
+          label="Note moyenne"
+          sub="sur les tâches évaluées"
+        />
+        <DetailStatCard
+          icon={<FileStack size={20} />}
+          tone="red"
+          value={`${evaluated.length}/3`}
+          label="Tâches évaluées"
+          sub={anyPending ? "évaluation IA en cours…" : "par l'IA"}
+        />
       </div>
 
-      <div className={hub.list}>
+      <div className={detail.serieGrid}>
         {TACHES.map((n) => {
           const s = subsByTache.get(n);
           const pending = s ? isSubmissionPending(s) : false;
+          const evaluatedOk = s?.statut === "EVALUATED";
           const note = s?.evaluation?.noteSurVingt;
           const sub = !s
             ? "Non soumise"
@@ -299,36 +328,48 @@ function BilanView({
               ? "Évaluation échouée"
               : pending
                 ? "Évaluation en cours…"
-                : niveauCecrlLabel(s.evaluation?.niveauCecrl);
+                : `Niveau ${niveauCecrlLabel(s.evaluation?.niveauCecrl)}`;
           return (
             <button
               key={n}
               type="button"
-              className={prod.row}
+              className={detail.serieCard}
               disabled={!s}
               onClick={() => s && onOpenResult(s.id)}
             >
-              <span className={prod.rowChip}>T{n}</span>
-              <span className={prod.rowBody}>
-                <span className={prod.rowTitle}>{productionTaskTitle(config.epreuve, n)}</span>
-                <span className={prod.rowSub}>{sub}</span>
+              <span
+                className={`${detail.serieNum} ${evaluatedOk ? detail.serieNumDone : ""}`}
+              >
+                T{n}
+                {evaluatedOk && (
+                  <span className={detail.serieCheck} aria-hidden>
+                    <Check size={11} strokeWidth={3} />
+                  </span>
+                )}
               </span>
-              {note != null && s?.statut === "EVALUATED" ? (
-                <span
-                  className={prod.rowScore}
-                  style={{background: "var(--color-blue-soft)", color: "var(--color-blue)"}}
-                >
-                  {formatNote(note)}/20
+              <span className={detail.serieBody}>
+                <span className={detail.serieTitle}>
+                  {productionTaskTitle(config.epreuve, n)}
                 </span>
-              ) : null}
-              {s ? <ChevronRight size={20} className={prod.rowChevron} /> : null}
+                <span className={detail.serieSub}>{sub}</span>
+                {note != null && evaluatedOk && (
+                  <span className={`${detail.serieBadge} ${detail.serieBadgeDone}`}>
+                    <Check size={12} aria-hidden /> {formatNote(note)}/20
+                  </span>
+                )}
+              </span>
+              {s && (
+                <span className={detail.serieAction} aria-hidden>
+                  <Play size={18} />
+                </span>
+              )}
             </button>
           );
         })}
       </div>
 
-      <div className={prod.actions}>
-        <Link href={config.base} className="btn btn-blue">
+      <div className={prod.bilanFoot}>
+        <Link href={`${config.base}/examens`} className="btn btn-blue">
           Terminer
         </Link>
       </div>

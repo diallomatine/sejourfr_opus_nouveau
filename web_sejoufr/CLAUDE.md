@@ -38,6 +38,7 @@ Backend Spring Boot Java 21 séparé, qui tourne sur `http://localhost:8080`.
 | GET     | `/api/attempts/{id}`                   | reprendre                                       | oui  |
 | POST    | `/api/attempts/{id}/answers`           | soumettre une réponse                           | oui  |
 | POST    | `/api/attempts/{id}/finish`            | finaliser                                       | oui  |
+| GET     | `/api/me/dashboard`                    | agrégat dashboard (streak, stats, catégories)   | oui  |
 | GET     | `/api/billing/plans`                   | liste plans actifs (publique, ISR 30min)        | non  |
 | GET     | `/api/billing/payment-link?planCode=…` | Checkout Session Stripe (mode subscription)     | oui  |
 | GET     | `/api/billing/subscription-status`     | statut Premium agrégé (Stripe + Apple + Google) | oui  |
@@ -81,9 +82,15 @@ app/
 │   └── TcfScoreCard.tsx          # carte compacte points + niveau CECRL (détail TCF)
 │
 ├── (app)/                        # route group : connecté, layout sidebar+main
-│   ├── layout.tsx                # grid 260px / 1fr, passe en horizontal sous 900px
-│   ├── dashboard/page.tsx        # ★ tableau de bord : snapshot stats civique+TCF, action cards,
-│   │                              #   dernières sessions, "reprendre" si attempt en cours
+│   ├── layout.tsx                # grid 248px / 1fr, passe en drawer sous 900px
+│   ├── dashboard/page.tsx        # ★ tableau de bord (refonte web_refonte) : un seul fetch
+│   │                              #   GET /api/me/dashboard → 4 stat cards (maîtrise globale,
+│   │                              #   examens blancs, streak, niveau TCF estimé), 2 cards
+│   │                              #   catégories TCF/Civique, "À renforcer en priorité" (top 3),
+│   │                              #   bandeaux reprendre/onboarding
+│   ├── recommandations/page.tsx  # ★ liste complète des catégories triées faibles d'abord
+│   │                              #   (tag module, CTA Réviser) + raccourcis erreurs/favoris
+│   │                              #   vers /revision (qui n'a plus d'entrée sidebar)
 │   ├── statistiques/page.tsx     # ★ progression par thème (tri faibles d'abord), couleurs
 │   │                              #   vert/ambre/rouge, clic sur thème → start training ciblé
 │   ├── revision/page.tsx         # ★ tabs erreurs/favoris avec compteurs, modal détail
@@ -113,7 +120,13 @@ app/
 lib/
 ├── api.ts                        # authApi, themeApi, attemptApi, examApi, billingApi,
 │                                 #   userContentApi (favoris/wrong/reviewQuestion/targetPath),
-│                                 #   statsApi, tokenStorage, ApiException
+│                                 #   statsApi, dashboardApi (summary + summaryCached mémo 30s,
+│                                 #   partagé sidebar/dashboard), tokenStorage, ApiException
+├── chrome-routes.ts              # APP_GROUP_PREFIXES + DUAL_CHROME_PREFIXES +
+│                                 #   shouldHideGlobalChrome (connecté sur route app → pas de
+│                                 #   header/footer/bandeau marketing, la sidebar porte tout)
+├── dashboard.ts                  # helpers catégories dashboard : categoryHref (CTA Réviser),
+│                                 #   barTone (vert ≥80 / ambre <60 / bleu), moduleAverage
 └── types.ts                      # DTOs miroirs Java + helper canAccessModule()
 ```
 
@@ -124,6 +137,34 @@ attemptIdByQuestionId, lastResult, favoriteIds). En mode `infinite=true` (traini
 premium), il étend automatiquement la session avec un nouveau batch quand on
 arrive sur la dernière question — un prefetch est déclenché dès que la correction
 de l'avant-dernière s'affiche, pour rendre le passage instantané.
+
+**Examens sectionnés** : les examens TCF mixtes (templates `tcf-diagnostic` /
+`tcf-mix-*`) font **50 Q / 55 min** (migration V111) et sont composés par le
+backend comme le vrai TCF — compréhension orale (25 Q · 20 min) puis écrite
+(25 Q · 35 min), chacune stratifiée 8 A2 + 9 B1 + 8 B2, pas de STRUCTURE ni
+EE/EO (`AttemptService.pickQuestionsForTemplate` → `drawTcfEpreuveStrata`). La page
+session dérive des `RunnerSection[]` (`tcfExamSections`) passées au runner via
+la prop `sections` : bandeau « Partie x/y · i/n » au-dessus des tags + écran
+d'intro à chaque changement de partie (le chrono global continue) + bouton
+« Partie suivante » en fin de partie. Les examens TCF mono-épreuve (CO/CE/
+STRUCTURE) gardent l'écran d'intro comme présentation (« Compréhension orale ·
+25 questions · 20 min ») mais pas le bandeau. Undefined sur les attempts
+d'avant le tri (groupes > 3). **Notation TCF calibrée** : tous les examens TCF
+stratifiés (module CO/CE/STRUCTURE + templates diagnostic) portent
+`calibratedScore` 100-499 + `cecrlLevel`, calculés UNIQUEMENT backend
+(`TcfLevelEstimatorService` — score corrigé du hasard 25 %, niveau = bande du
+score ; V112 a invalidé les niveaux de l'ancienne règle « palier ») — le hero
+`ExamReport`, `/historique` et les stats « meilleur score » affichent `x/499`
+quand présent, le score brut sinon. **Examens multi-épreuves** : le backend
+expose `AttemptResponse.epreuveResults` (score + niveau par épreuve, CO_IMAGE
+sous CO) et le `cecrlLevel` global est le PLANCHER des épreuves (règle TCF
+IRN : il faut le niveau partout) ; `ExamReport` rend la card « Votre niveau
+par épreuve » (badge rouge sur l'épreuve plancher) + note expliquant le min.
+Miroirs `AttemptEpreuveResult` dans lib/types.ts et attempt_models.dart. **CO en examen = conditions réelles** : audio
+autoplay à écoute unique sans contrôles (`MediaView` prop `examAudio`,
+fallback bouton one-shot si l'autoplay est bloqué) et retour arrière interdit
+vers une question CO (`canGoPrevious` du runner). En TRAINING (séries), le
+lecteur natif et la navigation restent libres.
 
 ## Identité visuelle (à ne pas dévier)
 
@@ -367,15 +408,223 @@ Chantier découpé en vagues :
       EE + EO branchées web) → détail QCM (hero + 3 niveaux + historique) →
       `/entrainement/tcf/[code]/examens` (10 slots) et `[code]/[level]` (lots,
       lot 1 gratuit / 2+ premium).
-    - **Bilan donut lot TCF** : `TcfLotResultCard` (score donut + résumé + conseil
-        + rapport dépliable), servi par la session via
-          `?lot=N&result=tcfLot&code&level` (parité `TcfLotResultScreen` mobile). Le
-          bilan civique reste le rapport Q-par-Q (`ExamReport`).
+    - **Bilan de série (ex-lot)** : depuis la refonte web_refonte, toutes les
+      séries (TCF et civique) affichent le rapport commun `ExamReport` — à
+      chaud comme en consultation. `?result=tcfLot&code&level` est conservé
+      comme héritage d'URL (sert au chemin « Autres séries ») ;
+      `TcfLotResultCard` est supprimé.
     - `module_detail/parts.tsx` ne garde que `ModuleDetailGate` + `moduleDetailStyles`.
     - **Reste au lot suivant** : examen blanc TCF complet orchestré (CO→CE→EE→EO).
       En attendant, le hero « examen complet » du hub TCF pointe sur
       `/examens-blancs/tcf`. (`ProductionMobileSheet` n'est plus utilisé par le hub —
       conservé pour les promos mobile du dashboard/historique.)
+
+### Règle de progression (validée 2026-06-06 — source unique backend)
+
+Toute valeur de « progression » d'un thème / d'une épreuve vient de
+`GET /api/me/dashboard` (`CategoryStat.percent`, calculé dans
+`UserDashboardService`) — ne jamais recalculer autrement côté front.
+
+- **QCM** : `progression = réussite × confiance` avec
+  `réussite = questions distinctes réussies / répondues` et
+  `confiance = min(1, répondues / min(40, taille du pool))` (40 ≈ 2 examens
+  blancs : un seul examen réussi n'affiche pas « Solide », un gros pool
+  n'écrase pas la note). Null si jamais travaillée.
+- **EE/EO** : `réussite = moyenne des notes /20 des 3 dernières soumissions
+  évaluées ×5`, `confiance = min(1, soumissions/3)`.
+- **Module** = moyenne des progressions de ses catégories (front :
+  `moduleAverage`) ; **global** (`globalSuccessPercent`) = moyenne de toutes
+  les catégories renseignées, calculée backend.
+- Exemples : 1 examen blanc 16/20 → 80 % × 20/40 = **40 %** ; 60 répondues
+  dont 48 bonnes → **80 %** ; 1 soumission EE notée 14/20 → 70 % × 1/3 =
+  **23 %**.
+
+### Règles des recommandations (validées 2026-06-06)
+
+`/recommandations` ouvre sur **« Vos priorités »** : max 5 cards avec raison
+chiffrée + CTA, dérivées côté front (`buildPriorities`) des `CategoryStat`
+du dashboard + du compteur d'erreurs. Une seule reco par catégorie, dans
+cet ordre :
+
+1. **En baisse** — dernier examen < avant-dernier → Refaire un examen
+2. **Point faible** — progression < 60 % avec ≥ 20 répondues (EE/EO : note
+   basse) → Série ciblée / S'exercer
+3. **À confirmer** — réussite brute (progression ÷ confiance) ≥ 70 % mais
+   < 40 répondues → Examen blanc
+4. **Jamais travaillé** — percent null, EE/EO d'abord (épreuves obligatoires
+   TCF IRN) → Découvrir
+5. **Erreurs** — ≥ 5 erreurs non revues → /revision
+
+Tri : n° de règle puis progression croissante ; si rien ne matche → card
+« Rien d'urgent » (CTA examen complet). En dessous : le classement complet
+filtrable (Tous / TCF / Civique) reste comme détail.
+
+### Mode guest & quotas gratuits (validés 2026-06-06)
+
+**Guests (non connectés)** — header public aligné sur la sidebar (Accueil ·
+TCF IRN · Examen civique · Examens blancs · Tarifs, cf. `SiteHeader`) ;
+navigation libre des hubs et pages détail (`DualChromeShell` rend les
+enfants sans sidebar quand `status !== "authenticated"`).
+
+- **Série 1 offerte** par thème civique et par (épreuve TCF × niveau) :
+  pages séries duales — lots via `publicLotApi` (`/api/public/lots`,
+  `PublicLotController` backend), start anonyme via
+  `publicAttemptApi.startDemo({type:"TRAINING", …, lotNumero:1})`
+  (`AttemptService.startGuestLot` : attempt user NULL + clientIp, même
+  fenêtre déterministe que les comptes). Série 2+ → `GuestGateSheet`
+  (modal inscription, badge « Compte gratuit » via `lockedLabel`).
+  Backend : lotNumero ≠ 1 sans compte → 403.
+- **Examen complet 1 jouable** par module sur `/examens-blancs` (même
+  grille `ModuleExamsSection`/`ExamsGrid` que les connectés, `freeSlots=1`,
+  start anonyme MOCK_EXAM template free). Examens 2-20 → `GuestGateSheet`.
+  Les attempts guests sont en base (user NULL + IP) → analytics « combien
+  de visiteurs se testent ».
+- **Examens ciblés = compte requis, pages vitrines** : les pages `*/examens`
+  (civique thème + TCF CO/CE/STRUCTURE) s'affichent en guest (grille des 20
+  examens, stats « — · compte requis ») mais tout slot est verrouillé
+  (`freeSlots=0`, badge « Compte gratuit ») → `GuestGateSheet`. Le backend
+  double le verrou (403 sur MOCK_EXAM guest themeId/moduleExamQuestionType).
+  Le seul examen guest est le diagnostic complet de /examens-blancs.
+  **EE/EO** : réservés aux comptes (`ModuleDetailGate`).
+
+**URLs civique en slugs** : `/entrainement/civique/[theme]` où `theme` est le
+slug dérivé du code thème (`CIV_DROITS_DEVOIRS` → `droits-devoirs`, helpers
+`themeSlug`/`resolveThemeRef` dans `lib/themes.ts`). Les UUID hérités
+continuent de résoudre (retours de session via `lotReturnPath`/`examReturnPath`
+passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
+
+**Connecté gratuit, EE/EO** (source backend `ProductionSubmissionService` +
+`AttemptService.startProductionAttempt`) :
+
+- **1 essai d'entraînement** par épreuve (EE et EO) à vie (était 2).
+  Modale d'info one-time sur `ProductionHub` (`ConfirmSheet` tone info,
+  localStorage `sejourfr.prodQuotaInfo.<épreuve>`).
+- **1 examen blanc production offert** (examen 1, `ProductionExams`
+  `freeSlots=1`). Le start passe `exam: true`
+  (`ProductionAttemptStartRequest.exam`) → attempt marqué
+  `slotNumber=1` ; ses soumissions bypassent le quota d'entraînement.
+- **Refaire l'examen 1** : autorisé une fois mais consomme les essais
+  d'entraînement restants — `ConfirmSheet` d'avertissement avant
+  (`ProductionExams`, si `past.length ≥ 1`). 3ᵉ session → 403 → paywall.
+- Côté backend, une session d'examen ne compte que si ≥ 1 tâche a été
+  soumise (un start abandonné est gratuit) ; à 2 sessions soumises, les
+  entraînements gratuits sont verrouillés (403). Premium TCF : illimité.
+
+- **Vague 8 (branche `web_refonte`)** ✅ — **Refonte shell app + dashboard**
+  (maquette "Tableau de bord" SaaS) :
+    - **Sidebar** (`AppSidebar.tsx`) recomposée : Accueil → `/` (landing
+      publique), Tableau de bord, section **PARCOURS** (TCF IRN →
+      `/entrainement?module=TCF`, Examen civique →
+      `/entrainement?module=CIVIQUE`, Examens blancs → `/examens-blancs`),
+      section **SUIVI** (Progression → `/statistiques`, Résultats →
+      `/historique`, Recommandations → `/recommandations`). Item actif = fond bleu clair + barre gauche. En
+      pied : badge streak ("N jours de suite", via `dashboardApi.summaryCached`)
+      + carte user (avatar, nom, objectif dérivé du parcours) cliquable →
+      `/profil` (le logout vit là-bas). Les entrées Mes erreurs / Favoris /
+      Profil ont disparu du menu — erreurs/favoris accessibles depuis
+      `/recommandations`.
+    - **Chrome global masqué pour les connectés** sur les routes app :
+      `shouldHideGlobalChrome` (lib/chrome-routes.ts) est actif — SiteHeader,
+      Footer et MobileAppBanner retournent null quand l'utilisateur est
+      authentifié sur une route (app) ou duale. Les guests gardent tout.
+    - **Backend** : nouvel endpoint `GET /api/me/dashboard`
+      (`UserDashboardService`) — streak jours consécutifs (Europe/Paris,
+      courant + record), total examens blancs finis, réussite globale, niveau
+      TCF estimé, catégories par module (5 thèmes civique + CO/CE/STRUCTURE +
+      EE/EO synthétiques). Miroirs `DashboardSummaryResponse` /
+      `DashboardCategoryStat` dans lib/types.ts.
+    - **Composants partagés** : `ReinforceRow` + `CategoryBarLine`
+      (`app/_components/ReinforceRow.tsx` + `.module.css`) utilisés par le
+      dashboard et `/recommandations` ; helpers dans `lib/dashboard.ts`
+      (`categoryHref`, `barTone`, `moduleAverage`, `masteryHint`,
+      `categoryStatus`).
+    - Pas de heatmap de régularité (décision produit) — seul le streak est
+      exposé.
+    - **Pages détail refondues** (maquette `sejour_fr.html`) — briques dans
+      `app/_components/hub/DetailParts.tsx` + `detail.module.css` (DetailShell,
+      LevelChoiceCard, SeriesProgressCard, SerieCard, DetailStatCard,
+      ExamsGrid) :
+        - `/entrainement/tcf/[code]` = **« Choisissez votre niveau »** (3 cards
+          A2/B1/B2 avec donut = moyenne des séries faites + compteur x/y).
+        - `/entrainement/tcf/[code]/[level]` et `/entrainement/civique/[themeId]`
+          = **« Séries d'entraînement »** : carte de progression + grille de
+          cards Série. Un lot s'affiche « Série » partout (sessions, bilan TCF)
+          et fait **20 questions** (constantes `LotService.LOT_SIZE_*` backend).
+          Série 1 gratuite, 2+ premium. Série faite → ExamDoneSheet
+          (bilan / refaire).
+        - Pages `*/examens` = **20 examens blancs** : 3 stat cards (passés,
+          meilleur score, niveau estimé TCF via `cecrlLevel` ajouté au miroir
+          `AttemptSummaryResponse` / restant civique) + grille de cards Examen
+          (Démarrer / Refaire + Rapport / Premium). Examen 1 gratuit.
+        - Supprimés : `ExamSlotsView`, `LotRow`, `LevelRow`, `ExamHistoryList`,
+          `SeeMoreButton` + styles orphelins (HubParts ne garde que
+          ExamBlancHero, SectionLabel/Counter/Link, HubDetailHeader pour les
+          parcours production).
+    - **Parcours production EE/EO refondu** (maquette) : cards hub avec
+      **S'exercer + Examens** (comme CO/CE). `ProductionHub` = « Choisissez
+      votre tâche » (3 cards T1/T2/T3 façon LevelChoiceCard, donut = dernière
+      note ×5, + carte historique) — l'examen blanc n'y figure plus.
+      `ProductionExams` = grille de **20 examens** (3 stat cards : passés /
+      meilleure note moyenne / niveau CECRL plancher du meilleur essai ;
+      Rapport → `{base}/session/{attemptId}` via `ExamsGrid.reportPath`,
+      Refaire = nouvelle session, premium-only via `freeSlots=0`).
+      `ProductionSubjects` = onglets **Sujets / Exemples** au design detail
+      (cards niveau cible). `ExamsGrid` accepte `ExamSlotData` minimal ;
+      `LevelChoiceCard.footLabel` ; HubParts réduit à SectionLabel +
+      HubDetailHeader (ExamBlancHero/SectionCounter/SectionLink supprimés).
+    - **`/historique` refondu** : « Mes résultats » — 3 stat cards (examens
+      passés ce mois-ci, score moyen, meilleur score), filtres Tous / TCF
+      IRN / Examen civique, lignes d'examens blancs finis (icône catégorie,
+      date + durée, badge CECRL, score coloré + % + mini-barre) → rapport ;
+      bouton « Refaire » relance le même examen (template / thème / épreuve,
+      paywall si non-abonné). Trainings et productions n'y figurent plus
+      (les séries vivent sur leurs pages, EE/EO sur leurs historiques).
+      `ProductionMobileSheet` supprimé (orphelin).
+    - **`/statistiques` refondu** : « Ma progression » — 3 cards donut
+      (maîtrise globale / TCF avec niveau estimé / civique) + une section par
+      parcours listant chaque catégorie (icône, « n examens · record x/y »,
+      barre de réussite, **tendance dernier vs avant-dernier examen** ↗/↘/—,
+      badge Solide/En bonne voie/À renforcer). Ligne → entraînement de la
+      catégorie (`categoryHref`). Données : `GET /api/me/dashboard` étendu
+      (`CategoryStat.bestMockScore`/`lastMockScore`/`prevMockScore`).
+      L'ancien écran stats par thème avec toggle module est supprimé.
+    - **`/examens-blancs` refondu** (connecté) : « Examens blancs complets » —
+      une card par parcours (TCF IRN = MOCK_EXAM TCF 60 Q mélangées ; Examen
+      civique = MOCK_EXAM CIVIQUE 40 Q stratifiées) avec stats « x/20 épreuves
+      passées · meilleur y/n », ligne « Brasse tous les thèmes… », grille de
+      20 épreuves **repliée à 8 + « Voir tout »** (`ExamsGrid` props
+      `collapsedCount`/`itemLabel`). Épreuve 1 gratuite, 2+ premium.
+      **Démarrer/Refaire passe par la page briefing du template de
+      référence** (`/examens-blancs/tcf-mix-01` et
+      `/examens-blancs/civique-decouverte`) qui crée l'attempt ; le déroulé
+      TCF du briefing pointe EE/EO vers leurs examens web (plus de mention
+      « app mobile »). Les sous-routes `/examens-blancs/civique|tcf` et
+      `ExamsModuleView` sont supprimées. Page démo guest inchangée. Miroir
+      `AttemptSummaryResponse` complété (`moduleExamQuestionType`,
+      `lotThemeId`).
+    - **Rapport d'examen / de série refondu** (`ExamReport.tsx`) : hero teinté
+      vert/rouge (donut bonnes réponses, « Vous avez obtenu X% », Score /
+      Temps / Niveau estimé TCF ou Seuil civique), **« Réussite par
+      sous-thème » uniquement quand l'attempt couvre ≥ 2 thèmes** (examens
+      complets — jamais sur les examens scopés à un thème/épreuve),
+      « Et maintenant ? » (point à renforcer + Refaire via `onRetry` posé par
+      la page session, Autres examens/séries, Voir ma progression), corrigé
+      détaillé en accordéon filtrable. Prop `embedded` = corrigé seul (bilan
+      série TCF). `TcfScoreCard` supprimé (le hero porte score + niveau) ;
+      miroir `AttemptResponse` enrichi (`calibratedScore`, `cecrlLevel`).
+    - **Hubs TCF / Civique refondus** (maquette `sejour_fr.html`) :
+      `TcfHub`/`CiviqueHub` = header eyebrow + bande de 4 stats (maîtrise,
+      catégories, examens blancs du module, niveau estimé) + grille de cards
+      catégorie (icône, donut teinté Solide/En bonne voie/À renforcer, chips
+      de contenus, badge statut + nb d'examens, CTAs S'entraîner / Examen
+      blanc — EE/EO : S'exercer). Briques dans
+      `app/_components/hub/ModuleHubParts.tsx` + `moduleHub.module.css`.
+      Données : `GET /api/me/dashboard` (étendu : `civiqueMockExams`,
+      `tcfMockExams`, `CategoryStat.mockExams`) ; guests → cards sans stats
+      via `publicThemeApi`. Les heros examen blanc / carte CECRL / carte
+      maîtrise de la vague 6 sont supprimés des hubs (l'entrée examens vit
+      dans la sidebar) ; `HubHeader`, `EpreuveCard`, `CiviqueMasteryCard`
+      retirés de `HubParts.tsx` (le reste sert toujours aux pages détail).
 
 - **Vague 7** ✅ — **Productions IA web : Expression écrite (EE) + orale (EO)**,
   parité mobile (`screens/tcf_production/*`). Les cartes EE et EO du `TcfHub`

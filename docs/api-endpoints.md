@@ -44,6 +44,14 @@ Cf. `exams-tcf.md`.
 - `GET /api/me/questions/favorites?module=...`
 - `GET /api/me/questions/wrong?module=...[&questionType=CO|CE]`
 - `GET /api/me/stats?module=...`
+- `GET /api/me/dashboard` — agrégat unique du tableau de bord + hubs web :
+  streak de jours d'activité (courant + record, fuseau Europe/Paris), nb
+  d'examens blancs finis (global + `civiqueMockExams`/`tcfMockExams` par
+  module, sous-attempts TCF_COMPLET exclus), taux de réussite global, niveau
+  TCF estimé (dernier examen TCF porteur d'un niveau CECRL), stats par
+  catégorie pour les deux modules (tous les thèmes, avec `mockExams` scopé +
+  entrées synthétiques `TCF_EE`/`TCF_EO` depuis les évals IA).
+  Cf. `UserDashboardService`.
 - `POST|DELETE /api/me/questions/{id}/favorite`
 - `GET /api/me/attempts?type=MOCK_EXAM&module=TCF&moduleExamQuestionType=CO|CE`
 - `DELETE /api/account` — suppression de compte (App Store 5.1.1(v)).

@@ -6,35 +6,16 @@ import {useEffect, useRef, useState} from "react";
 import {Menu, X} from "lucide-react";
 import {Brand} from "./Brand";
 import {useAuth} from "@/lib/auth-context";
-import {isDualChromeRoute, shouldHideGlobalChrome} from "@/lib/chrome-routes";
+import {isAppGroupRoute, isDualChromeRoute, shouldHideGlobalChrome,} from "@/lib/chrome-routes";
 
-/** Préfixes de routes connectées qui montent déjà un MobileSidebarToggle
- *  (via (app)/layout.tsx ou DualChromeShell). Pour ces routes, on cache le
- *  burger du SiteHeader afin de n'avoir qu'un seul drawer mobile. */
-const APP_GROUP_PREFIXES = [
-    "/dashboard",
-    "/historique",
-    "/paiement",
-    "/parcours",
-    "/profil",
-    "/revision",
-    "/statistiques",
-    "/succes",
-];
-
-function isAppGroupRoute(pathname: string | null): boolean {
-    if (!pathname) return false;
-    return APP_GROUP_PREFIXES.some(
-        (p) => pathname === p || pathname.startsWith(`${p}/`),
-    );
-}
-
+// Miroir public de la sidebar connectée : les guests naviguent librement les
+// hubs et la page examens blancs (série 1 / examen 1 offerts, le reste gated).
 const NAV_LINKS = [
     {href: "/", label: "Accueil"},
-    {href: "/entrainement", label: "Entraînement"},
-    {href: "/#fonctionnalites", label: "Fonctionnalités"},
-    {href: "/#tarifs", label: "Tarifs"},
-    {href: "/faq", label: "FAQ"},
+    {href: "/entrainement?module=TCF", label: "TCF IRN"},
+    {href: "/entrainement?module=CIVIQUE", label: "Examen civique"},
+    {href: "/examens-blancs", label: "Examens blancs"},
+    {href: "/tarifs", label: "Tarifs"},
 ];
 
 export function SiteHeader() {
@@ -93,112 +74,112 @@ export function SiteHeader() {
 
     return (
         <>
-        <nav className="site-header" aria-label="Navigation principale">
-            <div className="site-header__inner">
-                <Brand href={homeHref}/>
+            <nav className="site-header" aria-label="Navigation principale">
+                <div className="site-header__inner">
+                    <Brand href={homeHref}/>
 
-                <div className="site-header__links">
-                    {NAV_LINKS.map((l) => (
-                        <Link key={l.href} href={l.href}>{l.label}</Link>
-                    ))}
-                </div>
+                    <div className="site-header__links">
+                        {NAV_LINKS.map((l) => (
+                            <Link key={l.href} href={l.href}>{l.label}</Link>
+                        ))}
+                    </div>
 
-                {!hideMobileBurger && (
-                    <button
-                        type="button"
-                        className="site-header__burger"
-                        aria-label={mobileNavOpen ? "Fermer le menu" : "Ouvrir le menu"}
-                        aria-expanded={mobileNavOpen}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setMobileNavOpen((v) => !v);
-                        }}
-                    >
-                        {mobileNavOpen ? <X size={20} aria-hidden/> : <Menu size={20} aria-hidden/>}
-                    </button>
-                )}
+                    {!hideMobileBurger && (
+                        <button
+                            type="button"
+                            className="site-header__burger"
+                            aria-label={mobileNavOpen ? "Fermer le menu" : "Ouvrir le menu"}
+                            aria-expanded={mobileNavOpen}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setMobileNavOpen((v) => !v);
+                            }}
+                        >
+                            {mobileNavOpen ? <X size={20} aria-hidden/> : <Menu size={20} aria-hidden/>}
+                        </button>
+                    )}
 
-                <div className="site-header__ctas">
-                    {isLoading ? (
-                        <span className="site-header__ctaPlaceholder" aria-hidden/>
-                    ) : isAuth ? (
-                        <div className="site-header__user" ref={menuRef}>
-                            <button
-                                type="button"
-                                className="site-header__userBtn"
-                                onClick={() => setMenuOpen((v) => !v)}
-                                aria-haspopup="menu"
-                                aria-expanded={menuOpen}
-                            >
+                    <div className="site-header__ctas">
+                        {isLoading ? (
+                            <span className="site-header__ctaPlaceholder" aria-hidden/>
+                        ) : isAuth ? (
+                            <div className="site-header__user" ref={menuRef}>
+                                <button
+                                    type="button"
+                                    className="site-header__userBtn"
+                                    onClick={() => setMenuOpen((v) => !v)}
+                                    aria-haspopup="menu"
+                                    aria-expanded={menuOpen}
+                                >
                 <span className="site-header__avatar">
                   {user.firstName?.[0]?.toUpperCase() ??
                       user.email[0].toUpperCase()}
                 </span>
-                                <span className="site-header__userName">
+                                    <span className="site-header__userName">
                   {user.firstName ?? user.email}
                 </span>
-                                <span className="site-header__caret" aria-hidden>
+                                    <span className="site-header__caret" aria-hidden>
                   ▾
                 </span>
-                            </button>
+                                </button>
 
-                            {menuOpen && (
-                                <div className="site-header__menu" role="menu">
-                                    <div className="site-header__menuHead">
-                                        <div className="site-header__menuName">
-                                            {user.firstName} {user.lastName}
+                                {menuOpen && (
+                                    <div className="site-header__menu" role="menu">
+                                        <div className="site-header__menuHead">
+                                            <div className="site-header__menuName">
+                                                {user.firstName} {user.lastName}
+                                            </div>
+                                            <div className="site-header__menuEmail">{user.email}</div>
                                         </div>
-                                        <div className="site-header__menuEmail">{user.email}</div>
+                                        <Link
+                                            href="/dashboard"
+                                            className="site-header__menuItem"
+                                            onClick={() => setMenuOpen(false)}
+                                        >
+                                            Tableau de bord
+                                        </Link>
+                                        <Link
+                                            href="/entrainement"
+                                            className="site-header__menuItem"
+                                            onClick={() => setMenuOpen(false)}
+                                        >
+                                            Entrainements
+                                        </Link>
+                                        <Link
+                                            href="/profil"
+                                            className="site-header__menuItem"
+                                            onClick={() => setMenuOpen(false)}
+                                        >
+                                            Mon profil
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            className="site-header__menuItem site-header__menuItem--danger"
+                                            onClick={handleLogout}
+                                        >
+                                            Se déconnecter
+                                        </button>
                                     </div>
-                                    <Link
-                                        href="/dashboard"
-                                        className="site-header__menuItem"
-                                        onClick={() => setMenuOpen(false)}
-                                    >
-                                        Tableau de bord
-                                    </Link>
-                                    <Link
-                                        href="/entrainement"
-                                        className="site-header__menuItem"
-                                        onClick={() => setMenuOpen(false)}
-                                    >
-                                        Entrainements
-                                    </Link>
-                                    <Link
-                                        href="/profil"
-                                        className="site-header__menuItem"
-                                        onClick={() => setMenuOpen(false)}
-                                    >
-                                        Mon profil
-                                    </Link>
-                                    <button
-                                        type="button"
-                                        className="site-header__menuItem site-header__menuItem--danger"
-                                        onClick={handleLogout}
-                                    >
-                                        Se déconnecter
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <>
-                            <Link
-                                href="/connexion"
-                                className="site-header__ghost site-header__hideMobile"
-                            >
-                                Se connecter
-                            </Link>
-                            <Link href="/inscription" className="btn site-header__primary">
-                                Commencer
-                            </Link>
-                        </>
-                    )}
+                                )}
+                            </div>
+                        ) : (
+                            <>
+                                <Link
+                                    href="/connexion"
+                                    className="site-header__ghost site-header__hideMobile"
+                                >
+                                    Se connecter
+                                </Link>
+                                <Link href="/inscription" className="btn site-header__primary">
+                                    Commencer
+                                </Link>
+                            </>
+                        )}
+                    </div>
                 </div>
-            </div>
 
-            <style>{`
+                <style>{`
         .site-header {
           position: sticky; top: 0; z-index: 50;
           /* Fond opaque blanc sur mobile pour éviter les bugs de hit-testing
@@ -452,11 +433,11 @@ export function SiteHeader() {
           .site-header__userName { display: none; }
         }
       `}</style>
-        </nav>
+            </nav>
 
-        {/* Drawer rendu HORS du <nav> : backdrop-filter sur .site-header
+            {/* Drawer rendu HORS du <nav> : backdrop-filter sur .site-header
             crée un containing block qui contraindrait un fixed enfant. */}
-        {mobileNavOpen && (
+            {mobileNavOpen && (
                 <>
                     <div
                         className="site-header__mobileOverlay"
