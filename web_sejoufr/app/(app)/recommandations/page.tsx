@@ -8,6 +8,8 @@ import { dashboardApi, userContentApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import type { DashboardSummaryResponse } from "@/lib/types";
 
+type ModuleFilter = "ALL" | "TCF" | "CIVIQUE";
+
 /**
  * Recommandations : liste complète des catégories à renforcer (les deux
  * modules confondus, triées de la plus faible à la plus forte ; les
@@ -21,6 +23,7 @@ export default function RecommandationsPage() {
   const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
   const [wrongCount, setWrongCount] = useState<number | null>(null);
   const [favCount, setFavCount] = useState<number | null>(null);
+  const [filter, setFilter] = useState<ModuleFilter>("ALL");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,16 +47,21 @@ export default function RecommandationsPage() {
   }, [status, user]);
 
   // Catégories travaillées d'abord (faibles → fortes), puis jamais
-  // travaillées ("À découvrir") en fin de liste.
+  // travaillées ("À découvrir") en fin de liste. Filtrables par parcours
+  // (même filtre que /historique).
   const ranked = useMemo(() => {
     if (!summary) return [];
-    return [...summary.civique, ...summary.tcf].sort((a, b) => {
+    const all = [...summary.civique, ...summary.tcf].sort((a, b) => {
       if (a.percent === null && b.percent === null) return 0;
       if (a.percent === null) return 1;
       if (b.percent === null) return -1;
       return a.percent - b.percent;
     });
-  }, [summary]);
+    if (filter === "ALL") return all;
+    return all.filter((c) =>
+      filter === "TCF" ? c.code.startsWith("TCF") : !c.code.startsWith("TCF"),
+    );
+  }, [summary, filter]);
 
   if (status === "loading" || (loading && status === "authenticated")) {
     return (
@@ -125,6 +133,24 @@ export default function RecommandationsPage() {
 
       <section className="reco-card" aria-label="Catégories à renforcer">
         <h2>À renforcer, de la plus fragile à la plus solide</h2>
+        <div className="reco-filters">
+          {(
+            [
+              ["ALL", "Tous"],
+              ["TCF", "TCF IRN"],
+              ["CIVIQUE", "Examen civique"],
+            ] as [ModuleFilter, string][]
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={`reco-chip ${filter === key ? "is-active" : ""}`}
+              onClick={() => setFilter(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         {ranked.length === 0 ? (
           <p className="reco-none">
             Entraînez-vous pour obtenir des recommandations personnalisées.
@@ -234,6 +260,28 @@ const recoStyles = `
     letter-spacing: -0.01em;
     color: var(--color-ink);
   }
+  .reco-filters {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-bottom: 16px;
+  }
+  .reco-chip {
+    padding: 8px 16px;
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    font-family: var(--font-sans);
+    font-size: 13px; font-weight: 600;
+    color: var(--color-ink-2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .reco-chip:hover { border-color: var(--color-blue); color: var(--color-blue); }
+  .reco-chip.is-active {
+    background: var(--color-blue);
+    border-color: var(--color-blue);
+    color: #fff;
+  }
+
   .reco-list {
     list-style: none;
     margin: 0; padding: 0;
