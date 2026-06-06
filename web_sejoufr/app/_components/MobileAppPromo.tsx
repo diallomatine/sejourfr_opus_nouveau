@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Bell,
@@ -8,6 +9,8 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { shouldHideGlobalChrome } from "@/lib/chrome-routes";
 
 /**
  * Bandeau global discret, dismissible (localStorage). Le web a désormais la
@@ -17,6 +20,8 @@ import {
 const BANNER_DISMISS_KEY = "sejourfr.mobileBannerDismissed";
 
 export function MobileAppBanner() {
+  const pathname = usePathname();
+  const { status, user } = useAuth();
   // Initialement caché (SSR safe). Au mount, on bascule à visible si
   // l'utilisateur n'a pas déjà fermé le bandeau.
   const [hidden, setHidden] = useState(true);
@@ -28,6 +33,11 @@ export function MobileAppBanner() {
       setHidden(false);
     }
   }, []);
+
+  // Même règle que SiteHeader/Footer : pas de chrome marketing dans le
+  // shell applicatif connecté.
+  const isAuth = status === "authenticated" && user !== null;
+  if (shouldHideGlobalChrome(pathname, isAuth)) return null;
 
   if (hidden) return null;
 

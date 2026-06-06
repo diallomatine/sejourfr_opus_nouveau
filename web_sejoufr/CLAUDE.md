@@ -38,6 +38,7 @@ Backend Spring Boot Java 21 séparé, qui tourne sur `http://localhost:8080`.
 | GET     | `/api/attempts/{id}`                   | reprendre                                       | oui  |
 | POST    | `/api/attempts/{id}/answers`           | soumettre une réponse                           | oui  |
 | POST    | `/api/attempts/{id}/finish`            | finaliser                                       | oui  |
+| GET     | `/api/me/dashboard`                    | agrégat dashboard (streak, stats, catégories)   | oui  |
 | GET     | `/api/billing/plans`                   | liste plans actifs (publique, ISR 30min)        | non  |
 | GET     | `/api/billing/payment-link?planCode=…` | Checkout Session Stripe (mode subscription)     | oui  |
 | GET     | `/api/billing/subscription-status`     | statut Premium agrégé (Stripe + Apple + Google) | oui  |
@@ -81,9 +82,15 @@ app/
 │   └── TcfScoreCard.tsx          # carte compacte points + niveau CECRL (détail TCF)
 │
 ├── (app)/                        # route group : connecté, layout sidebar+main
-│   ├── layout.tsx                # grid 260px / 1fr, passe en horizontal sous 900px
-│   ├── dashboard/page.tsx        # ★ tableau de bord : snapshot stats civique+TCF, action cards,
-│   │                              #   dernières sessions, "reprendre" si attempt en cours
+│   ├── layout.tsx                # grid 248px / 1fr, passe en drawer sous 900px
+│   ├── dashboard/page.tsx        # ★ tableau de bord (refonte web_refonte) : un seul fetch
+│   │                              #   GET /api/me/dashboard → 4 stat cards (maîtrise globale,
+│   │                              #   examens blancs, streak, niveau TCF estimé), 2 cards
+│   │                              #   catégories TCF/Civique, "À renforcer en priorité" (top 3),
+│   │                              #   bandeaux reprendre/onboarding
+│   ├── recommandations/page.tsx  # ★ liste complète des catégories triées faibles d'abord
+│   │                              #   (tag module, CTA Réviser) + raccourcis erreurs/favoris
+│   │                              #   vers /revision (qui n'a plus d'entrée sidebar)
 │   ├── statistiques/page.tsx     # ★ progression par thème (tri faibles d'abord), couleurs
 │   │                              #   vert/ambre/rouge, clic sur thème → start training ciblé
 │   ├── revision/page.tsx         # ★ tabs erreurs/favoris avec compteurs, modal détail
@@ -113,7 +120,13 @@ app/
 lib/
 ├── api.ts                        # authApi, themeApi, attemptApi, examApi, billingApi,
 │                                 #   userContentApi (favoris/wrong/reviewQuestion/targetPath),
-│                                 #   statsApi, tokenStorage, ApiException
+│                                 #   statsApi, dashboardApi (summary + summaryCached mémo 30s,
+│                                 #   partagé sidebar/dashboard), tokenStorage, ApiException
+├── chrome-routes.ts              # APP_GROUP_PREFIXES + DUAL_CHROME_PREFIXES +
+│                                 #   shouldHideGlobalChrome (connecté sur route app → pas de
+│                                 #   header/footer/bandeau marketing, la sidebar porte tout)
+├── dashboard.ts                  # helpers catégories dashboard : categoryHref (CTA Réviser),
+│                                 #   barTone (vert ≥80 / ambre <60 / bleu), moduleAverage
 └── types.ts                      # DTOs miroirs Java + helper canAccessModule()
 ```
 
@@ -376,6 +389,34 @@ Chantier découpé en vagues :
       En attendant, le hero « examen complet » du hub TCF pointe sur
       `/examens-blancs/tcf`. (`ProductionMobileSheet` n'est plus utilisé par le hub —
       conservé pour les promos mobile du dashboard/historique.)
+
+- **Vague 8 (branche `web_refonte`)** ✅ — **Refonte shell app + dashboard**
+  (maquette "Tableau de bord" SaaS) :
+    - **Sidebar** (`AppSidebar.tsx`) recomposée : Tableau de bord, section
+      **PARCOURS** (TCF IRN → `/entrainement?module=TCF`, Examen civique →
+      `/entrainement?module=CIVIQUE`), section **SUIVI** (Progression →
+      `/statistiques`, Résultats → `/historique`, Recommandations →
+      `/recommandations`). Item actif = fond bleu clair + barre gauche. En
+      pied : badge streak ("N jours de suite", via `dashboardApi.summaryCached`)
+      + carte user (avatar, nom, objectif dérivé du parcours) cliquable →
+      `/profil` (le logout vit là-bas). Les entrées Mes erreurs / Favoris /
+      Profil ont disparu du menu — erreurs/favoris accessibles depuis
+      `/recommandations`.
+    - **Chrome global masqué pour les connectés** sur les routes app :
+      `shouldHideGlobalChrome` (lib/chrome-routes.ts) est actif — SiteHeader,
+      Footer et MobileAppBanner retournent null quand l'utilisateur est
+      authentifié sur une route (app) ou duale. Les guests gardent tout.
+    - **Backend** : nouvel endpoint `GET /api/me/dashboard`
+      (`UserDashboardService`) — streak jours consécutifs (Europe/Paris,
+      courant + record), total examens blancs finis, réussite globale, niveau
+      TCF estimé, catégories par module (5 thèmes civique + CO/CE/STRUCTURE +
+      EE/EO synthétiques). Miroirs `DashboardSummaryResponse` /
+      `DashboardCategoryStat` dans lib/types.ts.
+    - **Composants partagés** : `ReinforceRow` + `CategoryBarLine`
+      (`app/_components/ReinforceRow.tsx` + `.module.css`) utilisés par le
+      dashboard et `/recommandations` ; helpers dans `lib/dashboard.ts`.
+    - Pas de heatmap de régularité (décision produit) — seul le streak est
+      exposé.
 
 - **Vague 7** ✅ — **Productions IA web : Expression écrite (EE) + orale (EO)**,
   parité mobile (`screens/tcf_production/*`). Les cartes EE et EO du `TcfHub`

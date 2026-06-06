@@ -712,6 +712,34 @@ export interface UserStatsResponse {
   byTheme: ThemeStatsResponse[];
 }
 
+/** Une catégorie du dashboard (GET /api/me/dashboard). */
+export interface DashboardCategoryStat {
+  /** Null pour les entrées synthétiques EE/EO. */
+  themeId: string | null;
+  /** Code stable : theme.code (CIV_PRINCIPES, TCF_CO…) ou TCF_EE / TCF_EO. */
+  code: string;
+  label: string;
+  /** Taux de réussite 0-100 (EE/EO : dernière note /20 ×5). Null si jamais travaillé. */
+  percent: number | null;
+  answered: number;
+  /** Pool de questions actives — 0 pour EE/EO. */
+  total: number;
+  /** Dernier niveau CECRL évalué — EE/EO uniquement. */
+  level: NiveauCecrl | null;
+}
+
+/** GET /api/me/dashboard — agrégat unique du tableau de bord web. */
+export interface DashboardSummaryResponse {
+  currentStreakDays: number;
+  recordStreakDays: number;
+  activeToday: boolean;
+  mockExamsTotal: number;
+  globalSuccessPercent: number | null;
+  estimatedTcfLevel: NiveauCecrl | null;
+  civique: DashboardCategoryStat[];
+  tcf: DashboardCategoryStat[];
+}
+
 // ============ HELPERS ============
 
 /** Niveau TCF visé dérivé du parcours civique (CSP→A2, CR→B1, NAT→B2). */

@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -149,4 +150,36 @@ public interface AttemptRepository extends JpaRepository<Attempt, UUID> {
             @Param("epreuve") EpreuveType epreuve,
             Pageable pageable
     );
+
+    /**
+     * Jours d'activité distincts du user (date locale Europe/Paris du
+     * {@code started_at} de chaque attempt), triés du plus récent au plus
+     * ancien. Sert au calcul de la série de jours consécutifs (streak) du
+     * dashboard — le calcul de la série elle-même vit côté service.
+     */
+    @Query(value = """
+            SELECT DISTINCT CAST(a.started_at AT TIME ZONE 'Europe/Paris' AS date)
+            FROM attempts a
+            WHERE a.user_id = :userId
+            ORDER BY 1 DESC
+            """, nativeQuery = true)
+    List<LocalDate> findDistinctActivityDates(@Param("userId") UUID userId);
+
+    long countByUserIdAndTypeAndFinishedAtIsNotNull(UUID userId, AttemptType type);
+
+    /**
+     * Examens TCF finis porteurs d'un niveau CECRL (examen blanc complet via
+     * {@code finalCecrlLevel}, ou examen module via {@code cecrlLevel}),
+     * du plus récent au plus ancien. Le dashboard prend le premier comme
+     * "niveau TCF estimé".
+     */
+    @Query("""
+            SELECT a FROM Attempt a
+            WHERE a.user.id = :userId
+              AND a.module = com.sejourfr.app.enums.Module.TCF
+              AND a.finishedAt IS NOT NULL
+              AND (a.cecrlLevel IS NOT NULL OR a.finalCecrlLevel IS NOT NULL)
+            ORDER BY a.finishedAt DESC
+            """)
+    List<Attempt> findTcfWithCecrlLevel(@Param("userId") UUID userId, Pageable pageable);
 }

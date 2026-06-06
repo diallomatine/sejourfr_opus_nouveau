@@ -8,6 +8,7 @@ import type {
   AttemptSummaryResponse,
   AttemptType,
   AuthenticatedUser,
+  DashboardSummaryResponse,
   Difficulty,
   EpreuveType,
   ExamTemplateSummary,
@@ -579,6 +580,33 @@ export const statsApi = {
         return apiFetch<UserStatsResponse>(`/api/me/stats?module=${module}`, {
             auth: true,
         });
+    },
+};
+
+// ============================================================================
+// Endpoint Dashboard (agrégat unique : streak + stats + catégories)
+// ============================================================================
+
+function fetchDashboardSummary(): Promise<DashboardSummaryResponse> {
+    return apiFetch<DashboardSummaryResponse>("/api/me/dashboard", {auth: true});
+}
+
+// Mémo 30 s : la sidebar (streak) et la page dashboard consomment le même
+// agrégat — un seul appel réseau quand les deux montent en même temps.
+let dashboardMemo: {at: number; promise: Promise<DashboardSummaryResponse>} | null = null;
+
+export const dashboardApi = {
+    summary: fetchDashboardSummary,
+    summaryCached(): Promise<DashboardSummaryResponse> {
+        if (dashboardMemo && Date.now() - dashboardMemo.at < 30_000) {
+            return dashboardMemo.promise;
+        }
+        const promise = fetchDashboardSummary().catch((e) => {
+            dashboardMemo = null;
+            throw e;
+        });
+        dashboardMemo = {at: Date.now(), promise};
+        return promise;
     },
 };
 

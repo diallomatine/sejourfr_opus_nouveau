@@ -1,10 +1,23 @@
 /** Routes "duales" — accessibles aux guests ET aux connectés. Les connectés
- *  voient en plus la sidebar via le DualChromeShell. Le chrome global (header
- *  + footer) reste visible dans les deux cas. */
+ *  voient en plus la sidebar via le DualChromeShell. */
 export const DUAL_CHROME_PREFIXES = [
   "/entrainement",
   "/examens-blancs",
   "/sessions",
+];
+
+/** Routes du groupe (app) — espace personnel, toujours derrière le login.
+ *  Partagé entre SiteHeader (burger unique) et shouldHideGlobalChrome. */
+export const APP_GROUP_PREFIXES = [
+  "/dashboard",
+  "/historique",
+  "/paiement",
+  "/parcours",
+  "/profil",
+  "/recommandations",
+  "/revision",
+  "/statistiques",
+  "/succes",
 ];
 
 export function isDualChromeRoute(pathname: string | null): boolean {
@@ -14,12 +27,21 @@ export function isDualChromeRoute(pathname: string | null): boolean {
   );
 }
 
-/** Header + Footer publics sont désormais affichés sur toutes les pages,
- *  y compris les routes d'auth. Cette fonction est conservée pour les call
- *  sites existants (SiteHeader / Footer) mais retourne toujours false. */
+export function isAppGroupRoute(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return APP_GROUP_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
+/** Refonte web_refonte : pour un utilisateur connecté, les routes "app"
+ *  (groupe (app) + routes duales) sont un shell applicatif pur — la sidebar
+ *  porte toute la navigation, le header marketing et le footer publics
+ *  disparaissent. Les guests gardent le chrome global partout. */
 export function shouldHideGlobalChrome(
-  _pathname: string | null,
-  _isAuthenticated: boolean,
+  pathname: string | null,
+  isAuthenticated: boolean,
 ): boolean {
-  return false;
+  if (!isAuthenticated) return false;
+  return isAppGroupRoute(pathname) || isDualChromeRoute(pathname);
 }

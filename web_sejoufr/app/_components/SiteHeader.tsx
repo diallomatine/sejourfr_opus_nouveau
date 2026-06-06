@@ -6,28 +6,11 @@ import {useEffect, useRef, useState} from "react";
 import {Menu, X} from "lucide-react";
 import {Brand} from "./Brand";
 import {useAuth} from "@/lib/auth-context";
-import {isDualChromeRoute, shouldHideGlobalChrome} from "@/lib/chrome-routes";
-
-/** Préfixes de routes connectées qui montent déjà un MobileSidebarToggle
- *  (via (app)/layout.tsx ou DualChromeShell). Pour ces routes, on cache le
- *  burger du SiteHeader afin de n'avoir qu'un seul drawer mobile. */
-const APP_GROUP_PREFIXES = [
-    "/dashboard",
-    "/historique",
-    "/paiement",
-    "/parcours",
-    "/profil",
-    "/revision",
-    "/statistiques",
-    "/succes",
-];
-
-function isAppGroupRoute(pathname: string | null): boolean {
-    if (!pathname) return false;
-    return APP_GROUP_PREFIXES.some(
-        (p) => pathname === p || pathname.startsWith(`${p}/`),
-    );
-}
+import {
+    isAppGroupRoute,
+    isDualChromeRoute,
+    shouldHideGlobalChrome,
+} from "@/lib/chrome-routes";
 
 const NAV_LINKS = [
     {href: "/", label: "Accueil"},

@@ -2,6 +2,7 @@ package com.sejourfr.app.controller;
 
 import com.sejourfr.app.dto.AttemptSummaryResponse;
 import com.sejourfr.app.dto.ChangeEmailRequest;
+import com.sejourfr.app.dto.DashboardSummaryResponse;
 import com.sejourfr.app.dto.ChangePasswordRequest;
 import com.sejourfr.app.dto.QuestionPublicResponse;
 import com.sejourfr.app.dto.QuestionReviewResponse;
@@ -15,6 +16,7 @@ import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.security.CurrentUser;
 import com.sejourfr.app.service.AttemptService;
 import com.sejourfr.app.service.MeService;
+import com.sejourfr.app.service.UserDashboardService;
 import com.sejourfr.app.service.UserProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +49,7 @@ public class MeController {
     private final MeService meService;
     private final AttemptService attemptService;
     private final UserProfileService userProfileService;
+    private final UserDashboardService userDashboardService;
     private final CurrentUser currentUser;
 
     // ------------------------------------------------------------------------
@@ -114,6 +117,16 @@ public class MeController {
     @GetMapping("/stats")
     public UserStatsResponse stats(@RequestParam Module module) {
         return meService.stats(currentUser.getId(), module);
+    }
+
+    /**
+     * Agrégat unique du tableau de bord web : streak, examens blancs,
+     * réussite globale, niveau TCF estimé + stats par catégorie. Voir
+     * {@link UserDashboardService#summary}.
+     */
+    @GetMapping("/dashboard")
+    public DashboardSummaryResponse dashboard() {
+        return userDashboardService.summary(currentUser.getId());
     }
 
     /**

@@ -1,1364 +1,616 @@
 "use client";
 
 import Link from "next/link";
-import {useEffect, useMemo, useState} from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-    ArrowRight,
-    BookOpen,
-    FileCheck2,
-    Headphones,
-    History,
-    Landmark,
-    Mic,
-    PenLine,
-    RotateCcw,
-    Scale,
-    ShieldCheck,
-    Sparkles,
-    TrendingUp,
-    Users,
+  ArrowRight,
+  ChevronRight,
+  Flame,
+  GraduationCap,
+  LayoutGrid,
+  Lightbulb,
+  Target,
+  Trophy,
+  Waves,
+  Zap,
 } from "lucide-react";
-import {type ProductionKind, ProductionMobileSheet,} from "@/app/_components/ProductionMobileSheet";
-import {attemptApi, statsApi, themeApi, userContentApi} from "@/lib/api";
-import {useAuth} from "@/lib/auth-context";
+import { CategoryBarLine, ReinforceRow } from "@/app/_components/ReinforceRow";
+import { attemptApi, dashboardApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { moduleAverage } from "@/lib/dashboard";
 import {
-    type AttemptSummaryResponse,
-    isProductionAttempt,
-    type Module as ModuleEnum,
-    type TargetProcedure,
-    type ThemeUserResponse,
-    type UserStatsResponse,
+  type AttemptSummaryResponse,
+  type DashboardCategoryStat,
+  type DashboardSummaryResponse,
+  isProductionAttempt,
 } from "@/lib/types";
 
-type StatsByModule = Partial<Record<ModuleEnum, UserStatsResponse | null>>;
+/**
+ * Tableau de bord (refonte web_refonte) : un seul appel agrégé
+ * GET /api/me/dashboard (streak, examens blancs, réussite globale, niveau
+ * TCF estimé, catégories par module) + listMine pour le bandeau "reprendre".
+ * Les recommandations complètes vivent sur /recommandations.
+ */
 
-// Cartes civiques : icônes/teintes cyclées par index (les noms viennent du
-// backend via byTheme → identiques au mobile et à /entrainement).
-const CIVIQUE_ICONS = [ShieldCheck, Landmark, Scale, History, Users];
-const CIVIQUE_TONES = ["blue", "green", "amber", "purple", "red"];
+/** Niveau CECRL compact pour la stat card ("A1 non atteint" → "<A1"). */
+function shortLevel(level: DashboardSummaryResponse["estimatedTcfLevel"]): string {
+  if (!level) return "—";
+  return level === "A1_NON_ATTEINT" ? "<A1" : level;
+}
+
+function masteryHint(percent: number | null): string {
+  if (percent === null) return "Commencez l'entraînement";
+  if (percent >= 75) return "Excellent niveau";
+  if (percent >= 55) return "En bonne voie";
+  return "À consolider";
+}
 
 export default function DashboardPage() {
-    const {user, status} = useAuth();
+  const { user, status } = useAuth();
 
-    const [stats, setStats] = useState<StatsByModule>({});
-    const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
-    const [wrongCount, setWrongCount] = useState<number>(0);
-    const [civiqueThemes, setCiviqueThemes] = useState<ThemeUserResponse[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [productionSheet, setProductionSheet] = useState<ProductionKind | null>(null);
-    // Onglet "Choisir un entraînement" : civique vs TCF. Défaut = civique si
-    // l'utilisateur ne fait que le civique (pas d'accès TCF), sinon TCF.
-    const [trainTab, setTrainTab] = useState<"CIVIQUE" | "TCF">("TCF");
+  const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
+  const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        if (user && user.hasTcf === false) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setTrainTab("CIVIQUE");
-        }
-    }, [user]);
-
-    useEffect(() => {
-        if (status !== "authenticated" || !user) return;
-        let cancelled = false;
-        (async () => {
-            const result: StatsByModule = {};
-            const promises: Array<Promise<unknown>> = [];
-            if (user.hasCivique !== false) {
-                promises.push(
-                    statsApi
-                        .get("CIVIQUE")
-                        .then((s) => {
-                            result.CIVIQUE = s;
-                        })
-                        .catch(() => {
-                            result.CIVIQUE = null;
-                        }),
-                );
-            }
-            if (user.hasTcf !== false) {
-                promises.push(
-                    statsApi
-                        .get("TCF")
-                        .then((s) => {
-                            result.TCF = s;
-                        })
-                        .catch(() => {
-                            result.TCF = null;
-                        }),
-                );
-            }
-            const attemptsP = attemptApi
-                .listMine({limit: 30})
-                .catch((): AttemptSummaryResponse[] => []);
-            const wrongP = userContentApi
-                .wrong()
-                .then((q) => q.length)
-                .catch(() => 0);
-            // Liste canonique des thèmes civiques (même source que /entrainement et le
-            // mobile) — byTheme des stats ne contient que les thèmes déjà travaillés.
-            const civThemesP =
-                user.hasCivique !== false
-                    ? themeApi.list("CIVIQUE").catch((): ThemeUserResponse[] => [])
-                    : Promise.resolve<ThemeUserResponse[]>([]);
-
-            const [, atts, w, civThemes] = await Promise.all([
-                Promise.all(promises),
-                attemptsP,
-                wrongP,
-                civThemesP,
-            ]);
-            if (cancelled) return;
-            setStats(result);
-            setAttempts(atts);
-            setWrongCount(w);
-            setCiviqueThemes(civThemes);
-            setLoading(false);
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, [status, user]);
-
-    const inProgressAttempt = useMemo(
-        () => attempts.find((a) => !a.finishedAt) ?? null,
-        [attempts],
-    );
-
-    const totalQuestionsAnswered = useMemo(() => {
-        return (stats.CIVIQUE?.questionsAnswered ?? 0) + (stats.TCF?.questionsAnswered ?? 0);
-    }, [stats]);
-
-    const totalCorrect = useMemo(() => {
-        return (stats.CIVIQUE?.questionsCorrect ?? 0) + (stats.TCF?.questionsCorrect ?? 0);
-    }, [stats]);
-
-    const overallSuccessPct = useMemo(() => {
-        if (totalQuestionsAnswered === 0) return 0;
-        return Math.round((totalCorrect / totalQuestionsAnswered) * 100);
-    }, [totalCorrect, totalQuestionsAnswered]);
-
-    const mockExamsFinished = useMemo(
-        () => attempts.filter((a) => a.type === "MOCK_EXAM" && a.finishedAt).length,
-        [attempts],
-    );
-
-    const lastFiveCiviqueAvg = useMemo(() => {
-        const slice = attempts
-            .filter(
-                (a) =>
-                    a.type === "MOCK_EXAM" &&
-                    a.module === "CIVIQUE" &&
-                    a.finishedAt &&
-                    a.score !== null &&
-                    a.score !== undefined,
-            )
-            .slice(0, 5);
-        if (slice.length === 0) return null;
-        return slice.reduce((sum, a) => sum + (a.score ?? 0), 0) / slice.length;
-    }, [attempts]);
-
-    const bannerCopy = useMemo(
-        () =>
-            buildBannerCopy({
-                user: user
-                    ? {firstName: user.firstName, targetProcedure: user.targetProcedure ?? null}
-                    : null,
-                avgScore: lastFiveCiviqueAvg,
-            }),
-        [user, lastFiveCiviqueAvg],
-    );
-
-    const recentActivity = useMemo(() => attempts.slice(0, 4), [attempts]);
-
-    if (status === "loading") return <DashSkeleton/>;
-    if (!user) {
-        return (
-            <div className="dash-empty">
-                <p>
-                    Session expirée.{" "}
-                    <Link href="/connexion" className="dash-empty-link">
-                        Se reconnecter
-                    </Link>
-                </p>
-                <style>{emptyStyle}</style>
-            </div>
-        );
-    }
-
-    const initial =
-        user.firstName?.[0]?.toUpperCase() ?? user.email[0].toUpperCase();
-    const objective = `${tcfLevelLabel(user.targetProcedure)} · ${procedureNiceLabel(user.targetProcedure)}`;
-
-    return (
-        <main className="dash">
-            {/* ============================================================
-          MOBILE — structure type app (< 900px). Desktop conservé
-          intact dans .dash-d ci-dessous.
-          ============================================================ */}
-            <div className="dash-m">
-                <div className="dash-m-hello">
-                    <h1>
-                        Bonjour {user.firstName ?? "à vous"} <span aria-hidden>👋</span>
-                    </h1>
-                    <p>
-                        Continue ta préparation à l&apos;examen civique et au TCF IRN. Ta
-                        progression est synchronisée avec l&apos;app mobile.
-                    </p>
-                </div>
-
-                <section className="dash-m-hero">
-                    <h2>Objectif : réussir ton examen</h2>
-                    <p>
-                        Entraîne-toi, passe des examens blancs et obtiens des corrections
-                        IA pour l&apos;écrit et l&apos;oral.
-                    </p>
-                    <div className="dash-m-hero-actions">
-                        <Link href="/examens-blancs" className="dash-m-cta dash-m-cta-primary">
-                            Lancer un examen blanc
-                            <ArrowRight size={17} aria-hidden/>
-                        </Link>
-                        <Link
-                            href={inProgressAttempt ? `/sessions/${inProgressAttempt.id}` : "/entrainement"}
-                            className="dash-m-cta dash-m-cta-ghost"
-                        >
-                            {inProgressAttempt ? "Reprendre ma session" : "Continuer l'entraînement"}
-                        </Link>
-                    </div>
-                    <div className="dash-m-summary">
-                        <div className="dash-m-sumbox">
-                            <strong>{tcfLevelLabel(user.targetProcedure)}</strong>
-                            <span>Niveau visé</span>
-                        </div>
-                        <div className="dash-m-sumbox">
-                            <strong>{overallSuccessPct}%</strong>
-                            <span>Maîtrise globale</span>
-                        </div>
-                    </div>
-                </section>
-
-                <div>
-                    <div className="dash-section-title">
-                        <h2>Accès rapide</h2>
-                    </div>
-                    <div className="dash-m-cards">
-                        {user.hasTcf !== false && (
-                            <article className="dash-m-card">
-                                <div className="dash-m-card-row">
-                  <span className="dash-m-card-icon tone-blue" aria-hidden>
-                    <Headphones size={23} strokeWidth={1.8}/>
-                  </span>
-                                    <div className="dash-m-card-main">
-                                        <h3>TCF IRN</h3>
-                                        <p>CO, CE, expression écrite et orale, score CECRL.</p>
-                                    </div>
-                                </div>
-                                <Link href="/entrainement?module=TCF" className="dash-m-card-btn">
-                                    Ouvrir le TCF
-                                </Link>
-                            </article>
-                        )}
-
-                        {user.hasCivique !== false && (
-                            <article className="dash-m-card">
-                                <div className="dash-m-card-row">
-                  <span className="dash-m-card-icon tone-green" aria-hidden>
-                    <ShieldCheck size={23} strokeWidth={1.8}/>
-                  </span>
-                                    <div className="dash-m-card-main">
-                                        <h3>Examen civique</h3>
-                                        <p>Institutions, valeurs de la République, droits et devoirs.</p>
-                                    </div>
-                                </div>
-                                <Link href="/entrainement?module=CIVIQUE" className="dash-m-card-btn">
-                                    Réviser
-                                </Link>
-                            </article>
-                        )}
-
-                        {user.hasTcf !== false && (
-                            <article className="dash-m-card">
-                                <div className="dash-m-card-row">
-                  <span className="dash-m-card-icon tone-purple" aria-hidden>
-                    <Sparkles size={22} strokeWidth={1.8}/>
-                  </span>
-                                    <div className="dash-m-card-main">
-                                        <h3>Corrections IA</h3>
-                                        <p>Analyse de tes écrits et oraux avec feedback détaillé.</p>
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="dash-m-card-btn"
-                                    onClick={() => setProductionSheet("EE")}
-                                >
-                                    Voir les corrections
-                                </button>
-                            </article>
-                        )}
-                    </div>
-                </div>
-
-                <div>
-                    <div className="dash-section-title">
-                        <h2>Plus</h2>
-                    </div>
-                    <div className="dash-m-more">
-                        <Link href="/examens-blancs">
-                            <FileCheck2 size={17} aria-hidden/> Examens blancs
-                        </Link>
-                        <Link href="/statistiques">
-                            <TrendingUp size={17} aria-hidden/> Progression
-                        </Link>
-                        <Link href="/revision">
-                            <RotateCcw size={17} aria-hidden/> Mes erreurs
-                            {wrongCount > 0 ? ` (${wrongCount})` : ""}
-                        </Link>
-                        <Link href="/profil">
-                            <Users size={17} aria-hidden/> Mon profil
-                        </Link>
-                    </div>
-                </div>
-            </div>
-
-            {/* ============================================================
-          DESKTOP — layout riche existant (>= 900px).
-          ============================================================ */}
-            <div className="dash-d">
-                {/* ---- Topbar : salutation + chip utilisateur ---- */}
-                <header className="dash-top">
-                    <div className="dash-greeting">
-                        <h1>
-                            Bonjour {user.firstName ?? "à vous"} <span aria-hidden>👋</span>
-                        </h1>
-                        <p>Continue ta préparation à l&apos;examen civique et au TCF IRN.</p>
-                    </div>
-                    <div className="dash-userchip">
-                        <span className="dash-avatar">{initial}</span>
-                        <div>
-                            <strong>{user.isPremium ? "Compte Premium" : "Compte découverte"}</strong>
-                            <span className="dash-userchip-sub">Objectif : {objective}</span>
-                        </div>
-                    </div>
-                </header>
-
-                {/* ---- Hero + carte score ---- */}
-                <section className="dash-hero">
-                    <div className="dash-hero-text">
-                        <h2>Prépare ton examen comme en conditions réelles</h2>
-                        <p>
-                            Entraîne-toi sur le TCF IRN, passe des examens blancs et révise
-                            l&apos;examen civique. Ta progression est synchronisée avec
-                            l&apos;app mobile.
-                        </p>
-                        <div className="dash-hero-actions">
-                            <Link href="/examens-blancs" className="btn btn-lg">
-                                Lancer un examen blanc
-                                <ArrowRight size={18} className="arrow" aria-hidden/>
-                            </Link>
-                            <Link
-                                href={inProgressAttempt ? `/sessions/${inProgressAttempt.id}` : "/entrainement"}
-                                className="btn btn-ghost btn-lg"
-                            >
-                                {inProgressAttempt ? "Reprendre ma session" : "Continuer mon entraînement"}
-                            </Link>
-                        </div>
-                    </div>
-
-                    <div className="dash-score">
-                        <span className="dash-score-eyebrow">Objectif visé</span>
-                        <div className="dash-score-level">{tcfLevelLabel(user.targetProcedure)}</div>
-                        <p className="dash-score-path">{procedureNiceLabel(user.targetProcedure)}</p>
-                        <div className="dash-progress">
-                            <div className="dash-progress-fill" style={{width: `${overallSuccessPct}%`}}/>
-                        </div>
-                        <small>{overallSuccessPct}% de maîtrise globale</small>
-                    </div>
-                </section>
-
-                {/* ---- Grille entraînement (onglets civique / TCF) ---- */}
-                <div className="dash-section-title">
-                    <h2>Choisir un entraînement</h2>
-                    <Link href={`/entrainement?module=${trainTab}`}>Tout voir →</Link>
-                </div>
-                <div className="dash-tabs" role="tablist" aria-label="Module d'entraînement">
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={trainTab === "CIVIQUE"}
-                        className={`dash-tab ${trainTab === "CIVIQUE" ? "is-active" : ""}`}
-                        onClick={() => setTrainTab("CIVIQUE")}
-                    >
-                        Examen civique
-                    </button>
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={trainTab === "TCF"}
-                        className={`dash-tab ${trainTab === "TCF" ? "is-active" : ""}`}
-                        onClick={() => setTrainTab("TCF")}
-                    >
-                        TCF IRN
-                    </button>
-                </div>
-
-                {trainTab === "TCF" ? (
-                    <section className="dash-modules">
-                        <Link href="/entrainement/tcf/co" className="dash-module">
-            <span className="dash-module-icon tone-blue" aria-hidden>
-              <Headphones size={22} strokeWidth={1.8}/>
-            </span>
-                            <h3>Compréhension orale</h3>
-                            <p>QCM audio chronométrés, correction immédiate.</p>
-                            <div className="dash-tags">
-                                <span className="dash-tag">TCF</span>
-                                <span className="dash-tag">QCM</span>
-                            </div>
-                        </Link>
-
-                        <Link href="/entrainement/tcf/ce" className="dash-module">
-            <span className="dash-module-icon tone-green" aria-hidden>
-              <BookOpen size={22} strokeWidth={1.8}/>
-            </span>
-                            <h3>Compréhension écrite</h3>
-                            <p>Textes, annonces et mails du quotidien.</p>
-                            <div className="dash-tags">
-                                <span className="dash-tag">TCF</span>
-                                <span className="dash-tag">QCM</span>
-                            </div>
-                        </Link>
-
-                        <button type="button" className="dash-module" onClick={() => setProductionSheet("EE")}>
-            <span className="dash-module-icon tone-amber" aria-hidden>
-              <PenLine size={22} strokeWidth={1.8}/>
-            </span>
-                            <h3>Expression écrite</h3>
-                            <p>3 tâches corrigées par IA, niveau CECRL.</p>
-                            <div className="dash-tags">
-                                <span className="dash-tag">IA</span>
-                                <span className="dash-tag dash-tag-mobile">Sur mobile</span>
-                            </div>
-                        </button>
-
-                        <button type="button" className="dash-module" onClick={() => setProductionSheet("EO")}>
-            <span className="dash-module-icon tone-purple" aria-hidden>
-              <Mic size={22} strokeWidth={1.8}/>
-            </span>
-                            <h3>Expression orale</h3>
-                            <p>Enregistre-toi, transcription et feedback détaillé.</p>
-                            <div className="dash-tags">
-                                <span className="dash-tag">IA</span>
-                                <span className="dash-tag dash-tag-mobile">Sur mobile</span>
-                            </div>
-                        </button>
-                    </section>
-                ) : (
-                    <section className="dash-modules">
-                        {civiqueThemes.length === 0 ? (
-                            <Link href="/entrainement?module=CIVIQUE" className="dash-module">
-              <span className="dash-module-icon tone-blue" aria-hidden>
-                <ShieldCheck size={22} strokeWidth={1.8}/>
-              </span>
-                                <h3>Entraînement civique</h3>
-                                <p>Principes, institutions, droits, histoire et société.</p>
-                                <div className="dash-tags">
-                                    <span className="dash-tag">Civique</span>
-                                    <span className="dash-tag">QCM</span>
-                                </div>
-                            </Link>
-                        ) : (
-                            civiqueThemes.map((t, i) => {
-                                const Icon = CIVIQUE_ICONS[i % CIVIQUE_ICONS.length];
-                                const tone = CIVIQUE_TONES[i % CIVIQUE_TONES.length];
-                                return (
-                                    <Link
-                                        key={t.id}
-                                        href={`/entrainement/civique/${t.id}`}
-                                        className="dash-module"
-                                    >
-                  <span className={`dash-module-icon tone-${tone}`} aria-hidden>
-                    <Icon size={22} strokeWidth={1.8}/>
-                  </span>
-                                        <h3>{t.name}</h3>
-                                        <p>Questions à choix multiple, correction immédiate.</p>
-                                        <div className="dash-tags">
-                                            <span className="dash-tag">Civique</span>
-                                            <span className="dash-tag">QCM</span>
-                                        </div>
-                                    </Link>
-                                );
-                            })
-                        )}
-                    </section>
-                )}
-
-                {/* ---- Examens recommandés + progression ---- */}
-                <div className="dash-content">
-                    <section>
-                        <div className="dash-section-title">
-                            <h2>Examens blancs recommandés</h2>
-                            <Link href="/historique">Historique →</Link>
-                        </div>
-                        <div className="dash-reco">
-                            <article className="dash-reco-card">
-              <span className="dash-reco-icon tone-red" aria-hidden>
-                <FileCheck2 size={20} strokeWidth={1.8}/>
-              </span>
-                                <div className="dash-reco-body">
-                                    <h3>Examen blanc TCF IRN</h3>
-                                    <p>Compréhension orale et écrite, score global CECRL.</p>
-                                </div>
-                                <Link href="/examens-blancs" className="btn dash-reco-btn">
-                                    Commencer
-                                </Link>
-                            </article>
-
-                            <article className="dash-reco-card">
-              <span className="dash-reco-icon tone-green" aria-hidden>
-                <ShieldCheck size={20} strokeWidth={1.8}/>
-              </span>
-                                <div className="dash-reco-body">
-                                    <h3>Examen civique — simulation</h3>
-                                    <p>Institutions, valeurs de la République, vie en France.</p>
-                                </div>
-                                <Link href="/examens-blancs" className="btn btn-ghost dash-reco-btn">
-                                    Réviser
-                                </Link>
-                            </article>
-
-                            <article className="dash-reco-card">
-              <span className="dash-reco-icon tone-blue" aria-hidden>
-                <RotateCcw size={20} strokeWidth={1.8}/>
-              </span>
-                                <div className="dash-reco-body">
-                                    <h3>Mes erreurs</h3>
-                                    <p>
-                                        {wrongCount > 0
-                                            ? `${wrongCount} question${wrongCount > 1 ? "s" : ""} à retravailler.`
-                                            : "Aucune erreur en attente — beau parcours."}
-                                    </p>
-                                </div>
-                                <Link href="/revision" className="btn btn-ghost dash-reco-btn">
-                                    Réviser
-                                </Link>
-                            </article>
-                        </div>
-                    </section>
-
-                    <aside className="dash-aside">
-                        <div className="dash-section-title">
-                            <h2>Progression</h2>
-                            <Link href="/statistiques">Détails →</Link>
-                        </div>
-                        <div className="dash-stats">
-                            <div className="dash-stat">
-                                <span>Examens terminés</span>
-                                <strong>{mockExamsFinished}</strong>
-                            </div>
-                            <div className="dash-stat">
-                                <span>Questions résolues</span>
-                                <strong>{totalQuestionsAnswered}</strong>
-                            </div>
-                            <div className="dash-stat">
-                                <span>Taux de réussite</span>
-                                <strong>{overallSuccessPct}%</strong>
-                            </div>
-                        </div>
-
-                        <div className="dash-activity-section">
-                            <div className="dash-section-title">
-                                <h2>Activité récente</h2>
-                            </div>
-                            <div className="dash-activity">
-                                {loading ? (
-                                    <div className="dash-activity-skel"/>
-                                ) : recentActivity.length === 0 ? (
-                                    <p className="dash-activity-empty">
-                                        Aucune activité pour l&apos;instant. Lance un entraînement pour
-                                        démarrer.
-                                    </p>
-                                ) : (
-                                    recentActivity.map((a) => (
-                                        <div className="dash-activity-item" key={a.id}>
-                                            <span className="dash-dot" aria-hidden/>
-                                            <div className="dash-activity-body">
-                                                <strong>{activityLabel(a)}</strong>
-                                                <span>{activityDetail(a)}</span>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    </aside>
-                </div>
-
-                {/* ---- Bannière objectif / Premium ---- */}
-                <section className="dash-banner">
-                    <div>
-                        <h3>{bannerCopy.title}</h3>
-                        <p>{bannerCopy.body}</p>
-                    </div>
-                    <Link
-                        href={user.isPremium ? "/statistiques" : "/paiement"}
-                        className="btn btn-red dash-banner-btn"
-                    >
-                        {user.isPremium ? "Voir mes faiblesses" : "Passer Premium"}
-                    </Link>
-                </section>
-            </div>
-
-            <ProductionMobileSheet
-                open={productionSheet !== null}
-                kind={productionSheet}
-                onClose={() => setProductionSheet(null)}
-            />
-
-            <style>{styles}</style>
-        </main>
-    );
-}
-
-// ============================================================================
-// Helpers (présentation + dérivations)
-// ============================================================================
-
-function procedureNiceLabel(p: TargetProcedure | null | undefined): string {
-    switch (p) {
-        case "NAT":
-            return "Naturalisation";
-        case "CR":
-            return "Carte de résident";
-        case "CSP":
-            return "Carte de séjour";
-        default:
-            return "Parcours à définir";
-    }
-}
-
-function tcfLevelLabel(p: TargetProcedure | null | undefined): string {
-    switch (p) {
-        case "NAT":
-            return "B2";
-        case "CR":
-            return "B1";
-        case "CSP":
-            return "A2";
-        default:
-            return "—";
-    }
-}
-
-function buildBannerCopy({
-                             user,
-                             avgScore,
-                         }: {
-    user: { firstName: string; targetProcedure: TargetProcedure | null } | null;
-    avgScore: number | null;
-}): { title: string; body: string } {
-    if (!user || avgScore === null) {
-        return {
-            title: "Fixe ton prochain objectif.",
-            body: "Commence par un examen blanc pour te situer, puis attaque l'entraînement par thématique. Tes premières questions sont gratuites.",
-        };
-    }
-    const gap = 32 - avgScore;
-    if (gap <= 0) {
-        return {
-            title: "Tu es au-dessus du seuil. Maintiens le cap.",
-            body: `Score moyen sur tes 5 derniers examens blancs civiques : ${avgScore.toFixed(1)}/40. Continue à varier les thèmes pour ne pas reculer.`,
-        };
-    }
-    return {
-        title: `Tu es à ${gap.toFixed(1)} points du seuil du civique.`,
-        body: `Score moyen sur tes 5 derniers examens blancs : ${avgScore.toFixed(1)}/40. Le seuil officiel est de 32/40. Trois sessions ciblées devraient suffire.`,
+  useEffect(() => {
+    if (status !== "authenticated" || !user) return;
+    let cancelled = false;
+    (async () => {
+      const [sum, atts] = await Promise.all([
+        dashboardApi.summaryCached().catch((): DashboardSummaryResponse | null => null),
+        attemptApi.listMine({ limit: 10 }).catch((): AttemptSummaryResponse[] => []),
+      ]);
+      if (cancelled) return;
+      setSummary(sum);
+      setAttempts(atts);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
     };
+  }, [status, user]);
+
+  // Session QCM non terminée (les productions EE/EO ont leur propre flux).
+  const inProgressAttempt = useMemo(
+    () => attempts.find((a) => !a.finishedAt && !isProductionAttempt(a)) ?? null,
+    [attempts],
+  );
+
+  // Top 3 des catégories travaillées les plus faibles, tous modules confondus.
+  const weakest = useMemo(() => {
+    if (!summary) return [];
+    return [...summary.civique, ...summary.tcf]
+      .filter((c) => c.percent !== null)
+      .sort((a, b) => (a.percent ?? 0) - (b.percent ?? 0))
+      .slice(0, 3);
+  }, [summary]);
+
+  if (status === "loading" || (loading && status === "authenticated")) {
+    return <DashSkeleton />;
+  }
+  if (!user) {
+    return (
+      <div className="dash-empty">
+        <p>
+          Session expirée.{" "}
+          <Link href="/connexion" className="dash-empty-link">
+            Se reconnecter
+          </Link>
+        </p>
+        <style>{emptyStyle}</style>
+      </div>
+    );
+  }
+
+  const trainingHref =
+    user.hasTcf !== false ? "/entrainement?module=TCF" : "/entrainement?module=CIVIQUE";
+
+  return (
+    <main className="dash">
+      {!user.targetProcedure && (
+        <Link href="/parcours?from=/dashboard" className="dash-banner">
+          <span>
+            <strong>Choisissez votre parcours</strong> (CSP, carte de résident ou
+            naturalisation) pour personnaliser votre préparation.
+          </span>
+          <ArrowRight size={16} aria-hidden />
+        </Link>
+      )}
+
+      {inProgressAttempt && (
+        <Link
+          href={`/sessions/${inProgressAttempt.id}`}
+          className="dash-banner dash-banner-resume"
+        >
+          <span>
+            <strong>
+              {inProgressAttempt.type === "MOCK_EXAM"
+                ? "Examen blanc en cours"
+                : "Session en cours"}
+            </strong>{" "}
+            — reprenez là où vous vous êtes arrêté.
+          </span>
+          <ArrowRight size={16} aria-hidden />
+        </Link>
+      )}
+
+      <header className="dash-head">
+        <div className="dash-head-text">
+          <span className="dash-eyebrow">
+            <LayoutGrid size={14} aria-hidden />
+            Tableau de bord
+          </span>
+          <h1>
+            Bonjour {user.firstName ?? "à vous"} <span aria-hidden>👋</span>
+          </h1>
+          <p>
+            Voici où vous en êtes dans votre préparation. Continuez sur votre
+            lancée.
+          </p>
+        </div>
+        <Link href={trainingHref} className="dash-cta">
+          <Zap size={16} aria-hidden />
+          Entraînement du jour
+        </Link>
+      </header>
+
+      <section className="stat-grid" aria-label="Vos indicateurs">
+        <article className="stat-card">
+          <span className="stat-icon stat-icon-blue" aria-hidden>
+            <Target size={20} />
+          </span>
+          <div className="stat-body">
+            <span className="stat-value">
+              {summary?.globalSuccessPercent !== null &&
+              summary?.globalSuccessPercent !== undefined
+                ? `${summary.globalSuccessPercent}%`
+                : "—"}
+            </span>
+            <span className="stat-label">Maîtrise globale</span>
+            <span className="stat-sub">
+              {masteryHint(summary?.globalSuccessPercent ?? null)}
+            </span>
+          </div>
+        </article>
+
+        <article className="stat-card">
+          <span className="stat-icon stat-icon-green" aria-hidden>
+            <Trophy size={20} />
+          </span>
+          <div className="stat-body">
+            <span className="stat-value">{summary?.mockExamsTotal ?? 0}</span>
+            <span className="stat-label">Examens blancs</span>
+            <span className="stat-sub">passés au total</span>
+          </div>
+        </article>
+
+        <article className="stat-card">
+          <span className="stat-icon stat-icon-red" aria-hidden>
+            <Flame size={20} />
+          </span>
+          <div className="stat-body">
+            <span className="stat-value">{summary?.currentStreakDays ?? 0} j</span>
+            <span className="stat-label">Série en cours</span>
+            <span className="stat-sub">
+              {summary && summary.recordStreakDays > 0
+                ? `record : ${summary.recordStreakDays} jours`
+                : "lancez votre série !"}
+            </span>
+          </div>
+        </article>
+
+        <article className="stat-card">
+          <span className="stat-icon stat-icon-blue" aria-hidden>
+            <GraduationCap size={20} />
+          </span>
+          <div className="stat-body">
+            <span className="stat-value">
+              {shortLevel(summary?.estimatedTcfLevel ?? null)}
+            </span>
+            <span className="stat-label">Niveau TCF estimé</span>
+            <span className="stat-sub">équivalence CECRL</span>
+          </div>
+        </article>
+      </section>
+
+      <section className="modules-grid" aria-label="Progression par parcours">
+        <ModuleCard
+          accent="blue"
+          icon={<Waves size={20} />}
+          title="TCF IRN"
+          href="/entrainement?module=TCF"
+          categories={summary?.tcf ?? []}
+        />
+        <ModuleCard
+          accent="red"
+          icon={<Lightbulb size={20} />}
+          title="Examen civique"
+          href="/entrainement?module=CIVIQUE"
+          categories={summary?.civique ?? []}
+        />
+      </section>
+
+      <section className="reinforce-card" aria-label="À renforcer en priorité">
+        <header className="reinforce-head">
+          <h2>À renforcer en priorité</h2>
+          <Link href="/recommandations" className="reinforce-all">
+            Tout voir <ChevronRight size={15} aria-hidden />
+          </Link>
+        </header>
+
+        {weakest.length === 0 ? (
+          <div className="reinforce-empty">
+            <p>
+              Entraînez-vous pour obtenir des recommandations personnalisées.
+            </p>
+            <Link href={trainingHref} className="dash-cta dash-cta-sm">
+              <Zap size={15} aria-hidden />
+              Commencer
+            </Link>
+          </div>
+        ) : (
+          <ul className="reinforce-list">
+            {weakest.map((cat) => (
+              <ReinforceRow key={cat.code} cat={cat} />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <style>{dashStyles}</style>
+    </main>
+  );
 }
 
-function activityLabel(a: AttemptSummaryResponse): string {
-    if (isProductionAttempt(a)) {
-        if (a.epreuve === "TCF_COMPLET") return "Examen blanc EO + EE";
-        if (a.epreuve === "TCF_EO") return "Expression orale";
-        return "Expression écrite";
-    }
-    const moduleLabel = a.module === "CIVIQUE" ? "Civique" : "TCF";
-    if (a.type === "MOCK_EXAM") return `Examen blanc ${moduleLabel}`;
-    return `Entraînement ${moduleLabel}`;
-}
+function ModuleCard({
+  accent,
+  icon,
+  title,
+  href,
+  categories,
+}: {
+  accent: "blue" | "red";
+  icon: React.ReactNode;
+  title: string;
+  href: string;
+  categories: DashboardCategoryStat[];
+}) {
+  const average = moduleAverage(categories);
+  return (
+    <article className={`module-card module-card-${accent}`}>
+      <header className="module-head">
+        <Link href={href} className="module-id">
+          <span className={`module-icon module-icon-${accent}`} aria-hidden>
+            {icon}
+          </span>
+          <span className="module-titles">
+            <span className="module-title">{title}</span>
+            <span className="module-sub">{categories.length} catégories</span>
+          </span>
+        </Link>
+        <span className={`module-pct module-pct-${accent}`}>
+          {average !== null ? `${average}%` : "—"}
+        </span>
+      </header>
 
-function activityDetail(a: AttemptSummaryResponse): string {
-    const date = new Date(a.startedAt).toLocaleDateString("fr-FR", {
-        day: "2-digit",
-        month: "short",
-    });
-    if (!a.finishedAt) return `En cours · ${date}`;
-    if (a.score !== null && a.score !== undefined) {
-        const suffix = a.type === "MOCK_EXAM" && a.module === "CIVIQUE" ? "/40" : "%";
-        return `${a.score}${suffix} · ${date}`;
-    }
-    return `Terminé · ${date}`;
+      <ul className="module-rows">
+        {categories.map((cat) => (
+          <li key={cat.code} className="module-row">
+            <span className="module-row-label">{cat.label}</span>
+            <CategoryBarLine percent={cat.percent} fallback={cat.level ?? "—"} />
+          </li>
+        ))}
+      </ul>
+    </article>
+  );
 }
-
-// ============================================================================
-// Skeleton / empty
-// ============================================================================
 
 function DashSkeleton() {
-    return (
-        <div className="dash-skel">
-            <div className="dash-skel-bar" style={{width: "40%", height: 28}}/>
-            <div className="dash-skel-bar" style={{width: "100%", height: 180}}/>
-            <div className="dash-skel-grid">
-                {[0, 1, 2, 3].map((i) => (
-                    <div key={i} className="dash-skel-bar" style={{height: 130}}/>
-                ))}
-            </div>
-            <style>{`
-        .dash-skel { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
-        .dash-skel-bar {
-          background: linear-gradient(90deg, #EEF0F8 25%, #F6F7FB 50%, #EEF0F8 75%);
+  return (
+    <div className="dash dash-skeleton" aria-busy>
+      <div className="sk sk-head" />
+      <div className="sk-grid">
+        <div className="sk sk-card" />
+        <div className="sk sk-card" />
+        <div className="sk sk-card" />
+        <div className="sk sk-card" />
+      </div>
+      <div className="sk-grid sk-grid-2">
+        <div className="sk sk-module" />
+        <div className="sk sk-module" />
+      </div>
+      <style>{dashStyles}</style>
+      <style>{`
+        .sk {
+          background: linear-gradient(90deg, #EDEFF7 25%, #F5F6FB 50%, #EDEFF7 75%);
           background-size: 200% 100%;
-          border-radius: 14px;
-          animation: dash-shimmer 1.3s ease-in-out infinite;
+          animation: sk-shimmer 1.4s infinite;
+          border-radius: 16px;
         }
-        .dash-skel-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
-        @media (min-width: 1000px) { .dash-skel-grid { grid-template-columns: repeat(4, 1fr); } }
-        @keyframes dash-shimmer {
-          0% { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
+        @keyframes sk-shimmer {
+          to { background-position: -200% 0; }
+        }
+        .sk-head { height: 92px; margin-bottom: 22px; }
+        .sk-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 16px;
+          margin-bottom: 22px;
+        }
+        .sk-grid-2 { grid-template-columns: 1fr 1fr; }
+        .sk-card { height: 110px; }
+        .sk-module { height: 280px; }
+        @media (max-width: 1000px) {
+          .sk-grid { grid-template-columns: 1fr 1fr; }
+          .sk-grid-2 { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 560px) {
+          .sk-grid { grid-template-columns: 1fr; }
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }
 
 const emptyStyle = `
   .dash-empty {
     min-height: 60vh;
     display: flex; align-items: center; justify-content: center;
-    color: var(--color-muted);
     font-size: 15px;
+    color: var(--color-muted);
   }
   .dash-empty-link { color: var(--color-blue); font-weight: 700; }
 `;
 
-// ============================================================================
-// Styles (mobile-first, identité Bleu France)
-// ============================================================================
-
-const styles = `
+const dashStyles = `
   .dash {
-    padding: 20px 16px 56px;
     max-width: 1180px;
     margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 28px;
+    padding: 30px 28px 48px;
   }
 
-  /* ============================================================
-     Bascule mobile (structure app) / desktop (layout riche).
-     Mobile par défaut ; desktop riche à partir de 900px.
-     ============================================================ */
-  .dash-d { display: none; }
-  .dash-m {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    width: 100%;
-    max-width: 560px;
-    margin: 0 auto;
-    padding-top: 46px; /* dégage le burger flottant (.ms-toggle, top:12 + 44px) */
+  /* ===== bandeaux ===== */
+  .dash-banner {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    background: var(--color-blue-light);
+    border: 1px solid color-mix(in srgb, var(--color-blue) 18%, transparent);
+    color: var(--color-ink);
+    border-radius: 14px;
+    padding: 13px 18px;
+    font-size: 14px;
+    text-decoration: none;
+    margin-bottom: 14px;
+    transition: filter 0.15s;
   }
+  .dash-banner:hover { filter: brightness(0.98); }
+  .dash-banner strong { color: var(--color-blue); }
+  .dash-banner-resume {
+    background: var(--color-red-light);
+    border-color: color-mix(in srgb, var(--color-red) 18%, transparent);
+  }
+  .dash-banner-resume strong { color: var(--color-red); }
 
-  .dash-m-hello h1 {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: clamp(24px, 6.5vw, 28px);
+  /* ===== header ===== */
+  .dash-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 20px;
+    margin: 8px 0 24px;
+  }
+  .dash-head-text { min-width: 0; }
+  .dash-eyebrow {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-blue);
+    margin-bottom: 10px;
+  }
+  .dash-head h1 {
+    margin: 0 0 8px;
+    font-family: var(--font-sans);
+    font-size: clamp(26px, 4vw, 36px);
+    font-weight: 800;
     letter-spacing: -0.02em;
     color: var(--color-ink);
-    margin: 0;
+    line-height: 1.1;
   }
-  .dash-m-hello p {
-    margin: 6px 0 0;
+  .dash-head p {
+    margin: 0;
+    font-size: 15px;
     color: var(--color-muted);
-    font-size: 14px;
     line-height: 1.5;
   }
-
-  .dash-m-hero {
-    border-radius: 24px;
-    padding: 22px;
+  .dash-cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--color-blue);
     color: #fff;
-    background: linear-gradient(150deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
-    box-shadow: 0 18px 40px -20px rgba(30, 58, 140, 0.55);
-  }
-  .dash-m-hero h2 {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 23px;
-    line-height: 1.15;
-    letter-spacing: -0.01em;
-    margin: 0 0 10px;
-  }
-  .dash-m-hero p {
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 13.5px;
-    line-height: 1.55;
-    margin: 0 0 18px;
-  }
-  .dash-m-hero-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .dash-m-cta {
-    border: 0;
-    border-radius: 14px;
-    padding: 13px 16px;
-    font-family: var(--font-sans);
-    font-weight: 700;
+    border-radius: 999px;
+    padding: 12px 22px;
     font-size: 14px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    text-align: center;
-  }
-  .dash-m-cta-primary { background: #fff; color: var(--color-ink); }
-  .dash-m-cta-ghost {
-    background: rgba(255, 255, 255, 0.14);
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.28);
-  }
-
-  .dash-m-summary {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin-top: 16px;
-  }
-  .dash-m-sumbox {
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 16px;
-    padding: 14px;
-  }
-  .dash-m-sumbox strong {
-    display: block;
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 24px;
-    line-height: 1;
-    margin-bottom: 4px;
-  }
-  .dash-m-sumbox span {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.78);
-  }
-
-  .dash-m-cards { display: flex; flex-direction: column; gap: 12px; }
-  .dash-m-card {
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 20px;
-    padding: 16px;
-    box-shadow: 0 10px 26px -18px rgba(15, 23, 42, 0.2);
-  }
-  .dash-m-card-row { display: flex; align-items: center; gap: 13px; }
-  .dash-m-card-icon {
-    width: 48px; height: 48px;
-    flex: none;
-    border-radius: 16px;
-    display: grid;
-    place-items: center;
-  }
-  .dash-m-card-main { flex: 1; min-width: 0; }
-  .dash-m-card h3 {
-    font-family: var(--font-sans);
     font-weight: 700;
-    font-size: 16px;
-    color: var(--color-ink);
-    margin: 0 0 4px;
-  }
-  .dash-m-card p {
-    color: var(--color-muted);
-    font-size: 13px;
-    line-height: 1.45;
-    margin: 0;
-  }
-  .dash-m-card-btn {
-    width: 100%;
-    margin-top: 14px;
-    background: var(--color-ink);
-    color: #fff;
-    border: 0;
-    border-radius: 12px;
-    padding: 12px;
-    font-family: var(--font-sans);
-    font-weight: 700;
-    font-size: 14px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .dash-m-more {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-  .dash-m-more a {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #fff;
-    border: 1px solid var(--color-line);
-    color: var(--color-ink);
-    padding: 14px;
-    border-radius: 16px;
-    font-family: var(--font-sans);
-    font-size: 13.5px;
-    font-weight: 700;
-    box-shadow: 0 8px 20px -16px rgba(15, 23, 42, 0.18);
-  }
-  .dash-m-more a svg { color: var(--color-blue); flex: none; }
-
-  @media (min-width: 900px) {
-    .dash-m { display: none; }
-    .dash-d { display: flex; flex-direction: column; gap: 32px; }
-  }
-
-  /* ---- Topbar ---- */
-  .dash-top {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-  .dash-greeting h1 {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: clamp(24px, 5vw, 32px);
-    letter-spacing: -0.02em;
-    color: var(--color-ink);
-    margin: 0;
-  }
-  .dash-greeting p {
-    margin: 6px 0 0;
-    color: var(--color-muted);
-    font-size: 14.5px;
-  }
-  .dash-userchip {
-    display: inline-flex;
-    align-items: center;
-    gap: 12px;
-    align-self: flex-start;
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 14px;
-    padding: 10px 14px;
-  }
-  .dash-avatar {
-    width: 40px; height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--color-blue), var(--color-red));
-    color: #fff;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 15px;
+    text-decoration: none;
     flex-shrink: 0;
+    margin-top: 6px;
+    transition: background 0.15s;
   }
-  .dash-userchip strong {
-    display: block;
-    font-size: 13.5px;
-    color: var(--color-ink);
-  }
-  .dash-userchip-sub {
-    font-size: 12px;
-    color: var(--color-muted);
-  }
+  .dash-cta:hover { background: var(--color-blue-dark); }
+  .dash-cta-sm { padding: 9px 16px; font-size: 13px; margin-top: 0; }
 
-  /* ---- Hero ---- */
-  .dash-hero {
+  /* ===== stat cards ===== */
+  .stat-grid {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 20px;
-    background: linear-gradient(150deg, #fff 0%, var(--color-blue-soft) 100%);
-    border: 1px solid var(--color-line);
-    border-radius: 20px;
-    padding: 24px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 22px;
   }
-  .dash-hero-text h2 {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: clamp(20px, 4.4vw, 28px);
-    line-height: 1.12;
-    letter-spacing: -0.02em;
-    color: var(--color-ink);
-    margin: 0 0 10px;
-  }
-  .dash-hero-text p {
-    color: var(--color-muted);
-    font-size: 14.5px;
-    line-height: 1.6;
-    margin: 0 0 20px;
-    max-width: 520px;
-  }
-  .dash-hero-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  /* Carte score */
-  .dash-score {
-    background: linear-gradient(150deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
-    color: #fff;
-    border-radius: 16px;
-    padding: 22px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-  }
-  .dash-score-eyebrow {
-    font-family: var(--font-mono);
-    font-size: 10.5px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.7);
-  }
-  .dash-score-level {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 44px;
-    line-height: 1;
-    margin: 8px 0 2px;
-  }
-  .dash-score-path {
-    margin: 0 0 16px;
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.78);
-  }
-  .dash-progress {
-    width: 100%;
-    height: 8px;
-    border-radius: 100px;
-    background: rgba(255, 255, 255, 0.2);
-    overflow: hidden;
-  }
-  .dash-progress-fill {
-    height: 100%;
-    border-radius: 100px;
-    background: #fff;
-    transition: width 0.4s ease;
-  }
-  .dash-score small {
-    margin-top: 8px;
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.78);
-  }
-
-  /* ---- Titres de section ---- */
-  .dash-section-title {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
-  }
-  .dash-section-title h2 {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 19px;
-    letter-spacing: -0.015em;
-    color: var(--color-ink);
-    margin: 0;
-  }
-  .dash-section-title a {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-blue);
-    white-space: nowrap;
-  }
-  .dash-section-title a:hover { text-decoration: underline; }
-
-  /* ---- Onglets civique / TCF (pleine largeur, 50/50) ---- */
-  .dash-tabs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 16px;
-  }
-  .dash-tab {
-    border: 1px solid var(--color-line);
-    background: #fff;
-    padding: 14px 16px;
-    border-radius: 12px;
-    font-family: var(--font-sans);
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--color-muted);
-    cursor: pointer;
-    text-align: center;
-    transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
-  }
-  .dash-tab:hover { border-color: var(--color-blue); color: var(--color-blue); }
-  .dash-tab.is-active {
-    background: var(--color-blue-soft);
-    color: var(--color-blue);
-    border-color: var(--color-blue);
-    box-shadow: 0 1px 3px rgba(15, 24, 57, 0.08);
-  }
-
-  /* Mobile : on garde l'écran focalisé sur objectif + entraînements +
-     examens blancs ; l'activité récente passe au second plan. */
-  @media (max-width: 699px) {
-    .dash-activity-section { display: none; }
-  }
-
-  /* ---- Grille modules ---- */
-  .dash-modules {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-  .dash-module {
-    text-align: left;
+  .stat-card {
+    display: flex; align-items: center; gap: 14px;
     background: #fff;
     border: 1px solid var(--color-line);
     border-radius: 16px;
-    padding: 20px;
-    cursor: pointer;
-    font-family: inherit;
-    display: flex;
-    flex-direction: column;
-    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    padding: 20px 18px;
+    min-width: 0;
   }
-  .dash-module:hover {
-    transform: translateY(-3px);
-    border-color: var(--color-blue);
-    box-shadow: 0 16px 38px -22px rgba(30, 58, 140, 0.32);
-  }
-  .dash-module-icon {
+  .stat-icon {
     width: 44px; height: 44px;
     border-radius: 12px;
-    display: inline-flex; align-items: center; justify-content: center;
-    margin-bottom: 14px;
-  }
-  .dash-module h3 {
-    font-family: var(--font-sans);
-    font-weight: 700;
-    font-size: 15.5px;
-    color: var(--color-ink);
-    margin: 0 0 4px;
-  }
-  .dash-module p {
-    font-size: 13px;
-    color: var(--color-muted);
-    line-height: 1.5;
-    margin: 0 0 14px;
-    flex: 1;
-  }
-  .tone-blue { background: var(--color-blue-light); color: var(--color-blue); }
-  .tone-green { background: rgba(22, 143, 91, 0.12); color: var(--color-green); }
-  .tone-amber { background: rgba(232, 163, 23, 0.16); color: #B87908; }
-  .tone-purple { background: rgba(124, 58, 173, 0.12); color: #7C3AAD; }
-  .tone-red { background: var(--color-red-light); color: var(--color-red); }
-
-  .dash-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-  .dash-tag {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    font-weight: 600;
-    padding: 4px 9px;
-    border-radius: 100px;
-    background: var(--color-paper-2);
-    color: var(--color-muted);
-  }
-  .dash-tag-mobile { background: var(--color-blue-light); color: var(--color-blue); }
-
-  /* ---- Contenu (examens reco + aside) ---- */
-  .dash-content {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 28px;
-  }
-  .dash-reco { display: flex; flex-direction: column; gap: 12px; }
-  .dash-reco-card {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 14px;
-    padding: 16px;
-  }
-  .dash-reco-icon {
-    width: 42px; height: 42px;
-    border-radius: 11px;
-    display: inline-flex; align-items: center; justify-content: center;
+    display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
-  .dash-reco-body { flex: 1; min-width: 0; }
-  .dash-reco-body h3 {
+  .stat-icon-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .stat-icon-green { background: color-mix(in srgb, var(--color-green) 12%, #fff); color: var(--color-green); }
+  .stat-icon-red { background: var(--color-red-light); color: var(--color-red); }
+  .stat-body { display: flex; flex-direction: column; min-width: 0; }
+  .stat-value {
     font-family: var(--font-sans);
-    font-weight: 700;
-    font-size: 14.5px;
-    color: var(--color-ink);
-    margin: 0 0 2px;
-  }
-  .dash-reco-body p {
-    font-size: 12.5px;
-    color: var(--color-muted);
-    line-height: 1.45;
-    margin: 0;
-  }
-  .dash-reco-btn {
-    flex-shrink: 0;
-    padding: 9px 16px;
-    font-size: 13px;
-    border-radius: 9px;
-  }
-
-  /* Aside progression */
-  .dash-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 28px;
-  }
-  .dash-stat {
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 12px;
-    padding: 14px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .dash-stat span {
-    font-size: 11.5px;
-    color: var(--color-muted);
-    line-height: 1.3;
-  }
-  .dash-stat strong {
-    font-family: var(--font-display);
-    font-weight: 600;
     font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
     color: var(--color-ink);
-    line-height: 1;
+    line-height: 1.15;
   }
-
-  .dash-activity {
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 14px;
-    padding: 6px 16px;
+  .stat-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-ink-2);
+    margin-top: 2px;
   }
-  .dash-activity-item {
-    display: flex;
-    gap: 12px;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--color-line-2);
-  }
-  .dash-activity-item:last-child { border-bottom: none; }
-  .dash-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--color-blue);
-    margin-top: 6px;
-    flex-shrink: 0;
-  }
-  .dash-activity-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-  .dash-activity-body strong {
-    font-size: 13.5px;
-    color: var(--color-ink);
-    font-weight: 600;
-  }
-  .dash-activity-body span {
+  .stat-sub {
     font-size: 12px;
     color: var(--color-muted);
-    font-family: var(--font-mono);
-  }
-  .dash-activity-empty {
-    padding: 18px 0;
-    font-size: 13px;
-    color: var(--color-muted);
-    line-height: 1.5;
-  }
-  .dash-activity-skel {
-    height: 120px;
-    border-radius: 8px;
-    background: linear-gradient(90deg, #EEF0F8 25%, #F6F7FB 50%, #EEF0F8 75%);
-    background-size: 200% 100%;
-    animation: dash-shimmer 1.3s ease-in-out infinite;
-  }
-  @keyframes dash-shimmer {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  /* ---- Bannière ---- */
-  .dash-banner {
-    display: flex;
-    flex-direction: column;
+  /* ===== module cards ===== */
+  .modules-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 16px;
-    background: linear-gradient(135deg, var(--color-ink) 0%, #1B2550 100%);
-    color: #fff;
-    border-radius: 18px;
-    padding: 24px;
+    margin-bottom: 22px;
   }
-  .dash-banner h3 {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 19px;
-    letter-spacing: -0.015em;
-    margin: 0 0 6px;
+  .module-card {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 16px;
+    padding: 22px;
+    min-width: 0;
   }
-  .dash-banner p {
-    margin: 0;
-    font-size: 13.5px;
-    color: rgba(255, 255, 255, 0.78);
-    line-height: 1.55;
-    max-width: 640px;
+  .module-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
   }
-  .dash-banner-btn {
-    align-self: flex-start;
+  .module-id {
+    display: flex; align-items: center; gap: 12px;
+    text-decoration: none;
+    min-width: 0;
+  }
+  .module-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
   }
+  .module-icon-blue { background: var(--color-blue); color: #fff; }
+  .module-icon-red { background: var(--color-red); color: #fff; }
+  .module-titles { display: flex; flex-direction: column; min-width: 0; }
+  .module-title {
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+  }
+  .module-id:hover .module-title { color: var(--color-blue); }
+  .module-sub { font-size: 12.5px; color: var(--color-muted); margin-top: 1px; }
+  .module-pct {
+    font-family: var(--font-sans);
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    flex-shrink: 0;
+  }
+  .module-pct-blue { color: var(--color-blue); }
+  .module-pct-red { color: var(--color-red); }
 
-  /* ============================================================
-     Breakpoints
-     ============================================================ */
-  @media (min-width: 560px) {
-    .dash-modules { grid-template-columns: 1fr 1fr; }
-    .dash-hero-actions { flex-direction: row; flex-wrap: wrap; }
+  .module-rows {
+    list-style: none;
+    margin: 0; padding: 0;
+    display: flex; flex-direction: column; gap: 13px;
   }
-  @media (min-width: 700px) {
-    .dash { padding: 28px 28px 64px; gap: 32px; }
-    .dash-top {
-      flex-direction: row;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .dash-hero { padding: 32px; }
-    .dash-banner {
-      flex-direction: row;
-      align-items: center;
-      justify-content: space-between;
-    }
+  .module-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 190px) 1fr;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
   }
-  @media (min-width: 900px) {
-    .dash-hero {
-      grid-template-columns: 1.5fr 1fr;
-      align-items: stretch;
-    }
-    .dash-content { grid-template-columns: 1fr 340px; }
+  .module-row-label {
+    font-size: 13.5px;
+    color: var(--color-ink-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  @media (min-width: 1000px) {
-    .dash-modules { grid-template-columns: repeat(4, 1fr); }
+
+  /* ===== à renforcer ===== */
+  .reinforce-card {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 16px;
+    padding: 22px;
+  }
+  .reinforce-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .reinforce-head h2 {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+  }
+  .reinforce-all {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--color-blue);
+    text-decoration: none;
+  }
+  .reinforce-all:hover { text-decoration: underline; }
+
+  .reinforce-list {
+    list-style: none;
+    margin: 0; padding: 0;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .reinforce-empty {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .reinforce-empty p { margin: 0; font-size: 14px; color: var(--color-muted); }
+
+  /* ===== responsive ===== */
+  @media (max-width: 1000px) {
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .modules-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 768px) {
+    /* padding-top dégage le burger fixed du drawer mobile (.ms-toggle). */
+    .dash { padding: 64px 18px 40px; }
+    .dash-head { flex-direction: column; }
+    .dash-cta { margin-top: 0; }
+  }
+  @media (max-width: 560px) {
+    .stat-grid { grid-template-columns: 1fr; }
+    .module-row { grid-template-columns: 1fr; gap: 6px; }
   }
 `;

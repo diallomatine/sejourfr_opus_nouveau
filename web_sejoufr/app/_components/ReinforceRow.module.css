@@ -1,0 +1,142 @@
+/* Ligne "catégorie à renforcer" + barre de progression de catégorie.
+   Partagé entre /dashboard (top 3) et /recommandations (liste complète). */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 13px;
+  padding: 14px 16px;
+  min-width: 0;
+  background: #fff;
+}
+
+.icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--color-blue-soft);
+  color: var(--color-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+  min-width: 0;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  padding: 2px 7px;
+  flex-shrink: 0;
+}
+
+.tagBlue {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.tagRed {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
+.cta {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  border-radius: 999px;
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.cta:hover {
+  background: var(--color-blue);
+  color: #fff;
+}
+
+/* ===== barre de catégorie ===== */
+
+.barRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-line-2);
+  overflow: hidden;
+  min-width: 0;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.fillBlue {
+  background: var(--color-blue);
+}
+
+.fillGreen {
+  background: var(--color-green);
+}
+
+.fillAmber {
+  background: var(--color-amber);
+}
+
+.pct {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-ink-2);
+  min-width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+@media (max-width: 560px) {
+  .row {
+    flex-wrap: wrap;
+  }
+
+  .body {
+    flex-basis: 100%;
+    order: 3;
+  }
+}
