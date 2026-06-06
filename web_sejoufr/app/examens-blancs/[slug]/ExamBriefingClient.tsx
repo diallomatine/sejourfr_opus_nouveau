@@ -188,22 +188,22 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
                     <span className="brf-dr-label">Compréhension écrite</span>
                     <span className="brf-dr-meta">30 min</span>
                   </div>
-                  <div className="brf-dr-row is-mobile">
+                  <Link href="/entrainement/tcf/ee/examens" className="brf-dr-row is-prod">
                     <span className="brf-dr-ico" aria-hidden>✍️</span>
                     <span className="brf-dr-label">Expression écrite</span>
-                    <span className="brf-dr-badge">Sur l&apos;app mobile</span>
-                  </div>
-                  <div className="brf-dr-row is-mobile">
+                    <span className="brf-dr-badge">Épreuve dédiée · IA →</span>
+                  </Link>
+                  <Link href="/entrainement/tcf/eo/examens" className="brf-dr-row is-prod">
                     <span className="brf-dr-ico" aria-hidden>🎙️</span>
                     <span className="brf-dr-label">Expression orale</span>
-                    <span className="brf-dr-badge">Sur l&apos;app mobile</span>
-                  </div>
+                    <span className="brf-dr-badge">Épreuve dédiée · IA →</span>
+                  </Link>
                 </div>
                 <p className="brf-mobile-note">
-                  Sur le web, vous passez les épreuves de{" "}
-                  <strong>compréhension</strong> (orale + écrite). L&apos;
-                  <strong>expression écrite et orale</strong>, évaluées par IA, se
-                  font dans l&apos;application mobile. Le niveau{" "}
+                  Cet examen couvre les épreuves de <strong>compréhension</strong>{" "}
+                  (orale + écrite). L&apos;<strong>expression écrite et orale</strong>,
+                  évaluées par l&apos;IA, se passent aussi sur le web — depuis leurs
+                  examens blancs dédiés (liens ci-dessus). Le niveau{" "}
                   <strong>CECRL global</strong> du TCF IRN se calcule sur les 4
                   épreuves.
                 </p>
@@ -424,13 +424,17 @@ const styles = `
     font-family: var(--font-sans); font-weight: 800; font-size: 12.5px;
     color: var(--color-blue); flex-shrink: 0;
   }
-  .brf-dr-row.is-mobile { background: var(--color-paper-2); }
-  .brf-dr-row.is-mobile .brf-dr-label { color: var(--color-muted); }
+  .brf-dr-row.is-prod {
+    background: var(--color-paper-2);
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+  .brf-dr-row.is-prod:hover { background: var(--color-blue-light); }
   .brf-dr-badge {
     flex-shrink: 0;
     font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
     letter-spacing: 0.06em; text-transform: uppercase;
-    color: var(--color-muted);
+    color: var(--color-blue);
     background: #fff; border: 1px solid var(--color-line);
     padding: 4px 9px; border-radius: 100px;
   }

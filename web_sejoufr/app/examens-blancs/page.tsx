@@ -25,6 +25,10 @@ import {
 const SLOTS = 20;
 const COLLAPSED = 8;
 
+/** Templates de référence des examens complets (briefing + lancement). */
+const TCF_FULL_EXAM_SLUG = "tcf-mix-01";
+const CIVIQUE_FULL_EXAM_SLUG = "civique-decouverte";
+
 /**
  * /examens-blancs (maquette sejour_fr.html) : « Examens blancs complets » —
  * une grande card par parcours (TCF IRN 60 Q mélangées · Examen civique 40 Q
@@ -48,8 +52,6 @@ function ExamsConnectedHome() {
 
   const [civique, setCivique] = useState<AttemptSummaryResponse[]>([]);
   const [tcf, setTcf] = useState<AttemptSummaryResponse[]>([]);
-  const [starting, setStarting] = useState<ModuleEnum | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [paywallModule, setPaywallModule] = useState<"CIVIQUE" | "INTEGRAL" | null>(null);
 
   useEffect(() => {
@@ -90,17 +92,14 @@ function ExamsConnectedHome() {
     };
   }, [status]);
 
-  async function start(module: ModuleEnum) {
-    if (starting) return;
-    setError(null);
-    setStarting(module);
-    try {
-      const a = await attemptApi.start({ type: "MOCK_EXAM", module });
-      router.push(`/sessions/${a.id}`);
-    } catch (e) {
-      setError(e instanceof ApiException ? e.message : "Impossible de démarrer l'examen.");
-      setStarting(null);
-    }
+  // Démarrer/Refaire passe par la page briefing du template de référence
+  // (règles, déroulé, dernier score) — c'est elle qui crée l'attempt.
+  function start(module: ModuleEnum) {
+    router.push(
+      module === "TCF"
+        ? `/examens-blancs/${TCF_FULL_EXAM_SLUG}`
+        : `/examens-blancs/${CIVIQUE_FULL_EXAM_SLUG}`,
+    );
   }
 
   if (status === "loading" || !user) return <HomeSkeleton />;
@@ -123,8 +122,6 @@ function ExamsConnectedHome() {
         </p>
       </header>
 
-      {error && <div className="ebh-error">{error}</div>}
-
       <ModuleExamsSection
         tone="blue"
         icon={<Waves size={22} strokeWidth={1.8} />}
@@ -134,7 +131,7 @@ function ExamsConnectedHome() {
         exams={tcf}
         scoreOutOf={60}
         premium={tcfPremium}
-        starting={starting === "TCF"}
+        starting={false}
         onStart={() => start("TCF")}
         onLocked={() => setPaywallModule("INTEGRAL")}
       />
@@ -148,7 +145,7 @@ function ExamsConnectedHome() {
         exams={civique}
         scoreOutOf={40}
         premium={civiquePremium}
-        starting={starting === "CIVIQUE"}
+        starting={false}
         onStart={() => start("CIVIQUE")}
         onLocked={() => setPaywallModule("CIVIQUE")}
       />

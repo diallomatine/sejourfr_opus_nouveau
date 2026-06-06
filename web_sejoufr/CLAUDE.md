@@ -474,11 +474,15 @@ Chantier découpé en vagues :
       civique = MOCK_EXAM CIVIQUE 40 Q stratifiées) avec stats « x/20 épreuves
       passées · meilleur y/n », ligne « Brasse tous les thèmes… », grille de
       20 épreuves **repliée à 8 + « Voir tout »** (`ExamsGrid` props
-      `collapsedCount`/`itemLabel`). Épreuve 1 gratuite, 2+ premium. Le
-      catalogue de templates n'est plus surfacé ici (sous-routes
-      `/examens-blancs/civique|tcf` conservées comme chemins de retour) ; la
-      page démo guest est inchangée. Miroir `AttemptSummaryResponse` complété
-      (`moduleExamQuestionType`, `lotThemeId`).
+      `collapsedCount`/`itemLabel`). Épreuve 1 gratuite, 2+ premium.
+      **Démarrer/Refaire passe par la page briefing du template de
+      référence** (`/examens-blancs/tcf-mix-01` et
+      `/examens-blancs/civique-decouverte`) qui crée l'attempt ; le déroulé
+      TCF du briefing pointe EE/EO vers leurs examens web (plus de mention
+      « app mobile »). Les sous-routes `/examens-blancs/civique|tcf` et
+      `ExamsModuleView` sont supprimées. Page démo guest inchangée. Miroir
+      `AttemptSummaryResponse` complété (`moduleExamQuestionType`,
+      `lotThemeId`).
     - **Rapport d'examen / de série refondu** (`ExamReport.tsx`) : hero teinté
       vert/rouge (donut bonnes réponses, « Vous avez obtenu X% », Score /
       Temps / Niveau estimé TCF ou Seuil civique), **« Réussite par

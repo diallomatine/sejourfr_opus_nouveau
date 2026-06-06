@@ -85,22 +85,22 @@ function attemptContextLabel(
   return lotNumero != null ? `${scope} · Série ${lotNumero}` : `${scope} · Entraînement`;
 }
 
-/** Écran d'origine d'un examen blanc, dérivé de l'attempt : examen du
- *  catalogue (template) → /examens-blancs ; examen thématique civique →
- *  page examens du thème ; examen module TCF → page examens de l'épreuve ;
- *  sinon catalogue du module. */
+/** Écran d'origine d'un examen blanc, dérivé de l'attempt : examen
+ *  thématique civique → page examens du thème ; examen module TCF → page
+ *  examens de l'épreuve ; examens complets (template ou non) →
+ *  /examens-blancs. */
 function examReturnPath(attempt: AttemptResponse): string {
   if (attempt.examTemplateId) return "/examens-blancs";
   if (attempt.module === "CIVIQUE") {
     return attempt.themeId
       ? `/entrainement/civique/${attempt.themeId}/examens`
-      : "/examens-blancs/civique";
+      : "/examens-blancs";
   }
   const code = attempt.moduleExamQuestionType?.toLowerCase();
   if (code === "co" || code === "ce" || code === "structure") {
     return `/entrainement/tcf/${code}/examens`;
   }
-  return "/examens-blancs/tcf";
+  return "/examens-blancs";
 }
 
 /**
