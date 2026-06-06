@@ -35,6 +35,7 @@ const DEMO_BATCH_SIZE = 20;
 /** Contenu statique des 5 cards TCF (maquette sejour_fr.html). */
 const TCF_CARDS: Array<{
   code: string;
+  iconTone: "blue" | "green" | "amber" | "red" | "slate";
   icon: React.ReactNode;
   title: string;
   desc: string;
@@ -45,6 +46,7 @@ const TCF_CARDS: Array<{
 }> = [
   {
     code: "TCF_CO",
+    iconTone: "blue",
     icon: <Headphones size={24} strokeWidth={1.7} />,
     title: "Compréhension orale",
     desc: "Écouter des audios courts et répondre à des QCM.",
@@ -54,6 +56,7 @@ const TCF_CARDS: Array<{
   },
   {
     code: "TCF_CE",
+    iconTone: "green",
     icon: <BookOpen size={24} strokeWidth={1.7} />,
     title: "Compréhension écrite",
     desc: "Lire des textes courts et répondre à des QCM.",
@@ -63,6 +66,7 @@ const TCF_CARDS: Array<{
   },
   {
     code: "TCF_STRUCTURE",
+    iconTone: "amber",
     icon: <SpellCheck size={24} strokeWidth={1.7} />,
     title: "Structure de la langue",
     desc: "Grammaire, vocabulaire, conjugaison et syntaxe.",
@@ -72,6 +76,7 @@ const TCF_CARDS: Array<{
   },
   {
     code: "TCF_EE",
+    iconTone: "slate",
     icon: <PenLine size={24} strokeWidth={1.7} />,
     title: "Expression écrite",
     desc: "Rédiger des messages courts, analysés par l'IA.",
@@ -83,6 +88,7 @@ const TCF_CARDS: Array<{
   },
   {
     code: "TCF_EO",
+    iconTone: "red",
     icon: <Mic size={24} strokeWidth={1.7} />,
     title: "Expression orale",
     desc: "Répondre à l'oral, enregistré et analysé par l'IA.",
@@ -237,6 +243,7 @@ export function TcfHub({ user }: { user: AuthenticatedUser | null }) {
             <CategoryCard
               key={card.code}
               icon={card.icon}
+              iconTone={card.iconTone}
               title={card.title}
               desc={card.desc}
               percent={stat?.percent ?? null}

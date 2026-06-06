@@ -187,6 +187,27 @@
   flex-shrink: 0;
 }
 
+/* Tonalités des icônes de catégorie (une couleur par thème/épreuve). */
+.cardIconGreen {
+  background: color-mix(in srgb, var(--color-green) 14%, #fff);
+  color: var(--color-green);
+}
+
+.cardIconAmber {
+  background: color-mix(in srgb, var(--color-amber) 18%, #fff);
+  color: color-mix(in srgb, var(--color-amber) 75%, var(--color-ink));
+}
+
+.cardIconRed {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
+.cardIconSlate {
+  background: var(--color-paper-2);
+  color: var(--color-muted);
+}
+
 .cardTitles {
   flex: 1;
   min-width: 0;

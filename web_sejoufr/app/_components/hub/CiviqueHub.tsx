@@ -34,29 +34,39 @@ const DEMO_BATCH_SIZE = 20;
 /** Contenu statique des 5 cards civiques (maquette sejour_fr.html), par code thème. */
 const CIVIQUE_CONTENT: Record<
   string,
-  { icon: React.ReactNode; desc: string; chips: string[] }
+  {
+    icon: React.ReactNode;
+    iconTone: "blue" | "green" | "amber" | "red" | "slate";
+    desc: string;
+    chips: string[];
+  }
 > = {
   CIV_PRINCIPES: {
+    iconTone: "blue",
     icon: <Scale size={24} strokeWidth={1.7} />,
     desc: "Liberté, égalité, fraternité, laïcité, démocratie.",
     chips: ["Liberté", "Égalité", "Fraternité", "Laïcité", "Démocratie"],
   },
   CIV_INSTITUTIONS: {
+    iconTone: "green",
     icon: <Landmark size={24} strokeWidth={1.7} />,
     desc: "Président, gouvernement, parlement, justice, collectivités.",
     chips: ["Président", "Gouvernement", "Parlement", "Justice", "Collectivités"],
   },
   CIV_DROITS_DEVOIRS: {
+    iconTone: "amber",
     icon: <Gavel size={24} strokeWidth={1.7} />,
     desc: "Droits des citoyens, devoirs civiques, lois, école, travail, impôts.",
     chips: ["Droits", "Devoirs", "Lois", "École", "Travail"],
   },
   CIV_HISTOIRE_GEO: {
+    iconTone: "red",
     icon: <Globe size={24} strokeWidth={1.7} />,
     desc: "Grandes dates, symboles, géographie, culture, patrimoine, fêtes.",
     chips: ["Histoire", "Symboles", "Géographie", "Culture", "Patrimoine"],
   },
   CIV_SOCIETE: {
+    iconTone: "slate",
     icon: <Users size={24} strokeWidth={1.7} />,
     desc: "Vie quotidienne, logement, santé, éducation, travail, services publics.",
     chips: ["Quotidien", "Logement", "Santé", "Éducation", "Services publics"],
@@ -194,6 +204,7 @@ export function CiviqueHub({ user }: { user: AuthenticatedUser | null }) {
         {cards.map((card) => {
           const content = CIVIQUE_CONTENT[card.code] ?? {
             icon: <Landmark size={24} strokeWidth={1.7} />,
+            iconTone: "blue" as const,
             desc: "",
             chips: [],
           };
@@ -204,6 +215,7 @@ export function CiviqueHub({ user }: { user: AuthenticatedUser | null }) {
             <CategoryCard
               key={card.themeId}
               icon={content.icon}
+              iconTone={content.iconTone}
               title={card.title}
               desc={content.desc}
               percent={card.stat?.percent ?? null}

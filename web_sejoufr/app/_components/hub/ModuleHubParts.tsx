@@ -129,12 +129,23 @@ export interface CategoryCta {
   variant: "soft" | "solid";
 }
 
+export type CategoryIconTone = "blue" | "green" | "amber" | "red" | "slate";
+
+const ICON_TONES: Record<CategoryIconTone, string> = {
+  blue: "",
+  green: styles.cardIconGreen,
+  amber: styles.cardIconAmber,
+  red: styles.cardIconRed,
+  slate: styles.cardIconSlate,
+};
+
 /**
  * Card catégorie : icône + titre + description + donut, chips de contenus,
  * badge de statut + méta ("4 examens blancs" / "Niveau estimé B1"), CTAs.
  */
 export function CategoryCard({
   icon,
+  iconTone = "blue",
   title,
   desc,
   percent,
@@ -143,6 +154,7 @@ export function CategoryCard({
   ctas,
 }: {
   icon: React.ReactNode;
+  iconTone?: CategoryIconTone;
   title: string;
   desc: string;
   percent: number | null;
@@ -154,7 +166,7 @@ export function CategoryCard({
   return (
     <article className={styles.card}>
       <div className={styles.cardTop}>
-        <span className={styles.cardIcon} aria-hidden>
+        <span className={`${styles.cardIcon} ${ICON_TONES[iconTone]}`} aria-hidden>
           {icon}
         </span>
         <div className={styles.cardTitles}>
