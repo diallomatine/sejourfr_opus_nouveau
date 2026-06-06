@@ -151,10 +151,16 @@ STRUCTURE) gardent l'écran d'intro comme présentation (« Compréhension orale
 25 questions · 20 min ») mais pas le bandeau. Undefined sur les attempts
 d'avant le tri (groupes > 3). **Notation TCF calibrée** : tous les examens TCF
 stratifiés (module CO/CE/STRUCTURE + templates diagnostic) portent
-`calibratedScore` 100-499 + `cecrlLevel` (backend `doFinish` +
-`AttemptMapper.isStratifiedTcfExam`) — le hero `ExamReport`, `/historique` et
-les stats « meilleur score » affichent `x/499` quand présent, le score brut
-sinon (attempts historiques sans score pondéré). **CO en examen = conditions réelles** : audio
+`calibratedScore` 100-499 + `cecrlLevel`, calculés UNIQUEMENT backend
+(`TcfLevelEstimatorService` — score corrigé du hasard 25 %, niveau = bande du
+score ; V112 a invalidé les niveaux de l'ancienne règle « palier ») — le hero
+`ExamReport`, `/historique` et les stats « meilleur score » affichent `x/499`
+quand présent, le score brut sinon. **Examens multi-épreuves** : le backend
+expose `AttemptResponse.epreuveResults` (score + niveau par épreuve, CO_IMAGE
+sous CO) et le `cecrlLevel` global est le PLANCHER des épreuves (règle TCF
+IRN : il faut le niveau partout) ; `ExamReport` rend la card « Votre niveau
+par épreuve » (badge rouge sur l'épreuve plancher) + note expliquant le min.
+Miroirs `AttemptEpreuveResult` dans lib/types.ts et attempt_models.dart. **CO en examen = conditions réelles** : audio
 autoplay à écoute unique sans contrôles (`MediaView` prop `examAudio`,
 fallback bouton one-shot si l'autoplay est bloqué) et retour arrière interdit
 vers une question CO (`canGoPrevious` du runner). En TRAINING (séries), le

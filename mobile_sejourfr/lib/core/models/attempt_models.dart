@@ -122,6 +122,7 @@ class Attempt {
     this.themeId,
     this.calibratedScore,
     this.cecrlLevel,
+    this.epreuveResults = const [],
   });
 
   final String id;
@@ -153,7 +154,13 @@ class Attempt {
   final int? calibratedScore;
 
   /// Niveau CECRL estimé de l'examen module TCF (CO/CE). Null hors module.
+  /// Sur un examen multi-épreuves (diagnostic CO→CE), c'est le PLANCHER des
+  /// niveaux de [epreuveResults] (règle TCF IRN : il faut le niveau partout).
   final NiveauCecrl? cecrlLevel;
+
+  /// Détail par épreuve d'un examen TCF stratifié fini (CO_IMAGE regroupée
+  /// sous CO). Vide hors examen TCF ou tant que l'attempt court.
+  final List<AttemptEpreuveResult> epreuveResults;
 
   bool get isMockExam => type == AttemptType.mockExam;
   bool get isFinished => finishedAt != null;
@@ -185,11 +192,44 @@ class Attempt {
         themeId: json['themeId'] as String?,
         calibratedScore: (json['calibratedScore'] as num?)?.toInt(),
         cecrlLevel: NiveauCecrl.fromWireNullable(json['cecrlLevel'] as String?),
+        epreuveResults: (json['epreuveResults'] as List<dynamic>?)
+                ?.map((e) =>
+                    AttemptEpreuveResult.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            const [],
         questions: (json['questions'] as List<dynamic>?)
                 ?.map((q) =>
                     AttemptQuestion.fromJson(q as Map<String, dynamic>))
                 .toList() ??
             const [],
+      );
+}
+
+/// Résultat d'une épreuve au sein d'un examen TCF stratifié (miroir du DTO
+/// backend `AttemptEpreuveResult`). Le niveau global de l'attempt est le
+/// plancher de ces niveaux.
+class AttemptEpreuveResult {
+  AttemptEpreuveResult({
+    required this.epreuve,
+    required this.correct,
+    required this.total,
+    required this.calibratedScore,
+    required this.cecrlLevel,
+  });
+
+  final QuestionType epreuve;
+  final int correct;
+  final int total;
+  final int calibratedScore;
+  final NiveauCecrl? cecrlLevel;
+
+  factory AttemptEpreuveResult.fromJson(Map<String, dynamic> json) =>
+      AttemptEpreuveResult(
+        epreuve: QuestionType.fromWire(json['epreuve'] as String),
+        correct: (json['correct'] as num).toInt(),
+        total: (json['total'] as num).toInt(),
+        calibratedScore: (json['calibratedScore'] as num).toInt(),
+        cecrlLevel: NiveauCecrl.fromWireNullable(json['cecrlLevel'] as String?),
       );
 }
 

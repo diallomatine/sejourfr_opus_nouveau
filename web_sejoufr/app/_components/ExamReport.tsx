@@ -13,6 +13,7 @@ import {
   Trophy,
   X,
 } from "lucide-react";
+import { MediaView } from "./MediaView";
 import { niveauCecrlLabel, orderedChoices } from "@/lib/types";
 import type {
   AttemptQuestionResponse,
@@ -20,6 +21,13 @@ import type {
 } from "@/lib/types";
 
 type Filter = "all" | "wrong" | "right" | "skipped";
+
+/** Icône + libellé des épreuves d'un examen TCF multi-épreuves. */
+const EPREUVE_META: Record<string, { icon: string; label: string }> = {
+  CO: { icon: "🎧", label: "Compréhension orale" },
+  CE: { icon: "📖", label: "Compréhension écrite" },
+  STRUCTURE: { icon: "🧩", label: "Structures de la langue" },
+};
 
 /**
  * Rapport d'un examen blanc / d'une série finalisée (maquette
@@ -56,6 +64,8 @@ export function ExamReport({
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
+  /** Détail par épreuve (examens TCF CO→CE) — niveau global = plancher. */
+  const epreuves = attempt.epreuveResults ?? [];
 
   const sorted = useMemo(
     () => [...attempt.questions].sort((a, b) => a.position - b.position),
@@ -215,7 +225,7 @@ export function ExamReport({
               </div>
               {attempt.cecrlLevel ? (
                 <div>
-                  <dt>Niveau estimé</dt>
+                  <dt>{epreuves.length >= 2 ? "Niveau global" : "Niveau estimé"}</dt>
                   <dd className="rpt-hero-level">
                     {niveauCecrlLabel(attempt.cecrlLevel)}
                   </dd>
@@ -231,6 +241,41 @@ export function ExamReport({
             </dl>
           </div>
         </header>
+
+        {/* ===== niveau par épreuve (examens TCF multi-épreuves) ===== */}
+        {epreuves.length >= 2 && (
+          <section className="rpt-card rpt-epreuves">
+            <h2 className="rpt-card-title">Votre niveau par épreuve</h2>
+            <ul className="rpt-epv-list">
+              {epreuves.map((e) => {
+                const meta = EPREUVE_META[e.epreuve] ?? { icon: "📋", label: e.epreuve };
+                const isFloor =
+                  attempt.cecrlLevel != null && e.cecrlLevel === attempt.cecrlLevel;
+                return (
+                  <li key={e.epreuve} className="rpt-epv">
+                    <span className="rpt-epv-ico" aria-hidden>
+                      {meta.icon}
+                    </span>
+                    <span className="rpt-epv-name">{meta.label}</span>
+                    <span className="rpt-epv-meta">
+                      {e.correct}/{e.total} bonnes réponses · {e.calibratedScore}/499
+                    </span>
+                    <span className={`rpt-epv-level ${isFloor ? "is-floor" : ""}`}>
+                      {niveauCecrlLabel(e.cecrlLevel)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="rpt-epv-note">
+              Comme au TCF IRN, votre niveau global correspond à votre épreuve
+              la <strong>plus faible</strong> — il faut atteindre le niveau
+              dans chaque épreuve pour le valider (l&apos;expression écrite et
+              orale comptent aussi le jour J). Faites monter votre point
+              faible pour faire monter l&apos;ensemble.
+            </p>
+          </section>
+        )}
 
         {/* ===== sous-thèmes + et maintenant ===== */}
         <div className={`rpt-grid ${byTheme.length === 0 ? "rpt-grid-solo" : ""}`}>
@@ -434,6 +479,13 @@ function ReportRow({
             </div>
           )}
 
+          {/* Médias de la question (audio CO, image CO_IMAGE…) — lecteur
+              libre dans le corrigé : on peut réécouter autant qu'on veut. */}
+          {q.media && <MediaView key={q.id} media={q.media} />}
+          {q.audioMedia && (
+            <MediaView key={`${q.id}-audio`} media={q.audioMedia} />
+          )}
+
           <div className="rpt-choices">
             {orderedChoices(q.choices).map((c, i) => {
               // FULL_AUDIO : label réduit à une lettre (clé citée par
@@ -574,6 +626,53 @@ const styles = `
   .rpt-hero-level { color: var(--color-blue) !important; }
 
   /* ===== grid sous-thèmes / et maintenant ===== */
+  .rpt-epreuves { margin-bottom: 18px; }
+  .rpt-epv-list {
+    list-style: none; padding: 0; margin: 0 0 12px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .rpt-epv {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--color-paper);
+    border: 1px solid var(--color-line-2);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .rpt-epv-ico { font-size: 18px; line-height: 1; flex-shrink: 0; }
+  .rpt-epv-name {
+    font-weight: 700; font-size: 14px; color: var(--color-ink);
+    flex-shrink: 0;
+  }
+  .rpt-epv-meta {
+    flex: 1; min-width: 0; text-align: right;
+    font-family: var(--font-mono); font-size: 11.5px;
+    color: var(--color-muted); letter-spacing: 0.02em;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .rpt-epv-level {
+    flex-shrink: 0;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.08em;
+    background: var(--color-blue-light); color: var(--color-blue);
+    padding: 4px 10px; border-radius: 100px;
+  }
+  .rpt-epv-level.is-floor {
+    background: var(--color-red-light); color: var(--color-red);
+  }
+  .rpt-epv-note {
+    margin: 0;
+    font-size: 13px; line-height: 1.55; color: var(--color-muted);
+    background: var(--color-blue-soft);
+    border-left: 3px solid var(--color-blue);
+    border-radius: 10px;
+    padding: 10px 14px;
+  }
+  .rpt-epv-note strong { color: var(--color-ink); }
+  @media (max-width: 640px) {
+    .rpt-epv { flex-wrap: wrap; }
+    .rpt-epv-meta { flex-basis: 100%; order: 4; text-align: left; }
+  }
+
   .rpt-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;

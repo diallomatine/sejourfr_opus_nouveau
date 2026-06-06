@@ -36,9 +36,13 @@ public class TcfLevelEstimatorService {
     private static final int SCORE_BASE = 100;
     private static final int SCORE_SPAN = 399;
 
-    /** Garde-fou « palier maîtrisé » : ratio mini + nombre d'items mini. */
-    private static final double PALIER_PASS_RATIO = 0.70;
-    private static final int PALIER_MIN_ITEMS = 6;
+    /**
+     * Ligne de base du hasard d'un QCM à 4 choix : ~25 % de réussite pondérée
+     * sans aucune connaissance. Le score calibré est mesuré au-dessus de cette
+     * ligne — sans correction, un passage 100 % aléatoire atteignait ~200
+     * (plancher de la bande A2) et surestimait les candidats faibles.
+     */
+    private static final double GUESS_BASELINE = 0.25;
 
     /**
      * Score calibré 100-499 d'un QCM, dérivé du poids obtenu / poids max.
@@ -53,52 +57,35 @@ public class TcfLevelEstimatorService {
         return calibratedScore(gotW, maxW);
     }
 
-    /** Variante depuis un score pondéré déjà calculé (weighted / maxWeighted). */
+    /**
+     * Variante depuis un score pondéré déjà calculé (weighted / maxWeighted).
+     * Le ratio est corrigé du hasard : {@code (ratio − 0.25) / 0.75}, borné à
+     * [0, 1]. Hasard pur → 100 (« A1 non atteint ») ; sans-faute → 499.
+     */
     public int calibratedScore(Integer weighted, Integer maxWeighted) {
         if (weighted == null || maxWeighted == null || maxWeighted <= 0) return SCORE_BASE;
         double ratio = Math.min(1.0, (double) weighted / maxWeighted);
-        return (int) Math.round(SCORE_BASE + ratio * SCORE_SPAN);
+        double net = Math.max(0.0, (ratio - GUESS_BASELINE) / (1.0 - GUESS_BASELINE));
+        return (int) Math.round(SCORE_BASE + net * SCORE_SPAN);
     }
 
     /**
-     * Niveau CECRL d'une épreuve QCM (CO / CE), plafonné à B2.
-     *
-     * <p>Deux lectures combinées :
-     * <ol>
-     *   <li><b>par score</b> : le score calibré place le candidat (≥400 B2,
-     *       ≥300 B1, ≥200 A2, ≥101 A1, sinon A1 non atteint) ;</li>
-     *   <li><b>par palier</b> : un niveau n'est « maîtrisé » que si ≥ 70 % de
-     *       réussite sur ses propres items (≥ 6 items vus) — sinon on ne le
-     *       crédite pas, même si le score global le suggère.</li>
-     * </ol>
-     * Le niveau retenu est <b>le plus prudent</b> des deux : un bon score tiré
-     * par quelques questions faciles ne suffit pas à valider un palier non
-     * réellement maîtrisé.
+     * Niveau CECRL d'une épreuve QCM (CO / CE), plafonné à B2 : la bande du
+     * score calibré (≥400 B2, ≥300 B1, ≥200 A2, ≥101 A1, sinon A1 non
+     * atteint), comme sur l'échelle officielle. Le score étant corrigé du
+     * hasard, l'ancien garde-fou « palier maîtrisé » (min des deux lectures)
+     * n'a plus de raison d'être — il produisait des couples incohérents du
+     * type « 292/499 · A1 non atteint ».
      */
     public NiveauCecrl estimateQcm(List<QcmAnswerResult> answers) {
         if (answers == null || answers.isEmpty()) return NiveauCecrl.A1_NON_ATTEINT;
-
-        NiveauCecrl byScore = levelByScore(calibratedScore(answers));
-
-        NiveauCecrl byPalier = NiveauCecrl.A1_NON_ATTEINT;
-        for (Difficulty strata : List.of(Difficulty.A2, Difficulty.B1, Difficulty.B2)) {
-            List<QcmAnswerResult> items = answers.stream()
-                    .filter(a -> a.difficulty() == strata)
-                    .toList();
-            long ok = items.stream().filter(QcmAnswerResult::correct).count();
-            if (items.size() >= PALIER_MIN_ITEMS
-                    && (double) ok / items.size() >= PALIER_PASS_RATIO) {
-                byPalier = toCecrl(strata);
-            }
-        }
-
-        return capB2(min(byScore, byPalier));
+        return capB2(levelByScore(calibratedScore(answers)));
     }
 
     /**
-     * Niveau « par score » seul (sans garde-fou palier), depuis un score
-     * pondéré déjà stocké. Fallback pour les examens module finis avant V416
-     * (cecrl_level encore NULL) où l'on n'a plus le détail par question.
+     * Niveau dérivé d'un score pondéré déjà stocké — même formule que
+     * {@link #estimateQcm}, ce qui garantit que le niveau affiché correspond
+     * toujours à la bande du score calibré renvoyé aux fronts.
      */
     public NiveauCecrl levelFromWeighted(Integer weighted, Integer maxWeighted) {
         if (weighted == null || maxWeighted == null || maxWeighted <= 0) return null;
@@ -137,14 +124,5 @@ public class TcfLevelEstimatorService {
 
     private static int weight(Difficulty d) {
         return d == null ? 0 : WEIGHTS.getOrDefault(d, 0);
-    }
-
-    private static NiveauCecrl toCecrl(Difficulty strata) {
-        return switch (strata) {
-            case A2 -> NiveauCecrl.A2;
-            case B1 -> NiveauCecrl.B1;
-            case B2 -> NiveauCecrl.B2;
-            default -> NiveauCecrl.A1_NON_ATTEINT;
-        };
     }
 }

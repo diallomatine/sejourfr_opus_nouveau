@@ -37,5 +37,9 @@ public record AttemptResponse(
         // Null hors examen module TCF.
         Integer calibratedScore,
         NiveauCecrl cecrlLevel,
+        // Détail par épreuve d'un examen TCF stratifié fini (CO/CE…) — le
+        // cecrlLevel global ci-dessus est le plancher de ces niveaux, comme
+        // au TCF IRN. Vide hors examen TCF ou tant que l'attempt court.
+        List<AttemptEpreuveResult> epreuveResults,
         List<AttemptQuestionResponse> questions
 ) {}

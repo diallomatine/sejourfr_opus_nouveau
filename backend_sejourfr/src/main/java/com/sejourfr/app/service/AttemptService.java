@@ -45,8 +45,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -1050,7 +1052,10 @@ public class AttemptService {
                 // stockée sur cecrl_level et projetée sur level_achieved
                 // (A2/B1/B2). On persiste aussi le score pondéré
                 // (A2=1, B1=2, B2=3) qui dérive le score calibré 100-499.
-                NiveauCecrl cecrl = levelEstimator.estimateQcm(toQcmResults(aqs));
+                // Niveau global = plancher des épreuves (règle TCF IRN : il
+                // faut le niveau partout). Mono-épreuve : équivaut à
+                // estimateQcm sur tout l'attempt.
+                NiveauCecrl cecrl = estimatePerEpreuveFloor(aqs);
                 attempt.setCecrlLevel(cecrl);
                 attempt.setLevelAchieved(toTargetLevel(cecrl));
                 attempt.setWeightedScore(computeWeightedScore(aqs, true));
@@ -1103,6 +1108,26 @@ public class AttemptService {
     }
 
     /** Projette les questions d'un attempt en entrées d'estimation CECRL. */
+    /**
+     * Niveau d'un examen TCF stratifié : estimation épreuve par épreuve
+     * (CO_IMAGE regroupée sous CO), puis plancher — comme au TCF IRN où le
+     * niveau global est le plus faible des épreuves. Le détail par épreuve
+     * exposé aux fronts est recalculé à la lecture (AttemptMapper).
+     */
+    private NiveauCecrl estimatePerEpreuveFloor(List<AttemptQuestion> aqs) {
+        Map<QuestionType, List<AttemptQuestion>> byEpreuve = new LinkedHashMap<>();
+        for (AttemptQuestion aq : aqs) {
+            QuestionType t = aq.getQuestion().getQuestionType();
+            if (t == null) continue;
+            QuestionType key = t == QuestionType.CO_IMAGE ? QuestionType.CO : t;
+            byEpreuve.computeIfAbsent(key, k -> new ArrayList<>()).add(aq);
+        }
+        List<NiveauCecrl> levels = byEpreuve.values().stream()
+                .map(group -> levelEstimator.estimateQcm(toQcmResults(group)))
+                .toList();
+        return levelEstimator.floor(levels);
+    }
+
     private static List<QcmAnswerResult> toQcmResults(List<AttemptQuestion> aqs) {
         return aqs.stream()
                 .map(aq -> new QcmAnswerResult(

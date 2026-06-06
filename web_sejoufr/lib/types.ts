@@ -281,7 +281,19 @@ export interface AttemptResponse {
   /** Score calibré 100-499 + niveau CECRL estimé (examens module TCF). */
   calibratedScore?: number | null;
   cecrlLevel?: NiveauCecrl | null;
+  /** Détail par épreuve d'un examen TCF stratifié fini — `cecrlLevel` est le
+   *  plancher de ces niveaux (règle TCF IRN : il faut le niveau partout). */
+  epreuveResults?: AttemptEpreuveResult[];
   questions: AttemptQuestionResponse[];
+}
+
+/** Résultat d'une épreuve au sein d'un examen TCF (CO_IMAGE regroupée sous CO). */
+export interface AttemptEpreuveResult {
+  epreuve: QuestionType;
+  correct: number;
+  total: number;
+  calibratedScore: number;
+  cecrlLevel: NiveauCecrl;
 }
 
 export interface SubmitAnswerRequest {
