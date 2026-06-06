@@ -2,13 +2,194 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, Sparkles, Star, XCircle } from "lucide-react";
+import {
+  ChevronRight,
+  CircleHelp,
+  Compass,
+  PartyPopper,
+  Sparkles,
+  Star,
+  Target,
+  TrendingDown,
+  XCircle,
+} from "lucide-react";
 import { ReinforceRow } from "@/app/_components/ReinforceRow";
 import { dashboardApi, userContentApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import type { DashboardSummaryResponse } from "@/lib/types";
+import { categoryExamsHref, categoryHref } from "@/lib/dashboard";
+import type { DashboardCategoryStat, DashboardSummaryResponse } from "@/lib/types";
 
 type ModuleFilter = "ALL" | "TCF" | "CIVIQUE";
+
+// ============================================================================
+// Règles des priorités (validées 2026-06-06) — max 5 cards, 1 par catégorie,
+// dérivées des CategoryStat du dashboard + du compteur d'erreurs :
+//   1. En baisse      dernier examen < avant-dernier
+//   2. Point faible   progression < 60 % avec ≥ 20 répondues (EE/EO : note basse)
+//   3. À confirmer    réussite brute ≥ 70 % mais confiance incomplète (< 40 rép.)
+//   4. Jamais travaillé   percent null (EE/EO d'abord : épreuves obligatoires)
+//   5. Erreurs        ≥ 5 erreurs non revues → /revision
+// Tri : n° de règle puis progression croissante.
+// ============================================================================
+
+interface Priority {
+  rule: 1 | 2 | 3 | 4 | 5;
+  key: string;
+  badge: string;
+  tone: "red" | "amber" | "blue" | "slate";
+  icon: React.ReactNode;
+  title: string;
+  reason: string;
+  ctaLabel: string;
+  href: string;
+  percent: number | null;
+}
+
+const MAX_PRIORITIES = 5;
+const WEAK_THRESHOLD = 60;
+const CONFIRM_SUCCESS_THRESHOLD = 70;
+const QCM_CONFIDENCE_SAMPLE = 40;
+const MIN_WRONG_FOR_CARD = 5;
+
+function isProductionCat(cat: DashboardCategoryStat): boolean {
+  return cat.code === "TCF_EE" || cat.code === "TCF_EO";
+}
+
+function examOutOf(cat: DashboardCategoryStat): number {
+  return isProductionCat(cat) ? 20 : cat.code.startsWith("TCF") ? 25 : 20;
+}
+
+/** Réussite brute estimée (progression ÷ confiance) pour la règle 3. */
+function rawSuccess(cat: DashboardCategoryStat): number | null {
+  if (cat.percent === null || isProductionCat(cat)) return null;
+  const sample = Math.max(1, Math.min(QCM_CONFIDENCE_SAMPLE, cat.total || QCM_CONFIDENCE_SAMPLE));
+  const confiance = Math.min(1, cat.answered / sample);
+  if (confiance === 0) return null;
+  return Math.round(cat.percent / confiance);
+}
+
+function buildPriorities(
+  summary: DashboardSummaryResponse,
+  wrongCount: number | null,
+): Priority[] {
+  const cats = [...summary.civique, ...summary.tcf];
+  // EE/EO en tête pour la règle 4 (épreuves obligatoires du TCF IRN).
+  cats.sort((a, b) => Number(isProductionCat(b)) - Number(isProductionCat(a)));
+
+  const out: Priority[] = [];
+  const taken = new Set<string>();
+  const push = (p: Priority) => {
+    if (!taken.has(p.key)) {
+      taken.add(p.key);
+      out.push(p);
+    }
+  };
+
+  for (const cat of cats) {
+    // 1. En baisse
+    if (
+      cat.lastMockScore != null &&
+      cat.prevMockScore != null &&
+      cat.lastMockScore < cat.prevMockScore
+    ) {
+      push({
+        rule: 1,
+        key: cat.code,
+        badge: "En baisse",
+        tone: "red",
+        icon: <TrendingDown size={17} />,
+        title: cat.label,
+        reason: `${cat.prevMockScore}/${examOutOf(cat)} → ${cat.lastMockScore}/${examOutOf(cat)} au dernier examen.`,
+        ctaLabel: "Refaire un examen",
+        href: categoryExamsHref(cat),
+        percent: cat.percent,
+      });
+    }
+  }
+  for (const cat of cats) {
+    // 2. Point faible
+    const enoughPractice = isProductionCat(cat) ? cat.percent !== null : cat.answered >= 20;
+    if (cat.percent !== null && cat.percent < WEAK_THRESHOLD && enoughPractice) {
+      push({
+        rule: 2,
+        key: cat.code,
+        badge: "Point faible",
+        tone: "amber",
+        icon: <Target size={17} />,
+        title: cat.label,
+        reason: isProductionCat(cat)
+          ? `Note moyenne basse (${cat.percent} %) sur vos dernières soumissions.`
+          : `${cat.percent} % de réussite — c'est votre priorité d'entraînement.`,
+        ctaLabel: isProductionCat(cat) ? "S'exercer" : "Série ciblée",
+        href: categoryHref(cat),
+        percent: cat.percent,
+      });
+    }
+  }
+  for (const cat of cats) {
+    // 3. À confirmer
+    const success = rawSuccess(cat);
+    if (
+      success !== null &&
+      success >= CONFIRM_SUCCESS_THRESHOLD &&
+      cat.answered < Math.min(QCM_CONFIDENCE_SAMPLE, cat.total || QCM_CONFIDENCE_SAMPLE)
+    ) {
+      push({
+        rule: 3,
+        key: cat.code,
+        badge: "À confirmer",
+        tone: "blue",
+        icon: <CircleHelp size={17} />,
+        title: cat.label,
+        reason: `${Math.min(100, success)} % de réussite mais sur ${cat.answered} question${cat.answered > 1 ? "s" : ""} seulement — confirmez.`,
+        ctaLabel: "Examen blanc",
+        href: categoryExamsHref(cat),
+        percent: cat.percent,
+      });
+    }
+  }
+  for (const cat of cats) {
+    // 4. Jamais travaillé
+    if (cat.percent === null) {
+      push({
+        rule: 4,
+        key: cat.code,
+        badge: "À découvrir",
+        tone: "slate",
+        icon: <Compass size={17} />,
+        title: cat.label,
+        reason: isProductionCat(cat)
+          ? "Épreuve obligatoire du TCF IRN, jamais évaluée."
+          : "Jamais travaillée pour l'instant.",
+        ctaLabel: isProductionCat(cat) ? "S'exercer" : "Découvrir",
+        href: categoryHref(cat),
+        percent: null,
+      });
+    }
+  }
+  // 5. Erreurs à recycler
+  if (wrongCount != null && wrongCount >= MIN_WRONG_FOR_CARD) {
+    push({
+      rule: 5,
+      key: "__erreurs__",
+      badge: "Erreurs",
+      tone: "red",
+      icon: <XCircle size={17} />,
+      title: "Vos erreurs",
+      reason: `${wrongCount} question${wrongCount > 1 ? "s" : ""} ratée${wrongCount > 1 ? "s" : ""} à retravailler.`,
+      ctaLabel: "Mes erreurs",
+      href: "/revision?tab=erreurs",
+      percent: null,
+    });
+  }
+
+  out.sort(
+    (a, b) =>
+      a.rule - b.rule ||
+      (a.percent ?? 101) - (b.percent ?? 101),
+  );
+  return out.slice(0, MAX_PRIORITIES);
+}
 
 /**
  * Recommandations : liste complète des catégories à renforcer (les deux
@@ -45,6 +226,11 @@ export default function RecommandationsPage() {
       cancelled = true;
     };
   }, [status, user]);
+
+  const priorities = useMemo(
+    () => (summary ? buildPriorities(summary, wrongCount) : []),
+    [summary, wrongCount],
+  );
 
   // Catégories travaillées d'abord (faibles → fortes), puis jamais
   // travaillées ("À découvrir") en fin de liste. Filtrables par parcours
@@ -129,6 +315,41 @@ export default function RecommandationsPage() {
           </span>
           <ChevronRight size={16} aria-hidden className="reco-shortcut-arrow" />
         </Link>
+      </section>
+
+      <section className="reco-card" aria-label="Vos priorités">
+        <h2>Vos priorités</h2>
+        {priorities.length === 0 ? (
+          <div className="reco-allgood">
+            <PartyPopper size={18} aria-hidden />
+            <p>
+              Rien d&apos;urgent — tout est solide. Entretenez votre niveau avec un{" "}
+              <Link href="/examens-blancs">examen blanc complet</Link>.
+            </p>
+          </div>
+        ) : (
+          <ul className="reco-prio-list">
+            {priorities.map((p) => (
+              <li key={p.key} className="reco-prio">
+                <span className={`reco-prio-icon reco-prio-${p.tone}`} aria-hidden>
+                  {p.icon}
+                </span>
+                <span className="reco-prio-body">
+                  <span className="reco-prio-top">
+                    <span className={`reco-prio-badge reco-prio-badge-${p.tone}`}>
+                      {p.badge}
+                    </span>
+                    <span className="reco-prio-title">{p.title}</span>
+                  </span>
+                  <span className="reco-prio-reason">{p.reason}</span>
+                </span>
+                <Link href={p.href} className="reco-prio-cta">
+                  {p.ctaLabel}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="reco-card" aria-label="Catégories à renforcer">
@@ -244,6 +465,84 @@ const recoStyles = `
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .reco-shortcut-arrow { color: var(--color-muted-2); flex-shrink: 0; }
+
+  /* ===== priorités ===== */
+  .reco-prio-list {
+    list-style: none;
+    margin: 0; padding: 0;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .reco-prio {
+    display: flex; align-items: center; gap: 14px;
+    border: 1px solid var(--color-line);
+    border-radius: 13px;
+    padding: 14px 16px;
+    min-width: 0;
+    background: #fff;
+  }
+  .reco-prio-icon {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .reco-prio-red { background: var(--color-red-light); color: var(--color-red); }
+  .reco-prio-amber { background: color-mix(in srgb, var(--color-amber) 18%, #fff); color: color-mix(in srgb, var(--color-amber) 75%, var(--color-ink)); }
+  .reco-prio-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .reco-prio-slate { background: var(--color-paper-2); color: var(--color-muted); }
+  .reco-prio-body { flex: 1; min-width: 0; }
+  .reco-prio-top {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 4px;
+    min-width: 0;
+  }
+  .reco-prio-badge {
+    font-family: var(--font-mono);
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .reco-prio-badge-red { background: var(--color-red-light); color: var(--color-red); }
+  .reco-prio-badge-amber { background: color-mix(in srgb, var(--color-amber) 18%, #fff); color: color-mix(in srgb, var(--color-amber) 75%, var(--color-ink)); }
+  .reco-prio-badge-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .reco-prio-badge-slate { background: var(--color-paper-2); color: var(--color-muted); }
+  .reco-prio-title {
+    font-size: 14px; font-weight: 700;
+    color: var(--color-ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .reco-prio-reason {
+    display: block;
+    font-size: 12.5px; color: var(--color-muted);
+    line-height: 1.45;
+  }
+  .reco-prio-cta {
+    background: var(--color-blue-light);
+    color: var(--color-blue);
+    border-radius: 999px;
+    padding: 9px 16px;
+    font-size: 13px; font-weight: 700;
+    text-decoration: none;
+    flex-shrink: 0;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+  }
+  .reco-prio-cta:hover { background: var(--color-blue); color: #fff; }
+  .reco-allgood {
+    display: flex; align-items: center; gap: 10px;
+    background: color-mix(in srgb, var(--color-green) 10%, #fff);
+    border: 1px solid color-mix(in srgb, var(--color-green) 30%, transparent);
+    border-radius: 12px;
+    padding: 14px 16px;
+    color: var(--color-green);
+  }
+  .reco-allgood p { margin: 0; font-size: 14px; color: var(--color-ink-2); }
+  .reco-allgood a { color: var(--color-blue); font-weight: 700; }
+  @media (max-width: 560px) {
+    .reco-prio { flex-wrap: wrap; }
+    .reco-prio-body { order: 3; flex-basis: 100%; }
+  }
 
   /* ===== liste complète ===== */
   .reco-card {

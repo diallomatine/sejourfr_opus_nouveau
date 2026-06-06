@@ -23,6 +23,26 @@ export function categoryHref(cat: DashboardCategoryStat): string {
   }
 }
 
+/** Page d'examens blancs d'une catégorie (pendant de categoryHref). */
+export function categoryExamsHref(cat: DashboardCategoryStat): string {
+  switch (cat.code) {
+    case "TCF_CO":
+      return "/entrainement/tcf/co/examens";
+    case "TCF_CE":
+      return "/entrainement/tcf/ce/examens";
+    case "TCF_STRUCTURE":
+      return "/entrainement/tcf/structure/examens";
+    case "TCF_EE":
+      return "/entrainement/tcf/ee/examens";
+    case "TCF_EO":
+      return "/entrainement/tcf/eo/examens";
+    default:
+      return cat.themeId
+        ? `/entrainement/civique/${cat.themeId}/examens`
+        : "/examens-blancs";
+  }
+}
+
 /** Teinte d'une barre de progression : vert ≥ 80, ambre < 60, bleu entre les deux. */
 export function barTone(percent: number | null): "green" | "amber" | "blue" {
   if (percent === null) return "blue";

@@ -411,6 +411,26 @@ Toute valeur de « progression » d'un thème / d'une épreuve vient de
   dont 48 bonnes → **80 %** ; 1 soumission EE notée 14/20 → 70 % × 1/3 =
   **23 %**.
 
+### Règles des recommandations (validées 2026-06-06)
+
+`/recommandations` ouvre sur **« Vos priorités »** : max 5 cards avec raison
+chiffrée + CTA, dérivées côté front (`buildPriorities`) des `CategoryStat`
+du dashboard + du compteur d'erreurs. Une seule reco par catégorie, dans
+cet ordre :
+
+1. **En baisse** — dernier examen < avant-dernier → Refaire un examen
+2. **Point faible** — progression < 60 % avec ≥ 20 répondues (EE/EO : note
+   basse) → Série ciblée / S'exercer
+3. **À confirmer** — réussite brute (progression ÷ confiance) ≥ 70 % mais
+   < 40 répondues → Examen blanc
+4. **Jamais travaillé** — percent null, EE/EO d'abord (épreuves obligatoires
+   TCF IRN) → Découvrir
+5. **Erreurs** — ≥ 5 erreurs non revues → /revision
+
+Tri : n° de règle puis progression croissante ; si rien ne matche → card
+« Rien d'urgent » (CTA examen complet). En dessous : le classement complet
+filtrable (Tous / TCF / Civique) reste comme détail.
+
 - **Vague 8 (branche `web_refonte`)** ✅ — **Refonte shell app + dashboard**
   (maquette "Tableau de bord" SaaS) :
     - **Sidebar** (`AppSidebar.tsx`) recomposée : Accueil → `/` (landing
