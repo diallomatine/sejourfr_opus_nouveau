@@ -208,14 +208,14 @@ export default function DashboardPage() {
 
       <section className="modules-grid" aria-label="Progression par parcours">
         <ModuleCard
-          accent="blue"
+          accent="red"
           icon={<Waves size={20} />}
           title="TCF IRN"
           href="/entrainement?module=TCF"
           categories={summary?.tcf ?? []}
         />
         <ModuleCard
-          accent="red"
+          accent="blue"
           icon={<Lightbulb size={20} />}
           title="Examen civique"
           href="/entrainement?module=CIVIQUE"
