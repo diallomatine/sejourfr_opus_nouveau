@@ -32,17 +32,23 @@ function fmtTimer(sec: number): string {
 }
 
 /** Message précis selon le type d'échec de `getUserMedia`. */
-function micErrorMessage(name: string): string {
+function micErrorMessage(name: string, message: string): string {
+  // Chrome précise "Permission denied by system" quand c'est l'OS (et non le
+  // site) qui bloque le navigateur — cas typique : site sur Autoriser mais
+  // macOS n'a pas donné le micro à Chrome.
+  if (/system/i.test(message)) {
+    return "C'est votre système qui bloque le micro du navigateur (le site, lui, est autorisé). macOS : Réglages Système → Confidentialité et sécurité → Microphone → activez votre navigateur, puis quittez-le et relancez-le.";
+  }
   switch (name) {
     case "NotAllowedError":
     case "SecurityError":
-      return "Accès au micro refusé. Cliquez sur l'icône à gauche de l'adresse → Microphone → Autoriser, puis rechargez la page.";
+      return "Accès au micro refusé. Autorisez-le via l'icône à gauche de l'adresse → Microphone, et vérifiez aussi que votre système autorise ce navigateur à utiliser le micro (macOS : Réglages Système → Confidentialité et sécurité → Microphone). Puis réessayez.";
     case "NotFoundError":
     case "DevicesNotFoundError":
       return "Aucun microphone détecté. Branchez un micro puis réessayez.";
     case "NotReadableError":
     case "TrackStartError":
-      return "Le micro est utilisé par une autre application. Fermez-la puis réessayez.";
+      return "Le micro est utilisé par une autre application (visioconférence, dictaphone…). Fermez-la puis réessayez.";
     default:
       return "Micro inaccessible. Autorisez le microphone dans votre navigateur, puis réessayez.";
   }
@@ -94,6 +100,11 @@ export function EoRecordingForm({
 
   // Détection du contexte + état de permission au montage (sans déclencher la
   // pop-up : on lit juste l'état pour afficher le bon message d'amorce).
+  // L'état "denied" n'est qu'indicatif — l'API Permissions de Chrome peut
+  // être en désaccord avec les réglages réels (changement sans reload,
+  // origine localhost vs IP LAN, permission système). La source de vérité
+  // est le `getUserMedia` déclenché au clic ; on re-lit aussi l'état quand
+  // l'onglet reprend le focus (retour des réglages).
   useEffect(() => {
     if (typeof window === "undefined") return;
     const initial = !window.isSecureContext
@@ -105,15 +116,35 @@ export function EoRecordingForm({
         : "ready";
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMicState(initial);
-    if (initial === "ready" && navigator.permissions?.query) {
-      navigator.permissions
-        .query({name: "microphone" as PermissionName})
-        .then((res) => {
-          if (res.state === "denied") setMicState("denied");
-          res.onchange = () => setMicState(res.state === "denied" ? "denied" : "ready");
-        })
-        .catch(() => undefined);
-    }
+    if (initial !== "ready" || !navigator.permissions?.query) return;
+
+    let result: PermissionStatus | null = null;
+    const apply = (state: PermissionState) => {
+      setMicState((prev) =>
+        prev === "insecure" || prev === "unsupported"
+          ? prev
+          : state === "denied"
+            ? "denied"
+            : "ready",
+      );
+    };
+    navigator.permissions
+      .query({name: "microphone" as PermissionName})
+      .then((res) => {
+        result = res;
+        apply(res.state);
+        res.onchange = () => apply(res.state);
+      })
+      .catch(() => undefined);
+
+    const onFocus = () => {
+      if (result) apply(result.state);
+    };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      if (result) result.onchange = null;
+    };
   }, []);
 
   async function start() {
@@ -151,9 +182,12 @@ export function EoRecordingForm({
       timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
     } catch (e) {
       const name = typeof e === "object" && e && "name" in e ? String((e as {name?: unknown}).name) : "";
+      const message =
+        typeof e === "object" && e && "message" in e
+          ? String((e as {message?: unknown}).message)
+          : "";
       if (name === "NotAllowedError" || name === "SecurityError") setMicState("denied");
-      else if (name === "NotFoundError" || name === "DevicesNotFoundError") setMicState("unsupported");
-      setPermError(micErrorMessage(name));
+      setPermError(micErrorMessage(name, message));
     }
   }
 
@@ -184,15 +218,17 @@ export function EoRecordingForm({
         ? `≤ ${formatDurationSec(max)}`
         : "";
 
-  const blocked =
-    micState === "insecure" || micState === "unsupported" || micState === "denied";
+  // Seuls les cas réellement insolubles désactivent le bouton. "denied" reste
+  // cliquable : getUserMedia est la source de vérité (il re-prompte ou réussit
+  // si les réglages ont changé sans reload).
+  const blocked = micState === "insecure" || micState === "unsupported";
   const blockMsg =
     micState === "insecure"
       ? "Le micro nécessite une connexion sécurisée (HTTPS) ou localhost. Ouvrez le site en https pour enregistrer."
       : micState === "unsupported"
         ? "Votre navigateur ne supporte pas l'enregistrement audio. Essayez Chrome ou Firefox à jour."
         : micState === "denied"
-          ? "Accès au micro bloqué. Cliquez sur l'icône à gauche de l'adresse → Microphone → Autoriser, puis rechargez la page."
+          ? "Le navigateur indique que le micro est bloqué pour ce site. Cliquez sur le micro pour réessayer — si rien ne se passe, autorisez-le via l'icône à gauche de l'adresse → Microphone."
           : null;
 
   return (
