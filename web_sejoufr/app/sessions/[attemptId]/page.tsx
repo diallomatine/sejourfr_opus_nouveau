@@ -431,8 +431,9 @@ function SessionRunnerInner({ params }: PageProps) {
   if (phase === "running" && attempt) {
     const isExam = attempt.type === "MOCK_EXAM";
     const isGuest = sessionMode === "guest";
-    // Un lot = batch fixe déterministe : pas d'extension, même pour un premium.
-    const isLot = lotNumero != null && !isExam && !isGuest;
+    // Un lot = batch fixe déterministe : pas d'extension, même pour un
+    // premium. Les guests jouent la série 1 dans ce même mode.
+    const isLot = lotNumero != null && !isExam;
     // En training auth premium : extension auto. En guest : pas d'extension
     // (un seul batch de 20Q par démo). En exam / lot : pas d'extension.
     const canExtend = !isExam && isPremium && !isGuest && !isLot;
@@ -440,7 +441,13 @@ function SessionRunnerInner({ params }: PageProps) {
     const allSameTheme =
       firstThemeId !== undefined &&
       attempt.questions.every((q) => q.question.themeId === firstThemeId);
-    const lotQuitHref = isLot ? lotReturnPath(attempt) : null;
+    // Retour vers la liste des séries : les query params (code/level) priment
+    // sur la dérivation depuis les questions (robuste face à CO_IMAGE).
+    const lotQuitHref = isLot
+      ? tcfCode && tcfLevel
+        ? `/entrainement/tcf/${tcfCode}/${tcfLevel}`
+        : lotReturnPath(attempt)
+      : null;
 
     return (
       <QuestionRunner
@@ -461,7 +468,9 @@ function SessionRunnerInner({ params }: PageProps) {
           isGuest
             ? isExam
               ? "Examen blanc · Démo"
-              : "Entraînement · Démo"
+              : isLot
+                ? `Série ${lotNumero} · Démo`
+                : "Entraînement · Démo"
             : isExam
               ? "Examen blanc"
               : isLot
