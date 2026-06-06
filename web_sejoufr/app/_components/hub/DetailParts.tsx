@@ -78,8 +78,16 @@ export function DetailShell({
  * Card de niveau CECRL : chip A2/B1/B2 + donut (moyenne des séries faites),
  * libellé, description et compteur "x/y séries faites".
  */
+const LEVEL_CHIP_TONES = {
+  blue: "",
+  green: styles.levelChipGreen,
+  amber: styles.levelChipAmber,
+  red: styles.levelChipRed,
+} as const;
+
 export function LevelChoiceCard({
   chip,
+  chipTone = "blue",
   title,
   desc,
   percent,
@@ -89,6 +97,8 @@ export function LevelChoiceCard({
   onClick,
 }: {
   chip: string;
+  /** Tonalité du chip (caractère par tâche : T1 bleu, T2 ambre, T3 rouge). */
+  chipTone?: keyof typeof LEVEL_CHIP_TONES;
   title: string;
   desc: string;
   /** Moyenne des derniers scores sur les séries faites (0-100), null si aucune. */
@@ -102,7 +112,7 @@ export function LevelChoiceCard({
   return (
     <button type="button" className={styles.levelCard} onClick={onClick}>
       <div className={styles.levelTop}>
-        <span className={styles.levelChip}>{chip}</span>
+        <span className={`${styles.levelChip} ${LEVEL_CHIP_TONES[chipTone]}`}>{chip}</span>
         <ProgressDonut percent={percent} />
       </div>
       <div>

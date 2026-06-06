@@ -21,6 +21,13 @@ import prod from "./production.module.css";
 
 type Tab = "sujets" | "exemples";
 
+/** Tonalité par tâche (alignée sur les cards du hub : T1 bleu, T2 ambre, T3 rouge). */
+const TASK_NUM_TONES: Record<number, string> = {
+  1: detail.serieNumBlue,
+  2: detail.serieNumAmber,
+  3: detail.serieNumRed,
+};
+
 /**
  * Une tâche productive (T1/T2/T3) — maquette sejour_fr.html : onglet
  * « Sujets » (cards par niveau cible → écran d'input) + onglet « Exemples »
@@ -160,7 +167,9 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
                   className={detail.serieCard}
                   onClick={() => router.push(`${config.base}/${config.inputSegment}/${t.id}`)}
                 >
-                  <span className={detail.serieNum}>{t.niveauCible}</span>
+                  <span className={`${detail.serieNum} ${TASK_NUM_TONES[n] ?? ""}`}>
+                    {t.niveauCible}
+                  </span>
                   <span className={detail.serieBody}>
                     <span className={detail.serieTitle}>Sujet {i + 1}</span>
                     <span className={detail.serieSub}>{t.consigne}</span>

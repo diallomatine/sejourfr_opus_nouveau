@@ -430,6 +430,20 @@
   color: var(--color-blue);
   letter-spacing: 0.04em;
 }
+
+/* Tonalités par tâche (alignées sur les cards : T1 bleu, T2 ambre, T3 rouge). */
+.rowChipT1 {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+.rowChipT2 {
+  background: color-mix(in srgb, var(--color-amber) 18%, #fff);
+  color: color-mix(in srgb, var(--color-amber) 75%, var(--color-ink));
+}
+.rowChipT3 {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
 .rowBody { flex: 1; min-width: 0; }
 .rowTitle { font-weight: 700; font-size: 14px; color: var(--color-ink); margin: 0; }
 .rowSub {

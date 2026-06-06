@@ -22,6 +22,9 @@ import { SubmissionRow } from "./SubmissionRow";
 
 const TASKS = [1, 2, 3] as const;
 
+/** Tonalité par tâche : la difficulté monte, la couleur chauffe. */
+const TASK_TONES = { 1: "blue", 2: "amber", 3: "red" } as const;
+
 /**
  * Page d'entraînement d'une épreuve productive (EE/EO), maquette
  * sejour_fr.html : « Choisissez votre tâche » — 3 cards T1/T2/T3 (donut =
@@ -98,6 +101,7 @@ export function ProductionHub({ config }: { config: ProductionConfig }) {
               <LevelChoiceCard
                 key={n}
                 chip={`T${n}`}
+                chipTone={TASK_TONES[n]}
                 title={productionTaskTitle(config.epreuve, n)}
                 desc={productionTaskSubtitle(config.epreuve, n)}
                 percent={note != null ? Math.round(note * 5) : null}

@@ -149,6 +149,22 @@
   flex-shrink: 0;
 }
 
+/* Tonalités du chip (caractère par tâche EE/EO : T1 bleu, T2 ambre, T3 rouge). */
+.levelChipGreen {
+  background: color-mix(in srgb, var(--color-green) 14%, #fff);
+  color: var(--color-green);
+}
+
+.levelChipAmber {
+  background: color-mix(in srgb, var(--color-amber) 18%, #fff);
+  color: color-mix(in srgb, var(--color-amber) 75%, var(--color-ink));
+}
+
+.levelChipRed {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
 .levelTitle {
   margin: 0 0 6px;
   font-size: 19px;
@@ -280,6 +296,22 @@
 .serieNumDone {
   background: color-mix(in srgb, var(--color-green) 16%, #fff);
   color: var(--color-green);
+}
+
+/* Tonalités du numéro (pages sujets EE/EO : tâche 1 bleu, 2 ambre, 3 rouge). */
+.serieNumBlue {
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+}
+
+.serieNumAmber {
+  background: color-mix(in srgb, var(--color-amber) 18%, #fff);
+  color: color-mix(in srgb, var(--color-amber) 75%, var(--color-ink));
+}
+
+.serieNumRed {
+  background: var(--color-red-light);
+  color: var(--color-red);
 }
 
 .serieCheck {
