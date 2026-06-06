@@ -12,9 +12,18 @@ import {
   Play,
   RotateCw,
 } from "lucide-react";
-import type { AttemptSummaryResponse, LotDto } from "@/lib/types";
+import type { LotDto } from "@/lib/types";
 import { ProgressDonut } from "./ModuleHubParts";
 import styles from "./detail.module.css";
+
+/** Donnée minimale d'un examen fini pour la grille (AttemptSummaryResponse
+ *  est compatible ; les sessions de production EE/EO construisent la leur). */
+export interface ExamSlotData {
+  id: string;
+  score?: number | null;
+  totalQuestions?: number | null;
+  passThreshold?: number | null;
+}
 
 /**
  * Briques des pages détail d'entraînement (maquette sejour_fr.html) :
@@ -76,6 +85,7 @@ export function LevelChoiceCard({
   percent,
   done,
   total,
+  footLabel,
   onClick,
 }: {
   chip: string;
@@ -83,8 +93,10 @@ export function LevelChoiceCard({
   desc: string;
   /** Moyenne des derniers scores sur les séries faites (0-100), null si aucune. */
   percent: number | null;
-  done: number;
-  total: number | null;
+  done?: number;
+  total?: number | null;
+  /** Remplace le compteur "x/y séries faites" (ex: "Dernière note 14/20"). */
+  footLabel?: string;
   onClick: () => void;
 }) {
   return (
@@ -99,7 +111,8 @@ export function LevelChoiceCard({
       </div>
       <div className={styles.levelFoot}>
         <span className={styles.levelCount}>
-          {total !== null ? `${done}/${total} séries faites` : "Séries en préparation"}
+          {footLabel ??
+            (total != null ? `${done ?? 0}/${total} séries faites` : "Séries en préparation")}
         </span>
         <ArrowRight size={18} className={styles.levelArrow} aria-hidden />
       </div>
@@ -239,17 +252,20 @@ export function ExamsGrid({
   starting,
   itemLabel = "Examen",
   collapsedCount,
+  reportPath,
   onStart,
   onLocked,
 }: {
   count: number;
   /** Examens finis, triés du plus ancien au plus récent. */
-  exams: AttemptSummaryResponse[];
+  exams: ExamSlotData[];
   premium: boolean;
   freeSlots?: number;
   starting: boolean;
   itemLabel?: string;
   collapsedCount?: number;
+  /** Cible du bouton Rapport (défaut : /sessions/{id}). */
+  reportPath?: (attemptId: string) => string;
   onStart: () => void;
   onLocked: () => void;
 }) {
@@ -274,9 +290,14 @@ export function ExamsGrid({
               itemLabel={itemLabel}
               exam={
                 exam
-                  ? { id: exam.id, score: exam.score ?? null, total: exam.totalQuestions }
+                  ? {
+                      id: exam.id,
+                      score: exam.score ?? null,
+                      total: exam.totalQuestions ?? null,
+                    }
                   : null
               }
+              reportHref={exam ? (reportPath?.(exam.id) ?? `/sessions/${exam.id}`) : undefined}
               locked={locked}
               starting={starting}
               passThresholdMet={
@@ -323,6 +344,7 @@ export function ExamCard({
   starting,
   passThresholdMet,
   itemLabel = "Examen",
+  reportHref,
   onStart,
   onLocked,
 }: {
@@ -332,6 +354,8 @@ export function ExamCard({
   starting: boolean;
   passThresholdMet: boolean | null;
   itemLabel?: string;
+  /** Cible du bouton Rapport (défaut : /sessions/{id}). */
+  reportHref?: string;
   onStart: () => void;
   onLocked: () => void;
 }) {
@@ -369,7 +393,7 @@ export function ExamCard({
             >
               <RotateCw size={15} aria-hidden /> Refaire
             </button>
-            <Link href={`/sessions/${exam.id}`} className={styles.examBtn}>
+            <Link href={reportHref ?? `/sessions/${exam.id}`} className={styles.examBtn}>
               Rapport
             </Link>
           </>

@@ -212,6 +212,12 @@ export function TcfHub({ user }: { user: AuthenticatedUser | null }) {
                   icon: card.exercise.icon,
                   variant: "soft",
                 },
+                {
+                  label: "Examens",
+                  href: `${card.exercise.href}/examens`,
+                  icon: <Target size={18} strokeWidth={1.7} />,
+                  variant: "solid",
+                },
               ]
             : [
                 {

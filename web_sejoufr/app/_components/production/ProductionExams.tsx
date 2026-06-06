@@ -1,38 +1,54 @@
 "use client";
 
-import {useRouter} from "next/navigation";
-import {useEffect, useState} from "react";
-import {ChevronRight, Clock, FileStack, Lock, Sparkles} from "lucide-react";
-import {ApiException, productionApi} from "@/lib/api";
-import {useAuth} from "@/lib/auth-context";
-import {canAccessModule, type ProductionSubmissionDto, resolveTcfLevel} from "@/lib/types";
-import {DualChromeShell} from "@/app/_components/DualChromeShell";
-import {PaywallSheet} from "@/app/_components/PaywallSheet";
-import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
-import {HubDetailHeader, SectionLabel} from "@/app/_components/hub/HubParts";
-import {type ProductionConfig} from "./config";
-import hub from "@/app/_components/hub/hub.module.css";
-import prod from "./production.module.css";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { Flame, GraduationCap, LayoutGrid, Target, Trophy } from "lucide-react";
+import { ApiException, productionApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import {
+  canAccessModule,
+  cecrlIndex,
+  type NiveauCecrl,
+  niveauCecrlLabel,
+  type ProductionSubmissionDto,
+  resolveTcfLevel,
+} from "@/lib/types";
+import { DualChromeShell } from "@/app/_components/DualChromeShell";
+import { PaywallSheet } from "@/app/_components/PaywallSheet";
+import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
+import {
+  DetailShell,
+  DetailStatCard,
+  type ExamSlotData,
+  ExamsGrid,
+} from "@/app/_components/hub/DetailParts";
+import { type ProductionConfig } from "./config";
+import detail from "@/app/_components/hub/detail.module.css";
 
+const SLOTS = 20;
+
+/** Session d'examen blanc production : note moyenne /20 + CECRL plancher. */
 interface PastSession {
   attemptId: string;
-  count: number;
   date: string;
+  avgNote: number | null;
+  floorLevel: NiveauCecrl | null;
 }
 
 /**
- * Entrée de l'examen blanc d'une épreuve productive (3 tâches enchaînées,
- * évaluation IA + CECRL plancher). Réservé aux abonnés Intégral : une session =
- * 3 soumissions, au-delà du quota gratuit (2 essais) → paywall à l'entrée.
+ * Examens blancs d'une épreuve productive (EE/EO) — maquette sejour_fr.html :
+ * 3 stat cards (passés / meilleure note / niveau estimé) + grille de 20
+ * examens (3 tâches enchaînées, évaluation IA). Réservé aux abonnés
+ * Intégral ; Rapport → session de l'examen, Refaire → nouvelle session.
  */
-export function ProductionExams({config}: {config: ProductionConfig}) {
+export function ProductionExams({ config }: { config: ProductionConfig }) {
   const router = useRouter();
-  const {user, status} = useAuth();
+  const { user, status } = useAuth();
   const isPremium = user ? canAccessModule(user, "TCF") : false;
   const level = resolveTcfLevel(user);
 
   const [past, setPast] = useState<PastSession[]>([]);
-  const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
@@ -40,12 +56,12 @@ export function ProductionExams({config}: {config: ProductionConfig}) {
   useEffect(() => {
     if (status !== "authenticated") return;
     let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
     productionApi
-      .listMine({epreuve: config.epreuve, limit: 100})
+      .listMine({ epreuve: config.epreuve, limit: 100 })
       .then((list) => {
         if (cancelled) return;
+        // Une session d'examen = un attempt portant ≥ 2 soumissions (les
+        // entraînements par tâche n'en portent qu'une).
         const byAttempt = new Map<string, ProductionSubmissionDto[]>();
         for (const s of list) {
           const arr = byAttempt.get(s.attemptId) ?? [];
@@ -54,18 +70,33 @@ export function ProductionExams({config}: {config: ProductionConfig}) {
         }
         const sessions: PastSession[] = [];
         for (const [attemptId, items] of byAttempt) {
-          if (items.length >= 2) {
-            const date = items.map((i) => i.submittedAt).sort((a, b) => b.localeCompare(a))[0];
-            sessions.push({attemptId, count: items.length, date});
-          }
+          if (items.length < 2) continue;
+          const date = items
+            .map((i) => i.submittedAt)
+            .sort((a, b) => a.localeCompare(b))[0];
+          const notes = items
+            .map((i) => i.evaluation?.noteSurVingt)
+            .filter((v): v is number => v != null);
+          const levels = items
+            .map((i) => i.evaluation?.niveauCecrl)
+            .filter((v): v is NiveauCecrl => v != null);
+          sessions.push({
+            attemptId,
+            date,
+            avgNote: notes.length
+              ? Math.round(notes.reduce((s, v) => s + v, 0) / notes.length)
+              : null,
+            // Plancher CECRL : règle préfecture — le niveau global d'une
+            // session productive est le plus bas de ses tâches.
+            floorLevel: levels.length
+              ? levels.reduce((min, l) => (cecrlIndex(l) < cecrlIndex(min) ? l : min))
+              : null,
+          });
         }
-        sessions.sort((a, b) => b.date.localeCompare(a.date));
+        sessions.sort((a, b) => a.date.localeCompare(b.date));
         setPast(sessions);
       })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
@@ -80,7 +111,7 @@ export function ProductionExams({config}: {config: ProductionConfig}) {
     setError(null);
     setStarting(true);
     try {
-      const attempt = await productionApi.startAttempt({module: "TCF", epreuve: config.epreuve});
+      const attempt = await productionApi.startAttempt({ module: "TCF", epreuve: config.epreuve });
       router.push(`${config.base}/session/${attempt.id}`);
     } catch (e) {
       if (e instanceof ApiException && e.status === 403) setPaywallOpen(true);
@@ -89,83 +120,85 @@ export function ProductionExams({config}: {config: ProductionConfig}) {
     }
   }
 
+  const slotData: ExamSlotData[] = useMemo(
+    () =>
+      past.map((s) => ({
+        id: s.attemptId,
+        score: s.avgNote,
+        totalQuestions: s.avgNote != null ? 20 : null,
+      })),
+    [past],
+  );
+
+  const done = Math.min(past.length, SLOTS);
+  const { bestNote, bestLevel } = useMemo(() => {
+    let best: PastSession | null = null;
+    for (const s of past) {
+      if (s.avgNote == null) continue;
+      if (!best || s.avgNote > (best.avgNote ?? -1)) best = s;
+    }
+    return {
+      bestNote: best?.avgNote ?? null,
+      bestLevel: best?.floorLevel ?? null,
+    };
+  }, [past]);
+
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`${config.base}/examens`} />;
 
-  const btnClass = config.accent === "red" ? "btn btn-red btn-lg" : "btn btn-blue btn-lg";
-
   return (
     <DualChromeShell>
-      <main className={hub.hub}>
-        <HubDetailHeader
-          backHref={config.base}
-          title={`Examen blanc · ${config.label}`}
-          subtitle={`3 tâches enchaînées · niveau ${level} · évaluation IA`}
-        />
-
-        {error && <div className={prod.error}>{error}</div>}
-
-        <div className={prod.card}>
-          <p className={prod.cardLabel}>Format de l&apos;examen</p>
-          <p className={prod.consigne} style={{fontSize: 14}}>
-            {config.examIntro}
-          </p>
-          <div className={prod.metaRow}>
-            <span className={prod.metaChip}>
-              <FileStack size={13} strokeWidth={2} />3 tâches
-            </span>
-            <span className={prod.metaChip}>
-              <Clock size={13} strokeWidth={2} />
-              {config.examMinutes}
-            </span>
-            <span className={prod.metaChip}>
-              <Sparkles size={13} strokeWidth={2} />Note /20 + CECRL
-            </span>
-          </div>
-          <div className={prod.actions} style={{justifyContent: "flex-start", marginTop: 16}}>
-            <button type="button" className={btnClass} disabled={starting} onClick={start}>
-              {!isPremium && <Lock size={15} strokeWidth={2.4} style={{marginRight: 6}} />}
-              {starting
-                ? "Préparation…"
-                : isPremium
-                  ? "Commencer l'examen blanc"
-                  : "Débloquer l'examen blanc"}
-            </button>
-          </div>
-          {!isPremium && (
-            <p className={prod.draftNote} style={{marginTop: 10}}>
-              L&apos;examen blanc complet est réservé aux abonnés Intégral. Vous pouvez tester
-              gratuitement via « S&apos;entraîner par tâche » (2 essais offerts).
-            </p>
-          )}
+      <DetailShell
+        backHref={config.base}
+        backLabel={config.label}
+        eyebrowIcon={<Target size={18} strokeWidth={2} />}
+        eyebrow={config.label}
+        title="Examens blancs"
+        subtitle={`${SLOTS} examens blancs de 3 tâches (${config.examMinutes}, niveau ${level}), évalués par l'IA avec une note /20 et un niveau CECRL plancher. Choisissez-en un et retrouvez votre dernier score.`}
+        action={
+          <Link href={config.base} className={detail.headBtn}>
+            <LayoutGrid size={17} strokeWidth={1.7} aria-hidden />
+            Mode entraînement
+          </Link>
+        }
+      >
+        <div className={detail.statCards}>
+          <DetailStatCard
+            icon={<Trophy size={20} />}
+            tone="blue"
+            value={`${done}/${SLOTS}`}
+            label="Examens passés"
+            sub="dans cette épreuve"
+          />
+          <DetailStatCard
+            icon={<Flame size={20} />}
+            tone="red"
+            value={bestNote != null ? `${bestNote}/20` : "—"}
+            label="Meilleure note"
+            sub="moyenne des 3 tâches"
+          />
+          <DetailStatCard
+            icon={<GraduationCap size={20} />}
+            tone="green"
+            value={bestLevel ? niveauCecrlLabel(bestLevel) : "—"}
+            label="Niveau estimé"
+            sub="sur votre meilleur essai"
+          />
         </div>
 
-        {!loading && past.length > 0 && (
-          <>
-            <SectionLabel label="Sessions passées" />
-            <div className={hub.list}>
-              {past.map((s) => (
-                <button
-                  key={s.attemptId}
-                  type="button"
-                  className={prod.row}
-                  onClick={() => router.push(`${config.base}/session/${s.attemptId}`)}
-                >
-                  <span className={prod.rowChip}>
-                    <FileStack size={14} strokeWidth={2.2} />
-                  </span>
-                  <span className={prod.rowBody}>
-                    <span className={prod.rowTitle}>Examen blanc {config.shortLabel}</span>
-                    <span className={prod.rowSub}>
-                      {s.count} tâche{s.count > 1 ? "s" : ""} · {formatDay(s.date)}
-                    </span>
-                  </span>
-                  <ChevronRight size={20} className={prod.rowChevron} />
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+        {error && <div className={detail.error}>{error}</div>}
+
+        <ExamsGrid
+          count={SLOTS}
+          exams={slotData}
+          premium={isPremium}
+          freeSlots={0}
+          starting={starting}
+          itemLabel="Examen"
+          reportPath={(attemptId) => `${config.base}/session/${attemptId}`}
+          onStart={start}
+          onLocked={() => setPaywallOpen(true)}
+        />
 
         <PaywallSheet
           open={paywallOpen}
@@ -174,13 +207,7 @@ export function ProductionExams({config}: {config: ProductionConfig}) {
           title={`Débloquez l'examen blanc ${config.shortLabel}`}
           message="L'examen blanc complet (3 tâches + évaluation IA) est réservé aux abonnés Intégral, qui débloque aussi tout le TCF, le civique et les examens blancs illimités."
         />
-      </main>
+      </DetailShell>
     </DualChromeShell>
   );
-}
-
-function formatDay(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("fr-FR", {day: "2-digit", month: "short", year: "numeric"});
 }

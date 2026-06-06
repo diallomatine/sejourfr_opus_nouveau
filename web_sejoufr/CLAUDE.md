@@ -441,6 +441,18 @@ Chantier découpé en vagues :
           `SeeMoreButton` + styles orphelins (HubParts ne garde que
           ExamBlancHero, SectionLabel/Counter/Link, HubDetailHeader pour les
           parcours production).
+    - **Parcours production EE/EO refondu** (maquette) : cards hub avec
+      **S'exercer + Examens** (comme CO/CE). `ProductionHub` = « Choisissez
+      votre tâche » (3 cards T1/T2/T3 façon LevelChoiceCard, donut = dernière
+      note ×5, + carte historique) — l'examen blanc n'y figure plus.
+      `ProductionExams` = grille de **20 examens** (3 stat cards : passés /
+      meilleure note moyenne / niveau CECRL plancher du meilleur essai ;
+      Rapport → `{base}/session/{attemptId}` via `ExamsGrid.reportPath`,
+      Refaire = nouvelle session, premium-only via `freeSlots=0`).
+      `ProductionSubjects` = onglets **Sujets / Exemples** au design detail
+      (cards niveau cible). `ExamsGrid` accepte `ExamSlotData` minimal ;
+      `LevelChoiceCard.footLabel` ; HubParts réduit à SectionLabel +
+      HubDetailHeader (ExamBlancHero/SectionCounter/SectionLink supprimés).
     - **`/historique` refondu** : « Mes résultats » — 3 stat cards (examens
       passés ce mois-ci, score moyen, meilleur score), filtres Tous / TCF
       IRN / Examen civique, lignes d'examens blancs finis (icône catégorie,
