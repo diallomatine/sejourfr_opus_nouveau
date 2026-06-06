@@ -67,6 +67,20 @@ declare global {
 
 const GSI_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 
+interface GsiCallbacks {
+  loginWithGoogle: (credential: string) => Promise<unknown>;
+  onSuccess?: () => void;
+  onError?: (message: string) => void;
+}
+
+// initialize() est une config GLOBALE de GIS : la rappeler à chaque montage
+// (navigation /connexion ↔ /inscription) fait logger "initialize() is called
+// multiple times". On ne l'appelle donc qu'une fois par chargement de page ;
+// le callback global délègue aux callbacks du bouton monté en dernier (il n'y
+// a qu'un bouton Google affiché à la fois).
+let gsiInitialized = false;
+let activeCallbacks: { readonly current: GsiCallbacks } | null = null;
+
 export default function GoogleSignInButton({
   variant = "signin",
   onSuccess,
@@ -111,39 +125,39 @@ export default function GoogleSignInButton({
     cbRef.current = { loginWithGoogle, onSuccess, onError };
   }, [loginWithGoogle, onSuccess, onError]);
 
-  // initialize() est une config globale GIS : on ne l'appelle qu'une fois par
-  // montage (le garde survit au double-invoke de StrictMode en dev). Sinon GIS
-  // log "initialize() is called multiple times".
-  const initedRef = useRef(false);
-
   useEffect(() => {
     if (!clientId) return;
     if (!scriptReady) return;
     if (!hostRef.current) return;
     if (!window.google?.accounts?.id) return;
 
-    if (!initedRef.current) {
+    // Ce bouton devient le destinataire des credentials GIS.
+    activeCallbacks = cbRef;
+
+    if (!gsiInitialized) {
       window.google.accounts.id.initialize({
         client_id: clientId,
         ux_mode: "popup",
         callback: async (resp) => {
+          const cbs = activeCallbacks?.current;
+          if (!cbs) return;
           if (!resp.credential) {
-            cbRef.current.onError?.("Aucun token reçu de Google.");
+            cbs.onError?.("Aucun token reçu de Google.");
             return;
           }
           try {
-            await cbRef.current.loginWithGoogle(resp.credential);
-            cbRef.current.onSuccess?.();
+            await cbs.loginWithGoogle(resp.credential);
+            cbs.onSuccess?.();
           } catch (err) {
             if (err instanceof ApiException) {
-              cbRef.current.onError?.(err.message);
+              cbs.onError?.(err.message);
             } else {
-              cbRef.current.onError?.("Connexion Google impossible. Réessayez.");
+              cbs.onError?.("Connexion Google impossible. Réessayez.");
             }
           }
         },
       });
-      initedRef.current = true;
+      gsiInitialized = true;
     }
 
     // Vider l'hote avant render (en cas de re-mount).
