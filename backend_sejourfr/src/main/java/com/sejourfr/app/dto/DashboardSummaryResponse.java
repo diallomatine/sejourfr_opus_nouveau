@@ -20,6 +20,9 @@ import java.util.UUID;
  *       permet au front d'adapter le wording ("continuez" vs "reprenez").</li>
  *   <li>{@code mockExamsTotal} : nb d'examens blancs (MOCK_EXAM) finis, tous
  *       modules confondus.</li>
+ *   <li>{@code civiqueMockExams} / {@code tcfMockExams} : totaux par module
+ *       pour les hubs (TCF : sous-attempts d'un examen complet exclus —
+ *       seul le parent TCF_COMPLET compte).</li>
  *   <li>{@code globalSuccessPercent} : taux de réussite global 0-100 (questions
  *       distinctes réussies / tentées, Civique + TCF). Null si rien tenté.</li>
  *   <li>{@code estimatedTcfLevel} : niveau CECRL du dernier examen TCF évalué
@@ -35,6 +38,8 @@ public record DashboardSummaryResponse(
         int recordStreakDays,
         boolean activeToday,
         int mockExamsTotal,
+        int civiqueMockExams,
+        int tcfMockExams,
         Integer globalSuccessPercent,
         NiveauCecrl estimatedTcfLevel,
         List<CategoryStat> civique,
@@ -51,6 +56,9 @@ public record DashboardSummaryResponse(
      *       Null si la catégorie n'a jamais été travaillée.</li>
      *   <li>{@code answered} / {@code total} : couverture du pool (questions
      *       distinctes tentées / questions actives). 0/0 pour EE/EO.</li>
+     *   <li>{@code mockExams} : nb d'examens blancs finis scopés à la
+     *       catégorie (civique : examens thématiques ; TCF : examens module
+     *       CO/CE/STRUCTURE). 0 pour EE/EO.</li>
      *   <li>{@code level} : dernier niveau CECRL évalué — renseigné uniquement
      *       pour EE/EO.</li>
      * </ul>
@@ -62,6 +70,7 @@ public record DashboardSummaryResponse(
             Integer percent,
             int answered,
             int total,
+            int mockExams,
             NiveauCecrl level
     ) {
     }

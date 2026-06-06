@@ -17,7 +17,7 @@ import {
 import { CategoryBarLine, ReinforceRow } from "@/app/_components/ReinforceRow";
 import { attemptApi, dashboardApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { moduleAverage } from "@/lib/dashboard";
+import { masteryHint, moduleAverage } from "@/lib/dashboard";
 import {
   type AttemptSummaryResponse,
   type DashboardCategoryStat,
@@ -36,13 +36,6 @@ import {
 function shortLevel(level: DashboardSummaryResponse["estimatedTcfLevel"]): string {
   if (!level) return "—";
   return level === "A1_NON_ATTEINT" ? "<A1" : level;
-}
-
-function masteryHint(percent: number | null): string {
-  if (percent === null) return "Commencez l'entraînement";
-  if (percent >= 75) return "Excellent niveau";
-  if (percent >= 55) return "En bonne voie";
-  return "À consolider";
 }
 
 export default function DashboardPage() {

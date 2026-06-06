@@ -724,6 +724,8 @@ export interface DashboardCategoryStat {
   answered: number;
   /** Pool de questions actives — 0 pour EE/EO. */
   total: number;
+  /** Examens blancs finis scopés à la catégorie (0 pour EE/EO). */
+  mockExams: number;
   /** Dernier niveau CECRL évalué — EE/EO uniquement. */
   level: NiveauCecrl | null;
 }
@@ -734,6 +736,9 @@ export interface DashboardSummaryResponse {
   recordStreakDays: number;
   activeToday: boolean;
   mockExamsTotal: number;
+  /** Totaux par module (TCF : sous-attempts d'examen complet exclus). */
+  civiqueMockExams: number;
+  tcfMockExams: number;
   globalSuccessPercent: number | null;
   estimatedTcfLevel: NiveauCecrl | null;
   civique: DashboardCategoryStat[];

@@ -39,3 +39,23 @@ export function moduleAverage(cats: DashboardCategoryStat[]): number | null {
     known.reduce((sum, c) => sum + (c.percent ?? 0), 0) / known.length,
   );
 }
+
+/** Sous-titre qualitatif d'un score de maîtrise. */
+export function masteryHint(percent: number | null): string {
+  if (percent === null) return "Commencez l'entraînement";
+  if (percent >= 75) return "Excellent niveau";
+  if (percent >= 55) return "En bonne voie";
+  return "À consolider";
+}
+
+/** Statut d'une catégorie (badge des hubs) : Solide ≥ 80, En bonne voie ≥ 60,
+ *  À renforcer en dessous, À découvrir si jamais travaillée. */
+export function categoryStatus(percent: number | null): {
+  label: string;
+  tone: "green" | "blue" | "amber" | "none";
+} {
+  if (percent === null) return { label: "À découvrir", tone: "none" };
+  if (percent >= 80) return { label: "Solide", tone: "green" };
+  if (percent >= 60) return { label: "En bonne voie", tone: "blue" };
+  return { label: "À renforcer", tone: "amber" };
+}

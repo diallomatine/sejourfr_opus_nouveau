@@ -2,10 +2,13 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.DashboardSummaryResponse;
 import com.sejourfr.app.entity.AiEvaluation;
+import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.Theme;
+import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.AnswerManager;
 import com.sejourfr.app.manager.AttemptManager;
@@ -51,6 +54,8 @@ public class UserDashboardService {
         final Streak streak = computeStreak(activityDates);
 
         final int mockExamsTotal = (int) attemptManager.countFinishedMockExams(userId);
+        final MockExamCounts civiqueExams = civiqueMockExamCounts(userId);
+        final MockExamCounts tcfExams = tcfMockExamCounts(userId);
 
         final long answered = answerManager.countAnsweredByUserAndModule(userId, Module.CIVIQUE)
                 + answerManager.countAnsweredByUserAndModule(userId, Module.TCF);
@@ -65,7 +70,7 @@ public class UserDashboardService {
                 .orElse(null);
 
         final List<DashboardSummaryResponse.CategoryStat> tcf =
-                new ArrayList<>(themeCategories(userId, Module.TCF));
+                new ArrayList<>(themeCategories(userId, Module.TCF, tcfExams.byCategory));
         tcf.add(productionCategory(userId, EpreuveType.TCF_EE, "TCF_EE", "Expression écrite"));
         tcf.add(productionCategory(userId, EpreuveType.TCF_EO, "TCF_EO", "Expression orale"));
 
@@ -74,10 +79,60 @@ public class UserDashboardService {
                 streak.record,
                 streak.activeToday,
                 mockExamsTotal,
+                civiqueExams.total,
+                tcfExams.total,
                 globalSuccessPercent,
                 estimatedTcfLevel,
-                themeCategories(userId, Module.CIVIQUE),
+                themeCategories(userId, Module.CIVIQUE, civiqueExams.byCategory),
                 tcf);
+    }
+
+    // ------------------------------------------------------------------------
+    // Examens blancs par module / catégorie
+    // ------------------------------------------------------------------------
+
+    /**
+     * Compteurs d'examens blancs finis d'un module : total + ventilation par
+     * catégorie (clé = themeId civique ou name() du QuestionType TCF).
+     */
+    private record MockExamCounts(int total, Map<String, Integer> byCategory) {
+    }
+
+    /** Civique : examens thématiques ventilés par thème, complets dans le total. */
+    private MockExamCounts civiqueMockExamCounts(UUID userId) {
+        final List<Attempt> exams = attemptManager.findByUserFiltered(
+                userId, AttemptType.MOCK_EXAM, Module.CIVIQUE, null, null, 500);
+        int total = 0;
+        final Map<String, Integer> byTheme = new HashMap<>();
+        for (final Attempt a : exams) {
+            if (a.getFinishedAt() == null) continue;
+            total++;
+            if (a.getLotThemeId() != null) {
+                byTheme.merge(a.getLotThemeId().toString(), 1, Integer::sum);
+            }
+        }
+        return new MockExamCounts(total, byTheme);
+    }
+
+    /**
+     * TCF : examens module ventilés par épreuve QCM (CO/CE/STRUCTURE). Les
+     * sous-attempts d'un examen complet sont exclus du total — seul le parent
+     * TCF_COMPLET fini compte (sinon un examen complet pèserait 5).
+     */
+    private MockExamCounts tcfMockExamCounts(UUID userId) {
+        final List<Attempt> exams = attemptManager.findByUserFiltered(
+                userId, AttemptType.MOCK_EXAM, Module.TCF, null, null, 500);
+        int total = 0;
+        final Map<String, Integer> byEpreuve = new HashMap<>();
+        for (final Attempt a : exams) {
+            if (a.getFinishedAt() == null) continue;
+            if (a.getParentAttempt() == null) total++;
+            final QuestionType qt = a.getModuleExamQuestionType();
+            if (qt != null) {
+                byEpreuve.merge(qt.name(), 1, Integer::sum);
+            }
+        }
+        return new MockExamCounts(total, byEpreuve);
     }
 
     // ------------------------------------------------------------------------
@@ -88,8 +143,13 @@ public class UserDashboardService {
      * Une entrée par thème officiel du module (ordre d'affichage du module),
      * y compris les thèmes jamais travaillés (percent null). Le percent est le
      * taux de réussite sur les questions distinctes tentées.
+     *
+     * @param mockExamsByCategory ventilation des examens blancs — clé =
+     *                            themeId (civique) ou QuestionType.name() TCF
+     *                            (le code thème {@code TCF_CO} → clé {@code CO})
      */
-    private List<DashboardSummaryResponse.CategoryStat> themeCategories(UUID userId, Module module) {
+    private List<DashboardSummaryResponse.CategoryStat> themeCategories(
+            UUID userId, Module module, Map<String, Integer> mockExamsByCategory) {
         // aggregateByTheme ne renvoie que les thèmes déjà tentés → on indexe
         // puis on déroule la liste complète des thèmes pour combler les trous.
         final Map<UUID, int[]> answeredCorrectByTheme = new HashMap<>();
@@ -103,6 +163,10 @@ public class UserDashboardService {
             final int[] ac = answeredCorrectByTheme.get(theme.getId());
             final int themeAnswered = ac == null ? 0 : ac[0];
             final int themeCorrect = ac == null ? 0 : ac[1];
+            final int mockExams = mockExamsByCategory.getOrDefault(
+                    theme.getId().toString(),
+                    mockExamsByCategory.getOrDefault(
+                            theme.getCode().replaceFirst("^TCF_", ""), 0));
             out.add(new DashboardSummaryResponse.CategoryStat(
                     theme.getId(),
                     theme.getCode(),
@@ -110,6 +174,7 @@ public class UserDashboardService {
                     themeAnswered == 0 ? null : (int) Math.round(100.0 * themeCorrect / themeAnswered),
                     themeAnswered,
                     (int) questionManager.countActiveByTheme(theme.getId()),
+                    mockExams,
                     null));
         }
         return out;
@@ -135,7 +200,7 @@ public class UserDashboardService {
                 percent = (int) Math.round(note.doubleValue() * 5);
             }
         }
-        return new DashboardSummaryResponse.CategoryStat(null, code, label, percent, 0, 0, level);
+        return new DashboardSummaryResponse.CategoryStat(null, code, label, percent, 0, 0, 0, level);
     }
 
     // ------------------------------------------------------------------------

@@ -415,9 +415,24 @@ Chantier découpé en vagues :
       `DashboardCategoryStat` dans lib/types.ts.
     - **Composants partagés** : `ReinforceRow` + `CategoryBarLine`
       (`app/_components/ReinforceRow.tsx` + `.module.css`) utilisés par le
-      dashboard et `/recommandations` ; helpers dans `lib/dashboard.ts`.
+      dashboard et `/recommandations` ; helpers dans `lib/dashboard.ts`
+      (`categoryHref`, `barTone`, `moduleAverage`, `masteryHint`,
+      `categoryStatus`).
     - Pas de heatmap de régularité (décision produit) — seul le streak est
       exposé.
+    - **Hubs TCF / Civique refondus** (maquette `sejour_fr.html`) :
+      `TcfHub`/`CiviqueHub` = header eyebrow + bande de 4 stats (maîtrise,
+      catégories, examens blancs du module, niveau estimé) + grille de cards
+      catégorie (icône, donut teinté Solide/En bonne voie/À renforcer, chips
+      de contenus, badge statut + nb d'examens, CTAs S'entraîner / Examen
+      blanc — EE/EO : S'exercer). Briques dans
+      `app/_components/hub/ModuleHubParts.tsx` + `moduleHub.module.css`.
+      Données : `GET /api/me/dashboard` (étendu : `civiqueMockExams`,
+      `tcfMockExams`, `CategoryStat.mockExams`) ; guests → cards sans stats
+      via `publicThemeApi`. Les heros examen blanc / carte CECRL / carte
+      maîtrise de la vague 6 sont supprimés des hubs (l'entrée examens vit
+      dans la sidebar) ; `HubHeader`, `EpreuveCard`, `CiviqueMasteryCard`
+      retirés de `HubParts.tsx` (le reste sert toujours aux pages détail).
 
 - **Vague 7** ✅ — **Productions IA web : Expression écrite (EE) + orale (EO)**,
   parité mobile (`screens/tcf_production/*`). Les cartes EE et EO du `TcfHub`

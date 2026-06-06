@@ -22,19 +22,6 @@ const TONE: Record<HubTone, { accent: string; bg: string }> = {
     slate: {accent: "var(--color-muted)", bg: "var(--color-paper-2)"},
 };
 
-// ---------- Header ----------
-
-export function HubHeader({title, subtitle}: { title: string; subtitle: string }) {
-    return (
-        <div className={styles.header}>
-            <div>
-                <h1 className={styles.headerTitle}>{title}</h1>
-                <p className={styles.headerSub}>{subtitle}</p>
-            </div>
-        </div>
-    );
-}
-
 // ---------- Hero examen blanc ----------
 
 export function ExamBlancHero({
@@ -103,62 +90,6 @@ export function SectionLink({label, onClick}: { label: string; onClick: () => vo
     return (
         <button type="button" className={styles.sectionLink} onClick={onClick}>
             {label}
-        </button>
-    );
-}
-
-// ---------- Carte épreuve / thème ----------
-
-export function EpreuveCard({
-                                icon,
-                                tone,
-                                title,
-                                subtitle,
-                                pill,
-                                progress,
-                                locked = false,
-                                onClick,
-                            }: {
-    icon: ReactNode;
-    tone: HubTone;
-    title: string;
-    subtitle: string;
-    pill?: string | null;
-    /** 0..1 ; null = pas de barre. */
-    progress?: number | null;
-    locked?: boolean;
-    onClick: () => void;
-}) {
-    const t = TONE[tone];
-    const pct = progress == null ? null : Math.round(Math.min(1, Math.max(0, progress)) * 100);
-    return (
-        <button
-            type="button"
-            className={styles.epreuve}
-            style={{"--accent": t.accent, "--accent-bg": t.bg} as CSSProperties}
-            onClick={onClick}
-        >
-            <span className={styles.epreuveIcon}>{icon}</span>
-            <span className={styles.epreuveBody}>
-        <span className={styles.epreuveTitleRow}>
-          <span className={styles.epreuveTitle}>{title}</span>
-            {pill ? <span className={styles.epreuvePill}>{pill}</span> : null}
-        </span>
-        <span className={styles.epreuveSub}>{subtitle}</span>
-                {pct != null && (
-                    <span className={styles.epreuveBarRow}>
-            <span className={styles.epreuveTrack}>
-              <span className={styles.epreuveFill} style={{width: `${pct}%`}}/>
-            </span>
-            <span className={styles.epreuvePct}>{pct}%</span>
-          </span>
-                )}
-      </span>
-            {locked ? (
-                <Lock size={16} className={styles.epreuveChevron}/>
-            ) : (
-                <ChevronRight size={20} className={styles.epreuveChevron}/>
-            )}
         </button>
     );
 }
@@ -351,36 +282,4 @@ function formatDay(iso: string): string {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return "—";
     return d.toLocaleDateString("fr-FR", {day: "2-digit", month: "short", year: "numeric"});
-}
-
-// ---------- Carte maîtrise (Civique) ----------
-
-export function CiviqueMasteryCard({
-                                       answered,
-                                       correct,
-                                       total,
-                                   }: {
-    answered: number;
-    correct: number;
-    total: number;
-}) {
-    const pct = answered > 0 ? Math.round((correct / answered) * 100) : 0;
-    const coverage = total > 0 ? Math.min(1, answered / total) : 0;
-    return (
-        <div className={styles.mastery}>
-            <div className={styles.masteryTop}>
-                <span className={styles.masteryPct}>{answered > 0 ? `${pct}%` : "—"}</span>
-                <span className={styles.masteryPctLabel}>de bonnes réponses</span>
-            </div>
-            <div className={styles.masteryCoverage}>
-                <span>Couverture de la banque</span>
-                <span className={styles.masteryCoverageVal}>
-          {answered}/{total} questions
-        </span>
-            </div>
-            <div className={styles.masteryTrack}>
-                <div className={styles.masteryFill} style={{width: `${Math.round(coverage * 100)}%`}}/>
-            </div>
-        </div>
-    );
 }
