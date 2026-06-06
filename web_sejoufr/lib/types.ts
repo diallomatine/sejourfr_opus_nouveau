@@ -335,6 +335,8 @@ export interface AttemptSummaryResponse {
   startedAt: string;
   finishedAt?: string | null;
   score?: number | null;
+  /** Niveau CECRL estimé sur un examen module TCF (null sinon). */
+  cecrlLevel?: NiveauCecrl | null;
   /** Template d'examen lié à cet attempt (null si entraînement libre).
    *  Sert à marquer "Fait" sur la liste des examens et à proposer "Voir détails / Refaire". */
   examTemplateId?: string | null;

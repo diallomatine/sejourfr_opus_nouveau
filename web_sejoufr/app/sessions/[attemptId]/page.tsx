@@ -287,7 +287,7 @@ function SessionRunnerInner({ params }: PageProps) {
             : isExam
               ? "Examen blanc"
               : isLot
-                ? `Lot ${lotNumero}`
+                ? `Série ${lotNumero}`
                 : "Entraînement"
         }
         quitHref={

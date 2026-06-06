@@ -31,9 +31,9 @@ export function TcfLotResultCard({
   const title = pct >= 70 ? "Bravo !" : pct >= 40 ? "Bien joué !" : "Continue !";
   const advice =
     pct >= 70
-      ? "Excellent niveau sur ce lot. Enchaîne sur un lot plus difficile pour progresser."
+      ? "Excellent niveau sur cette série. Enchaîne sur une série plus difficile pour progresser."
       : pct >= 40
-        ? "Bon début. Revois les questions ratées puis refais ce lot pour consolider."
+        ? "Bon début. Revois les questions ratées puis refais cette série pour consolider."
         : "Ne lâche rien : relis les corrections, c'est là que la progression se joue.";
 
   const seconds = elapsedSeconds(attempt.startedAt, attempt.finishedAt);
@@ -91,7 +91,7 @@ export function TcfLotResultCard({
             {showReport ? "Masquer le rapport" : "Voir le rapport détaillé"}
           </button>
           <Link href={returnHref} className="btn btn-blue">
-            Retour aux lots →
+            Retour aux séries →
           </Link>
         </div>
       </div>

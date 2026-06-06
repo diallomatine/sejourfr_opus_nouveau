@@ -1,51 +1,59 @@
 "use client";
 
 import Link from "next/link";
-import {useParams, useRouter} from "next/navigation";
-import {useEffect, useMemo, useState} from "react";
-import {ApiException, attemptApi, lotApi} from "@/lib/api";
-import {useAuth} from "@/lib/auth-context";
-import {canAccessModule, type Difficulty, type LotDto, type QuestionType} from "@/lib/types";
-import {DualChromeShell} from "@/app/_components/DualChromeShell";
-import {PaywallSheet} from "@/app/_components/PaywallSheet";
-import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
-import {
-  HubDetailHeader,
-  type HubTone,
-  LotRow,
-  SectionCounter,
-  SectionLabel,
-} from "@/app/_components/hub/HubParts";
-import {ExamDoneSheet} from "@/app/_components/hub/ExamDoneSheet";
-import hub from "@/app/_components/hub/hub.module.css";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { BookOpen, Headphones, SpellCheck, Target } from "lucide-react";
+import { ApiException, attemptApi, lotApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { canAccessModule, type Difficulty, type LotDto, type QuestionType } from "@/lib/types";
+import { DualChromeShell } from "@/app/_components/DualChromeShell";
+import { PaywallSheet } from "@/app/_components/PaywallSheet";
+import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
+import { DetailShell, SerieCard, SeriesProgressCard } from "@/app/_components/hub/DetailParts";
+import { ExamDoneSheet } from "@/app/_components/hub/ExamDoneSheet";
+import detail from "@/app/_components/hub/detail.module.css";
 
 const TCF_QCM = {
-  co: {questionType: "CO" as QuestionType, title: "Compréhension orale"},
-  ce: {questionType: "CE" as QuestionType, title: "Compréhension écrite"},
-  structure: {questionType: "STRUCTURE" as QuestionType, title: "Structure de la langue"},
+  co: {
+    questionType: "CO" as QuestionType,
+    title: "Compréhension orale",
+    icon: <Headphones size={18} strokeWidth={2} />,
+  },
+  ce: {
+    questionType: "CE" as QuestionType,
+    title: "Compréhension écrite",
+    icon: <BookOpen size={18} strokeWidth={2} />,
+  },
+  structure: {
+    questionType: "STRUCTURE" as QuestionType,
+    title: "Structure de la langue",
+    icon: <SpellCheck size={18} strokeWidth={2} />,
+  },
 } as const;
 type TcfCode = keyof typeof TCF_QCM;
 
 const LEVELS = {
-  a2: {difficulty: "A2" as Difficulty, label: "Niveau débutant", tone: "green" as HubTone},
-  b1: {difficulty: "B1" as Difficulty, label: "Niveau intermédiaire", tone: "amber" as HubTone},
-  b2: {difficulty: "B2" as Difficulty, label: "Niveau avancé", tone: "red" as HubTone},
+  a2: { difficulty: "A2" as Difficulty },
+  b1: { difficulty: "B1" as Difficulty },
+  b2: { difficulty: "B2" as Difficulty },
 } as const;
 type LevelKey = keyof typeof LEVELS;
 
 /**
- * Lots d'un (épreuve TCF QCM, niveau) — single-scroll calqué sur
- * `TcfLevelLotsScreen` mobile : header + liste de lots (lot 1 gratuit, 2+
- * premium). Tap lot → runner mode batch fixe → bilan donut (TcfLotResult).
+ * Séries d'entraînement d'un (épreuve TCF QCM, niveau) — maquette
+ * sejour_fr.html : carte de progression + grille de cards Série (série 1
+ * gratuite, 2+ premium). Une série = 20 questions, correction immédiate.
+ * Série faite → feuille « Voir le bilan / Refaire ».
  */
-export default function TcfLevelLotsPage() {
-  const params = useParams<{code: string; level: string}>();
+export default function TcfLevelSeriesPage() {
+  const params = useParams<{ code: string; level: string }>();
   const code = (params?.code ?? "").toLowerCase() as TcfCode;
   const levelKey = (params?.level ?? "").toLowerCase() as LevelKey;
   const config = TCF_QCM[code];
   const level = LEVELS[levelKey];
   const router = useRouter();
-  const {user, status} = useAuth();
+  const { user, status } = useAuth();
 
   const [lots, setLots] = useState<LotDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,7 +77,7 @@ export default function TcfLevelLotsPage() {
       })
       .catch((e) => {
         if (!cancelled)
-          setError(e instanceof ApiException ? e.message : "Impossible de charger les lots.");
+          setError(e instanceof ApiException ? e.message : "Impossible de charger les séries.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -81,7 +89,7 @@ export default function TcfLevelLotsPage() {
 
   async function startLot(lot: LotDto) {
     if (starting) return;
-    // Lot 1 gratuit par (épreuve, niveau) ; lots 2+ réservés aux abonnés.
+    // Série 1 gratuite par (épreuve, niveau) ; séries 2+ réservées aux abonnés.
     if (!isPremium && lot.numero > 1) {
       setPaywallOpen(true);
       return;
@@ -100,25 +108,21 @@ export default function TcfLevelLotsPage() {
         `/sessions/${a.id}?lot=${lot.numero}&result=tcfLot&code=${code}&level=${levelKey}`,
       );
     } catch (e) {
-      setError(e instanceof ApiException ? e.message : "Impossible de démarrer le lot.");
+      setError(e instanceof ApiException ? e.message : "Impossible de démarrer la série.");
       setStarting(false);
     }
   }
 
-  const tone = level?.tone ?? "blue";
-  const subtitle = useMemo(
-    () => (config && level ? `${config.title} · ${level.label}` : ""),
-    [config, level],
-  );
+  const doneCount = useMemo(() => lots.filter((l) => l.lastScore != null).length, [lots]);
 
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`/entrainement/tcf/${code}/${levelKey}`} />;
   if (!valid) {
     return (
       <DualChromeShell>
-        <main className={hub.hub}>
-          <p className={hub.empty}>Épreuve ou niveau TCF inconnu.</p>
-          <Link href="/entrainement?module=TCF" className={hub.sectionLink}>
+        <main className={detail.wrap}>
+          <p className={detail.empty}>Épreuve ou niveau TCF inconnu.</p>
+          <Link href="/entrainement?module=TCF" className={detail.back}>
             ← Retour à l&apos;entraînement TCF
           </Link>
         </main>
@@ -128,32 +132,36 @@ export default function TcfLevelLotsPage() {
 
   return (
     <DualChromeShell>
-      <main className={hub.hub}>
-        <HubDetailHeader
-          backHref={`/entrainement/tcf/${code}`}
-          title={`Niveau ${levelKey.toUpperCase()}`}
-          subtitle={subtitle}
-        />
-        {error && <div className={hub.error}>{error}</div>}
+      <DetailShell
+        backHref={`/entrainement/tcf/${code}`}
+        backLabel={`${config.title} · niveaux`}
+        eyebrowIcon={config.icon}
+        eyebrow={`${config.title} · Niveau ${levelKey.toUpperCase()}`}
+        title="Séries d'entraînement"
+        subtitle="Chaque série contient jusqu'à 20 questions avec correction immédiate. Reprenez là où vous vous êtes arrêté."
+        action={
+          <Link href={`/entrainement/tcf/${code}/examens`} className={detail.headBtn}>
+            <Target size={17} strokeWidth={1.7} aria-hidden />
+            Examens blancs
+          </Link>
+        }
+      >
+        {error && <div className={detail.error}>{error}</div>}
         {loading ? (
-          <div className={hub.loading}>Chargement des lots…</div>
+          <div className={detail.loading}>Chargement des séries…</div>
         ) : lots.length === 0 ? (
-          <p className={hub.empty}>
-            Aucun lot disponible à ce niveau pour l&apos;instant — le pool est en cours de
+          <p className={detail.empty}>
+            Aucune série disponible à ce niveau pour l&apos;instant — le pool est en cours de
             constitution.
           </p>
         ) : (
           <>
-            <SectionLabel
-              label="Lots disponibles"
-              trailing={<SectionCounter text={`${lots.length} lots`} />}
-            />
-            <div className={hub.list}>
+            <SeriesProgressCard done={doneCount} total={lots.length} />
+            <div className={detail.serieGrid}>
               {lots.map((lot) => (
-                <LotRow
+                <SerieCard
                   key={lot.numero}
                   lot={lot}
-                  tone={tone}
                   locked={!isPremium && lot.numero > 1}
                   disabled={starting}
                   onClick={() =>
@@ -166,7 +174,7 @@ export default function TcfLevelLotsPage() {
         )}
         <ExamDoneSheet
           open={selectedLot !== null}
-          title={selectedLot ? `Lot ${selectedLot.numero}` : "Lot"}
+          title={selectedLot ? `Série ${selectedLot.numero}` : "Série"}
           subtitle={
             selectedLot && selectedLot.lastScore != null
               ? `Dernier score : ${selectedLot.lastScore} / ${selectedLot.totalQuestions}`
@@ -187,7 +195,7 @@ export default function TcfLevelLotsPage() {
           onClose={() => setSelectedLot(null)}
         />
         <PaywallSheet open={paywallOpen} onClose={() => setPaywallOpen(false)} module="INTEGRAL" />
-      </main>
+      </DetailShell>
     </DualChromeShell>
   );
 }

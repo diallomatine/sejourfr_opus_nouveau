@@ -420,6 +420,26 @@ Chantier découpé en vagues :
       `categoryStatus`).
     - Pas de heatmap de régularité (décision produit) — seul le streak est
       exposé.
+    - **Pages détail refondues** (maquette `sejour_fr.html`) — briques dans
+      `app/_components/hub/DetailParts.tsx` + `detail.module.css` (DetailShell,
+      LevelChoiceCard, SeriesProgressCard, SerieCard, DetailStatCard,
+      ExamsGrid) :
+        - `/entrainement/tcf/[code]` = **« Choisissez votre niveau »** (3 cards
+          A2/B1/B2 avec donut = moyenne des séries faites + compteur x/y).
+        - `/entrainement/tcf/[code]/[level]` et `/entrainement/civique/[themeId]`
+          = **« Séries d'entraînement »** : carte de progression + grille de
+          cards Série. Un lot s'affiche « Série » partout (sessions, bilan TCF)
+          et fait **20 questions** (constantes `LotService.LOT_SIZE_*` backend).
+          Série 1 gratuite, 2+ premium. Série faite → ExamDoneSheet
+          (bilan / refaire).
+        - Pages `*/examens` = **20 examens blancs** : 3 stat cards (passés,
+          meilleur score, niveau estimé TCF via `cecrlLevel` ajouté au miroir
+          `AttemptSummaryResponse` / restant civique) + grille de cards Examen
+          (Démarrer / Refaire + Rapport / Premium). Examen 1 gratuit.
+        - Supprimés : `ExamSlotsView`, `LotRow`, `LevelRow`, `ExamHistoryList`,
+          `SeeMoreButton` + styles orphelins (HubParts ne garde que
+          ExamBlancHero, SectionLabel/Counter/Link, HubDetailHeader pour les
+          parcours production).
     - **Hubs TCF / Civique refondus** (maquette `sejour_fr.html`) :
       `TcfHub`/`CiviqueHub` = header eyebrow + bande de 4 stats (maîtrise,
       catégories, examens blancs du module, niveau estimé) + grille de cards

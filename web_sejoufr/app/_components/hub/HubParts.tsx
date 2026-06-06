@@ -2,25 +2,15 @@
 
 import Link from "next/link";
 import type {CSSProperties, ReactNode} from "react";
-import {ChevronLeft, ChevronRight, ClipboardCheck, Lock, Play, Rocket} from "lucide-react";
-import type {AttemptSummaryResponse, LotDto} from "@/lib/types";
+import {ChevronLeft, Play, Rocket} from "lucide-react";
 import styles from "./hub.module.css";
 
 // ============================================================================
-// Briques partagées des hubs Civique / TCF (miroir des widgets mobiles
-// `hub_home_widgets.dart`). Accents pilotés par variables CSS inline.
+// Briques résiduelles des pages détail / production (les hubs et pages
+// d'entraînement utilisent désormais ModuleHubParts / DetailParts). Restent
+// ici : ExamBlancHero (ProductionHub), SectionLabel/Counter/Link,
+// HubDetailHeader.
 // ============================================================================
-
-export type HubTone = "blue" | "red" | "amber" | "green" | "slate";
-
-/** Couleur d'accent + fond clair par tonalité (aligné sur AppColors mobile). */
-const TONE: Record<HubTone, { accent: string; bg: string }> = {
-    blue: {accent: "var(--color-blue)", bg: "var(--color-blue-light)"},
-    red: {accent: "var(--color-red)", bg: "var(--color-red-light)"},
-    amber: {accent: "#B87908", bg: "rgba(232, 163, 23, 0.16)"},
-    green: {accent: "var(--color-green)", bg: "rgba(22, 143, 91, 0.12)"},
-    slate: {accent: "var(--color-muted)", bg: "var(--color-paper-2)"},
-};
 
 // ---------- Hero examen blanc ----------
 
@@ -116,170 +106,4 @@ export function HubDetailHeader({
             </div>
         </div>
     );
-}
-
-// ---------- Ligne de lot (Civique thème / TCF niveau) ----------
-
-/** Classe couleur d'un score en fonction du ratio. */
-function scoreClass(score: number, total: number): string {
-    if (total <= 0) return styles.scoreMid;
-    const r = score / total;
-    if (r >= 0.7) return styles.scoreGood;
-    if (r >= 0.4) return styles.scoreMid;
-    return styles.scoreLow;
-}
-
-export function LotRow({
-                           lot,
-                           tone,
-                           locked = false,
-                           disabled = false,
-                           onClick,
-                       }: {
-    lot: LotDto;
-    tone: HubTone;
-    locked?: boolean;
-    disabled?: boolean;
-    onClick: () => void;
-}) {
-    const t = TONE[tone];
-    const done = lot.lastScore != null;
-    return (
-        <button
-            type="button"
-            className={`${styles.lotRow} ${locked ? styles.lotLocked : ""}`}
-            style={{"--accent": t.accent, "--accent-bg": t.bg} as CSSProperties}
-            onClick={onClick}
-            disabled={disabled}
-        >
-            <span className={`${styles.lotNum} ${locked ? styles.numLocked : ""}`}>{lot.numero}</span>
-            <span className={styles.lotBody}>
-        <span className={styles.lotTitle}>
-          Lot {lot.numero}
-            {locked && <span className={styles.lockChip}>Premium</span>}
-        </span>
-        <span className={styles.lotSub}>
-          {locked
-              ? "Réservé aux abonnés"
-              : `${lot.totalQuestions} questions${done ? " · déjà fait" : ""}`}
-        </span>
-      </span>
-            {locked ? (
-                <Lock size={16} className={styles.rowChevron}/>
-            ) : done ? (
-                <span className={`${styles.scoreBadge} ${scoreClass(lot.lastScore!, lot.totalQuestions)}`}>
-          {lot.lastScore}/{lot.totalQuestions}
-        </span>
-            ) : (
-                <ChevronRight size={20} className={styles.rowChevron}/>
-            )}
-        </button>
-    );
-}
-
-// ---------- Ligne de niveau (TCF CO/CE/Structure) ----------
-
-export function LevelRow({
-                             chip,
-                             tone,
-                             title,
-                             subtitle,
-                             lotCount,
-                             onClick,
-                         }: {
-    chip: string;
-    tone: HubTone;
-    title: string;
-    subtitle: string;
-    lotCount?: number | null;
-    onClick: () => void;
-}) {
-    const t = TONE[tone];
-    return (
-        <button
-            type="button"
-            className={styles.levelRow}
-            style={{"--accent": t.accent, "--accent-bg": t.bg} as CSSProperties}
-            onClick={onClick}
-        >
-            <span className={styles.levelChip}>{chip} </span>
-            <span className={styles.levelBody}>
-        <span className={styles.levelTitle}>{title} </span>
-        <span className={styles.levelSub}>{subtitle} </span>
-      </span>
-            {lotCount != null && <span className={styles.levelCount}>{lotCount} lots </span>}
-            <ChevronRight size={20} className={styles.rowChevron}/>
-        </button>
-    );
-}
-
-// ---------- Historique compact d'examens ----------
-
-export function ExamHistoryList({
-                                    items,
-                                    emptyLabel = "Aucun examen passé pour l'instant.",
-                                    onSelect,
-                                }: {
-    items: AttemptSummaryResponse[];
-    emptyLabel?: string;
-    /** Si défini : tap → ouvre une feuille (Voir le détail / Reprendre). Sinon,
-     *  lien direct vers la session finie. */
-    onSelect?: (a: AttemptSummaryResponse) => void;
-}) {
-    if (items.length === 0) {
-        return <p className={styles.empty}>{emptyLabel}</p>;
-    }
-    return (
-        <div className={styles.histList}>
-            {items.map((a) => {
-                const total = a.totalQuestions ?? 0;
-                const score = a.score ?? 0;
-                const inner = (
-                    <>
-            <span className={styles.histIcon}>
-              <ClipboardCheck size={18} strokeWidth={1.9}/>
-            </span>
-                        <span className={styles.histBody}>
-              <span className={styles.histTitle}>Examen blanc</span>
-              <span className={styles.histDate}>{formatDay(a.finishedAt ?? a.startedAt)}</span>
-            </span>
-                        {total > 0 && (
-                            <span className={`${styles.scoreBadge} ${scoreClass(score, total)}`}>
-                {score}/{total}
-              </span>
-                        )}
-                        <ChevronRight size={18} className={styles.rowChevron}/>
-                    </>
-                );
-                return onSelect ? (
-                    <button
-                        type="button"
-                        key={a.id}
-                        className={styles.histRow}
-                        onClick={() => onSelect(a)}
-                    >
-                        {inner}
-                    </button>
-                ) : (
-                    <Link key={a.id} href={`/sessions/${a.id}`} className={styles.histRow}>
-                        {inner}
-                    </Link>
-                );
-            })}
-        </div>
-    );
-}
-
-export function SeeMoreButton({label, onClick}: { label: string; onClick: () => void }) {
-    return (
-        <button type="button" className={styles.seeMore} onClick={onClick}>
-            {label}
-        </button>
-    );
-}
-
-function formatDay(iso: string): string {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return "—";
-    return d.toLocaleDateString("fr-FR", {day: "2-digit", month: "short", year: "numeric"});
 }

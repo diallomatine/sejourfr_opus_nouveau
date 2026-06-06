@@ -24,10 +24,12 @@ import java.util.UUID;
  *
  * <p>Deux modes :
  * <ul>
- *   <li><b>TCF</b> : filtré par {@code questionType + difficulty}, taille
- *       fixe par niveau (A2 = 15, B1 = 20, B2 = 25).</li>
- *   <li><b>Civique</b> : filtré par {@code themeId}, taille fixe à 15.</li>
+ *   <li><b>TCF</b> : filtré par {@code questionType + difficulty}.</li>
+ *   <li><b>Civique</b> : filtré par {@code themeId}.</li>
  * </ul>
+ *
+ * <p>Depuis la refonte web_refonte, un lot (affiché « Série » côté fronts)
+ * fait <b>20 questions</b> partout, tous niveaux et thèmes confondus.</p>
  *
  * <p>Aucune persistance côté schéma : la composition d'un lot est dérivée de
  * sa position dans le découpage du pool filtré. Tant que le pool ne change
@@ -45,12 +47,12 @@ import java.util.UUID;
 public class LotService {
 
     /** Taille de lot standard par niveau TCF — exposée à {@link AttemptService}. */
-    public static final int LOT_SIZE_A2 = 15;
+    public static final int LOT_SIZE_A2 = 20;
     public static final int LOT_SIZE_B1 = 20;
-    public static final int LOT_SIZE_B2 = 25;
+    public static final int LOT_SIZE_B2 = 20;
 
     /** Taille fixe d'un lot civique, indépendamment du thème. */
-    public static final int LOT_SIZE_CIVIQUE = 15;
+    public static final int LOT_SIZE_CIVIQUE = 20;
 
     private final QuestionManager questionManager;
     private final AttemptManager attemptManager;
