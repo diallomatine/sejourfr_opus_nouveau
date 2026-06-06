@@ -188,25 +188,58 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
                     <span className="brf-dr-label">Compréhension écrite</span>
                     <span className="brf-dr-meta">30 min</span>
                   </div>
-                  <Link href="/entrainement/tcf/ee/examens" className="brf-dr-row is-prod">
-                    <span className="brf-dr-ico" aria-hidden>✍️</span>
-                    <span className="brf-dr-label">Expression écrite</span>
-                    <span className="brf-dr-badge">Épreuve dédiée · IA →</span>
-                  </Link>
-                  <Link href="/entrainement/tcf/eo/examens" className="brf-dr-row is-prod">
-                    <span className="brf-dr-ico" aria-hidden>🎙️</span>
-                    <span className="brf-dr-label">Expression orale</span>
-                    <span className="brf-dr-badge">Épreuve dédiée · IA →</span>
-                  </Link>
+                  {isGuest ? (
+                    <>
+                      {/* Guest : EE/EO exigent un compte — rangées grisées,
+                          pas de lien vers leurs examens. */}
+                      <div className="brf-dr-row is-prod is-locked">
+                        <span className="brf-dr-ico" aria-hidden>✍️</span>
+                        <span className="brf-dr-label">Expression écrite</span>
+                        <span className="brf-dr-badge">🔒 Compte requis</span>
+                      </div>
+                      <div className="brf-dr-row is-prod is-locked">
+                        <span className="brf-dr-ico" aria-hidden>🎙️</span>
+                        <span className="brf-dr-label">Expression orale</span>
+                        <span className="brf-dr-badge">🔒 Compte requis</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Link href="/entrainement/tcf/ee/examens" className="brf-dr-row is-prod">
+                        <span className="brf-dr-ico" aria-hidden>✍️</span>
+                        <span className="brf-dr-label">Expression écrite</span>
+                        <span className="brf-dr-badge">Épreuve dédiée · IA →</span>
+                      </Link>
+                      <Link href="/entrainement/tcf/eo/examens" className="brf-dr-row is-prod">
+                        <span className="brf-dr-ico" aria-hidden>🎙️</span>
+                        <span className="brf-dr-label">Expression orale</span>
+                        <span className="brf-dr-badge">Épreuve dédiée · IA →</span>
+                      </Link>
+                    </>
+                  )}
                 </div>
-                <p className="brf-mobile-note">
-                  Cet examen couvre les épreuves de <strong>compréhension</strong>{" "}
-                  (orale + écrite). L&apos;<strong>expression écrite et orale</strong>,
-                  évaluées par l&apos;IA, se passent aussi sur le web — depuis leurs
-                  examens blancs dédiés (liens ci-dessus). Le niveau{" "}
-                  <strong>CECRL global</strong> du TCF IRN se calcule sur les 4
-                  épreuves.
-                </p>
+                {isGuest ? (
+                  <p className="brf-mobile-note">
+                    Sans compte, cet examen couvre les épreuves de{" "}
+                    <strong>compréhension</strong> (orale + écrite + structure).
+                    L&apos;<strong>expression écrite et orale</strong>, évaluées
+                    par l&apos;IA, ne sont pas disponibles en démo —{" "}
+                    <Link href="/inscription?next=/examens-blancs">
+                      créez un compte gratuit
+                    </Link>{" "}
+                    pour les passer. Le niveau <strong>CECRL global</strong> du
+                    TCF IRN se calcule sur les 4 épreuves.
+                  </p>
+                ) : (
+                  <p className="brf-mobile-note">
+                    Cet examen couvre les épreuves de <strong>compréhension</strong>{" "}
+                    (orale + écrite). L&apos;<strong>expression écrite et orale</strong>,
+                    évaluées par l&apos;IA, se passent aussi sur le web — depuis leurs
+                    examens blancs dédiés (liens ci-dessus). Le niveau{" "}
+                    <strong>CECRL global</strong> du TCF IRN se calcule sur les 4
+                    épreuves.
+                  </p>
+                )}
               </div>
             )}
 
@@ -430,6 +463,10 @@ const styles = `
     transition: background 0.15s;
   }
   .brf-dr-row.is-prod:hover { background: var(--color-blue-light); }
+  .brf-dr-row.is-locked { opacity: 0.75; }
+  .brf-dr-row.is-locked:hover { background: var(--color-paper-2); }
+  .brf-dr-row.is-locked .brf-dr-label { color: var(--color-muted); }
+  .brf-mobile-note a { color: var(--color-blue); font-weight: 700; }
   .brf-dr-badge {
     flex-shrink: 0;
     font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;

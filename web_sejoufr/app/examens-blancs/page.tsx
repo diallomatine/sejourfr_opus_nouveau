@@ -11,7 +11,6 @@ import { ExamsGrid } from "@/app/_components/hub/DetailParts";
 import {
   ApiException,
   attemptApi,
-  publicAttemptApi,
   publicExamApi,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
@@ -36,9 +35,9 @@ const CIVIQUE_FULL_EXAM_SLUG = "civique-decouverte";
  * stratifiées tous thèmes) avec stats, 20 épreuves repliées à 8 (+ Voir tout).
  * Épreuve 1 gratuite, 2+ premium.
  *
- * Guests : même grille — l'examen 1 de chaque parcours se joue en anonyme
- * (publicAttemptApi, attempt user NULL + IP côté backend), les examens 2-20
- * ouvrent la GuestGateSheet (inscription gratuite).
+ * Guests : même grille — l'examen 1 de chaque parcours passe par la page
+ * briefing du template free, qui crée l'attempt anonyme (user NULL + IP
+ * côté backend) ; les examens 2-20 ouvrent la GuestGateSheet.
  */
 export default function ExamensBlancsHomePage() {
   const { status } = useAuth();
@@ -250,12 +249,13 @@ function HomeSkeleton() {
 // ============================================================================
 // VERSION GUEST — même grille que les connectés : examen 1 jouable en
 // anonyme (analytics : attempt user NULL + clientIp), 2-20 → inscription.
+// Démarrer passe par la page briefing du template free (présentation +
+// règles), comme en connecté — c'est elle qui crée l'attempt anonyme.
 // ============================================================================
 
 function ExamsGuestHome() {
   const router = useRouter();
   const [exams, setExams] = useState<ExamTemplateSummary[]>([]);
-  const [starting, setStarting] = useState<ModuleEnum | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [guestGateOpen, setGuestGateOpen] = useState(false);
 
@@ -290,24 +290,10 @@ function ExamsGuestHome() {
     return { CIVIQUE: civique, TCF: tcf };
   }, [exams]);
 
-  async function startDemo(module: ModuleEnum) {
+  function startDemo(module: ModuleEnum) {
     const tpl = examsByModule[module];
-    if (!tpl || starting) return;
-    setError(null);
-    setStarting(module);
-    try {
-      const a = await publicAttemptApi.startDemo({
-        type: "MOCK_EXAM",
-        module,
-        examTemplateId: tpl.id,
-      });
-      router.push(`/sessions/${a.id}`);
-    } catch (e) {
-      setError(
-        e instanceof ApiException ? e.message : "Impossible de démarrer l'examen.",
-      );
-      setStarting(null);
-    }
+    if (!tpl) return;
+    router.push(`/examens-blancs/${tpl.slug}`);
   }
 
   return (
@@ -336,7 +322,7 @@ function ExamsGuestHome() {
         exams={[]}
         scoreOutOf={60}
         premium={false}
-        starting={starting === "TCF"}
+        starting={false}
         lockedLabel="Compte gratuit"
         onStart={() => startDemo("TCF")}
         onLocked={() => setGuestGateOpen(true)}
@@ -351,7 +337,7 @@ function ExamsGuestHome() {
         exams={[]}
         scoreOutOf={40}
         premium={false}
-        starting={starting === "CIVIQUE"}
+        starting={false}
         lockedLabel="Compte gratuit"
         onStart={() => startDemo("CIVIQUE")}
         onLocked={() => setGuestGateOpen(true)}
