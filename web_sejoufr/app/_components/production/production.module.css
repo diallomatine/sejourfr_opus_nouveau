@@ -522,15 +522,75 @@
 .loading { font-size: 13.5px; color: var(--color-muted); text-align: center; padding: 28px 16px; }
 
 /* steps (session 3 tâches) */
-.steps { display: flex; gap: 8px; }
-.step {
-  flex: 1;
-  height: 5px;
-  border-radius: 3px;
-  background: var(--color-line-2);
+/* ===== stepper de session (T1 → T2 → T3, thème refonte) ===== */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
 }
-.stepDone { background: var(--color-green); }
-.stepCurrent { background: var(--color-blue); }
+.stepperItem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.stepperItem:not(:last-child)::after {
+  content: '';
+  width: 46px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-line);
+  margin: 0 14px;
+  flex-shrink: 0;
+}
+.stepperDot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--color-line-2);
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.stepperLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+.stepperCurrent .stepperDot {
+  background: var(--color-blue);
+  color: #fff;
+}
+.stepperCurrent .stepperLabel {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+.stepperDone .stepperDot {
+  background: var(--color-green);
+  color: #fff;
+}
+.stepperDone .stepperLabel {
+  color: var(--color-green);
+}
+@media (max-width: 560px) {
+  .stepperItem:not(:last-child)::after { width: 18px; margin: 0 8px; }
+  .stepperLabel { display: none; }
+}
+
+.bilanFoot {
+  display: flex;
+  justify-content: center;
+  margin-top: 22px;
+}
+
 
 /* CTA bas de page centrés */
 .actions {
