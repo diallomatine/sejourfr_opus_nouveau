@@ -298,10 +298,15 @@
   color: var(--color-green);
 }
 
-/* Tonalités du numéro (pages sujets EE/EO : tâche 1 bleu, 2 ambre, 3 rouge). */
+/* Tonalités du numéro (pages sujets EE/EO : niveau A2 vert, B1 ambre, B2 rouge). */
 .serieNumBlue {
   background: var(--color-blue-light);
   color: var(--color-blue);
+}
+
+.serieNumGreen {
+  background: color-mix(in srgb, var(--color-green) 14%, #fff);
+  color: var(--color-green);
 }
 
 .serieNumAmber {

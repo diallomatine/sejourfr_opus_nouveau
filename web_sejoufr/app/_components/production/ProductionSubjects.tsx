@@ -21,11 +21,11 @@ import prod from "./production.module.css";
 
 type Tab = "sujets" | "exemples";
 
-/** Tonalité par tâche (alignée sur les cards du hub : T1 bleu, T2 ambre, T3 rouge). */
-const TASK_NUM_TONES: Record<number, string> = {
-  1: detail.serieNumBlue,
-  2: detail.serieNumAmber,
-  3: detail.serieNumRed,
+/** Tonalité par niveau cible du sujet : la difficulté monte, la couleur chauffe. */
+const NIVEAU_TONES: Record<string, string> = {
+  A2: detail.serieNumGreen,
+  B1: detail.serieNumAmber,
+  B2: detail.serieNumRed,
 };
 
 /**
@@ -167,7 +167,7 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
                   className={detail.serieCard}
                   onClick={() => router.push(`${config.base}/${config.inputSegment}/${t.id}`)}
                 >
-                  <span className={`${detail.serieNum} ${TASK_NUM_TONES[n] ?? ""}`}>
+                  <span className={`${detail.serieNum} ${NIVEAU_TONES[t.niveauCible] ?? ""}`}>
                     {t.niveauCible}
                   </span>
                   <span className={detail.serieBody}>
