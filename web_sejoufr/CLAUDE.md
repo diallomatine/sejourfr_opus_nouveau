@@ -440,6 +440,16 @@ Chantier découpé en vagues :
           `SeeMoreButton` + styles orphelins (HubParts ne garde que
           ExamBlancHero, SectionLabel/Counter/Link, HubDetailHeader pour les
           parcours production).
+    - **Rapport d'examen / de série refondu** (`ExamReport.tsx`) : hero teinté
+      vert/rouge (donut bonnes réponses, « Vous avez obtenu X% », Score /
+      Temps / Niveau estimé TCF ou Seuil civique), **« Réussite par
+      sous-thème » uniquement quand l'attempt couvre ≥ 2 thèmes** (examens
+      complets — jamais sur les examens scopés à un thème/épreuve),
+      « Et maintenant ? » (point à renforcer + Refaire via `onRetry` posé par
+      la page session, Autres examens/séries, Voir ma progression), corrigé
+      détaillé en accordéon filtrable. Prop `embedded` = corrigé seul (bilan
+      série TCF). `TcfScoreCard` supprimé (le hero porte score + niveau) ;
+      miroir `AttemptResponse` enrichi (`calibratedScore`, `cecrlLevel`).
     - **Hubs TCF / Civique refondus** (maquette `sejour_fr.html`) :
       `TcfHub`/`CiviqueHub` = header eyebrow + bande de 4 stats (maîtrise,
       catégories, examens blancs du module, niveau estimé) + grille de cards

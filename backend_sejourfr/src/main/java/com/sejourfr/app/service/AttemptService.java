@@ -14,6 +14,7 @@ import com.sejourfr.app.entity.Choice;
 import com.sejourfr.app.entity.ExamTemplate;
 import com.sejourfr.app.entity.ExamTemplateRule;
 import com.sejourfr.app.entity.Question;
+import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptType;
 import com.sejourfr.app.enums.Difficulty;
@@ -30,6 +31,7 @@ import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.AttemptQuestionManager;
 import com.sejourfr.app.manager.ExamTemplateManager;
 import com.sejourfr.app.manager.QuestionManager;
+import com.sejourfr.app.manager.ThemeManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.mapper.AttemptMapper;
 import jakarta.persistence.EntityNotFoundException;
@@ -40,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -105,6 +108,7 @@ public class AttemptService {
     private final AnswerManager answerManager;
     private final QuestionManager questionManager;
     private final UserManager userManager;
+    private final ThemeManager themeManager;
     private final ExamTemplateManager examTemplateManager;
     private final SubscriptionService subscriptionService;
     private final LotService lotService;
@@ -192,7 +196,16 @@ public class AttemptService {
             }
             var qType = req.type() == AttemptType.MOCK_EXAM ? null : req.questionType();
             Difficulty effectiveDifficulty = resolveDifficulty(user, req.module(), req.difficulty());
-            questions = questionManager.findRandom(req.module(), themeId, effectiveDifficulty, qType, size);
+            boolean civiqueFullExam = req.type() == AttemptType.MOCK_EXAM
+                    && req.module() == Module.CIVIQUE
+                    && themeId == null;
+            questions = civiqueFullExam
+                    // Examen civique complet : composition stratifiée sur les
+                    // thèmes (8 Q × 5 thèmes), comme les templates. Le tirage
+                    // aléatoire global pouvait concentrer l'examen sur 1-2
+                    // thèmes selon le pool de la difficulté visée.
+                    ? composeCiviqueFullExam(effectiveDifficulty, size)
+                    : questionManager.findRandom(req.module(), themeId, effectiveDifficulty, qType, size);
         }
 
         if (questions.isEmpty()) {
@@ -644,6 +657,44 @@ public class AttemptService {
      *                      (guest ou non-premium sur template free) afin que
      *                      rejouer redonne toujours la meme serie.
      */
+    /**
+     * Composition d'un examen civique complet (40 Q hors template) :
+     * stratifiée sur les thèmes officiels (size / nbThèmes questions par
+     * thème, ex. 8 × 5), complétée par un tirage global si un pool de thème
+     * est trop petit pour la difficulté visée, puis mélangée. Garantit que
+     * l'examen couvre tous les thèmes — comme l'examen réel et les templates.
+     */
+    private List<Question> composeCiviqueFullExam(Difficulty difficulty, int size) {
+        List<Theme> themes = themeManager.findByModuleOrderedByDisplayOrder(Module.CIVIQUE);
+        List<Question> picked = new ArrayList<>(size);
+        Set<UUID> pickedIds = new HashSet<>();
+
+        if (!themes.isEmpty()) {
+            int perTheme = Math.max(1, size / themes.size());
+            for (Theme theme : themes) {
+                if (picked.size() >= size) break;
+                List<Question> qs = questionManager.findRandom(
+                        Module.CIVIQUE, theme.getId(), difficulty, null,
+                        Math.min(perTheme, size - picked.size()));
+                for (Question q : qs) {
+                    if (pickedIds.add(q.getId())) picked.add(q);
+                }
+            }
+        }
+
+        if (picked.size() < size) {
+            List<Question> extra = questionManager.findRandomExcluding(
+                    Module.CIVIQUE, null, difficulty, null, pickedIds, size - picked.size());
+            for (Question q : extra) {
+                if (pickedIds.add(q.getId())) picked.add(q);
+            }
+        }
+
+        // Remélange : sans ça l'examen enchaînerait les questions thème par thème.
+        Collections.shuffle(picked);
+        return picked;
+    }
+
     private List<Question> pickQuestionsForTemplate(ExamTemplate template, boolean deterministic) {
         LinkedHashSet<Question> picked = new LinkedHashSet<>();
         List<UUID> exclude = new ArrayList<>();

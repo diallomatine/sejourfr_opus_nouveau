@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useEffect, useState } from "react";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import {
@@ -10,7 +10,6 @@ import {
 } from "@/app/_components/QuestionRunner";
 import { TrainingResultCard } from "@/app/_components/TrainingResultCard";
 import { TcfLotResultCard } from "@/app/_components/TcfLotResultCard";
-import { TcfScoreCard } from "@/app/_components/TcfScoreCard";
 import { ExamReport } from "@/app/_components/ExamReport";
 import {
   ApiException,
@@ -19,7 +18,7 @@ import {
   userContentApi,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import type { AttemptResponse } from "@/lib/types";
+import type { AttemptResponse, Difficulty } from "@/lib/types";
 
 interface PageProps {
   params: Promise<{ attemptId: string }>;
@@ -52,6 +51,38 @@ function lotReturnPath(attempt: AttemptResponse): string | null {
     return `/entrainement/tcf/${code}/${level}`;
   }
   return null;
+}
+
+const TCF_EPREUVE_LABELS: Record<string, string> = {
+  CO: "Compréhension orale",
+  CE: "Compréhension écrite",
+  STRUCTURE: "Structure de la langue",
+};
+
+/** Sous-titre du hero du rapport : épreuve/thème + nature de la session. */
+function attemptContextLabel(
+  attempt: AttemptResponse,
+  lotNumero: number | null,
+): string {
+  const themeName = attempt.questions[0]?.question.themeName;
+  if (attempt.type === "MOCK_EXAM") {
+    if (attempt.examTemplateName) return attempt.examTemplateName;
+    if (attempt.module === "TCF") {
+      const label = attempt.moduleExamQuestionType
+        ? TCF_EPREUVE_LABELS[attempt.moduleExamQuestionType]
+        : null;
+      return `${label ?? "TCF IRN"} · Examen blanc`;
+    }
+    return attempt.themeId && themeName
+      ? `${themeName} · Examen blanc`
+      : "Examen civique · Examen blanc";
+  }
+  const scope =
+    attempt.module === "TCF" && attempt.questions[0]
+      ? (TCF_EPREUVE_LABELS[attempt.questions[0].question.questionType ?? ""] ??
+        "TCF IRN")
+      : (themeName ?? "Examen civique");
+  return lotNumero != null ? `${scope} · Série ${lotNumero}` : `${scope} · Entraînement`;
 }
 
 /** Écran d'origine d'un examen blanc, dérivé de l'attempt : examen du
@@ -103,6 +134,7 @@ function SessionRunnerGate({ params }: PageProps) {
 
 function SessionRunnerInner({ params }: PageProps) {
   const { attemptId } = use(params);
+  const router = useRouter();
   const { user, status } = useAuth();
   const isPremium = user?.isPremium ?? false;
   const searchParams = useSearchParams();
@@ -121,6 +153,69 @@ function SessionRunnerInner({ params }: PageProps) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   /** True si l'attempt était déjà finalisé à l'ouverture (reprise sur session close). */
   const [openedAsFinished, setOpenedAsFinished] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
+
+  /** "Refaire" depuis le rapport : relance une session avec les mêmes
+   *  paramètres (examen template / thématique / module, ou série). */
+  async function retryAttempt() {
+    if (!attempt || retrying) return;
+    setRetryError(null);
+    setRetrying(true);
+    try {
+      if (attempt.type === "MOCK_EXAM") {
+        const a = attempt.examTemplateId
+          ? await attemptApi.start({
+              type: "MOCK_EXAM",
+              module: attempt.module,
+              examTemplateId: attempt.examTemplateId,
+            })
+          : attempt.module === "CIVIQUE"
+            ? await attemptApi.start({
+                type: "MOCK_EXAM",
+                module: "CIVIQUE",
+                themeId: attempt.themeId ?? undefined,
+              })
+            : await attemptApi.start({
+                type: "MOCK_EXAM",
+                module: "TCF",
+                moduleExamQuestionType: attempt.moduleExamQuestionType ?? undefined,
+              });
+        router.push(`/sessions/${a.id}`);
+        return;
+      }
+      // Série : mêmes paramètres que les pages séries.
+      if (lotNumero == null) return;
+      if (attempt.module === "CIVIQUE") {
+        const a = await attemptApi.start({
+          type: "TRAINING",
+          module: "CIVIQUE",
+          themeId: attempt.themeId ?? undefined,
+          lotNumero,
+        });
+        router.push(`/sessions/${a.id}?lot=${lotNumero}`);
+        return;
+      }
+      const q = attempt.questions[0]?.question;
+      const code = tcfCode ?? q?.questionType?.toLowerCase();
+      const level = tcfLevel ?? q?.difficulty?.toLowerCase();
+      const a = await attemptApi.start({
+        type: "TRAINING",
+        module: "TCF",
+        questionType: q?.questionType ?? undefined,
+        difficulty: (q?.difficulty ?? undefined) as Difficulty | undefined,
+        lotNumero,
+      });
+      router.push(
+        `/sessions/${a.id}?lot=${lotNumero}&result=tcfLot&code=${code}&level=${level}`,
+      );
+    } catch (e) {
+      setRetryError(
+        e instanceof ApiException ? e.message : "Impossible de relancer la session.",
+      );
+      setRetrying(false);
+    }
+  }
 
   useEffect(() => {
     if (status === "loading") return;
@@ -232,23 +327,38 @@ function SessionRunnerInner({ params }: PageProps) {
       lotNumero != null && !isGuest ? (lotReturnPath(attempt) ?? undefined) : undefined;
     return (
       <main className="sess">
+        {retryError && <div className="sess-retry-error">{retryError}</div>}
         {isExam ? (
           <>
-            {/* TCF : carte compacte points + niveau CECRL. Civique : pas de
-                carte de score — le rapport porte déjà les stats
-                bonnes / mauvaises / non répondues en tête. */}
-            {attempt.module === "TCF" && <TcfScoreCard attempt={attempt} />}
-            <ExamReport attempt={attempt} />
+            {/* Rapport façon maquette : hero donut + sous-thèmes (examens
+                complets uniquement) + « Et maintenant ? » + corrigé. */}
+            <ExamReport
+              attempt={attempt}
+              contextLabel={attemptContextLabel(attempt, lotNumero)}
+              onRetry={isGuest ? undefined : retryAttempt}
+              retrying={retrying}
+              moreHref={isGuest ? undefined : examReturnPath(attempt)}
+              moreLabel="Autres examens blancs"
+              progressHref={isGuest ? undefined : "/statistiques"}
+            />
             {isGuest && <GuestResultCta />}
           </>
         ) : openedAsFinished ? (
           <>
-            {/* Consultation d'un attempt déjà fini (« Voir le détail ») : rapport
-                question-par-question (parité écran rapport mobile), sans carte
-                « déjà terminée ». Pour le TCF on ajoute en tête une carte
-                points obtenus + niveau CECRL atteint. */}
-            {attempt.module === "TCF" && !isGuest && <TcfScoreCard attempt={attempt} />}
-            {!isGuest && <ExamReport attempt={attempt} />}
+            {/* Consultation d'une série / d'un entraînement déjà fini
+                (« Voir le détail ») : même rapport, CTAs adaptés. */}
+            {!isGuest && (
+              <ExamReport
+                attempt={attempt}
+                contextLabel={attemptContextLabel(attempt, lotNumero)}
+                onRetry={lotNumero != null ? retryAttempt : undefined}
+                retryLabel="Refaire cette série"
+                retrying={retrying}
+                moreHref={lotReturnPath(attempt) ?? undefined}
+                moreLabel="Autres séries"
+                progressHref="/statistiques"
+              />
+            )}
             {isGuest && <GuestResultCta />}
           </>
         ) : (
@@ -263,7 +373,21 @@ function SessionRunnerInner({ params }: PageProps) {
             {isGuest && <GuestResultCta />}
           </>
         )}
-        <style>{`.sess { background: var(--color-paper); min-height: calc(100vh - 110px); }`}</style>
+        <style>{`
+          .sess { background: var(--color-paper); min-height: calc(100vh - 110px); }
+          .sess-retry-error {
+            max-width: 880px;
+            margin: 0 auto;
+            padding: 12px 16px;
+            background: var(--color-red-light);
+            border: 1px solid color-mix(in srgb, var(--color-red) 25%, transparent);
+            color: var(--color-red-dark);
+            border-radius: 12px;
+            font-size: 13.5px;
+            position: relative;
+            top: 18px;
+          }
+        `}</style>
       </main>
     );
   }

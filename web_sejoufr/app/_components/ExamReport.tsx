@@ -1,7 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { orderedChoices } from "@/lib/types";
+import {
+  ArrowRight,
+  BarChart3,
+  Check,
+  ChevronDown,
+  Minus,
+  RotateCw,
+  Target,
+  Trophy,
+  X,
+} from "lucide-react";
+import { niveauCecrlLabel, orderedChoices } from "@/lib/types";
 import type {
   AttemptQuestionResponse,
   AttemptResponse,
@@ -10,14 +22,38 @@ import type {
 type Filter = "all" | "wrong" | "right" | "skipped";
 
 /**
- * Rapport détaillé d'un examen blanc finalisé : liste des questions avec le
- * choix de l'utilisateur, la bonne réponse et l'explication. Filtrable.
+ * Rapport d'un examen blanc / d'une série finalisée (maquette
+ * sejour_fr.html) : hero teinté (donut bonnes réponses, % obtenu, temps,
+ * niveau estimé TCF ou seuil civique), « Réussite par sous-thème »
+ * (uniquement quand l'attempt couvre ≥ 2 thèmes — examens complets),
+ * « Et maintenant ? » (point à renforcer + CTAs posés par le parent), puis
+ * « Corrigé détaillé » en accordéon filtrable.
  *
- * Le backend renvoie `choice.correct: boolean` et `question.explanation`
- * uniquement quand `attempt.finishedAt !== null` (cf AttemptService :
- * revealCorrect). On peut donc traiter `AttemptResponse` directement.
+ * `embedded` (bilan série TCF) : rend uniquement le corrigé détaillé.
  */
-export function ExamReport({ attempt }: { attempt: AttemptResponse }) {
+export function ExamReport({
+  attempt,
+  embedded = false,
+  contextLabel,
+  onRetry,
+  retryLabel = "Refaire cet examen",
+  retrying = false,
+  moreHref,
+  moreLabel = "Autres examens blancs",
+  progressHref,
+}: {
+  attempt: AttemptResponse;
+  embedded?: boolean;
+  /** Sous-titre du hero, ex. "Compréhension orale · Examen blanc". */
+  contextLabel?: string;
+  onRetry?: () => void;
+  retryLabel?: string;
+  retrying?: boolean;
+  moreHref?: string;
+  moreLabel?: string;
+  /** Lien "Voir ma progression" (omis pour les guests). */
+  progressHref?: string;
+}) {
   const [filter, setFilter] = useState<Filter>("all");
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
 
@@ -38,6 +74,24 @@ export function ExamReport({ attempt }: { attempt: AttemptResponse }) {
     return { all: sorted.length, right, wrong, skipped };
   }, [sorted]);
 
+  // Réussite par thème — exposée seulement quand l'attempt couvre plusieurs
+  // thèmes (examen complet). Les examens scopés à un thème / une épreuve
+  // n'affichent pas la section. Trié du plus fragile au plus solide.
+  const byTheme = useMemo(() => {
+    const map = new Map<string, { right: number; total: number }>();
+    for (const aq of sorted) {
+      const name = aq.question.themeName ?? "Autre";
+      const entry = map.get(name) ?? { right: 0, total: 0 };
+      entry.total++;
+      if (aq.answered && aq.correct) entry.right++;
+      map.set(name, entry);
+    }
+    if (map.size < 2) return [];
+    return [...map.entries()]
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => a.right / a.total - b.right / b.total);
+  }, [sorted]);
+
   const filtered = useMemo(() => {
     if (filter === "all") return sorted;
     return sorted.filter((aq) => {
@@ -56,92 +110,264 @@ export function ExamReport({ attempt }: { attempt: AttemptResponse }) {
     });
   }
 
-  function expandAll() {
-    setOpenIds(new Set(filtered.map((q) => q.id)));
-  }
-  function collapseAll() {
-    setOpenIds(new Set());
+  const total = counts.all;
+  const pct = total > 0 ? Math.round((counts.right / total) * 100) : 0;
+  const passed =
+    attempt.passThreshold != null
+      ? counts.right >= attempt.passThreshold
+      : pct >= 50;
+  const seconds = elapsedSeconds(attempt.startedAt, attempt.finishedAt);
+  const weakest = byTheme[0] ?? null;
+
+  const corrige = (
+    <section className="rpt-card rpt-corrige">
+      <h2 className="rpt-card-title">Corrigé détaillé</h2>
+      <p className="rpt-card-sub">
+        Le détail de chaque question lors de votre dernier essai.
+      </p>
+
+      <div className="rpt-filters">
+        <FilterChip active={filter === "all"} onClick={() => setFilter("all")}>
+          Toutes · {counts.all}
+        </FilterChip>
+        <FilterChip
+          active={filter === "wrong"}
+          onClick={() => setFilter("wrong")}
+          disabled={counts.wrong === 0}
+        >
+          Ratées · {counts.wrong}
+        </FilterChip>
+        <FilterChip
+          active={filter === "right"}
+          onClick={() => setFilter("right")}
+          disabled={counts.right === 0}
+        >
+          Réussies · {counts.right}
+        </FilterChip>
+        {counts.skipped > 0 && (
+          <FilterChip
+            active={filter === "skipped"}
+            onClick={() => setFilter("skipped")}
+          >
+            Non répondues · {counts.skipped}
+          </FilterChip>
+        )}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="rpt-empty">Aucune question dans cette catégorie.</div>
+      ) : (
+        <ol className="rpt-list">
+          {filtered.map((aq) => (
+            <ReportRow
+              key={aq.id}
+              aq={aq}
+              showTheme={byTheme.length > 0}
+              open={openIds.has(aq.id)}
+              onToggle={() => toggle(aq.id)}
+            />
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+
+  if (embedded) {
+    return (
+      <section className="rpt">
+        <div className="rpt-wrap">{corrige}</div>
+        <style>{styles}</style>
+      </section>
+    );
   }
 
   return (
     <section className="rpt">
       <div className="rpt-wrap">
-        <header className="rpt-head">
-          <span className="eyebrow">Rapport détaillé</span>
-          <h2>Vos réponses, une par une</h2>
-          <p>
-            Filtrez par état pour cibler ce qu&apos;il y a à retravailler. Chaque
-            question affiche la bonne réponse et l&apos;explication.
-          </p>
+        {/* ===== hero ===== */}
+        <header className={`rpt-hero ${passed ? "rpt-hero-pass" : "rpt-hero-fail"}`}>
+          <HeroDonut right={counts.right} total={total} passed={passed} />
+          <div className="rpt-hero-body">
+            <span className="rpt-hero-pill">
+              <Trophy size={13} aria-hidden /> Rapport du dernier score
+            </span>
+            <h1>Vous avez obtenu {pct}%</h1>
+            {contextLabel && <p className="rpt-hero-context">{contextLabel}</p>}
+            <dl className="rpt-hero-stats">
+              <div>
+                <dt>Score</dt>
+                <dd>
+                  {counts.right}/{total}
+                </dd>
+              </div>
+              <div>
+                <dt>Temps</dt>
+                <dd>{formatDuration(seconds)}</dd>
+              </div>
+              {attempt.cecrlLevel ? (
+                <div>
+                  <dt>Niveau estimé</dt>
+                  <dd className="rpt-hero-level">
+                    {niveauCecrlLabel(attempt.cecrlLevel)}
+                  </dd>
+                </div>
+              ) : attempt.passThreshold != null ? (
+                <div>
+                  <dt>Seuil</dt>
+                  <dd>
+                    {attempt.passThreshold}/{total}
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          </div>
         </header>
 
-        {/* Stats résumé */}
-        <div className="rpt-stats">
-          <StatTile label="Bonnes" value={counts.right} tone="good" />
-          <StatTile label="Mauvaises" value={counts.wrong} tone="bad" />
-          <StatTile label="Non répondues" value={counts.skipped} tone="neutral" />
-        </div>
-
-        {/* Filtres */}
-        <div className="rpt-filters">
-          <FilterChip active={filter === "all"} onClick={() => setFilter("all")}>
-            Toutes <span className="rpt-count">{counts.all}</span>
-          </FilterChip>
-          <FilterChip
-            active={filter === "wrong"}
-            onClick={() => setFilter("wrong")}
-            disabled={counts.wrong === 0}
-            tone="bad"
-          >
-            Mauvaises <span className="rpt-count">{counts.wrong}</span>
-          </FilterChip>
-          <FilterChip
-            active={filter === "right"}
-            onClick={() => setFilter("right")}
-            disabled={counts.right === 0}
-            tone="good"
-          >
-            Bonnes <span className="rpt-count">{counts.right}</span>
-          </FilterChip>
-          {counts.skipped > 0 && (
-            <FilterChip
-              active={filter === "skipped"}
-              onClick={() => setFilter("skipped")}
-              tone="neutral"
-            >
-              Non répondues <span className="rpt-count">{counts.skipped}</span>
-            </FilterChip>
+        {/* ===== sous-thèmes + et maintenant ===== */}
+        <div className={`rpt-grid ${byTheme.length === 0 ? "rpt-grid-solo" : ""}`}>
+          {byTheme.length > 0 && (
+            <section className="rpt-card">
+              <h2 className="rpt-card-title">Réussite par sous-thème</h2>
+              <ul className="rpt-themes">
+                {byTheme.map((t) => (
+                  <li key={t.name} className="rpt-theme">
+                    <div className="rpt-theme-top">
+                      <span className="rpt-theme-name">{t.name}</span>
+                      <span className="rpt-theme-score">
+                        {t.right}/{t.total}
+                      </span>
+                    </div>
+                    <div className="rpt-theme-track">
+                      <span
+                        className={`rpt-theme-fill ${fillTone(t.right, t.total)}`}
+                        style={{ width: `${Math.round((t.right / t.total) * 100)}%` }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
 
-          <div className="rpt-bulk">
-            <button type="button" className="rpt-bulk-btn" onClick={expandAll}>
-              Tout déplier
-            </button>
-            <button type="button" className="rpt-bulk-btn" onClick={collapseAll}>
-              Replier
-            </button>
-          </div>
+          <section className="rpt-card">
+            <h2 className="rpt-card-title">Et maintenant ?</h2>
+            <div className="rpt-advice">
+              <span className="rpt-advice-head">
+                <Target size={14} aria-hidden /> Point à renforcer
+              </span>
+              <p>
+                {weakest && weakest.right < weakest.total ? (
+                  <>
+                    Concentrez-vous sur <strong>{weakest.name}</strong> (
+                    {weakest.right}/{weakest.total}). Un entraînement ciblé
+                    devrait vite faire monter votre score.
+                  </>
+                ) : counts.wrong + counts.skipped > 0 ? (
+                  <>
+                    Revoyez les{" "}
+                    <strong>
+                      {counts.wrong + counts.skipped} question
+                      {counts.wrong + counts.skipped > 1 ? "s" : ""}
+                    </strong>{" "}
+                    à retravailler dans le corrigé ci-dessous, puis retentez
+                    votre chance.
+                  </>
+                ) : (
+                  <>Sans faute — enchaînez sur l&apos;examen suivant pour confirmer.</>
+                )}
+              </p>
+            </div>
+
+            {onRetry && (
+              <button
+                type="button"
+                className="rpt-cta rpt-cta-primary"
+                onClick={onRetry}
+                disabled={retrying}
+              >
+                <RotateCw size={16} aria-hidden />
+                {retrying ? "Préparation…" : retryLabel}
+              </button>
+            )}
+            {moreHref && (
+              <Link href={moreHref} className="rpt-cta rpt-cta-outline">
+                {moreLabel} <ArrowRight size={15} aria-hidden />
+              </Link>
+            )}
+            {progressHref && (
+              <Link href={progressHref} className="rpt-progress-link">
+                <BarChart3 size={15} aria-hidden /> Voir ma progression
+              </Link>
+            )}
+          </section>
         </div>
 
-        {/* Liste */}
-        {filtered.length === 0 ? (
-          <div className="rpt-empty">Aucune question dans cette catégorie.</div>
-        ) : (
-          <ol className="rpt-list">
-            {filtered.map((aq) => (
-              <ReportRow
-                key={aq.id}
-                aq={aq}
-                open={openIds.has(aq.id)}
-                onToggle={() => toggle(aq.id)}
-              />
-            ))}
-          </ol>
-        )}
+        {corrige}
       </div>
       <style>{styles}</style>
     </section>
   );
+}
+
+function fillTone(right: number, total: number): string {
+  const r = total > 0 ? right / total : 0;
+  if (r >= 0.8) return "rpt-fill-green";
+  if (r < 0.6) return "rpt-fill-amber";
+  return "rpt-fill-blue";
+}
+
+function HeroDonut({
+  right,
+  total,
+  passed,
+}: {
+  right: number;
+  total: number;
+  passed: boolean;
+}) {
+  const r = 56;
+  const c = 2 * Math.PI * r;
+  const ratio = total > 0 ? right / total : 0;
+  return (
+    <div className="rpt-donut" role="presentation">
+      <svg width="132" height="132" viewBox="0 0 132 132">
+        <circle cx="66" cy="66" r={r} fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="11" />
+        <circle
+          cx="66"
+          cy="66"
+          r={r}
+          fill="none"
+          stroke={passed ? "var(--color-green)" : "var(--color-red)"}
+          strokeWidth="11"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - ratio)}
+          transform="rotate(-90 66 66)"
+        />
+      </svg>
+      <div className="rpt-donut-center">
+        <span className="rpt-donut-score">
+          {right}/{total}
+        </span>
+        <span className="rpt-donut-label">bonnes réponses</span>
+      </div>
+    </div>
+  );
+}
+
+function elapsedSeconds(startedAt: string, finishedAt?: string | null): number {
+  if (!finishedAt) return 0;
+  const s = new Date(startedAt).getTime();
+  const f = new Date(finishedAt).getTime();
+  if (Number.isNaN(s) || Number.isNaN(f) || f < s) return 0;
+  return Math.round((f - s) / 1000);
+}
+
+function formatDuration(sec: number): string {
+  if (sec <= 0) return "—";
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return m > 0 ? `${m} min ${String(s).padStart(2, "0")}` : `${s} s`;
 }
 
 // ============================================================================
@@ -149,10 +375,12 @@ export function ExamReport({ attempt }: { attempt: AttemptResponse }) {
 // ============================================================================
 function ReportRow({
   aq,
+  showTheme,
   open,
   onToggle,
 }: {
   aq: AttemptQuestionResponse;
+  showTheme: boolean;
   open: boolean;
   onToggle: () => void;
 }) {
@@ -164,22 +392,28 @@ function ReportRow({
       : "wrong";
 
   return (
-    <li className={`rpt-row rpt-row-${state}`}>
+    <li className="rpt-row">
       <button type="button" className="rpt-row-head" onClick={onToggle} aria-expanded={open}>
-        <span className="rpt-row-num">{aq.position + 1}</span>
-        <span className="rpt-row-body">
-          <span className="rpt-row-tags">
-            <StateBadge state={state} />
-            <span className="rpt-tag-mono">{q.difficulty}</span>
-            <span className="rpt-tag-theme">{q.themeName}</span>
-          </span>
-          <span className={`rpt-row-statement ${open ? "is-open" : ""}`}>
-            {q.statement}
-          </span>
+        <span className={`rpt-row-state rpt-row-state-${state}`} aria-hidden>
+          {state === "right" ? (
+            <Check size={13} strokeWidth={3} />
+          ) : state === "wrong" ? (
+            <X size={13} strokeWidth={3} />
+          ) : (
+            <Minus size={13} strokeWidth={3} />
+          )}
         </span>
-        <span className={`rpt-row-chevron ${open ? "is-open" : ""}`} aria-hidden>
-          ▾
+        <span className={`rpt-row-statement ${open ? "is-open" : ""}`}>
+          {aq.position + 1}. {q.statement}
         </span>
+        {showTheme && q.themeName && (
+          <span className="rpt-row-theme">{q.themeName}</span>
+        )}
+        <ChevronDown
+          size={16}
+          className={`rpt-row-chevron ${open ? "is-open" : ""}`}
+          aria-hidden
+        />
       </button>
 
       {open && (
@@ -244,49 +478,21 @@ function ReportRow({
   );
 }
 
-// ============================================================================
-// SUB
-// ============================================================================
-function StatTile({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone: "good" | "bad" | "neutral";
-}) {
-  return (
-    <div className={`rpt-stat rpt-stat-${tone}`}>
-      <span className="rpt-stat-value">{value}</span>
-      <span className="rpt-stat-label">{label}</span>
-    </div>
-  );
-}
-
-function StateBadge({ state }: { state: "right" | "wrong" | "skipped" }) {
-  const label =
-    state === "right" ? "Correct" : state === "wrong" ? "Incorrect" : "Non répondu";
-  return <span className={`rpt-state-badge rpt-state-${state}`}>{label}</span>;
-}
-
 function FilterChip({
   active,
   onClick,
   disabled,
-  tone = "neutral",
   children,
 }: {
   active: boolean;
   onClick: () => void;
   disabled?: boolean;
-  tone?: "good" | "bad" | "neutral";
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
-      className={`rpt-chip rpt-chip-${tone} ${active ? "is-active" : ""}`}
+      className={`rpt-chip ${active ? "is-active" : ""}`}
       onClick={onClick}
       disabled={disabled}
     >
@@ -299,153 +505,227 @@ function FilterChip({
 // STYLES
 // ============================================================================
 const styles = `
-  .rpt { padding: 16px 16px 64px; }
-  .rpt-wrap { max-width: 760px; margin: 0 auto; }
+  .rpt { padding: 24px 18px 64px; }
+  .rpt-wrap { max-width: 880px; margin: 0 auto; }
 
-  .rpt-head { text-align: center; margin: 0 0 24px; }
-  .rpt-head h2 {
-    font-family: var(--font-display); font-weight: 500;
-    font-size: clamp(22px, 3.5vw, 30px); line-height: 1.15; letter-spacing: -0.02em;
-    margin: 8px 0 8px;
-    color: var(--color-ink);
+  /* ===== hero ===== */
+  .rpt-hero {
+    display: flex; align-items: center; gap: 26px;
+    border-radius: 20px;
+    padding: 28px 30px;
+    margin-bottom: 18px;
   }
-  .rpt-head p {
-    color: var(--color-muted); font-size: 14px;
-    margin: 0 auto; max-width: 480px; line-height: 1.55;
-  }
+  .rpt-hero-pass { background: color-mix(in srgb, var(--color-green) 13%, #fff); }
+  .rpt-hero-fail { background: var(--color-red-light); }
 
-  .rpt-stats {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
-    margin: 0 0 22px;
-  }
-  .rpt-stat {
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 12px;
-    padding: 14px 12px;
+  .rpt-donut { position: relative; width: 132px; height: 132px; flex-shrink: 0; }
+  .rpt-donut-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
     text-align: center;
   }
-  .rpt-stat-value {
-    display: block;
-    font-family: var(--font-display); font-weight: 500;
-    font-size: 28px; line-height: 1; letter-spacing: -0.03em;
-    margin-bottom: 4px;
+  .rpt-donut-score {
+    font-family: var(--font-sans);
+    font-size: 26px; font-weight: 800; letter-spacing: -0.02em;
+    color: var(--color-ink); line-height: 1.1;
   }
-  .rpt-stat-label {
-    font-family: var(--font-mono); font-size: 9.5px;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--color-muted); font-weight: 600;
-  }
-  .rpt-stat-good .rpt-stat-value { color: var(--color-green); }
-  .rpt-stat-bad .rpt-stat-value { color: var(--color-red); }
-  .rpt-stat-neutral .rpt-stat-value { color: var(--color-muted); }
+  .rpt-donut-label { font-size: 10.5px; color: var(--color-muted); }
 
-  /* Filters */
-  .rpt-filters {
-    display: flex; flex-wrap: wrap; gap: 8px;
-    margin: 0 0 18px;
-    align-items: center;
-  }
-  .rpt-chip {
+  .rpt-hero-body { min-width: 0; }
+  .rpt-hero-pill {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 7px 12px;
+    background: rgba(255, 255, 255, 0.75);
+    color: var(--color-ink-2);
+    font-size: 12px; font-weight: 600;
+    padding: 5px 12px; border-radius: 999px;
+    margin-bottom: 10px;
+  }
+  .rpt-hero h1 {
+    margin: 0 0 4px;
+    font-family: var(--font-sans);
+    font-size: clamp(24px, 4vw, 32px);
+    font-weight: 800; letter-spacing: -0.02em;
+    color: var(--color-ink); line-height: 1.15;
+  }
+  .rpt-hero-context { margin: 0 0 14px; font-size: 14.5px; color: var(--color-muted); }
+  .rpt-hero-stats {
+    display: flex; flex-wrap: wrap; gap: 28px;
+    margin: 0;
+  }
+  .rpt-hero-stats dt {
+    font-size: 12px; color: var(--color-muted); margin-bottom: 2px;
+  }
+  .rpt-hero-stats dd {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 18px; font-weight: 800; letter-spacing: -0.01em;
+    color: var(--color-ink);
+  }
+  .rpt-hero-level { color: var(--color-blue) !important; }
+
+  /* ===== grid sous-thèmes / et maintenant ===== */
+  .rpt-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+  }
+  .rpt-grid-solo { grid-template-columns: 1fr; }
+
+  .rpt-card {
     background: #fff;
     border: 1px solid var(--color-line);
-    border-radius: 100px;
+    border-radius: 16px;
+    padding: 22px;
+    min-width: 0;
+  }
+  .rpt-card-title {
+    margin: 0 0 6px;
     font-family: var(--font-sans);
-    font-size: 13px; font-weight: 600;
+    font-size: 17px; font-weight: 800; letter-spacing: -0.01em;
+    color: var(--color-ink);
+  }
+  .rpt-card-sub { margin: 0 0 16px; font-size: 13.5px; color: var(--color-muted); }
+
+  .rpt-themes {
+    list-style: none; margin: 10px 0 0; padding: 0;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .rpt-theme-top {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin-bottom: 6px;
+  }
+  .rpt-theme-name {
+    font-size: 13.5px; color: var(--color-ink-2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .rpt-theme-score {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+    color: var(--color-ink-2); flex-shrink: 0;
+  }
+  .rpt-theme-track {
+    height: 8px; border-radius: 999px;
+    background: var(--color-line-2); overflow: hidden;
+  }
+  .rpt-theme-fill { display: block; height: 100%; border-radius: 999px; }
+  .rpt-fill-green { background: var(--color-green); }
+  .rpt-fill-blue { background: var(--color-blue); }
+  .rpt-fill-amber { background: var(--color-amber); }
+
+  .rpt-advice {
+    background: color-mix(in srgb, var(--color-amber) 12%, #fff);
+    border: 1px solid color-mix(in srgb, var(--color-amber) 35%, transparent);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin: 10px 0 16px;
+  }
+  .rpt-advice-head {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 700;
+    color: color-mix(in srgb, var(--color-amber) 70%, var(--color-ink));
+    margin-bottom: 6px;
+  }
+  .rpt-advice p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--color-ink-2); }
+
+  .rpt-cta {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%;
+    padding: 12px 18px;
+    border-radius: 999px;
+    font-family: var(--font-sans);
+    font-size: 14.5px; font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    margin-bottom: 10px;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .rpt-cta:disabled { opacity: 0.6; cursor: progress; }
+  .rpt-cta-primary {
+    background: var(--color-blue); color: #fff; border: none;
+  }
+  .rpt-cta-primary:hover { background: var(--color-blue-dark); }
+  .rpt-cta-outline {
+    background: #fff; color: var(--color-ink);
+    border: 1px solid var(--color-line);
+  }
+  .rpt-cta-outline:hover { border-color: var(--color-muted-2); }
+  .rpt-progress-link {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    font-size: 13.5px; font-weight: 600;
+    color: var(--color-muted);
+    text-decoration: none;
+    padding: 6px;
+  }
+  .rpt-progress-link:hover { color: var(--color-blue); }
+
+  /* ===== corrigé ===== */
+  .rpt-filters {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin: 0 0 16px;
+  }
+  .rpt-chip {
+    padding: 7px 13px;
+    background: var(--color-blue-soft);
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    font-family: var(--font-sans);
+    font-size: 12.5px; font-weight: 600;
     color: var(--color-ink-2);
     cursor: pointer;
     transition: all 0.15s;
   }
-  .rpt-chip:hover:not(:disabled) {
-    border-color: var(--color-blue); color: var(--color-blue);
-  }
+  .rpt-chip:hover:not(:disabled) { border-color: var(--color-blue); color: var(--color-blue); }
   .rpt-chip:disabled { opacity: 0.4; cursor: not-allowed; }
   .rpt-chip.is-active {
-    background: var(--color-ink);
+    background: var(--color-blue);
     color: #fff;
-    border-color: var(--color-ink);
-  }
-  .rpt-chip-good.is-active { background: var(--color-green); border-color: var(--color-green); }
-  .rpt-chip-bad.is-active { background: var(--color-red); border-color: var(--color-red); }
-
-  .rpt-count {
-    background: rgba(0, 0, 0, 0.06);
-    color: inherit;
-    font-family: var(--font-mono); font-size: 10px;
-    padding: 1px 6px; border-radius: 100px;
-    font-weight: 700; letter-spacing: 0.04em;
-  }
-  .rpt-chip.is-active .rpt-count {
-    background: rgba(255, 255, 255, 0.2); color: #fff;
+    border-color: var(--color-blue);
   }
 
-  .rpt-bulk {
-    margin-left: auto;
-    display: flex; gap: 6px;
-  }
-  .rpt-bulk-btn {
-    background: none; border: none;
-    font-family: var(--font-sans); font-size: 12px; font-weight: 600;
-    color: var(--color-muted);
-    cursor: pointer;
-    padding: 7px 6px;
-    transition: color 0.15s;
-  }
-  .rpt-bulk-btn:hover { color: var(--color-blue); }
-
-  /* Liste */
   .rpt-empty {
-    background: #fff;
     border: 1px dashed var(--color-line);
     border-radius: 12px;
-    padding: 36px 16px;
+    padding: 32px 16px;
     text-align: center;
     color: var(--color-muted);
     font-size: 13.5px;
   }
   .rpt-list {
     list-style: none; padding: 0; margin: 0;
-    display: flex; flex-direction: column; gap: 8px;
+    display: flex; flex-direction: column; gap: 10px;
   }
 
   .rpt-row {
-    background: #fff;
     border: 1px solid var(--color-line);
-    border-radius: 12px;
+    border-radius: 13px;
     overflow: hidden;
+    background: #fff;
   }
-  .rpt-row-right .rpt-row-head { border-left: 3px solid var(--color-green); }
-  .rpt-row-wrong .rpt-row-head { border-left: 3px solid var(--color-red); }
-  .rpt-row-skipped .rpt-row-head { border-left: 3px solid var(--color-muted-2); }
-
   .rpt-row-head {
-    display: grid;
-    grid-template-columns: 36px 1fr 20px;
-    align-items: flex-start; gap: 12px;
+    display: flex; align-items: center; gap: 12px;
     width: 100%;
     background: none; border: none;
     padding: 14px 16px;
     cursor: pointer;
     text-align: left;
     font-family: var(--font-sans);
+    min-width: 0;
   }
-  .rpt-row-head:hover { background: var(--color-paper); }
-  .rpt-row-num {
-    font-family: var(--font-mono); font-size: 13px; font-weight: 700;
-    color: var(--color-muted);
-    letter-spacing: 0.05em;
-    padding-top: 1px;
+  .rpt-row-head:hover { background: var(--color-blue-soft); }
+  .rpt-row-state {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    color: #fff;
   }
-  .rpt-row-body { min-width: 0; }
-  .rpt-row-tags {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-    margin-bottom: 6px;
-  }
+  .rpt-row-state-right { background: var(--color-green); }
+  .rpt-row-state-wrong { background: var(--color-red); }
+  .rpt-row-state-skipped { background: var(--color-muted-2); }
   .rpt-row-statement {
+    flex: 1; min-width: 0;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden; text-overflow: ellipsis;
     font-size: 14px; line-height: 1.4;
@@ -455,43 +735,26 @@ const styles = `
     -webkit-line-clamp: unset;
     color: var(--color-ink); font-weight: 600;
   }
+  .rpt-row-theme {
+    font-size: 11.5px; font-weight: 600;
+    color: var(--color-muted);
+    background: var(--color-line-2);
+    padding: 4px 10px; border-radius: 999px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 170px;
+    flex-shrink: 0;
+  }
   .rpt-row-chevron {
-    color: var(--color-muted-2); font-size: 14px;
+    color: var(--color-muted-2);
+    flex-shrink: 0;
     transition: transform 0.18s;
-    padding-top: 4px;
   }
   .rpt-row-chevron.is-open { transform: rotate(180deg); }
 
-  .rpt-state-badge {
-    font-family: var(--font-mono); font-size: 9.5px;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    padding: 3px 8px; border-radius: 100px;
-    font-weight: 700;
-  }
-  .rpt-state-right { background: rgba(22, 143, 91, 0.12); color: var(--color-green); }
-  .rpt-state-wrong { background: var(--color-red-light); color: var(--color-red); }
-  .rpt-state-skipped { background: var(--color-paper-2); color: var(--color-muted); }
-
-  .rpt-tag-mono {
-    font-family: var(--font-mono); font-size: 9.5px;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    padding: 3px 7px; border-radius: 4px;
-    background: var(--color-paper-2); color: var(--color-muted);
-    font-weight: 700;
-  }
-  .rpt-tag-theme {
-    font-family: var(--font-mono); font-size: 9.5px;
-    letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--color-muted);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    max-width: 180px;
-  }
-
   /* Contenu déplié */
   .rpt-row-content {
-    padding: 0 16px 16px 64px;
+    padding: 16px 16px 16px 52px;
     border-top: 1px solid var(--color-line-2);
-    padding-top: 16px;
   }
   @media (max-width: 560px) {
     .rpt-row-content { padding-left: 16px; }
@@ -576,5 +839,15 @@ const styles = `
   }
   .rpt-explain p {
     font-size: 13px; line-height: 1.55; color: var(--color-ink-2); margin: 0;
+  }
+
+  /* ===== responsive ===== */
+  @media (max-width: 860px) {
+    .rpt-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .rpt-hero { flex-direction: column; text-align: center; gap: 16px; padding: 24px 18px; }
+    .rpt-hero-stats { justify-content: center; gap: 20px; }
+    .rpt-row-theme { display: none; }
   }
 `;

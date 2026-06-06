@@ -98,7 +98,7 @@ export function TcfLotResultCard({
 
       {showReport && (
         <div className="tlr-report">
-          <ExamReport attempt={attempt} />
+          <ExamReport attempt={attempt} embedded />
         </div>
       )}
 

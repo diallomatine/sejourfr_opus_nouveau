@@ -278,6 +278,9 @@ export interface AttemptResponse {
   /** Thème civique scopé (séries + examens thématiques) — sert au retour
    *  de session vers l'écran d'origine. */
   themeId?: string | null;
+  /** Score calibré 100-499 + niveau CECRL estimé (examens module TCF). */
+  calibratedScore?: number | null;
+  cecrlLevel?: NiveauCecrl | null;
   questions: AttemptQuestionResponse[];
 }
 
