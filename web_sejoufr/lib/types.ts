@@ -734,7 +734,9 @@ export interface DashboardCategoryStat {
   /** Code stable : theme.code (CIV_PRINCIPES, TCF_CO…) ou TCF_EE / TCF_EO. */
   code: string;
   label: string;
-  /** Taux de réussite 0-100 (EE/EO : dernière note /20 ×5). Null si jamais travaillé. */
+  /** Progression 0-100 = réussite × confiance (confiance = min(1,
+   *  répondues / min(40, pool)) ; EE/EO : moyenne des 3 dernières notes /20
+   *  ×5 × min(1, n/3)). Null si jamais travaillé. */
   percent: number | null;
   answered: number;
   /** Pool de questions actives — 0 pour EE/EO. */
@@ -759,6 +761,7 @@ export interface DashboardSummaryResponse {
   /** Totaux par module (TCF : sous-attempts d'examen complet exclus). */
   civiqueMockExams: number;
   tcfMockExams: number;
+  /** Progression globale = moyenne des progressions des catégories renseignées. */
   globalSuccessPercent: number | null;
   estimatedTcfLevel: NiveauCecrl | null;
   civique: DashboardCategoryStat[];

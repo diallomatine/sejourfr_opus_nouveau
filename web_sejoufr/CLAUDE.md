@@ -391,6 +391,26 @@ Chantier découpé en vagues :
       `/examens-blancs/tcf`. (`ProductionMobileSheet` n'est plus utilisé par le hub —
       conservé pour les promos mobile du dashboard/historique.)
 
+### Règle de progression (validée 2026-06-06 — source unique backend)
+
+Toute valeur de « progression » d'un thème / d'une épreuve vient de
+`GET /api/me/dashboard` (`CategoryStat.percent`, calculé dans
+`UserDashboardService`) — ne jamais recalculer autrement côté front.
+
+- **QCM** : `progression = réussite × confiance` avec
+  `réussite = questions distinctes réussies / répondues` et
+  `confiance = min(1, répondues / min(40, taille du pool))` (40 ≈ 2 examens
+  blancs : un seul examen réussi n'affiche pas « Solide », un gros pool
+  n'écrase pas la note). Null si jamais travaillée.
+- **EE/EO** : `réussite = moyenne des notes /20 des 3 dernières soumissions
+  évaluées ×5`, `confiance = min(1, soumissions/3)`.
+- **Module** = moyenne des progressions de ses catégories (front :
+  `moduleAverage`) ; **global** (`globalSuccessPercent`) = moyenne de toutes
+  les catégories renseignées, calculée backend.
+- Exemples : 1 examen blanc 16/20 → 80 % × 20/40 = **40 %** ; 60 répondues
+  dont 48 bonnes → **80 %** ; 1 soumission EE notée 14/20 → 70 % × 1/3 =
+  **23 %**.
+
 - **Vague 8 (branche `web_refonte`)** ✅ — **Refonte shell app + dashboard**
   (maquette "Tableau de bord" SaaS) :
     - **Sidebar** (`AppSidebar.tsx`) recomposée : Accueil → `/` (landing

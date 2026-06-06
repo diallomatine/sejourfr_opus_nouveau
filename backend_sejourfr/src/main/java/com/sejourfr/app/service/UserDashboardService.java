@@ -42,6 +42,34 @@ public class UserDashboardService {
     /** Fuseau de référence des journées d'activité (produit franco-français). */
     private static final ZoneId PARIS = ZoneId.of("Europe/Paris");
 
+    // ------------------------------------------------------------------------
+    // Règle de progression (validée 2026-06-06) :
+    //   progression = réussite × confiance
+    //   - réussite  = questions distinctes réussies / répondues
+    //   - confiance = min(1, répondues / min(40, taille du pool))
+    //     (40 ≈ 2 examens blancs : un seul examen réussi ≠ "Solide",
+    //     mais un gros pool n'écrase pas la note)
+    //   EE/EO : réussite = moyenne des notes /20 des 3 dernières soumissions
+    //   évaluées ×5 ; confiance = min(1, soumissions / 3).
+    //   Module = moyenne des progressions de ses catégories ;
+    //   global = moyenne de toutes les catégories renseignées.
+    // ------------------------------------------------------------------------
+
+    /** Échantillon de questions distinctes pour une confiance pleine (QCM). */
+    private static final int QCM_CONFIDENCE_SAMPLE = 40;
+
+    /** Nb de soumissions évaluées pour une confiance pleine (EE/EO). */
+    private static final int PRODUCTION_CONFIDENCE_SAMPLE = 3;
+
+    /** progression QCM = réussite × confiance (null si rien répondu). */
+    private static Integer qcmProgress(int answered, int correct, int poolSize) {
+        if (answered == 0) return null;
+        final double reussite = (double) correct / answered;
+        final int sample = Math.max(1, Math.min(QCM_CONFIDENCE_SAMPLE, poolSize));
+        final double confiance = Math.min(1.0, (double) answered / sample);
+        return (int) Math.round(100.0 * reussite * confiance);
+    }
+
     private final AttemptManager attemptManager;
     private final AnswerManager answerManager;
     private final QuestionManager questionManager;
@@ -57,14 +85,6 @@ public class UserDashboardService {
         final MockExamCounts civiqueExams = civiqueMockExamCounts(userId);
         final MockExamCounts tcfExams = tcfMockExamCounts(userId);
 
-        final long answered = answerManager.countAnsweredByUserAndModule(userId, Module.CIVIQUE)
-                + answerManager.countAnsweredByUserAndModule(userId, Module.TCF);
-        final long correct = answerManager.countCorrectByUserAndModule(userId, Module.CIVIQUE)
-                + answerManager.countCorrectByUserAndModule(userId, Module.TCF);
-        final Integer globalSuccessPercent = answered == 0
-                ? null
-                : (int) Math.round(100.0 * correct / answered);
-
         final NiveauCecrl estimatedTcfLevel = attemptManager.findLatestTcfWithCecrlLevel(userId)
                 .map(a -> a.getFinalCecrlLevel() != null ? a.getFinalCecrlLevel() : a.getCecrlLevel())
                 .orElse(null);
@@ -73,6 +93,23 @@ public class UserDashboardService {
                 new ArrayList<>(themeCategories(userId, Module.TCF, tcfExams.byCategory));
         tcf.add(productionCategory(userId, EpreuveType.TCF_EE, "TCF_EE", "Expression écrite"));
         tcf.add(productionCategory(userId, EpreuveType.TCF_EO, "TCF_EO", "Expression orale"));
+
+        final List<DashboardSummaryResponse.CategoryStat> civique =
+                themeCategories(userId, Module.CIVIQUE, civiqueExams.byCategory);
+
+        // Progression globale = moyenne des catégories renseignées (les deux
+        // modules confondus) — même règle que les fronts par module.
+        final int[] sumCount = {0, 0};
+        for (final var list : List.of(civique, tcf)) {
+            for (final var c : list) {
+                if (c.percent() != null) {
+                    sumCount[0] += c.percent();
+                    sumCount[1]++;
+                }
+            }
+        }
+        final Integer globalSuccessPercent =
+                sumCount[1] == 0 ? null : Math.round((float) sumCount[0] / sumCount[1]);
 
         return new DashboardSummaryResponse(
                 streak.current,
@@ -83,7 +120,7 @@ public class UserDashboardService {
                 tcfExams.total,
                 globalSuccessPercent,
                 estimatedTcfLevel,
-                themeCategories(userId, Module.CIVIQUE, civiqueExams.byCategory),
+                civique,
                 tcf);
     }
 
@@ -190,13 +227,14 @@ public class UserDashboardService {
             if (agg == null) {
                 agg = mockExamsByCategory.get(theme.getCode().replaceFirst("^TCF_", ""));
             }
+            final int poolSize = (int) questionManager.countActiveByTheme(theme.getId());
             out.add(new DashboardSummaryResponse.CategoryStat(
                     theme.getId(),
                     theme.getCode(),
                     theme.getName(),
-                    themeAnswered == 0 ? null : (int) Math.round(100.0 * themeCorrect / themeAnswered),
+                    qcmProgress(themeAnswered, themeCorrect, poolSize),
                     themeAnswered,
-                    (int) questionManager.countActiveByTheme(theme.getId()),
+                    poolSize,
                     agg == null ? 0 : agg.count,
                     agg == null ? null : agg.best,
                     agg == null ? null : agg.last,
@@ -207,24 +245,31 @@ public class UserDashboardService {
     }
 
     /**
-     * Entrée synthétique EE/EO : dernière évaluation IA du user sur l'épreuve
-     * (niveau CECRL + note /20 ramenée sur 100). Percent et level null si
-     * aucune production évaluée.
+     * Entrée synthétique EE/EO. Progression = moyenne des notes /20 des
+     * {@value #PRODUCTION_CONFIDENCE_SAMPLE} dernières soumissions évaluées
+     * ×5, pondérée par la confiance (nb de soumissions / 3) — même règle que
+     * les QCM. Level = dernier niveau CECRL évalué.
      */
     private DashboardSummaryResponse.CategoryStat productionCategory(
             UUID userId, EpreuveType epreuve, String code, String label) {
-        final AiEvaluation latest = aiEvaluationManager.findByUserAndEpreuve(userId, epreuve).stream()
-                .max(Comparator.comparing(AiEvaluation::getEvaluatedAt))
-                .orElse(null);
+        final List<AiEvaluation> recents = aiEvaluationManager.findByUserAndEpreuve(userId, epreuve)
+                .stream()
+                .sorted(Comparator.comparing(AiEvaluation::getEvaluatedAt).reversed())
+                .toList();
 
+        final NiveauCecrl level = recents.isEmpty() ? null : recents.get(0).getNiveauCecrl();
+
+        final List<BigDecimal> notes = recents.stream()
+                .map(AiEvaluation::getNoteSur20)
+                .filter(n -> n != null)
+                .limit(PRODUCTION_CONFIDENCE_SAMPLE)
+                .toList();
         Integer percent = null;
-        NiveauCecrl level = null;
-        if (latest != null) {
-            level = latest.getNiveauCecrl();
-            final BigDecimal note = latest.getNoteSur20();
-            if (note != null) {
-                percent = (int) Math.round(note.doubleValue() * 5);
-            }
+        if (!notes.isEmpty()) {
+            final double avg = notes.stream().mapToDouble(BigDecimal::doubleValue).average().orElse(0);
+            final double confiance =
+                    Math.min(1.0, (double) notes.size() / PRODUCTION_CONFIDENCE_SAMPLE);
+            percent = (int) Math.round(avg * 5 * confiance);
         }
         return new DashboardSummaryResponse.CategoryStat(
                 null, code, label, percent, 0, 0, 0, null, null, null, level);

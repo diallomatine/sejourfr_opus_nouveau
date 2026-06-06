@@ -23,8 +23,9 @@ import java.util.UUID;
  *   <li>{@code civiqueMockExams} / {@code tcfMockExams} : totaux par module
  *       pour les hubs (TCF : sous-attempts d'un examen complet exclus —
  *       seul le parent TCF_COMPLET compte).</li>
- *   <li>{@code globalSuccessPercent} : taux de réussite global 0-100 (questions
- *       distinctes réussies / tentées, Civique + TCF). Null si rien tenté.</li>
+ *   <li>{@code globalSuccessPercent} : progression globale 0-100 = moyenne
+ *       des progressions des catégories renseignées (Civique + TCF, EE/EO
+ *       inclus). Null si rien travaillé.</li>
  *   <li>{@code estimatedTcfLevel} : niveau CECRL du dernier examen TCF évalué
  *       (examen blanc complet en priorité, sinon examen module). Null si aucun.</li>
  *   <li>{@code civique} / {@code tcf} : une entrée par catégorie, TOUS les
@@ -51,9 +52,11 @@ public record DashboardSummaryResponse(
      *
      * <ul>
      *   <li>{@code themeId} : null pour les entrées synthétiques EE/EO.</li>
-     *   <li>{@code percent} : taux de réussite 0-100 sur les questions
-     *       distinctes tentées (EE/EO : dernière note /20 ramenée sur 100).
-     *       Null si la catégorie n'a jamais été travaillée.</li>
+     *   <li>{@code percent} : progression 0-100 = réussite × confiance
+     *       (réussite = réussies/répondues distinctes ; confiance =
+     *       min(1, répondues / min(40, pool))). EE/EO : moyenne des notes /20
+     *       des 3 dernières soumissions ×5 × min(1, soumissions/3). Null si
+     *       jamais travaillée. Cf. UserDashboardService.</li>
      *   <li>{@code answered} / {@code total} : couverture du pool (questions
      *       distinctes tentées / questions actives). 0/0 pour EE/EO.</li>
      *   <li>{@code mockExams} : nb d'examens blancs finis scopés à la
