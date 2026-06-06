@@ -49,7 +49,7 @@ management:
 
 sejourfr:
   cors:
-    allowed-origins: http://localhost:3000,http://localhost:5173,http://192.168.1.36:3000
+    allowed-origins: http://localhost:3000,http://localhost:5173,http://192.168.1.15:3000
   stripe:
     # Abonnements récurrents (Checkout Session mode=SUBSCRIPTION) depuis le
     # lot 4. Les Stripe Price IDs vivent en base sur plans.stripe_price_id —
@@ -197,7 +197,7 @@ sejourfr:
     # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
     # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).
     niveau-cecrl:
-      source-criteres: [lexique, morphosyntaxe]
+      source-criteres: [ lexique, morphosyntaxe ]
       seuil-b2: 15.0
       seuil-b1: 12.0
       seuil-a2: 7.0
