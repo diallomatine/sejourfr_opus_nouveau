@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useEffect, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import {
   QuestionRunner,
@@ -325,8 +326,32 @@ function SessionRunnerInner({ params }: PageProps) {
 
     const lotReturnHref =
       lotNumero != null && !isGuest ? (lotReturnPath(attempt) ?? undefined) : undefined;
+
+    // Retour à l'écran précédent (historique navigateur) ; fallback sur
+    // l'écran d'origine dérivé de l'attempt quand la page a été ouverte
+    // directement (nouvel onglet, lien partagé).
+    const goBack = () => {
+      if (typeof window !== "undefined" && window.history.length > 1) {
+        router.back();
+        return;
+      }
+      router.push(
+        isExam
+          ? isGuest
+            ? "/examens-blancs"
+            : examReturnPath(attempt)
+          : (lotReturnPath(attempt) ?? "/entrainement"),
+      );
+    };
+
     return (
       <main className="sess">
+        <div className="sess-back-row">
+          <button type="button" className="sess-back" onClick={goBack}>
+            <ArrowLeft size={16} aria-hidden />
+            Retour
+          </button>
+        </div>
         {retryError && <div className="sess-retry-error">{retryError}</div>}
         {isExam ? (
           <>
@@ -375,6 +400,26 @@ function SessionRunnerInner({ params }: PageProps) {
         )}
         <style>{`
           .sess { background: var(--color-paper); min-height: calc(100vh - 110px); }
+          .sess-back-row {
+            max-width: 880px;
+            margin: 0 auto;
+            padding: 20px 18px 0;
+          }
+          .sess-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 0;
+            background: none;
+            border: none;
+            font-family: var(--font-sans);
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-muted);
+            cursor: pointer;
+            transition: color 0.15s;
+          }
+          .sess-back:hover { color: var(--color-blue); }
           .sess-retry-error {
             max-width: 880px;
             margin: 0 auto;
