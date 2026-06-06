@@ -8,6 +8,7 @@ import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.AttemptQuestion;
 import com.sejourfr.app.entity.ExamTemplate;
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.service.TcfLevelEstimatorService;
 import lombok.RequiredArgsConstructor;
@@ -91,11 +92,21 @@ public class AttemptMapper {
     }
 
     /**
-     * Score calibré 100-499 d'un examen module TCF (dérivé du score pondéré).
-     * Null hors examen module (le X/50 reste pertinent ailleurs).
+     * Examen TCF à strates garanties : examen module (CO/CE/STRUCTURE) ou
+     * examen template (diagnostic sectionné CO→CE). Seuls ces attempts portent
+     * une notation calibrée 100-499 + niveau CECRL.
+     */
+    private boolean isStratifiedTcfExam(Attempt a) {
+        return a.getModule() == Module.TCF
+                && (a.getModuleExamQuestionType() != null || a.getExamTemplate() != null);
+    }
+
+    /**
+     * Score calibré 100-499 d'un examen TCF (dérivé du score pondéré).
+     * Null ailleurs (le score brut reste pertinent).
      */
     private Integer calibratedScoreOf(Attempt a) {
-        if (a.getModuleExamQuestionType() == null
+        if (!isStratifiedTcfExam(a)
                 || a.getWeightedScore() == null
                 || a.getMaxWeightedScore() == null) {
             return null;
@@ -104,11 +115,12 @@ public class AttemptMapper {
     }
 
     /**
-     * Niveau CECRL d'un examen module TCF : cecrl_level posé au finish, fallback
-     * dérivé du score pondéré pour les attempts pré-V416. Null hors module.
+     * Niveau CECRL d'un examen TCF : cecrl_level posé au finish, fallback
+     * dérivé du score pondéré pour les attempts pré-V416. Null hors examens
+     * TCF stratifiés.
      */
     private NiveauCecrl cecrlLevelOf(Attempt a) {
-        if (a.getModuleExamQuestionType() == null) return null;
+        if (!isStratifiedTcfExam(a)) return null;
         if (a.getCecrlLevel() != null) return a.getCecrlLevel();
         return levelEstimator.levelFromWeighted(a.getWeightedScore(), a.getMaxWeightedScore());
     }

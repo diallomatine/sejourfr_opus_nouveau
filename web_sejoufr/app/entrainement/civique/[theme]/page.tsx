@@ -14,7 +14,12 @@ import {
   themeApi,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { canAccessModule, type LotDto } from "@/lib/types";
+import { themeSlug, resolveThemeRef } from "@/lib/themes";
+import {
+  canAccessModule,
+  type LotDto,
+  type ThemeUserResponse,
+} from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { GuestGateSheet } from "@/app/_components/GuestGateSheet";
@@ -31,14 +36,18 @@ import detail from "@/app/_components/hub/detail.module.css";
  *
  * Mode guest : page navigable sans compte — série 1 jouable en anonyme
  * (publicAttemptApi), séries 2+ → GuestGateSheet.
+ *
+ * Le segment d'URL est le slug du thème (cf. lib/themes.ts) ; l'UUID
+ * hérité reste résolu (retours de session, anciens liens).
  */
 export default function CiviqueThemeSeriesPage() {
-  const params = useParams<{ themeId: string }>();
-  const themeId = params?.themeId ?? "";
+  const params = useParams<{ theme: string }>();
+  const themeRef = params?.theme ?? "";
   const router = useRouter();
   const { user, status } = useAuth();
 
-  const [themeName, setThemeName] = useState("Thème civique");
+  const [theme, setTheme] = useState<ThemeUserResponse | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [lots, setLots] = useState<LotDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
@@ -51,32 +60,40 @@ export default function CiviqueThemeSeriesPage() {
   const isPremium = user ? canAccessModule(user, "CIVIQUE") : false;
 
   useEffect(() => {
-    if (status === "loading" || !themeId) return;
+    if (status === "loading" || !themeRef) return;
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    const themesPromise =
-      status === "authenticated" ? themeApi.list("CIVIQUE") : publicThemeApi.list("CIVIQUE");
-    const lotsPromise =
-      status === "authenticated" ? lotApi.listCivique(themeId) : publicLotApi.listCivique(themeId);
-    Promise.allSettled([themesPromise, lotsPromise]).then(
-      ([t, l]) => {
+    const auth = status === "authenticated";
+    (async () => {
+      try {
+        const themes = await (auth
+          ? themeApi.list("CIVIQUE")
+          : publicThemeApi.list("CIVIQUE"));
+        const found = resolveThemeRef(themes, themeRef);
         if (cancelled) return;
-        if (t.status === "fulfilled") {
-          const found = t.value.find((x) => x.id === themeId);
-          if (found) setThemeName(found.name);
+        if (!found) {
+          setNotFound(true);
+          setLoading(false);
+          return;
         }
-        if (l.status === "fulfilled") setLots(l.value);
-        setLoading(false);
-      },
-    );
+        setTheme(found);
+        const l = await (auth
+          ? lotApi.listCivique(found.id)
+          : publicLotApi.listCivique(found.id));
+        if (!cancelled) setLots(l);
+      } catch {
+        /* la grille restera vide, message "aucune série" */
+      }
+      if (!cancelled) setLoading(false);
+    })();
     return () => {
       cancelled = true;
     };
-  }, [status, themeId]);
+  }, [status, themeRef]);
 
   async function startLot(lot: LotDto) {
-    if (starting) return;
+    if (starting || !theme) return;
     // Série 1 = découverte gratuite ; séries 2+ réservées aux abonnés
     // (connecté) ou aux comptes (guest).
     if (lot.numero > 1) {
@@ -95,7 +112,7 @@ export default function CiviqueThemeSeriesPage() {
       const body = {
         type: "TRAINING" as const,
         module: "CIVIQUE" as const,
-        themeId,
+        themeId: theme.id,
         lotNumero: lot.numero,
       };
       const a = isGuest
@@ -109,8 +126,22 @@ export default function CiviqueThemeSeriesPage() {
   }
 
   const doneCount = useMemo(() => lots.filter((l) => l.lastScore != null).length, [lots]);
+  const slug = theme ? themeSlug(theme.code) : themeRef;
 
   if (status === "loading") return <div className={ds.gate} />;
+
+  if (notFound) {
+    return (
+      <DualChromeShell>
+        <main className={detail.wrap}>
+          <p className={detail.empty}>Thème civique introuvable.</p>
+          <Link href="/entrainement?module=CIVIQUE" className={detail.back}>
+            ← Retour à l&apos;entraînement civique
+          </Link>
+        </main>
+      </DualChromeShell>
+    );
+  }
 
   return (
     <DualChromeShell>
@@ -118,11 +149,11 @@ export default function CiviqueThemeSeriesPage() {
         backHref="/entrainement?module=CIVIQUE"
         backLabel="Examen civique"
         eyebrowIcon={<Lightbulb size={18} strokeWidth={2} />}
-        eyebrow={themeName}
+        eyebrow={theme?.name ?? "Thème civique"}
         title="Séries d'entraînement"
         subtitle="Chaque série contient jusqu'à 20 questions avec correction immédiate. Reprenez là où vous vous êtes arrêté."
         action={
-          <Link href={`/entrainement/civique/${themeId}/examens`} className={detail.headBtn}>
+          <Link href={`/entrainement/civique/${slug}/examens`} className={detail.headBtn}>
             <Target size={17} strokeWidth={1.7} aria-hidden />
             Examens blancs
           </Link>

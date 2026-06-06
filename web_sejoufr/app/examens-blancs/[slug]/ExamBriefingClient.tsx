@@ -176,17 +176,17 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
 
             {isTcf && (
               <div className="brf-deroule-block">
-                <div className="brf-section-label">DÉROULÉ DU TCF IRN COMPLET · 90 MIN</div>
+                <div className="brf-section-label">LES 4 ÉPREUVES DU TCF IRN</div>
                 <div className="brf-deroule">
                   <div className="brf-dr-row">
                     <span className="brf-dr-ico" aria-hidden>🎧</span>
                     <span className="brf-dr-label">Compréhension orale</span>
-                    <span className="brf-dr-meta">20 min</span>
+                    <span className="brf-dr-meta">25 questions · 20 min</span>
                   </div>
                   <div className="brf-dr-row">
                     <span className="brf-dr-ico" aria-hidden>📖</span>
                     <span className="brf-dr-label">Compréhension écrite</span>
-                    <span className="brf-dr-meta">30 min</span>
+                    <span className="brf-dr-meta">25 questions · 35 min</span>
                   </div>
                   {isGuest ? (
                     <>
@@ -221,7 +221,7 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
                 {isGuest ? (
                   <p className="brf-mobile-note">
                     Sans compte, cet examen couvre les épreuves de{" "}
-                    <strong>compréhension</strong> (orale + écrite + structure).
+                    <strong>compréhension</strong> (orale puis écrite).
                     L&apos;<strong>expression écrite et orale</strong>, évaluées
                     par l&apos;IA, ne sont pas disponibles en démo —{" "}
                     <Link href="/inscription?next=/examens-blancs">
@@ -328,16 +328,40 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
                   <li>
                     <span className="ico">4</span>
                     <div>
+                      L&apos;examen enchaîne deux parties, comme le vrai
+                      TCF&nbsp;: la <strong>compréhension orale</strong>
+                      d&apos;abord, puis la <strong>compréhension écrite</strong>.
+                      Un écran vous annonce chaque partie. En orale, chaque
+                      audio se lance seul et n&apos;est joué qu&apos;<strong>une
+                      seule fois</strong> — pas de pause ni de réécoute.
+                    </div>
+                  </li>
+                )}
+                {isTcf && (
+                  <li>
+                    <span className="ico">5</span>
+                    <div>
                       Votre niveau CECRL (A2&nbsp;/&nbsp;B1&nbsp;/&nbsp;B2) est
                       calculé d&apos;après vos réussites sur chaque strate.
                     </div>
                   </li>
                 )}
                 <li>
-                  <span className="ico">{isTcf ? 5 : 4}</span>
+                  <span className="ico">{isTcf ? 6 : 4}</span>
                   <div>
-                    Vous pouvez revenir sur une question précédente avant de
-                    terminer. Le score n&apos;est calculé qu&apos;à la fin.
+                    {isTcf ? (
+                      <>
+                        Vous pouvez revenir sur une question précédente avant de
+                        terminer — sauf en compréhension orale (une question
+                        passée ne se rejoue pas). Le score n&apos;est calculé
+                        qu&apos;à la fin.
+                      </>
+                    ) : (
+                      <>
+                        Vous pouvez revenir sur une question précédente avant de
+                        terminer. Le score n&apos;est calculé qu&apos;à la fin.
+                      </>
+                    )}
                   </div>
                 </li>
               </ol>
@@ -390,7 +414,7 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
                   {starting
                     ? "Préparation…"
                     : isGuest
-                      ? "Démarrer la démo →"
+                      ? "Commencer →"
                       : lastAttempt
                         ? "Refaire l'examen →"
                         : "Démarrer l'examen →"}

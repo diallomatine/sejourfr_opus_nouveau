@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { dashboardApi, publicThemeApi } from "@/lib/api";
 import { masteryHint, moduleAverage } from "@/lib/dashboard";
+import { themeSlug } from "@/lib/themes";
 import {
   type AuthenticatedUser,
   canAccessModule,
@@ -226,13 +227,13 @@ export function CiviqueHub({ user }: { user: AuthenticatedUser | null }) {
               ctas={[
                 {
                   label: "S'entraîner",
-                  href: `/entrainement/civique/${card.themeId}`,
+                  href: `/entrainement/civique/${themeSlug(card.code)}`,
                   icon: <LayoutGrid size={18} strokeWidth={1.7} />,
                   variant: "soft",
                 },
                 {
                   label: "Examen blanc",
-                  href: `/entrainement/civique/${card.themeId}/examens`,
+                  href: `/entrainement/civique/${themeSlug(card.code)}/examens`,
                   icon: <Target size={18} strokeWidth={1.7} />,
                   variant: "solid",
                 },

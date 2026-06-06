@@ -380,8 +380,11 @@ function ResultRow({
           <span aria-hidden />
         )}
         <span className="res-score">
+          {/* Examens TCF stratifiés : échelle calibrée 100-499, brut sinon. */}
           <span className={`res-score-main res-tone-${tone}`}>
-            {exam.score ?? 0}/{exam.totalQuestions}
+            {exam.calibratedScore != null
+              ? `${exam.calibratedScore}/499`
+              : `${exam.score ?? 0}/${exam.totalQuestions}`}
           </span>
           <span className="res-score-pct">{pct !== null ? `${pct}%` : "—"}</span>
         </span>

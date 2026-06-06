@@ -14,7 +14,8 @@ import {
 } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
-import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
+import { GuestGateSheet } from "@/app/_components/GuestGateSheet";
+import { moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
 import { DetailShell, DetailStatCard, ExamsGrid } from "@/app/_components/hub/DetailParts";
 import detail from "@/app/_components/hub/detail.module.css";
 
@@ -35,6 +36,10 @@ type TcfCode = keyof typeof TCF_QCM;
  * Examens blancs d'une épreuve TCF QCM (25 Q A2→B1→B2, score /50) — maquette
  * sejour_fr.html : 3 stat cards (passés / meilleur score / niveau estimé) +
  * grille de 20 examens. Examen 1 gratuit, 2+ premium.
+ *
+ * Mode guest : la page sert de vitrine (grille visible) mais tous les
+ * examens ciblés exigent un compte → GuestGateSheet. La découverte guest
+ * passe par les séries 1 et l'examen diagnostic de /examens-blancs.
  */
 export default function TcfModuleExamsPage() {
   const params = useParams<{ code: string }>();
@@ -42,12 +47,14 @@ export default function TcfModuleExamsPage() {
   const config = TCF_QCM[code];
   const router = useRouter();
   const { user, status } = useAuth();
+  const isGuest = status === "guest";
   const isPremium = user ? canAccessModule(user, "TCF") : false;
 
   const [exams, setExams] = useState<AttemptSummaryResponse[]>([]);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [guestGateOpen, setGuestGateOpen] = useState(false);
 
   const questionType = config?.questionType;
 
@@ -73,6 +80,10 @@ export default function TcfModuleExamsPage() {
 
   async function start() {
     if (starting || !questionType) return;
+    if (isGuest) {
+      setGuestGateOpen(true);
+      return;
+    }
     setError(null);
     setStarting(true);
     try {
@@ -95,15 +106,17 @@ export default function TcfModuleExamsPage() {
       if (!bestExam || (e.score ?? 0) > (bestExam.score ?? 0)) bestExam = e;
     }
     return {
+      // Échelle TCF (100-499) quand le backend a calibré, brut sinon.
       best: bestExam
-        ? `${bestExam.score ?? 0}/${bestExam.totalQuestions ?? "—"}`
+        ? bestExam.calibratedScore != null
+          ? `${bestExam.calibratedScore}/499`
+          : `${bestExam.score ?? 0}/${bestExam.totalQuestions ?? "—"}`
         : "—",
       bestLevel: bestExam?.cecrlLevel ?? null,
     };
   }, [exams]);
 
   if (status === "loading") return <div className={ds.gate} />;
-  if (!user) return <ModuleDetailGate next={`/entrainement/tcf/${code}/examens`} />;
   if (!config) {
     return (
       <DualChromeShell>
@@ -137,9 +150,9 @@ export default function TcfModuleExamsPage() {
           <DetailStatCard
             icon={<Trophy size={20} />}
             tone="blue"
-            value={`${done}/${SLOTS}`}
+            value={isGuest ? "—" : `${done}/${SLOTS}`}
             label="Examens passés"
-            sub="dans cette catégorie"
+            sub={isGuest ? "compte requis pour l'historique" : "dans cette catégorie"}
           />
           <DetailStatCard
             icon={<Flame size={20} />}
@@ -163,11 +176,18 @@ export default function TcfModuleExamsPage() {
           count={SLOTS}
           exams={exams}
           premium={isPremium}
+          freeSlots={isGuest ? 0 : 1}
+          lockedLabel={isGuest ? "Compte gratuit" : undefined}
           starting={starting}
           onStart={start}
-          onLocked={() => setPaywallOpen(true)}
+          onLocked={() => (isGuest ? setGuestGateOpen(true) : setPaywallOpen(true))}
         />
         <PaywallSheet open={paywallOpen} onClose={() => setPaywallOpen(false)} module="INTEGRAL" />
+        <GuestGateSheet
+          open={guestGateOpen}
+          onClose={() => setGuestGateOpen(false)}
+          message="Les examens blancs par épreuve sont réservés aux comptes. Créez un compte gratuit pour les passer — et l'examen diagnostic complet reste offert sur la page Examens blancs."
+        />
       </DetailShell>
     </DualChromeShell>
   );

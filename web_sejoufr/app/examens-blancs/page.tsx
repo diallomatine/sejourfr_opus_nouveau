@@ -31,7 +31,7 @@ const CIVIQUE_FULL_EXAM_SLUG = "civique-decouverte";
 
 /**
  * /examens-blancs (maquette sejour_fr.html) : « Examens blancs complets » —
- * une grande card par parcours (TCF IRN 60 Q mélangées · Examen civique 40 Q
+ * une grande card par parcours (TCF IRN 50 Q CO→CE · Examen civique 40 Q
  * stratifiées tous thèmes) avec stats, 20 épreuves repliées à 8 (+ Voir tout).
  * Épreuve 1 gratuite, 2+ premium.
  *
@@ -76,7 +76,7 @@ function ExamsConnectedHome() {
         );
       }
       if (t.status === "fulfilled") {
-        // Examens TCF complets (60 Q mélangées) : on écarte les examens
+        // Examens TCF complets (50 Q sectionnées CO → CE) : on écarte les examens
         // module (CO/CE/Structure) et les productions / TCF_COMPLET.
         setTcf(
           t.value
@@ -130,10 +130,10 @@ function ExamsConnectedHome() {
         tone="red"
         icon={<Waves size={22} strokeWidth={1.8} />}
         title="TCF IRN"
-        chip="3 épreuves mélangées"
-        brewLine="Brasse toutes les épreuves QCM : Compréhension orale · Compréhension écrite · Structure de la langue."
+        chip="CO puis CE"
+        brewLine="Enchaîne les épreuves de compréhension dans l'ordre du vrai TCF : orale (25 questions · 20 min) puis écrite (25 questions · 35 min)."
         exams={tcf}
-        scoreOutOf={60}
+        scoreOutOf={50}
         premium={tcfPremium}
         starting={false}
         onStart={() => start("TCF")}
@@ -196,10 +196,18 @@ function ModuleExamsSection({
   onLocked: () => void;
 }) {
   const done = Math.min(exams.length, SLOTS);
+  // Échelle TCF (100-499) dès qu'un examen calibré existe, brut sinon.
+  const bestCalibrated = exams.reduce(
+    (max: number | null, a) =>
+      a.calibratedScore != null ? Math.max(max ?? 0, a.calibratedScore) : max,
+    null,
+  );
   const best = exams.reduce((max, a) => Math.max(max, a.score ?? 0), 0);
+  const bestLabel =
+    bestCalibrated != null ? `${bestCalibrated}/499` : `${best}/${scoreOutOf}`;
   const sub =
     done > 0
-      ? `${done}/${SLOTS} épreuves passées · meilleur ${best}/${scoreOutOf}`
+      ? `${done}/${SLOTS} épreuves passées · meilleur ${bestLabel}`
       : `${SLOTS} épreuves disponibles · aucune passée pour l'instant`;
 
   return (
@@ -317,10 +325,10 @@ function ExamsGuestHome() {
         tone="red"
         icon={<Waves size={22} strokeWidth={1.8} />}
         title="TCF IRN"
-        chip="3 épreuves mélangées"
-        brewLine="Brasse toutes les épreuves QCM : Compréhension orale · Compréhension écrite · Structure de la langue."
+        chip="CO puis CE"
+        brewLine="Enchaîne les épreuves de compréhension dans l'ordre du vrai TCF : orale (25 questions · 20 min) puis écrite (25 questions · 35 min)."
         exams={[]}
-        scoreOutOf={60}
+        scoreOutOf={50}
         premium={false}
         starting={false}
         lockedLabel="Compte gratuit"

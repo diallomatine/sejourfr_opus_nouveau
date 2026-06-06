@@ -9,7 +9,7 @@ import { MediaView } from "@/app/_components/MediaView";
  * Bottom sheet (mobile) / dialog (desktop) de détail d'une question :
  * énoncé, choix avec la bonne réponse résolue, explication. Partagé entre
  * `/revision` (erreurs + favoris) et le détail de thème civique
- * (`/entrainement/civique/[themeId]`, onglet Erreurs).
+ * (`/entrainement/civique/[theme]`, onglet Erreurs).
  *
  * Les listes /wrong et /favorites renvoient la version "publique" (sans
  * correct/explanation) : on refetch /review par id pour la correction —

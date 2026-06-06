@@ -194,12 +194,21 @@ export function ExamReport({
             <h1>Vous avez obtenu {pct}%</h1>
             {contextLabel && <p className="rpt-hero-context">{contextLabel}</p>}
             <dl className="rpt-hero-stats">
-              <div>
-                <dt>Score</dt>
-                <dd>
-                  {counts.right}/{total}
-                </dd>
-              </div>
+              {/* Examens TCF stratifiés : score calibré 100-499 (échelle TCF),
+                  le brut vit dans le donut. Sinon, score brut classique. */}
+              {attempt.calibratedScore != null ? (
+                <div>
+                  <dt>Score TCF</dt>
+                  <dd>{attempt.calibratedScore}/499</dd>
+                </div>
+              ) : (
+                <div>
+                  <dt>Score</dt>
+                  <dd>
+                    {counts.right}/{total}
+                  </dd>
+                </div>
+              )}
               <div>
                 <dt>Temps</dt>
                 <dd>{formatDuration(seconds)}</dd>

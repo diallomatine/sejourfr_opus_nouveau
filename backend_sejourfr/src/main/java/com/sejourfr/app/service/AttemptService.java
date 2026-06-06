@@ -43,6 +43,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -327,6 +328,8 @@ public class AttemptService {
     @Transactional
     public AttemptResponse startGuestDemo(StartAttemptRequest req, String clientIp) {
         // Validation du type (TRAINING / MOCK_EXAM) faite cote PublicAttemptService.
+        // Les examens cibles (theme civique / epreuve TCF) exigent un compte :
+        // seul un template free (diagnostic complet) est jouable en guest.
         int size;
         Integer timeLimit = null;
         Integer threshold = null;
@@ -345,6 +348,9 @@ public class AttemptService {
                 threshold = template.getPassingScore();
                 // Guest sur template free : tirage deterministe.
                 questions = pickQuestionsForTemplate(template, true);
+            } else if (req.moduleExamQuestionType() != null || req.themeId() != null) {
+                throw new AccessDeniedException(
+                        "Les examens blancs par thème ou épreuve sont réservés aux comptes. Créez un compte gratuit pour continuer.");
             } else {
                 if (req.module() == Module.CIVIQUE) {
                     size = CIVIQUE_EXAM_SIZE;
@@ -783,6 +789,20 @@ public class AttemptService {
             if (needed <= 0) continue;
 
             UUID themeId = rule.getTheme() != null ? rule.getTheme().getId() : null;
+
+            if (template.getModule() == Module.TCF && themeId == null
+                    && rule.getQuestionType() == null && rule.getDifficulty() == null) {
+                // Regle generique d'un diagnostic TCF (tcf-diagnostic / tcf-mix-*) :
+                // composition sectionnee comme l'examen reel — comprehension
+                // orale puis ecrite, chacune stratifiee A2/B1/B2 (memes
+                // proportions que les examens module). Pas de STRUCTURE : le
+                // TCF IRN n'a que CO et CE en QCM.
+                int coCount = needed - needed / 2;
+                drawTcfEpreuveStrata(picked, exclude, QuestionType.CO, coCount, deterministic);
+                drawTcfEpreuveStrata(picked, exclude, QuestionType.CE, needed / 2, deterministic);
+                continue;
+            }
+
             List<Question> drawn = deterministic
                     ? questionManager.findOrderedExcluding(
                             template.getModule(), themeId, rule.getDifficulty(),
@@ -808,7 +828,58 @@ public class AttemptService {
                 if (picked.add(q)) exclude.add(q.getId());
             }
         }
-        return new ArrayList<>(picked);
+        List<Question> result = new ArrayList<>(picked);
+        if (template.getModule() == Module.TCF) {
+            // L'examen TCF reel est sectionne par epreuve, pas entremele :
+            // comprehension orale → ecrite → structures. Tri stable, donc la
+            // demo deterministe (guest) le reste.
+            result.sort(Comparator.comparingInt(q -> tcfEpreuveRank(q.getQuestionType())));
+        }
+        return result;
+    }
+
+    /**
+     * Pioche une epreuve d'un diagnostic TCF : {@code count} questions du
+     * {@code type} donne, stratifiees A2/B1/B2 (reste distribue a B1 puis A2,
+     * comme le 8+9+8 des examens module), dans l'ordre progressif A2 → B2.
+     * Si une strate est sous-dotee, complete au sein de la meme epreuve sans
+     * contrainte de niveau.
+     */
+    private void drawTcfEpreuveStrata(
+            LinkedHashSet<Question> picked, List<UUID> exclude,
+            QuestionType type, int count, boolean deterministic) {
+        int before = picked.size();
+        int base = count / 3;
+        int rem = count % 3;
+        drawForTemplate(picked, exclude, type, Difficulty.A2, base + (rem == 2 ? 1 : 0), deterministic);
+        drawForTemplate(picked, exclude, type, Difficulty.B1, base + (rem >= 1 ? 1 : 0), deterministic);
+        drawForTemplate(picked, exclude, type, Difficulty.B2, base, deterministic);
+        int missing = count - (picked.size() - before);
+        if (missing > 0) {
+            drawForTemplate(picked, exclude, type, null, missing, deterministic);
+        }
+    }
+
+    private void drawForTemplate(
+            LinkedHashSet<Question> picked, List<UUID> exclude,
+            QuestionType type, Difficulty difficulty, int count, boolean deterministic) {
+        if (count <= 0) return;
+        List<Question> drawn = deterministic
+                ? questionManager.findOrderedExcluding(Module.TCF, null, difficulty, type, exclude, count)
+                : questionManager.findRandomExcluding(Module.TCF, null, difficulty, type, exclude, count);
+        for (Question q : drawn) {
+            if (picked.add(q)) exclude.add(q.getId());
+        }
+    }
+
+    /** Ordre des epreuves d'un examen TCF mixte (cf. pickQuestionsForTemplate). */
+    private static int tcfEpreuveRank(QuestionType type) {
+        return switch (type) {
+            case CO, CO_IMAGE -> 0;
+            case CE -> 1;
+            case STRUCTURE -> 2;
+            default -> 3;
+        };
     }
 
     private List<AttemptQuestion> persistAttemptQuestions(Attempt attempt, List<Question> questions) {
@@ -966,13 +1037,19 @@ public class AttemptService {
         attempt.setScore(score);
 
         if (attempt.getModule() == Module.TCF) {
-            if (attempt.getModuleExamQuestionType() != null) {
-                // Examen module TCF (CO/CE/STRUCTURE) ou sous-attempt CO/CE d'un
-                // examen blanc complet : strates A2/B1/B2 garanties à la
-                // composition → niveau CECRL rigoureux (score calibré + garde-fou
-                // palier), source de vérité unique stockée sur cecrl_level et
-                // projetée sur level_achieved (A2/B1/B2). On persiste aussi le
-                // score pondéré (A2=1, B1=2, B2=3) pour l'affichage X/50.
+            // Les examens template TCF (diagnostic CO→CE) ont aussi leurs
+            // strates garanties depuis la composition sectionnée (8 A2 + 9 B1
+            // + 8 B2 par épreuve) : même notation calibrée que les examens module.
+            boolean stratifiedExam = attempt.getModuleExamQuestionType() != null
+                    || (attempt.getType() == AttemptType.MOCK_EXAM && attempt.getExamTemplate() != null);
+            if (stratifiedExam) {
+                // Examen module TCF (CO/CE/STRUCTURE), examen template, ou
+                // sous-attempt CO/CE d'un examen blanc complet : strates
+                // A2/B1/B2 garanties à la composition → niveau CECRL rigoureux
+                // (score calibré + garde-fou palier), source de vérité unique
+                // stockée sur cecrl_level et projetée sur level_achieved
+                // (A2/B1/B2). On persiste aussi le score pondéré
+                // (A2=1, B1=2, B2=3) qui dérive le score calibré 100-499.
                 NiveauCecrl cecrl = levelEstimator.estimateQcm(toQcmResults(aqs));
                 attempt.setCecrlLevel(cecrl);
                 attempt.setLevelAchieved(toTargetLevel(cecrl));

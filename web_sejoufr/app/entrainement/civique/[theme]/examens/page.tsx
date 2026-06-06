@@ -4,12 +4,18 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Flame, LayoutGrid, Target, Trophy } from "lucide-react";
-import { ApiException, attemptApi, themeApi } from "@/lib/api";
+import { ApiException, attemptApi, publicThemeApi, themeApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import { type AttemptSummaryResponse, canAccessModule } from "@/lib/types";
+import { themeSlug, resolveThemeRef } from "@/lib/themes";
+import {
+  type AttemptSummaryResponse,
+  canAccessModule,
+  type ThemeUserResponse,
+} from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
-import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
+import { GuestGateSheet } from "@/app/_components/GuestGateSheet";
+import { moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
 import { DetailShell, DetailStatCard, ExamsGrid } from "@/app/_components/hub/DetailParts";
 import detail from "@/app/_components/hub/detail.module.css";
 
@@ -19,52 +25,81 @@ const SLOTS = 20;
  * Examens blancs d'un thème civique (20 Q du thème, 20 min, seuil 16/20) —
  * maquette sejour_fr.html : 3 stat cards (passés / meilleur score / restant)
  * + grille de 20 examens. Examen 1 gratuit, 2+ premium.
+ *
+ * Mode guest : la page sert de vitrine (grille visible) mais tous les
+ * examens ciblés exigent un compte → GuestGateSheet. La découverte guest
+ * passe par les séries 1 et l'examen diagnostic de /examens-blancs.
+ * Segment d'URL = slug du thème (UUID hérité toujours résolu).
  */
 export default function CiviqueThemeExamsPage() {
-  const params = useParams<{ themeId: string }>();
-  const themeId = params?.themeId ?? "";
+  const params = useParams<{ theme: string }>();
+  const themeRef = params?.theme ?? "";
   const router = useRouter();
   const { user, status } = useAuth();
+  const isGuest = status === "guest";
   const isPremium = user ? canAccessModule(user, "CIVIQUE") : false;
 
-  const [themeName, setThemeName] = useState("Thème civique");
+  const [theme, setTheme] = useState<ThemeUserResponse | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [exams, setExams] = useState<AttemptSummaryResponse[]>([]);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [guestGateOpen, setGuestGateOpen] = useState(false);
 
   useEffect(() => {
-    if (status !== "authenticated" || !themeId) return;
+    if (status === "loading" || !themeRef) return;
     let cancelled = false;
-    Promise.allSettled([
-      themeApi.list("CIVIQUE"),
-      attemptApi.listMine({ type: "MOCK_EXAM", module: "CIVIQUE", themeId, limit: 30 }),
-    ]).then(([t, e]) => {
-      if (cancelled) return;
-      if (t.status === "fulfilled") {
-        const found = t.value.find((x) => x.id === themeId);
-        if (found) setThemeName(found.name);
-      }
-      if (e.status === "fulfilled") {
+    const auth = status === "authenticated";
+    (async () => {
+      try {
+        const themes = await (auth
+          ? themeApi.list("CIVIQUE")
+          : publicThemeApi.list("CIVIQUE"));
+        const found = resolveThemeRef(themes, themeRef);
+        if (cancelled) return;
+        if (!found) {
+          setNotFound(true);
+          return;
+        }
+        setTheme(found);
+        if (!auth) return; // guests : pas d'historique
+        const list = await attemptApi.listMine({
+          type: "MOCK_EXAM",
+          module: "CIVIQUE",
+          themeId: found.id,
+          limit: 30,
+        });
+        if (cancelled) return;
         // Ordre chronologique : le 1er examen passé occupe la card 01.
         setExams(
-          e.value
+          list
             .filter((a) => a.finishedAt)
             .sort((a, b) => a.startedAt.localeCompare(b.startedAt)),
         );
+      } catch {
+        /* best-effort : la grille reste vide */
       }
-    });
+    })();
     return () => {
       cancelled = true;
     };
-  }, [status, themeId]);
+  }, [status, themeRef]);
 
   async function start() {
-    if (starting) return;
+    if (starting || !theme) return;
+    if (isGuest) {
+      setGuestGateOpen(true);
+      return;
+    }
     setError(null);
     setStarting(true);
     try {
-      const a = await attemptApi.start({ type: "MOCK_EXAM", module: "CIVIQUE", themeId });
+      const a = await attemptApi.start({
+        type: "MOCK_EXAM",
+        module: "CIVIQUE",
+        themeId: theme.id,
+      });
       router.push(`/sessions/${a.id}`);
     } catch (e) {
       setError(e instanceof ApiException ? e.message : "Impossible de démarrer l'examen.");
@@ -77,9 +112,22 @@ export default function CiviqueThemeExamsPage() {
     () => exams.reduce((max, e) => Math.max(max, e.score ?? 0), 0),
     [exams],
   );
+  const slug = theme ? themeSlug(theme.code) : themeRef;
 
   if (status === "loading") return <div className={ds.gate} />;
-  if (!user) return <ModuleDetailGate next={`/entrainement/civique/${themeId}/examens`} />;
+
+  if (notFound) {
+    return (
+      <DualChromeShell>
+        <main className={detail.wrap}>
+          <p className={detail.empty}>Thème civique introuvable.</p>
+          <Link href="/entrainement?module=CIVIQUE" className={detail.back}>
+            ← Retour à l&apos;entraînement civique
+          </Link>
+        </main>
+      </DualChromeShell>
+    );
+  }
 
   return (
     <DualChromeShell>
@@ -87,11 +135,11 @@ export default function CiviqueThemeExamsPage() {
         backHref="/entrainement?module=CIVIQUE"
         backLabel="Examen civique"
         eyebrowIcon={<Target size={18} strokeWidth={2} />}
-        eyebrow={themeName}
+        eyebrow={theme?.name ?? "Thème civique"}
         title="Examens blancs"
         subtitle={`${SLOTS} examens blancs de 20 questions, dans les conditions de l'épreuve. Choisissez-en un et retrouvez votre dernier score.`}
         action={
-          <Link href={`/entrainement/civique/${themeId}`} className={detail.headBtn}>
+          <Link href={`/entrainement/civique/${slug}`} className={detail.headBtn}>
             <LayoutGrid size={17} strokeWidth={1.7} aria-hidden />
             Mode entraînement
           </Link>
@@ -101,9 +149,9 @@ export default function CiviqueThemeExamsPage() {
           <DetailStatCard
             icon={<Trophy size={20} />}
             tone="blue"
-            value={`${done}/${SLOTS}`}
+            value={isGuest ? "—" : `${done}/${SLOTS}`}
             label="Examens passés"
-            sub="dans cette catégorie"
+            sub={isGuest ? "compte requis pour l'historique" : "dans cette catégorie"}
           />
           <DetailStatCard
             icon={<Flame size={20} />}
@@ -115,7 +163,7 @@ export default function CiviqueThemeExamsPage() {
           <DetailStatCard
             icon={<CheckCircle2 size={20} />}
             tone="green"
-            value={String(SLOTS - done)}
+            value={isGuest ? "—" : String(SLOTS - done)}
             label="Restant"
             sub="examens à tenter"
           />
@@ -127,11 +175,18 @@ export default function CiviqueThemeExamsPage() {
           count={SLOTS}
           exams={exams}
           premium={isPremium}
+          freeSlots={isGuest ? 0 : 1}
+          lockedLabel={isGuest ? "Compte gratuit" : undefined}
           starting={starting}
           onStart={start}
-          onLocked={() => setPaywallOpen(true)}
+          onLocked={() => (isGuest ? setGuestGateOpen(true) : setPaywallOpen(true))}
         />
         <PaywallSheet open={paywallOpen} onClose={() => setPaywallOpen(false)} module="CIVIQUE" />
+        <GuestGateSheet
+          open={guestGateOpen}
+          onClose={() => setGuestGateOpen(false)}
+          message="Les examens blancs par thème sont réservés aux comptes. Créez un compte gratuit pour les passer — et l'examen diagnostic complet reste offert sur la page Examens blancs."
+        />
       </DetailShell>
     </DualChromeShell>
   );

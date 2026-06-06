@@ -22,6 +22,20 @@ import {
 export type RunnerMode = "training" | "exam";
 
 /**
+ * Partie d'un examen sectionné (ex: TCF — compréhension orale, puis écrite,
+ * puis structures). Les questions sont déjà groupées par le backend ; les
+ * sections servent à informer l'utilisateur de sa progression : bandeau
+ * par partie + écran d'intro à chaque changement.
+ */
+export interface RunnerSection {
+  label: string;
+  icon: string;
+  /** Index (global) de la première question de la partie. */
+  startIndex: number;
+  count: number;
+}
+
+/**
  * Backend adapters injectables : permettent de faire tourner le même runner
  * en mode connecté (auth API) et en mode démo guest (public API). Par défaut,
  * le runner utilise les endpoints authentifiés.
@@ -57,6 +71,8 @@ export interface QuestionRunnerProps {
   timeLimitSeconds?: number;
   /** Mode exam : timestamp ISO de démarrage de l'attempt (pour recaler après reload). */
   startedAt?: string;
+  /** Parties de l'examen (≥ 2) quand les questions sont groupées par épreuve. */
+  sections?: RunnerSection[];
   /** Backend adapter : par défaut, endpoints authentifiés. La démo guest injecte les endpoints publics. */
   backend?: RunnerBackend;
 }
@@ -102,6 +118,7 @@ export function QuestionRunner({
   onCompleted,
   timeLimitSeconds,
   startedAt,
+  sections,
   backend = DEFAULT_BACKEND,
 }: QuestionRunnerProps) {
   const favoritesEnabled = backend.toggleFavorite !== undefined;
@@ -144,6 +161,38 @@ export function QuestionRunner({
   const isCurrentFavorite = current
     ? state.favoriteIds.has(current.question.id)
     : false;
+
+  // ============== SECTIONS (examen sectionné) ==============
+  // Partie courante + écran d'intro affiché en entrant sur la 1re question
+  // d'une partie pas encore répondue (donc pas en navigation arrière, ni à
+  // la reprise d'une session au milieu d'une partie). Une section unique
+  // (examen mono-épreuve) garde l'écran d'intro comme présentation, mais
+  // pas le bandeau de partie.
+  const sectionList = sections && sections.length > 0 ? sections : null;
+  const multiSection = sectionList !== null && sectionList.length > 1;
+  let sectionIndex = -1;
+  if (sectionList) {
+    for (let i = 0; i < sectionList.length; i++) {
+      if (state.currentIndex >= sectionList[i].startIndex) sectionIndex = i;
+    }
+  }
+  const currentSection = sectionIndex >= 0 ? sectionList![sectionIndex] : null;
+  const [introsSeen, setIntrosSeen] = useState<ReadonlySet<number>>(new Set());
+  const showSectionIntro =
+    currentSection !== null &&
+    current !== undefined &&
+    state.currentIndex === currentSection.startIndex &&
+    !introsSeen.has(currentSection.startIndex) &&
+    !state.answersByQuestion.has(current.id);
+  const dismissSectionIntro = useCallback(() => {
+    if (currentSection === null) return;
+    setIntrosSeen((s) => new Set(s).add(currentSection.startIndex));
+  }, [currentSection]);
+  /** Dernière question d'une partie (hors toute fin d'examen). */
+  const isSectionEnd =
+    currentSection !== null &&
+    !isLast &&
+    state.currentIndex === currentSection.startIndex + currentSection.count - 1;
 
   // ============== ACTIONS ==============
 
@@ -284,15 +333,29 @@ export function QuestionRunner({
     }));
   }, [state.currentIndex, state.questions.length, state.noMoreQuestions, state.extending, infinite, extendBatch, finishCurrentAttempt]);
 
+  // En examen, une question de compréhension orale passée ne peut pas être
+  // revisitée (audio à écoute unique, comme le jour J) : retour bloqué tant
+  // que la question précédente est une CO. En entraînement, navigation libre.
+  const prevQuestion =
+    state.currentIndex > 0 ? state.questions[state.currentIndex - 1] : undefined;
+  const canGoPrevious =
+    state.currentIndex > 0 &&
+    !(
+      mode === "exam" &&
+      prevQuestion !== undefined &&
+      (prevQuestion.question.questionType === "CO" ||
+        prevQuestion.question.questionType === "CO_IMAGE")
+    );
+
   const goPrevious = useCallback(() => {
-    if (state.currentIndex === 0) return;
+    if (!canGoPrevious) return;
     setState((s) => ({
       ...s,
       currentIndex: s.currentIndex - 1,
       lastResult: null,
       error: null,
     }));
-  }, [state.currentIndex]);
+  }, [canGoPrevious]);
 
   // En exam, "Suivant" doit aussi soumettre la réponse silencieusement.
   const onClickNext = useCallback(async () => {
@@ -349,6 +412,15 @@ export function QuestionRunner({
 
       if (!current) return;
 
+      // Écran d'intro de partie : Entrée/→ démarre la partie, le reste est inerte.
+      if (showSectionIntro) {
+        if (e.key === "Enter" || e.key === "ArrowRight") {
+          e.preventDefault();
+          dismissSectionIntro();
+        }
+        return;
+      }
+
       if (["1", "2", "3", "4"].includes(e.key)) {
         const idx = Number(e.key) - 1;
         const choice = orderedChoices(current.question.choices)[idx];
@@ -388,7 +460,7 @@ export function QuestionRunner({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [current, hasFeedback, mode, selected.length, submitCurrent, onClickNext, goPrevious, toggleFavorite, toggleChoice, favoritesEnabled]);
+  }, [current, hasFeedback, mode, selected.length, submitCurrent, onClickNext, goPrevious, toggleFavorite, toggleChoice, favoritesEnabled, showSectionIntro, dismissSectionIntro]);
 
   if (!current) {
     return (
@@ -404,6 +476,10 @@ export function QuestionRunner({
   // lettres A→D. On force le rendu en pastilles-lettres (texte masqué) sur tout
   // ce type, en plus de la détection par label déjà en place pour le FULL_AUDIO.
   const isCoImage = q.questionType === "CO_IMAGE";
+  // CO en examen : audio lancé automatiquement, une seule écoute, pas de
+  // contrôles (cf. MediaView examAudio). En entraînement, lecteur libre.
+  const examCoAudio =
+    mode === "exam" && (q.questionType === "CO" || isCoImage);
   const correctIds = state.lastResult?.correctChoiceIds ?? [];
   const isCorrect = state.lastResult?.correct === true;
   const showCorrection = mode === "training" && hasFeedback;
@@ -456,10 +532,59 @@ export function QuestionRunner({
           ) : null}
         </div>
 
+        {showSectionIntro && currentSection ? (
+          /* INTRO DE PARTIE — l'examen est sectionné par épreuve : on annonce
+             la partie qui commence. Le chrono (global) continue de tourner. */
+          <div className="qr-intermission">
+            <div className="qr-intermission-ico" aria-hidden>
+              {currentSection.icon}
+            </div>
+            <div className="qr-intermission-part">
+              {multiSection
+                ? `PARTIE ${sectionIndex + 1} / ${sectionList!.length}`
+                : eyebrow}
+            </div>
+            <h2 className="qr-intermission-title">{currentSection.label}</h2>
+            <p className="qr-intermission-meta">
+              {currentSection.count} question{currentSection.count > 1 ? "s" : ""}
+              {multiSection
+                ? sectionIndex < sectionList!.length - 1
+                  ? ` · la suite : ${sectionList![sectionIndex + 1].label.toLowerCase()}`
+                  : " · dernière partie"
+                : timerActive && typeof timeLimitSeconds === "number"
+                  ? ` · ${Math.round(timeLimitSeconds / 60)} min`
+                  : ""}
+            </p>
+            <button
+              type="button"
+              className="btn btn-blue btn-lg"
+              onClick={dismissSectionIntro}
+            >
+              {sectionIndex === 0 ? "Commencer →" : "Continuer →"}
+            </button>
+          </div>
+        ) : (
+          <>
+        {/* BANDEAU DE PARTIE (examen multi-parties) */}
+        {multiSection && currentSection && (
+          <div className="qr-section">
+            <span className="qr-section-ico" aria-hidden>
+              {currentSection.icon}
+            </span>
+            <span className="qr-section-label">{currentSection.label}</span>
+            <span className="qr-section-pos">
+              Partie {sectionIndex + 1}/{sectionList!.length} ·{" "}
+              {state.currentIndex - currentSection.startIndex + 1}/{currentSection.count}
+            </span>
+          </div>
+        )}
+
         {/* TAGS */}
         <div className="qr-tags">
           <span className="qr-tag qr-tag-red">{q.difficulty}</span>
-          <span className="qr-tag qr-tag-blue">{questionTypeLabel(q.questionType)}</span>
+          {!multiSection && (
+            <span className="qr-tag qr-tag-blue">{questionTypeLabel(q.questionType)}</span>
+          )}
           <span className="qr-tag-theme">{q.themeName}</span>
         </div>
 
@@ -477,14 +602,14 @@ export function QuestionRunner({
         {/* MEDIA — image (CO_IMAGE) ou audio/svg/vidéo classique */}
         {q.media && (
           <div className="qr-media">
-            <MediaView key={q.id} media={q.media} />
+            <MediaView key={q.id} media={q.media} examAudio={examCoAudio} />
           </div>
         )}
 
         {/* AUDIO CO_IMAGE — intro + 4 propositions lues, sous l'image */}
         {q.audioMedia && (
           <div className="qr-media">
-            <MediaView key={`${q.id}-audio`} media={q.audioMedia} />
+            <MediaView key={`${q.id}-audio`} media={q.audioMedia} examAudio={examCoAudio} />
           </div>
         )}
 
@@ -581,7 +706,7 @@ export function QuestionRunner({
             </button>
           ) : (
             <div className="qr-actions-row">
-              {state.currentIndex > 0 && !infinite && (
+              {canGoPrevious && !infinite && (
                 <button
                   type="button"
                   className="btn btn-ghost qr-btn-half"
@@ -605,7 +730,9 @@ export function QuestionRunner({
                   ? "Chargement…"
                   : isLast && (!infinite || state.noMoreQuestions)
                     ? "Voir le résultat"
-                    : "Question suivante →"}
+                    : isSectionEnd
+                      ? "Partie suivante →"
+                      : "Question suivante →"}
               </button>
             </div>
           )}
@@ -616,6 +743,8 @@ export function QuestionRunner({
           <span>1-4</span> choix · <span>Entrée</span> valider · <span>←/→</span> nav
           {favoritesEnabled && <> · <span>B</span> favori</>}
         </div>
+          </>
+        )}
       </div>
 
       <style>{styles}</style>
@@ -777,6 +906,48 @@ const styles = `
   @keyframes qr-shimmer {
     0% { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
+  }
+
+  .qr-section {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--color-blue-soft);
+    border: 1px solid rgba(30, 58, 140, 0.12);
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+  }
+  .qr-section-ico { font-size: 15px; line-height: 1; flex-shrink: 0; }
+  .qr-section-label {
+    flex: 1; min-width: 0;
+    font-weight: 700; font-size: 13px; color: var(--color-blue);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .qr-section-pos {
+    flex-shrink: 0;
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+    letter-spacing: 0.06em; color: var(--color-muted);
+  }
+
+  .qr-intermission {
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center;
+    padding: 48px 16px 56px;
+  }
+  .qr-intermission-ico { font-size: 44px; line-height: 1; margin-bottom: 18px; }
+  .qr-intermission-part {
+    font-family: var(--font-mono); font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-blue);
+    margin-bottom: 8px;
+  }
+  .qr-intermission-title {
+    font-family: var(--font-display); font-weight: 500;
+    font-size: clamp(24px, 4vw, 30px); line-height: 1.15;
+    letter-spacing: -0.02em; color: var(--color-ink);
+    margin: 0 0 8px;
+  }
+  .qr-intermission-meta {
+    font-size: 14px; color: var(--color-muted);
+    margin: 0 0 26px;
   }
 
   .qr-tags { display: flex; gap: 6px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }

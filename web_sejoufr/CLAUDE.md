@@ -138,6 +138,28 @@ premium), il étend automatiquement la session avec un nouveau batch quand on
 arrive sur la dernière question — un prefetch est déclenché dès que la correction
 de l'avant-dernière s'affiche, pour rendre le passage instantané.
 
+**Examens sectionnés** : les examens TCF mixtes (templates `tcf-diagnostic` /
+`tcf-mix-*`) font **50 Q / 55 min** (migration V111) et sont composés par le
+backend comme le vrai TCF — compréhension orale (25 Q · 20 min) puis écrite
+(25 Q · 35 min), chacune stratifiée 8 A2 + 9 B1 + 8 B2, pas de STRUCTURE ni
+EE/EO (`AttemptService.pickQuestionsForTemplate` → `drawTcfEpreuveStrata`). La page
+session dérive des `RunnerSection[]` (`tcfExamSections`) passées au runner via
+la prop `sections` : bandeau « Partie x/y · i/n » au-dessus des tags + écran
+d'intro à chaque changement de partie (le chrono global continue) + bouton
+« Partie suivante » en fin de partie. Les examens TCF mono-épreuve (CO/CE/
+STRUCTURE) gardent l'écran d'intro comme présentation (« Compréhension orale ·
+25 questions · 20 min ») mais pas le bandeau. Undefined sur les attempts
+d'avant le tri (groupes > 3). **Notation TCF calibrée** : tous les examens TCF
+stratifiés (module CO/CE/STRUCTURE + templates diagnostic) portent
+`calibratedScore` 100-499 + `cecrlLevel` (backend `doFinish` +
+`AttemptMapper.isStratifiedTcfExam`) — le hero `ExamReport`, `/historique` et
+les stats « meilleur score » affichent `x/499` quand présent, le score brut
+sinon (attempts historiques sans score pondéré). **CO en examen = conditions réelles** : audio
+autoplay à écoute unique sans contrôles (`MediaView` prop `examAudio`,
+fallback bouton one-shot si l'autoplay est bloqué) et retour arrière interdit
+vers une question CO (`canGoPrevious` du runner). En TRAINING (séries), le
+lecteur natif et la navigation restent libres.
+
 ## Identité visuelle (à ne pas dévier)
 
 ### Couleurs (variables CSS définies dans `@theme`)
@@ -451,8 +473,19 @@ enfants sans sidebar quand `status !== "authenticated"`).
   start anonyme MOCK_EXAM template free). Examens 2-20 → `GuestGateSheet`.
   Les attempts guests sont en base (user NULL + IP) → analytics « combien
   de visiteurs se testent ».
-- **Examens par thème/épreuve** (`*/examens`) et **EE/EO** : réservés aux
-  comptes (`ModuleDetailGate`).
+- **Examens ciblés = compte requis, pages vitrines** : les pages `*/examens`
+  (civique thème + TCF CO/CE/STRUCTURE) s'affichent en guest (grille des 20
+  examens, stats « — · compte requis ») mais tout slot est verrouillé
+  (`freeSlots=0`, badge « Compte gratuit ») → `GuestGateSheet`. Le backend
+  double le verrou (403 sur MOCK_EXAM guest themeId/moduleExamQuestionType).
+  Le seul examen guest est le diagnostic complet de /examens-blancs.
+  **EE/EO** : réservés aux comptes (`ModuleDetailGate`).
+
+**URLs civique en slugs** : `/entrainement/civique/[theme]` où `theme` est le
+slug dérivé du code thème (`CIV_DROITS_DEVOIRS` → `droits-devoirs`, helpers
+`themeSlug`/`resolveThemeRef` dans `lib/themes.ts`). Les UUID hérités
+continuent de résoudre (retours de session via `lotReturnPath`/`examReturnPath`
+passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
 
 **Connecté gratuit, EE/EO** (source backend `ProductionSubmissionService` +
 `AttemptService.startProductionAttempt`) :

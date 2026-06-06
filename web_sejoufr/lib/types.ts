@@ -343,6 +343,8 @@ export interface AttemptSummaryResponse {
   startedAt: string;
   finishedAt?: string | null;
   score?: number | null;
+  /** Score calibré 100-499 d'un examen TCF stratifié (module ou template). */
+  calibratedScore?: number | null;
   /** Niveau CECRL estimé sur un examen module TCF (null sinon). */
   cecrlLevel?: NiveauCecrl | null;
   /** Non-null pour un examen module TCF scopé à une épreuve (CO/CE/STRUCTURE). */

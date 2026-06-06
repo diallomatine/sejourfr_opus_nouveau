@@ -62,11 +62,15 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
 ## Freemium (validé 2026-06-06, source backend)
 
 - **Guest (web)** : navigation libre des hubs ; **série 1** offerte par thème
-  civique / (épreuve TCF × niveau) et **examen complet 1** par module, joués en
-  anonyme (attempt `user NULL` + `clientIp` — sert d'analytics « combien se
-  testent »). Série 2+/examen 2+ → inscription. `GET /api/public/lots` +
-  `POST /api/public/attempts/demo` (TRAINING lotNumero=1 ou MOCK_EXAM template
-  free). Examens par thème/épreuve et EE/EO : compte obligatoire.
+  civique / (épreuve TCF × niveau) et **examen diagnostic complet 1** par
+  module (templates free de /examens-blancs), joués en anonyme (attempt
+  `user NULL` + `clientIp` — sert d'analytics « combien se testent »). Tirages
+  guests déterministes. Série 2+/examen 2+ → inscription. `GET /api/public/lots`
+  + `POST /api/public/attempts/demo` (TRAINING lotNumero=1 ou MOCK_EXAM
+  template free). **Examens ciblés** (thème civique / épreuve TCF) et EE/EO :
+  compte obligatoire — le backend renvoie 403 sur un MOCK_EXAM guest avec
+  themeId ou moduleExamQuestionType ; côté web les pages `*/examens` restent
+  des vitrines (grille visible, tout verrouillé → GuestGateSheet).
 - **Compte gratuit, EE/EO** : 1 essai d'entraînement par épreuve à vie + 1
   examen blanc production offert. L'examen est marqué `attempts.slot_number=1`
   au start (`ProductionAttemptStartRequest.exam`) ; ses soumissions bypassent

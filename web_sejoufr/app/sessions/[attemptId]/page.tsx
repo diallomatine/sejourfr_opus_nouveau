@@ -8,6 +8,7 @@ import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import {
   QuestionRunner,
   type RunnerBackend,
+  type RunnerSection,
 } from "@/app/_components/QuestionRunner";
 import { TrainingResultCard } from "@/app/_components/TrainingResultCard";
 import { ExamReport } from "@/app/_components/ExamReport";
@@ -58,6 +59,41 @@ const TCF_EPREUVE_LABELS: Record<string, string> = {
   CE: "Compréhension écrite",
   STRUCTURE: "Structure de la langue",
 };
+
+const TCF_SECTION_ICONS: Record<string, string> = {
+  CO: "🎧",
+  CE: "📖",
+  STRUCTURE: "🧩",
+};
+
+/** Parties d'un examen TCF mixte — le backend groupe les questions par
+ *  épreuve (orale → écrite → structures). Undefined si l'attempt n'est pas
+ *  sectionné (examen mono-épreuve, ou attempt d'avant le tri). */
+function tcfExamSections(attempt: AttemptResponse): RunnerSection[] | undefined {
+  if (attempt.type !== "MOCK_EXAM" || attempt.module !== "TCF") return undefined;
+  const sections: RunnerSection[] = [];
+  for (let i = 0; i < attempt.questions.length; i++) {
+    const type = attempt.questions[i].question.questionType;
+    const key = type === "CO_IMAGE" ? "CO" : type;
+    const label = TCF_EPREUVE_LABELS[key];
+    if (!label) return undefined;
+    const last = sections[sections.length - 1];
+    if (last && last.label === label) {
+      last.count++;
+    } else {
+      sections.push({
+        label,
+        icon: TCF_SECTION_ICONS[key],
+        startIndex: i,
+        count: 1,
+      });
+    }
+  }
+  // Plus de 3 groupes = épreuves entremêlées (attempt historique) : pas de
+  // parties à annoncer. 1 seul groupe = examen mono-épreuve : l'écran d'intro
+  // sert quand même de présentation avant la première question.
+  return sections.length <= 3 ? sections : undefined;
+}
 
 /** Sous-titre du hero du rapport : épreuve/thème + nature de la session. */
 function attemptContextLabel(
@@ -331,9 +367,7 @@ function SessionRunnerInner({ params }: PageProps) {
       }
       router.push(
         isExam
-          ? isGuest
-            ? "/examens-blancs"
-            : examReturnPath(attempt)
+          ? examReturnPath(attempt)
           : (lotReturnPath(attempt) ?? "/entrainement"),
       );
     };
@@ -479,13 +513,12 @@ function SessionRunnerInner({ params }: PageProps) {
         }
         quitHref={
           isExam
-            ? isGuest
-              ? "/examens-blancs"
-              : examReturnPath(attempt)
+            ? examReturnPath(attempt)
             : (lotQuitHref ?? "/entrainement")
         }
         timeLimitSeconds={isExam ? attempt.timeLimitSeconds : undefined}
         startedAt={isExam ? attempt.startedAt : undefined}
+        sections={tcfExamSections(attempt)}
         backend={isGuest ? GUEST_BACKEND : undefined}
         onCompleted={(finalAttempt) => {
           setAttempt(finalAttempt);
