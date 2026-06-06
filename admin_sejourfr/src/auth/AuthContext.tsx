@@ -34,7 +34,6 @@ export function AuthProvider({children}: { children: ReactNode }) {
         if (tokens.user.role !== "ADMIN") {
             tokenStorage.clear();
             throw new Error("Accès reservé aux administrateurs.");
-            s
         }
         tokenStorage.set(tokens.accessToken, tokens.refreshToken, tokens.user);
         setUser(tokens.user);

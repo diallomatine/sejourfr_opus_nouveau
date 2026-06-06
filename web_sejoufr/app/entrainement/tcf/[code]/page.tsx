@@ -4,9 +4,15 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BookOpen, Headphones, SpellCheck, Target } from "lucide-react";
-import { lotApi, publicLotApi } from "@/lib/api";
+import { attemptApi, lotApi, publicLotApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import type { Difficulty, LotDto, QuestionType } from "@/lib/types";
+import {
+  niveauCecrlLabel,
+  type AttemptSummaryResponse,
+  type Difficulty,
+  type LotDto,
+  type QuestionType,
+} from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
 import { DetailShell, LevelChoiceCard } from "@/app/_components/hub/DetailParts";
@@ -35,6 +41,8 @@ type TcfCode = keyof typeof TCF_QCM;
 const LEVELS: {
   key: string;
   chip: string;
+  /** Couleur du chip — même convention que le mobile : A2 vert, B1 ambre, B2 rouge. */
+  chipTone: "green" | "amber" | "red";
   difficulty: Difficulty;
   title: string;
   desc: string;
@@ -42,6 +50,7 @@ const LEVELS: {
   {
     key: "a2",
     chip: "A2",
+    chipTone: "green",
     difficulty: "A2",
     title: "Débutant",
     desc: "Comprendre des phrases simples et des situations très courantes du quotidien.",
@@ -49,6 +58,7 @@ const LEVELS: {
   {
     key: "b1",
     chip: "B1",
+    chipTone: "amber",
     difficulty: "B1",
     title: "Intermédiaire",
     desc: "Se débrouiller dans la plupart des situations rencontrées en France.",
@@ -56,11 +66,18 @@ const LEVELS: {
   {
     key: "b2",
     chip: "B2",
+    chipTone: "red",
     difficulty: "B2",
     title: "Avancé",
     desc: "Comprendre des textes complexes et s'exprimer avec aisance et nuance.",
   },
 ];
+
+const DATE_FMT = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
 
 interface LevelStats {
   done: number;
@@ -96,6 +113,8 @@ export default function TcfQcmDetailPage() {
   const { status } = useAuth();
 
   const [byLevel, setByLevel] = useState<Record<string, LevelStats>>({});
+  /** 3 derniers examens blancs finis sur cette épreuve (connectés seulement). */
+  const [history, setHistory] = useState<AttemptSummaryResponse[]>([]);
 
   useEffect(() => {
     if (status === "loading" || !config) return;
@@ -114,6 +133,27 @@ export default function TcfQcmDetailPage() {
       });
       setByLevel(next);
     });
+    if (status === "authenticated") {
+      attemptApi
+        .listMine({
+          type: "MOCK_EXAM",
+          module: "TCF",
+          moduleExamQuestionType: config.questionType,
+          limit: 30,
+        })
+        .then((list) => {
+          if (cancelled) return;
+          setHistory(
+            list
+              .filter((a) => a.finishedAt)
+              .sort((a, b) =>
+                (b.finishedAt ?? "").localeCompare(a.finishedAt ?? ""),
+              )
+              .slice(0, 3),
+          );
+        })
+        .catch(() => undefined);
+    }
     return () => {
       cancelled = true;
     };
@@ -156,6 +196,7 @@ export default function TcfQcmDetailPage() {
               <LevelChoiceCard
                 key={lv.key}
                 chip={lv.chip}
+                chipTone={lv.chipTone}
                 title={lv.title}
                 desc={lv.desc}
                 percent={stats.percent}
@@ -166,6 +207,64 @@ export default function TcfQcmDetailPage() {
             );
           })}
         </div>
+
+        {/* Historique des 3 derniers examens blancs de l'épreuve — miroir du
+            hub mobile (qcm_history_section.dart). Connectés seulement. */}
+        {status === "authenticated" && (
+          <section className={detail.histSection}>
+            <div className={detail.histHead}>
+              <span className={detail.histTitle}>Historique</span>
+              <Link
+                href={`/entrainement/tcf/${code}/examens`}
+                className={detail.histLink}
+              >
+                Tout voir
+              </Link>
+            </div>
+            {history.length === 0 ? (
+              <div className={detail.histEmpty}>
+                Aucun examen passé. Lancez un examen blanc ou entraînez-vous
+                par niveau.
+              </div>
+            ) : (
+              <ul className={detail.histList}>
+                {history.map((a) => (
+                  <li key={a.id}>
+                    <Link href={`/sessions/${a.id}`} className={detail.histRow}>
+                      <span className={detail.histIco} aria-hidden>
+                        <Target size={18} strokeWidth={1.8} />
+                      </span>
+                      <span className={detail.histBody}>
+                        <span className={detail.histLabel}>Examen blanc</span>
+                        <span className={detail.histDate}>
+                          {a.finishedAt
+                            ? DATE_FMT.format(new Date(a.finishedAt))
+                            : "—"}
+                          {" · "}
+                          {a.score ?? 0}/{a.totalQuestions ?? "—"} bonnes
+                          réponses
+                        </span>
+                      </span>
+                      <span className={detail.histScore}>
+                        {a.calibratedScore != null
+                          ? `${a.calibratedScore}/499`
+                          : `${a.score ?? 0}/${a.totalQuestions ?? "—"}`}
+                        {a.cecrlLevel && (
+                          <>
+                            <br />
+                            <span className={detail.histLevel}>
+                              {niveauCecrlLabel(a.cecrlLevel)}
+                            </span>
+                          </>
+                        )}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
       </DetailShell>
     </DualChromeShell>
   );
