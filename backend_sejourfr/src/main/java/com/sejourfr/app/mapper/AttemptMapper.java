@@ -49,6 +49,7 @@ public class AttemptMapper {
                 attempt.getScore(),
                 attempt.getLevelAchieved(),
                 attempt.getModuleExamQuestionType(),
+                attempt.getLotThemeId(),
                 calibratedScoreOf(attempt),
                 cecrlLevelOf(attempt),
                 aqResponses

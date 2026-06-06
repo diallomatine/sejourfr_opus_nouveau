@@ -38,20 +38,38 @@ const GUEST_BACKEND: RunnerBackend = {
   // pour cacher les fonctionnalités réservées aux comptes.
 };
 
-/** Chemin de retour après un lot, dérivé du module/épreuve de l'attempt :
- *  civique → détail du thème, TCF → page lots de l'épreuve × niveau. */
+/** Chemin de retour après une série, dérivé du module/épreuve de l'attempt :
+ *  civique → séries du thème, TCF → séries de l'épreuve × niveau. */
 function lotReturnPath(attempt: AttemptResponse): string | null {
-  const q = attempt.questions[0]?.question;
-  if (!q) return null;
   if (attempt.module === "CIVIQUE") {
-    return q.themeId ? `/entrainement/civique/${q.themeId}` : null;
+    const themeId = attempt.themeId ?? attempt.questions[0]?.question.themeId;
+    return themeId ? `/entrainement/civique/${themeId}` : null;
   }
-  const code = q.questionType?.toLowerCase();
-  const level = q.difficulty?.toLowerCase();
+  const q = attempt.questions[0]?.question;
+  const code = q?.questionType?.toLowerCase();
+  const level = q?.difficulty?.toLowerCase();
   if (code && level && (code === "co" || code === "ce" || code === "structure")) {
     return `/entrainement/tcf/${code}/${level}`;
   }
   return null;
+}
+
+/** Écran d'origine d'un examen blanc, dérivé de l'attempt : examen du
+ *  catalogue (template) → /examens-blancs ; examen thématique civique →
+ *  page examens du thème ; examen module TCF → page examens de l'épreuve ;
+ *  sinon catalogue du module. */
+function examReturnPath(attempt: AttemptResponse): string {
+  if (attempt.examTemplateId) return "/examens-blancs";
+  if (attempt.module === "CIVIQUE") {
+    return attempt.themeId
+      ? `/entrainement/civique/${attempt.themeId}/examens`
+      : "/examens-blancs/civique";
+  }
+  const code = attempt.moduleExamQuestionType?.toLowerCase();
+  if (code === "co" || code === "ce" || code === "structure") {
+    return `/entrainement/tcf/${code}/examens`;
+  }
+  return "/examens-blancs/tcf";
 }
 
 /**
@@ -291,7 +309,11 @@ function SessionRunnerInner({ params }: PageProps) {
                 : "Entraînement"
         }
         quitHref={
-          isExam ? "/examens-blancs" : (lotQuitHref ?? "/entrainement")
+          isExam
+            ? isGuest
+              ? "/examens-blancs"
+              : examReturnPath(attempt)
+            : (lotQuitHref ?? "/entrainement")
         }
         timeLimitSeconds={isExam ? attempt.timeLimitSeconds : undefined}
         startedAt={isExam ? attempt.startedAt : undefined}

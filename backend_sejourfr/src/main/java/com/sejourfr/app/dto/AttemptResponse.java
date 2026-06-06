@@ -28,6 +28,10 @@ public record AttemptResponse(
         // au mobile pour appliquer les conditions strictes (audio auto-play
         // 2s, pas de pause, lecture unique, soumission auto à la fin du temps).
         QuestionType moduleExamQuestionType,
+        // Thème civique scopé (lotThemeId) — non-null pour les séries et
+        // examens thématiques civiques. Sert au web à retrouver l'écran
+        // d'origine (retour de session vers /entrainement/civique/{themeId}).
+        UUID themeId,
         // Score calibré 100-499 (examens module TCF) + niveau CECRL estimé.
         // Affichage façon relevé TCF (X/499 + niveau) à la place du X/50 interne.
         // Null hors examen module TCF.

@@ -273,6 +273,11 @@ export interface AttemptResponse {
   finishedAt?: string;
   score?: number;
   levelAchieved: TargetLevel | null;
+  /** Non-null pour un examen module TCF (CO/CE/STRUCTURE). */
+  moduleExamQuestionType?: QuestionType | null;
+  /** Thème civique scopé (séries + examens thématiques) — sert au retour
+   *  de session vers l'écran d'origine. */
+  themeId?: string | null;
   questions: AttemptQuestionResponse[];
 }
 

@@ -119,6 +119,7 @@ class Attempt {
     this.score,
     this.levelAchieved,
     this.moduleExamQuestionType,
+    this.themeId,
     this.calibratedScore,
     this.cecrlLevel,
   });
@@ -142,6 +143,10 @@ class Attempt {
   /// le mode strict côté runner : audio auto-play 2s, lecture unique, pas
   /// de pause, soumission auto à la fin du temps.
   final QuestionType? moduleExamQuestionType;
+
+  /// Thème civique scopé (lotThemeId backend) — non-null pour les séries et
+  /// examens thématiques civiques.
+  final String? themeId;
 
   /// Score calibré 100-499 (examens module TCF) — affichage façon relevé TCF
   /// à la place du score pondéré X/50. Null hors examen module.
@@ -177,6 +182,7 @@ class Attempt {
         moduleExamQuestionType: json['moduleExamQuestionType'] == null
             ? null
             : QuestionType.fromWire(json['moduleExamQuestionType'] as String),
+        themeId: json['themeId'] as String?,
         calibratedScore: (json['calibratedScore'] as num?)?.toInt(),
         cecrlLevel: NiveauCecrl.fromWireNullable(json['cecrlLevel'] as String?),
         questions: (json['questions'] as List<dynamic>?)
