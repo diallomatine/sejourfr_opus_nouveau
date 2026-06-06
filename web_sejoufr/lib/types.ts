@@ -345,6 +345,11 @@ export interface AttemptSummaryResponse {
   score?: number | null;
   /** Niveau CECRL estimé sur un examen module TCF (null sinon). */
   cecrlLevel?: NiveauCecrl | null;
+  /** Non-null pour un examen module TCF scopé à une épreuve (CO/CE/STRUCTURE). */
+  moduleExamQuestionType?: QuestionType | null;
+  /** Thème civique ciblé (lot ou examen thématique) — null pour un examen
+   *  blanc complet 40 Q tous thèmes. */
+  lotThemeId?: string | null;
   /** Template d'examen lié à cet attempt (null si entraînement libre).
    *  Sert à marquer "Fait" sur la liste des examens et à proposer "Voir détails / Refaire". */
   examTemplateId?: string | null;

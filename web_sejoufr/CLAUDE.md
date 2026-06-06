@@ -440,6 +440,16 @@ Chantier découpé en vagues :
           `SeeMoreButton` + styles orphelins (HubParts ne garde que
           ExamBlancHero, SectionLabel/Counter/Link, HubDetailHeader pour les
           parcours production).
+    - **`/examens-blancs` refondu** (connecté) : « Examens blancs complets » —
+      une card par parcours (TCF IRN = MOCK_EXAM TCF 60 Q mélangées ; Examen
+      civique = MOCK_EXAM CIVIQUE 40 Q stratifiées) avec stats « x/20 épreuves
+      passées · meilleur y/n », ligne « Brasse tous les thèmes… », grille de
+      20 épreuves **repliée à 8 + « Voir tout »** (`ExamsGrid` props
+      `collapsedCount`/`itemLabel`). Épreuve 1 gratuite, 2+ premium. Le
+      catalogue de templates n'est plus surfacé ici (sous-routes
+      `/examens-blancs/civique|tcf` conservées comme chemins de retour) ; la
+      page démo guest est inchangée. Miroir `AttemptSummaryResponse` complété
+      (`moduleExamQuestionType`, `lotThemeId`).
     - **Rapport d'examen / de série refondu** (`ExamReport.tsx`) : hero teinté
       vert/rouge (donut bonnes réponses, « Vous avez obtenu X% », Score /
       Temps / Niveau estimé TCF ou Seuil civique), **« Réussite par

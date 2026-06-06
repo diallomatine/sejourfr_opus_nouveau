@@ -1,30 +1,35 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { Info, Lightbulb, Target, Waves } from "lucide-react";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
+import { PaywallSheet } from "@/app/_components/PaywallSheet";
+import { ExamsGrid } from "@/app/_components/hub/DetailParts";
 import {
   ApiException,
   attemptApi,
-  examApi,
   publicAttemptApi,
   publicExamApi,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
-import type {
-  AttemptSummaryResponse,
-  ExamTemplateSummary,
-  Module as ModuleEnum,
+import {
+  type AttemptSummaryResponse,
+  canAccessModule,
+  type ExamTemplateSummary,
+  isProductionAttempt,
+  type Module as ModuleEnum,
 } from "@/lib/types";
 
+const SLOTS = 20;
+const COLLAPSED = 8;
+
 /**
- * Accueil /examens-blancs : épurée à l'extrême — un topbar, un panneau de
- * stats globales sur les examens passés, puis 2 grosses tuiles (Civique / TCF)
- * qui pointent chacune vers leur sous-route. Toute la logique de liste est
- * dans ExamsModuleView, monté sur /examens-blancs/civique et /examens-blancs/tcf.
- *
- * Accessible aussi en mode démo guest : 1 examen blanc par module et par mois.
+ * /examens-blancs (maquette sejour_fr.html) : « Examens blancs complets » —
+ * une grande card par parcours (TCF IRN 60 Q mélangées · Examen civique 40 Q
+ * stratifiées tous thèmes) avec stats, 20 épreuves repliées à 8 (+ Voir tout).
+ * Épreuve 1 gratuite, 2+ premium. Les guests gardent la page démo.
  */
 export default function ExamensBlancsHomePage() {
   const { status } = useAuth();
@@ -38,169 +43,121 @@ export default function ExamensBlancsHomePage() {
 }
 
 function ExamsConnectedHome() {
+  const router = useRouter();
   const { user, status } = useAuth();
 
-  const [exams, setExams] = useState<ExamTemplateSummary[]>([]);
-  const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [civique, setCivique] = useState<AttemptSummaryResponse[]>([]);
+  const [tcf, setTcf] = useState<AttemptSummaryResponse[]>([]);
+  const [starting, setStarting] = useState<ModuleEnum | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [paywallModule, setPaywallModule] = useState<"CIVIQUE" | "INTEGRAL" | null>(null);
 
   useEffect(() => {
     if (status !== "authenticated") return;
     let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    Promise.all([
-      examApi.list().catch((e: unknown) => {
-        if (e instanceof ApiException) throw e;
-        throw new Error("Impossible de charger les examens.");
-      }),
-      attemptApi
-        .listMine({ type: "MOCK_EXAM", limit: 50 })
-        .catch((): AttemptSummaryResponse[] => []),
-    ])
-      .then(([list, atts]) => {
-        if (cancelled) return;
-        setExams(list);
-        setAttempts(atts);
-        setError(null);
-        setLoading(false);
-      })
-      .catch((e: Error) => {
-        if (cancelled) return;
-        setError(e.message);
-        setLoading(false);
-      });
+    Promise.allSettled([
+      attemptApi.listMine({ type: "MOCK_EXAM", module: "CIVIQUE", limit: 100 }),
+      attemptApi.listMine({ type: "MOCK_EXAM", module: "TCF", limit: 100 }),
+    ]).then(([c, t]) => {
+      if (cancelled) return;
+      if (c.status === "fulfilled") {
+        // Examens complets uniquement (40 Q tous thèmes) : on écarte les
+        // examens thématiques (lotThemeId non null). Ordre chronologique.
+        setCivique(
+          c.value
+            .filter((a) => a.finishedAt && !a.lotThemeId)
+            .sort((a, b) => a.startedAt.localeCompare(b.startedAt)),
+        );
+      }
+      if (t.status === "fulfilled") {
+        // Examens TCF complets (60 Q mélangées) : on écarte les examens
+        // module (CO/CE/Structure) et les productions / TCF_COMPLET.
+        setTcf(
+          t.value
+            .filter(
+              (a) =>
+                a.finishedAt &&
+                !a.moduleExamQuestionType &&
+                !isProductionAttempt(a) &&
+                a.totalQuestions != null,
+            )
+            .sort((a, b) => a.startedAt.localeCompare(b.startedAt)),
+        );
+      }
+    });
     return () => {
       cancelled = true;
     };
   }, [status]);
 
-  const counts = useMemo(() => {
-    return {
-      civique: exams.filter((e) => e.module === "CIVIQUE").length,
-      tcf: exams.filter((e) => e.module === "TCF").length,
-    };
-  }, [exams]);
-
-  const examStats = useMemo(() => {
-    const finished = attempts.filter(
-      (a) =>
-        a.type === "MOCK_EXAM" &&
-        a.finishedAt &&
-        a.score !== null &&
-        a.score !== undefined,
-    );
-    if (finished.length === 0) {
-      return {
-        total: 0,
-        passed: 0,
-        passRate: 0,
-        breakdown: "Pas encore d'examen",
-        bestLabel: null as string | null,
-        bestDetail: null as string | null,
-      };
+  async function start(module: ModuleEnum) {
+    if (starting) return;
+    setError(null);
+    setStarting(module);
+    try {
+      const a = await attemptApi.start({ type: "MOCK_EXAM", module });
+      router.push(`/sessions/${a.id}`);
+    } catch (e) {
+      setError(e instanceof ApiException ? e.message : "Impossible de démarrer l'examen.");
+      setStarting(null);
     }
-    const civiqueCount = finished.filter((a) => a.module === "CIVIQUE").length;
-    const tcfCount = finished.filter((a) => a.module === "TCF").length;
-    const passed = finished.filter((a) => {
-      if (a.module === "CIVIQUE" && a.passThreshold != null) {
-        return (a.score ?? 0) >= a.passThreshold;
-      }
-      return (a.score ?? 0) / (a.totalQuestions ?? 1) >= 0.6;
-    }).length;
-    let bestPct = -1;
-    let best: AttemptSummaryResponse | null = null;
-    for (const a of finished) {
-      const pct = (a.score ?? 0) / (a.totalQuestions ?? 1);
-      if (pct > bestPct) {
-        bestPct = pct;
-        best = a;
-      }
-    }
-    const breakdown =
-      [
-        civiqueCount ? `${civiqueCount} civique${civiqueCount > 1 ? "s" : ""}` : null,
-        tcfCount ? `${tcfCount} TCF` : null,
-      ]
-        .filter(Boolean)
-        .join(" · ") || "—";
-    const bestLabel = best ? `${best.score}/${best.totalQuestions}` : null;
-    const bestDetail = best
-      ? `${best.module === "TCF" ? "TCF" : "Civique"} · ${formatShortDate(best.startedAt)}`
-      : null;
-    return {
-      total: finished.length,
-      passed,
-      passRate: Math.round((passed / finished.length) * 100),
-      breakdown,
-      bestLabel,
-      bestDetail,
-    };
-  }, [attempts]);
+  }
 
   if (status === "loading" || !user) return <HomeSkeleton />;
 
+  const tcfPremium = canAccessModule(user, "TCF");
+  const civiquePremium = canAccessModule(user, "CIVIQUE");
+
   return (
     <main className="ebh">
-      {/* ============ HERO ============ */}
-      <header className="eb-hero">
-        <div className="eb-hero-main">
-          <div className="breadcrumb">
-            ACCUEIL <span className="sep">/</span> EXAMENS BLANCS
-          </div>
-          <h1>
-            Préparez-vous en <em>conditions réelles</em>.
-          </h1>
-          <p>
-            Examens blancs chronométrés, au format et au seuil officiels — Civique
-            40 questions, TCF avec diagnostic CECRL A2 / B1 / B2.
-          </p>
-          <div className="eb-hero-actions">
-            <Link href="/historique" className="eb-hero-btn eb-hero-btn-ghost">
-              Mes résultats →
-            </Link>
-          </div>
+      <header className="ebh-head">
+        <div className="ebh-eyebrow">
+          <Target size={16} aria-hidden />
+          <span>Conditions réelles</span>
         </div>
-        <div className="eb-summary">
-          <div className="summary-box">
-            <strong>{examStats.total}</strong>
-            <span>Examens passés</span>
-          </div>
-          <div className="summary-box">
-            <strong>{examStats.total > 0 ? `${examStats.passRate}%` : "—"}</strong>
-            <span>Réussite</span>
-          </div>
-          <div className="summary-box">
-            <strong>{examStats.bestLabel ?? "—"}</strong>
-            <span>Meilleur score</span>
-          </div>
-        </div>
+        <h1>Examens blancs complets</h1>
+        <p>
+          Une épreuve entière par parcours, qui mélange tous les thèmes.
+          Retrouvez les examens déjà passés et leur score, ou lancez-en un
+          nouveau.
+        </p>
       </header>
 
-      {error && <div className="form-error ebh-error">{error}</div>}
+      {error && <div className="ebh-error">{error}</div>}
 
-      {/* ============ MODULE TILES ============ */}
-      <section className="tiles">
-        <ModuleTile
-          tone="blue"
-          href="/examens-blancs/civique"
-          tag="EXAMEN CIVIQUE"
-          title="Civique"
-          desc="Connaissance des valeurs et principes de la République. Pour la CSP, la carte de résident et la naturalisation."
-          count={counts.civique}
-          loading={loading}
-        />
-        <ModuleTile
-          tone="red"
-          href="/examens-blancs/tcf"
-          tag="TCF IRN"
-          title="TCF"
-          desc="Compréhension orale, compréhension écrite, structure de la langue. Diagnostic CECRL A2 / B1 / B2."
-          count={counts.tcf}
-          loading={loading}
-        />
-      </section>
+      <ModuleExamsSection
+        tone="blue"
+        icon={<Waves size={22} strokeWidth={1.8} />}
+        title="TCF IRN"
+        chip="3 épreuves mélangées"
+        brewLine="Brasse toutes les épreuves QCM : Compréhension orale · Compréhension écrite · Structure de la langue."
+        exams={tcf}
+        scoreOutOf={60}
+        premium={tcfPremium}
+        starting={starting === "TCF"}
+        onStart={() => start("TCF")}
+        onLocked={() => setPaywallModule("INTEGRAL")}
+      />
+
+      <ModuleExamsSection
+        tone="red"
+        icon={<Lightbulb size={22} strokeWidth={1.8} />}
+        title="Examen civique"
+        chip="5 catégories mélangées"
+        brewLine="Brasse tous les thèmes : Principes et valeurs de la République · Système institutionnel et politique · Droits et devoirs · Histoire, géographie et culture · Vivre dans la société française."
+        exams={civique}
+        scoreOutOf={40}
+        premium={civiquePremium}
+        starting={starting === "CIVIQUE"}
+        onStart={() => start("CIVIQUE")}
+        onLocked={() => setPaywallModule("CIVIQUE")}
+      />
+
+      <PaywallSheet
+        open={paywallModule !== null}
+        onClose={() => setPaywallModule(null)}
+        module={paywallModule ?? "CIVIQUE"}
+      />
 
       <style>{styles}</style>
     </main>
@@ -208,62 +165,75 @@ function ExamsConnectedHome() {
 }
 
 // ============================================================================
-// MODULE TILE
+// SECTION MODULE — card TCF IRN / Examen civique
 // ============================================================================
-function ModuleTile({
+function ModuleExamsSection({
   tone,
-  href,
-  tag,
+  icon,
   title,
-  desc,
-  count,
-  loading,
+  chip,
+  brewLine,
+  exams,
+  scoreOutOf,
+  premium,
+  starting,
+  onStart,
+  onLocked,
 }: {
   tone: "blue" | "red";
-  href: string;
-  tag: string;
+  icon: React.ReactNode;
   title: string;
-  desc: string;
-  count: number;
-  loading: boolean;
+  chip: string;
+  brewLine: string;
+  exams: AttemptSummaryResponse[];
+  scoreOutOf: number;
+  premium: boolean;
+  starting: boolean;
+  onStart: () => void;
+  onLocked: () => void;
 }) {
+  const done = Math.min(exams.length, SLOTS);
+  const best = exams.reduce((max, a) => Math.max(max, a.score ?? 0), 0);
+  const sub =
+    done > 0
+      ? `${done}/${SLOTS} épreuves passées · meilleur ${best}/${scoreOutOf}`
+      : `${SLOTS} épreuves disponibles · aucune passée pour l'instant`;
+
   return (
-    <Link href={href} className={`tile tile-${tone}`}>
-      <div className="tile-pattern" aria-hidden />
-      <div className="tile-body">
-        <span className={`tile-tag tile-tag-${tone}`}>{tag}</span>
-        <h2 className="tile-title">{title}</h2>
-        <p className="tile-desc">{desc}</p>
-        <div className="tile-footer">
-          <span className="tile-count">
-            {loading ? (
-              <span className="tile-count-skel">···</span>
-            ) : (
-              <>
-                <strong>{count}</strong> {count > 1 ? "examens" : "examen"}{" "}
-                disponible{count > 1 ? "s" : ""}
-              </>
-            )}
-          </span>
-          <span className={`tile-cta tile-cta-${tone}`}>
-            Voir les examens
-            <span className="tile-arrow">→</span>
-          </span>
+    <section className="ebh-module">
+      <header className="ebh-module-head">
+        <span className={`ebh-module-icon ebh-module-icon-${tone}`} aria-hidden>
+          {icon}
+        </span>
+        <div className="ebh-module-titles">
+          <h2>{title}</h2>
+          <p>{sub}</p>
         </div>
+        <span className="ebh-module-chip">{chip}</span>
+      </header>
+
+      <div className="ebh-brew">
+        <Info size={15} aria-hidden />
+        <span>{brewLine}</span>
       </div>
-    </Link>
+
+      <ExamsGrid
+        count={SLOTS}
+        exams={exams}
+        premium={premium}
+        starting={starting}
+        itemLabel="Épreuve"
+        collapsedCount={COLLAPSED}
+        onStart={onStart}
+        onLocked={onLocked}
+      />
+    </section>
   );
 }
 
 // ============================================================================
 // HELPERS
 // ============================================================================
-const SHORT_MONTHS = ["janv", "févr", "mars", "avr", "mai", "juin", "juil", "août", "sept", "oct", "nov", "déc"];
-function formatShortDate(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]}`;
-}
-
 function HomeSkeleton() {
   return (
     <div className="ebh-loading">
@@ -672,196 +642,105 @@ const ShieldIcon = () => (
 // STYLES
 // ============================================================================
 const styles = `
-  .ebh { padding: 24px 36px 64px; max-width: 1320px; }
-  @media (max-width: 760px) { .ebh { padding: 20px 16px 56px; } }
-
-  /* ========== HERO ========== */
-  .eb-hero {
-    display: grid; grid-template-columns: 1fr; gap: 22px;
-    background: linear-gradient(135deg, var(--color-blue) 0%, #3355B5 100%);
-    color: #fff; border-radius: 20px; padding: 30px; margin-bottom: 22px;
+  .ebh {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 30px 40px 80px;
   }
-  .breadcrumb {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.7);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
+
+  /* ===== header ===== */
+  .ebh-head { margin-bottom: 24px; }
+  .ebh-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--color-blue);
     margin-bottom: 8px;
   }
-  .breadcrumb .sep { margin: 0 6px; opacity: 0.5; }
-  .eb-hero-main h1 {
-    font-family: var(--font-display);
-    font-size: clamp(24px, 3.4vw, 32px);
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    line-height: 1.12;
+  .ebh-head h1 {
+    margin: 0 0 8px;
+    font-family: var(--font-sans);
+    font-size: clamp(24px, 4vw, 32px);
+    font-weight: 800; letter-spacing: -0.02em;
+    color: var(--color-ink); line-height: 1.1;
+  }
+  .ebh-head p {
     margin: 0;
-    color: #fff;
-  }
-  .eb-hero-main h1 em { font-style: italic; font-weight: 500; opacity: 0.92; }
-  .eb-hero-main p {
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 14.5px; line-height: 1.6;
-    margin: 10px 0 0; max-width: 540px;
-  }
-  .eb-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
-  .eb-hero-btn {
-    display: inline-flex; align-items: center; justify-content: center;
-    padding: 11px 20px; border-radius: 10px;
-    font-family: var(--font-sans); font-size: 14px; font-weight: 700;
-    background: #fff; color: var(--color-blue);
-    text-decoration: none; border: 1px solid transparent;
-    transition: transform 0.15s, background 0.15s;
-  }
-  .eb-hero-btn:hover { transform: translateY(-1px); background: #F1F5F9; }
-  .eb-hero-btn-ghost { background: transparent; color: #fff; border-color: rgba(255, 255, 255, 0.4); }
-  .eb-hero-btn-ghost:hover { background: rgba(255, 255, 255, 0.12); }
-  .eb-summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-content: start; }
-  .eb-summary .summary-box {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 14px;
-    padding: 14px 16px;
-    display: flex; flex-direction: column; gap: 4px;
-  }
-  .eb-summary .summary-box strong {
-    font-family: var(--font-display); font-weight: 600; font-size: 24px;
-    line-height: 1; color: #fff; font-variant-numeric: tabular-nums;
-  }
-  .eb-summary .summary-box span { font-size: 11.5px; color: rgba(255, 255, 255, 0.7); }
-  @media (min-width: 900px) {
-    .eb-hero { grid-template-columns: 1.5fr 1fr; align-items: center; padding: 32px; }
+    color: var(--color-muted);
+    font-size: 15.5px; line-height: 1.5;
+    max-width: 640px;
   }
 
-  .ebh-error { margin-bottom: 18px; }
-
-  /* ========== TILES — 2 grosses tuiles cliquables ========== */
-  .tiles {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 22px;
-  }
-  @media (max-width: 980px) {
-    .tiles { grid-template-columns: 1fr; }
-  }
-  .tile {
-    position: relative;
-    display: flex; flex-direction: column;
-    min-height: 320px;
-    border-radius: 24px;
-    padding: 36px;
-    color: #fff;
-    text-decoration: none;
-    overflow: hidden;
-    transition: transform 0.25s, box-shadow 0.25s;
-    cursor: pointer;
-  }
-  .tile:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 30px 60px -20px rgba(15, 24, 57, 0.35);
-  }
-  .tile-blue {
-    background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-blue-dark) 100%);
-  }
-  .tile-red {
-    background: linear-gradient(135deg, var(--color-red) 0%, var(--color-red-dark) 100%);
-  }
-  .tile-pattern {
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.18) 0px, transparent 40%),
-      radial-gradient(circle at 0% 100%, rgba(255, 255, 255, 0.08) 0px, transparent 50%);
-    pointer-events: none;
-  }
-  .tile-blue .tile-pattern {
-    background:
-      radial-gradient(circle at 100% 0%, var(--color-red) 0px, transparent 35%),
-      radial-gradient(circle at 0% 100%, rgba(255, 255, 255, 0.08) 0px, transparent 50%);
-    opacity: 0.55;
-  }
-  .tile-red .tile-pattern {
-    background:
-      radial-gradient(circle at 100% 0%, var(--color-blue) 0px, transparent 35%),
-      radial-gradient(circle at 0% 100%, rgba(255, 255, 255, 0.08) 0px, transparent 50%);
-    opacity: 0.5;
-  }
-  .tile-body {
-    position: relative;
-    z-index: 1;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-  .tile-tag {
-    display: inline-flex; align-self: flex-start;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.18em;
-    padding: 6px 12px;
-    border-radius: 100px;
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    color: #fff;
-    font-weight: 600;
-    margin-bottom: 24px;
-  }
-  .tile-title {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: clamp(48px, 6vw, 68px);
-    letter-spacing: -0.03em;
-    line-height: 1;
-    margin: 0 0 18px;
-    color: #fff;
-  }
-  .tile-desc {
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 15px;
-    line-height: 1.55;
-    margin: 0 0 28px;
-    max-width: 380px;
-    flex: 1;
-  }
-  .tile-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-top: 18px;
-    border-top: 1px solid rgba(255, 255, 255, 0.18);
-    gap: 12px;
-  }
-  .tile-count {
-    font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.06em;
-    color: rgba(255, 255, 255, 0.8);
-  }
-  .tile-count strong {
-    color: #fff;
-    font-weight: 700;
-    font-size: 16px;
-  }
-  .tile-count-skel {
-    color: rgba(255, 255, 255, 0.5);
-    letter-spacing: 0.2em;
-  }
-  .tile-cta {
-    display: inline-flex; align-items: center; gap: 8px;
-    background: #fff;
-    padding: 10px 18px;
+  .ebh-error {
+    background: var(--color-red-light);
+    border: 1px solid color-mix(in srgb, var(--color-red) 25%, transparent);
+    color: var(--color-red-dark);
     border-radius: 12px;
+    padding: 12px 16px;
     font-size: 13.5px;
-    font-weight: 700;
-    transition: transform 0.15s;
+    margin-bottom: 16px;
   }
-  .tile-cta-blue { color: var(--color-blue); }
-  .tile-cta-red { color: var(--color-red); }
-  .tile:hover .tile-cta { transform: translateX(2px); }
-  .tile-arrow {
-    transition: transform 0.15s;
+
+  /* ===== card module ===== */
+  .ebh-module {
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 18px;
+    padding: 22px;
+    box-shadow: 0 1px 3px rgba(15, 24, 57, 0.04);
+    margin-bottom: 22px;
   }
-  .tile:hover .tile-arrow { transform: translateX(3px); }
+  .ebh-module-head {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 14px;
+  }
+  .ebh-module-icon {
+    width: 46px; height: 46px;
+    border-radius: 13px;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    color: #fff;
+  }
+  .ebh-module-icon-blue { background: var(--color-blue); }
+  .ebh-module-icon-red { background: var(--color-red); }
+  .ebh-module-titles { flex: 1; min-width: 0; }
+  .ebh-module-titles h2 {
+    margin: 0 0 2px;
+    font-family: var(--font-sans);
+    font-size: 18px; font-weight: 800; letter-spacing: -0.01em;
+    color: var(--color-ink);
+  }
+  .ebh-module-titles p {
+    margin: 0;
+    font-size: 13px; color: var(--color-muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ebh-module-chip {
+    font-size: 12px; font-weight: 700;
+    color: var(--color-blue);
+    background: var(--color-blue-light);
+    padding: 5px 12px; border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .ebh-brew {
+    display: flex; align-items: flex-start; gap: 8px;
+    background: var(--color-blue-soft);
+    border: 1px solid var(--color-line);
+    border-radius: 11px;
+    padding: 10px 14px;
+    font-size: 12.5px; line-height: 1.5;
+    color: var(--color-muted);
+    margin-bottom: 16px;
+  }
+  .ebh-brew svg { flex-shrink: 0; margin-top: 2px; color: var(--color-blue); }
+
+  /* ===== responsive ===== */
+  @media (max-width: 768px) {
+    /* padding-top dégage le burger fixed du drawer mobile (.ms-toggle). */
+    .ebh { padding: 64px 18px 48px; }
+    .ebh-module-chip { display: none; }
+    .ebh-module-titles p { white-space: normal; }
+  }
 `;

@@ -1,7 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Check, Lock, Play, RotateCw } from "lucide-react";
+import { useState } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Lock,
+  Play,
+  RotateCw,
+} from "lucide-react";
 import type { AttemptSummaryResponse, LotDto } from "@/lib/types";
 import { ProgressDonut } from "./ModuleHubParts";
 import styles from "./detail.module.css";
@@ -218,7 +228,8 @@ export function DetailStatCard({
 /**
  * Grille de 1..count examens : les examens finis remplissent les premières
  * cards (ordre chronologique), les suivantes sont à passer. Examen 1 gratuit
- * (freeSlots), au-delà premium → onLocked.
+ * (freeSlots), au-delà premium → onLocked. `collapsedCount` replie la grille
+ * à N cards avec un bouton "Voir tout" (jamais moins que les examens faits).
  */
 export function ExamsGrid({
   count,
@@ -226,6 +237,8 @@ export function ExamsGrid({
   premium,
   freeSlots = 1,
   starting,
+  itemLabel = "Examen",
+  collapsedCount,
   onStart,
   onLocked,
 }: {
@@ -235,37 +248,67 @@ export function ExamsGrid({
   premium: boolean;
   freeSlots?: number;
   starting: boolean;
+  itemLabel?: string;
+  collapsedCount?: number;
   onStart: () => void;
   onLocked: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  // Replié, on montre au moins toutes les cards déjà faites + la prochaine.
+  const visibleCount =
+    collapsedCount && !expanded
+      ? Math.min(count, Math.max(collapsedCount, Math.min(exams.length + 1, count)))
+      : count;
+
   return (
-    <div className={styles.examGrid}>
-      {Array.from({ length: count }, (_, i) => {
-        const slot = i + 1;
-        const exam = exams[i] ?? null;
-        const locked = !premium && slot > freeSlots;
-        return (
-          <ExamCard
-            key={slot}
-            slot={slot}
-            exam={
-              exam
-                ? { id: exam.id, score: exam.score ?? null, total: exam.totalQuestions }
-                : null
-            }
-            locked={locked}
-            starting={starting}
-            passThresholdMet={
-              exam && exam.passThreshold != null
-                ? (exam.score ?? 0) >= exam.passThreshold
-                : null
-            }
-            onStart={onStart}
-            onLocked={onLocked}
-          />
-        );
-      })}
-    </div>
+    <>
+      <div className={styles.examGrid}>
+        {Array.from({ length: visibleCount }, (_, i) => {
+          const slot = i + 1;
+          const exam = exams[i] ?? null;
+          const locked = !premium && slot > freeSlots;
+          return (
+            <ExamCard
+              key={slot}
+              slot={slot}
+              itemLabel={itemLabel}
+              exam={
+                exam
+                  ? { id: exam.id, score: exam.score ?? null, total: exam.totalQuestions }
+                  : null
+              }
+              locked={locked}
+              starting={starting}
+              passThresholdMet={
+                exam && exam.passThreshold != null
+                  ? (exam.score ?? 0) >= exam.passThreshold
+                  : null
+              }
+              onStart={onStart}
+              onLocked={onLocked}
+            />
+          );
+        })}
+      </div>
+      {collapsedCount != null && count > visibleCount && (
+        <button
+          type="button"
+          className={styles.seeAll}
+          onClick={() => setExpanded(true)}
+        >
+          Voir tout ({count}) <ChevronDown size={15} aria-hidden />
+        </button>
+      )}
+      {collapsedCount != null && expanded && (
+        <button
+          type="button"
+          className={styles.seeAll}
+          onClick={() => setExpanded(false)}
+        >
+          Réduire <ChevronUp size={15} aria-hidden />
+        </button>
+      )}
+    </>
   );
 }
 
@@ -279,6 +322,7 @@ export function ExamCard({
   locked,
   starting,
   passThresholdMet,
+  itemLabel = "Examen",
   onStart,
   onLocked,
 }: {
@@ -287,6 +331,7 @@ export function ExamCard({
   locked: boolean;
   starting: boolean;
   passThresholdMet: boolean | null;
+  itemLabel?: string;
   onStart: () => void;
   onLocked: () => void;
 }) {
@@ -296,7 +341,9 @@ export function ExamCard({
       <span className={`${styles.examNum} ${done ? styles.examNumDone : ""}`}>
         {String(slot).padStart(2, "0")}
       </span>
-      <span className={styles.examTitle}>Examen {slot}</span>
+      <span className={styles.examTitle}>
+        {itemLabel} {slot}
+      </span>
       {done ? (
         <span className={styles.examMeta}>
           Dernier :{" "}
