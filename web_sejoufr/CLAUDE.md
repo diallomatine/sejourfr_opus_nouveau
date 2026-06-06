@@ -440,6 +440,14 @@ Chantier découpé en vagues :
           `SeeMoreButton` + styles orphelins (HubParts ne garde que
           ExamBlancHero, SectionLabel/Counter/Link, HubDetailHeader pour les
           parcours production).
+    - **`/historique` refondu** : « Mes résultats » — 3 stat cards (examens
+      passés ce mois-ci, score moyen, meilleur score), filtres Tous / TCF
+      IRN / Examen civique, lignes d'examens blancs finis (icône catégorie,
+      date + durée, badge CECRL, score coloré + % + mini-barre) → rapport ;
+      bouton « Refaire » relance le même examen (template / thème / épreuve,
+      paywall si non-abonné). Trainings et productions n'y figurent plus
+      (les séries vivent sur leurs pages, EE/EO sur leurs historiques).
+      `ProductionMobileSheet` supprimé (orphelin).
     - **`/statistiques` refondu** : « Ma progression » — 3 cards donut
       (maîtrise globale / TCF avec niveau estimé / civique) + une section par
       parcours listant chaque catégorie (icône, « n examens · record x/y »,

@@ -1,1336 +1,645 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { Landmark, Languages, Mic, PenLine, Smartphone } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import {
-  type ProductionKind,
-  ProductionMobileSheet,
-} from "@/app/_components/ProductionMobileSheet";
-import { ApiException, attemptApi } from "@/lib/api";
+  BookOpen,
+  Flame,
+  Gavel,
+  Globe,
+  Headphones,
+  Landmark,
+  Lightbulb,
+  RotateCw,
+  Scale,
+  Sparkles,
+  SpellCheck,
+  Target,
+  Trophy,
+  Users,
+  Waves,
+} from "lucide-react";
+import { PaywallSheet } from "@/app/_components/PaywallSheet";
+import { ApiException, attemptApi, dashboardApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { masteryHint } from "@/lib/dashboard";
 import {
   type AttemptSummaryResponse,
+  canAccessModule,
+  type DashboardSummaryResponse,
   isProductionAttempt,
-  type Module as ModuleEnum,
+  niveauCecrlLabel,
 } from "@/lib/types";
 
-type TypeFilter = "ALL" | "EXAM" | "TRAIN" | "PROD";
-type PeriodFilter = "7D" | "30D" | "ALL";
+type ModuleFilter = "ALL" | "TCF" | "CIVIQUE";
 
+const TCF_EPREUVE_LABELS: Record<string, string> = {
+  CO: "Compréhension orale",
+  CE: "Compréhension écrite",
+  STRUCTURE: "Structure de la langue",
+};
+
+const TCF_EPREUVE_ICONS: Record<string, React.ReactNode> = {
+  CO: <Headphones size={18} strokeWidth={1.8} />,
+  CE: <BookOpen size={18} strokeWidth={1.8} />,
+  STRUCTURE: <SpellCheck size={18} strokeWidth={1.8} />,
+};
+
+/** Map nom de thème → icône (les libellés viennent du dashboard). */
+const CIVIQUE_THEME_ICONS_BY_LABEL = new Map<string, React.ReactNode>([
+  ["Principes et valeurs de la République", <Scale key="p" size={18} strokeWidth={1.8} />],
+  ["Système institutionnel et politique", <Landmark key="i" size={18} strokeWidth={1.8} />],
+  ["Droits et devoirs", <Gavel key="d" size={18} strokeWidth={1.8} />],
+  ["Histoire, géographie et culture", <Globe key="h" size={18} strokeWidth={1.8} />],
+  ["Vivre dans la société française", <Users key="v" size={18} strokeWidth={1.8} />],
+]);
+
+/**
+ * /historique — « Mes résultats » (maquette sejour_fr.html) : 3 stat cards
+ * (examens passés ce mois-ci, score moyen, meilleur score) + liste des
+ * examens blancs finis filtrable Tous / TCF IRN / Examen civique. Chaque
+ * ligne (icône catégorie, date + durée, badge CECRL, score coloré + %,
+ * mini-barre) ouvre le rapport ; « Refaire » relance le même examen.
+ */
 export default function HistoriquePage() {
-  return (
-    <Suspense fallback={<HistoriqueSkeleton />}>
-      <HistoriqueInner />
-    </Suspense>
-  );
-}
-
-function HistoriqueInner() {
+  const router = useRouter();
   const { user, status } = useAuth();
-  const searchParams = useSearchParams();
-  const moduleParam = searchParams.get("module");
-  const moduleView: ModuleEnum | null =
-    moduleParam === "TCF" ? "TCF" : moduleParam === "CIVIQUE" ? "CIVIQUE" : null;
 
-  const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
+  const [exams, setExams] = useState<AttemptSummaryResponse[]>([]);
+  const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
+  const [filter, setFilter] = useState<ModuleFilter>("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
-  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("ALL");
-  const [query, setQuery] = useState("");
-  const [productionSheet, setProductionSheet] = useState<ProductionKind | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [paywallModule, setPaywallModule] = useState<"CIVIQUE" | "INTEGRAL" | null>(null);
 
   useEffect(() => {
-    if (status !== "authenticated") return;
+    if (status !== "authenticated" || !user) return;
     let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    attemptApi
-      .listMine({ limit: 100 })
-      .then((list) => {
-        if (cancelled) return;
-        setAttempts(list);
-        setError(null);
-        setLoading(false);
-      })
-      .catch((e: unknown) => {
-        if (cancelled) return;
-        setError(
-          e instanceof ApiException
-            ? e.message
-            : "Impossible de charger l'historique.",
+    Promise.allSettled([
+      attemptApi.listMine({ type: "MOCK_EXAM", limit: 100 }),
+      dashboardApi.summaryCached(),
+    ]).then(([a, d]) => {
+      if (cancelled) return;
+      if (a.status === "fulfilled") {
+        setExams(
+          a.value
+            .filter(
+              (x) => x.finishedAt && !isProductionAttempt(x) && x.totalQuestions != null,
+            )
+            .sort((x, y) => y.startedAt.localeCompare(x.startedAt)),
         );
-        setLoading(false);
-      });
+      }
+      if (d.status === "fulfilled") setSummary(d.value);
+      setLoading(false);
+    });
     return () => {
       cancelled = true;
     };
-  }, [status]);
+  }, [status, user]);
 
-  // ========== FILTRES ==========
-  const filtered = useMemo(() => {
-    // eslint-disable-next-line react-hooks/purity
-    const now = Date.now();
-    const periodMs =
-      periodFilter === "7D"
-        ? 7 * 86_400_000
-        : periodFilter === "30D"
-          ? 30 * 86_400_000
-          : null;
-    const q = query.trim().toLowerCase();
+  // themeId civique → libellé (les summaries ne portent que lotThemeId).
+  const themeLabels = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of summary?.civique ?? []) {
+      if (c.themeId) m.set(c.themeId, c.label);
+    }
+    return m;
+  }, [summary]);
 
-    return [...attempts]
-      .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
-      .filter((a) => {
-        // En mode liste (catégorie choisie) : uniquement les examens de ce
-        // module (sous-examens thème/module + examens blancs complets),
-        // jamais les entraînements/lots.
-        if (moduleView) {
-          if (a.module !== moduleView) return false;
-          if (a.type !== "MOCK_EXAM") return false;
-        }
-        const isProd = isProductionAttempt(a);
-        // type
-        // EXAM = MOCK_EXAM QCM uniquement (les productions EO/EE sont TRAINING).
-        // TRAIN = TRAINING QCM (hors productions).
-        // PROD = productions EO/EE.
-        if (typeFilter === "EXAM" && (a.type !== "MOCK_EXAM" || isProd)) return false;
-        if (typeFilter === "TRAIN" && (a.type !== "TRAINING" || isProd)) return false;
-        if (typeFilter === "PROD" && !isProd) return false;
-        // période
-        if (periodMs != null && now - Date.parse(a.startedAt) > periodMs)
-          return false;
-        // recherche : module + type + difficulty + production
-        if (q) {
-          const moduleLabel = (a.module === "TCF" ? "tcf" : "civique").toLowerCase();
-          const typeLabel = isProd
-            ? "production expression " + (a.epreuve === "TCF_EO" ? "orale eo" : a.epreuve === "TCF_EE" ? "écrite ecrite ee" : "")
-            : a.type === "MOCK_EXAM"
-              ? "examen blanc exam"
-              : "entraînement training";
-          const diffLabel = a.difficulty ? String(a.difficulty).toLowerCase() : "";
-          if (
-            !moduleLabel.includes(q) &&
-            !typeLabel.includes(q) &&
-            !diffLabel.includes(q)
-          ) {
-            return false;
-          }
-        }
-        return true;
-      });
-  }, [attempts, moduleView, typeFilter, periodFilter, query]);
+  const filtered = useMemo(
+    () => (filter === "ALL" ? exams : exams.filter((e) => e.module === filter)),
+    [exams, filter],
+  );
 
-  // ========== STATS GLOBALES ==========
-  // Les productions EO/EE n'ont ni totalQuestions ni score : elles sont
-  // exclues des metriques de pourcentage (passRate, bestScore) et comptees
-  // separement dans le total. On considere une production "finie" si elle a
-  // un finishedAt (le score IA est sur une autre route).
   const stats = useMemo(() => {
-    // En mode liste, les stats résument le module choisi (examens de ce module).
-    const base = moduleView ? attempts.filter((a) => a.module === moduleView) : attempts;
-    const qcm = base.filter((a) => !isProductionAttempt(a));
-    const productions = base.filter((a) => isProductionAttempt(a));
-    const finishedQcm = qcm.filter(
-      (a) => a.finishedAt && a.score !== null && a.score !== undefined,
-    );
-    const exams = finishedQcm.filter((a) => a.type === "MOCK_EXAM");
-    const totalSessions = finishedQcm.length + productions.length;
-    // Répartition des examens par nature : complets (examen blanc complet) vs
-    // sous-examens (CO/CE/Structure TCF, ou examen de thème civique).
-    const natures = { complet: 0, co: 0, ce: 0, structure: 0, theme: 0 };
-    for (const a of exams) {
-      if (a.epreuve === "TCF_COMPLET") natures.complet++;
-      else if (a.epreuve === "TCF_CO") natures.co++;
-      else if (a.epreuve === "TCF_CE") natures.ce++;
-      else if (a.epreuve === "TCF_STRUCTURE") natures.structure++;
-      else if (a.module === "CIVIQUE") {
-        // Examen blanc complet civique = issu d'un template ; sinon examen de thème.
-        if (a.examTemplateId) natures.complet++;
-        else natures.theme++;
-      } else natures.complet++;
-    }
-
-    if (totalSessions === 0) {
-      return {
-        total: 0,
-        examsCount: 0,
-        examsFinished: 0,
-        examsPassed: 0,
-        trainCount: 0,
-        prodCount: 0,
-        passRate: null as number | null,
-        bestLabel: null as string | null,
-        bestDetail: null as string | null,
-        natures,
-      };
-    }
-    const passed = exams.filter((a) => {
-      const total = a.totalQuestions ?? 0;
-      if (a.module === "CIVIQUE" && a.passThreshold != null) {
-        return (a.score ?? 0) >= a.passThreshold;
-      }
-      return total > 0 && (a.score ?? 0) / total >= 0.6;
+    const now = new Date();
+    const thisMonth = exams.filter((e) => {
+      const d = new Date(e.startedAt);
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
     }).length;
-    const passRate = exams.length > 0 ? Math.round((passed / exams.length) * 100) : null;
-    let bestPct = -1;
-    let best: AttemptSummaryResponse | null = null;
-    for (const a of exams) {
-      const total = a.totalQuestions ?? 0;
-      if (total === 0) continue;
-      const pct = (a.score ?? 0) / total;
-      if (pct > bestPct) {
-        bestPct = pct;
-        best = a;
-      }
-    }
-    const bestLabel = best ? `${best.score}/${best.totalQuestions ?? "—"}` : null;
-    const bestDetail = best
-      ? `${best.module === "TCF" ? "TCF" : "Civique"} · ${formatShortDate(best.startedAt)}`
+    const pcts = exams.map((e) => percentOf(e)).filter((p): p is number => p !== null);
+    const avg = pcts.length
+      ? Math.round(pcts.reduce((s, p) => s + p, 0) / pcts.length)
       : null;
-    return {
-      total: totalSessions,
-      examsCount: base.filter((a) => a.type === "MOCK_EXAM" && !isProductionAttempt(a)).length,
-      examsFinished: exams.length,
-      examsPassed: passed,
-      trainCount: base.filter((a) => a.type === "TRAINING" && !isProductionAttempt(a)).length,
-      prodCount: productions.length,
-      passRate,
-      bestLabel,
-      bestDetail,
-      natures,
-    };
-  }, [attempts, moduleView]);
+    const best = pcts.length ? Math.max(...pcts) : null;
+    return { thisMonth, avg, best };
+  }, [exams]);
 
-  if (status === "loading") return <HistoriqueSkeleton />;
+  /** Relance un examen avec les mêmes paramètres que l'original. */
+  async function retry(exam: AttemptSummaryResponse) {
+    if (retryingId || !user) return;
+    if (!canAccessModule(user, exam.module)) {
+      setPaywallModule(exam.module === "TCF" ? "INTEGRAL" : "CIVIQUE");
+      return;
+    }
+    setError(null);
+    setRetryingId(exam.id);
+    try {
+      const a = await attemptApi.start({
+        type: "MOCK_EXAM",
+        module: exam.module,
+        examTemplateId: exam.examTemplateId ?? undefined,
+        themeId: exam.lotThemeId ?? undefined,
+        moduleExamQuestionType: exam.moduleExamQuestionType ?? undefined,
+      });
+      router.push(`/sessions/${a.id}`);
+    } catch (e) {
+      setError(e instanceof ApiException ? e.message : "Impossible de relancer l'examen.");
+      setRetryingId(null);
+    }
+  }
+
+  if (status === "loading" || (loading && status === "authenticated")) {
+    return (
+      <div className="res res-loading" aria-busy>
+        <div className="res-sk" />
+        <div className="res-sk res-sk-tall" />
+        <style>{styles}</style>
+      </div>
+    );
+  }
   if (!user) {
     return (
-      <main className="hi-gate">
-        <p>Connectez-vous pour voir votre historique.</p>
-        <Link href="/connexion?next=/historique" className="hi-gate-cta">
-          Se connecter →
-        </Link>
-        <style>{gateStyles}</style>
-      </main>
-    );
-  }
-
-  // ============ HUB (façon "Mes historiques" mobile) ============
-  if (!moduleView) {
-    return (
-      <main className="hi">
-        <header className="topbar">
-          <div>
-            <div className="breadcrumb">
-              ACCUEIL <span className="sep">/</span> HISTORIQUE
-            </div>
-            <h1>
-              Mes <em>historiques</em>.
-            </h1>
-          </div>
-        </header>
-        <p className="hub-intro">
-          Consultez vos examens blancs et sessions IA passés.
+      <div className="res-empty-page">
+        <p>
+          Session expirée.{" "}
+          <Link href="/connexion" className="res-empty-link">
+            Se reconnecter
+          </Link>
         </p>
-
-        <div className="hub-summary">
-          <div className="hub-summary-item">
-            <span className="hub-summary-val">{stats.examsFinished}</span>
-            <span className="hub-summary-lbl">Examens passés</span>
-          </div>
-          <div className="hub-summary-item">
-            <span className="hub-summary-val hub-summary-val-green">{stats.examsPassed}</span>
-            <span className="hub-summary-lbl">Réussis</span>
-          </div>
-          <div className="hub-summary-item">
-            <span className="hub-summary-val">
-              {stats.passRate != null ? `${stats.passRate}%` : "—"}
-            </span>
-            <span className="hub-summary-lbl">Taux de réussite</span>
-          </div>
-          <div className="hub-summary-item">
-            <span className="hub-summary-val">{stats.bestLabel ?? "—"}</span>
-            <span className="hub-summary-lbl">Meilleur score</span>
-          </div>
-        </div>
-
-        <NatureChips natures={stats.natures} />
-
-        <div className="hub-section-label">§ EXAMENS BLANCS</div>
-        <div className="hub-cats">
-          <Link href="/historique?module=CIVIQUE" className="hub-cat">
-            <span className="hub-cat-ico ico-blue" aria-hidden>
-              <Landmark size={22} />
-            </span>
-            <span className="hub-cat-body">
-              <span className="hub-cat-title">Examens civique</span>
-              <span className="hub-cat-sub">
-                40 questions tous thèmes, seuil 32. Score et progression dans le temps.
-              </span>
-            </span>
-            <span className="hub-cat-arrow" aria-hidden>›</span>
-          </Link>
-          <Link href="/historique?module=TCF" className="hub-cat">
-            <span className="hub-cat-ico ico-red" aria-hidden>
-              <Languages size={22} />
-            </span>
-            <span className="hub-cat-body">
-              <span className="hub-cat-title">Examens TCF</span>
-              <span className="hub-cat-sub">
-                CO et CE en conditions réelles, score pondéré par niveau (A2 → B2).
-              </span>
-            </span>
-            <span className="hub-cat-arrow" aria-hidden>›</span>
-          </Link>
-        </div>
-
-        <div className="hub-section-label">§ SESSIONS IA</div>
-        <div className="hub-cats">
-          <button type="button" className="hub-cat" onClick={() => setProductionSheet("EE")}>
-            <span className="hub-cat-ico ico-green" aria-hidden>
-              <PenLine size={22} />
-            </span>
-            <span className="hub-cat-body">
-              <span className="hub-cat-title">Expression écrite</span>
-              <span className="hub-cat-sub">
-                Rédactions notées par IA, niveau CECRL et feedback détaillé. Sur l&apos;app mobile.
-              </span>
-            </span>
-            <span className="hub-cat-arrow" aria-hidden>
-              <Smartphone size={16} />
-            </span>
-          </button>
-          <button type="button" className="hub-cat" onClick={() => setProductionSheet("EO")}>
-            <span className="hub-cat-ico ico-red" aria-hidden>
-              <Mic size={22} />
-            </span>
-            <span className="hub-cat-body">
-              <span className="hub-cat-title">Expression orale</span>
-              <span className="hub-cat-sub">
-                Enregistrements transcrits par Whisper et évalués par IA. Sur l&apos;app mobile.
-              </span>
-            </span>
-            <span className="hub-cat-arrow" aria-hidden>
-              <Smartphone size={16} />
-            </span>
-          </button>
-        </div>
-
-        <ProductionMobileSheet
-          open={productionSheet !== null}
-          kind={productionSheet}
-          onClose={() => setProductionSheet(null)}
-        />
-        <style>{styles}{hubStyles}</style>
-      </main>
+        <style>{styles}</style>
+      </div>
     );
   }
 
-  // ============ MODE LISTE (catégorie choisie) ============
-  const moduleLabel = moduleView === "TCF" ? "TCF" : "civique";
   return (
-    <main className="hi">
-      {/* ============ TOPBAR ============ */}
-      <header className="topbar">
-        <div>
-          <div className="breadcrumb">
-            <Link href="/historique">HISTORIQUE</Link>{" "}
-            <span className="sep">/</span> EXAMENS {moduleLabel.toUpperCase()}
+    <main className="res">
+      <header className="res-head">
+        <div className="res-head-text">
+          <div className="res-eyebrow">
+            <Trophy size={16} aria-hidden />
+            <span>Historique</span>
           </div>
-          <h1>
-            Examens <em>{moduleLabel}</em>.
-          </h1>
+          <h1>Mes résultats</h1>
+          <p>Tous vos examens blancs, du plus récent au plus ancien.</p>
         </div>
-        <div className="topbar-actions">
-          <Link href="/historique" className="btn-outline">
-            ← Mes historiques
-          </Link>
-        </div>
+        <Link href="/recommandations" className="res-head-btn">
+          <Sparkles size={16} aria-hidden />
+          Mes recommandations
+        </Link>
       </header>
 
-      {error && <div className="form-error hi-error">{error}</div>}
-
-      {/* ============ STATS ============ */}
-      <section className="stats-grid">
-        <StatCard
-          tone="blue"
-          icon={<ListIcon />}
-          label="SESSIONS TOTALES"
-          value={String(stats.total)}
-          trend={
-            stats.total > 0
-              ? [
-                  stats.examsCount > 0 ? `${stats.examsCount} examens` : null,
-                  stats.trainCount > 0 ? `${stats.trainCount} entraînements` : null,
-                  stats.prodCount > 0 ? `${stats.prodCount} productions` : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")
-              : "Pas encore"
-          }
-        />
-        <StatCard
-          tone="green"
-          icon={<CheckIcon />}
-          label="TAUX DE RÉUSSITE EXAMENS"
-          value={stats.passRate != null ? `${stats.passRate}%` : "—"}
-          trend={stats.passRate != null ? "Sur vos examens blancs" : "À débloquer"}
-        />
-        <StatCard
-          tone="amber"
-          icon={<TrophyIcon />}
-          label="MEILLEUR SCORE"
-          value={stats.bestLabel ?? "—"}
-          trend={stats.bestDetail ?? "À jouer"}
-        />
+      <section className="res-stats" aria-label="Vos indicateurs">
+        <article className="res-stat">
+          <span className="res-stat-icon res-stat-blue" aria-hidden>
+            <Trophy size={20} />
+          </span>
+          <div>
+            <div className="res-stat-value">{stats.thisMonth}</div>
+            <div className="res-stat-label">Examens passés</div>
+            <div className="res-stat-sub">ce mois-ci</div>
+          </div>
+        </article>
+        <article className="res-stat">
+          <span className="res-stat-icon res-stat-green" aria-hidden>
+            <Target size={20} />
+          </span>
+          <div>
+            <div className="res-stat-value">
+              {stats.avg !== null ? `${stats.avg}%` : "—"}
+            </div>
+            <div className="res-stat-label">Score moyen</div>
+            <div className="res-stat-sub">{masteryHint(stats.avg)}</div>
+          </div>
+        </article>
+        <article className="res-stat">
+          <span className="res-stat-icon res-stat-red" aria-hidden>
+            <Flame size={20} />
+          </span>
+          <div>
+            <div className="res-stat-value">
+              {stats.best !== null ? `${stats.best}%` : "—"}
+            </div>
+            <div className="res-stat-label">Meilleur score</div>
+            <div className="res-stat-sub">record personnel</div>
+          </div>
+        </article>
       </section>
 
-      <NatureChips natures={stats.natures} />
+      {error && <div className="res-error">{error}</div>}
 
-      {/* ============ FILTERS (examens du module : période + recherche) ============ */}
-      <section className="filters">
-        <div className="period-chips">
+      <section className="res-list-card">
+        <div className="res-filters">
           {(
             [
-              ["7D", "7 jours"],
-              ["30D", "30 jours"],
-              ["ALL", "Tout"],
-            ] as const
-          ).map(([k, lbl]) => (
+              ["ALL", "Tous"],
+              ["TCF", "TCF IRN"],
+              ["CIVIQUE", "Examen civique"],
+            ] as [ModuleFilter, string][]
+          ).map(([key, label]) => (
             <button
-              key={k}
+              key={key}
               type="button"
-              className={`chip ${periodFilter === k ? "is-active" : ""}`}
-              onClick={() => setPeriodFilter(k)}
+              className={`res-chip ${filter === key ? "is-active" : ""}`}
+              onClick={() => setFilter(key)}
             >
-              {lbl}
+              {label}
             </button>
           ))}
         </div>
 
-        <div className="search-wrap">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Civique, TCF, NAT…"
-            aria-label="Filtrer les sessions"
-          />
-        </div>
-      </section>
-
-      {/* ============ TABLE ============ */}
-      <section className="hi-card">
-        {loading && attempts.length === 0 ? (
-          <TableSkeleton />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            hasAny={attempts.length > 0}
-            onReset={() => {
-              setTypeFilter("ALL");
-              setPeriodFilter("ALL");
-              setQuery("");
-            }}
-          />
+        {filtered.length === 0 ? (
+          <p className="res-none">
+            Aucun examen blanc passé pour l&apos;instant —{" "}
+            <Link href="/examens-blancs">lancez-en un</Link> pour voir vos
+            résultats ici.
+          </p>
         ) : (
-          <>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>DATE</th>
-                    <th>TYPE</th>
-                    <th>MODULE</th>
-                    <th>QUESTIONS</th>
-                    <th>DURÉE</th>
-                    <th>SCORE</th>
-                    <th>STATUT</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((a) =>
-                    isProductionAttempt(a) ? (
-                      <ProductionRow
-                        key={a.id}
-                        a={a}
-                        onOpen={(kind) => setProductionSheet(kind)}
-                      />
-                    ) : (
-                      <AttemptRow key={a.id} a={a} />
-                    ),
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <div className="hi-footer">
-              <span>
-                {filtered.length} session{filtered.length > 1 ? "s" : ""} affichée
-                {filtered.length > 1 ? "s" : ""} sur {attempts.length}
-              </span>
-            </div>
-          </>
+          <ul className="res-rows">
+            {filtered.map((exam) => (
+              <ResultRow
+                key={exam.id}
+                exam={exam}
+                themeLabels={themeLabels}
+                retrying={retryingId === exam.id}
+                onRetry={() => retry(exam)}
+              />
+            ))}
+          </ul>
         )}
       </section>
 
-      <ProductionMobileSheet
-        open={productionSheet !== null}
-        kind={productionSheet}
-        onClose={() => setProductionSheet(null)}
+      <PaywallSheet
+        open={paywallModule !== null}
+        onClose={() => setPaywallModule(null)}
+        module={paywallModule ?? "CIVIQUE"}
       />
-
-      <style>{styles}{hubStyles}</style>
+      <style>{styles}</style>
     </main>
   );
 }
 
 // ============================================================================
-// STAT CARD
+// LIGNE DE RÉSULTAT
 // ============================================================================
-function StatCard({
-  tone,
-  icon,
-  label,
-  value,
-  trend,
-}: {
-  tone: "blue" | "red" | "green" | "amber";
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  trend?: string;
-}) {
-  return (
-    <div className="stat-card">
-      <div className={`stat-icon stat-icon-${tone}`}>{icon}</div>
-      <div className="stat-label">{label}</div>
-      <div className="stat-value">{value}</div>
-      {trend && <div className="stat-trend">{trend}</div>}
-    </div>
-  );
+
+function percentOf(exam: AttemptSummaryResponse): number | null {
+  if (exam.score == null || !exam.totalQuestions) return null;
+  return Math.round((100 * exam.score) / exam.totalQuestions);
 }
 
-// ============================================================================
-// NATURE CHIPS — répartition des examens par nature
-// ============================================================================
-function NatureChips({
-  natures,
-}: {
-  natures: { complet: number; co: number; ce: number; structure: number; theme: number };
-}) {
-  const subs = (
-    [
-      ["co", "CO"],
-      ["ce", "CE"],
-      ["structure", "Structure"],
-      ["theme", "Par thème"],
-    ] as const
-  )
-    .map(([k, l]) => ({ k, l, n: natures[k] }))
-    .filter((s) => s.n > 0);
-  const totalSub = subs.reduce((sum, s) => sum + s.n, 0);
-
-  const chips: string[] = [];
-  if (natures.complet > 0) {
-    chips.push(`${natures.complet} complet${natures.complet > 1 ? "s" : ""}`);
-  }
-  // Si trop de natures de sous-examens, on résume en un seul chip.
-  if (subs.length > 3) {
-    chips.push(`${totalSub} sous-examen${totalSub > 1 ? "s" : ""}`);
-  } else {
-    for (const s of subs) chips.push(`${s.n} ${s.l}`);
-  }
-  if (chips.length === 0) return null;
-
-  return (
-    <div className="nature-chips">
-      {chips.map((c) => (
-        <span key={c} className="nature-chip">
-          {c}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-// ============================================================================
-// ROW
-// ============================================================================
-function AttemptRow({ a }: { a: AttemptSummaryResponse }) {
-  const isTcf = a.module === "TCF";
-  const isExam = a.type === "MOCK_EXAM";
-  const score = a.score ?? 0;
-  const total = a.totalQuestions ?? 0;
-  const pct = total > 0 ? Math.round((score / total) * 100) : 0;
-  const isFinished = !!a.finishedAt;
-
-  const minutes =
-    isFinished && a.finishedAt
-      ? Math.max(
-          1,
-          Math.round((Date.parse(a.finishedAt) - Date.parse(a.startedAt)) / 60000),
-        )
-      : null;
-
-  let statusLabel: string;
-  let statusTone: "good" | "warn" | "neutral";
-  if (!isFinished) {
-    statusLabel = "EN COURS";
-    statusTone = "neutral";
-  } else if (isExam) {
-    if (isTcf) {
-      statusLabel = "DIAGNOSTIC";
-      statusTone = "neutral";
-    } else if (a.passThreshold != null) {
-      const passed = score >= a.passThreshold;
-      statusLabel = passed ? "RÉUSSI" : "ÉCHEC";
-      statusTone = passed ? "good" : "warn";
-    } else {
-      statusLabel = `${pct}%`;
-      statusTone = pct >= 70 ? "good" : "warn";
+/** Libellé + icône de la catégorie d'un examen. */
+function examIdentity(
+  exam: AttemptSummaryResponse,
+  themeLabels: Map<string, string>,
+): { title: string; icon: React.ReactNode } {
+  if (exam.module === "TCF") {
+    const qt = exam.moduleExamQuestionType;
+    if (qt && TCF_EPREUVE_LABELS[qt]) {
+      return { title: TCF_EPREUVE_LABELS[qt], icon: TCF_EPREUVE_ICONS[qt] };
     }
-  } else {
-    statusLabel = `${pct}%`;
-    statusTone = pct >= 70 ? "good" : pct >= 50 ? "neutral" : "warn";
+    return {
+      title: exam.examTemplateName ?? "TCF IRN complet",
+      icon: <Waves size={18} strokeWidth={1.8} />,
+    };
   }
+  if (exam.lotThemeId) {
+    const label = themeLabels.get(exam.lotThemeId);
+    return {
+      title: label ?? "Thème civique",
+      icon:
+        (label && CIVIQUE_THEME_ICONS_BY_LABEL.get(label)) ?? (
+          <Lightbulb size={18} strokeWidth={1.8} />
+        ),
+    };
+  }
+  return {
+    title: exam.examTemplateName ?? "Examen civique complet",
+    icon: <Lightbulb size={18} strokeWidth={1.8} />,
+  };
+}
+
+function ResultRow({
+  exam,
+  themeLabels,
+  retrying,
+  onRetry,
+}: {
+  exam: AttemptSummaryResponse;
+  themeLabels: Map<string, string>;
+  retrying: boolean;
+  onRetry: () => void;
+}) {
+  const { title, icon } = examIdentity(exam, themeLabels);
+  const pct = percentOf(exam);
+  const tone = pct === null ? "blue" : pct >= 80 ? "green" : pct < 60 ? "amber" : "blue";
+  const moduleLabel = exam.module === "TCF" ? "TCF IRN" : "Examen civique";
 
   return (
-    <tr onClick={() => (window.location.href = `/sessions/${a.id}`)}>
-      <td>{formatRowDate(a.startedAt)}</td>
-      <td>
-        <span className={`tag tag-${isExam ? "exam" : "train"}`}>
-          {isExam ? "EXAMEN" : "ENTRAÎN."}
+    <li className="res-row-wrap">
+      <Link href={`/sessions/${exam.id}`} className="res-row">
+        <span className="res-row-icon" aria-hidden>
+          {icon}
         </span>
-      </td>
-      <td>
-        <span className={`module-pill module-pill-${isTcf ? "red" : "blue"}`}>
-          {isTcf ? "TCF" : "Civique"}
-        </span>
-        {a.difficulty && (
-          <span className="row-target">{String(a.difficulty)}</span>
-        )}
-      </td>
-      <td className="num">{total}</td>
-      <td className="num">{minutes != null ? `${minutes} min` : "—"}</td>
-      <td>
-        {isFinished && a.score != null ? (
-          <span
-            className={`score-pill score-pill-${
-              statusTone === "good" ? "pass" : statusTone === "warn" ? "fail" : "neutral"
-            }`}
-          >
-            <span className="score-pill-ico">
-              {statusTone === "good" ? "✓" : statusTone === "warn" ? "✕" : "·"}
-            </span>{" "}
-            {a.score} / {total}
+        <span className="res-row-titles">
+          <span className="res-row-title">{title}</span>
+          <span className="res-row-sub">
+            {moduleLabel} · {formatDay(exam.finishedAt ?? exam.startedAt)} ·{" "}
+            {formatDuration(exam.startedAt, exam.finishedAt)}
           </span>
+        </span>
+        {exam.cecrlLevel ? (
+          <span className="res-cecrl">{niveauCecrlLabel(exam.cecrlLevel)}</span>
         ) : (
-          <span className="score-pill score-pill-neutral">—</span>
+          <span aria-hidden />
         )}
-      </td>
-      <td>
-        <span className={`status-text status-text-${statusTone}`}>{statusLabel}</span>
-      </td>
-      <td className="row-chevron">›</td>
-    </tr>
-  );
-}
-
-// ============================================================================
-// PRODUCTION ROW (EO / EE) — pas de QCM, pas de score affiché ici, click ouvre
-// le sheet de redirection vers l'app mobile (l'evaluation IA vit cote mobile).
-// ============================================================================
-function ProductionRow({
-  a,
-  onOpen,
-}: {
-  a: AttemptSummaryResponse;
-  onOpen: (kind: ProductionKind) => void;
-}) {
-  const isOral = a.epreuve === "TCF_EO";
-  const isComplet = a.epreuve === "TCF_COMPLET";
-  const kind: ProductionKind = isOral ? "EO" : "EE";
-  const label = isComplet
-    ? "Examen blanc EO+EE"
-    : isOral
-      ? "Expression orale"
-      : "Expression écrite";
-  const Icon = isOral ? Mic : PenLine;
-
-  const isFinished = !!a.finishedAt;
-  const minutes =
-    isFinished && a.finishedAt
-      ? Math.max(
-          1,
-          Math.round((Date.parse(a.finishedAt) - Date.parse(a.startedAt)) / 60000),
-        )
-      : null;
-
-  return (
-    <tr className="prod-row" onClick={() => onOpen(kind)}>
-      <td>{formatRowDate(a.startedAt)}</td>
-      <td>
-        <span className="tag tag-prod">PRODUCTION</span>
-      </td>
-      <td>
-        <span className="module-pill module-pill-red">TCF</span>
-        <span className="prod-row-label">
-          <Icon size={12} strokeWidth={2.2} aria-hidden /> {label}
+        <span className="res-score">
+          <span className={`res-score-main res-tone-${tone}`}>
+            {exam.score ?? 0}/{exam.totalQuestions}
+          </span>
+          <span className="res-score-pct">{pct !== null ? `${pct}%` : "—"}</span>
         </span>
-      </td>
-      <td className="num">—</td>
-      <td className="num">{minutes != null ? `${minutes} min` : "—"}</td>
-      <td>
-        <span className="score-pill score-pill-neutral">
-          <Smartphone size={12} strokeWidth={2} aria-hidden /> Évaluation IA
+        <span className="res-bar" aria-hidden>
+          <span
+            className={`res-bar-fill res-fill-${tone}`}
+            style={{ width: `${Math.min(100, Math.max(0, pct ?? 0))}%` }}
+          />
         </span>
-      </td>
-      <td>
-        <span className="status-text status-text-mobile">APP MOBILE</span>
-      </td>
-      <td className="row-chevron">›</td>
-    </tr>
-  );
-}
-
-// ============================================================================
-// EMPTY / SKELETON
-// ============================================================================
-function EmptyState({
-  hasAny,
-  onReset,
-}: {
-  hasAny: boolean;
-  onReset: () => void;
-}) {
-  if (!hasAny) {
-    return (
-      <div className="hi-empty">
-        <div className="hi-empty-icon" aria-hidden>
-          <svg
-            viewBox="0 0 24 24"
-            width="28"
-            height="28"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="13" r="8" />
-            <path d="M12 9v4l3 2M9 3h6" />
-          </svg>
-        </div>
-        <h3>Aucune session pour le moment</h3>
-        <p>
-          Lancez votre premier entraînement ou examen blanc. Le résultat
-          apparaîtra ici.
-        </p>
-        <div className="hi-empty-cta-wrap">
-          <Link href="/entrainement" className="btn-primary">
-            S&apos;entraîner
-          </Link>
-          <Link href="/examens-blancs" className="btn-outline">
-            Examens blancs
-          </Link>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="hi-empty">
-      <h3>Aucune session ne correspond aux filtres</h3>
-      <p>Essayez d&apos;élargir la période ou de changer le type de session.</p>
-      <button type="button" className="btn-primary" onClick={onReset}>
-        Réinitialiser les filtres
+      </Link>
+      <button
+        type="button"
+        className="res-retry"
+        onClick={onRetry}
+        disabled={retrying}
+      >
+        <RotateCw size={15} aria-hidden />
+        {retrying ? "…" : "Refaire"}
       </button>
-    </div>
+    </li>
   );
 }
 
-function TableSkeleton() {
-  return (
-    <div className="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>DATE</th>
-            <th>TYPE</th>
-            <th>MODULE</th>
-            <th>QUESTIONS</th>
-            <th>DURÉE</th>
-            <th>SCORE</th>
-            <th>STATUT</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {[0, 1, 2, 3, 4].map((i) => (
-            <tr key={i} className="skel-row">
-              {Array.from({ length: 8 }).map((_, j) => (
-                <td key={j}>
-                  <span className="skel-cell" />
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function HistoriqueSkeleton() {
-  return (
-    <div className="hi-loading">
-      <style>{`.hi-loading { min-height: calc(100vh - 80px); background: #F7F8FC; }`}</style>
-    </div>
-  );
-}
-
-const gateStyles = `
-  .hi-gate {
-    min-height: 60vh;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 14px;
-    color: var(--color-muted);
-    padding: 36px;
-  }
-  .hi-gate-cta { color: var(--color-blue); font-weight: 700; text-decoration: none; }
-`;
-
-// Hub "Mes historiques" : sections + cartes catégories (façon mobile).
-const hubStyles = `
-  .breadcrumb a { color: var(--color-blue); text-decoration: none; }
-  .breadcrumb a:hover { text-decoration: underline; }
-  .hub-intro {
-    color: var(--color-muted); font-size: 14px; line-height: 1.55;
-    margin: 0 0 18px; max-width: 640px;
-  }
-  .hub-summary {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
-    margin-bottom: 26px;
-  }
-  .hub-summary-item {
-    background: #fff; border: 1px solid var(--color-line); border-radius: 14px;
-    padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;
-  }
-  .hub-summary-val {
-    font-family: var(--font-display); font-weight: 600; font-size: 26px;
-    line-height: 1; color: var(--color-ink); letter-spacing: -0.02em;
-    font-variant-numeric: tabular-nums;
-  }
-  .hub-summary-val-green { color: var(--color-green); }
-  .hub-summary-lbl {
-    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
-    letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-muted);
-  }
-  @media (max-width: 680px) {
-    .hub-summary { grid-template-columns: repeat(2, 1fr); }
-  }
-  .nature-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 26px; }
-  .nature-chip {
-    font-family: var(--font-mono); font-size: 11px; font-weight: 700;
-    letter-spacing: 0.04em; color: var(--color-ink-2);
-    background: var(--color-paper-2); border: 1px solid var(--color-line);
-    padding: 6px 11px; border-radius: 100px;
-  }
-  .hub-section-label {
-    font-family: var(--font-mono); font-size: 10px; font-weight: 700;
-    letter-spacing: 0.2em; color: var(--color-muted);
-    margin: 0 0 10px;
-  }
-  .hub-cats { display: flex; flex-direction: column; gap: 10px; margin-bottom: 26px; }
-  .hub-cat {
-    display: flex; align-items: center; gap: 14px;
-    width: 100%; text-align: left; font-family: inherit; cursor: pointer;
-    background: #fff; border: 1px solid var(--color-line); border-radius: 14px;
-    padding: 14px; text-decoration: none;
-    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
-  }
-  .hub-cat:hover {
-    transform: translateY(-2px); border-color: var(--color-blue);
-    box-shadow: 0 14px 32px -20px rgba(30,58,140,0.3);
-  }
-  .hub-cat-ico {
-    width: 42px; height: 42px; flex-shrink: 0; border-radius: 12px;
-    display: inline-flex; align-items: center; justify-content: center;
-  }
-  .hub-cat-ico.ico-blue { background: var(--color-blue-light); color: var(--color-blue); }
-  .hub-cat-ico.ico-red { background: var(--color-red-light); color: var(--color-red); }
-  .hub-cat-ico.ico-green { background: rgba(22,143,91,0.12); color: var(--color-green); }
-  .hub-cat-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-  .hub-cat-title { font-family: var(--font-sans); font-weight: 700; font-size: 14.5px; color: var(--color-ink); }
-  .hub-cat-sub { font-size: 12.5px; color: var(--color-muted); line-height: 1.4; }
-  .hub-cat-arrow {
-    flex-shrink: 0; color: var(--color-muted-2); font-size: 20px;
-    display: inline-flex; align-items: center;
-  }
-`;
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-const SHORT_MONTHS = ["janv", "févr", "mars", "avr", "mai", "juin", "juil", "août", "sept", "oct", "nov", "déc"];
-
-function formatRowDate(iso: string): string {
+function formatDay(iso: string): string {
   const d = new Date(iso);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const day = new Date(d);
-  day.setHours(0, 0, 0, 0);
-  const diffDays = Math.round((today.getTime() - day.getTime()) / (1000 * 60 * 60 * 24));
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  if (diffDays === 0) return `Aujourd'hui · ${hh}:${mm}`;
-  if (diffDays === 1) return `Hier · ${hh}:${mm}`;
-  return `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]} · ${hh}:${mm}`;
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
-function formatShortDate(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]}`;
+function formatDuration(startedAt: string, finishedAt?: string | null): string {
+  if (!finishedAt) return "—";
+  const sec = Math.round(
+    (new Date(finishedAt).getTime() - new Date(startedAt).getTime()) / 1000,
+  );
+  if (!Number.isFinite(sec) || sec <= 0) return "—";
+  const m = Math.round(sec / 60);
+  return m > 0 ? `${m} min` : `${sec} s`;
 }
 
-// ============================================================================
-// ICONS
-// ============================================================================
-const I = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  />
-);
-const ListIcon = () => (
-  <I>
-    <line x1="8" y1="6" x2="21" y2="6" />
-    <line x1="8" y1="12" x2="21" y2="12" />
-    <line x1="8" y1="18" x2="21" y2="18" />
-    <circle cx="4" cy="6" r="1" />
-    <circle cx="4" cy="12" r="1" />
-    <circle cx="4" cy="18" r="1" />
-  </I>
-);
-const CheckIcon = () => (
-  <I>
-    <polyline points="20 6 9 17 4 12" />
-  </I>
-);
-const TrophyIcon = () => (
-  <I>
-    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-  </I>
-);
-
-// ============================================================================
-// STYLES
-// ============================================================================
 const styles = `
-  .hi { padding: 24px 36px 64px; max-width: 1320px; }
-  @media (max-width: 760px) { .hi { padding: 20px 16px 56px; } }
+  .res {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 30px 40px 80px;
+  }
 
-  /* ========== TOPBAR ========== */
-  .topbar {
-    display: flex; justify-content: space-between; align-items: flex-start;
-    gap: 16px; flex-wrap: wrap;
-    margin-bottom: 26px;
+  /* ===== header ===== */
+  .res-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 20px; flex-wrap: wrap;
+    margin-bottom: 22px;
   }
-  .breadcrumb {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--color-muted);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-  }
-  .breadcrumb .sep { margin: 0 6px; opacity: 0.5; }
-  .topbar h1 {
-    font-family: var(--font-display);
-    font-size: clamp(24px, 3.2vw, 32px);
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    margin: 0;
-    line-height: 1.15;
-  }
-  .topbar h1 em {
+  .res-head-text { min-width: 0; }
+  .res-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 0.04em; text-transform: uppercase;
     color: var(--color-blue);
-    font-style: italic;
-    font-weight: 500;
+    margin-bottom: 8px;
   }
-  .topbar-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .btn-outline {
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    padding: 10px 16px; border-radius: 10px;
-    font-size: 13px; font-weight: 600;
-    text-decoration: none;
+  .res-head h1 {
+    margin: 0 0 8px;
+    font-family: var(--font-sans);
+    font-size: clamp(24px, 4vw, 32px);
+    font-weight: 800; letter-spacing: -0.02em;
+    color: var(--color-ink); line-height: 1.1;
+  }
+  .res-head p {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 15.5px; line-height: 1.5;
+  }
+  .res-head-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 20px;
+    font-size: 14.5px; font-weight: 600; line-height: 1;
+    background: #fff; color: var(--color-ink);
     border: 1px solid var(--color-line);
-    background: #fff;
-    color: var(--color-ink);
-    transition: all 0.15s;
-    cursor: pointer;
-    font-family: inherit;
-  }
-  .btn-outline:hover { border-color: var(--color-blue); color: var(--color-blue); }
-  .btn-primary {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    padding: 10px 16px; border-radius: 10px;
-    font-size: 13px; font-weight: 600;
+    border-radius: 999px;
     text-decoration: none;
-    border: 1px solid transparent;
-    background: var(--color-blue); color: #fff;
-    cursor: pointer;
-    transition: all 0.15s;
-    font-family: inherit;
+    flex-shrink: 0;
+    transition: box-shadow 0.18s, border-color 0.18s;
   }
-  .btn-primary:hover { background: var(--color-blue-dark); }
+  .res-head-btn:hover {
+    border-color: var(--color-muted-2);
+    box-shadow: 0 4px 12px rgba(15, 24, 57, 0.06);
+  }
 
-  .hi-error { margin-bottom: 18px; }
-
-  /* ========== STATS ========== */
-  .stats-grid {
+  /* ===== stat cards ===== */
+  .res-stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 16px;
-    margin-bottom: 26px;
+    margin-bottom: 22px;
   }
-  .stat-card {
+  .res-stat {
+    display: flex; align-items: center; gap: 14px;
     background: #fff;
     border: 1px solid var(--color-line);
     border-radius: 16px;
     padding: 18px;
+    min-width: 0;
   }
-  .stat-icon {
-    width: 36px; height: 36px;
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    margin-bottom: 14px;
-  }
-  .stat-icon-blue { background: var(--color-blue-light); color: var(--color-blue); }
-  .stat-icon-red { background: var(--color-red-light); color: var(--color-red); }
-  .stat-icon-green { background: rgba(22, 143, 91, 0.1); color: var(--color-green); }
-  .stat-icon-amber { background: rgba(232, 163, 23, 0.12); color: var(--color-amber); }
-  .stat-label {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-muted);
-    margin-bottom: 6px;
-    font-weight: 600;
-  }
-  .stat-value {
-    font-family: var(--font-display);
-    font-size: 30px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
-    color: var(--color-ink);
-  }
-  .stat-trend { font-size: 12px; margin-top: 6px; color: var(--color-muted); }
-  @media (max-width: 760px) {
-    .stats-grid { grid-template-columns: 1fr; }
-  }
-
-  /* ========== FILTERS ========== */
-  .filters {
-    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-    margin-bottom: 18px;
-  }
-  .filter-tabs {
-    display: inline-flex;
-    background: #fff;
-    border: 1px solid var(--color-line);
+  .res-stat-icon {
+    width: 44px; height: 44px;
     border-radius: 12px;
-    padding: 4px;
-    gap: 2px;
+    display: grid; place-items: center;
+    flex-shrink: 0;
   }
-  .tab {
-    display: inline-flex; align-items: center; gap: 7px;
-    padding: 8px 16px;
-    background: transparent;
-    border: none;
-    border-radius: 8px;
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--color-muted);
-    cursor: pointer;
-    transition: all 0.15s;
+  .res-stat-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .res-stat-green { background: color-mix(in srgb, var(--color-green) 12%, #fff); color: var(--color-green); }
+  .res-stat-red { background: var(--color-red-light); color: var(--color-red); }
+  .res-stat-value {
+    font-family: var(--font-sans);
+    font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
+    color: var(--color-ink); line-height: 1.15;
   }
-  .tab:hover { color: var(--color-ink); }
-  .tab.is-active {
-    background: var(--color-blue);
-    color: #fff;
-  }
-  .tab-count {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    background: rgba(255, 255, 255, 0.25);
-    padding: 1px 6px;
-    border-radius: 100px;
-    font-weight: 700;
+  .res-stat-label { font-size: 13px; font-weight: 700; color: var(--color-ink-2); margin-top: 2px; }
+  .res-stat-sub { font-size: 12px; color: var(--color-muted); margin-top: 1px; }
+
+  .res-error {
+    background: var(--color-red-light);
+    border: 1px solid color-mix(in srgb, var(--color-red) 25%, transparent);
+    color: var(--color-red-dark);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 13.5px;
+    margin-bottom: 16px;
   }
 
-  .period-chips {
-    display: flex; gap: 6px;
-  }
-  .chip {
-    padding: 8px 14px;
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 10px;
-    font-family: inherit;
-    font-size: 12.5px;
-    font-weight: 600;
-    color: var(--color-ink-2);
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .chip:hover { border-color: var(--color-blue); color: var(--color-blue); }
-  .chip.is-active {
-    background: var(--color-ink);
-    color: #fff;
-    border-color: var(--color-ink);
-  }
-
-  .search-wrap {
-    position: relative;
-    margin-left: auto;
-  }
-  .search-wrap svg {
-    position: absolute;
-    left: 12px; top: 50%;
-    transform: translateY(-50%);
-    color: var(--color-muted);
-  }
-  .search-wrap input {
-    background: #fff;
-    border: 1px solid var(--color-line);
-    border-radius: 10px;
-    padding: 9px 14px 9px 36px;
-    font-family: inherit;
-    font-size: 13px;
-    width: 240px;
-    color: var(--color-ink);
-    transition: border-color 0.15s, box-shadow 0.15s;
-  }
-  .search-wrap input:focus {
-    outline: none;
-    border-color: var(--color-blue);
-    box-shadow: 0 0 0 3px rgba(30, 58, 140, 0.12);
-  }
-
-  /* ========== TABLE CARD ========== */
-  .hi-card {
+  /* ===== liste ===== */
+  .res-list-card {
     background: #fff;
     border: 1px solid var(--color-line);
     border-radius: 18px;
+    padding: 16px 0 6px;
     overflow: hidden;
   }
-  .table-wrap {
-    overflow-x: auto;
-  }
-  table { width: 100%; border-collapse: collapse; min-width: 700px; }
-  th, td { text-align: left; padding: 13px 16px; }
-  th {
-    background: var(--color-paper);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-muted);
-    font-weight: 600;
-    border-bottom: 1px solid var(--color-line);
-    white-space: nowrap;
-  }
-  td {
-    font-size: 13.5px;
-    color: var(--color-ink-2);
+  .res-filters {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    padding: 0 22px 14px;
     border-bottom: 1px solid var(--color-line-2);
-    white-space: nowrap;
   }
-  tbody tr:last-child td { border-bottom: none; }
-  tbody tr {
-    transition: background 0.15s;
+  .res-chip {
+    padding: 8px 16px;
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    font-family: var(--font-sans);
+    font-size: 13px; font-weight: 600;
+    color: var(--color-ink-2);
     cursor: pointer;
+    transition: all 0.15s;
   }
-  tbody tr:hover { background: var(--color-blue-soft); }
-  .num { font-family: var(--font-mono); font-size: 13px; color: var(--color-ink-2); }
-  .row-chevron { text-align: right; color: var(--color-muted-2); font-size: 18px; }
-
-  .tag {
-    display: inline-block;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    padding: 3px 8px;
-    border-radius: 5px;
-    letter-spacing: 0.08em;
-    font-weight: 700;
-  }
-  .tag-exam { background: rgba(232, 163, 23, 0.18); color: var(--color-amber); }
-  .tag-train { background: var(--color-line-2); color: var(--color-ink-2); }
-  .tag-prod { background: var(--color-red-light); color: var(--color-red); }
-
-  .module-pill {
-    display: inline-block;
-    font-family: var(--font-mono);
-    font-size: 10.5px;
-    letter-spacing: 0.08em;
-    padding: 3px 8px;
-    border-radius: 5px;
-    font-weight: 700;
-    margin-right: 6px;
-  }
-  .module-pill-blue { background: var(--color-blue-light); color: var(--color-blue); }
-  .module-pill-red { background: var(--color-red-light); color: var(--color-red); }
-  .row-target {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    color: var(--color-muted);
-    font-weight: 600;
-  }
-
-  .score-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-family: var(--font-mono);
-    font-size: 12px;
-    font-weight: 700;
-  }
-  .score-pill-pass { color: var(--color-green); }
-  .score-pill-fail { color: var(--color-red); }
-  .score-pill-neutral { color: var(--color-muted); font-weight: 600; }
-  .score-pill-ico {
-    width: 14px; height: 14px;
-    border-radius: 50%;
-    display: inline-flex; align-items: center; justify-content: center;
+  .res-chip:hover { border-color: var(--color-blue); color: var(--color-blue); }
+  .res-chip.is-active {
+    background: var(--color-blue);
+    border-color: var(--color-blue);
     color: #fff;
-    font-size: 9px;
-    background: var(--color-green);
   }
-  .score-pill-fail .score-pill-ico { background: var(--color-red); }
-  .score-pill-neutral .score-pill-ico { background: var(--color-muted-2); }
 
-  .status-text {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
+  .res-none {
+    margin: 0; padding: 28px 22px;
+    font-size: 14px; color: var(--color-muted);
   }
-  .status-text-good { color: var(--color-green); }
-  .status-text-warn { color: var(--color-red); }
-  .status-text-neutral { color: var(--color-muted); }
-  .status-text-mobile { color: var(--color-blue); }
+  .res-none a { color: var(--color-blue); font-weight: 700; }
 
-  /* ===== production rows (EO/EE) ===== */
-  .prod-row td { color: var(--color-ink-2); }
-  .prod-row-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    letter-spacing: 0.05em;
-    color: var(--color-red);
-    font-weight: 600;
-    margin-left: 2px;
+  .res-rows { list-style: none; margin: 0; padding: 0; }
+  .res-row-wrap {
+    display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--color-line-2);
+    padding-right: 22px;
   }
-  .prod-row .score-pill-neutral {
-    display: inline-flex;
+  .res-rows .res-row-wrap:last-child { border-bottom: none; }
+  .res-row {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 38px minmax(170px, 1.2fr) auto 92px minmax(90px, 0.6fr);
     align-items: center;
-    gap: 6px;
+    gap: 14px;
+    padding: 13px 0 13px 22px;
+    text-decoration: none;
+    min-width: 0;
+    transition: background 0.15s;
+  }
+  .res-row:hover { background: var(--color-blue-soft); }
+
+  .res-row-icon {
+    width: 38px; height: 38px;
+    border-radius: 11px;
+    background: var(--color-blue-soft);
     color: var(--color-blue);
+    display: grid; place-items: center;
+    flex-shrink: 0;
   }
-
-  /* ===== skeleton ===== */
-  .skel-row td { padding: 16px; }
-  .skel-cell {
+  .res-row-titles { min-width: 0; }
+  .res-row-title {
     display: block;
-    height: 14px;
-    background: var(--color-paper-2);
-    border-radius: 4px;
-    animation: skel-pulse 1.4s ease-in-out infinite;
-  }
-  @keyframes skel-pulse {
-    0%, 100% { opacity: 0.55; }
-    50% { opacity: 1; }
-  }
-
-  /* ===== footer ===== */
-  .hi-footer {
-    padding: 14px 20px;
-    border-top: 1px solid var(--color-line-2);
-    font-size: 13px;
-    color: var(--color-muted);
-    background: var(--color-paper);
-  }
-
-  /* ===== empty ===== */
-  .hi-empty {
-    padding: 60px 24px;
-    text-align: center;
-  }
-  .hi-empty-icon {
-    width: 52px; height: 52px;
-    margin: 0 auto 16px;
-    background: var(--color-blue-light);
-    color: var(--color-blue);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .hi-empty h3 {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 19px;
+    font-size: 14px; font-weight: 700;
     color: var(--color-ink);
-    margin: 0 0 8px;
-    letter-spacing: -0.01em;
+    line-height: 1.3;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .hi-empty p {
-    color: var(--color-muted);
-    font-size: 13.5px;
-    line-height: 1.55;
-    margin: 0 auto 18px;
-    max-width: 380px;
-  }
-  .hi-empty-cta-wrap {
-    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+  .res-row-sub {
+    display: block;
+    font-size: 12px; color: var(--color-muted);
+    margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 
-  /* ========== RESPONSIVE ========== */
-  @media (max-width: 760px) {
-    .filters { flex-direction: column; align-items: stretch; }
-    .filter-tabs { width: 100%; justify-content: space-between; }
-    .tab { flex: 1; justify-content: center; }
-    .period-chips { width: 100%; }
-    .chip { flex: 1; }
-    .search-wrap { margin-left: 0; width: 100%; }
-    .search-wrap input { width: 100%; }
+  .res-cecrl {
+    font-size: 11.5px; font-weight: 800;
+    background: var(--color-blue-light); color: var(--color-blue);
+    padding: 4px 9px; border-radius: 999px;
+    white-space: nowrap;
+    justify-self: start;
+  }
+
+  .res-score { text-align: right; }
+  .res-score-main {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 15px; font-weight: 800; letter-spacing: -0.01em;
+  }
+  .res-tone-green { color: var(--color-green); }
+  .res-tone-blue { color: var(--color-blue); }
+  .res-tone-amber { color: color-mix(in srgb, var(--color-amber) 80%, var(--color-ink)); }
+  .res-score-pct { display: block; font-size: 11.5px; color: var(--color-muted-2); margin-top: 1px; }
+
+  .res-bar {
+    height: 8px; border-radius: 999px;
+    background: var(--color-line-2);
+    overflow: hidden;
+    min-width: 0;
+  }
+  .res-bar-fill { display: block; height: 100%; border-radius: 999px; }
+  .res-fill-green { background: var(--color-green); }
+  .res-fill-blue { background: var(--color-blue); }
+  .res-fill-amber { background: var(--color-amber); }
+
+  .res-retry {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px;
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    font-family: var(--font-sans);
+    font-size: 12.5px; font-weight: 600;
+    color: var(--color-ink-2);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .res-retry:hover { border-color: var(--color-blue); color: var(--color-blue); }
+  .res-retry:disabled { opacity: 0.6; cursor: progress; }
+
+  /* ===== états ===== */
+  .res-empty-page {
+    min-height: 60vh;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; color: var(--color-muted);
+  }
+  .res-empty-link { color: var(--color-blue); font-weight: 700; }
+  .res-sk {
+    height: 110px; border-radius: 16px; margin-bottom: 16px;
+    background: linear-gradient(90deg, #EDEFF7 25%, #F5F6FB 50%, #EDEFF7 75%);
+    background-size: 200% 100%;
+    animation: res-shimmer 1.4s infinite;
+  }
+  .res-sk-tall { height: 460px; }
+  @keyframes res-shimmer { to { background-position: -200% 0; } }
+
+  /* ===== responsive ===== */
+  @media (max-width: 1000px) {
+    .res-stats { grid-template-columns: 1fr; }
+    .res-row { grid-template-columns: 38px 1fr auto 92px; }
+    .res-bar { display: none; }
+  }
+  @media (max-width: 768px) {
+    /* padding-top dégage le burger fixed du drawer mobile (.ms-toggle). */
+    .res { padding: 64px 18px 48px; }
+    .res-cecrl { display: none; }
+    .res-row { grid-template-columns: 38px 1fr 80px; gap: 10px; }
   }
 `;
