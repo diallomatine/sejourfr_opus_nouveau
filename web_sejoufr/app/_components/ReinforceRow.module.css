@@ -24,6 +24,12 @@
   flex-shrink: 0;
 }
 
+/* TCF en rouge (le civique garde le bleu). */
+.iconRed {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
 .body {
   flex: 1;
   min-width: 0;

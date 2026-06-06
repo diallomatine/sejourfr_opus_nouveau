@@ -55,14 +55,14 @@ export function ReinforceRow({
   const isTcf = cat.code.startsWith("TCF");
   return (
     <li className={styles.row}>
-      <span className={styles.icon} aria-hidden>
+      <span className={`${styles.icon} ${isTcf ? styles.iconRed : ""}`} aria-hidden>
         {isTcf ? <Waves size={17} /> : <Lightbulb size={17} />}
       </span>
       <div className={styles.body}>
         <div className={styles.labelRow}>
           <span className={styles.label}>{cat.label}</span>
           {showModuleTag && (
-            <span className={`${styles.tag} ${isTcf ? styles.tagBlue : styles.tagRed}`}>
+            <span className={`${styles.tag} ${isTcf ? styles.tagRed : styles.tagBlue}`}>
               {isTcf ? "TCF" : "Civique"}
             </span>
           )}
