@@ -31,6 +31,20 @@ import {
   niveauCecrlLabel,
 } from "@/lib/types";
 
+/** Tonalité d'une catégorie (mêmes couleurs que les cards des hubs). */
+const CATEGORY_TONES: Record<string, string> = {
+  TCF_CO: "blue",
+  TCF_CE: "green",
+  TCF_STRUCTURE: "amber",
+  TCF_EE: "slate",
+  TCF_EO: "red",
+  CIV_PRINCIPES: "blue",
+  CIV_INSTITUTIONS: "green",
+  CIV_DROITS_DEVOIRS: "amber",
+  CIV_HISTOIRE_GEO: "red",
+  CIV_SOCIETE: "slate",
+};
+
 /** Icône d'une catégorie (mêmes pictos que les hubs). */
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   TCF_CO: <Headphones size={18} strokeWidth={1.8} />,
@@ -247,7 +261,10 @@ function CategoryRow({
   return (
     <li>
       <Link href={categoryHref(cat)} className="prog-row">
-        <span className="prog-row-icon" aria-hidden>
+        <span
+          className={`prog-row-icon prog-icon-${CATEGORY_TONES[cat.code] ?? "blue"}`}
+          aria-hidden
+        >
           {CATEGORY_ICONS[cat.code] ?? <BarChart3 size={18} strokeWidth={1.8} />}
         </span>
         <span className="prog-row-titles">
@@ -382,10 +399,13 @@ const styles = `
   .prog-row-icon {
     width: 38px; height: 38px;
     border-radius: 11px;
-    background: var(--color-blue-soft);
-    color: var(--color-blue);
     display: grid; place-items: center;
   }
+  .prog-icon-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .prog-icon-green { background: color-mix(in srgb, var(--color-green) 14%, #fff); color: var(--color-green); }
+  .prog-icon-amber { background: color-mix(in srgb, var(--color-amber) 18%, #fff); color: color-mix(in srgb, var(--color-amber) 75%, var(--color-ink)); }
+  .prog-icon-red { background: var(--color-red-light); color: var(--color-red); }
+  .prog-icon-slate { background: var(--color-paper-2); color: var(--color-muted); }
   .prog-row-titles { min-width: 0; }
   .prog-row-title {
     display: block;

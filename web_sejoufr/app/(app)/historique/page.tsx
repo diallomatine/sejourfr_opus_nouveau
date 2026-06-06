@@ -46,6 +46,21 @@ const TCF_EPREUVE_ICONS: Record<string, React.ReactNode> = {
   STRUCTURE: <SpellCheck size={18} strokeWidth={1.8} />,
 };
 
+/** Tonalités (mêmes couleurs que les cards des hubs). */
+const TCF_EPREUVE_TONES: Record<string, string> = {
+  CO: "blue",
+  CE: "green",
+  STRUCTURE: "amber",
+};
+
+const CIVIQUE_THEME_TONES = new Map<string, string>([
+  ["Principes et valeurs de la République", "blue"],
+  ["Système institutionnel et politique", "green"],
+  ["Droits et devoirs", "amber"],
+  ["Histoire, géographie et culture", "red"],
+  ["Vivre dans la société française", "slate"],
+]);
+
 /** Map nom de thème → icône (les libellés viennent du dashboard). */
 const CIVIQUE_THEME_ICONS_BY_LABEL = new Map<string, React.ReactNode>([
   ["Principes et valeurs de la République", <Scale key="p" size={18} strokeWidth={1.8} />],
@@ -290,19 +305,25 @@ function percentOf(exam: AttemptSummaryResponse): number | null {
   return Math.round((100 * exam.score) / exam.totalQuestions);
 }
 
-/** Libellé + icône de la catégorie d'un examen. */
+/** Libellé + icône + tonalité de la catégorie d'un examen. */
 function examIdentity(
   exam: AttemptSummaryResponse,
   themeLabels: Map<string, string>,
-): { title: string; icon: React.ReactNode } {
+): { title: string; icon: React.ReactNode; iconTone: string } {
   if (exam.module === "TCF") {
     const qt = exam.moduleExamQuestionType;
     if (qt && TCF_EPREUVE_LABELS[qt]) {
-      return { title: TCF_EPREUVE_LABELS[qt], icon: TCF_EPREUVE_ICONS[qt] };
+      return {
+        title: TCF_EPREUVE_LABELS[qt],
+        icon: TCF_EPREUVE_ICONS[qt],
+        iconTone: TCF_EPREUVE_TONES[qt] ?? "blue",
+      };
     }
+    // Examen TCF complet : couleur pleine du module (rouge).
     return {
       title: exam.examTemplateName ?? "TCF IRN complet",
       icon: <Waves size={18} strokeWidth={1.8} />,
+      iconTone: "module-red",
     };
   }
   if (exam.lotThemeId) {
@@ -313,11 +334,14 @@ function examIdentity(
         (label && CIVIQUE_THEME_ICONS_BY_LABEL.get(label)) ?? (
           <Lightbulb size={18} strokeWidth={1.8} />
         ),
+      iconTone: (label && CIVIQUE_THEME_TONES.get(label)) ?? "blue",
     };
   }
+  // Examen civique complet : couleur pleine du module (bleu).
   return {
     title: exam.examTemplateName ?? "Examen civique complet",
     icon: <Lightbulb size={18} strokeWidth={1.8} />,
+    iconTone: "module-blue",
   };
 }
 
@@ -332,7 +356,7 @@ function ResultRow({
   retrying: boolean;
   onRetry: () => void;
 }) {
-  const { title, icon } = examIdentity(exam, themeLabels);
+  const { title, icon, iconTone } = examIdentity(exam, themeLabels);
   const pct = percentOf(exam);
   const tone = pct === null ? "blue" : pct >= 80 ? "green" : pct < 60 ? "amber" : "blue";
   const moduleLabel = exam.module === "TCF" ? "TCF IRN" : "Examen civique";
@@ -340,7 +364,7 @@ function ResultRow({
   return (
     <li className="res-row-wrap">
       <Link href={`/sessions/${exam.id}`} className="res-row">
-        <span className="res-row-icon" aria-hidden>
+        <span className={`res-row-icon res-icon-${iconTone}`} aria-hidden>
           {icon}
         </span>
         <span className="res-row-titles">
@@ -548,11 +572,17 @@ const styles = `
   .res-row-icon {
     width: 38px; height: 38px;
     border-radius: 11px;
-    background: var(--color-blue-soft);
-    color: var(--color-blue);
     display: grid; place-items: center;
     flex-shrink: 0;
   }
+  .res-icon-blue { background: var(--color-blue-light); color: var(--color-blue); }
+  .res-icon-green { background: color-mix(in srgb, var(--color-green) 14%, #fff); color: var(--color-green); }
+  .res-icon-amber { background: color-mix(in srgb, var(--color-amber) 18%, #fff); color: color-mix(in srgb, var(--color-amber) 75%, var(--color-ink)); }
+  .res-icon-red { background: var(--color-red-light); color: var(--color-red); }
+  .res-icon-slate { background: var(--color-paper-2); color: var(--color-muted); }
+  /* Examens complets : couleur pleine du module (icône blanche). */
+  .res-icon-module-blue { background: var(--color-blue); color: #fff; }
+  .res-icon-module-red { background: var(--color-red); color: #fff; }
   .res-row-titles { min-width: 0; }
   .res-row-title {
     display: block;
