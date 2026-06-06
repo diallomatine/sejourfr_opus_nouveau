@@ -59,6 +59,11 @@ public record DashboardSummaryResponse(
      *   <li>{@code mockExams} : nb d'examens blancs finis scopés à la
      *       catégorie (civique : examens thématiques ; TCF : examens module
      *       CO/CE/STRUCTURE). 0 pour EE/EO.</li>
+     *   <li>{@code bestMockScore} / {@code lastMockScore} /
+     *       {@code prevMockScore} : record, dernier et avant-dernier score
+     *       brut sur les examens de la catégorie (page Progression : « record
+     *       17/20 » + flèche de tendance dernier vs avant-dernier). Null si
+     *       pas assez d'examens.</li>
      *   <li>{@code level} : dernier niveau CECRL évalué — renseigné uniquement
      *       pour EE/EO.</li>
      * </ul>
@@ -71,6 +76,9 @@ public record DashboardSummaryResponse(
             int answered,
             int total,
             int mockExams,
+            Integer bestMockScore,
+            Integer lastMockScore,
+            Integer prevMockScore,
             NiveauCecrl level
     ) {
     }

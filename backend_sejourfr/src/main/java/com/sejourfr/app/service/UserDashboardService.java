@@ -92,10 +92,31 @@ public class UserDashboardService {
     // ------------------------------------------------------------------------
 
     /**
+     * Agrégat des examens blancs d'une catégorie : compte + record + les deux
+     * derniers scores (tendance dernier vs avant-dernier sur la page
+     * Progression). Alimenté en parcourant les attempts triés DESC :
+     * 1ʳᵉ rencontre = dernier examen, 2ᵉ = avant-dernier.
+     */
+    static final class CategoryExamAgg {
+        int count;
+        Integer best;
+        Integer last;
+        Integer prev;
+
+        void add(Integer score) {
+            count++;
+            if (score == null) return;
+            if (best == null || score > best) best = score;
+            if (last == null) last = score;
+            else if (prev == null) prev = score;
+        }
+    }
+
+    /**
      * Compteurs d'examens blancs finis d'un module : total + ventilation par
      * catégorie (clé = themeId civique ou name() du QuestionType TCF).
      */
-    private record MockExamCounts(int total, Map<String, Integer> byCategory) {
+    private record MockExamCounts(int total, Map<String, CategoryExamAgg> byCategory) {
     }
 
     /** Civique : examens thématiques ventilés par thème, complets dans le total. */
@@ -103,12 +124,13 @@ public class UserDashboardService {
         final List<Attempt> exams = attemptManager.findByUserFiltered(
                 userId, AttemptType.MOCK_EXAM, Module.CIVIQUE, null, null, 500);
         int total = 0;
-        final Map<String, Integer> byTheme = new HashMap<>();
+        final Map<String, CategoryExamAgg> byTheme = new HashMap<>();
         for (final Attempt a : exams) {
             if (a.getFinishedAt() == null) continue;
             total++;
             if (a.getLotThemeId() != null) {
-                byTheme.merge(a.getLotThemeId().toString(), 1, Integer::sum);
+                byTheme.computeIfAbsent(a.getLotThemeId().toString(), k -> new CategoryExamAgg())
+                        .add(a.getScore());
             }
         }
         return new MockExamCounts(total, byTheme);
@@ -123,13 +145,14 @@ public class UserDashboardService {
         final List<Attempt> exams = attemptManager.findByUserFiltered(
                 userId, AttemptType.MOCK_EXAM, Module.TCF, null, null, 500);
         int total = 0;
-        final Map<String, Integer> byEpreuve = new HashMap<>();
+        final Map<String, CategoryExamAgg> byEpreuve = new HashMap<>();
         for (final Attempt a : exams) {
             if (a.getFinishedAt() == null) continue;
             if (a.getParentAttempt() == null) total++;
             final QuestionType qt = a.getModuleExamQuestionType();
             if (qt != null) {
-                byEpreuve.merge(qt.name(), 1, Integer::sum);
+                byEpreuve.computeIfAbsent(qt.name(), k -> new CategoryExamAgg())
+                        .add(a.getScore());
             }
         }
         return new MockExamCounts(total, byEpreuve);
@@ -149,7 +172,7 @@ public class UserDashboardService {
      *                            (le code thème {@code TCF_CO} → clé {@code CO})
      */
     private List<DashboardSummaryResponse.CategoryStat> themeCategories(
-            UUID userId, Module module, Map<String, Integer> mockExamsByCategory) {
+            UUID userId, Module module, Map<String, CategoryExamAgg> mockExamsByCategory) {
         // aggregateByTheme ne renvoie que les thèmes déjà tentés → on indexe
         // puis on déroule la liste complète des thèmes pour combler les trous.
         final Map<UUID, int[]> answeredCorrectByTheme = new HashMap<>();
@@ -163,10 +186,10 @@ public class UserDashboardService {
             final int[] ac = answeredCorrectByTheme.get(theme.getId());
             final int themeAnswered = ac == null ? 0 : ac[0];
             final int themeCorrect = ac == null ? 0 : ac[1];
-            final int mockExams = mockExamsByCategory.getOrDefault(
-                    theme.getId().toString(),
-                    mockExamsByCategory.getOrDefault(
-                            theme.getCode().replaceFirst("^TCF_", ""), 0));
+            CategoryExamAgg agg = mockExamsByCategory.get(theme.getId().toString());
+            if (agg == null) {
+                agg = mockExamsByCategory.get(theme.getCode().replaceFirst("^TCF_", ""));
+            }
             out.add(new DashboardSummaryResponse.CategoryStat(
                     theme.getId(),
                     theme.getCode(),
@@ -174,7 +197,10 @@ public class UserDashboardService {
                     themeAnswered == 0 ? null : (int) Math.round(100.0 * themeCorrect / themeAnswered),
                     themeAnswered,
                     (int) questionManager.countActiveByTheme(theme.getId()),
-                    mockExams,
+                    agg == null ? 0 : agg.count,
+                    agg == null ? null : agg.best,
+                    agg == null ? null : agg.last,
+                    agg == null ? null : agg.prev,
                     null));
         }
         return out;
@@ -200,7 +226,8 @@ public class UserDashboardService {
                 percent = (int) Math.round(note.doubleValue() * 5);
             }
         }
-        return new DashboardSummaryResponse.CategoryStat(null, code, label, percent, 0, 0, 0, level);
+        return new DashboardSummaryResponse.CategoryStat(
+                null, code, label, percent, 0, 0, 0, null, null, null, level);
     }
 
     // ------------------------------------------------------------------------

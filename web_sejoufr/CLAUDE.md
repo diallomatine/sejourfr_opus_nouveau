@@ -440,6 +440,14 @@ Chantier découpé en vagues :
           `SeeMoreButton` + styles orphelins (HubParts ne garde que
           ExamBlancHero, SectionLabel/Counter/Link, HubDetailHeader pour les
           parcours production).
+    - **`/statistiques` refondu** : « Ma progression » — 3 cards donut
+      (maîtrise globale / TCF avec niveau estimé / civique) + une section par
+      parcours listant chaque catégorie (icône, « n examens · record x/y »,
+      barre de réussite, **tendance dernier vs avant-dernier examen** ↗/↘/—,
+      badge Solide/En bonne voie/À renforcer). Ligne → entraînement de la
+      catégorie (`categoryHref`). Données : `GET /api/me/dashboard` étendu
+      (`CategoryStat.bestMockScore`/`lastMockScore`/`prevMockScore`).
+      L'ancien écran stats par thème avec toggle module est supprimé.
     - **`/examens-blancs` refondu** (connecté) : « Examens blancs complets » —
       une card par parcours (TCF IRN = MOCK_EXAM TCF 60 Q mélangées ; Examen
       civique = MOCK_EXAM CIVIQUE 40 Q stratifiées) avec stats « x/20 épreuves

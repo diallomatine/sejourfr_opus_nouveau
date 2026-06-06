@@ -741,6 +741,11 @@ export interface DashboardCategoryStat {
   total: number;
   /** Examens blancs finis scopés à la catégorie (0 pour EE/EO). */
   mockExams: number;
+  /** Record / dernier / avant-dernier score brut sur les examens de la
+   *  catégorie (page Progression). Null si pas assez d'examens. */
+  bestMockScore: number | null;
+  lastMockScore: number | null;
+  prevMockScore: number | null;
   /** Dernier niveau CECRL évalué — EE/EO uniquement. */
   level: NiveauCecrl | null;
 }
