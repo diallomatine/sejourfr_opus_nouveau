@@ -10,7 +10,6 @@ import {
   type RunnerBackend,
 } from "@/app/_components/QuestionRunner";
 import { TrainingResultCard } from "@/app/_components/TrainingResultCard";
-import { TcfLotResultCard } from "@/app/_components/TcfLotResultCard";
 import { ExamReport } from "@/app/_components/ExamReport";
 import {
   ApiException,
@@ -142,7 +141,7 @@ function SessionRunnerInner({ params }: PageProps) {
   /** Numéro de lot quand la session est un lot d'entraînement (batch fixe, pas d'extension). */
   const lotParam = searchParams.get("lot");
   const lotNumero = lotParam && /^\d+$/.test(lotParam) ? Number(lotParam) : null;
-  /** Mode de bilan : "tcfLot" → écran donut TcfLotResultCard (parité mobile). */
+  /** "tcfLot" (héritage) : bilan d'une série TCF → rapport commun. */
   const resultMode = searchParams.get("result");
   const tcfCode = searchParams.get("code");
   const tcfLevel = searchParams.get("level");
@@ -313,19 +312,14 @@ function SessionRunnerInner({ params }: PageProps) {
     const isExam = attempt.type === "MOCK_EXAM";
     const isGuest = sessionMode === "guest";
 
-    // Bilan donut d'un lot TCF (parité mobile TcfLotResultScreen).
-    if (resultMode === "tcfLot" && !isExam && !isGuest) {
-      const back =
-        tcfCode && tcfLevel
-          ? `/entrainement/tcf/${tcfCode}/${tcfLevel}`
-          : (lotReturnPath(attempt) ?? "/entrainement?module=TCF");
-      return (
-        <TcfLotResultCard attempt={attempt} returnHref={back} level={tcfLevel} />
-      );
-    }
-
-    const lotReturnHref =
-      lotNumero != null && !isGuest ? (lotReturnPath(attempt) ?? undefined) : undefined;
+    // Une série (lot) affiche le même rapport qu'un examen de thème —
+    // à chaud comme en consultation (`?result=tcfLot` est l'héritage du
+    // bilan donut TCF, désormais aligné sur le rapport commun).
+    const isSerie = !isGuest && (lotNumero != null || resultMode === "tcfLot");
+    const serieReturnHref =
+      tcfCode && tcfLevel
+        ? `/entrainement/tcf/${tcfCode}/${tcfLevel}`
+        : (lotReturnPath(attempt) ?? "/entrainement");
 
     // Retour à l'écran précédent (historique navigateur) ; fallback sur
     // l'écran d'origine dérivé de l'attempt quand la page a été ouverte
@@ -368,32 +362,29 @@ function SessionRunnerInner({ params }: PageProps) {
             />
             {isGuest && <GuestResultCta />}
           </>
-        ) : openedAsFinished ? (
+        ) : isSerie || (openedAsFinished && !isGuest) ? (
           <>
-            {/* Consultation d'une série / d'un entraînement déjà fini
-                (« Voir le détail ») : même rapport, CTAs adaptés. */}
-            {!isGuest && (
-              <ExamReport
-                attempt={attempt}
-                contextLabel={attemptContextLabel(attempt, lotNumero)}
-                onRetry={lotNumero != null ? retryAttempt : undefined}
-                retryLabel="Refaire cette série"
-                retrying={retrying}
-                moreHref={lotReturnPath(attempt) ?? undefined}
-                moreLabel="Autres séries"
-                progressHref="/statistiques"
-              />
-            )}
-            {isGuest && <GuestResultCta />}
+            {/* Série (à chaud ou consultation) et entraînement déjà fini :
+                même rapport qu'un examen de thème, CTAs adaptés. */}
+            <ExamReport
+              attempt={attempt}
+              contextLabel={attemptContextLabel(attempt, lotNumero)}
+              onRetry={lotNumero != null ? retryAttempt : undefined}
+              retryLabel="Refaire cette série"
+              retrying={retrying}
+              moreHref={serieReturnHref}
+              moreLabel="Autres séries"
+              progressHref="/statistiques"
+            />
           </>
         ) : (
           <>
-            {/* À chaud, fin de session interactive : carte de score célébrative. */}
+            {/* À chaud, fin d'un entraînement libre : carte de score
+                célébrative. (Guests : idem + CTA inscription.) */}
             <TrainingResultCard
               attempt={attempt}
               isPremium={isPremium}
               variant="primary"
-              lotReturnHref={lotReturnHref}
             />
             {isGuest && <GuestResultCta />}
           </>

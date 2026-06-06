@@ -181,10 +181,12 @@ export default function TcfLevelSeriesPage() {
               : null
           }
           onViewDetail={() => {
-            const id = selectedLot?.lastAttemptId;
+            const lot = selectedLot;
             setSelectedLot(null);
-            if (id) {
-              router.push(`/sessions/${id}?result=tcfLot&code=${code}&level=${levelKey}`);
+            if (lot?.lastAttemptId) {
+              router.push(
+                `/sessions/${lot.lastAttemptId}?lot=${lot.numero}&result=tcfLot&code=${code}&level=${levelKey}`,
+              );
             }
           }}
           onResume={() => {

@@ -380,10 +380,11 @@ Chantier découpé en vagues :
       EE + EO branchées web) → détail QCM (hero + 3 niveaux + historique) →
       `/entrainement/tcf/[code]/examens` (10 slots) et `[code]/[level]` (lots,
       lot 1 gratuit / 2+ premium).
-    - **Bilan donut lot TCF** : `TcfLotResultCard` (score donut + résumé + conseil
-        + rapport dépliable), servi par la session via
-          `?lot=N&result=tcfLot&code&level` (parité `TcfLotResultScreen` mobile). Le
-          bilan civique reste le rapport Q-par-Q (`ExamReport`).
+    - **Bilan de série (ex-lot)** : depuis la refonte web_refonte, toutes les
+      séries (TCF et civique) affichent le rapport commun `ExamReport` — à
+      chaud comme en consultation. `?result=tcfLot&code&level` est conservé
+      comme héritage d'URL (sert au chemin « Autres séries ») ;
+      `TcfLotResultCard` est supprimé.
     - `module_detail/parts.tsx` ne garde que `ModuleDetailGate` + `moduleDetailStyles`.
     - **Reste au lot suivant** : examen blanc TCF complet orchestré (CO→CE→EE→EO).
       En attendant, le hero « examen complet » du hub TCF pointe sur

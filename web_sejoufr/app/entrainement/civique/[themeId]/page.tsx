@@ -135,9 +135,11 @@ export default function CiviqueThemeSeriesPage() {
               : null
           }
           onViewDetail={() => {
-            const id = selectedLot?.lastAttemptId;
+            const lot = selectedLot;
             setSelectedLot(null);
-            if (id) router.push(`/sessions/${id}`);
+            if (lot?.lastAttemptId) {
+              router.push(`/sessions/${lot.lastAttemptId}?lot=${lot.numero}`);
+            }
           }}
           onResume={() => {
             const lot = selectedLot;
