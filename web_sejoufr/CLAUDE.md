@@ -392,11 +392,12 @@ Chantier découpé en vagues :
 
 - **Vague 8 (branche `web_refonte`)** ✅ — **Refonte shell app + dashboard**
   (maquette "Tableau de bord" SaaS) :
-    - **Sidebar** (`AppSidebar.tsx`) recomposée : Tableau de bord, section
-      **PARCOURS** (TCF IRN → `/entrainement?module=TCF`, Examen civique →
-      `/entrainement?module=CIVIQUE`), section **SUIVI** (Progression →
-      `/statistiques`, Résultats → `/historique`, Recommandations →
-      `/recommandations`). Item actif = fond bleu clair + barre gauche. En
+    - **Sidebar** (`AppSidebar.tsx`) recomposée : Accueil → `/` (landing
+      publique), Tableau de bord, section **PARCOURS** (TCF IRN →
+      `/entrainement?module=TCF`, Examen civique →
+      `/entrainement?module=CIVIQUE`, Examens blancs → `/examens-blancs`),
+      section **SUIVI** (Progression → `/statistiques`, Résultats →
+      `/historique`, Recommandations → `/recommandations`). Item actif = fond bleu clair + barre gauche. En
       pied : badge streak ("N jours de suite", via `dashboardApi.summaryCached`)
       + carte user (avatar, nom, objectif dérivé du parcours) cliquable →
       `/profil` (le logout vit là-bas). Les entrées Mes erreurs / Favoris /

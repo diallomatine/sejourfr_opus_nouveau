@@ -6,9 +6,11 @@ import { Suspense, useEffect, useState } from "react";
 import {
   BarChart3,
   Flame,
+  Home,
   LayoutGrid,
   Lightbulb,
   Sparkles,
+  Target,
   Trophy,
   Waves,
 } from "lucide-react";
@@ -56,12 +58,10 @@ function AppSidebarInner() {
 
   const isTcfActive =
     (isOnEntrainement && currentModule === "TCF") ||
-    pathname?.startsWith("/entrainement/tcf") ||
-    pathname?.startsWith("/examens-blancs/tcf");
+    pathname?.startsWith("/entrainement/tcf");
   const isCiviqueActive =
     (isOnEntrainement && currentModule !== "TCF") ||
-    pathname?.startsWith("/entrainement/civique") ||
-    pathname?.startsWith("/examens-blancs/civique");
+    pathname?.startsWith("/entrainement/civique");
   // Les erreurs/favoris (/revision) vivent désormais sous Recommandations.
   const isRecoActive =
     pathname === "/recommandations" ||
@@ -105,6 +105,9 @@ function AppSidebarInner() {
       </Link>
 
       <nav className="app-nav" aria-label="Espace personnel">
+        <SideLink href="/" pathname={pathname} icon={<Home size={18} />}>
+          Accueil
+        </SideLink>
         <SideLink href="/dashboard" pathname={pathname} icon={<LayoutGrid size={18} />}>
           Tableau de bord
         </SideLink>
@@ -125,6 +128,9 @@ function AppSidebarInner() {
           activeWhen={() => Boolean(isCiviqueActive)}
         >
           Examen civique
+        </SideLink>
+        <SideLink href="/examens-blancs" pathname={pathname} icon={<Target size={18} />}>
+          Examens blancs
         </SideLink>
 
         <span className="app-nav-section">Suivi</span>
