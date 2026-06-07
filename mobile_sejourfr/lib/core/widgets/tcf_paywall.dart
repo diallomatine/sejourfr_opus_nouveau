@@ -16,8 +16,8 @@ void _openPaywall(BuildContext context) {
 ///
 /// Wording volontairement neutre : pas de prix, pas de verbe « payer » /
 /// « acheter ». L'app décrit simplement la disponibilité du contenu et
-/// renvoie vers le site web pour activer l'accès. Conformité Apple
-/// (Guidelines 3.1.1 — pas de paiement digital hors IAP dans l'app).
+/// ouvre le paywall IAP natif (lot 4d) — aucune mention du site web pour
+/// l'achat (Guidelines Apple 3.1.1, pas de steering hors IAP).
 class TcfPaywallCard extends StatelessWidget {
   const TcfPaywallCard({super.key});
 
@@ -69,7 +69,7 @@ class TcfPaywallCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Vous pouvez activer l\'accès complet (Civique + TCF) depuis votre espace sur sejourfr.fr.',
+            'Vous pouvez activer l\'accès complet (Civique + TCF) directement depuis l\'application.',
             style: AppFonts.jakarta(
               size: 14,
               color: AppColors.ink2,
@@ -145,7 +145,7 @@ Future<void> showTcfPaywallSheet(BuildContext context) {
           const SizedBox(height: 16),
           Text(
             'Le module TCF n\'est pas inclus dans votre formule actuelle. '
-            'Vous pouvez activer l\'accès complet depuis votre espace sur sejourfr.fr.',
+            'Vous pouvez activer l\'accès complet directement depuis l\'application.',
             style: AppFonts.jakarta(
               size: 14,
               color: AppColors.muted,
@@ -197,7 +197,7 @@ class _OpenSubscriptionButton extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Voir les abonnements',
+            'Voir les offres',
             style: AppFonts.jakarta(
               size: 15,
               weight: FontWeight.w700,
@@ -205,7 +205,7 @@ class _OpenSubscriptionButton extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          const Icon(Icons.open_in_new_rounded, size: 16),
+          const Icon(Icons.arrow_forward_rounded, size: 16),
         ],
       ),
     );

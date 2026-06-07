@@ -67,9 +67,10 @@ export default function ConfidentialitePage() {
             (ci-après « <strong>SejourFR</strong> » ou « nous ») collecte,
             utilise, conserve et protège vos données personnelles dans le cadre
             de votre utilisation de la plateforme d'entraînement aux examens
-            civique et TCF accessible à l'adresse{" "}
-            <a href={SITE.url}>{SITE.url.replace(/^https?:\/\//, "")}</a>{" "}
-            (ci-après la « <strong>Plateforme</strong> »).
+            civique et TCF, accessible via le site web{" "}
+            <a href={SITE.url}>{SITE.url.replace(/^https?:\/\//, "")}</a> et les
+            applications mobiles SejourFR (iOS et Android) (ci-après la «{" "}
+            <strong>Plateforme</strong> »).
           </p>
           <p>
             Nous nous engageons à protéger votre vie privée conformément au{" "}
@@ -169,8 +170,8 @@ export default function ConfidentialitePage() {
               ],
               [
                 "Données de paiement",
-                "Obligatoire pour Premium",
-                "Traitement des paiements (via Stripe)",
+                "Obligatoire pour les achats sur le web",
+                "Traitement des paiements via Stripe. Pour les achats in-app, le paiement est traité par Apple ou Google ; SejourFR ne collecte pas ces données bancaires.",
               ],
               [
                 "Adresse postale",
@@ -229,7 +230,7 @@ export default function ConfidentialitePage() {
               "Exécution du contrat (art. 6.1.b)",
             ],
             [
-              "Gestion des abonnements Premium et traitement des paiements",
+              "Gestion des pass Premium et traitement des paiements",
               "Exécution du contrat (art. 6.1.b)",
             ],
             [
@@ -295,6 +296,14 @@ export default function ConfidentialitePage() {
           columns={["Sous-traitant", "Finalité", "Pays"]}
           rows={subProcessors.map((sp) => [sp.name, sp.purpose, sp.country])}
         />
+        <p>
+          Lorsqu'un achat est réalisé via l'App Store ou Google Play, le
+          paiement est traité par Apple ou Google, agissant comme responsables
+          de traitement indépendants pour ces transactions. SejourFR ne reçoit
+          pas vos données bancaires dans ce cas. Le traitement de vos données
+          par ces sociétés est régi par leurs propres politiques de
+          confidentialité.
+        </p>
         <p className="legal-note-italic">
           Aucune de vos données n'est vendue à des tiers à des fins
           commerciales.
@@ -569,8 +578,10 @@ export default function ConfidentialitePage() {
         <p>
           Nous pouvons être amenés à modifier la présente Politique de
           confidentialité pour refléter des évolutions légales ou techniques.
-          La date de dernière mise à jour est indiquée en haut du document. En
-          cas de modification substantielle, nous vous en informerons par email.
+          Toute modification prend effet dès sa publication sur la Plateforme ;
+          la date de dernière mise à jour, indiquée en haut du document, en
+          reflète la version en vigueur. Nous vous invitons à la consulter
+          régulièrement.
         </p>
       </LegalSection>
 

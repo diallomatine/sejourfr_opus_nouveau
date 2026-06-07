@@ -210,6 +210,14 @@ public class BillingService {
                 .setSuccessUrl(successUrl)
                 .setCancelUrl(cancelUrl)
                 .putMetadata("planCode", plan.getCode())
+                // Facture Stripe émise et envoyée par email à chaque achat (CGU art. 6.4).
+                // L'envoi suppose « Email finalized invoices » activé dans le Dashboard Stripe.
+                .setInvoiceCreation(SessionCreateParams.InvoiceCreation.builder()
+                        .setEnabled(true)
+                        .setInvoiceData(SessionCreateParams.InvoiceCreation.InvoiceData.builder()
+                                .setFooter("TVA non applicable, art. 293 B du CGI")
+                                .build())
+                        .build())
                 .addLineItem(SessionCreateParams.LineItem.builder()
                         .setQuantity(1L)
                         .setPriceData(SessionCreateParams.LineItem.PriceData.builder()

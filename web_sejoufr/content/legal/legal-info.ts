@@ -152,8 +152,8 @@ export const LEGAL_INFO: LegalInfo = {
     } satisfies LegalMediator,
 
     /** Date de dernière mise à jour des documents légaux (ISO YYYY-MM-DD). */
-    lastUpdated: "2026-05-17",
-    effectiveDate: "2026-05-17",
+    lastUpdated: "2026-06-07",
+    effectiveDate: "2026-06-07",
 };
 
 /* --------------------- Helpers ----------------------------------------- */
