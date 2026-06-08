@@ -422,24 +422,35 @@ Chantier découpé en vagues :
   Le parent `TCF_COMPLET` porte 4 sous-attempts ; le backend
   (`FullTcfExamController`, endpoints `/api/full-tcf-exams*` + `/api/me/full-tcf-exams`)
   agrège le statut `IN_PROGRESS | PENDING_EVALUATIONS | COMPLETED`.
-    - **Routes** `app/tcf/examen-blanc/` : `page.tsx` (grille 20 slots + briefing,
-      `?startSlot=N` auto-ouvre le briefing), `[id]/page.tsx` (hub de progression :
+    - **Pas de route `/tcf/examen-blanc`** : tout vit sous **`app/examens-blancs/`**
+      (la liste, c'est `/examens-blancs`). `tcf/[id]/page.tsx` (hub de progression :
       4 StepCards, chrono 90 min depuis `startedAt`, auto-finish à 0 → bilan),
-      `[id]/bilan/page.tsx` (CECRL plancher + polling 3 s rapide 30 s puis 8 s,
-      max 5 min, sur `status === COMPLETED`). `TcfFullExamBriefingSheet` (lancement
-      + 403 → paywall), `TcfFullExamSlots` (grille partagée + `fullExamStartedHref`).
+      `tcf/[id]/bilan/page.tsx` (CECRL plancher + polling 3 s rapide 30 s puis 8 s,
+      max 5 min, sur `status === COMPLETED`), `tcf/TcfFullExamBriefingSheet.tsx`
+      (lancement + 403 → paywall, ouvert **inline** depuis la carte TCF).
     - **Évaluation IA en arrière-plan (parité mobile)** : EE/EO soumettent T1/T2
       sans attendre l'éval (`SUBMITTED` ~500 ms) ; après T3, `fullTcfExamApi.markSubDone`
       pose `finishedAt` et débloque l'épreuve suivante au hub sans attendre l'IA.
       Le bilan ne reste en attente que sur la dernière tâche → résultat en ~15 s.
     - **Intégration runners** : CO/CE (`/sessions/[attemptId]?fullExamId=`) et EE/EO
-      (`ProductionSession`, `?fullExamId=`) détectent le param → retour au hub au lieu
-      du rapport individuel (`onCompleted`/`markSubDone` + `router.push`).
+      (`ProductionSession`, `?fullExamId=`) détectent le param → retour au hub
+      (`/examens-blancs/tcf/[id]`) au lieu du rapport individuel.
+    - **Quitter = abandonner** : on ne laisse pas d'examen « en cours ». Hub →
+      bouton « Abandonner » (`ConfirmSheet`) → finalise les épreuves incomplètes
+      (CO/CE `attemptApi.finish` = 0 si rien ; EE/EO `markSubDone`) puis `finish`
+      parent → bilan (corrige aussi l'auto-finish chrono 0 qui plantait sur un
+      examen incomplet). Examens autonomes (diagnostic guest, mocks) :
+      `QuestionRunner` prop `quitMode="confirmFinish"` → avertit + finalise.
     - **Freemium** : full exam premium (Intégral, backend `hasTcf`). Sur
-      `/examens-blancs`, la carte TCF branche : **abonné** → grille full-exam
-      (`TcfFullExamSlots` → `/tcf/examen-blanc`) ; **invité / compte gratuit** →
-      diagnostic CO+CE (`tcf-mix-01`, EE/EO cadenassés, rapport sur 2 épreuves).
-      `ModuleExamsSection` refondu (chrome + grille en `children`).
+      `/examens-blancs`, la carte TCF branche : **abonné** → cards style Civique
+      (`ExamsGrid`, Refaire/Rapport, niveau CECRL via `ExamCard.metaOverride`) →
+      briefing inline → hub ; **invité / compte gratuit** → diagnostic CO+CE
+      (`tcf-mix-01`, EE/EO cadenassés). `ModuleExamsSection` = chrome + grille en
+      `children`.
+    - **Statut backend** (`FullTcfExamService`) : un examen abandonné sans soumettre
+      EE/EO ne reste PAS `PENDING_EVALUATIONS` — le statut ne dépend que des
+      submissions réellement en pipeline (`hasInFlightProduction`) ; une épreuve
+      production terminée sans soumission compte `A1_NON_ATTEINT`.
     - **Types/api** `lib/types.ts` (`FullTcfExamResponse`, `FullTcfExamSubAttempt`,
       `FullTcfExamSummaryResponse`, `FullTcfExamStatus`, `FULL_TCF_EXAM_DURATION_SEC`,
       `FULL_TCF_EXAM_EPREUVES`) + `lib/api.ts` (`fullTcfExamApi`).

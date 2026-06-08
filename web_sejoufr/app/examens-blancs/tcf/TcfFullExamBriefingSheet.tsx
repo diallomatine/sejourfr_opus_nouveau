@@ -37,7 +37,7 @@ export function TcfFullExamBriefingSheet({ slotNumber, onClose, onNeedsPremium }
     setError(null);
     try {
       const exam = await fullTcfExamApi.start(slotNumber);
-      router.push(`/tcf/examen-blanc/${exam.id}`);
+      router.push(`/examens-blancs/tcf/${exam.id}`);
     } catch (e) {
       if (e instanceof ApiException && e.status === 403 && onNeedsPremium) {
         onNeedsPremium();

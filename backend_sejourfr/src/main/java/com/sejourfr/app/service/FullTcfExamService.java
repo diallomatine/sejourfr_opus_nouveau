@@ -354,9 +354,17 @@ public class FullTcfExamService {
         }
         // Plancher des 3 tâches, plafonné B2 (l'éval IA peut rendre C1/C2 ;
         // l'IRN ne classe pas au-delà). La note brute reste stockée intacte.
-        NiveauCecrl level = evaluatedCount == EXPECTED_PRODUCTION_SUBMISSIONS
-                ? levelEstimator.capB2(floor)
-                : null;
+        // Cas d'abandon : épreuve terminée sans aucune soumission → comptée
+        // comme non atteinte (le « reste noté 0 » d'un examen abandonné), pour
+        // ne pas laisser le bilan croire qu'une évaluation IA est en cours.
+        NiveauCecrl level;
+        if (evaluatedCount == EXPECTED_PRODUCTION_SUBMISSIONS) {
+            level = levelEstimator.capB2(floor);
+        } else if (sub.getFinishedAt() != null && submissions.isEmpty()) {
+            level = NiveauCecrl.A1_NON_ATTEINT;
+        } else {
+            level = null;
+        }
         return new FullTcfExamResponse.SubAttempt(
                 sub.getId(), e, sub.getFinishedAt(), level,
                 null, null, evaluatedCount, failedIds);
@@ -379,10 +387,12 @@ public class FullTcfExamService {
         // tourne encore (statuts SUBMITTED / TRANSCRIBING / EVALUATING).
         for (FullTcfExamResponse.SubAttempt s : subs) {
             if (s.epreuve() == EpreuveType.TCF_EE || s.epreuve() == EpreuveType.TCF_EO) {
-                int evaluated = s.submissionsCount() == null ? 0 : s.submissionsCount();
-                int failed = s.failedSubmissionIds() == null ? 0 : s.failedSubmissionIds().size();
-                if (evaluated + failed < EXPECTED_PRODUCTION_SUBMISSIONS) {
-                    // Une ou plusieurs submissions encore en cours de pipeline.
+                // PENDING uniquement s'il reste une submission RÉELLEMENT dans le
+                // pipeline IA (SUBMITTED / TRANSCRIBING / EVALUATING). Un examen
+                // abandonné avec moins de 3 (voire 0) submissions n'a rien en
+                // cours → il est aussi complet qu'il le sera. Les FAILED sont
+                // terminales (retry exposé via failedSubmissionIds), pas pending.
+                if (hasInFlightProduction(s.attemptId())) {
                     return FullTcfExamResponse.FullTcfExamStatus.PENDING_EVALUATIONS;
                 }
             } else if (s.cecrlLevel() == null) {
@@ -393,6 +403,20 @@ public class FullTcfExamService {
         return parent.getFinishedAt() != null
                 ? FullTcfExamResponse.FullTcfExamStatus.COMPLETED
                 : FullTcfExamResponse.FullTcfExamStatus.PENDING_EVALUATIONS;
+    }
+
+    /** Vrai s'il existe au moins une submission de cet attempt encore dans le
+     *  pipeline IA (non terminale). FAILED et EVALUATED sont terminales. */
+    private boolean hasInFlightProduction(UUID attemptId) {
+        for (ProductionSubmission s : productionSubmissionManager.findByAttemptId(attemptId)) {
+            SubmissionStatut st = s.getStatut();
+            if (st == SubmissionStatut.SUBMITTED
+                    || st == SubmissionStatut.TRANSCRIBING
+                    || st == SubmissionStatut.EVALUATING) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

@@ -114,7 +114,7 @@ function ProgressInner() {
     } catch {
       // idempotent / déjà finalisé — le bilan se chargera de l'état réel
     }
-    router.push(`/tcf/examen-blanc/${examId}/bilan`);
+    router.push(`/examens-blancs/tcf/${examId}/bilan`);
   }, [exam, examId, finishing, router]);
 
   // Chrono à 0 → finaliser automatiquement (sans avertissement)
@@ -125,14 +125,14 @@ function ProgressInner() {
   }, [exam, remaining, finishing, finalizeAndGoToBilan]);
 
   if (status === "loading") return <div className={s.loading}>Chargement…</div>;
-  if (!user) return <ModuleDetailGate next={`/tcf/examen-blanc/${examId}`} />;
+  if (!user) return <ModuleDetailGate next={`/examens-blancs/tcf/${examId}`} />;
 
   if (loading) return <div className={s.loading}>Chargement de l&apos;examen…</div>;
   if (error) {
     return (
       <div className={s.page}>
         <div className={s.error}>{error}</div>
-        <Link href="/tcf/examen-blanc" className="btn btn-ghost">
+        <Link href="/examens-blancs" className="btn btn-ghost">
           Retour aux examens
         </Link>
       </div>
@@ -183,7 +183,7 @@ function ProgressInner() {
       {/* CTA */}
       <div className={s.ctaZone}>
         {allDone ? (
-          <Link href={`/tcf/examen-blanc/${examId}/bilan`} className="btn btn-red btn-lg">
+          <Link href={`/examens-blancs/tcf/${examId}/bilan`} className="btn btn-red btn-lg">
             Voir mon résultat
           </Link>
         ) : current ? (

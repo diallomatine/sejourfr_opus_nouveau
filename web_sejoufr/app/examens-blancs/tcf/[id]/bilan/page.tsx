@@ -137,13 +137,13 @@ function BilanInner() {
   }, [status, examId]);
 
   if (status === "loading") return <div className={s.loading}>Chargement…</div>;
-  if (!user) return <ModuleDetailGate next={`/tcf/examen-blanc/${examId}/bilan`} />;
+  if (!user) return <ModuleDetailGate next={`/examens-blancs/tcf/${examId}/bilan`} />;
   if (loading) return <div className={s.loading}>Calcul du bilan…</div>;
   if (error) {
     return (
       <div className={s.page}>
         <div className={s.error}>{error}</div>
-        <Link href="/tcf/examen-blanc" className="btn btn-ghost">
+        <Link href="/examens-blancs" className="btn btn-ghost">
           Retour aux examens
         </Link>
       </div>
@@ -204,7 +204,7 @@ function BilanInner() {
         ))}
       </div>
 
-      <Link href="/tcf/examen-blanc" className="btn btn-ghost" style={{ width: "100%" }}>
+      <Link href="/examens-blancs" className="btn btn-ghost" style={{ width: "100%" }}>
         Retour aux examens
       </Link>
     </div>

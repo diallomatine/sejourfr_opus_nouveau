@@ -8,7 +8,7 @@ import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { GuestGateSheet } from "@/app/_components/GuestGateSheet";
 import { ExamsGrid, type ExamSlotData } from "@/app/_components/hub/DetailParts";
-import { fullExamStartedHref } from "@/app/tcf/examen-blanc/TcfFullExamSlots";
+import { TcfFullExamBriefingSheet } from "@/app/examens-blancs/tcf/TcfFullExamBriefingSheet";
 import {
   ApiException,
   attemptApi,
@@ -38,7 +38,8 @@ const CIVIQUE_FULL_EXAM_SLUG = "civique-decouverte";
  * /examens-blancs : « Examens blancs complets » — une card par parcours.
  *
  * - **TCF abonné (Intégral)** : grille des 20 examens TCF complets (CO+CE+EE+EO
- *   orchestrés) → hub `/tcf/examen-blanc`.
+ *   orchestrés) ; « Démarrer » ouvre le briefing inline → hub
+ *   `/examens-blancs/tcf/[id]`.
  * - **TCF invité / compte gratuit** : diagnostic gratuit CO+CE (`tcf-mix-01`),
  *   EE/EO cadenassés, rapport sur les 2 épreuves de compréhension. C'est le
  *   hook de conversion (examen 1 offert, 2+ premium).
@@ -63,6 +64,8 @@ function ExamsConnectedHome() {
   const [tcfComprehension, setTcfComprehension] = useState<AttemptSummaryResponse[]>([]);
   const [fullExams, setFullExams] = useState<FullTcfExamSummaryResponse[]>([]);
   const [paywallModule, setPaywallModule] = useState<"CIVIQUE" | "INTEGRAL" | null>(null);
+  /** Slot dont le briefing d'examen complet est ouvert (lancement inline). */
+  const [briefingSlot, setBriefingSlot] = useState<number | null>(null);
 
   const tcfPremium = user != null && canAccessModule(user, "TCF");
   const civiquePremium = user != null && canAccessModule(user, "CIVIQUE");
@@ -127,7 +130,7 @@ function ExamsConnectedHome() {
 
   // Cards full-exam (abonné) : mêmes cards que Civique. Un slot rempli =
   // examen complet déjà passé (Refaire relance, Rapport → bilan ou hub si
-  // encore en cours). « Démarrer » ouvre le briefing du hub via ?startSlot.
+  // encore en cours). « Démarrer » ouvre le briefing inline.
   const fullExamSlotData: ExamSlotData[] = useMemo(
     () =>
       [...fullExams]
@@ -143,12 +146,17 @@ function ExamsConnectedHome() {
         })),
     [fullExams],
   );
+  // « Rapport » : examen en cours → hub (reprise), terminé/éval → bilan.
   function fullExamReportPath(id: string): string {
     const e = fullExams.find((x) => x.id === id);
-    return (e && fullExamStartedHref(e)) ?? `/tcf/examen-blanc/${id}/bilan`;
+    return e?.status === "IN_PROGRESS"
+      ? `/examens-blancs/tcf/${id}`
+      : `/examens-blancs/tcf/${id}/bilan`;
   }
+  // « Démarrer / Refaire » : ouvre le briefing inline (il crée l'examen et
+  // route vers le hub /examens-blancs/tcf/[id]).
   function startFullExam(slot: number) {
-    router.push(`/tcf/examen-blanc?startSlot=${slot}`);
+    setBriefingSlot(slot);
   }
   function startCivique() {
     router.push(`/examens-blancs/${CIVIQUE_FULL_EXAM_SLUG}`);
@@ -233,6 +241,17 @@ function ExamsConnectedHome() {
           onLocked={() => setPaywallModule("CIVIQUE")}
         />
       </ModuleExamsSection>
+
+      {briefingSlot !== null && (
+        <TcfFullExamBriefingSheet
+          slotNumber={briefingSlot}
+          onClose={() => setBriefingSlot(null)}
+          onNeedsPremium={() => {
+            setBriefingSlot(null);
+            setPaywallModule("INTEGRAL");
+          }}
+        />
+      )}
 
       <PaywallSheet
         open={paywallModule !== null}

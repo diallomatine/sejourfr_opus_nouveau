@@ -298,7 +298,7 @@ function SessionRunnerInner({ params }: PageProps) {
           // Sous-épreuve CO/CE d'un examen complet déjà terminée : on ne montre
           // pas le rapport individuel, on renvoie au hub de progression.
           if (fullExamId) {
-            router.replace(`/tcf/examen-blanc/${fullExamId}`);
+            router.replace(`/examens-blancs/tcf/${fullExamId}`);
             return;
           }
           setAttempt(a);
@@ -522,7 +522,7 @@ function SessionRunnerInner({ params }: PageProps) {
         }
         quitHref={
           fullExamId
-            ? `/tcf/examen-blanc/${fullExamId}`
+            ? `/examens-blancs/tcf/${fullExamId}`
             : isExam
               ? examReturnPath(attempt)
               : (lotQuitHref ?? "/entrainement")
@@ -530,13 +530,15 @@ function SessionRunnerInner({ params }: PageProps) {
         quitMode={isExam && !fullExamId ? "confirmFinish" : "link"}
         timeLimitSeconds={isExam ? attempt.timeLimitSeconds : undefined}
         startedAt={isExam ? attempt.startedAt : undefined}
-        sections={tcfExamSections(attempt)}
+        // En examen complet, l'épreuve a déjà été lancée depuis le hub
+        // (« Commencer · Compréhension orale ») : pas de 2ᵉ écran d'intro.
+        sections={fullExamId ? undefined : tcfExamSections(attempt)}
         backend={isGuest ? GUEST_BACKEND : undefined}
         onCompleted={(finalAttempt) => {
           // Épreuve d'un examen complet : retour au hub (qui débloque la
           // suivante) au lieu d'afficher le rapport individuel.
           if (fullExamId) {
-            router.push(`/tcf/examen-blanc/${fullExamId}`);
+            router.push(`/examens-blancs/tcf/${fullExamId}`);
             return;
           }
           setAttempt(finalAttempt);

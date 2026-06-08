@@ -117,7 +117,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           // Reprise d'une épreuve d'examen complet déjà soumise : pas de bilan
           // individuel, on renvoie au hub (la sous-épreuve y est déjà terminée).
           if (fullExamId) {
-            router.replace(`/tcf/examen-blanc/${fullExamId}`);
+            router.replace(`/examens-blancs/tcf/${fullExamId}`);
             return;
           }
           setPhase("bilan");
@@ -166,7 +166,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             // Fallback : le backend pose finishedAt dès que la 3ᵉ submission
             // est traitée (ProductionEvaluationService.finishSubAttemptIfFullExam).
           }
-          router.push(`/tcf/examen-blanc/${fullExamId}`);
+          router.push(`/examens-blancs/tcf/${fullExamId}`);
         } else {
           setPhase("bilan");
           startBilanPolling();
@@ -195,7 +195,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   return (
     <DualChromeShell>
       <DetailShell
-        backHref={fullExamId ? `/tcf/examen-blanc/${fullExamId}` : `${config.base}/examens`}
+        backHref={fullExamId ? `/examens-blancs/tcf/${fullExamId}` : `${config.base}/examens`}
         backLabel={fullExamId ? "Examen complet" : "Examens blancs"}
         eyebrowIcon={
           config.mode === "audio" ? (
