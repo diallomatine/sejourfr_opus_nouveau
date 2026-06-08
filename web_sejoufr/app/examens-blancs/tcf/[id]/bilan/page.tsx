@@ -218,6 +218,7 @@ function SubAttemptCard({
   sa: FullTcfExamSubAttempt;
   examId: string;
 }) {
+  const router = useRouter();
   const meta = EPREUVE_META[sa.epreuve];
   if (!meta) return null;
 
@@ -225,10 +226,11 @@ function SubAttemptCard({
   const evaluated = sa.cecrlLevel !== null;
   const pending = sa.finishedAt && !evaluated;
 
+  // Le détail d'une épreuve revient au bilan de l'examen (pas vers les examens
+  // de l'épreuve) : on transmet `backTo` aux sessions de production.
+  const backTo = `/examens-blancs/tcf/${examId}/bilan`;
   const href = isProduction
-    ? sa.epreuve === "TCF_EE"
-      ? `/entrainement/tcf/ee/session/${sa.attemptId}`
-      : `/entrainement/tcf/eo/session/${sa.attemptId}`
+    ? `/entrainement/tcf/${sa.epreuve === "TCF_EE" ? "ee" : "eo"}/session/${sa.attemptId}?backTo=${encodeURIComponent(backTo)}`
     : `/sessions/${sa.attemptId}`;
 
   const sub = !sa.finishedAt
@@ -245,7 +247,7 @@ function SubAttemptCard({
     <button
       type="button"
       className={`${s.bilanCard} ${evaluated ? s.evaluated : ""}`}
-      onClick={() => (window.location.href = href)}
+      onClick={() => router.push(href)}
       disabled={!sa.finishedAt}
     >
       <span className={s.bilanCardIcon}>{meta.icon}</span>
