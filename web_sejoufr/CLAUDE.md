@@ -414,10 +414,35 @@ Chantier découpé en vagues :
       comme héritage d'URL (sert au chemin « Autres séries ») ;
       `TcfLotResultCard` est supprimé.
     - `module_detail/parts.tsx` ne garde que `ModuleDetailGate` + `moduleDetailStyles`.
-    - **Reste au lot suivant** : examen blanc TCF complet orchestré (CO→CE→EE→EO).
-      En attendant, le hero « examen complet » du hub TCF pointe sur
-      `/examens-blancs/tcf`. (`ProductionMobileSheet` n'est plus utilisé par le hub —
-      conservé pour les promos mobile du dashboard/historique.)
+    - (`ProductionMobileSheet` n'est plus utilisé par le hub — conservé pour les
+      promos mobile du dashboard/historique.)
+
+- **Vague 9** ✅ — **Examen blanc TCF complet orchestré (CO → CE → EE → EO)**,
+  parité mobile (`screens/tcf_full_exam/*`, `screens/module_detail/tcf_full_exams_*`).
+  Le parent `TCF_COMPLET` porte 4 sous-attempts ; le backend
+  (`FullTcfExamController`, endpoints `/api/full-tcf-exams*` + `/api/me/full-tcf-exams`)
+  agrège le statut `IN_PROGRESS | PENDING_EVALUATIONS | COMPLETED`.
+    - **Routes** `app/tcf/examen-blanc/` : `page.tsx` (grille 20 slots + briefing,
+      `?startSlot=N` auto-ouvre le briefing), `[id]/page.tsx` (hub de progression :
+      4 StepCards, chrono 90 min depuis `startedAt`, auto-finish à 0 → bilan),
+      `[id]/bilan/page.tsx` (CECRL plancher + polling 3 s rapide 30 s puis 8 s,
+      max 5 min, sur `status === COMPLETED`). `TcfFullExamBriefingSheet` (lancement
+      + 403 → paywall), `TcfFullExamSlots` (grille partagée + `fullExamStartedHref`).
+    - **Évaluation IA en arrière-plan (parité mobile)** : EE/EO soumettent T1/T2
+      sans attendre l'éval (`SUBMITTED` ~500 ms) ; après T3, `fullTcfExamApi.markSubDone`
+      pose `finishedAt` et débloque l'épreuve suivante au hub sans attendre l'IA.
+      Le bilan ne reste en attente que sur la dernière tâche → résultat en ~15 s.
+    - **Intégration runners** : CO/CE (`/sessions/[attemptId]?fullExamId=`) et EE/EO
+      (`ProductionSession`, `?fullExamId=`) détectent le param → retour au hub au lieu
+      du rapport individuel (`onCompleted`/`markSubDone` + `router.push`).
+    - **Freemium** : full exam premium (Intégral, backend `hasTcf`). Sur
+      `/examens-blancs`, la carte TCF branche : **abonné** → grille full-exam
+      (`TcfFullExamSlots` → `/tcf/examen-blanc`) ; **invité / compte gratuit** →
+      diagnostic CO+CE (`tcf-mix-01`, EE/EO cadenassés, rapport sur 2 épreuves).
+      `ModuleExamsSection` refondu (chrome + grille en `children`).
+    - **Types/api** `lib/types.ts` (`FullTcfExamResponse`, `FullTcfExamSubAttempt`,
+      `FullTcfExamSummaryResponse`, `FullTcfExamStatus`, `FULL_TCF_EXAM_DURATION_SEC`,
+      `FULL_TCF_EXAM_EPREUVES`) + `lib/api.ts` (`fullTcfExamApi`).
 
 ### Règle de progression (validée 2026-06-06 — source unique backend)
 

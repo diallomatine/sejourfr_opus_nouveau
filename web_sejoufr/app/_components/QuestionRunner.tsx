@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MediaView } from "./MediaView";
+import { ConfirmSheet } from "./hub/ConfirmSheet";
 import {
   ApiException,
   attemptApi,
@@ -65,6 +66,12 @@ export interface QuestionRunnerProps {
   eyebrow: string;
   /** Lien du bouton "X" pour quitter. */
   quitHref: string;
+  /** Comportement du bouton "X" :
+   *  - "link" (défaut) : navigue vers `quitHref` (entraînement, épreuve d'un
+   *    examen complet → retour au hub).
+   *  - "confirmFinish" : avertit puis FINALISE l'examen (questions non répondues
+   *    comptées 0) et affiche le résultat — pas d'examen laissé « en cours ». */
+  quitMode?: "link" | "confirmFinish";
   /** Appelé quand l'attempt actif est finalisé (score disponible). */
   onCompleted: (finalAttempt: AttemptResponse) => void;
   /** Mode exam : décompte total en secondes. Quand 0, on auto-finalise. */
@@ -115,6 +122,7 @@ export function QuestionRunner({
   initialFavoriteIds,
   eyebrow,
   quitHref,
+  quitMode = "link",
   onCompleted,
   timeLimitSeconds,
   startedAt,
@@ -283,6 +291,14 @@ export function QuestionRunner({
       setState((s) => ({ ...s, submitting: false, error: msg }));
     }
   }, [backend, state.activeAttempt.id, onCompleted]);
+
+  // Quitter un examen autonome : avertit puis finalise (le reste compte 0) et
+  // montre le résultat — on ne laisse jamais un examen « en cours ».
+  const [quitConfirmOpen, setQuitConfirmOpen] = useState(false);
+  const confirmQuit = useCallback(() => {
+    setQuitConfirmOpen(false);
+    void finishCurrentAttempt();
+  }, [finishCurrentAttempt]);
 
   // ============== TIMER (mode exam) ==============
   // Calcule le temps restant à partir de startedAt + timeLimitSeconds. Tient
@@ -493,9 +509,20 @@ export function QuestionRunner({
       <div className="qr-frame">
         {/* TOP BAR */}
         <div className="qr-topbar">
-          <Link href={quitHref} className="qr-x" aria-label="Quitter">
-            ✕
-          </Link>
+          {quitMode === "confirmFinish" ? (
+            <button
+              type="button"
+              className="qr-x"
+              aria-label="Quitter"
+              onClick={() => setQuitConfirmOpen(true)}
+            >
+              ✕
+            </button>
+          ) : (
+            <Link href={quitHref} className="qr-x" aria-label="Quitter">
+              ✕
+            </Link>
+          )}
           <div className="qr-topbar-center">
             <span className="eyebrow">{eyebrow}</span>
             <span className="qr-count">
@@ -747,6 +774,17 @@ export function QuestionRunner({
         )}
       </div>
 
+      <ConfirmSheet
+        open={quitConfirmOpen}
+        tone="warning"
+        title="Quitter l'examen ?"
+        message="Si vous quittez maintenant, l'examen est finalisé : les questions non répondues sont comptées comme fausses. Vous verrez votre résultat. Cette action est définitive."
+        confirmLabel="Quitter et voir le résultat"
+        cancelLabel="Continuer l'examen"
+        onConfirm={confirmQuit}
+        onClose={() => setQuitConfirmOpen(false)}
+      />
+
       <style>{styles}</style>
     </section>
   );
@@ -834,6 +872,8 @@ const styles = `
     font-size: 18px;
     border-radius: 8px;
     flex-shrink: 0;
+    background: none; border: none; cursor: pointer;
+    font-family: inherit;
   }
   .qr-x:hover { background: var(--color-paper-2); }
   .qr-topbar-center { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; }

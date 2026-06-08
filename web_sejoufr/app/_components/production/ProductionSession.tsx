@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, FileStack, GraduationCap, Mic, PenLine, Play, Sparkles } from "lucide-react";
-import { ApiException, productionApi } from "@/lib/api";
+import { ApiException, fullTcfExamApi, productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
   cecrlIndex,
@@ -39,6 +39,10 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   const params = useParams<{ attemptId: string }>();
   const attemptId = params?.attemptId ?? "";
   const router = useRouter();
+  const searchParams = useSearchParams();
+  /** Présent quand cette session est une épreuve d'un examen blanc TCF complet :
+   *  on saute le bilan individuel et on retourne au hub de progression. */
+  const fullExamId = searchParams.get("fullExamId");
   const { user, status } = useAuth();
   const level = resolveTcfLevel(user);
 
@@ -110,6 +114,12 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         setSubsByTache(subs);
         const nextTodo = TACHES.find((n) => !subs.has(n));
         if (nextTodo === undefined) {
+          // Reprise d'une épreuve d'examen complet déjà soumise : pas de bilan
+          // individuel, on renvoie au hub (la sous-épreuve y est déjà terminée).
+          if (fullExamId) {
+            router.replace(`/tcf/examen-blanc/${fullExamId}`);
+            return;
+          }
           setPhase("bilan");
           startBilanPolling();
         } else {
@@ -136,6 +146,9 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     setError(null);
     setSubmitting(true);
     try {
+      // Attend uniquement la persistance backend (~500 ms, retourne SUBMITTED).
+      // L'évaluation IA tourne en arrière-plan — on n'attend pas EVALUATED ici,
+      // exactement comme le mobile : T1/T2 enchaînent sans latence d'éval.
       const sub = await go(attemptId);
       if (config.mode === "text") clearEeDraft(currentTask.id);
       const next = new Map(subsByTache);
@@ -143,8 +156,21 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       setSubsByTache(next);
       const nextTodo = TACHES.find((n) => !next.has(n));
       if (nextTodo === undefined) {
-        setPhase("bilan");
-        startBilanPolling();
+        // T3 soumise : dernière tâche de l'épreuve.
+        if (fullExamId) {
+          // Examen complet : signaler la sous-épreuve terminée (sans attendre
+          // l'IA) puis revenir au hub, qui débloque l'épreuve suivante.
+          try {
+            await fullTcfExamApi.markSubDone(fullExamId, config.epreuve);
+          } catch {
+            // Fallback : le backend pose finishedAt dès que la 3ᵉ submission
+            // est traitée (ProductionEvaluationService.finishSubAttemptIfFullExam).
+          }
+          router.push(`/tcf/examen-blanc/${fullExamId}`);
+        } else {
+          setPhase("bilan");
+          startBilanPolling();
+        }
       } else {
         setCurrentTache(nextTodo);
       }
@@ -159,13 +185,18 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`${config.base}/session/${attemptId}`} />;
 
-  const submitLabel = currentTache < 3 ? "Valider et continuer" : "Valider et terminer";
+  const submitLabel =
+    currentTache < 3
+      ? "Valider et continuer"
+      : fullExamId
+        ? "Valider et passer à l'épreuve suivante"
+        : "Valider et terminer";
 
   return (
     <DualChromeShell>
       <DetailShell
-        backHref={`${config.base}/examens`}
-        backLabel="Examens blancs"
+        backHref={fullExamId ? `/tcf/examen-blanc/${fullExamId}` : `${config.base}/examens`}
+        backLabel={fullExamId ? "Examen complet" : "Examens blancs"}
         eyebrowIcon={
           config.mode === "audio" ? (
             <Mic size={18} strokeWidth={2} />

@@ -2,42 +2,47 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Info, Lightbulb, Target, Waves } from "lucide-react";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { GuestGateSheet } from "@/app/_components/GuestGateSheet";
-import { ExamsGrid } from "@/app/_components/hub/DetailParts";
+import { ExamsGrid, type ExamSlotData } from "@/app/_components/hub/DetailParts";
+import { fullExamStartedHref } from "@/app/tcf/examen-blanc/TcfFullExamSlots";
 import {
   ApiException,
   attemptApi,
+  fullTcfExamApi,
   publicExamApi,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
   type AttemptSummaryResponse,
   canAccessModule,
+  cecrlIndex,
   type ExamTemplateSummary,
+  type FullTcfExamSummaryResponse,
   isProductionAttempt,
   type Module as ModuleEnum,
+  niveauCecrlLabel,
 } from "@/lib/types";
 
 const SLOTS = 20;
 const COLLAPSED = 8;
 
 /** Templates de référence des examens complets (briefing + lancement). */
-const TCF_FULL_EXAM_SLUG = "tcf-mix-01";
+const TCF_FREE_DIAGNOSTIC_SLUG = "tcf-mix-01";
 const CIVIQUE_FULL_EXAM_SLUG = "civique-decouverte";
 
 /**
- * /examens-blancs (maquette sejour_fr.html) : « Examens blancs complets » —
- * une grande card par parcours (TCF IRN 50 Q CO→CE · Examen civique 40 Q
- * stratifiées tous thèmes) avec stats, 20 épreuves repliées à 8 (+ Voir tout).
- * Épreuve 1 gratuite, 2+ premium.
+ * /examens-blancs : « Examens blancs complets » — une card par parcours.
  *
- * Guests : même grille — l'examen 1 de chaque parcours passe par la page
- * briefing du template free, qui crée l'attempt anonyme (user NULL + IP
- * côté backend) ; les examens 2-20 ouvrent la GuestGateSheet.
+ * - **TCF abonné (Intégral)** : grille des 20 examens TCF complets (CO+CE+EE+EO
+ *   orchestrés) → hub `/tcf/examen-blanc`.
+ * - **TCF invité / compte gratuit** : diagnostic gratuit CO+CE (`tcf-mix-01`),
+ *   EE/EO cadenassés, rapport sur les 2 épreuves de compréhension. C'est le
+ *   hook de conversion (examen 1 offert, 2+ premium).
+ * - **Civique** : MOCK_EXAM 40 Q stratifiées (`civique-decouverte`).
  */
 export default function ExamensBlancsHomePage() {
   const { status } = useAuth();
@@ -55,8 +60,12 @@ function ExamsConnectedHome() {
   const { user, status } = useAuth();
 
   const [civique, setCivique] = useState<AttemptSummaryResponse[]>([]);
-  const [tcf, setTcf] = useState<AttemptSummaryResponse[]>([]);
+  const [tcfComprehension, setTcfComprehension] = useState<AttemptSummaryResponse[]>([]);
+  const [fullExams, setFullExams] = useState<FullTcfExamSummaryResponse[]>([]);
   const [paywallModule, setPaywallModule] = useState<"CIVIQUE" | "INTEGRAL" | null>(null);
+
+  const tcfPremium = user != null && canAccessModule(user, "TCF");
+  const civiquePremium = user != null && canAccessModule(user, "CIVIQUE");
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -67,8 +76,8 @@ function ExamsConnectedHome() {
     ]).then(([c, t]) => {
       if (cancelled) return;
       if (c.status === "fulfilled") {
-        // Examens complets uniquement (40 Q tous thèmes) : on écarte les
-        // examens thématiques (lotThemeId non null). Ordre chronologique.
+        // Examens complets civiques (40 Q tous thèmes) : on écarte les examens
+        // thématiques (lotThemeId non null). Ordre chronologique.
         setCivique(
           c.value
             .filter((a) => a.finishedAt && !a.lotThemeId)
@@ -76,9 +85,10 @@ function ExamsConnectedHome() {
         );
       }
       if (t.status === "fulfilled") {
-        // Examens TCF complets (50 Q sectionnées CO → CE) : on écarte les examens
-        // module (CO/CE/Structure) et les productions / TCF_COMPLET.
-        setTcf(
+        // Diagnostic de compréhension TCF (50 Q CO → CE) : on écarte les examens
+        // module (CO/CE/Structure) et les productions / TCF_COMPLET. Sert de
+        // carte pour les comptes gratuits (1 offert).
+        setTcfComprehension(
           t.value
             .filter(
               (a) =>
@@ -96,20 +106,56 @@ function ExamsConnectedHome() {
     };
   }, [status]);
 
-  // Démarrer/Refaire passe par la page briefing du template de référence
-  // (règles, déroulé, dernier score) — c'est elle qui crée l'attempt.
-  function start(module: ModuleEnum) {
-    router.push(
-      module === "TCF"
-        ? `/examens-blancs/${TCF_FULL_EXAM_SLUG}`
-        : `/examens-blancs/${CIVIQUE_FULL_EXAM_SLUG}`,
-    );
-  }
+  // Examens TCF complets : seulement pour les abonnés (le backend exige hasTcf).
+  useEffect(() => {
+    if (status !== "authenticated" || !tcfPremium) return;
+    let cancelled = false;
+    fullTcfExamApi
+      .listMine(SLOTS)
+      .then((list) => {
+        if (!cancelled) setFullExams(list);
+      })
+      .catch(() => {
+        /* silencieux : la grille s'affichera vide */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, tcfPremium]);
 
   if (status === "loading" || !user) return <HomeSkeleton />;
 
-  const tcfPremium = canAccessModule(user, "TCF");
-  const civiquePremium = canAccessModule(user, "CIVIQUE");
+  // Cards full-exam (abonné) : mêmes cards que Civique. Un slot rempli =
+  // examen complet déjà passé (Refaire relance, Rapport → bilan ou hub si
+  // encore en cours). « Démarrer » ouvre le briefing du hub via ?startSlot.
+  const fullExamSlotData: ExamSlotData[] = useMemo(
+    () =>
+      [...fullExams]
+        .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
+        .map((e) => ({
+          id: e.id,
+          metaOverride:
+            e.status === "COMPLETED"
+              ? niveauCecrlLabel(e.finalCecrlLevel)
+              : e.status === "PENDING_EVALUATIONS"
+                ? "Éval en cours…"
+                : "En cours",
+        })),
+    [fullExams],
+  );
+  function fullExamReportPath(id: string): string {
+    const e = fullExams.find((x) => x.id === id);
+    return (e && fullExamStartedHref(e)) ?? `/tcf/examen-blanc/${id}/bilan`;
+  }
+  function startFullExam(slot: number) {
+    router.push(`/tcf/examen-blanc?startSlot=${slot}`);
+  }
+  function startCivique() {
+    router.push(`/examens-blancs/${CIVIQUE_FULL_EXAM_SLUG}`);
+  }
+  function startTcfDiagnostic() {
+    router.push(`/examens-blancs/${TCF_FREE_DIAGNOSTIC_SLUG}`);
+  }
 
   return (
     <main className="ebh">
@@ -130,15 +176,43 @@ function ExamsConnectedHome() {
         tone="red"
         icon={<Waves size={22} strokeWidth={1.8} />}
         title="TCF IRN"
-        chip="CO puis CE"
-        brewLine="Enchaîne les épreuves de compréhension dans l'ordre du vrai TCF : orale (25 questions · 20 min) puis écrite (25 questions · 35 min)."
-        exams={tcf}
-        scoreOutOf={50}
-        premium={tcfPremium}
-        starting={false}
-        onStart={() => start("TCF")}
-        onLocked={() => setPaywallModule("INTEGRAL")}
-      />
+        chip={tcfPremium ? "CO · CE · EE · EO" : "CO puis CE"}
+        brewLine={
+          tcfPremium
+            ? "L'examen complet enchaîne les 4 épreuves dans l'ordre du vrai TCF IRN : compréhension orale et écrite, puis expression écrite et orale évaluées par l'IA. 90 min, niveau CECRL plancher des 4 épreuves."
+            : "Enchaîne les épreuves de compréhension dans l'ordre du vrai TCF : orale (25 questions · 20 min) puis écrite (25 questions · 35 min). L'expression écrite et orale se débloquent avec l'abonnement Intégral."
+        }
+        sub={
+          tcfPremium
+            ? fullExamSubline(fullExams)
+            : comprehensionSubline(tcfComprehension)
+        }
+      >
+        {tcfPremium ? (
+          <ExamsGrid
+            count={SLOTS}
+            exams={fullExamSlotData}
+            premium
+            starting={false}
+            itemLabel="Examen"
+            collapsedCount={COLLAPSED}
+            reportPath={fullExamReportPath}
+            onStart={startFullExam}
+            onLocked={() => setPaywallModule("INTEGRAL")}
+          />
+        ) : (
+          <ExamsGrid
+            count={SLOTS}
+            exams={tcfComprehension}
+            premium={false}
+            starting={false}
+            itemLabel="Épreuve"
+            collapsedCount={COLLAPSED}
+            onStart={startTcfDiagnostic}
+            onLocked={() => setPaywallModule("INTEGRAL")}
+          />
+        )}
+      </ModuleExamsSection>
 
       <ModuleExamsSection
         tone="blue"
@@ -146,13 +220,19 @@ function ExamsConnectedHome() {
         title="Examen civique"
         chip="5 catégories mélangées"
         brewLine="Brasse tous les thèmes : Principes et valeurs de la République · Système institutionnel et politique · Droits et devoirs · Histoire, géographie et culture · Vivre dans la société française."
-        exams={civique}
-        scoreOutOf={40}
-        premium={civiquePremium}
-        starting={false}
-        onStart={() => start("CIVIQUE")}
-        onLocked={() => setPaywallModule("CIVIQUE")}
-      />
+        sub={comprehensionSubline(civique, 40)}
+      >
+        <ExamsGrid
+          count={SLOTS}
+          exams={civique}
+          premium={civiquePremium}
+          starting={false}
+          itemLabel="Examen"
+          collapsedCount={COLLAPSED}
+          onStart={startCivique}
+          onLocked={() => setPaywallModule("CIVIQUE")}
+        />
+      </ModuleExamsSection>
 
       <PaywallSheet
         open={paywallModule !== null}
@@ -166,37 +246,19 @@ function ExamsConnectedHome() {
 }
 
 // ============================================================================
-// SECTION MODULE — card TCF IRN / Examen civique
+// Sous-titres de card (stats récap)
 // ============================================================================
-function ModuleExamsSection({
-  tone,
-  icon,
-  title,
-  chip,
-  brewLine,
-  exams,
-  scoreOutOf,
-  premium,
-  starting,
-  lockedLabel,
-  onStart,
-  onLocked,
-}: {
-  tone: "blue" | "red";
-  icon: React.ReactNode;
-  title: string;
-  chip: string;
-  brewLine: string;
-  exams: AttemptSummaryResponse[];
-  scoreOutOf: number;
-  premium: boolean;
-  starting: boolean;
-  lockedLabel?: string;
-  onStart: () => void;
-  onLocked: () => void;
-}) {
+
+/** Récap des examens QCM (compréhension TCF / civique) : score brut ou échelle
+ *  calibrée TCF (100-499) dès qu'un examen calibré existe. */
+function comprehensionSubline(
+  exams: AttemptSummaryResponse[],
+  scoreOutOf = 50,
+): string {
   const done = Math.min(exams.length, SLOTS);
-  // Échelle TCF (100-499) dès qu'un examen calibré existe, brut sinon.
+  if (done === 0) {
+    return `${SLOTS} épreuves disponibles · aucune passée pour l'instant`;
+  }
   const bestCalibrated = exams.reduce(
     (max: number | null, a) =>
       a.calibratedScore != null ? Math.max(max ?? 0, a.calibratedScore) : max,
@@ -205,11 +267,47 @@ function ModuleExamsSection({
   const best = exams.reduce((max, a) => Math.max(max, a.score ?? 0), 0);
   const bestLabel =
     bestCalibrated != null ? `${bestCalibrated}/499` : `${best}/${scoreOutOf}`;
-  const sub =
-    done > 0
-      ? `${done}/${SLOTS} épreuves passées · meilleur ${bestLabel}`
-      : `${SLOTS} épreuves disponibles · aucune passée pour l'instant`;
+  return `${done}/${SLOTS} épreuves passées · meilleur ${bestLabel}`;
+}
 
+/** Récap des examens TCF complets : nombre terminés + meilleur niveau CECRL. */
+function fullExamSubline(exams: FullTcfExamSummaryResponse[]): string {
+  const completed = exams.filter(
+    (e) => e.status === "COMPLETED" && e.finalCecrlLevel != null,
+  );
+  if (completed.length === 0) {
+    return `${SLOTS} examens complets disponibles · aucun terminé pour l'instant`;
+  }
+  const bestLevel = completed.reduce<FullTcfExamSummaryResponse["finalCecrlLevel"]>(
+    (best, e) =>
+      best == null || cecrlIndex(e.finalCecrlLevel) > cecrlIndex(best)
+        ? e.finalCecrlLevel
+        : best,
+    null,
+  );
+  return `${completed.length}/${SLOTS} examens complets · meilleur niveau ${niveauCecrlLabel(bestLevel)}`;
+}
+
+// ============================================================================
+// SECTION MODULE — card TCF IRN / Examen civique (chrome + grille en children)
+// ============================================================================
+function ModuleExamsSection({
+  tone,
+  icon,
+  title,
+  chip,
+  brewLine,
+  sub,
+  children,
+}: {
+  tone: "blue" | "red";
+  icon: ReactNode;
+  title: string;
+  chip: string;
+  brewLine: string;
+  sub: string;
+  children: ReactNode;
+}) {
   return (
     <section className="ebh-module">
       <header className="ebh-module-head">
@@ -228,17 +326,7 @@ function ModuleExamsSection({
         <span>{brewLine}</span>
       </div>
 
-      <ExamsGrid
-        count={SLOTS}
-        exams={exams}
-        premium={premium}
-        starting={starting}
-        itemLabel="Épreuve"
-        lockedLabel={lockedLabel}
-        collapsedCount={COLLAPSED}
-        onStart={onStart}
-        onLocked={onLocked}
-      />
+      {children}
     </section>
   );
 }
@@ -255,10 +343,9 @@ function HomeSkeleton() {
 }
 
 // ============================================================================
-// VERSION GUEST — même grille que les connectés : examen 1 jouable en
-// anonyme (analytics : attempt user NULL + clientIp), 2-20 → inscription.
-// Démarrer passe par la page briefing du template free (présentation +
-// règles), comme en connecté — c'est elle qui crée l'attempt anonyme.
+// VERSION GUEST — même grille que les connectés gratuits : examen 1 jouable en
+// anonyme (diagnostic CO+CE, analytics user NULL + clientIp), 2-20 →
+// inscription. Le full exam (EE/EO) exige un compte + abonnement.
 // ============================================================================
 
 function ExamsGuestHome() {
@@ -326,15 +413,21 @@ function ExamsGuestHome() {
         icon={<Waves size={22} strokeWidth={1.8} />}
         title="TCF IRN"
         chip="CO puis CE"
-        brewLine="Enchaîne les épreuves de compréhension dans l'ordre du vrai TCF : orale (25 questions · 20 min) puis écrite (25 questions · 35 min)."
-        exams={[]}
-        scoreOutOf={50}
-        premium={false}
-        starting={false}
-        lockedLabel="Compte gratuit"
-        onStart={() => startDemo("TCF")}
-        onLocked={() => setGuestGateOpen(true)}
-      />
+        brewLine="Enchaîne les épreuves de compréhension dans l'ordre du vrai TCF : orale (25 questions · 20 min) puis écrite (25 questions · 35 min). L'expression écrite et orale se débloquent avec un compte abonné."
+        sub={`${SLOTS} épreuves disponibles · 1 offerte sans compte`}
+      >
+        <ExamsGrid
+          count={SLOTS}
+          exams={[]}
+          premium={false}
+          starting={false}
+          itemLabel="Épreuve"
+          collapsedCount={COLLAPSED}
+          lockedLabel="Compte gratuit"
+          onStart={() => startDemo("TCF")}
+          onLocked={() => setGuestGateOpen(true)}
+        />
+      </ModuleExamsSection>
 
       <ModuleExamsSection
         tone="blue"
@@ -342,14 +435,20 @@ function ExamsGuestHome() {
         title="Examen civique"
         chip="5 catégories mélangées"
         brewLine="Brasse tous les thèmes : Principes et valeurs de la République · Système institutionnel et politique · Droits et devoirs · Histoire, géographie et culture · Vivre dans la société française."
-        exams={[]}
-        scoreOutOf={40}
-        premium={false}
-        starting={false}
-        lockedLabel="Compte gratuit"
-        onStart={() => startDemo("CIVIQUE")}
-        onLocked={() => setGuestGateOpen(true)}
-      />
+        sub={`${SLOTS} épreuves disponibles · 1 offerte sans compte`}
+      >
+        <ExamsGrid
+          count={SLOTS}
+          exams={[]}
+          premium={false}
+          starting={false}
+          itemLabel="Examen"
+          collapsedCount={COLLAPSED}
+          lockedLabel="Compte gratuit"
+          onStart={() => startDemo("CIVIQUE")}
+          onLocked={() => setGuestGateOpen(true)}
+        />
+      </ModuleExamsSection>
 
       <div className="ebh-guest-foot">
         Pour passer les examens suivants, retrouver vos scores et suivre votre

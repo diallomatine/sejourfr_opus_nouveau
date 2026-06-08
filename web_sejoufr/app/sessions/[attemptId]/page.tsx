@@ -181,6 +181,9 @@ function SessionRunnerInner({ params }: PageProps) {
   const resultMode = searchParams.get("result");
   const tcfCode = searchParams.get("code");
   const tcfLevel = searchParams.get("level");
+  /** Présent quand Cette session (CO/CE) fait partie d'un examen blanc TCF
+   *  complet : pas de rapport individuel, on retourne au hub de progression. */
+  const fullExamId = searchParams.get("fullExamId");
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [sessionMode, setSessionMode] = useState<SessionMode>("auth");
@@ -292,6 +295,12 @@ function SessionRunnerInner({ params }: PageProps) {
         setSessionMode(mode);
 
         if (a.finishedAt) {
+          // Sous-épreuve CO/CE d'un examen complet déjà terminée : on ne montre
+          // pas le rapport individuel, on renvoie au hub de progression.
+          if (fullExamId) {
+            router.replace(`/tcf/examen-blanc/${fullExamId}`);
+            return;
+          }
           setAttempt(a);
           setOpenedAsFinished(true);
           setPhase("result");
@@ -319,7 +328,7 @@ function SessionRunnerInner({ params }: PageProps) {
     return () => {
       cancelled = true;
     };
-  }, [attemptId, status]);
+  }, [attemptId, status, fullExamId, router]);
 
   if (status === "loading" || phase === "loading") {
     return <div className="sess-loading" />;
@@ -512,15 +521,24 @@ function SessionRunnerInner({ params }: PageProps) {
                 : "Entraînement"
         }
         quitHref={
-          isExam
-            ? examReturnPath(attempt)
-            : (lotQuitHref ?? "/entrainement")
+          fullExamId
+            ? `/tcf/examen-blanc/${fullExamId}`
+            : isExam
+              ? examReturnPath(attempt)
+              : (lotQuitHref ?? "/entrainement")
         }
+        quitMode={isExam && !fullExamId ? "confirmFinish" : "link"}
         timeLimitSeconds={isExam ? attempt.timeLimitSeconds : undefined}
         startedAt={isExam ? attempt.startedAt : undefined}
         sections={tcfExamSections(attempt)}
         backend={isGuest ? GUEST_BACKEND : undefined}
         onCompleted={(finalAttempt) => {
+          // Épreuve d'un examen complet : retour au hub (qui débloque la
+          // suivante) au lieu d'afficher le rapport individuel.
+          if (fullExamId) {
+            router.push(`/tcf/examen-blanc/${fullExamId}`);
+            return;
+          }
           setAttempt(finalAttempt);
           setPhase("result");
         }}

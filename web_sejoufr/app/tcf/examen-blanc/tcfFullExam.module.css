@@ -1,0 +1,539 @@
+/* ============================================================
+   TCF Full Exam — styles partagés entre la liste des slots,
+   le hub de progression, le bilan et le briefing sheet.
+   ============================================================ */
+
+/* ---- Page commune ---- */
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+/* ---- En-tête de la liste de slots ---- */
+.listEyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-bottom: 0.25rem;
+}
+.listTitle {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  margin: 0 0 0.5rem;
+}
+.listSub {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+  line-height: 1.5;
+  margin: 0 0 1.5rem;
+}
+
+/* ---- Hero rouge (chrono + étape) ---- */
+.hero {
+  background: linear-gradient(135deg, var(--color-red-dark), var(--color-red));
+  border-radius: 16px;
+  padding: 1.5rem;
+  color: #fff;
+  margin-bottom: 1.5rem;
+}
+.heroEyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  margin-bottom: 0.5rem;
+}
+.heroTitle {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 0.25rem;
+}
+.heroSub {
+  font-size: 0.875rem;
+  opacity: 0.8;
+}
+
+/* ---- Timer ---- */
+.timerBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: rgba(255 255 255 / 0.15);
+  border-radius: 8px;
+  padding: 0.25rem 0.75rem;
+  margin-top: 0.75rem;
+}
+.timerBadge.urgent {
+  background: rgba(255 255 255 / 0.9);
+  color: var(--color-red);
+  animation: urgentPulse 1s ease-in-out infinite;
+}
+@keyframes urgentPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ---- Cards d'étapes (hub) ---- */
+.stepList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.stepCard {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #fff;
+  border: 1.5px solid var(--color-line);
+  border-radius: 12px;
+  text-align: left;
+  cursor: default;
+  transition: border-color 0.15s;
+}
+.stepCard.current {
+  border-color: var(--color-blue);
+  background: var(--color-blue-soft);
+}
+.stepCard.done {
+  border-color: var(--color-green);
+  background: #f0faf5;
+}
+.stepCard.locked {
+  opacity: 0.5;
+}
+.stepIcon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  width: 2.5rem;
+  text-align: center;
+}
+.stepBody {
+  flex: 1;
+  min-width: 0;
+}
+.stepLabel {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-ink);
+}
+.stepMeta {
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  margin-top: 0.1rem;
+}
+.stepBadge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 0.2rem 0.5rem;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  white-space: nowrap;
+}
+.stepBadge.done {
+  background: #d1fae5;
+  color: var(--color-green);
+}
+.stepBadge.evaluating {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+/* ---- CTA zone ---- */
+.ctaZone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ---- Slots grid (liste des 20 épreuves) ---- */
+.slotsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.slotCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 1rem;
+  background: #fff;
+  border: 1.5px solid var(--color-line);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: left;
+}
+.slotCard:hover {
+  border-color: var(--color-blue);
+  background: var(--color-blue-soft);
+}
+.slotCard.inProgress {
+  border-color: var(--color-amber);
+  background: #fffbeb;
+}
+.slotCard.completed {
+  border-color: var(--color-green);
+  background: #f0faf5;
+}
+.slotNum {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+.slotStatus {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--color-ink-2);
+}
+.slotLevel {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-green);
+}
+.slotCard.locked {
+  cursor: pointer;
+  border-style: dashed;
+}
+.slotCard.locked:hover {
+  border-color: var(--color-blue);
+  background: var(--color-blue-soft);
+}
+.slotStatusAmber {
+  color: #854d0e;
+}
+.slotIconMuted {
+  margin-top: auto;
+  color: var(--color-muted);
+}
+.slotIconAmber {
+  margin-top: auto;
+  color: var(--color-amber);
+}
+.slotIconGreen {
+  margin-top: auto;
+  color: var(--color-green);
+}
+
+/* ---- Briefing sheet ---- */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15 24 57 / 0.45);
+  z-index: 100;
+  animation: fadeIn 0.2s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 600px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 1.5rem 1.5rem 2rem;
+  z-index: 101;
+  animation: slideUp 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  max-height: 92dvh;
+  overflow-y: auto;
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.sheetHandle {
+  width: 36px;
+  height: 4px;
+  background: var(--color-line);
+  border-radius: 2px;
+  margin: 0 auto 1.25rem;
+}
+.sheetEyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sheetDurationBadge {
+  background: var(--color-red-light);
+  color: var(--color-red);
+  border-radius: 6px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+}
+.sheetTitle {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--color-ink);
+  margin-bottom: 1.25rem;
+}
+
+/* Déroulé 4 épreuves */
+.deroulement {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1.5px solid var(--color-line);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+.deroulementRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: #fff;
+}
+.deroulementRow + .deroulementRow {
+  border-top: 1px solid var(--color-line-2);
+}
+.deroulementIcon {
+  font-size: 1.2rem;
+  width: 1.75rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+.deroulementLabel {
+  flex: 1;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--color-ink);
+}
+.deroulementDuration {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+/* À savoir */
+.aSavoir {
+  background: var(--color-red-light);
+  border-radius: 10px;
+  padding: 0.875rem 1rem;
+  margin-bottom: 1.25rem;
+}
+.aSavoirTitle {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-red);
+  margin-bottom: 0.5rem;
+}
+.aSavoirList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.aSavoirList li {
+  font-size: 0.8rem;
+  color: var(--color-ink-2);
+  padding-left: 1rem;
+  position: relative;
+}
+.aSavoirList li::before {
+  content: "·";
+  position: absolute;
+  left: 0.25rem;
+  color: var(--color-red);
+  font-weight: 700;
+}
+
+.sheetActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+
+/* ---- Bilan ---- */
+.bilanHero {
+  background: linear-gradient(135deg, var(--color-red-dark), var(--color-red));
+  border-radius: 16px;
+  padding: 1.5rem;
+  color: #fff;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+.bilanEyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-bottom: 0.75rem;
+}
+.bilanLevel {
+  font-family: var(--font-display);
+  font-size: 4rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+.bilanLevelSub {
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+.bilanPending {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+.bilanPendingText {
+  font-size: 0.875rem;
+  opacity: 0.85;
+}
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(255 255 255 / 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.pollBanner {
+  background: var(--color-blue-light);
+  border: 1px solid var(--color-blue);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  font-size: 0.82rem;
+  color: var(--color-blue);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.bilanCards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.bilanCard {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: #fff;
+  border: 1.5px solid var(--color-line);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  text-align: left;
+  width: 100%;
+}
+.bilanCard:hover {
+  border-color: var(--color-blue);
+}
+.bilanCard.evaluated {
+  border-color: var(--color-green);
+}
+.bilanCardIcon {
+  font-size: 1.4rem;
+  width: 2rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+.bilanCardBody {
+  flex: 1;
+  min-width: 0;
+}
+.bilanCardLabel {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-ink);
+}
+.bilanCardSub {
+  font-size: 0.78rem;
+  color: var(--color-muted);
+  margin-top: 0.1rem;
+}
+.bilanCardLevel {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-green);
+  flex-shrink: 0;
+}
+.bilanCardLevelPending {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+/* ---- Loading / error states ---- */
+.loading {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+.error {
+  background: var(--color-red-light);
+  color: var(--color-red);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 1.25rem 0.75rem 4rem;
+  }
+  .sheet {
+    padding: 1.25rem 1rem 2rem;
+  }
+  .slotsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  }
+}
