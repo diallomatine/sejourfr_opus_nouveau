@@ -48,13 +48,13 @@ function useCountdown(startedAt: string | null, limitSec = FULL_TCF_EXAM_DURATIO
   );
   const [remaining, setRemaining] = useState(calcRemaining);
 
+  // L'intervalle tourne en continu mais `calcRemaining` renvoie la durée pleine
+  // tant que `startedAt` est null (chrono pas encore démarré) : aucune
+  // décrémentation, et `setRemaining` no-op tant que la valeur ne change pas.
   useEffect(() => {
-    // Pas de décompte tant que le chrono n'a pas démarré (startedAt null) :
-    // la valeur initiale (durée pleine) reste affichée jusqu'au lancement.
-    if (startedAt === null) return;
     const id = setInterval(() => setRemaining(calcRemaining()), 1000);
     return () => clearInterval(id);
-  }, [calcRemaining, startedAt]);
+  }, [calcRemaining]);
 
   return remaining;
 }
