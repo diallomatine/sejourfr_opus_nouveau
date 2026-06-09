@@ -274,8 +274,9 @@ export function ExamsGrid({
   onLocked,
 }: {
   count: number;
-  /** Examens finis, triés du plus ancien au plus récent. */
-  exams: ExamSlotData[];
+  /** Examens finis. Soit une liste dense (case i = i-ᵉ examen), soit un
+   *  tableau indexé par slot (case i = examen du slot i+1, trous à null). */
+  exams: ReadonlyArray<ExamSlotData | null>;
   premium: boolean;
   freeSlots?: number;
   starting: boolean;
@@ -292,9 +293,10 @@ export function ExamsGrid({
 }) {
   const [expanded, setExpanded] = useState(false);
   // Replié, on montre au moins toutes les cards déjà faites + la prochaine.
+  const doneCount = exams.filter(Boolean).length;
   const visibleCount =
     collapsedCount && !expanded
-      ? Math.min(count, Math.max(collapsedCount, Math.min(exams.length + 1, count)))
+      ? Math.min(count, Math.max(collapsedCount, Math.min(doneCount + 1, count)))
       : count;
 
   return (

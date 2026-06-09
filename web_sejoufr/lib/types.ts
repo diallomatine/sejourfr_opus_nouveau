@@ -235,6 +235,10 @@ export interface StartAttemptRequest {
   lotNumero?: number;
   /** MOCK_EXAM scopé à une épreuve TCF QCM (CO/CE/STRUCTURE). */
   moduleExamQuestionType?: QuestionType;
+  /** Slot d'examen blanc visé dans la grille (1..N). MOCK_EXAM seulement :
+   *  refaire « l'examen N » réutilise le même slotNumber, l'UI prend le plus
+   *  récent par slot au lieu de créer un slot N+1 (cf. migration V110). */
+  slotNumber?: number;
 }
 
 /** Lot = chunk déterministe de questions (cf. backend LotService / LotDto). */
@@ -369,6 +373,9 @@ export interface AttemptSummaryResponse {
   examTemplateId?: string | null;
   examTemplateSlug?: string | null;
   examTemplateName?: string | null;
+  /** Slot dans la grille d'examens blancs (1..N). Non-null pour les MOCK_EXAM
+   *  standalone : l'UI groupe par slot et garde le plus récent. Cf. V110. */
+  slotNumber?: number | null;
 }
 
 /** True si l'attempt correspond a une production EO/EE. */

@@ -89,10 +89,11 @@ function tcfExamSections(attempt: AttemptResponse): RunnerSection[] | undefined 
       });
     }
   }
-  // Plus de 3 groupes = épreuves entremêlées (attempt historique) : pas de
-  // parties à annoncer. 1 seul groupe = examen mono-épreuve : l'écran d'intro
-  // sert quand même de présentation avant la première question.
-  return sections.length <= 3 ? sections : undefined;
+  // Seuls les examens multi-épreuves (diagnostic CO+CE) annoncent leurs
+  // parties. 1 seul groupe = examen mono-épreuve : pas d'écran d'intro runner,
+  // la modale ExamIntroSheet de la page examens présente déjà le déroulé.
+  // Plus de 3 groupes = épreuves entremêlées (attempt historique) → undefined.
+  return sections.length >= 2 && sections.length <= 3 ? sections : undefined;
 }
 
 /** Sous-titre du hero du rapport : épreuve/thème + nature de la session. */

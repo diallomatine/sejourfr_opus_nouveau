@@ -17,6 +17,8 @@ import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { GuestGateSheet } from "@/app/_components/GuestGateSheet";
 import { moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
 import { DetailShell, DetailStatCard, ExamsGrid } from "@/app/_components/hub/DetailParts";
+import { ExamIntroSheet } from "@/app/_components/hub/ExamIntroSheet";
+import { examSlotGrid } from "@/lib/exam-slots";
 import detail from "@/app/_components/hub/detail.module.css";
 
 const SLOTS = 20;
@@ -46,6 +48,8 @@ export default function CiviqueThemeExamsPage() {
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [guestGateOpen, setGuestGateOpen] = useState(false);
+  const [introOpen, setIntroOpen] = useState(false);
+  const [pendingSlot, setPendingSlot] = useState(1);
 
   useEffect(() => {
     if (status === "loading" || !themeRef) return;
@@ -71,12 +75,7 @@ export default function CiviqueThemeExamsPage() {
           limit: 30,
         });
         if (cancelled) return;
-        // Ordre chronologique : le 1er examen passé occupe la card 01.
-        setExams(
-          list
-            .filter((a) => a.finishedAt)
-            .sort((a, b) => a.startedAt.localeCompare(b.startedAt)),
-        );
+        setExams(list.filter((a) => a.finishedAt));
       } catch {
         /* best-effort : la grille reste vide */
       }
@@ -86,12 +85,22 @@ export default function CiviqueThemeExamsPage() {
     };
   }, [status, themeRef]);
 
-  async function start() {
+  // Grille indexée par slot : refaire l'examen N met à jour la case N.
+  const { bySlot, latest, doneCount } = useMemo(() => examSlotGrid(exams, SLOTS), [exams]);
+
+  function requestStart(slot: number) {
     if (starting || !theme) return;
     if (isGuest) {
       setGuestGateOpen(true);
       return;
     }
+    setError(null);
+    setPendingSlot(slot);
+    setIntroOpen(true);
+  }
+
+  async function launch() {
+    if (starting || !theme) return;
     setError(null);
     setStarting(true);
     try {
@@ -99,6 +108,7 @@ export default function CiviqueThemeExamsPage() {
         type: "MOCK_EXAM",
         module: "CIVIQUE",
         themeId: theme.id,
+        slotNumber: pendingSlot,
       });
       router.push(`/sessions/${a.id}`);
     } catch (e) {
@@ -107,10 +117,10 @@ export default function CiviqueThemeExamsPage() {
     }
   }
 
-  const done = Math.min(exams.length, SLOTS);
+  const done = Math.min(doneCount, SLOTS);
   const best = useMemo(
-    () => exams.reduce((max, e) => Math.max(max, e.score ?? 0), 0),
-    [exams],
+    () => latest.reduce((max, e) => Math.max(max, e.score ?? 0), 0),
+    [latest],
   );
   const slug = theme ? themeSlug(theme.code) : themeRef;
 
@@ -173,13 +183,33 @@ export default function CiviqueThemeExamsPage() {
 
         <ExamsGrid
           count={SLOTS}
-          exams={exams}
+          exams={bySlot}
           premium={isPremium}
           freeSlots={isGuest ? 0 : 1}
           lockedLabel={isGuest ? "Compte gratuit" : undefined}
           starting={starting}
-          onStart={start}
+          onStart={requestStart}
           onLocked={() => (isGuest ? setGuestGateOpen(true) : setPaywallOpen(true))}
+        />
+        <ExamIntroSheet
+          open={introOpen}
+          eyebrow={`Examen blanc · ${theme?.name ?? "Civique"}`}
+          title={`${theme?.name ?? "Examen civique"} en conditions réelles`}
+          subtitle="Avant de commencer, voici comment se déroule l'examen."
+          facts={[
+            { label: "questions du thème", value: "20" },
+            { label: "en conditions réelles", value: "20 min" },
+            { label: "seuil de réussite", value: "16/20", highlight: true },
+          ]}
+          tips={[
+            "Aucune correction pendant l'examen : votre résultat s'affiche à la fin.",
+            "Le chronomètre tourne et l'examen se termine automatiquement à la fin du temps.",
+            "Vous pouvez naviguer librement entre les questions.",
+          ]}
+          loading={starting}
+          error={error}
+          onConfirm={() => void launch()}
+          onClose={() => setIntroOpen(false)}
         />
         <PaywallSheet open={paywallOpen} onClose={() => setPaywallOpen(false)} module="CIVIQUE" />
         <GuestGateSheet

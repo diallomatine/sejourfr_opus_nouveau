@@ -146,10 +146,11 @@ EE/EO (`AttemptService.pickQuestionsForTemplate` → `drawTcfEpreuveStrata`). La
 session dérive des `RunnerSection[]` (`tcfExamSections`) passées au runner via
 la prop `sections` : bandeau « Partie x/y · i/n » au-dessus des tags + écran
 d'intro à chaque changement de partie (le chrono global continue) + bouton
-« Partie suivante » en fin de partie. Les examens TCF mono-épreuve (CO/CE/
-STRUCTURE) gardent l'écran d'intro comme présentation (« Compréhension orale ·
-25 questions · 20 min ») mais pas le bandeau. Undefined sur les attempts
-d'avant le tri (groupes > 3). **Notation TCF calibrée** : tous les examens TCF
+« Partie suivante » en fin de partie. `tcfExamSections` n'émet des sections
+que pour les examens **multi-épreuves** (diagnostic CO+CE) ; les examens TCF
+mono-épreuve (CO/CE/STRUCTURE) ne passent plus de section → pas d'écran d'intro
+runner, leur présentation (déroulé + seuil) vit dans `ExamIntroSheet` côté page
+examens. Undefined aussi sur les attempts d'avant le tri (groupes > 3). **Notation TCF calibrée** : tous les examens TCF
 stratifiés (module CO/CE/STRUCTURE + templates diagnostic) portent
 `calibratedScore` 100-499 + `cecrlLevel`, calculés UNIQUEMENT backend
 (`TcfLevelEstimatorService` — score corrigé du hasard 25 %, niveau = bande du
@@ -592,6 +593,23 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
           meilleur score, niveau estimé TCF via `cecrlLevel` ajouté au miroir
           `AttemptSummaryResponse` / restant civique) + grille de cards Examen
           (Démarrer / Refaire + Rapport / Premium). Examen 1 gratuit.
+          **Démarrer / Refaire ouvre d'abord `ExamIntroSheet`**
+          (`app/_components/hub/ExamIntroSheet.tsx`, bottom-sheet façon
+          ConfirmSheet) qui rappelle déroulé + seuil avant le lancement réel ;
+          son « Démarrer » POST l'attempt. Branchée sur les 3 surfaces
+          d'examens ciblés (TCF QCM `[code]/examens`, civique `[theme]/examens`,
+          EE/EO `ProductionExams`). Pour la CO, l'écran d'écoute du runner reste
+          une 2ᵉ confirmation après ; côté EE/EO l'avertissement « refaire
+          l'examen 1 » s'enchaîne ensuite si compte gratuit.
+          **Grille indexée par slot (parité mobile, migration V110)** : TCF QCM
+          et civique passent `slotNumber` au start (`StartAttemptRequest`) et
+          rangent les attempts via `examSlotGrid` (`lib/exam-slots.ts`) — case N
+          = examen du slot N, on garde le **plus récent** par slot. Refaire
+          l'examen N met à jour la note du slot N (au lieu d'ajouter un slot
+          N+1) ; les attempts sans `slotNumber` (historique d'avant V110) sont
+          ignorés dans la grille (toujours visibles dans /historique). Miroir
+          `AttemptSummaryResponse.slotNumber` ajouté. EE/EO restent chronos
+          (le backend force `slotNumber=1` sur les sessions d'examen production).
         - Supprimés : `ExamSlotsView`, `LotRow`, `LevelRow`, `ExamHistoryList`,
           `SeeMoreButton` + styles orphelins (HubParts ne garde que
           ExamBlancHero, SectionLabel/Counter/Link, HubDetailHeader pour les

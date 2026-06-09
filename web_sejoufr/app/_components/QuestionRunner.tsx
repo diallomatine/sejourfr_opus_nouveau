@@ -173,9 +173,9 @@ export function QuestionRunner({
   // ============== SECTIONS (examen sectionné) ==============
   // Partie courante + écran d'intro affiché en entrant sur la 1re question
   // d'une partie pas encore répondue (donc pas en navigation arrière, ni à
-  // la reprise d'une session au milieu d'une partie). Une section unique
-  // (examen mono-épreuve) garde l'écran d'intro comme présentation, mais
-  // pas le bandeau de partie.
+  // la reprise d'une session au milieu d'une partie). Seuls les examens
+  // multi-épreuves émettent des sections (cf. tcfExamSections) : les examens
+  // mono-épreuve n'en passent plus, leur présentation vit dans ExamIntroSheet.
   const sectionList = sections && sections.length > 0 ? sections : null;
   const multiSection = sectionList !== null && sectionList.length > 1;
   let sectionIndex = -1;
