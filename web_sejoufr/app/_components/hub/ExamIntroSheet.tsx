@@ -10,6 +10,17 @@ export interface ExamFact {
   highlight?: boolean;
 }
 
+/** Une épreuve listée dans le déroulé (TCF : CO/CE/EE/EO). */
+export interface ExamEpreuve {
+  /** Emoji décoratif (🎧 📖 ✍️ 🎙️). */
+  icon: string;
+  label: string;
+  /** Détail à droite (« 25 questions · 20 min », « 3 tâches »). */
+  meta: string;
+  /** Grisée + badge « Compte requis » (EE/EO en démo guest). */
+  locked?: boolean;
+}
+
 /**
  * Feuille d'info affichée avant de lancer un examen blanc ciblé (thème civique,
  * épreuve TCF QCM, EE/EO). Explique le déroulé + le seuil, puis « Démarrer »
@@ -23,6 +34,8 @@ export function ExamIntroSheet({
   title,
   subtitle,
   facts,
+  epreuves,
+  epreuvesLabel = "Les épreuves",
   tips,
   confirmLabel = "Démarrer l'examen",
   loading = false,
@@ -35,6 +48,9 @@ export function ExamIntroSheet({
   title: string;
   subtitle?: string;
   facts: ExamFact[];
+  /** Déroulé optionnel des épreuves (TCF). Une épreuve `locked` est grisée. */
+  epreuves?: ExamEpreuve[];
+  epreuvesLabel?: string;
   tips: string[];
   confirmLabel?: string;
   loading?: boolean;
@@ -72,6 +88,28 @@ export function ExamIntroSheet({
             </div>
           ))}
         </div>
+
+        {epreuves && epreuves.length > 0 && (
+          <div className="eis-epreuves">
+            <div className="eis-epreuves-title">{epreuvesLabel}</div>
+            {epreuves.map((e) => (
+              <div
+                key={e.label}
+                className={`eis-epreuve${e.locked ? " is-locked" : ""}`}
+              >
+                <span className="eis-ep-ico" aria-hidden>
+                  {e.icon}
+                </span>
+                <span className="eis-ep-label">{e.label}</span>
+                {e.locked ? (
+                  <span className="eis-ep-lock">🔒 Compte requis</span>
+                ) : (
+                  <span className="eis-ep-meta">{e.meta}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {tips.length > 0 && (
           <div className="eis-tips">
@@ -145,6 +183,42 @@ export function ExamIntroSheet({
           .eis-fact-label {
             font-size: 11px; line-height: 1.3; color: var(--color-muted);
           }
+          .eis-epreuves {
+            margin-top: 14px;
+            display: flex; flex-direction: column; gap: 7px;
+          }
+          .eis-epreuves-title {
+            font-family: var(--font-mono); font-weight: 700; font-size: 10px;
+            letter-spacing: 0.14em; text-transform: uppercase;
+            color: var(--color-muted); margin-bottom: 2px;
+          }
+          .eis-epreuve {
+            display: flex; align-items: center; gap: 11px;
+            background: var(--color-blue-soft, var(--color-paper-2));
+            border-radius: 11px; padding: 11px 13px;
+          }
+          .eis-epreuve.is-locked { opacity: 0.7; }
+          .eis-ep-ico { font-size: 17px; line-height: 1; flex-shrink: 0; }
+          .eis-ep-label {
+            flex: 1; min-width: 0;
+            font-family: var(--font-sans); font-weight: 700; font-size: 13.5px;
+            color: var(--color-ink);
+          }
+          .eis-epreuve.is-locked .eis-ep-label { color: var(--color-muted); }
+          .eis-ep-meta {
+            flex-shrink: 0;
+            font-family: var(--font-sans); font-weight: 800; font-size: 12px;
+            color: var(--color-blue);
+          }
+          .eis-ep-lock {
+            flex-shrink: 0;
+            font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+            letter-spacing: 0.05em; text-transform: uppercase;
+            color: var(--color-muted);
+            background: #fff; border: 1px solid var(--color-line);
+            padding: 4px 8px; border-radius: 100px;
+          }
+
           .eis-tips {
             margin-top: 14px; background: var(--color-blue-soft, var(--color-paper-2));
             border-radius: 12px; padding: 12px 14px;

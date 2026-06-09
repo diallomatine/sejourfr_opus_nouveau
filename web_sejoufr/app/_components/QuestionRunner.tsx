@@ -176,6 +176,9 @@ export function QuestionRunner({
   // la reprise d'une session au milieu d'une partie). Seuls les examens
   // multi-épreuves émettent des sections (cf. tcfExamSections) : les examens
   // mono-épreuve n'en passent plus, leur présentation vit dans ExamIntroSheet.
+  // La PARTIE 1 n'a pas d'intro : le briefing (modale ExamIntroSheet ou page)
+  // sert déjà d'annonce → « Commencer » entre direct dans la 1re question.
+  // L'intro ne s'affiche donc qu'aux transitions de partie (CO → CE).
   const sectionList = sections && sections.length > 0 ? sections : null;
   const multiSection = sectionList !== null && sectionList.length > 1;
   let sectionIndex = -1;
@@ -188,6 +191,7 @@ export function QuestionRunner({
   const [introsSeen, setIntrosSeen] = useState<ReadonlySet<number>>(new Set());
   const showSectionIntro =
     currentSection !== null &&
+    sectionIndex > 0 &&
     current !== undefined &&
     state.currentIndex === currentSection.startIndex &&
     !introsSeen.has(currentSection.startIndex) &&
@@ -588,7 +592,7 @@ export function QuestionRunner({
               className="btn btn-blue btn-lg"
               onClick={dismissSectionIntro}
             >
-              {sectionIndex === 0 ? "Commencer →" : "Continuer →"}
+              Continuer →
             </button>
           </div>
         ) : (
