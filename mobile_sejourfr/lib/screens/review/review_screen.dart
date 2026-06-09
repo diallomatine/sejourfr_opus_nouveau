@@ -232,39 +232,105 @@ class _SegmentTab extends StatelessWidget {
   }
 }
 
-class _QuestionList extends ConsumerWidget {
+/// Taille de fenêtre de la liste (et palier du bouton « Afficher plus »).
+/// Les favoris peuvent être nombreux ; les erreurs sont plafonnées à 30 côté
+/// backend. On ne monte qu'une fenêtre à la fois pour éviter de construire des
+/// centaines de cards d'un coup.
+const int _kReviewPageSize = 20;
+
+class _QuestionList extends ConsumerStatefulWidget {
   const _QuestionList({required this.provider, required this.mode});
 
   final ProviderListenable<AsyncValue<List<QuestionDto>>> provider;
   final _Tab mode;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final list = ref.watch(provider);
+  ConsumerState<_QuestionList> createState() => _QuestionListState();
+}
+
+class _QuestionListState extends ConsumerState<_QuestionList> {
+  int _visible = _kReviewPageSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final list = ref.watch(widget.provider);
     return list.when(
       loading: () => const _ListSkeleton(),
       error: (e, _) => _ErrorState(
         message: ApiClient.toApiException(e).message,
-        onRetry: () => ref.invalidate(provider as ProviderBase),
+        onRetry: () => ref.invalidate(widget.provider as ProviderBase),
       ),
       data: (questions) {
         if (questions.isEmpty) {
-          return _EmptyState(mode: mode);
+          return _EmptyState(mode: widget.mode);
         }
+        final shown = questions.length < _visible ? questions.length : _visible;
+        final remaining = questions.length - shown;
         return RefreshIndicator(
-          onRefresh: () async => ref.invalidate(provider as ProviderBase),
+          onRefresh: () async {
+            ref.invalidate(widget.provider as ProviderBase);
+            setState(() => _visible = _kReviewPageSize);
+          },
           child: ListView.separated(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            itemCount: questions.length,
+            itemCount: shown + (remaining > 0 ? 1 : 0),
             separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (_, i) => _QuestionItem(
-              question: questions[i],
-              mode: mode,
-            ),
+            itemBuilder: (_, i) {
+              if (i >= shown) {
+                return _ShowMoreButton(
+                  remaining: remaining,
+                  onTap: () => setState(
+                    () => _visible += _kReviewPageSize,
+                  ),
+                );
+              }
+              return _QuestionItem(
+                question: questions[i],
+                mode: widget.mode,
+              );
+            },
           ),
         );
       },
+    );
+  }
+}
+
+class _ShowMoreButton extends StatelessWidget {
+  const _ShowMoreButton({required this.remaining, required this.onTap});
+
+  final int remaining;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Material(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.line),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              'Afficher plus ($remaining restante${remaining > 1 ? 's' : ''})',
+              style: AppFonts.jakarta(
+                size: 13.5,
+                weight: FontWeight.w700,
+                color: AppColors.blue,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -40,9 +40,13 @@ public class AnswerManager {
         return repository.aggregateByTheme(userId, module);
     }
 
-    /** IDs des questions auxquelles l'utilisateur a deja repondu incorrectement. */
-    public List<UUID> findWrongQuestionIds(UUID userId, Module module) {
-        return repository.findWrongQuestionIds(userId, module);
+    /**
+     * IDs des questions ratees par l'utilisateur, erreur la plus recente d'abord,
+     * plafonne a {@code limit} (revision : N par module). Au-dela, les erreurs les
+     * plus anciennes sortent de la liste — rien n'est supprime en base.
+     */
+    public List<UUID> findRecentWrongQuestionIds(UUID userId, Module module, int limit) {
+        return repository.findRecentWrongQuestionIds(userId, module, PageRequest.of(0, limit));
     }
 
     public boolean hasUserAnsweredQuestion(UUID userId, UUID questionId) {
