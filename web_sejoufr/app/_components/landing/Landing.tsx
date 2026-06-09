@@ -13,8 +13,12 @@ import {
   Info,
   Mic,
   PenLine,
+  Quote,
   Smartphone,
+  Star,
 } from "lucide-react";
+import { PricingPlans } from "@/components/pricing/PricingPlans";
+import type { PlanPublicResponse } from "@/lib/types";
 import { PhoneMock, StoreBadge } from "../MobileAppPromo";
 import styles from "./landing.module.css";
 
@@ -88,7 +92,7 @@ export function Hero() {
           </p>
 
           <div className={styles.heroCtas}>
-            <Link href="/inscription" className="btn btn-red btn-lg">
+            <Link href="/inscription" className="btn btn-lg">
               Commencer gratuitement
               <ArrowRight size={18} className="arrow" aria-hidden />
             </Link>
@@ -107,20 +111,37 @@ export function Hero() {
           </ul>
         </div>
 
-        {/* Visuel (desktop) : l'app mobile + boutons de téléchargement */}
+        {/* Visuel (desktop) : épreuve en cours dans l'app + cartes flottantes */}
         <div className={styles.heroVisual}>
-          <div className={styles.heroPhone} aria-hidden>
-            <PhoneMock variant="back" />
-          </div>
-          <div className={styles.heroAppCopy}>
-            <p className={styles.heroAppText}>
-              Révisez aussi dans la poche — votre progression est synchronisée
-              entre le web et l&apos;app.
-            </p>
-            <div className={styles.heroStores}>
-              <StoreBadge variant="ios" />
-              <StoreBadge variant="android" />
+          <div className={styles.heroPhoneWrap} aria-hidden>
+            <div className={styles.heroPhone}>
+              <PhoneMock variant="front" />
             </div>
+
+            <div className={`${styles.heroFloat} ${styles.heroFloatTop}`}>
+              <span className={styles.heroFloatIco}>
+                <Brain size={16} strokeWidth={2} />
+              </span>
+              <span className={styles.heroFloatBody}>
+                <span className={styles.heroFloatLabel}>Niveau estimé</span>
+                <span className={styles.heroFloatValue}>B1 atteint</span>
+              </span>
+            </div>
+
+            <div className={`${styles.heroFloat} ${styles.heroFloatBottom}`}>
+              <span className={`${styles.heroFloatIco} ${styles.heroFloatIcoGreen}`}>
+                <Check size={16} strokeWidth={2.4} />
+              </span>
+              <span className={styles.heroFloatBody}>
+                <span className={styles.heroFloatLabel}>Expression écrite</span>
+                <span className={styles.heroFloatValue}>Corrigée par IA</span>
+              </span>
+            </div>
+          </div>
+
+          <div className={styles.heroStores}>
+            <StoreBadge variant="ios" />
+            <StoreBadge variant="android" />
           </div>
         </div>
       </div>
@@ -147,12 +168,14 @@ const EXAMENS = [
   {
     Icon: Building2,
     title: "Examen civique",
-    badge: "Examen officiel",
-    desc: "Préparez l'épreuve sur les valeurs de la République française, l'organisation politique et la vie quotidienne en France.",
+    badge: "5 thèmes officiels",
+    desc: "Préparez l'épreuve sur les valeurs de la République, les institutions, vos droits et devoirs, l'histoire-géographie et la vie quotidienne en France.",
     features: [
-      "Valeurs de la République",
-      "Organisation politique française",
-      "Vie quotidienne en France",
+      "Principes et valeurs de la République",
+      "Système institutionnel et politique",
+      "Droits et devoirs du citoyen",
+      "Histoire, géographie et culture",
+      "Vivre dans la société française",
     ],
   },
 ];
@@ -394,6 +417,100 @@ export function Niveau() {
           Ce niveau est une estimation indicative et ne constitue pas un
           résultat officiel. Seuls les examens agréés par France Éducation
           international délivrent une certification reconnue.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   Témoignages
+   NOTE : contenu illustratif (placeholder). À remplacer par de vrais avis
+   vérifiés avant la mise en production — exigence « Misleading Claims » des
+   stores et honnêteté de la vitrine.
+   ------------------------------------------------------------------------- */
+const TEMOIGNAGES = [
+  {
+    text: "Les examens blancs en conditions réelles m'ont mis en confiance. Le jour J, je connaissais déjà le format — plus de stress sur le chrono.",
+    name: "Aïcha B.",
+    role: "Naturalisation · obtenu B1",
+  },
+  {
+    text: "La correction de l'expression écrite par l'IA est précise : elle pointe les fautes récurrentes et explique. J'ai vraiment progressé semaine après semaine.",
+    name: "Mehdi T.",
+    role: "Carte de résident · TCF IRN",
+  },
+  {
+    text: "Pouvoir réviser le civique sur le téléphone dans les transports a tout changé. 10 questions par jour, et la progression suit entre le web et l'app.",
+    name: "Lina K.",
+    role: "Première carte de séjour",
+  },
+];
+
+export function Temoignages() {
+  return (
+    <section id="temoignages" className={styles.section}>
+      <div className="container-x">
+        <SectionHead
+          label="Ils se préparent avec SejourFR"
+          title={
+            <>
+              Abordez le jour J en <em>confiance</em>
+            </>
+          }
+          description="Un entraînement régulier, des examens blancs fidèles et un suivi de votre niveau : de quoi arriver serein à l'examen."
+        />
+        <div className={`${styles.grid} ${styles.testiGrid}`}>
+          {TEMOIGNAGES.map((t) => (
+            <article key={t.name} className={styles.testiCard}>
+              <Quote size={26} className={styles.testiQuote} aria-hidden />
+              <div className={styles.testiStars} aria-label="5 sur 5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star key={i} size={15} fill="currentColor" strokeWidth={0} aria-hidden />
+                ))}
+              </div>
+              <p className={styles.testiText}>{t.text}</p>
+              <div className={styles.testiFoot}>
+                <span className={styles.testiAvatar} aria-hidden>
+                  {t.name.charAt(0)}
+                </span>
+                <div>
+                  <div className={styles.testiName}>{t.name}</div>
+                  <div className={styles.testiRole}>{t.role}</div>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   Tarifs (réutilise PricingPlans, alimenté par les plans actifs du backend)
+   ------------------------------------------------------------------------- */
+export function Tarifs({ plans }: { plans: PlanPublicResponse[] }) {
+  return (
+    <section id="tarifs" className={`${styles.section} ${styles.sectionPaper}`}>
+      <div className="container-x">
+        <SectionHead
+          label="Tarifs"
+          title={
+            <>
+              Commencez gratuitement, <em>débloquez quand vous voulez</em>
+            </>
+          }
+          description="Un premier examen blanc et des séries offerts pour découvrir. L'accès complet est un paiement unique, sans renouvellement automatique."
+        />
+        <div className={styles.pricingWrap}>
+          <PricingPlans plans={plans} variant="compact" />
+        </div>
+        <p className={styles.pricingFoot}>
+          <Link href="/tarifs" className={styles.pricingLink}>
+            Voir le détail des offres et la comparaison
+            <ArrowRight size={15} aria-hidden />
+          </Link>
         </p>
       </div>
     </section>
