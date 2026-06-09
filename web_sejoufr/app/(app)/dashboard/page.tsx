@@ -63,9 +63,14 @@ export default function DashboardPage() {
     };
   }, [status, user]);
 
-  // Session QCM non terminée (les productions EE/EO ont leur propre flux).
+  // Entraînement (série) non terminé à reprendre. On exclut les examens blancs
+  // (MOCK_EXAM) — un examen se passe en une fois, on ne propose pas de le
+  // reprendre — et les productions EE/EO (flux propre).
   const inProgressAttempt = useMemo(
-    () => attempts.find((a) => !a.finishedAt && !isProductionAttempt(a)) ?? null,
+    () =>
+      attempts.find(
+        (a) => !a.finishedAt && a.type !== "MOCK_EXAM" && !isProductionAttempt(a),
+      ) ?? null,
     [attempts],
   );
 
@@ -116,12 +121,8 @@ export default function DashboardPage() {
           className="dash-banner dash-banner-resume"
         >
           <span>
-            <strong>
-              {inProgressAttempt.type === "MOCK_EXAM"
-                ? "Examen blanc en cours"
-                : "Session en cours"}
-            </strong>{" "}
-            — reprenez là où vous vous êtes arrêté.
+            <strong>Entraînement en cours</strong> — reprenez là où vous vous
+            êtes arrêté.
           </span>
           <ArrowRight size={16} aria-hidden />
         </Link>
