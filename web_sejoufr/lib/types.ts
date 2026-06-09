@@ -916,6 +916,9 @@ export interface FullTcfExamSubAttempt {
 export interface FullTcfExamResponse {
   id: string;
   startedAt: string;
+  /** Lancement réel de la 1re épreuve (CO) — ancre du chrono 90 min. Null
+   *  tant que le candidat n'a pas commencé (hub de progression). */
+  timerStartedAt: string | null;
   finishedAt: string | null;
   finalCecrlLevel: NiveauCecrl | null;
   status: FullTcfExamStatus;

@@ -203,6 +203,37 @@ public class FullTcfExamService {
         return buildResponse(parent);
     }
 
+    /**
+     * Démarre le chrono global de l'examen : appelé au premier
+     * « Commencer · Compréhension orale ». Pose {@code timer_started_at = now}
+     * sur le parent (ancre des 90 min) et réaligne le {@code started_at} de la
+     * sous-épreuve CO sur cet instant pour que son chrono propre (20 min) parte
+     * aussi du lancement réel, pas de la création de l'examen.
+     *
+     * <p>Idempotent : si le chrono a déjà démarré ({@code timer_started_at}
+     * non NULL), l'appel ne change rien (pas de remise à zéro). Le candidat
+     * peut donc revenir au hub sans relancer le compteur.
+     */
+    @Transactional
+    public FullTcfExamResponse beginTimer(UUID userId, UUID parentAttemptId) {
+        Attempt parent = loadParentAndCheck(userId, parentAttemptId);
+        if (parent.getTimerStartedAt() == null && parent.getFinishedAt() == null) {
+            Instant now = Instant.now();
+            parent.setTimerStartedAt(now);
+            attemptManager.save(parent);
+            attemptManager.findSubAttempts(parent.getId()).stream()
+                    .filter(sub -> sub.getEpreuve() == EpreuveType.TCF_CO
+                            && sub.getFinishedAt() == null)
+                    .findFirst()
+                    .ifPresent(co -> {
+                        co.setStartedAt(now);
+                        attemptManager.save(co);
+                    });
+            log.info("Full TCF exam timer started: parentId={} user={}", parent.getId(), userId);
+        }
+        return buildResponse(parent);
+    }
+
     // ------------------------------------------------------------------------
     // Finalisation
     // ------------------------------------------------------------------------
@@ -299,6 +330,7 @@ public class FullTcfExamService {
         return new FullTcfExamResponse(
                 parent.getId(),
                 parent.getStartedAt(),
+                parent.getTimerStartedAt(),
                 parent.getFinishedAt(),
                 finalCecrl,
                 status,

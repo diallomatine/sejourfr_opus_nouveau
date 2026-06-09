@@ -840,6 +840,15 @@ export const fullTcfExamApi = {
         );
     },
 
+    /** Démarre le chrono global (90 min) au 1er « Commencer · CO ».
+     *  Idempotent : sans effet si déjà démarré. */
+    begin(id: string): Promise<FullTcfExamResponse> {
+        return apiFetch<FullTcfExamResponse>(`/api/full-tcf-exams/${id}/begin`, {
+            method: "POST",
+            auth: true,
+        });
+    },
+
     /** Finalise l'examen (idempotent ; exige les 4 sous-attempts terminés). */
     finish(id: string): Promise<FullTcfExamResponse> {
         return apiFetch<FullTcfExamResponse>(`/api/full-tcf-exams/${id}/finish`, {

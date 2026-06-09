@@ -428,7 +428,17 @@ Chantier découpé en vagues :
   agrège le statut `IN_PROGRESS | PENDING_EVALUATIONS | COMPLETED`.
     - **Pas de route `/tcf/examen-blanc`** : tout vit sous **`app/examens-blancs/`**
       (la liste, c'est `/examens-blancs`). `tcf/[id]/page.tsx` (hub de progression :
-      4 StepCards, chrono 90 min depuis `startedAt`, auto-finish à 0 → bilan),
+      4 StepCards, chrono 90 min auto-finish à 0 → bilan ; **le chrono ne démarre
+      qu'au 1er « Commencer · Compréhension orale »** — pas à la création de
+      l'examen. Le bouton appelle `fullTcfExamApi.begin(id)` qui pose
+      `timer_started_at` sur le parent (ancre du décompte, exposé en
+      `FullTcfExamResponse.timerStartedAt`) et réaligne le `started_at` de la
+      sous-épreuve CO. Tant que `timerStartedAt` est null, le badge affiche 90:00
+      sans décompter. Backend : `FullTcfExamService.beginTimer` idempotent +
+      endpoint `POST /api/full-tcf-exams/{id}/begin` + migration V013
+      `attempts.timer_started_at`. `startedAt` (création) reste l'ancre de tri /
+      dédup par slot des grilles. ⚠️ Mobile encore sur `startedAt` : parité à
+      faire),
       `tcf/[id]/bilan/page.tsx` (CECRL plancher + polling 3 s rapide 30 s puis 8 s,
       max 5 min, sur `status === COMPLETED`), `tcf/TcfFullExamBriefingSheet.tsx`
       (lancement + 403 → paywall, ouvert **inline** depuis la carte TCF).

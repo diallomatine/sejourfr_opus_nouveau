@@ -36,17 +36,25 @@ function formatTimer(sec: number): string {
   return `${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
 }
 
-function useCountdown(startedAt: string, limitSec = FULL_TCF_EXAM_DURATION_SEC) {
+// Le chrono ne court qu'une fois `startedAt` posé (1re épreuve lancée). Tant
+// qu'il est null, on affiche la durée pleine sans décompter.
+function useCountdown(startedAt: string | null, limitSec = FULL_TCF_EXAM_DURATION_SEC) {
   const calcRemaining = useCallback(
-    () => Math.max(0, limitSec - (Date.now() - new Date(startedAt).getTime()) / 1000),
+    () =>
+      startedAt === null
+        ? limitSec
+        : Math.max(0, limitSec - (Date.now() - new Date(startedAt).getTime()) / 1000),
     [startedAt, limitSec],
   );
   const [remaining, setRemaining] = useState(calcRemaining);
 
   useEffect(() => {
+    // Pas de décompte tant que le chrono n'a pas démarré (startedAt null) :
+    // la valeur initiale (durée pleine) reste affichée jusqu'au lancement.
+    if (startedAt === null) return;
     const id = setInterval(() => setRemaining(calcRemaining()), 1000);
     return () => clearInterval(id);
-  }, [calcRemaining]);
+  }, [calcRemaining, startedAt]);
 
   return remaining;
 }
@@ -88,7 +96,8 @@ function ProgressInner() {
     void load();
   }, [status, load]);
 
-  const remaining = useCountdown(exam?.startedAt ?? new Date().toISOString());
+  const remaining = useCountdown(exam?.timerStartedAt ?? null);
+  const [starting, setStarting] = useState(false);
 
   // Finalise l'examen et va au bilan. Toute épreuve non terminée est finalisée
   // (CO/CE = score sur les réponses données, 0 si aucune ; EE/EO = markSubDone),
@@ -188,12 +197,29 @@ function ProgressInner() {
           </Link>
         ) : current ? (
           <>
-            <Link
-              href={subAttemptHref(current, examId)}
+            <button
+              type="button"
               className="btn btn-red btn-lg"
+              disabled={starting}
+              onClick={async () => {
+                if (starting) return;
+                const href = subAttemptHref(current, examId);
+                // Le chrono 90 min ne démarre qu'ici (1re épreuve lancée).
+                if (!exam.timerStartedAt) {
+                  setStarting(true);
+                  try {
+                    await fullTcfExamApi.begin(examId);
+                  } catch {
+                    // best-effort : on lance quand même l'épreuve
+                  }
+                }
+                router.push(href);
+              }}
             >
-              {`Commencer · ${EPREUVE_META[current.epreuve]?.label}`}
-            </Link>
+              {starting
+                ? "Démarrage…"
+                : `Commencer · ${EPREUVE_META[current.epreuve]?.label}`}
+            </button>
             <button
               type="button"
               className="btn btn-ghost"
