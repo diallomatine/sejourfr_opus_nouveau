@@ -11,15 +11,21 @@ import { ExamBriefingClient } from "./ExamBriefingClient";
  */
 export default async function ExamBriefingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ slot?: string }>;
 }) {
   const { slug } = await params;
+  const { slot } = await searchParams;
   let exam: ExamTemplateSummary;
   try {
     exam = await publicExamApi.getBySlug(slug);
   } catch {
     notFound();
   }
-  return <ExamBriefingClient exam={exam} />;
+  // Slot d'examen blanc cible (grille /examens-blancs) — propagé au start pour
+  // que refaire « l'examen N » réutilise slot_number=N (cf. migration V110).
+  const slotNumber = slot != null && /^\d+$/.test(slot) ? Number(slot) : undefined;
+  return <ExamBriefingClient exam={exam} slotNumber={slotNumber} />;
 }

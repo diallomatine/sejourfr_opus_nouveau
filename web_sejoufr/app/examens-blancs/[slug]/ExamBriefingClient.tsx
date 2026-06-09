@@ -24,20 +24,32 @@ import {
  *    jouable, démo illimitée mais déterministe — mêmes questions à chaque
  *    lancement, l'objectif est de convertir).
  */
-export function ExamBriefingClient({ exam }: { exam: ExamTemplateSummary }) {
+export function ExamBriefingClient({
+  exam,
+  slotNumber,
+}: {
+  exam: ExamTemplateSummary;
+  slotNumber?: number;
+}) {
   const { status } = useAuth();
   if (status === "loading") return <div className="brf-loading" />;
   if (status === "authenticated") {
     return (
       <DualChromeShell>
-        <ExamBriefingInner exam={exam} />
+        <ExamBriefingInner exam={exam} slotNumber={slotNumber} />
       </DualChromeShell>
     );
   }
-  return <ExamBriefingInner exam={exam} />;
+  return <ExamBriefingInner exam={exam} slotNumber={slotNumber} />;
 }
 
-function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
+function ExamBriefingInner({
+  exam,
+  slotNumber,
+}: {
+  exam: ExamTemplateSummary;
+  slotNumber?: number;
+}) {
   const router = useRouter();
   const { user, status } = useAuth();
   const [starting, setStarting] = useState(false);
@@ -115,6 +127,7 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
             type: "MOCK_EXAM",
             module: exam.module,
             examTemplateId: exam.id,
+            slotNumber,
           });
       router.push(`/sessions/${a.id}`);
     } catch (e) {

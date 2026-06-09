@@ -656,6 +656,16 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
       `ExamsModuleView` sont supprimées. Page démo guest inchangée. Miroir
       `AttemptSummaryResponse` complété (`moduleExamQuestionType`,
       `lotThemeId`).
+      **Grille indexée par slot (V110)** : les 3 grilles (TCF complet,
+      diagnostic TCF gratuit, civique) sont rangées par `slotNumber` via
+      `examSlotGrid` — refaire l'examen N met à jour la case N au lieu d'en
+      empiler une nouvelle. Le slot est transmis au briefing via `?slot=N`
+      (`[slug]/page.tsx` lit `searchParams`, `ExamBriefingClient` repasse
+      `slotNumber` à `attemptApi.start`) ; le full exam TCF le passe déjà via
+      `fullTcfExamApi.start(slot)`. **Backend** : `startFromTemplate` honore
+      désormais `req.slotNumber()` (avant, la branche template court-circuitait
+      l'assignation du slot). Attempts sans slot (avant V110) absents de la
+      grille, visibles dans /historique.
     - **Rapport d'examen / de série refondu** (`ExamReport.tsx`) : hero teinté
       vert/rouge (donut bonnes réponses, « Vous avez obtenu X% », Score /
       Temps / Niveau estimé TCF ou Seuil civique), **« Réussite par

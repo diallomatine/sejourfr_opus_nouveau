@@ -8,6 +8,7 @@ import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { GuestGateSheet } from "@/app/_components/GuestGateSheet";
 import { ExamsGrid, type ExamSlotData } from "@/app/_components/hub/DetailParts";
+import { examSlotGrid } from "@/lib/exam-slots";
 import { TcfFullExamBriefingSheet } from "@/app/examens-blancs/tcf/TcfFullExamBriefingSheet";
 import {
   ApiException,
@@ -80,27 +81,21 @@ function ExamsConnectedHome() {
       if (cancelled) return;
       if (c.status === "fulfilled") {
         // Examens complets civiques (40 Q tous thèmes) : on écarte les examens
-        // thématiques (lotThemeId non null). Ordre chronologique.
-        setCivique(
-          c.value
-            .filter((a) => a.finishedAt && !a.lotThemeId)
-            .sort((a, b) => a.startedAt.localeCompare(b.startedAt)),
-        );
+        // thématiques (lotThemeId non null). Rangés par slot plus bas.
+        setCivique(c.value.filter((a) => a.finishedAt && !a.lotThemeId));
       }
       if (t.status === "fulfilled") {
         // Diagnostic de compréhension TCF (50 Q CO → CE) : on écarte les examens
         // module (CO/CE/Structure) et les productions / TCF_COMPLET. Sert de
         // carte pour les comptes gratuits (1 offert).
         setTcfComprehension(
-          t.value
-            .filter(
-              (a) =>
-                a.finishedAt &&
-                !a.moduleExamQuestionType &&
-                !isProductionAttempt(a) &&
-                a.totalQuestions != null,
-            )
-            .sort((a, b) => a.startedAt.localeCompare(b.startedAt)),
+          t.value.filter(
+            (a) =>
+              a.finishedAt &&
+              !a.moduleExamQuestionType &&
+              !isProductionAttempt(a) &&
+              a.totalQuestions != null,
+          ),
         );
       }
     });
@@ -126,16 +121,29 @@ function ExamsConnectedHome() {
     };
   }, [status, tcfPremium]);
 
+  // Grilles indexées par slot : refaire l'examen N met à jour la case N.
+  const { bySlot: civiqueBySlot, latest: civiqueLatest } = useMemo(
+    () => examSlotGrid(civique, SLOTS),
+    [civique],
+  );
+  const { bySlot: tcfCompBySlot, latest: tcfCompLatest } = useMemo(
+    () => examSlotGrid(tcfComprehension, SLOTS),
+    [tcfComprehension],
+  );
+  const { bySlot: fullExamBySlot, latest: fullExamLatest } = useMemo(
+    () => examSlotGrid(fullExams, SLOTS),
+    [fullExams],
+  );
+
   if (status === "loading" || !user) return <HomeSkeleton />;
 
   // Cards full-exam (abonné) : mêmes cards que Civique. Un slot rempli =
   // examen complet déjà passé (Refaire relance, Rapport → bilan ou hub si
-  // encore en cours). « Démarrer » ouvre le briefing inline.
-  const fullExamSlotData: ExamSlotData[] = useMemo(
-    () =>
-      [...fullExams]
-        .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
-        .map((e) => ({
+  // encore en cours). « Démarrer » ouvre le briefing inline. Rangé par slot :
+  // refaire l'examen N met à jour la case N (parité mobile, V110).
+  const fullExamSlotData: (ExamSlotData | null)[] = fullExamBySlot.map((e) =>
+    e
+      ? {
           id: e.id,
           metaOverride:
             e.status === "COMPLETED"
@@ -143,8 +151,8 @@ function ExamsConnectedHome() {
               : e.status === "PENDING_EVALUATIONS"
                 ? "Éval en cours…"
                 : "En cours",
-        })),
-    [fullExams],
+        }
+      : null,
   );
   // « Rapport » : examen en cours → hub (reprise), terminé/éval → bilan.
   function fullExamReportPath(id: string): string {
@@ -158,11 +166,13 @@ function ExamsConnectedHome() {
   function startFullExam(slot: number) {
     setBriefingSlot(slot);
   }
-  function startCivique() {
-    router.push(`/examens-blancs/${CIVIQUE_FULL_EXAM_SLUG}`);
+  // Le slot voulu est transmis au briefing (?slot=N) qui le repasse au start :
+  // refaire l'examen N réutilise slot_number=N.
+  function startCivique(slot: number) {
+    router.push(`/examens-blancs/${CIVIQUE_FULL_EXAM_SLUG}?slot=${slot}`);
   }
-  function startTcfDiagnostic() {
-    router.push(`/examens-blancs/${TCF_FREE_DIAGNOSTIC_SLUG}`);
+  function startTcfDiagnostic(slot: number) {
+    router.push(`/examens-blancs/${TCF_FREE_DIAGNOSTIC_SLUG}?slot=${slot}`);
   }
 
   return (
@@ -192,8 +202,8 @@ function ExamsConnectedHome() {
         }
         sub={
           tcfPremium
-            ? fullExamSubline(fullExams)
-            : comprehensionSubline(tcfComprehension)
+            ? fullExamSubline(fullExamLatest)
+            : comprehensionSubline(tcfCompLatest)
         }
       >
         {tcfPremium ? (
@@ -211,7 +221,7 @@ function ExamsConnectedHome() {
         ) : (
           <ExamsGrid
             count={SLOTS}
-            exams={tcfComprehension}
+            exams={tcfCompBySlot}
             premium={false}
             starting={false}
             itemLabel="Épreuve"
@@ -228,11 +238,11 @@ function ExamsConnectedHome() {
         title="Examen civique"
         chip="5 catégories mélangées"
         brewLine="Brasse tous les thèmes : Principes et valeurs de la République · Système institutionnel et politique · Droits et devoirs · Histoire, géographie et culture · Vivre dans la société française."
-        sub={comprehensionSubline(civique, 40)}
+        sub={comprehensionSubline(civiqueLatest, 40)}
       >
         <ExamsGrid
           count={SLOTS}
-          exams={civique}
+          exams={civiqueBySlot}
           premium={civiquePremium}
           starting={false}
           itemLabel="Examen"
