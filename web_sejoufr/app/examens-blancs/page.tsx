@@ -8,6 +8,7 @@ import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { GuestGateSheet } from "@/app/_components/GuestGateSheet";
 import { ExamsGrid, type ExamSlotData } from "@/app/_components/hub/DetailParts";
+import { ExamIntroSheet } from "@/app/_components/hub/ExamIntroSheet";
 import { examSlotGrid } from "@/lib/exam-slots";
 import { TcfFullExamBriefingSheet } from "@/app/examens-blancs/tcf/TcfFullExamBriefingSheet";
 import {
@@ -67,6 +68,11 @@ function ExamsConnectedHome() {
   const [paywallModule, setPaywallModule] = useState<"CIVIQUE" | "INTEGRAL" | null>(null);
   /** Slot dont le briefing d'examen complet est ouvert (lancement inline). */
   const [briefingSlot, setBriefingSlot] = useState<number | null>(null);
+  /** Examen civique : template de référence + état de la modale d'intro. */
+  const [civiqueTemplate, setCiviqueTemplate] = useState<ExamTemplateSummary | null>(null);
+  const [civiqueSlot, setCiviqueSlot] = useState<number | null>(null);
+  const [civiqueStarting, setCiviqueStarting] = useState(false);
+  const [civiqueError, setCiviqueError] = useState<string | null>(null);
 
   const tcfPremium = user != null && canAccessModule(user, "TCF");
   const civiquePremium = user != null && canAccessModule(user, "CIVIQUE");
@@ -99,6 +105,21 @@ function ExamsConnectedHome() {
         );
       }
     });
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
+
+  // Métadonnées du template civique (questions / durée / seuil) pour la modale.
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    let cancelled = false;
+    publicExamApi
+      .getBySlug(CIVIQUE_FULL_EXAM_SLUG)
+      .then((tpl) => {
+        if (!cancelled) setCiviqueTemplate(tpl);
+      })
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
@@ -166,11 +187,37 @@ function ExamsConnectedHome() {
   function startFullExam(slot: number) {
     setBriefingSlot(slot);
   }
-  // Le slot voulu est transmis au briefing (?slot=N) qui le repasse au start :
-  // refaire l'examen N réutilise slot_number=N.
+  // Civique : modale d'intro inline (comme le full exam TCF), puis lancement.
   function startCivique(slot: number) {
-    router.push(`/examens-blancs/${CIVIQUE_FULL_EXAM_SLUG}?slot=${slot}`);
+    setCiviqueError(null);
+    setCiviqueSlot(slot);
   }
+  async function launchCivique() {
+    if (civiqueSlot === null || civiqueStarting) return;
+    setCiviqueStarting(true);
+    setCiviqueError(null);
+    try {
+      const a = await attemptApi.start({
+        type: "MOCK_EXAM",
+        module: "CIVIQUE",
+        examTemplateId: civiqueTemplate?.id,
+        slotNumber: civiqueSlot,
+      });
+      router.push(`/sessions/${a.id}`);
+    } catch (e) {
+      if (e instanceof ApiException && e.status === 403) {
+        setCiviqueSlot(null);
+        setPaywallModule("CIVIQUE");
+      } else {
+        setCiviqueError(
+          e instanceof ApiException ? e.message : "Impossible de démarrer l'examen.",
+        );
+      }
+      setCiviqueStarting(false);
+    }
+  }
+  // Le slot voulu est transmis au briefing TCF gratuit (?slot=N) qui le repasse
+  // au start : refaire l'examen N réutilise slot_number=N.
   function startTcfDiagnostic(slot: number) {
     router.push(`/examens-blancs/${TCF_FREE_DIAGNOSTIC_SLUG}?slot=${slot}`);
   }
@@ -262,6 +309,37 @@ function ExamsConnectedHome() {
           }}
         />
       )}
+
+      <ExamIntroSheet
+        open={civiqueSlot !== null}
+        eyebrow="Examen blanc · Examen civique"
+        title="Examen civique en conditions réelles"
+        subtitle="Avant de commencer, voici comment se déroule l'examen."
+        facts={[
+          {
+            label: "questions · 5 catégories",
+            value: String(civiqueTemplate?.totalQuestions ?? 40),
+          },
+          {
+            label: "en conditions réelles",
+            value: `${Math.round((civiqueTemplate?.durationSeconds ?? 2400) / 60)} min`,
+          },
+          {
+            label: "seuil de réussite",
+            value: `${civiqueTemplate?.passingScore ?? 32}/${civiqueTemplate?.totalQuestions ?? 40}`,
+            highlight: true,
+          },
+        ]}
+        tips={[
+          "L'examen brasse les 5 catégories du programme civique.",
+          "Aucune correction pendant l'examen : votre résultat s'affiche à la fin.",
+          "Pas de retour en arrière : une réponse validée est définitive, comme le jour J.",
+        ]}
+        loading={civiqueStarting}
+        error={civiqueError}
+        onConfirm={() => void launchCivique()}
+        onClose={() => setCiviqueSlot(null)}
+      />
 
       <PaywallSheet
         open={paywallModule !== null}

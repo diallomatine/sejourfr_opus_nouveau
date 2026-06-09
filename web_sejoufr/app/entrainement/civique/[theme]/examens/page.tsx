@@ -204,7 +204,7 @@ export default function CiviqueThemeExamsPage() {
           tips={[
             "Aucune correction pendant l'examen : votre résultat s'affiche à la fin.",
             "Le chronomètre tourne et l'examen se termine automatiquement à la fin du temps.",
-            "Vous pouvez naviguer librement entre les questions.",
+            "Pas de retour en arrière : une réponse validée est définitive, comme le jour J.",
           ]}
           loading={starting}
           error={error}

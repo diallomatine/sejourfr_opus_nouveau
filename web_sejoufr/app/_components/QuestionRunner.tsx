@@ -349,19 +349,20 @@ export function QuestionRunner({
     }));
   }, [state.currentIndex, state.questions.length, state.noMoreQuestions, state.extending, infinite, extendBatch, finishCurrentAttempt]);
 
-  // En examen, une question de compréhension orale passée ne peut pas être
-  // revisitée (audio à écoute unique, comme le jour J) : retour bloqué tant
-  // que la question précédente est une CO. En entraînement, navigation libre.
+  // Retour arrière en examen (conditions réelles) :
+  //  - Civique : interdit sur tout l'examen (une réponse validée est définitive).
+  //  - TCF : interdit dès que la question précédente est une compréhension orale
+  //    (audio à écoute unique) ; les autres épreuves restent navigables.
+  // En entraînement, navigation toujours libre.
   const prevQuestion =
     state.currentIndex > 0 ? state.questions[state.currentIndex - 1] : undefined;
-  const canGoPrevious =
-    state.currentIndex > 0 &&
-    !(
-      mode === "exam" &&
-      prevQuestion !== undefined &&
-      (prevQuestion.question.questionType === "CO" ||
-        prevQuestion.question.questionType === "CO_IMAGE")
-    );
+  const examBackBlocked =
+    mode === "exam" &&
+    (state.activeAttempt.module === "CIVIQUE" ||
+      (prevQuestion !== undefined &&
+        (prevQuestion.question.questionType === "CO" ||
+          prevQuestion.question.questionType === "CO_IMAGE")));
+  const canGoPrevious = state.currentIndex > 0 && !examBackBlocked;
 
   const goPrevious = useCallback(() => {
     if (!canGoPrevious) return;

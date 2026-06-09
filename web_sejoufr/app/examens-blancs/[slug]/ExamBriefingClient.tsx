@@ -392,8 +392,10 @@ function ExamBriefingInner({
                       </>
                     ) : (
                       <>
-                        Vous pouvez revenir sur une question précédente avant de
-                        terminer. Le score n&apos;est calculé qu&apos;à la fin.
+                        Comme le jour de l&apos;examen, vous ne pouvez{" "}
+                        <strong>pas revenir en arrière</strong>&nbsp;: une
+                        réponse validée est définitive. Le score n&apos;est
+                        calculé qu&apos;à la fin.
                       </>
                     )}
                   </div>

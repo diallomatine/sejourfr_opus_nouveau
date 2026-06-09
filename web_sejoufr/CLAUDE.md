@@ -164,8 +164,11 @@ par épreuve » (badge rouge sur l'épreuve plancher) + note expliquant le min.
 Miroirs `AttemptEpreuveResult` dans lib/types.ts et attempt_models.dart. **CO en examen = conditions réelles** : audio
 autoplay à écoute unique sans contrôles (`MediaView` prop `examAudio`,
 fallback bouton one-shot si l'autoplay est bloqué) et retour arrière interdit
-vers une question CO (`canGoPrevious` du runner). En TRAINING (séries), le
-lecteur natif et la navigation restent libres.
+vers une question CO (`canGoPrevious` du runner). **Examen Civique = retour
+arrière interdit sur tout l'examen** (`module === "CIVIQUE"` en mode exam :
+une réponse validée est définitive, conditions réelles) ; le TCF ne bloque que
+les questions CO. En TRAINING (séries), le lecteur natif et la navigation
+restent libres.
 
 ## Identité visuelle (à ne pas dévier)
 
@@ -659,13 +662,19 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
       **Grille indexée par slot (V110)** : les 3 grilles (TCF complet,
       diagnostic TCF gratuit, civique) sont rangées par `slotNumber` via
       `examSlotGrid` — refaire l'examen N met à jour la case N au lieu d'en
-      empiler une nouvelle. Le slot est transmis au briefing via `?slot=N`
-      (`[slug]/page.tsx` lit `searchParams`, `ExamBriefingClient` repasse
-      `slotNumber` à `attemptApi.start`) ; le full exam TCF le passe déjà via
-      `fullTcfExamApi.start(slot)`. **Backend** : `startFromTemplate` honore
-      désormais `req.slotNumber()` (avant, la branche template court-circuitait
+      empiler une nouvelle. **Backend** : `startFromTemplate` honore désormais
+      `req.slotNumber()` (avant, la branche template court-circuitait
       l'assignation du slot). Attempts sans slot (avant V110) absents de la
       grille, visibles dans /historique.
+      **Lancement civique = modale inline** (`ExamIntroSheet`, comme le full
+      exam TCF) : Démarrer/Refaire ouvre la modale (déroulé + seuil, facts du
+      template `civique-decouverte` chargé une fois) puis `attemptApi.start`
+      (template + `slotNumber`) → `/sessions/[id]`. Plus de navigation vers la
+      page briefing pour le civique connecté. Le diagnostic TCF gratuit, lui,
+      passe encore par la page briefing via `?slot=N` (`[slug]/page.tsx` lit
+      `searchParams`, `ExamBriefingClient` repasse `slotNumber`) ; le full exam
+      TCF garde `TcfFullExamBriefingSheet` (`fullTcfExamApi.start(slot)`). La
+      page briefing reste utilisée par les guests (démo civique/TCF).
     - **Rapport d'examen / de série refondu** (`ExamReport.tsx`) : hero teinté
       vert/rouge (donut bonnes réponses, « Vous avez obtenu X% », Score /
       Temps / Niveau estimé TCF ou Seuil civique), **« Réussite par
