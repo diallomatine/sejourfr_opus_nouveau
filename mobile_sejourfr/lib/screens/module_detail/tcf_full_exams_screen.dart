@@ -14,6 +14,8 @@ import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/stat_value_card.dart';
+import '../tcf_production/widgets/exam_info_chips.dart';
+import '../tcf_production/widgets/exam_slot/full_exam_slot_card.dart';
 import 'tcf_full_exam_briefing_sheet.dart';
 
 /// Liste des examens blancs TCF complets de l'utilisateur. Chaque examen
@@ -150,7 +152,19 @@ class TcfFullExamsView extends ConsumerWidget {
         children: [
           _ResultStats(history: historyAsync.valueOrNull ?? const []),
           const SizedBox(height: 14),
-          const _InfoChips(),
+          const ExamInfoChips(
+            accent: AppColors.red,
+            soft: AppColors.redLight,
+            items: [
+              (icon: LucideIcons.zap, label: 'Simulation réelle'),
+              (icon: LucideIcons.clock, label: '≈ 1 h 30'),
+              (
+                icon: LucideIcons.layoutGrid,
+                label: '4 épreuves CO · CE · EE · EO'
+              ),
+              (icon: LucideIcons.graduationCap, label: 'Score final CECRL'),
+            ],
+          ),
           const SizedBox(height: 20),
           historyAsync.when(
             loading: () => const Padding(
@@ -301,52 +315,6 @@ String _shortLevel(NiveauCecrl l) => switch (l) {
       _ => l.displayName,
     };
 
-/// Chips d'info de l'épreuve complète (cf. maquette) : conditions réelles,
-/// durée, composition, score final.
-class _InfoChips extends StatelessWidget {
-  const _InfoChips();
-
-  static const _items = [
-    (icon: LucideIcons.zap, label: 'Simulation réelle'),
-    (icon: LucideIcons.clock, label: '≈ 1 h 30'),
-    (icon: LucideIcons.layoutGrid, label: '4 épreuves CO · CE · EE · EO'),
-    (icon: LucideIcons.graduationCap, label: 'Score final CECRL'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final item in _items)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.redLight,
-              borderRadius: BorderRadius.circular(AppRadii.pill),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(item.icon, size: 14, color: AppColors.red),
-                const SizedBox(width: 6),
-                Text(
-                  item.label,
-                  style: AppFonts.ui(
-                    size: 12,
-                    weight: FontWeight.w600,
-                    color: AppColors.inkSoft,
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
 /// Section principale : 20 slots numérotés, comme l'onglet Examens du
 /// détail TCF QCM/EE/EO. Les examens passés sont triés ASC (le plus ancien
 /// occupe le slot 1) et remplissent les slots de gauche à droite. Les slots
@@ -465,80 +433,16 @@ class _ExamSlotCard extends StatelessWidget {
     final lockedEmpty = locked && !done;
     final level = exam?.finalCecrlLevel;
 
-    return Opacity(
-      opacity: lockedEmpty ? 0.55 : 1.0,
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(AppRadii.lg),
-          border: Border.all(color: AppColors.line),
-          boxShadow: AppShadows.card,
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: done ? () => onTapDone(exam!) : onTapEmpty,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: done ? _accent : AppColors.surface2,
-                      borderRadius: BorderRadius.circular(AppRadii.md),
-                      border:
-                          done ? null : Border.all(color: AppColors.line),
-                      boxShadow: done ? AppShadows.card : null,
-                    ),
-                    child: lockedEmpty
-                        ? const Icon(LucideIcons.lock,
-                            size: 18, color: AppColors.inkFaint)
-                        : Text(
-                            '$slot',
-                            style: AppFonts.display(
-                              size: 21,
-                              color:
-                                  done ? AppColors.white : AppColors.inkFaint,
-                            ),
-                          ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Épreuve $slot',
-                          style:
-                              AppFonts.ui(size: 15, weight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _subtitle(lockedEmpty: lockedEmpty, level: level),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppFonts.ui(
-                            size: 12.5,
-                            weight: FontWeight.w600,
-                            color: done ? _accent : AppColors.inkFaint,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _trailing(lockedEmpty: lockedEmpty),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    return FullExamSlotCard(
+      slot: slot,
+      filled: done,
+      accent: _accent,
+      title: 'Épreuve $slot',
+      subtitle: _subtitle(lockedEmpty: lockedEmpty, level: level),
+      subtitleColor: done ? _accent : AppColors.inkFaint,
+      trailing: _trailing(lockedEmpty: lockedEmpty),
+      lockedEmpty: lockedEmpty,
+      onTap: done ? () => onTapDone(exam!) : onTapEmpty,
     );
   }
 
@@ -578,28 +482,8 @@ class _ExamSlotCard extends StatelessWidget {
           child: CircularProgressIndicator(strokeWidth: 2.5),
         );
       case FullTcfExamStatus.completed:
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: AppColors.redLight,
-            borderRadius: BorderRadius.circular(AppRadii.pill),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(LucideIcons.check, size: 13, color: AppColors.red),
-              const SizedBox(width: 5),
-              Text(
-                'Fait',
-                style: AppFonts.ui(
-                  size: 12,
-                  weight: FontWeight.w600,
-                  color: AppColors.red,
-                ),
-              ),
-            ],
-          ),
-        );
+        return FullExamSlotCard.faitPill(AppColors.red,
+            bg: AppColors.redLight);
     }
   }
 }
