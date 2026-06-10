@@ -2,29 +2,41 @@
 
 import {useRouter} from "next/navigation";
 import {type ReactNode, useEffect, useMemo, useState} from "react";
-import {Info, Lightbulb, Target, Waves} from "lucide-react";
+import {Lightbulb, Target, Waves} from "lucide-react";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {GuestGateSheet} from "@/app/_components/GuestGateSheet";
 import {ExamsGrid, type ExamSlotData} from "@/app/_components/hub/DetailParts";
 import {ExamIntroSheet} from "@/app/_components/hub/ExamIntroSheet";
 import {examSlotGrid} from "@/lib/exam-slots";
+import {moduleAverage} from "@/lib/dashboard";
 import {TcfFullExamBriefingSheet} from "@/app/examens-blancs/tcf/TcfFullExamBriefingSheet";
-import {ApiException, attemptApi, fullTcfExamApi, publicAttemptApi, publicExamApi,} from "@/lib/api";
+import {ApiException, attemptApi, dashboardApi, fullTcfExamApi, publicAttemptApi, publicExamApi,} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {
-  type AttemptSummaryResponse,
-  canAccessModule,
-  cecrlIndex,
-  type ExamTemplateSummary,
-  type FullTcfExamSummaryResponse,
-  isProductionAttempt,
-  type Module as ModuleEnum,
-  niveauCecrlLabel,
+    type AttemptSummaryResponse,
+    canAccessModule,
+    cecrlIndex,
+    type DashboardSummaryResponse,
+    type ExamTemplateSummary,
+    type FullTcfExamSummaryResponse,
+    isProductionAttempt,
+    type Module as ModuleEnum,
+    type NiveauCecrl,
+    niveauCecrlLabel,
 } from "@/lib/types";
 
 const SLOTS = 20;
 const COLLAPSED = 8;
+
+/** Parcours affiché par le toggle en tête de page. */
+type ExamModule = "TCF" | "CIVIQUE";
+
+/** Une stat affichée sous le toggle (valeur + libellé). */
+interface StatItem {
+    value: string;
+    label: string;
+}
 
 /** Templates de référence des examens complets (briefing + lancement). */
 const TCF_FREE_DIAGNOSTIC_SLUG = "tcf-mix-01";
@@ -67,6 +79,9 @@ function ExamsConnectedHome() {
     const [civiqueSlot, setCiviqueSlot] = useState<number | null>(null);
     const [civiqueStarting, setCiviqueStarting] = useState(false);
     const [civiqueError, setCiviqueError] = useState<string | null>(null);
+    const [active, setActive] = useState<ExamModule>("TCF");
+    /** Dashboard agrégé (cache 30 s) : sert niveau TCF estimé + progression civique. */
+    const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
 
     const tcfPremium = user != null && canAccessModule(user, "TCF");
     const civiquePremium = user != null && canAccessModule(user, "CIVIQUE");
@@ -119,6 +134,22 @@ function ExamsConnectedHome() {
         };
     }, [status]);
 
+    // Dashboard agrégé (cache 30 s, partagé sidebar) : niveau TCF estimé +
+    // progression civique pour les stat cards sous le toggle.
+    useEffect(() => {
+        if (status !== "authenticated") return;
+        let cancelled = false;
+        dashboardApi
+            .summaryCached()
+            .then((s) => {
+                if (!cancelled) setSummary(s);
+            })
+            .catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [status]);
+
     // Examens TCF complets : seulement pour les abonnés (le backend exige hasTcf).
     useEffect(() => {
         if (status !== "authenticated" || !tcfPremium) return;
@@ -137,7 +168,7 @@ function ExamsConnectedHome() {
     }, [status, tcfPremium]);
 
     // Grilles indexées par slot : refaire l'examen N met à jour la case N.
-    const {bySlot: civiqueBySlot, latest: civiqueLatest} = useMemo(
+    const {bySlot: civiqueBySlot} = useMemo(
         () => examSlotGrid(civique, SLOTS),
         [civique],
     );
@@ -159,11 +190,11 @@ function ExamsConnectedHome() {
             ),
         [civiqueBySlot],
     );
-    const {bySlot: tcfCompBySlot, latest: tcfCompLatest} = useMemo(
+    const {bySlot: tcfCompBySlot} = useMemo(
         () => examSlotGrid(tcfComprehension, SLOTS),
         [tcfComprehension],
     );
-    const {bySlot: fullExamBySlot, latest: fullExamLatest} = useMemo(
+    const {bySlot: fullExamBySlot} = useMemo(
         () => examSlotGrid(fullExams, SLOTS),
         [fullExams],
     );
@@ -240,6 +271,53 @@ function ExamsConnectedHome() {
         router.push(`/examens-blancs/${TCF_FREE_DIAGNOSTIC_SLUG}?slot=${slot}`);
     }
 
+    // ---- Stat cards + tips sous le toggle (données réelles, pas de valeurs en dur) ----
+    const estimatedTcf = niveauCecrlLabel(summary?.estimatedTcfLevel ?? null);
+    let tcfStats: StatItem[];
+    let tcfTips: string[];
+    if (tcfPremium) {
+        const completed = fullExams.filter((e) => e.status === "COMPLETED");
+        const bestLevel = completed.reduce<NiveauCecrl | null>(
+            (best, e) =>
+                best == null || cecrlIndex(e.finalCecrlLevel) > cecrlIndex(best)
+                    ? e.finalCecrlLevel
+                    : best,
+            null,
+        );
+        const last = mostRecentFull(completed);
+        tcfStats = [
+            {value: niveauCecrlLabel(bestLevel), label: "Meilleur niveau"},
+            {value: last ? niveauCecrlLabel(last.finalCecrlLevel) : "—", label: "Dernier examen"},
+            {value: estimatedTcf, label: "Niveau estimé"},
+        ];
+        tcfTips = ["Conditions réelles", "90 minutes", "4 épreuves", "Niveau CECRL"];
+    } else {
+        const best = bestTcfScore(tcfComprehension);
+        const last = mostRecent(tcfComprehension);
+        tcfStats = [
+            {value: tcfScoreLabel(best), label: "Meilleur score"},
+            {value: tcfScoreLabel(last), label: "Dernier examen"},
+            {value: niveauCecrlLabel(summary?.estimatedTcfLevel ?? last?.cecrlLevel ?? null), label: "Niveau estimé"},
+        ];
+        tcfTips = ["Conditions réelles", "55 minutes", "50 questions", "CO puis CE"];
+    }
+
+    const civiqueProgress = summary ? moduleAverage(summary.civique) : null;
+    const civiqueStats: StatItem[] = [
+        {value: civiqueScoreLabel(bestScored(civique)), label: "Meilleur score"},
+        {value: civiqueScoreLabel(mostRecent(civique)), label: "Dernier examen"},
+        {value: civiqueProgress != null ? `${civiqueProgress}%` : "—", label: "Progression"},
+    ];
+    const civTotalQ = civiqueTemplate?.totalQuestions ?? 40;
+    const civMin = Math.round((civiqueTemplate?.durationSeconds ?? 2400) / 60);
+    const civPass = civiqueTemplate?.passingScore ?? 32;
+    const civiqueTips = [
+        "Conditions réelles",
+        `${civMin} minutes`,
+        `Seuil ${civPass}/${civTotalQ}`,
+        `${civTotalQ} questions`,
+    ];
+
     return (
         <main className="ebh">
             <header className="ebh-head">
@@ -255,67 +333,63 @@ function ExamsConnectedHome() {
                 </p>
             </header>
 
-            <ModuleExamsSection
-                tone="red"
-                icon={<Waves size={22} strokeWidth={1.8}/>}
-                title="TCF IRN"
-                chip={tcfPremium ? "CO · CE · EE · EO" : "CO puis CE"}
-                brewLine={
-                    tcfPremium
-                        ? "L'examen complet enchaîne les 4 épreuves dans l'ordre du vrai TCF IRN : compréhension orale et écrite, puis expression écrite et orale évaluées par l'IA. 90 min, niveau CECRL plancher des 4 épreuves."
-                        : "Enchaîne les épreuves de compréhension dans l'ordre du vrai TCF : orale (25 questions · 20 min) puis écrite (25 questions · 35 min). L'expression écrite et orale se débloquent avec l'abonnement Intégral."
-                }
-                sub={
-                    tcfPremium
-                        ? fullExamSubline(fullExamLatest)
-                        : comprehensionSubline(tcfCompLatest)
-                }
-            >
-                {tcfPremium ? (
+            <ModuleToggle active={active} onChange={setActive}/>
+
+            {active === "TCF" ? (
+                <ModuleExamsSection
+                    tone="red"
+                    icon={<Waves size={22} strokeWidth={1.8}/>}
+                    title="TCF IRN"
+                    chip={tcfPremium ? "CO · CE · EE · EO" : "CO puis CE"}
+                    stats={tcfStats}
+                    tips={tcfTips}
+                >
+                    {tcfPremium ? (
+                        <ExamsGrid
+                            count={SLOTS}
+                            exams={fullExamSlotData}
+                            premium
+                            starting={false}
+                            itemLabel="Examen"
+                            collapsedCount={COLLAPSED}
+                            reportPath={fullExamReportPath}
+                            onStart={startFullExam}
+                            onLocked={() => setPaywallModule("INTEGRAL")}
+                        />
+                    ) : (
+                        <ExamsGrid
+                            count={SLOTS}
+                            exams={tcfCompBySlot}
+                            premium={false}
+                            starting={false}
+                            itemLabel="Épreuve"
+                            collapsedCount={COLLAPSED}
+                            onStart={startTcfDiagnostic}
+                            onLocked={() => setPaywallModule("INTEGRAL")}
+                        />
+                    )}
+                </ModuleExamsSection>
+            ) : (
+                <ModuleExamsSection
+                    tone="blue"
+                    icon={<Lightbulb size={22} strokeWidth={1.8}/>}
+                    title="Examen civique"
+                    chip="5 catégories mélangées"
+                    stats={civiqueStats}
+                    tips={civiqueTips}
+                >
                     <ExamsGrid
                         count={SLOTS}
-                        exams={fullExamSlotData}
-                        premium
+                        exams={civiqueSlotData}
+                        premium={civiquePremium}
                         starting={false}
                         itemLabel="Examen"
                         collapsedCount={COLLAPSED}
-                        reportPath={fullExamReportPath}
-                        onStart={startFullExam}
-                        onLocked={() => setPaywallModule("INTEGRAL")}
+                        onStart={startCivique}
+                        onLocked={() => setPaywallModule("CIVIQUE")}
                     />
-                ) : (
-                    <ExamsGrid
-                        count={SLOTS}
-                        exams={tcfCompBySlot}
-                        premium={false}
-                        starting={false}
-                        itemLabel="Épreuve"
-                        collapsedCount={COLLAPSED}
-                        onStart={startTcfDiagnostic}
-                        onLocked={() => setPaywallModule("INTEGRAL")}
-                    />
-                )}
-            </ModuleExamsSection>
-
-            <ModuleExamsSection
-                tone="blue"
-                icon={<Lightbulb size={22} strokeWidth={1.8}/>}
-                title="Examen civique"
-                chip="5 catégories mélangées"
-                brewLine="Brasse tous les thèmes : Principes et valeurs de la République · Système institutionnel et politique · Droits et devoirs · Histoire, géographie et culture · Vivre dans la société française."
-                sub={comprehensionSubline(civiqueLatest, 40)}
-            >
-                <ExamsGrid
-                    count={SLOTS}
-                    exams={civiqueSlotData}
-                    premium={civiquePremium}
-                    starting={false}
-                    itemLabel="Examen"
-                    collapsedCount={COLLAPSED}
-                    onStart={startCivique}
-                    onLocked={() => setPaywallModule("CIVIQUE")}
-                />
-            </ModuleExamsSection>
+                </ModuleExamsSection>
+            )}
 
             {briefingSlot !== null && (
                 <TcfFullExamBriefingSheet
@@ -371,46 +445,96 @@ function ExamsConnectedHome() {
 }
 
 // ============================================================================
-// Sous-titres de card (stats récap)
+// Helpers stats (meilleur / dernier examen)
 // ============================================================================
 
-/** Récap des examens QCM (compréhension TCF / civique) : score brut ou échelle
- *  calibrée TCF (100-499) dès qu'un examen calibré existe. */
-function comprehensionSubline(
-    exams: AttemptSummaryResponse[],
-    scoreOutOf = 50,
-): string {
-    const done = Math.min(exams.length, SLOTS);
-    if (done === 0) {
-        return `${SLOTS} épreuves disponibles · aucune passée pour l'instant`;
-    }
-    const bestCalibrated = exams.reduce(
-        (max: number | null, a) =>
-            a.calibratedScore != null ? Math.max(max ?? 0, a.calibratedScore) : max,
+/** Attempt au meilleur score brut (civique). Null si aucun score. */
+function bestScored(exams: AttemptSummaryResponse[]): AttemptSummaryResponse | null {
+    return exams.reduce<AttemptSummaryResponse | null>(
+        (best, a) =>
+            a.score != null && (best == null || a.score > (best.score ?? -1)) ? a : best,
         null,
     );
-    const best = exams.reduce((max, a) => Math.max(max, a.score ?? 0), 0);
-    const bestLabel =
-        bestCalibrated != null ? `${bestCalibrated}/499` : `${best}/${scoreOutOf}`;
-    return `${done}/${SLOTS} épreuves passées · meilleur ${bestLabel}`;
 }
 
-/** Récap des examens TCF complets : nombre terminés + meilleur niveau CECRL. */
-function fullExamSubline(exams: FullTcfExamSummaryResponse[]): string {
-    const completed = exams.filter(
-        (e) => e.status === "COMPLETED" && e.finalCecrlLevel != null,
-    );
-    if (completed.length === 0) {
-        return `${SLOTS} examens complets disponibles · aucun terminé pour l'instant`;
-    }
-    const bestLevel = completed.reduce<FullTcfExamSummaryResponse["finalCecrlLevel"]>(
-        (best, e) =>
-            best == null || cecrlIndex(e.finalCecrlLevel) > cecrlIndex(best)
-                ? e.finalCecrlLevel
-                : best,
+/** Attempt TCF au meilleur score (calibré /499 prioritaire, sinon brut). */
+function bestTcfScore(exams: AttemptSummaryResponse[]): AttemptSummaryResponse | null {
+    const val = (a: AttemptSummaryResponse) => a.calibratedScore ?? a.score ?? -1;
+    return exams.reduce<AttemptSummaryResponse | null>(
+        (best, a) => (best == null || val(a) > val(best) ? a : best),
         null,
     );
-    return `${completed.length}/${SLOTS} examens complets · meilleur niveau ${niveauCecrlLabel(bestLevel)}`;
+}
+
+/** Attempt le plus récent (par date de fin, fallback date de début). */
+function mostRecent(exams: AttemptSummaryResponse[]): AttemptSummaryResponse | null {
+    return exams.reduce<AttemptSummaryResponse | null>((latest, a) => {
+        const t = a.finishedAt ?? a.startedAt;
+        const lt = latest ? (latest.finishedAt ?? latest.startedAt) : "";
+        return latest == null || t > lt ? a : latest;
+    }, null);
+}
+
+/** Examen complet TCF le plus récent. */
+function mostRecentFull(
+    exams: FullTcfExamSummaryResponse[],
+): FullTcfExamSummaryResponse | null {
+    return exams.reduce<FullTcfExamSummaryResponse | null>((latest, e) => {
+        const t = e.finishedAt ?? e.startedAt;
+        const lt = latest ? (latest.finishedAt ?? latest.startedAt) : "";
+        return latest == null || t > lt ? e : latest;
+    }, null);
+}
+
+/** Score TCF affichable : calibré /499 si dispo, sinon brut /50, sinon « — ». */
+function tcfScoreLabel(a: AttemptSummaryResponse | null): string {
+    if (!a) return "—";
+    if (a.calibratedScore != null) return `${a.calibratedScore}/499`;
+    if (a.score != null) return `${a.score}/50`;
+    return "—";
+}
+
+/** Score civique affichable : brut sur le total de questions, sinon « — ». */
+function civiqueScoreLabel(a: AttemptSummaryResponse | null): string {
+    if (!a || a.score == null) return "—";
+    return `${a.score}/${a.totalQuestions ?? 40}`;
+}
+
+// ============================================================================
+// TOGGLE PARCOURS — 2 boutons demi-largeur (TCF / Examen civique). On n'affiche
+// que les examens du parcours sélectionné, plutôt que de tout empiler.
+// ============================================================================
+function ModuleToggle({
+                          active,
+                          onChange,
+                      }: {
+    active: ExamModule;
+    onChange: (m: ExamModule) => void;
+}) {
+    return (
+        <div className="ebh-toggle" role="tablist" aria-label="Choisir un parcours">
+            <button
+                type="button"
+                role="tab"
+                aria-selected={active === "TCF"}
+                className={`ebh-toggle-btn ebh-toggle-btn-red${active === "TCF" ? " is-active" : ""}`}
+                onClick={() => onChange("TCF")}
+            >
+                <Waves size={18} strokeWidth={1.8} aria-hidden/>
+                TCF IRN
+            </button>
+            <button
+                type="button"
+                role="tab"
+                aria-selected={active === "CIVIQUE"}
+                className={`ebh-toggle-btn ebh-toggle-btn-blue${active === "CIVIQUE" ? " is-active" : ""}`}
+                onClick={() => onChange("CIVIQUE")}
+            >
+                <Lightbulb size={18} strokeWidth={1.8} aria-hidden/>
+                Examen civique
+            </button>
+        </div>
+    );
 }
 
 // ============================================================================
@@ -421,34 +545,50 @@ function ModuleExamsSection({
                                 icon,
                                 title,
                                 chip,
-                                brewLine,
                                 sub,
+                                stats,
+                                tips,
                                 children,
                             }: {
     tone: "blue" | "red";
     icon: ReactNode;
     title: string;
     chip: string;
-    brewLine: string;
-    sub: string;
+    sub?: string;
+    stats?: StatItem[];
+    tips: string[];
     children: ReactNode;
 }) {
     return (
         <section className="ebh-module">
             <header className="ebh-module-head">
-        <span className={`ebh-module-icon ebh-module-icon-${tone}`} aria-hidden>
-          {icon}
-        </span>
+                <span className={`ebh-module-icon ebh-module-icon-${tone}`} aria-hidden>
+                    {icon}
+                </span>
                 <div className="ebh-module-titles">
                     <h2>{title}</h2>
-                    <p>{sub}</p>
+                    {sub && <p>{sub}</p>}
                 </div>
                 <span className="ebh-module-chip">{chip}</span>
             </header>
 
-            <div className="ebh-brew">
-                <Info size={15} aria-hidden/>
-                <span>{brewLine}</span>
+            {stats && stats.length > 0 && (
+                <div className="ebh-stats">
+                    {stats.map((s) => (
+                        <div className="ebh-stat" key={s.label}>
+                            <span className="ebh-stat-val">{s.value}</span>
+                            <span className="ebh-stat-lbl">{s.label}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <div className="ebh-tips">
+                {tips.map((t) => (
+                    <span className={`ebh-tip ebh-tip-${tone}`} key={t}>
+                        {t}
+                    </span>
+                ))}
             </div>
 
             {children}
@@ -482,6 +622,7 @@ function ExamsGuestHome() {
     const [introModule, setIntroModule] = useState<ModuleEnum | null>(null);
     const [demoStarting, setDemoStarting] = useState(false);
     const [demoError, setDemoError] = useState<string | null>(null);
+    const [active, setActive] = useState<ExamModule>("TCF");
 
     useEffect(() => {
         let cancelled = false;
@@ -567,47 +708,51 @@ function ExamsGuestHome() {
 
             {error && <div className="ebh-error">{error}</div>}
 
-            <ModuleExamsSection
-                tone="red"
-                icon={<Waves size={22} strokeWidth={1.8}/>}
-                title="TCF IRN"
-                chip="CO puis CE"
-                brewLine="Enchaîne les épreuves de compréhension dans l'ordre du vrai TCF : orale (25 questions · 20 min) puis écrite (25 questions · 35 min). L'expression écrite et orale se débloquent avec un compte abonné."
-                sub={`${SLOTS} épreuves disponibles · 1 offerte sans compte`}
-            >
-                <ExamsGrid
-                    count={SLOTS}
-                    exams={[]}
-                    premium={false}
-                    starting={false}
-                    itemLabel="Épreuve"
-                    collapsedCount={COLLAPSED}
-                    lockedLabel="Compte gratuit"
-                    onStart={() => openIntro("TCF")}
-                    onLocked={() => setGuestGateOpen(true)}
-                />
-            </ModuleExamsSection>
+            <ModuleToggle active={active} onChange={setActive}/>
 
-            <ModuleExamsSection
-                tone="blue"
-                icon={<Lightbulb size={22} strokeWidth={1.8}/>}
-                title="Examen civique"
-                chip="5 catégories mélangées"
-                brewLine="Brasse tous les thèmes : Principes et valeurs de la République · Système institutionnel et politique · Droits et devoirs · Histoire, géographie et culture · Vivre dans la société française."
-                sub={`${SLOTS} épreuves disponibles · 1 offerte sans compte`}
-            >
-                <ExamsGrid
-                    count={SLOTS}
-                    exams={[]}
-                    premium={false}
-                    starting={false}
-                    itemLabel="Examen"
-                    collapsedCount={COLLAPSED}
-                    lockedLabel="Compte gratuit"
-                    onStart={() => openIntro("CIVIQUE")}
-                    onLocked={() => setGuestGateOpen(true)}
-                />
-            </ModuleExamsSection>
+            {active === "TCF" ? (
+                <ModuleExamsSection
+                    tone="red"
+                    icon={<Waves size={22} strokeWidth={1.8}/>}
+                    title="TCF IRN"
+                    chip="Tous les modules"
+                    tips={["Conditions réelles", "90 minutes", "Niveau requis . B2", "Tous les modules"]}
+                    sub={`${SLOTS} épreuves disponibles · 1 offerte sans compte`}
+                >
+                    <ExamsGrid
+                        count={SLOTS}
+                        exams={[]}
+                        premium={false}
+                        starting={false}
+                        itemLabel="Épreuve"
+                        collapsedCount={COLLAPSED}
+                        lockedLabel="Compte gratuit"
+                        onStart={() => openIntro("TCF")}
+                        onLocked={() => setGuestGateOpen(true)}
+                    />
+                </ModuleExamsSection>
+            ) : (
+                <ModuleExamsSection
+                    tone="blue"
+                    icon={<Lightbulb size={22} strokeWidth={1.8}/>}
+                    title="Examen civique"
+                    chip="5 catégories mélangées"
+                    tips={["Conditions réelles", "45 minutes", "Seuil 32/40", "40 questions"]}
+                    sub={`${SLOTS} épreuves disponibles · 1 offerte sans compte`}
+                >
+                    <ExamsGrid
+                        count={SLOTS}
+                        exams={[]}
+                        premium={false}
+                        starting={false}
+                        itemLabel="Examen"
+                        collapsedCount={COLLAPSED}
+                        lockedLabel="Compte gratuit"
+                        onStart={() => openIntro("CIVIQUE")}
+                        onLocked={() => setGuestGateOpen(true)}
+                    />
+                </ModuleExamsSection>
+            )}
 
             {/* TCF : même modale qu'en connecté, mais EE/EO verrouillés (compte requis)
           et copie adaptée à la démo anonyme. Le « Commencer » lance le
@@ -736,6 +881,42 @@ const styles = `
     margin-bottom: 16px;
   }
 
+  /* ===== toggle parcours (2 boutons demi-largeur) ===== */
+  .ebh-toggle {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .ebh-toggle-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid var(--color-line);
+    background: #fff;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-muted);
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  }
+  .ebh-toggle-btn svg { flex-shrink: 0; }
+  .ebh-toggle-btn:hover {
+    color: var(--color-ink);
+    border-color: color-mix(in srgb, var(--color-ink) 18%, transparent);
+  }
+  .ebh-toggle-btn.is-active {
+    color: #fff;
+    border-color: transparent;
+  }
+  .ebh-toggle-btn-red.is-active { background: var(--color-red); }
+  .ebh-toggle-btn-blue.is-active { background: var(--color-blue); }
+
   /* ===== card module ===== */
   .ebh-module {
     background: #fff;
@@ -779,17 +960,52 @@ const styles = `
     flex-shrink: 0;
   }
 
-  .ebh-brew {
-    display: flex; align-items: flex-start; gap: 8px;
+  /* ===== stat cards (meilleur / dernier / niveau ou progression) ===== */
+  .ebh-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .ebh-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
     background: var(--color-blue-soft);
     border: 1px solid var(--color-line);
-    border-radius: 11px;
-    padding: 10px 14px;
-    font-size: 12.5px; line-height: 1.5;
+    border-radius: 12px;
+    padding: 12px 14px;
+    min-width: 0;
+  }
+  .ebh-stat-val {
+    font-family: var(--font-sans);
+    font-size: 20px; font-weight: 800; letter-spacing: -0.01em;
+    color: var(--color-ink);
+    line-height: 1.1;
+  }
+  .ebh-stat-lbl {
+    font-size: 12px; font-weight: 600;
     color: var(--color-muted);
+  }
+
+  /* ===== tips chips (remplace la phrase descriptive) ===== */
+  .ebh-tips {
+    display: flex; flex-wrap: wrap; gap: 8px;
     margin-bottom: 16px;
   }
-  .ebh-brew svg { flex-shrink: 0; margin-top: 2px; color: var(--color-blue); }
+  .ebh-tip {
+    font-size: 12px; font-weight: 600;
+    padding: 5px 11px; border-radius: 999px;
+    background: var(--color-blue-soft);
+    color: var(--color-blue);
+    border: 1px solid var(--color-line);
+    white-space: nowrap;
+  }
+  .ebh-tip-red {
+    background: var(--color-red-light);
+    color: var(--color-red-dark);
+    border-color: color-mix(in srgb, var(--color-red) 18%, transparent);
+  }
 
   .ebh-guest-foot {
     margin-top: 6px;
@@ -810,5 +1026,10 @@ const styles = `
     .ebh { padding: 64px 18px 48px; }
     .ebh-module-chip { display: none; }
     .ebh-module-titles p { white-space: normal; }
+    .ebh-toggle-btn { font-size: 13.5px; padding: 12px 10px; gap: 7px; }
+    .ebh-stats { gap: 7px; }
+    .ebh-stat { padding: 10px; }
+    .ebh-stat-val { font-size: 17px; }
+    .ebh-stat-lbl { font-size: 11px; }
   }
 `;

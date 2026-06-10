@@ -656,9 +656,18 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
       (`CategoryStat.bestMockScore`/`lastMockScore`/`prevMockScore`).
       L'ancien écran stats par thème avec toggle module est supprimé.
     - **`/examens-blancs` refondu** (connecté) : « Examens blancs complets » —
-      une card par parcours (TCF IRN = MOCK_EXAM TCF 60 Q mélangées ; Examen
-      civique = MOCK_EXAM CIVIQUE 40 Q stratifiées) avec stats « x/20 épreuves
-      passées · meilleur y/n », ligne « Brasse tous les thèmes… », grille de
+      **toggle segmenté `ModuleToggle` en tête (TCF IRN / Examen civique, 2
+      boutons demi-largeur)** : on n'affiche QUE le parcours sélectionné (état
+      local `active`, défaut TCF), plus d'empilement vertical des 2 cards.
+      Chaque parcours = une `ModuleExamsSection` avec, sous le header, une
+      rangée de **3 stat cards** (`StatItem`) + des **tips chips** (`tips`,
+      remplacent l'ancienne phrase `brewLine`). TCF abonné → Meilleur niveau /
+      Dernier examen / Niveau estimé (CECRL) ; TCF gratuit → Meilleur score /
+      Dernier examen (/499 calibré ou /50) / Niveau estimé ; Civique → Meilleur
+      score / Dernier examen (/40) / Progression %. Niveau estimé + progression
+      viennent de `dashboardApi.summaryCached()` (`estimatedTcfLevel`,
+      `moduleAverage(summary.civique)`) ; meilleur/dernier des attempts déjà
+      chargés (helpers `bestScored`/`bestTcfScore`/`mostRecent`). Grille de
       20 épreuves **repliée à 8 + « Voir tout »** (`ExamsGrid` props
       `collapsedCount`/`itemLabel`). Épreuve 1 gratuite, 2+ premium.
       **Démarrer/Refaire passe par la page briefing du template de
