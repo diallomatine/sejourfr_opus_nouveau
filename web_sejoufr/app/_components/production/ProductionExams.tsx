@@ -24,6 +24,7 @@ import {
   ExamsGrid,
 } from "@/app/_components/hub/DetailParts";
 import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
+import { ExamIntroSheet } from "@/app/_components/hub/ExamIntroSheet";
 import { type ProductionConfig } from "./config";
 import detail from "@/app/_components/hub/detail.module.css";
 
@@ -56,6 +57,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [retakeWarningOpen, setRetakeWarningOpen] = useState(false);
+  const [introOpen, setIntroOpen] = useState(false);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -106,8 +108,15 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
     };
   }, [status, config.epreuve]);
 
+  function requestStart() {
+    if (starting) return;
+    setError(null);
+    setIntroOpen(true);
+  }
+
   function start() {
     if (starting) return;
+    setIntroOpen(false);
     // Gratuit : examen 1 offert. Le refaire est possible mais consomme les
     // essais d'entraînement EE/EO restants → avertissement avant. Le backend
     // tranche (403 au-delà de 2 sessions) ; `past` ne voit que les sessions
@@ -213,8 +222,31 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
           starting={starting}
           itemLabel="Examen"
           reportPath={(attemptId) => `${config.base}/session/${attemptId}`}
-          onStart={start}
+          onStart={requestStart}
           onLocked={() => setPaywallOpen(true)}
+        />
+
+        <ExamIntroSheet
+          open={introOpen}
+          eyebrow={`Examen blanc · ${config.label}`}
+          title={`${config.label} en conditions réelles`}
+          subtitle="Avant de commencer, voici comment se déroule l'examen."
+          facts={[
+            { label: "tâches enchaînées", value: "3" },
+            { label: `niveau ${level}`, value: config.examMinutes },
+            { label: "note + niveau CECRL", value: "/20" },
+          ]}
+          tips={[
+            config.mode === "audio"
+              ? "Autorisez le micro : chaque tâche s'enregistre, comme le jour J."
+              : "Vous rédigez directement les 3 productions, un brouillon est sauvegardé.",
+            "Les 3 tâches sont évaluées par l'IA après l'examen.",
+            "Le niveau final est le plancher de vos 3 tâches (règle TCF IRN).",
+          ]}
+          loading={starting}
+          error={error}
+          onConfirm={start}
+          onClose={() => setIntroOpen(false)}
         />
 
         <ConfirmSheet

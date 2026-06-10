@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MediaView } from "./MediaView";
+import { ConfirmSheet } from "./hub/ConfirmSheet";
 import {
   ApiException,
   attemptApi,
@@ -65,6 +66,12 @@ export interface QuestionRunnerProps {
   eyebrow: string;
   /** Lien du bouton "X" pour quitter. */
   quitHref: string;
+  /** Comportement du bouton "X" :
+   *  - "link" (défaut) : navigue vers `quitHref` (entraînement, épreuve d'un
+   *    examen complet → retour au hub).
+   *  - "confirmFinish" : avertit puis FINALISE l'examen (questions non répondues
+   *    comptées 0) et affiche le résultat — pas d'examen laissé « en cours ». */
+  quitMode?: "link" | "confirmFinish";
   /** Appelé quand l'attempt actif est finalisé (score disponible). */
   onCompleted: (finalAttempt: AttemptResponse) => void;
   /** Mode exam : décompte total en secondes. Quand 0, on auto-finalise. */
@@ -115,6 +122,7 @@ export function QuestionRunner({
   initialFavoriteIds,
   eyebrow,
   quitHref,
+  quitMode = "link",
   onCompleted,
   timeLimitSeconds,
   startedAt,
@@ -165,9 +173,12 @@ export function QuestionRunner({
   // ============== SECTIONS (examen sectionné) ==============
   // Partie courante + écran d'intro affiché en entrant sur la 1re question
   // d'une partie pas encore répondue (donc pas en navigation arrière, ni à
-  // la reprise d'une session au milieu d'une partie). Une section unique
-  // (examen mono-épreuve) garde l'écran d'intro comme présentation, mais
-  // pas le bandeau de partie.
+  // la reprise d'une session au milieu d'une partie). Seuls les examens
+  // multi-épreuves émettent des sections (cf. tcfExamSections) : les examens
+  // mono-épreuve n'en passent plus, leur présentation vit dans ExamIntroSheet.
+  // La PARTIE 1 n'a pas d'intro : le briefing (modale ExamIntroSheet ou page)
+  // sert déjà d'annonce → « Commencer » entre direct dans la 1re question.
+  // L'intro ne s'affiche donc qu'aux transitions de partie (CO → CE).
   const sectionList = sections && sections.length > 0 ? sections : null;
   const multiSection = sectionList !== null && sectionList.length > 1;
   let sectionIndex = -1;
@@ -180,6 +191,7 @@ export function QuestionRunner({
   const [introsSeen, setIntrosSeen] = useState<ReadonlySet<number>>(new Set());
   const showSectionIntro =
     currentSection !== null &&
+    sectionIndex > 0 &&
     current !== undefined &&
     state.currentIndex === currentSection.startIndex &&
     !introsSeen.has(currentSection.startIndex) &&
@@ -284,6 +296,14 @@ export function QuestionRunner({
     }
   }, [backend, state.activeAttempt.id, onCompleted]);
 
+  // Quitter un examen autonome : avertit puis finalise (le reste compte 0) et
+  // montre le résultat — on ne laisse jamais un examen « en cours ».
+  const [quitConfirmOpen, setQuitConfirmOpen] = useState(false);
+  const confirmQuit = useCallback(() => {
+    setQuitConfirmOpen(false);
+    void finishCurrentAttempt();
+  }, [finishCurrentAttempt]);
+
   // ============== TIMER (mode exam) ==============
   // Calcule le temps restant à partir de startedAt + timeLimitSeconds. Tient
   // donc compte de la durée déjà écoulée si l'utilisateur recharge la page —
@@ -333,19 +353,20 @@ export function QuestionRunner({
     }));
   }, [state.currentIndex, state.questions.length, state.noMoreQuestions, state.extending, infinite, extendBatch, finishCurrentAttempt]);
 
-  // En examen, une question de compréhension orale passée ne peut pas être
-  // revisitée (audio à écoute unique, comme le jour J) : retour bloqué tant
-  // que la question précédente est une CO. En entraînement, navigation libre.
+  // Retour arrière en examen (conditions réelles) :
+  //  - Civique : interdit sur tout l'examen (une réponse validée est définitive).
+  //  - TCF : interdit dès que la question précédente est une compréhension orale
+  //    (audio à écoute unique) ; les autres épreuves restent navigables.
+  // En entraînement, navigation toujours libre.
   const prevQuestion =
     state.currentIndex > 0 ? state.questions[state.currentIndex - 1] : undefined;
-  const canGoPrevious =
-    state.currentIndex > 0 &&
-    !(
-      mode === "exam" &&
-      prevQuestion !== undefined &&
-      (prevQuestion.question.questionType === "CO" ||
-        prevQuestion.question.questionType === "CO_IMAGE")
-    );
+  const examBackBlocked =
+    mode === "exam" &&
+    (state.activeAttempt.module === "CIVIQUE" ||
+      (prevQuestion !== undefined &&
+        (prevQuestion.question.questionType === "CO" ||
+          prevQuestion.question.questionType === "CO_IMAGE")));
+  const canGoPrevious = state.currentIndex > 0 && !examBackBlocked;
 
   const goPrevious = useCallback(() => {
     if (!canGoPrevious) return;
@@ -493,9 +514,20 @@ export function QuestionRunner({
       <div className="qr-frame">
         {/* TOP BAR */}
         <div className="qr-topbar">
-          <Link href={quitHref} className="qr-x" aria-label="Quitter">
-            ✕
-          </Link>
+          {quitMode === "confirmFinish" ? (
+            <button
+              type="button"
+              className="qr-x"
+              aria-label="Quitter"
+              onClick={() => setQuitConfirmOpen(true)}
+            >
+              ✕
+            </button>
+          ) : (
+            <Link href={quitHref} className="qr-x" aria-label="Quitter">
+              ✕
+            </Link>
+          )}
           <div className="qr-topbar-center">
             <span className="eyebrow">{eyebrow}</span>
             <span className="qr-count">
@@ -560,7 +592,7 @@ export function QuestionRunner({
               className="btn btn-blue btn-lg"
               onClick={dismissSectionIntro}
             >
-              {sectionIndex === 0 ? "Commencer →" : "Continuer →"}
+              Continuer →
             </button>
           </div>
         ) : (
@@ -747,6 +779,17 @@ export function QuestionRunner({
         )}
       </div>
 
+      <ConfirmSheet
+        open={quitConfirmOpen}
+        tone="warning"
+        title="Quitter l'examen ?"
+        message="Si vous quittez maintenant, l'examen est finalisé : les questions non répondues sont comptées comme fausses. Vous verrez votre résultat. Cette action est définitive."
+        confirmLabel="Quitter et voir le résultat"
+        cancelLabel="Continuer l'examen"
+        onConfirm={confirmQuit}
+        onClose={() => setQuitConfirmOpen(false)}
+      />
+
       <style>{styles}</style>
     </section>
   );
@@ -834,6 +877,8 @@ const styles = `
     font-size: 18px;
     border-radius: 8px;
     flex-shrink: 0;
+    background: none; border: none; cursor: pointer;
+    font-family: inherit;
   }
   .qr-x:hover { background: var(--color-paper-2); }
   .qr-topbar-center { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; }

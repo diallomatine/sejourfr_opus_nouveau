@@ -89,10 +89,11 @@ function tcfExamSections(attempt: AttemptResponse): RunnerSection[] | undefined 
       });
     }
   }
-  // Plus de 3 groupes = épreuves entremêlées (attempt historique) : pas de
-  // parties à annoncer. 1 seul groupe = examen mono-épreuve : l'écran d'intro
-  // sert quand même de présentation avant la première question.
-  return sections.length <= 3 ? sections : undefined;
+  // Seuls les examens multi-épreuves (diagnostic CO+CE) annoncent leurs
+  // parties. 1 seul groupe = examen mono-épreuve : pas d'écran d'intro runner,
+  // la modale ExamIntroSheet de la page examens présente déjà le déroulé.
+  // Plus de 3 groupes = épreuves entremêlées (attempt historique) → undefined.
+  return sections.length >= 2 && sections.length <= 3 ? sections : undefined;
 }
 
 /** Sous-titre du hero du rapport : épreuve/thème + nature de la session. */
@@ -181,6 +182,9 @@ function SessionRunnerInner({ params }: PageProps) {
   const resultMode = searchParams.get("result");
   const tcfCode = searchParams.get("code");
   const tcfLevel = searchParams.get("level");
+  /** Présent quand Cette session (CO/CE) fait partie d'un examen blanc TCF
+   *  complet : pas de rapport individuel, on retourne au hub de progression. */
+  const fullExamId = searchParams.get("fullExamId");
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [sessionMode, setSessionMode] = useState<SessionMode>("auth");
@@ -292,6 +296,12 @@ function SessionRunnerInner({ params }: PageProps) {
         setSessionMode(mode);
 
         if (a.finishedAt) {
+          // Sous-épreuve CO/CE d'un examen complet déjà terminée : on ne montre
+          // pas le rapport individuel, on renvoie au hub de progression.
+          if (fullExamId) {
+            router.replace(`/examens-blancs/tcf/${fullExamId}`);
+            return;
+          }
           setAttempt(a);
           setOpenedAsFinished(true);
           setPhase("result");
@@ -319,7 +329,7 @@ function SessionRunnerInner({ params }: PageProps) {
     return () => {
       cancelled = true;
     };
-  }, [attemptId, status]);
+  }, [attemptId, status, fullExamId, router]);
 
   if (status === "loading" || phase === "loading") {
     return <div className="sess-loading" />;
@@ -512,15 +522,26 @@ function SessionRunnerInner({ params }: PageProps) {
                 : "Entraînement"
         }
         quitHref={
-          isExam
-            ? examReturnPath(attempt)
-            : (lotQuitHref ?? "/entrainement")
+          fullExamId
+            ? `/examens-blancs/tcf/${fullExamId}`
+            : isExam
+              ? examReturnPath(attempt)
+              : (lotQuitHref ?? "/entrainement")
         }
+        quitMode={isExam && !fullExamId ? "confirmFinish" : "link"}
         timeLimitSeconds={isExam ? attempt.timeLimitSeconds : undefined}
         startedAt={isExam ? attempt.startedAt : undefined}
-        sections={tcfExamSections(attempt)}
+        // En examen complet, l'épreuve a déjà été lancée depuis le hub
+        // (« Commencer · Compréhension orale ») : pas de 2ᵉ écran d'intro.
+        sections={fullExamId ? undefined : tcfExamSections(attempt)}
         backend={isGuest ? GUEST_BACKEND : undefined}
         onCompleted={(finalAttempt) => {
+          // Épreuve d'un examen complet : retour au hub (qui débloque la
+          // suivante) au lieu d'afficher le rapport individuel.
+          if (fullExamId) {
+            router.push(`/examens-blancs/tcf/${fullExamId}`);
+            return;
+          }
           setAttempt(finalAttempt);
           setPhase("result");
         }}

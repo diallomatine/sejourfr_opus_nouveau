@@ -12,6 +12,8 @@ import type {
   Difficulty,
   EpreuveType,
   ExamTemplateSummary,
+  FullTcfExamResponse,
+  FullTcfExamSummaryResponse,
   GoogleSignInRequest,
   LoginRequest,
   LotDto,
@@ -803,6 +805,64 @@ export const productionApi = {
         return apiFetch<ProductionSubmissionDto[]>(
             `/api/users/me/production-submissions/last-per-task?epreuve=${epreuve}&niveau=${niveau}`,
             {auth: true},
+        );
+    },
+};
+
+// ============================================================================
+// Endpoints Examen blanc TCF complet (TCF_COMPLET — CO → CE → EE → EO)
+// ============================================================================
+// Le backend crée le parent + 4 sous-attempts en une transaction (start) et
+// agrège le statut (IN_PROGRESS / PENDING_EVALUATIONS / COMPLETED). Les
+// productions EE/EO sont soumises via productionApi puis évaluées en arrière-
+// plan ; `markSubDone` débloque la suite sans attendre l'IA. Premium TCF requis.
+
+export const fullTcfExamApi = {
+    /** Démarre un examen complet (crée parent TCF_COMPLET + 4 sous-attempts). */
+    start(slotNumber?: number): Promise<FullTcfExamResponse> {
+        const qs = slotNumber != null ? `?slotNumber=${slotNumber}` : "";
+        return apiFetch<FullTcfExamResponse>(`/api/full-tcf-exams${qs}`, {
+            method: "POST",
+            auth: true,
+        });
+    },
+
+    /** État courant (polling du bilan / refresh du hub de progression). */
+    get(id: string): Promise<FullTcfExamResponse> {
+        return apiFetch<FullTcfExamResponse>(`/api/full-tcf-exams/${id}`, {auth: true});
+    },
+
+    /** Historique des examens complets de l'utilisateur (grille de slots). */
+    listMine(limit = 20): Promise<FullTcfExamSummaryResponse[]> {
+        return apiFetch<FullTcfExamSummaryResponse[]>(
+            `/api/me/full-tcf-exams?limit=${limit}`,
+            {auth: true},
+        );
+    },
+
+    /** Démarre le chrono global (90 min) au 1er « Commencer · CO ».
+     *  Idempotent : sans effet si déjà démarré. */
+    begin(id: string): Promise<FullTcfExamResponse> {
+        return apiFetch<FullTcfExamResponse>(`/api/full-tcf-exams/${id}/begin`, {
+            method: "POST",
+            auth: true,
+        });
+    },
+
+    /** Finalise l'examen (idempotent ; exige les 4 sous-attempts terminés). */
+    finish(id: string): Promise<FullTcfExamResponse> {
+        return apiFetch<FullTcfExamResponse>(`/api/full-tcf-exams/${id}/finish`, {
+            method: "POST",
+            auth: true,
+        });
+    },
+
+    /** Marque une sous-épreuve de production (EE/EO) terminée après la T3,
+     *  sans attendre l'évaluation IA — débloque l'épreuve suivante au hub. */
+    markSubDone(id: string, epreuve: EpreuveType): Promise<FullTcfExamResponse> {
+        return apiFetch<FullTcfExamResponse>(
+            `/api/full-tcf-exams/${id}/sub-done?epreuve=${epreuve}`,
+            {method: "POST", auth: true},
         );
     },
 };

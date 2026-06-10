@@ -2,6 +2,7 @@ package com.sejourfr.app.repository;
 
 import com.sejourfr.app.entity.Answer;
 import com.sejourfr.app.enums.Module;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -67,16 +68,25 @@ public interface AnswerRepository extends JpaRepository<Answer, UUID> {
     // ------------------------------------------------------------------------
 
     /**
-     * IDs des questions auxquelles l'utilisateur a deja repondu incorrectement.
-     * Si {@code module} est null, agrege tous les modules (badge global sidebar web).
+     * IDs des questions auxquelles l'utilisateur a deja repondu incorrectement,
+     * triees par erreur la plus recente d'abord (MAX answeredAt). Le {@link Pageable}
+     * plafonne le nombre renvoye — la revision n'expose que les N erreurs les plus
+     * recentes par module (cf. {@code MeService.MAX_WRONG_PER_MODULE}). Au-dela, les
+     * plus anciennes sortent naturellement de la liste : aucune ligne {@code answers}
+     * n'est supprimee, donc les stats de progression restent intactes.
+     * Si {@code module} est null, agrege tous les modules.
      */
     @Query("""
-        SELECT DISTINCT a.attemptQuestion.question.id FROM Answer a
+        SELECT a.attemptQuestion.question.id FROM Answer a
         WHERE a.attemptQuestion.attempt.user.id = :userId
           AND (:module IS NULL OR a.attemptQuestion.attempt.module = :module)
           AND a.correct = false
+        GROUP BY a.attemptQuestion.question.id
+        ORDER BY MAX(a.answeredAt) DESC
         """)
-    List<UUID> findWrongQuestionIds(@Param("userId") UUID userId, @Param("module") Module module);
+    List<UUID> findRecentWrongQuestionIds(@Param("userId") UUID userId,
+                                          @Param("module") Module module,
+                                          Pageable pageable);
 
     @Query("""
         SELECT COUNT(a) > 0 FROM Answer a

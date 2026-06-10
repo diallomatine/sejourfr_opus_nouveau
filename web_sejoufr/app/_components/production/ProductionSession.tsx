@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, FileStack, GraduationCap, Mic, PenLine, Play, Sparkles } from "lucide-react";
-import { ApiException, productionApi } from "@/lib/api";
+import { Check, ChevronRight, Lightbulb, Mic, PenLine } from "lucide-react";
+import { ApiException, fullTcfExamApi, productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
   cecrlIndex,
@@ -19,7 +19,7 @@ import {
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
-import { DetailShell, DetailStatCard } from "@/app/_components/hub/DetailParts";
+import { DetailShell } from "@/app/_components/hub/DetailParts";
 import { EeWritingForm, clearEeDraft } from "./EeWritingForm";
 import { EoRecordingForm } from "./EoRecordingForm";
 import { type ProductionConfig } from "./config";
@@ -39,6 +39,13 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   const params = useParams<{ attemptId: string }>();
   const attemptId = params?.attemptId ?? "";
   const router = useRouter();
+  const searchParams = useSearchParams();
+  /** Présent quand cette session est une épreuve d'un examen blanc TCF complet :
+   *  on saute le bilan individuel et on retourne au hub de progression. */
+  const fullExamId = searchParams.get("fullExamId");
+  /** URL de retour quand on CONSULTE le bilan de l'épreuve (depuis le bilan de
+   *  l'examen complet) — distinct de fullExamId qui pilote une épreuve ACTIVE. */
+  const backTo = searchParams.get("backTo");
   const { user, status } = useAuth();
   const level = resolveTcfLevel(user);
 
@@ -110,6 +117,12 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         setSubsByTache(subs);
         const nextTodo = TACHES.find((n) => !subs.has(n));
         if (nextTodo === undefined) {
+          // Reprise d'une épreuve d'examen complet déjà soumise : pas de bilan
+          // individuel, on renvoie au hub (la sous-épreuve y est déjà terminée).
+          if (fullExamId) {
+            router.replace(`/examens-blancs/tcf/${fullExamId}`);
+            return;
+          }
           setPhase("bilan");
           startBilanPolling();
         } else {
@@ -136,6 +149,9 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     setError(null);
     setSubmitting(true);
     try {
+      // Attend uniquement la persistance backend (~500 ms, retourne SUBMITTED).
+      // L'évaluation IA tourne en arrière-plan — on n'attend pas EVALUATED ici,
+      // exactement comme le mobile : T1/T2 enchaînent sans latence d'éval.
       const sub = await go(attemptId);
       if (config.mode === "text") clearEeDraft(currentTask.id);
       const next = new Map(subsByTache);
@@ -143,8 +159,21 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       setSubsByTache(next);
       const nextTodo = TACHES.find((n) => !next.has(n));
       if (nextTodo === undefined) {
-        setPhase("bilan");
-        startBilanPolling();
+        // T3 soumise : dernière tâche de l'épreuve.
+        if (fullExamId) {
+          // Examen complet : signaler la sous-épreuve terminée (sans attendre
+          // l'IA) puis revenir au hub, qui débloque l'épreuve suivante.
+          try {
+            await fullTcfExamApi.markSubDone(fullExamId, config.epreuve);
+          } catch {
+            // Fallback : le backend pose finishedAt dès que la 3ᵉ submission
+            // est traitée (ProductionEvaluationService.finishSubAttemptIfFullExam).
+          }
+          router.push(`/examens-blancs/tcf/${fullExamId}`);
+        } else {
+          setPhase("bilan");
+          startBilanPolling();
+        }
       } else {
         setCurrentTache(nextTodo);
       }
@@ -159,13 +188,20 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`${config.base}/session/${attemptId}`} />;
 
-  const submitLabel = currentTache < 3 ? "Valider et continuer" : "Valider et terminer";
+  const submitLabel =
+    currentTache < 3
+      ? "Valider et continuer"
+      : fullExamId
+        ? "Valider et passer à l'épreuve suivante"
+        : "Valider et terminer";
 
   return (
     <DualChromeShell>
       <DetailShell
-        backHref={`${config.base}/examens`}
-        backLabel="Examens blancs"
+        backHref={
+          backTo ?? (fullExamId ? `/examens-blancs/tcf/${fullExamId}` : `${config.base}/examens`)
+        }
+        backLabel={backTo ? "Bilan de l'examen" : fullExamId ? "Examen complet" : "Examens blancs"}
         eyebrowIcon={
           config.mode === "audio" ? (
             <Mic size={18} strokeWidth={2} />
@@ -174,14 +210,15 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           )
         }
         eyebrow={config.label}
-        title={phase === "bilan" ? "Bilan de l'examen blanc" : "Examen blanc"}
+        title={phase === "bilan" ? "Bilan de la session" : "Examen blanc"}
         subtitle={
-          phase === "writing"
-            ? `3 tâches enchaînées, niveau ${level} — évaluation IA à la fin.`
-            : `Niveau ${level} · le niveau global retenu est le plancher de vos 3 tâches.`
+          phase === "bilan"
+            ? `Niveau ${level} · le niveau retenu est le plancher de vos 3 tâches (règle TCF IRN).`
+            : `3 tâches enchaînées, niveau ${level} — évaluation IA à la fin.`
         }
       >
-        {/* Stepper T1 → T2 → T3 */}
+        {/* Stepper T1 → T2 → T3 (pendant la saisie uniquement) */}
+        {phase !== "bilan" && (
         <ol className={prod.stepper} aria-label="Progression des tâches">
           {TACHES.map((n) => {
             const done = subsByTache.has(n);
@@ -201,6 +238,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             );
           })}
         </ol>
+        )}
 
         {error && <div className={detail.error}>{error}</div>}
 
@@ -240,6 +278,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           <BilanView
             config={config}
             subsByTache={subsByTache}
+            backTo={backTo}
             onOpenResult={(id) => router.push(`${config.base}/resultats/${id}`)}
           />
         )}
@@ -256,13 +295,43 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   );
 }
 
+const CECRL_SCALE: NiveauCecrl[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
+
+/** Conseil « prochaines étapes » selon le niveau plancher (calqué mobile). */
+function nextStepsMessage(level: NiveauCecrl | null): string {
+  switch (level) {
+    case "C2":
+    case "C1":
+    case "B2":
+      return "Excellent niveau. Vous visez le haut du TCF IRN — continuez à soigner la nuance et l'argumentation.";
+    case "B1":
+      return "Niveau solide, suffisant pour la carte de résident. Travaillez la richesse du vocabulaire pour viser B2.";
+    case "A2":
+      return "Niveau suffisant pour la carte de séjour. Renforcez la grammaire et la longueur de vos productions pour viser B1.";
+    case "A1":
+      return "Les bases sont là. Entraînez-vous régulièrement sur des phrases plus complètes pour progresser vers A2.";
+    case "A1_NON_ATTEINT":
+      return "Reprenez les bases : des phrases courtes et correctes d'abord. Chaque entraînement compte.";
+    default:
+      return "Dès que l'IA a évalué vos 3 tâches, votre niveau plancher s'affiche ici avec des conseils ciblés.";
+  }
+}
+
+/**
+ * Bilan d'une session de production (3 tâches), calqué sur le mobile
+ * (HistorySessionScreen) : hero bleu (note moyenne + niveau plancher + échelle
+ * CECRL), détail par tâche cliquable, conseil « prochaines étapes ». `backTo`
+ * = retour au bilan de l'examen complet quand on y arrive depuis celui-ci.
+ */
 function BilanView({
   config,
   subsByTache,
+  backTo,
   onOpenResult,
 }: {
   config: ProductionConfig;
   subsByTache: Map<number, ProductionSubmissionDto>;
+  backTo: string | null;
   onOpenResult: (submissionId: string) => void;
 }) {
   const evaluated = TACHES.map((n) => subsByTache.get(n)).filter(
@@ -272,6 +341,7 @@ function BilanView({
     const s = subsByTache.get(n);
     return s && isSubmissionPending(s);
   });
+  const allEvaluated = evaluated.length === TACHES.length;
 
   let plancher: NiveauCecrl | null = null;
   for (const s of evaluated) {
@@ -285,93 +355,130 @@ function BilanView({
   const avgNote = notes.length
     ? Math.round((notes.reduce((sum, v) => sum + v, 0) / notes.length) * 10) / 10
     : null;
+  const targetIdx = allEvaluated ? cecrlIndex(plancher) : -1;
 
   return (
     <>
-      <div className={detail.statCards}>
-        <DetailStatCard
-          icon={<GraduationCap size={20} />}
-          tone="green"
-          value={
-            anyPending && evaluated.length < TACHES.length
-              ? "…"
-              : niveauCecrlLabel(plancher)
-          }
-          label="Niveau global"
-          sub="plancher des 3 tâches"
-        />
-        <DetailStatCard
-          icon={<Sparkles size={20} />}
-          tone="blue"
-          value={avgNote != null ? `${formatNote(avgNote)}/20` : "—"}
-          label="Note moyenne"
-          sub="sur les tâches évaluées"
-        />
-        <DetailStatCard
-          icon={<FileStack size={20} />}
-          tone="red"
-          value={`${evaluated.length}/3`}
-          label="Tâches évaluées"
-          sub={anyPending ? "évaluation IA en cours…" : "par l'IA"}
-        />
+      {/* Hero bleu : note moyenne + niveau plancher + échelle CECRL */}
+      <div className={prod.sessHero}>
+        <div className={prod.sessHeroEyebrow}>BILAN DE LA SESSION</div>
+        <div className={prod.sessHeroRow}>
+          <div>
+            <div className={prod.sessHeroNoteLabel}>Note moyenne</div>
+            <div className={prod.sessHeroNote}>
+              {avgNote != null ? formatNote(avgNote) : "—"}
+              <span className={prod.sessHeroNoteOf}>/20</span>
+            </div>
+          </div>
+          <div className={prod.sessHeroSide}>
+            <div className={prod.sessHeroSideLabel}>Niveau plancher</div>
+            {allEvaluated && plancher != null ? (
+              <span className={prod.sessHeroBadge}>{niveauCecrlLabel(plancher)}</span>
+            ) : (
+              <span className={prod.sessHeroBadgePending}>Évaluation en cours…</span>
+            )}
+          </div>
+        </div>
+        <div className={prod.sessScale} aria-hidden>
+          {CECRL_SCALE.map((lvl, i) => (
+            <span
+              key={lvl}
+              className={`${prod.sessSeg} ${
+                targetIdx >= 0 && i === targetIdx
+                  ? prod.sessSegTarget
+                  : targetIdx >= 0 && i < targetIdx
+                    ? prod.sessSegOn
+                    : ""
+              }`}
+            />
+          ))}
+        </div>
+        <div className={prod.sessScaleLabels} aria-hidden>
+          {CECRL_SCALE.map((lvl) => (
+            <span key={lvl}>{lvl}</span>
+          ))}
+        </div>
       </div>
 
-      <div className={detail.serieGrid}>
+      {anyPending && (
+        <div className={prod.sessEvalBanner}>
+          <span className={prod.spinner} aria-hidden />
+          L&apos;IA évalue vos productions — encore quelques secondes…
+        </div>
+      )}
+
+      <div className={prod.sessSectionLabel}>DÉTAIL PAR TÂCHE</div>
+      <p className={prod.sessSectionSub}>
+        Touchez une tâche pour revoir l&apos;évaluation détaillée.
+      </p>
+
+      <div className={prod.sessTacheList}>
         {TACHES.map((n) => {
           const s = subsByTache.get(n);
           const pending = s ? isSubmissionPending(s) : false;
           const evaluatedOk = s?.statut === "EVALUATED";
+          const failed = s?.statut === "FAILED";
           const note = s?.evaluation?.noteSurVingt;
-          const sub = !s
-            ? "Non soumise"
-            : s.statut === "FAILED"
-              ? "Évaluation échouée"
-              : pending
-                ? "Évaluation en cours…"
-                : `Niveau ${niveauCecrlLabel(s.evaluation?.niveauCecrl)}`;
+          const niv = s?.evaluation?.niveauCecrl;
           return (
             <button
               key={n}
               type="button"
-              className={detail.serieCard}
-              disabled={!s}
+              className={prod.sessTache}
+              disabled={!s || pending}
               onClick={() => s && onOpenResult(s.id)}
             >
-              <span
-                className={`${detail.serieNum} ${evaluatedOk ? detail.serieNumDone : ""}`}
-              >
-                T{n}
-                {evaluatedOk && (
-                  <span className={detail.serieCheck} aria-hidden>
-                    <Check size={11} strokeWidth={3} />
-                  </span>
-                )}
+              <span className={`${prod.sessTacheNum} ${evaluatedOk ? prod.sessTacheNumDone : ""}`}>
+                {evaluatedOk ? <Check size={15} strokeWidth={3} /> : n}
               </span>
-              <span className={detail.serieBody}>
-                <span className={detail.serieTitle}>
+              <span className={prod.sessTacheBody}>
+                <span className={prod.sessTacheTitle}>
                   {productionTaskTitle(config.epreuve, n)}
                 </span>
-                <span className={detail.serieSub}>{sub}</span>
-                {note != null && evaluatedOk && (
-                  <span className={`${detail.serieBadge} ${detail.serieBadgeDone}`}>
-                    <Check size={12} aria-hidden /> {formatNote(note)}/20
-                  </span>
-                )}
-              </span>
-              {s && (
-                <span className={detail.serieAction} aria-hidden>
-                  <Play size={18} />
+                <span
+                  className={`${prod.sessTacheSub} ${
+                    pending ? prod.sessTacheSubPending : failed ? prod.sessTacheSubFail : ""
+                  }`}
+                >
+                  {!s
+                    ? "Non soumise"
+                    : failed
+                      ? "Évaluation échouée — à relancer"
+                      : pending
+                        ? "Évaluation IA en cours…"
+                        : note != null
+                          ? `Note ${formatNote(note)}/20`
+                          : "Évaluée"}
                 </span>
+              </span>
+              {evaluatedOk && niv && (
+                <span className={prod.sessTachePill}>{niveauCecrlLabel(niv)}</span>
+              )}
+              {s && !pending && (
+                <ChevronRight size={18} className={prod.sessTacheChevron} aria-hidden />
               )}
             </button>
           );
         })}
       </div>
 
+      <div className={prod.sessNext}>
+        <p className={prod.sessNextTitle}>
+          <Lightbulb size={16} aria-hidden /> Tes prochaines étapes
+        </p>
+        <p className={prod.sessNextBody}>{nextStepsMessage(allEvaluated ? plancher : null)}</p>
+      </div>
+
       <div className={prod.bilanFoot}>
-        <Link href={`${config.base}/examens`} className="btn btn-blue">
-          Terminer
-        </Link>
+        {backTo ? (
+          <Link href={backTo} className="btn btn-blue">
+            Retour au bilan de l&apos;examen
+          </Link>
+        ) : (
+          <Link href={`${config.base}/examens`} className="btn btn-blue">
+            Voir les examens blancs
+          </Link>
+        )}
       </div>
     </>
   );

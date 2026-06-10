@@ -146,10 +146,11 @@ EE/EO (`AttemptService.pickQuestionsForTemplate` → `drawTcfEpreuveStrata`). La
 session dérive des `RunnerSection[]` (`tcfExamSections`) passées au runner via
 la prop `sections` : bandeau « Partie x/y · i/n » au-dessus des tags + écran
 d'intro à chaque changement de partie (le chrono global continue) + bouton
-« Partie suivante » en fin de partie. Les examens TCF mono-épreuve (CO/CE/
-STRUCTURE) gardent l'écran d'intro comme présentation (« Compréhension orale ·
-25 questions · 20 min ») mais pas le bandeau. Undefined sur les attempts
-d'avant le tri (groupes > 3). **Notation TCF calibrée** : tous les examens TCF
+« Partie suivante » en fin de partie. `tcfExamSections` n'émet des sections
+que pour les examens **multi-épreuves** (diagnostic CO+CE) ; les examens TCF
+mono-épreuve (CO/CE/STRUCTURE) ne passent plus de section → pas d'écran d'intro
+runner, leur présentation (déroulé + seuil) vit dans `ExamIntroSheet` côté page
+examens. Undefined aussi sur les attempts d'avant le tri (groupes > 3). **Notation TCF calibrée** : tous les examens TCF
 stratifiés (module CO/CE/STRUCTURE + templates diagnostic) portent
 `calibratedScore` 100-499 + `cecrlLevel`, calculés UNIQUEMENT backend
 (`TcfLevelEstimatorService` — score corrigé du hasard 25 %, niveau = bande du
@@ -163,8 +164,11 @@ par épreuve » (badge rouge sur l'épreuve plancher) + note expliquant le min.
 Miroirs `AttemptEpreuveResult` dans lib/types.ts et attempt_models.dart. **CO en examen = conditions réelles** : audio
 autoplay à écoute unique sans contrôles (`MediaView` prop `examAudio`,
 fallback bouton one-shot si l'autoplay est bloqué) et retour arrière interdit
-vers une question CO (`canGoPrevious` du runner). En TRAINING (séries), le
-lecteur natif et la navigation restent libres.
+vers une question CO (`canGoPrevious` du runner). **Examen Civique = retour
+arrière interdit sur tout l'examen** (`module === "CIVIQUE"` en mode exam :
+une réponse validée est définitive, conditions réelles) ; le TCF ne bloque que
+les questions CO. En TRAINING (séries), le lecteur natif et la navigation
+restent libres.
 
 ## Identité visuelle (à ne pas dévier)
 
@@ -414,10 +418,56 @@ Chantier découpé en vagues :
       comme héritage d'URL (sert au chemin « Autres séries ») ;
       `TcfLotResultCard` est supprimé.
     - `module_detail/parts.tsx` ne garde que `ModuleDetailGate` + `moduleDetailStyles`.
-    - **Reste au lot suivant** : examen blanc TCF complet orchestré (CO→CE→EE→EO).
-      En attendant, le hero « examen complet » du hub TCF pointe sur
-      `/examens-blancs/tcf`. (`ProductionMobileSheet` n'est plus utilisé par le hub —
-      conservé pour les promos mobile du dashboard/historique.)
+    - (`ProductionMobileSheet` n'est plus utilisé par le hub — conservé pour les
+      promos mobile du dashboard/historique.)
+
+- **Vague 9** ✅ — **Examen blanc TCF complet orchestré (CO → CE → EE → EO)**,
+  parité mobile (`screens/tcf_full_exam/*`, `screens/module_detail/tcf_full_exams_*`).
+  Le parent `TCF_COMPLET` porte 4 sous-attempts ; le backend
+  (`FullTcfExamController`, endpoints `/api/full-tcf-exams*` + `/api/me/full-tcf-exams`)
+  agrège le statut `IN_PROGRESS | PENDING_EVALUATIONS | COMPLETED`.
+    - **Pas de route `/tcf/examen-blanc`** : tout vit sous **`app/examens-blancs/`**
+      (la liste, c'est `/examens-blancs`). `tcf/[id]/page.tsx` (hub de progression :
+      4 StepCards, chrono 90 min auto-finish à 0 → bilan ; **le chrono ne démarre
+      qu'au 1er « Commencer · Compréhension orale »** — pas à la création de
+      l'examen. Le bouton appelle `fullTcfExamApi.begin(id)` qui pose
+      `timer_started_at` sur le parent (ancre du décompte, exposé en
+      `FullTcfExamResponse.timerStartedAt`) et réaligne le `started_at` de la
+      sous-épreuve CO. Tant que `timerStartedAt` est null, le badge affiche 90:00
+      sans décompter. Backend : `FullTcfExamService.beginTimer` idempotent +
+      endpoint `POST /api/full-tcf-exams/{id}/begin` + migration V013
+      `attempts.timer_started_at`. `startedAt` (création) reste l'ancre de tri /
+      dédup par slot des grilles. ⚠️ Mobile encore sur `startedAt` : parité à
+      faire),
+      `tcf/[id]/bilan/page.tsx` (CECRL plancher + polling 3 s rapide 30 s puis 8 s,
+      max 5 min, sur `status === COMPLETED`), `tcf/TcfFullExamBriefingSheet.tsx`
+      (lancement + 403 → paywall, ouvert **inline** depuis la carte TCF).
+    - **Évaluation IA en arrière-plan (parité mobile)** : EE/EO soumettent T1/T2
+      sans attendre l'éval (`SUBMITTED` ~500 ms) ; après T3, `fullTcfExamApi.markSubDone`
+      pose `finishedAt` et débloque l'épreuve suivante au hub sans attendre l'IA.
+      Le bilan ne reste en attente que sur la dernière tâche → résultat en ~15 s.
+    - **Intégration runners** : CO/CE (`/sessions/[attemptId]?fullExamId=`) et EE/EO
+      (`ProductionSession`, `?fullExamId=`) détectent le param → retour au hub
+      (`/examens-blancs/tcf/[id]`) au lieu du rapport individuel.
+    - **Quitter = abandonner** : on ne laisse pas d'examen « en cours ». Hub →
+      bouton « Abandonner » (`ConfirmSheet`) → finalise les épreuves incomplètes
+      (CO/CE `attemptApi.finish` = 0 si rien ; EE/EO `markSubDone`) puis `finish`
+      parent → bilan (corrige aussi l'auto-finish chrono 0 qui plantait sur un
+      examen incomplet). Examens autonomes (diagnostic guest, mocks) :
+      `QuestionRunner` prop `quitMode="confirmFinish"` → avertit + finalise.
+    - **Freemium** : full exam premium (Intégral, backend `hasTcf`). Sur
+      `/examens-blancs`, la carte TCF branche : **abonné** → cards style Civique
+      (`ExamsGrid`, Refaire/Rapport, niveau CECRL via `ExamCard.metaOverride`) →
+      briefing inline → hub ; **invité / compte gratuit** → diagnostic CO+CE
+      (`tcf-mix-01`, EE/EO cadenassés). `ModuleExamsSection` = chrome + grille en
+      `children`.
+    - **Statut backend** (`FullTcfExamService`) : un examen abandonné sans soumettre
+      EE/EO ne reste PAS `PENDING_EVALUATIONS` — le statut ne dépend que des
+      submissions réellement en pipeline (`hasInFlightProduction`) ; une épreuve
+      production terminée sans soumission compte `A1_NON_ATTEINT`.
+    - **Types/api** `lib/types.ts` (`FullTcfExamResponse`, `FullTcfExamSubAttempt`,
+      `FullTcfExamSummaryResponse`, `FullTcfExamStatus`, `FULL_TCF_EXAM_DURATION_SEC`,
+      `FULL_TCF_EXAM_EPREUVES`) + `lib/api.ts` (`fullTcfExamApi`).
 
 ### Règle de progression (validée 2026-06-06 — source unique backend)
 
@@ -556,6 +606,23 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
           meilleur score, niveau estimé TCF via `cecrlLevel` ajouté au miroir
           `AttemptSummaryResponse` / restant civique) + grille de cards Examen
           (Démarrer / Refaire + Rapport / Premium). Examen 1 gratuit.
+          **Démarrer / Refaire ouvre d'abord `ExamIntroSheet`**
+          (`app/_components/hub/ExamIntroSheet.tsx`, bottom-sheet façon
+          ConfirmSheet) qui rappelle déroulé + seuil avant le lancement réel ;
+          son « Démarrer » POST l'attempt. Branchée sur les 3 surfaces
+          d'examens ciblés (TCF QCM `[code]/examens`, civique `[theme]/examens`,
+          EE/EO `ProductionExams`). Pour la CO, l'écran d'écoute du runner reste
+          une 2ᵉ confirmation après ; côté EE/EO l'avertissement « refaire
+          l'examen 1 » s'enchaîne ensuite si compte gratuit.
+          **Grille indexée par slot (parité mobile, migration V110)** : TCF QCM
+          et civique passent `slotNumber` au start (`StartAttemptRequest`) et
+          rangent les attempts via `examSlotGrid` (`lib/exam-slots.ts`) — case N
+          = examen du slot N, on garde le **plus récent** par slot. Refaire
+          l'examen N met à jour la note du slot N (au lieu d'ajouter un slot
+          N+1) ; les attempts sans `slotNumber` (historique d'avant V110) sont
+          ignorés dans la grille (toujours visibles dans /historique). Miroir
+          `AttemptSummaryResponse.slotNumber` ajouté. EE/EO restent chronos
+          (le backend force `slotNumber=1` sur les sessions d'examen production).
         - Supprimés : `ExamSlotsView`, `LotRow`, `LevelRow`, `ExamHistoryList`,
           `SeeMoreButton` + styles orphelins (HubParts ne garde que
           ExamBlancHero, SectionLabel/Counter/Link, HubDetailHeader pour les
@@ -602,6 +669,22 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
       `ExamsModuleView` sont supprimées. Page démo guest inchangée. Miroir
       `AttemptSummaryResponse` complété (`moduleExamQuestionType`,
       `lotThemeId`).
+      **Grille indexée par slot (V110)** : les 3 grilles (TCF complet,
+      diagnostic TCF gratuit, civique) sont rangées par `slotNumber` via
+      `examSlotGrid` — refaire l'examen N met à jour la case N au lieu d'en
+      empiler une nouvelle. **Backend** : `startFromTemplate` honore désormais
+      `req.slotNumber()` (avant, la branche template court-circuitait
+      l'assignation du slot). Attempts sans slot (avant V110) absents de la
+      grille, visibles dans /historique.
+      **Lancement civique = modale inline** (`ExamIntroSheet`, comme le full
+      exam TCF) : Démarrer/Refaire ouvre la modale (déroulé + seuil, facts du
+      template `civique-decouverte` chargé une fois) puis `attemptApi.start`
+      (template + `slotNumber`) → `/sessions/[id]`. Plus de navigation vers la
+      page briefing pour le civique connecté. Le diagnostic TCF gratuit, lui,
+      passe encore par la page briefing via `?slot=N` (`[slug]/page.tsx` lit
+      `searchParams`, `ExamBriefingClient` repasse `slotNumber`) ; le full exam
+      TCF garde `TcfFullExamBriefingSheet` (`fullTcfExamApi.start(slot)`). La
+      page briefing reste utilisée par les guests (démo civique/TCF).
     - **Rapport d'examen / de série refondu** (`ExamReport.tsx`) : hero teinté
       vert/rouge (donut bonnes réponses, « Vous avez obtenu X% », Score /
       Temps / Niveau estimé TCF ou Seuil civique), **« Réussite par

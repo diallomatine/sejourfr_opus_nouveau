@@ -17,6 +17,8 @@ import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { GuestGateSheet } from "@/app/_components/GuestGateSheet";
 import { moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
 import { DetailShell, DetailStatCard, ExamsGrid } from "@/app/_components/hub/DetailParts";
+import { ExamIntroSheet, type ExamFact } from "@/app/_components/hub/ExamIntroSheet";
+import { examSlotGrid } from "@/lib/exam-slots";
 import detail from "@/app/_components/hub/detail.module.css";
 
 const SLOTS = 20;
@@ -55,6 +57,8 @@ export default function TcfModuleExamsPage() {
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [guestGateOpen, setGuestGateOpen] = useState(false);
+  const [introOpen, setIntroOpen] = useState(false);
+  const [pendingSlot, setPendingSlot] = useState(1);
 
   const questionType = config?.questionType;
 
@@ -65,12 +69,7 @@ export default function TcfModuleExamsPage() {
       .listMine({ type: "MOCK_EXAM", module: "TCF", moduleExamQuestionType: questionType, limit: 30 })
       .then((list) => {
         if (cancelled) return;
-        // Ordre chronologique : le 1er examen passé occupe la card 01.
-        setExams(
-          list
-            .filter((a) => a.finishedAt)
-            .sort((a, b) => a.startedAt.localeCompare(b.startedAt)),
-        );
+        setExams(list.filter((a) => a.finishedAt));
       })
       .catch(() => undefined);
     return () => {
@@ -78,12 +77,22 @@ export default function TcfModuleExamsPage() {
     };
   }, [status, questionType]);
 
-  async function start() {
-    if (starting || !questionType) return;
+  // Grille indexée par slot : refaire l'examen N met à jour la case N.
+  const { bySlot, latest, doneCount } = useMemo(() => examSlotGrid(exams, SLOTS), [exams]);
+
+  function requestStart(slot: number) {
+    if (starting) return;
     if (isGuest) {
       setGuestGateOpen(true);
       return;
     }
+    setError(null);
+    setPendingSlot(slot);
+    setIntroOpen(true);
+  }
+
+  async function launch() {
+    if (starting || !questionType) return;
     setError(null);
     setStarting(true);
     try {
@@ -91,6 +100,7 @@ export default function TcfModuleExamsPage() {
         type: "MOCK_EXAM",
         module: "TCF",
         moduleExamQuestionType: questionType,
+        slotNumber: pendingSlot,
       });
       router.push(`/sessions/${a.id}`);
     } catch (e) {
@@ -99,10 +109,10 @@ export default function TcfModuleExamsPage() {
     }
   }
 
-  const done = Math.min(exams.length, SLOTS);
+  const done = Math.min(doneCount, SLOTS);
   const { best, bestLevel } = useMemo(() => {
     let bestExam: AttemptSummaryResponse | null = null;
-    for (const e of exams) {
+    for (const e of latest) {
       if (!bestExam || (e.score ?? 0) > (bestExam.score ?? 0)) bestExam = e;
     }
     return {
@@ -114,7 +124,27 @@ export default function TcfModuleExamsPage() {
         : "—",
       bestLevel: bestExam?.cecrlLevel ?? null,
     };
-  }, [exams]);
+  }, [latest]);
+
+  const introFacts: ExamFact[] = config
+    ? [
+        { label: "questions (A2→B2)", value: "25" },
+        { label: "en conditions réelles", value: config.duration },
+        { label: "score + niveau CECRL", value: "/50" },
+      ]
+    : [];
+  const introTips =
+    code === "co"
+      ? [
+          "L'audio se lance seul et ne se joue qu'une seule fois, comme le jour J — prévoyez un casque.",
+          "Pas de retour en arrière sur les questions d'écoute.",
+          "Aucune correction pendant l'examen : votre résultat s'affiche à la fin.",
+        ]
+      : [
+          "Aucune correction pendant l'examen : votre résultat s'affiche à la fin.",
+          "Le chronomètre tourne et l'examen se termine automatiquement à la fin du temps.",
+          "Vous pouvez naviguer librement entre les questions.",
+        ];
 
   if (status === "loading") return <div className={ds.gate} />;
   if (!config) {
@@ -174,13 +204,25 @@ export default function TcfModuleExamsPage() {
 
         <ExamsGrid
           count={SLOTS}
-          exams={exams}
+          exams={bySlot}
           premium={isPremium}
           freeSlots={isGuest ? 0 : 1}
           lockedLabel={isGuest ? "Compte gratuit" : undefined}
           starting={starting}
-          onStart={start}
+          onStart={requestStart}
           onLocked={() => (isGuest ? setGuestGateOpen(true) : setPaywallOpen(true))}
+        />
+        <ExamIntroSheet
+          open={introOpen}
+          eyebrow={`Examen blanc · ${config.title}`}
+          title={`${config.title} en conditions réelles`}
+          subtitle="Avant de commencer, voici comment se déroule l'épreuve."
+          facts={introFacts}
+          tips={introTips}
+          loading={starting}
+          error={error}
+          onConfirm={() => void launch()}
+          onClose={() => setIntroOpen(false)}
         />
         <PaywallSheet open={paywallOpen} onClose={() => setPaywallOpen(false)} module="INTEGRAL" />
         <GuestGateSheet

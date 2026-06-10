@@ -235,6 +235,10 @@ export interface StartAttemptRequest {
   lotNumero?: number;
   /** MOCK_EXAM scopé à une épreuve TCF QCM (CO/CE/STRUCTURE). */
   moduleExamQuestionType?: QuestionType;
+  /** Slot d'examen blanc visé dans la grille (1..N). MOCK_EXAM seulement :
+   *  refaire « l'examen N » réutilise le même slotNumber, l'UI prend le plus
+   *  récent par slot au lieu de créer un slot N+1 (cf. migration V110). */
+  slotNumber?: number;
 }
 
 /** Lot = chunk déterministe de questions (cf. backend LotService / LotDto). */
@@ -369,6 +373,9 @@ export interface AttemptSummaryResponse {
   examTemplateId?: string | null;
   examTemplateSlug?: string | null;
   examTemplateName?: string | null;
+  /** Slot dans la grille d'examens blancs (1..N). Non-null pour les MOCK_EXAM
+   *  standalone : l'UI groupe par slot et garde le plus récent. Cf. V110. */
+  slotNumber?: number | null;
 }
 
 /** True si l'attempt correspond a une production EO/EE. */
@@ -877,3 +884,64 @@ export interface AccountDeletionResponse {
   subscriptionProvider: string | null;
   manualActionMessage: string | null;
 }
+
+// ============================================================================
+// EXAMEN BLANC TCF COMPLET (TCF_COMPLET) — orchestration CO → CE → EE → EO
+// Miroirs de FullTcfExamResponse / FullTcfExamSummaryResponse côté Java
+// (controller FullTcfExamController). Le parent TCF_COMPLET porte 4
+// sous-attempts, l'évaluation IA des productions EE/EO tourne en arrière-plan.
+// ============================================================================
+
+/** Statut agrégé d'un examen complet (cf. FullTcfExamResponse.FullTcfExamStatus).
+ *  IN_PROGRESS : au moins une épreuve pas terminée. PENDING_EVALUATIONS : les 4
+ *  terminées mais l'IA EE/EO n'a pas fini. COMPLETED : tout évalué,
+ *  `finalCecrlLevel` posé (plancher des 4 épreuves). */
+export type FullTcfExamStatus = "IN_PROGRESS" | "PENDING_EVALUATIONS" | "COMPLETED";
+
+/** Une sous-épreuve de l'examen complet. `finishedAt` non nul = terminée. Pour
+ *  CO/CE : `score`/`maxScore` (QCM). Pour EE/EO : `submissionsCount` (tâches
+ *  EVALUATED sur 3) + `failedSubmissionIds` (à relancer). `cecrlLevel` apparaît
+ *  une fois l'épreuve évaluée. */
+export interface FullTcfExamSubAttempt {
+  attemptId: string;
+  epreuve: EpreuveType;
+  finishedAt: string | null;
+  cecrlLevel: NiveauCecrl | null;
+  score: number | null;
+  maxScore: number | null;
+  submissionsCount: number | null;
+  failedSubmissionIds: string[];
+}
+
+export interface FullTcfExamResponse {
+  id: string;
+  startedAt: string;
+  /** Lancement réel de la 1re épreuve (CO) — ancre du chrono 90 min. Null
+   *  tant que le candidat n'a pas commencé (hub de progression). */
+  timerStartedAt: string | null;
+  finishedAt: string | null;
+  finalCecrlLevel: NiveauCecrl | null;
+  status: FullTcfExamStatus;
+  subAttempts: FullTcfExamSubAttempt[];
+}
+
+export interface FullTcfExamSummaryResponse {
+  id: string;
+  startedAt: string;
+  finishedAt: string | null;
+  finalCecrlLevel: NiveauCecrl | null;
+  status: FullTcfExamStatus;
+  slotNumber: number | null;
+}
+
+/** Durée totale de l'examen complet (90 min). Constante backend
+ *  `FullTcfExamService.FULL_EXAM_TOTAL_SECONDS`, non exposée dans le DTO. */
+export const FULL_TCF_EXAM_DURATION_SEC = 90 * 60;
+
+/** Ordre canonique des 4 épreuves de l'examen complet. */
+export const FULL_TCF_EXAM_EPREUVES = [
+  "TCF_CO",
+  "TCF_CE",
+  "TCF_EE",
+  "TCF_EO",
+] as const;

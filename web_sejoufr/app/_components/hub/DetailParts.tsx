@@ -23,6 +23,9 @@ export interface ExamSlotData {
   score?: number | null;
   totalQuestions?: number | null;
   passThreshold?: number | null;
+  /** Remplace l'affichage « Dernier : score/total » (ex: niveau CECRL d'un
+   *  examen TCF complet, « Éval en cours… »). */
+  metaOverride?: string | null;
 }
 
 /**
@@ -271,8 +274,9 @@ export function ExamsGrid({
   onLocked,
 }: {
   count: number;
-  /** Examens finis, triés du plus ancien au plus récent. */
-  exams: ExamSlotData[];
+  /** Examens finis. Soit une liste dense (case i = i-ᵉ examen), soit un
+   *  tableau indexé par slot (case i = examen du slot i+1, trous à null). */
+  exams: ReadonlyArray<ExamSlotData | null>;
   premium: boolean;
   freeSlots?: number;
   starting: boolean;
@@ -282,14 +286,17 @@ export function ExamsGrid({
   collapsedCount?: number;
   /** Cible du bouton Rapport (défaut : /sessions/{id}). */
   reportPath?: (attemptId: string) => string;
-  onStart: () => void;
+  /** Reçoit le numéro de slot (1..count) — utile quand « Démarrer » doit cibler
+   *  un slot précis (examen TCF complet). Les autres usages l'ignorent. */
+  onStart: (slot: number) => void;
   onLocked: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   // Replié, on montre au moins toutes les cards déjà faites + la prochaine.
+  const doneCount = exams.filter(Boolean).length;
   const visibleCount =
     collapsedCount && !expanded
-      ? Math.min(count, Math.max(collapsedCount, Math.min(exams.length + 1, count)))
+      ? Math.min(count, Math.max(collapsedCount, Math.min(doneCount + 1, count)))
       : count;
 
   return (
@@ -310,6 +317,7 @@ export function ExamsGrid({
                       id: exam.id,
                       score: exam.score ?? null,
                       total: exam.totalQuestions ?? null,
+                      metaOverride: exam.metaOverride ?? null,
                     }
                   : null
               }
@@ -367,7 +375,12 @@ export function ExamCard({
   onLocked,
 }: {
   slot: number;
-  exam: { id: string; score: number | null; total: number | null } | null;
+  exam: {
+    id: string;
+    score: number | null;
+    total: number | null;
+    metaOverride?: string | null;
+  } | null;
   locked: boolean;
   /** Texte du bouton verrouillé — "Compte gratuit" en contexte guest. */
   lockedLabel?: string;
@@ -376,7 +389,7 @@ export function ExamCard({
   itemLabel?: string;
   /** Cible du bouton Rapport (défaut : /sessions/{id}). */
   reportHref?: string;
-  onStart: () => void;
+  onStart: (slot: number) => void;
   onLocked: () => void;
 }) {
   const done = exam !== null;
@@ -389,16 +402,24 @@ export function ExamCard({
         {itemLabel} {slot}
       </span>
       {done ? (
-        <span className={styles.examMeta}>
-          Dernier :{" "}
-          <span
-            className={`${styles.examMetaScore} ${
-              passThresholdMet === false ? styles.examMetaLow : styles.examMetaGood
-            }`}
-          >
-            {exam.score ?? 0}/{exam.total ?? "—"}
+        exam.metaOverride != null ? (
+          <span className={styles.examMeta}>
+            <span className={`${styles.examMetaScore} ${styles.examMetaGood}`}>
+              {exam.metaOverride}
+            </span>
           </span>
-        </span>
+        ) : (
+          <span className={styles.examMeta}>
+            Dernier :{" "}
+            <span
+              className={`${styles.examMetaScore} ${
+                passThresholdMet === false ? styles.examMetaLow : styles.examMetaGood
+              }`}
+            >
+              {exam.score ?? 0}/{exam.total ?? "—"}
+            </span>
+          </span>
+        )
       ) : (
         <span className={styles.examMeta}>Nouveau</span>
       )}
@@ -408,7 +429,7 @@ export function ExamCard({
             <button
               type="button"
               className={styles.examBtn}
-              onClick={locked ? onLocked : onStart}
+              onClick={locked ? onLocked : () => onStart(slot)}
               disabled={!locked && starting}
             >
               <RotateCw size={15} aria-hidden /> Refaire
@@ -429,7 +450,7 @@ export function ExamCard({
           <button
             type="button"
             className={styles.examBtn}
-            onClick={onStart}
+            onClick={() => onStart(slot)}
             disabled={starting}
           >
             <Play size={15} aria-hidden /> Démarrer

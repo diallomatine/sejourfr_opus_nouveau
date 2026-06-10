@@ -251,7 +251,7 @@ export function MobileAppSection() {
         }
         .mas__copy h2 em {
           font-style: italic;
-          color: var(--color-red);
+          color: var(--color-blue);
         }
         .mas__lede {
           color: var(--color-ink-2);

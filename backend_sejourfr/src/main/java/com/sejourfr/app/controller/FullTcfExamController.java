@@ -45,6 +45,15 @@ public class FullTcfExamController {
     }
 
     /**
+     * Démarre le chrono global (90 min) au premier lancement de la
+     * Compréhension orale. Idempotent : sans effet si déjà démarré.
+     */
+    @PostMapping("/api/full-tcf-exams/{id}/begin")
+    public FullTcfExamResponse begin(@PathVariable UUID id) {
+        return fullTcfExamService.beginTimer(currentUser.getId(), id);
+    }
+
+    /**
      * Marque l'examen comme terminé (pose {@code finishedAt} sur le parent
      * et persiste le niveau CECRL plancher dès que toutes les évaluations IA
      * EE/EO sont prêtes).

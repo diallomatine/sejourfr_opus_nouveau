@@ -16,7 +16,7 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   font-weight: 600;
-  color: var(--color-red);
+  color: var(--color-blue);
 }
 .headTitle {
   font-family: var(--font-display);
@@ -29,7 +29,7 @@
 }
 .headTitle em {
   font-style: italic;
-  color: var(--color-red);
+  color: var(--color-blue);
 }
 .headDesc {
   color: var(--color-muted);
@@ -149,35 +149,77 @@
   display: none;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
+  gap: 28px;
+}
+.heroPhoneWrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding: 10px 0;
 }
 .heroPhone {
   display: flex;
   justify-content: center;
 }
-/* Le PhoneMock "back" est en position:absolute (pour s'empiler dans la section
-   App). Seul dans le hero, on le remet en flux normal pour qu'il ne chevauche
-   pas le texte. */
-.heroPhone :global(.pm--back) {
-  position: relative;
-  left: auto;
-  top: auto;
-  opacity: 1;
+/* Le PhoneMock "front" (épreuve en cours) : léger redressement dans le hero. */
+.heroPhone :global(.pm--front) {
   transform: rotate(-2deg);
 }
-.heroAppCopy {
+
+/* Cartes flottantes autour du téléphone : remplissent le visuel + ajoutent de
+   l'info (niveau estimé, correction IA). */
+.heroFloat {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  padding: 10px 13px;
+  box-shadow: 0 18px 40px -22px rgba(15, 24, 57, 0.35);
+  z-index: 3;
+}
+.heroFloatTop {
+  top: 12%;
+  right: -4%;
+}
+.heroFloatBottom {
+  bottom: 11%;
+  left: -6%;
+}
+.heroFloatIco {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-blue-light);
+  color: var(--color-blue);
+  flex-shrink: 0;
+}
+.heroFloatIcoGreen {
+  background: rgba(22, 143, 91, 0.12);
+  color: var(--color-green);
+}
+.heroFloatBody {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 14px;
-  text-align: center;
+  gap: 1px;
 }
-.heroAppText {
-  font-size: 14px;
-  line-height: 1.55;
+.heroFloatLabel {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--color-muted);
-  max-width: 320px;
-  margin: 0;
+}
+.heroFloatValue {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-ink);
 }
 .heroStores {
   display: flex;
@@ -245,7 +287,7 @@
   border-radius: 100px;
 }
 .examIcon {
-  color: var(--color-red);
+  color: var(--color-blue);
 }
 .examTitle {
   font-family: var(--font-display);
@@ -299,8 +341,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-red-light);
-  color: var(--color-red);
+  background: var(--color-blue-light);
+  color: var(--color-blue);
 }
 .compTitle {
   font-family: var(--font-sans);
@@ -368,8 +410,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-red-light);
-  color: var(--color-red);
+  background: var(--color-blue-light);
+  color: var(--color-blue);
 }
 .simItemTitle {
   font-family: var(--font-sans);
@@ -568,7 +610,7 @@
 }
 .ctaTitle em {
   font-style: italic;
-  color: var(--color-red);
+  color: var(--color-blue);
 }
 .ctaDesc {
   color: var(--color-muted);
@@ -590,6 +632,97 @@
   gap: 7px;
   font-size: 13.5px;
   color: var(--color-muted);
+}
+
+/* ---- Témoignages ----------------------------------------------------------- */
+.testiGrid {
+  grid-template-columns: 1fr;
+}
+.testiCard {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 18px;
+  padding: 28px 24px 22px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+}
+.testiCard:hover {
+  transform: translateY(-4px);
+  border-color: var(--color-blue);
+  box-shadow: 0 18px 44px -24px rgba(30, 58, 140, 0.3);
+}
+.testiQuote {
+  color: var(--color-blue-light);
+  margin-bottom: 4px;
+}
+.testiStars {
+  display: inline-flex;
+  gap: 2px;
+  color: var(--color-amber);
+  margin-bottom: 12px;
+}
+.testiText {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--color-ink-2);
+  margin: 0 0 20px;
+  flex: 1;
+}
+.testiFoot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.testiAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-blue);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 17px;
+}
+.testiName {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-ink);
+}
+.testiRole {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-top: 2px;
+}
+
+/* ---- Tarifs (wrapper de PricingPlans sur la landing) ----------------------- */
+.pricingWrap {
+  margin-top: 44px;
+}
+.pricingFoot {
+  text-align: center;
+  margin: 32px 0 0;
+}
+.pricingLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-blue);
+  text-decoration: none;
+}
+.pricingLink:hover {
+  text-decoration: underline;
 }
 
 /* ============================================================================
@@ -641,6 +774,10 @@
   .compGrid {
     grid-template-columns: repeat(4, 1fr);
     gap: 22px;
+  }
+  .testiGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
   }
   .simInner {
     grid-template-columns: 55% 45%;

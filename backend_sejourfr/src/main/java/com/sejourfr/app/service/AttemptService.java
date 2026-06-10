@@ -132,7 +132,7 @@ public class AttemptService {
         if (req.examTemplateId() != null) {
             ExamTemplate template = examTemplateManager.findById(req.examTemplateId())
                     .orElseThrow(() -> new EntityNotFoundException("Examen blanc introuvable"));
-            return startFromTemplate(user, template);
+            return startFromTemplate(user, template, req.slotNumber());
         }
 
         // Branche lot : si lotNumero est fourni, on retire la fenetre exacte du
@@ -449,7 +449,7 @@ public class AttemptService {
      * regles ne suffisent pas a remplir totalQuestions, on complete par un
      * tirage libre dans le module (jamais de doublon intra-attempt).
      */
-    private AttemptResponse startFromTemplate(User user, ExamTemplate template) {
+    private AttemptResponse startFromTemplate(User user, ExamTemplate template, Integer slotNumber) {
         if (!template.isPublished()) {
             throw new AccessDeniedException("Examen blanc non disponible");
         }
@@ -475,6 +475,12 @@ public class AttemptService {
         // En TCF on garde passingScore en base (0 par convention) : l'evaluation
         // cote front s'appuie sur levelAchieved, pas sur ce seuil.
         attempt.setPassThreshold(template.getPassingScore());
+        // Slot UI (cf. V110) : refaire « l'examen N » depuis la grille
+        // /examens-blancs réutilise slot_number=N, l'UI prend le plus récent
+        // par slot au lieu d'empiler les essais.
+        if (slotNumber != null) {
+            attempt.setSlotNumber(slotNumber);
+        }
         attempt.setStartedAt(Instant.now());
         attempt = attemptManager.save(attempt);
 

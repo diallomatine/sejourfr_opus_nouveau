@@ -20,6 +20,9 @@ import java.util.UUID;
 public record FullTcfExamResponse(
         UUID id,
         Instant startedAt,
+        /** Lancement réel de la 1re épreuve (CO) — ancre du chrono 90 min.
+         *  NULL tant que le candidat n'a pas commencé (hub de progression). */
+        Instant timerStartedAt,
         Instant finishedAt,
         NiveauCecrl finalCecrlLevel,
         FullTcfExamStatus status,

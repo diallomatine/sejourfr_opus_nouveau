@@ -34,8 +34,11 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Tout ce qui s'expose sous /api/me : stats, favoris, erreurs, revue,
@@ -55,6 +58,15 @@ public class MeService {
     private final ThemeManager themeManager;
     private final AiEvaluationManager aiEvaluationManager;
     private final FullTcfExamService fullTcfExamService;
+
+    /**
+     * Plafond d'erreurs exposees en revision, par module (CIVIQUE / TCF). On ne
+     * renvoie que les plus recentes : au-dela, les anciennes erreurs sortent de
+     * la liste (vue cappee, pas de suppression en base — cf.
+     * {@code AnswerRepository.findRecentWrongQuestionIds}). Evite d'afficher des
+     * centaines de questions et garde la revision actionnable.
+     */
+    static final int MAX_WRONG_PER_MODULE = 30;
 
     // ------------------------------------------------------------------------
     // Profil
@@ -300,14 +312,24 @@ public class MeService {
     @Transactional(readOnly = true)
     public List<QuestionPublicResponse> wrongAnswered(
             UUID userId, Module module, QuestionType questionType, UUID themeId) {
-        List<UUID> ids = answerManager.findWrongQuestionIds(userId, module);
+        // Plafonné aux N erreurs les plus récentes du module (erreur récente
+        // d'abord). Les plus anciennes sortent de la révision sans être
+        // supprimées : les stats de progression lisent toujours toutes les
+        // réponses.
+        List<UUID> ids = answerManager.findRecentWrongQuestionIds(
+                userId, module, MAX_WRONG_PER_MODULE);
         if (ids.isEmpty()) return List.of();
-        // Filtres appliqués côté Java après chargement. On re-filtre par
+        // `findAllById` ne préserve pas l'ordre → on indexe par id puis on
+        // ré-émet dans l'ordre de `ids` (récent d'abord). On re-filtre par
         // `q.module` en plus du filtre déjà appliqué côté query sur l'attempt :
         // garantit qu'aucune question CIVIQUE ne fuite côté TCF (et vice
         // versa) — défense en profondeur si jamais un attempt mixte
         // remontait des questions cross-module.
-        return questionManager.findAllById(ids).stream()
+        Map<UUID, Question> byId = questionManager.findAllById(ids).stream()
+                .collect(Collectors.toMap(Question::getId, Function.identity()));
+        return ids.stream()
+                .map(byId::get)
+                .filter(q -> q != null)
                 .filter(q -> module == null || q.getModule() == module)
                 .filter(q -> questionType == null || q.getQuestionType() == questionType)
                 .filter(q -> themeId == null

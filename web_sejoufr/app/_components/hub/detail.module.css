@@ -365,6 +365,9 @@
 }
 
 .tab {
+  /* Chaque onglet (Sujets / Exemples) occupe la moitié de la largeur. */
+  flex: 1 1 0;
+  text-align: center;
   padding: 9px 18px;
   background: #fff;
   border: 1px solid var(--color-line);
@@ -846,5 +849,66 @@
   /* padding-top dégage le burger fixed du drawer mobile (.ms-toggle). */
   .wrap {
     padding: 64px 18px 48px;
+  }
+}
+
+/* ===== examens : passage en lignes compactes sur mobile =====
+   En dessous de 560px la grille de tuiles centrées (badge + titre + 2 boutons
+   empilés pleine largeur) devient très haute et peu scannable. On bascule en
+   liste : badge à gauche, titre + score au centre, boutons à droite. */
+@media (max-width: 560px) {
+  .examGrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .examCard {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "num title btns"
+      "num meta  btns";
+    column-gap: 12px;
+    row-gap: 2px;
+    align-items: center;
+    text-align: left;
+    padding: 12px 14px;
+  }
+
+  .examNum {
+    grid-area: num;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    font-size: 13px;
+  }
+
+  .examTitle {
+    grid-area: title;
+    align-self: end;
+    min-width: 0;
+  }
+
+  .examMeta {
+    grid-area: meta;
+    align-self: start;
+    min-width: 0;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .examBtns {
+    grid-area: btns;
+    width: auto;
+    margin-top: 0;
+    gap: 6px;
+  }
+
+  .examBtn {
+    width: auto;
+    min-width: 100px;
+    padding: 9px 14px;
   }
 }

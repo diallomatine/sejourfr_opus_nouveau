@@ -98,6 +98,12 @@ public class Attempt {
     @Column(name = "finished_at")
     private Instant finishedAt;
 
+    // Examen blanc TCF complet : moment réel de lancement de la 1re épreuve
+    // (Compréhension orale). NULL tant que le candidat n'a pas commencé — le
+    // chrono global 90 min s'ancre dessus, pas sur `startedAt` (création).
+    @Column(name = "timer_started_at")
+    private Instant timerStartedAt;
+
     // Lien vers le lot d'origine (TCF QCM). NULL pour les attempts libres,
     // les examens blancs, ou les productions. Cf. `LotService` + migration V097.
     @Column(name = "lot_numero")
@@ -242,6 +248,9 @@ public class Attempt {
 
     public Instant getStartedAt() { return startedAt; }
     public void setStartedAt(Instant startedAt) { this.startedAt = startedAt; }
+
+    public Instant getTimerStartedAt() { return timerStartedAt; }
+    public void setTimerStartedAt(Instant timerStartedAt) { this.timerStartedAt = timerStartedAt; }
 
     public Instant getFinishedAt() { return finishedAt; }
     public void setFinishedAt(Instant finishedAt) { this.finishedAt = finishedAt; }

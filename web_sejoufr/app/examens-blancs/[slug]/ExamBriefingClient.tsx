@@ -24,20 +24,32 @@ import {
  *    jouable, démo illimitée mais déterministe — mêmes questions à chaque
  *    lancement, l'objectif est de convertir).
  */
-export function ExamBriefingClient({ exam }: { exam: ExamTemplateSummary }) {
+export function ExamBriefingClient({
+  exam,
+  slotNumber,
+}: {
+  exam: ExamTemplateSummary;
+  slotNumber?: number;
+}) {
   const { status } = useAuth();
   if (status === "loading") return <div className="brf-loading" />;
   if (status === "authenticated") {
     return (
       <DualChromeShell>
-        <ExamBriefingInner exam={exam} />
+        <ExamBriefingInner exam={exam} slotNumber={slotNumber} />
       </DualChromeShell>
     );
   }
-  return <ExamBriefingInner exam={exam} />;
+  return <ExamBriefingInner exam={exam} slotNumber={slotNumber} />;
 }
 
-function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
+function ExamBriefingInner({
+  exam,
+  slotNumber,
+}: {
+  exam: ExamTemplateSummary;
+  slotNumber?: number;
+}) {
   const router = useRouter();
   const { user, status } = useAuth();
   const [starting, setStarting] = useState(false);
@@ -63,7 +75,14 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
       .then((list) => {
         if (cancelled) return;
         setPastAttempts(
-          list.filter((a) => a.examTemplateId === exam.id && a.finishedAt),
+          list.filter((a) => {
+            if (a.examTemplateId !== exam.id || !a.finishedAt) return false;
+            // TCF : ne compter que les attempts avec un niveau CECRL calculé
+            // (la calibration backend tourne uniquement si ≥ 1 réponse soumise).
+            // Exclut les sessions abandonnées / auto-finalisées à 0.
+            if (exam.module === "TCF") return a.cecrlLevel != null;
+            return true;
+          }),
         );
       })
       .catch(() => {
@@ -108,6 +127,7 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
             type: "MOCK_EXAM",
             module: exam.module,
             examTemplateId: exam.id,
+            slotNumber,
           });
       router.push(`/sessions/${a.id}`);
     } catch (e) {
@@ -271,22 +291,36 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
                     )}
                   </div>
                   <div className="brf-past-stats">
-                    <span>
-                      Dernier score :{" "}
-                      <strong>
-                        {lastAttempt.score}/{lastAttempt.totalQuestions}
-                      </strong>
-                    </span>
+                    {isTcf ? (
+                      <span>
+                        Dernier niveau :{" "}
+                        <strong>
+                          {lastAttempt.cecrlLevel ??
+                            `${lastAttempt.calibratedScore ?? lastAttempt.score ?? 0}/499`}
+                        </strong>
+                      </span>
+                    ) : (
+                      <span>
+                        Dernier score :{" "}
+                        <strong>
+                          {lastAttempt.score}/{lastAttempt.totalQuestions}
+                        </strong>
+                      </span>
+                    )}
                     {pastAttempts.length > 1 && (
                       <>
                         <span className="dot">·</span>
-                        <span>
-                          Meilleur : <strong>{bestScore}/{exam.totalQuestions}</strong>
-                        </span>
-                        <span className="dot">·</span>
-                        <span>
-                          {pastAttempts.length} tentatives
-                        </span>
+                        {isTcf ? (
+                          <span>{pastAttempts.length} tentatives</span>
+                        ) : (
+                          <>
+                            <span>
+                              Meilleur : <strong>{bestScore}/{exam.totalQuestions}</strong>
+                            </span>
+                            <span className="dot">·</span>
+                            <span>{pastAttempts.length} tentatives</span>
+                          </>
+                        )}
                       </>
                     )}
                   </div>
@@ -358,8 +392,10 @@ function ExamBriefingInner({ exam }: { exam: ExamTemplateSummary }) {
                       </>
                     ) : (
                       <>
-                        Vous pouvez revenir sur une question précédente avant de
-                        terminer. Le score n&apos;est calculé qu&apos;à la fin.
+                        Comme le jour de l&apos;examen, vous ne pouvez{" "}
+                        <strong>pas revenir en arrière</strong>&nbsp;: une
+                        réponse validée est définitive. Le score n&apos;est
+                        calculé qu&apos;à la fin.
                       </>
                     )}
                   </div>

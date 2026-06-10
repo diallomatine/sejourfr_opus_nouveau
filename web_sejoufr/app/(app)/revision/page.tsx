@@ -10,6 +10,9 @@ import {QuestionDetailModal} from "@/app/_components/QuestionDetailModal";
 
 type Tab = "erreurs" | "favoris";
 
+/** Taille de fenêtre de la liste (et palier du bouton « Afficher plus »). */
+const PAGE_SIZE = 20;
+
 export default function RevisionPage() {
     return (
         <Suspense fallback={<RevisionSkeleton/>}>
@@ -52,6 +55,16 @@ function RevisionInner() {
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [selectedQuestion, setSelectedQuestion] = useState<QuestionReviewResponse | null>(null);
+
+    // Windowing : on ne rend qu'une fenêtre de la liste (les favoris peuvent
+    // être nombreux ; les erreurs sont plafonnées à 30 côté backend). « Afficher
+    // plus » agrandit la fenêtre par paliers — évite de monter des centaines de
+    // lignes d'un coup. Réinitialisé à chaque changement d'onglet / module.
+    const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setVisibleCount(PAGE_SIZE);
+    }, [tab, module]);
 
     const refresh = useCallback(async (m: ModuleEnum) => {
         setLoading(true);
@@ -212,17 +225,31 @@ function RevisionInner() {
             ) : list.length === 0 ? (
                 <EmptyState tab={tab} module={module}/>
             ) : (
-                <div className="rv-list">
-                    {list.map((q) => (
-                        <QuestionRow
-                            key={q.id}
-                            question={q}
-                            tab={tab}
-                            isFavorite={favorites.some((f) => f.id === q.id)}
-                            onClick={() => setSelectedQuestion(q)}
-                        />
-                    ))}
-                </div>
+                <>
+                    <div className="rv-list">
+                        {list.slice(0, visibleCount).map((q) => (
+                            <QuestionRow
+                                key={q.id}
+                                question={q}
+                                tab={tab}
+                                isFavorite={favorites.some((f) => f.id === q.id)}
+                                onClick={() => setSelectedQuestion(q)}
+                            />
+                        ))}
+                    </div>
+                    {list.length > visibleCount && (
+                        <button
+                            type="button"
+                            className="rv-more"
+                            onClick={() =>
+                                setVisibleCount((n) => n + PAGE_SIZE)
+                            }
+                        >
+                            Afficher plus ({list.length - visibleCount} restante
+                            {list.length - visibleCount > 1 ? "s" : ""})
+                        </button>
+                    )}
+                </>
             )}
 
             {selectedQuestion && (
@@ -634,6 +661,23 @@ const styles = `
     display: inline-flex; align-items: center;
     padding: 3px 5px;
   }
+
+  /* ----- Afficher plus (windowing) ----- */
+  .rv-more {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%;
+    margin-top: 12px;
+    padding: 12px;
+    background: #fff;
+    border: 1px solid var(--color-line);
+    border-radius: 12px;
+    font-family: var(--font-sans);
+    font-size: 13.5px; font-weight: 700;
+    color: var(--color-blue);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .rv-more:hover { border-color: var(--color-blue); background: var(--color-blue-soft); }
 
   /* ----- Empty state ----- */
   .rv-empty {
