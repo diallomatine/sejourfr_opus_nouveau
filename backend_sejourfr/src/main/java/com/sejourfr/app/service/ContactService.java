@@ -1,9 +1,12 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.ContactRequest;
+import com.sejourfr.app.dto.ContactResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.util.UUID;
 
 /**
  * Service du formulaire de contact. Relaye le message vers l'adresse support
@@ -36,13 +39,27 @@ public class ContactService {
         return value.replace("\r", " ").replace("\n", " ");
     }
 
-    public void submit(ContactRequest req) {
-        log.info("Contact form submission from {} : '{}'", req.email(), req.subject());
-        mailService.sendContactMessage(
-                sanitizeHeader(req.name().trim()),
-                req.email().trim().toLowerCase(),
-                sanitizeHeader(req.subject().trim()),
-                req.message().trim()
-        );
+    /** Référence courte à citer dans l'échange mail (ex: {@code SF-1A2B3C}). */
+    private static String generateTicketId() {
+        return "SF-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+    }
+
+    public ContactResponse submit(ContactRequest req) {
+        String ticketId = generateTicketId();
+        String name = req.name().trim();
+        String email = req.email().trim().toLowerCase();
+        String subject = req.subject().trim();
+        String message = req.message().trim();
+
+        log.info("Contact form submission from {} : '{}' (ticket {})", email, subject, ticketId);
+
+        // Critique : le message DOIT arriver au support (lève si l'envoi échoue).
+        mailService.sendContactMessage(sanitizeHeader(name), email, sanitizeHeader(subject), message);
+
+        // Best-effort : accusé de réception à l'expéditeur (async, n'échoue pas
+        // la soumission si le SMTP de cet envoi-là flanche).
+        mailService.sendContactReceivedEmail(email, name, subject, message, ticketId);
+
+        return new ContactResponse(ticketId);
     }
 }

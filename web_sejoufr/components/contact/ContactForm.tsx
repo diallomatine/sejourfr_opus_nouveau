@@ -126,7 +126,7 @@ export function ContactForm() {
     setSubmitting(true);
     try {
       const res = await contactApi.submit({
-        fullName: state.fullName.trim(),
+        name: state.fullName.trim(),
         email: state.email.trim(),
         subject: effectiveSubject(state),
         message: state.message.trim(),

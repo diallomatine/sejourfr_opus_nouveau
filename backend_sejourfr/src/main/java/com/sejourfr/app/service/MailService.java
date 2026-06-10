@@ -297,4 +297,27 @@ public class MailService {
             throw new IllegalStateException("Impossible d'envoyer votre message. Réessayez plus tard.", e);
         }
     }
+
+    /**
+     * Accusé de réception envoyé à l'expéditeur du formulaire de contact, avec
+     * son numéro de suivi et un rappel de son message. Best-effort et
+     * {@code @Async} : son échec ne doit pas faire échouer la soumission (le
+     * relai vers le support, lui, est critique). Brandé comme les autres mails
+     * clients (layout + logo).
+     */
+    @Async
+    public void sendContactReceivedEmail(
+            String to, String senderName, String subject, String message, String ticketId) {
+        String body = templateRenderer.render("contact-received.html", Map.of(
+                "greeting", displayNameOrFallback(senderName),
+                "subject", subject,
+                "message", message,
+                "ticketId", ticketId
+        ));
+        String html = renderLayout(
+                "Votre message a bien été reçu",
+                "Nous avons bien reçu votre message — réponse sous 24 h ouvrées.",
+                body);
+        sendHtmlWithLogo(to, "SejourFR — Votre message a bien été reçu", html);
+    }
 }

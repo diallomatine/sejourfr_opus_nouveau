@@ -444,7 +444,8 @@ export const newsletterApi = {
 // ============================================================================
 
 export interface ContactSubmitRequest {
-    fullName: string;
+    /** Miroir du DTO backend `ContactRequest.name` (@NotBlank). */
+    name: string;
     email: string;
     subject: string;
     message: string;

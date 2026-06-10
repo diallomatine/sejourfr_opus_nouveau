@@ -1,60 +1,52 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Send } from "lucide-react";
+import {ArrowLeft, CheckCircle2, Send} from "lucide-react";
 
 interface Props {
-  ticketId: string;
-  email: string;
-  fullName: string;
-  onSendAnother: () => void;
+    ticketId: string;
+    email: string;
+    fullName: string;
+    onSendAnother: () => void;
 }
 
 export function ContactSuccessState({
-  ticketId,
-  email,
-  fullName,
-  onSendAnother,
-}: Props) {
-  const firstName = fullName.split(" ")[0] || fullName;
-  return (
-    <div className="contact-success">
-      <div className="contact-success-icon">
-        <CheckCircle2 />
-      </div>
+                                        ticketId,
+                                        email,
+                                        fullName,
+                                        onSendAnother,
+                                    }: Props) {
+    const firstName = fullName.split(" ")[0] || fullName;
+    return (
+        <div className="contact-success">
+            <div className="contact-success-icon">
+                <CheckCircle2/>
+            </div>
 
-      <h2 className="contact-success-title editorial">Message envoyé !</h2>
-      <p className="contact-success-sub">
-        Merci <strong>{firstName}</strong>, nous avons bien reçu votre message.
-        Un email de confirmation vient d&apos;être envoyé à{" "}
-        <strong className="contact-success-email">{email}</strong>. Notre équipe
-        revient vers vous sous <strong>24 h ouvrées</strong>.
-      </p>
+            <h2 className="contact-success-title editorial">Message envoyé !</h2>
+            <p className="contact-success-sub">
+                Merci <strong>{firstName}</strong>, nous avons bien reçu votre message.
+                Un email de confirmation vient d&apos;être envoyé à{" "}
+                <strong className="contact-success-email">{email}</strong>. Notre équipe
+                revient vers vous sous <strong>24 h ouvrées</strong>.
+            </p>
 
-      <div className="contact-success-ticket">
-        <p className="contact-success-ticket-label">Numéro de suivi</p>
-        <p className="contact-success-ticket-id">{ticketId}</p>
-        <p className="contact-success-ticket-help">
-          Conservez-le pour le suivi de votre demande.
-        </p>
-      </div>
+            <div className="contact-success-actions">
+                <Link href="/" className="btn btn-ghost btn-lg contact-success-btn">
+                    <ArrowLeft/>
+                    Retour à l&apos;accueil
+                </Link>
+                <button
+                    type="button"
+                    onClick={onSendAnother}
+                    className="btn btn-lg contact-success-btn"
+                >
+                    <Send/>
+                    Envoyer un autre message
+                </button>
+            </div>
 
-      <div className="contact-success-actions">
-        <Link href="/" className="btn btn-ghost btn-lg contact-success-btn">
-          <ArrowLeft />
-          Retour à l&apos;accueil
-        </Link>
-        <button
-          type="button"
-          onClick={onSendAnother}
-          className="btn btn-lg contact-success-btn"
-        >
-          <Send />
-          Envoyer un autre message
-        </button>
-      </div>
-
-      <style>{`
+            <style>{`
         .contact-success {
           background: #fff;
           border: 1px solid var(--color-line);
@@ -146,6 +138,6 @@ export function ContactSuccessState({
           .contact-success { padding: 52px 40px; }
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 }
