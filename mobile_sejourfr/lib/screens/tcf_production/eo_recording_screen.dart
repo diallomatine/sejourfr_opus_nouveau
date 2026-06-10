@@ -247,12 +247,7 @@ class _TimerBig extends StatelessWidget {
       children: [
         Text(
           _fmt(elapsed),
-          style: AppFonts.ui(
-            size: 56,
-            weight: FontWeight.w700,
-            color: _timerColor,
-            height: 1.0,
-          ).copyWith(letterSpacing: -1.0),
+          style: AppFonts.display(size: 56, color: _timerColor, height: 1.0),
         ),
         const SizedBox(height: 4),
         Text(
@@ -297,7 +292,7 @@ class _RecStatusPillState extends State<_RecStatusPill> with SingleTickerProvide
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.green.withValues(alpha: 0.12),
+        color: AppColors.redLight,
         borderRadius: BorderRadius.circular(100),
       ),
       child: Row(
@@ -311,7 +306,7 @@ class _RecStatusPillState extends State<_RecStatusPill> with SingleTickerProvide
                 width: 7,
                 height: 7,
                 decoration: BoxDecoration(
-                  color: AppColors.green.withValues(alpha: opacity),
+                  color: AppColors.red.withValues(alpha: opacity),
                   shape: BoxShape.circle,
                 ),
               );
@@ -319,11 +314,11 @@ class _RecStatusPillState extends State<_RecStatusPill> with SingleTickerProvide
           ),
           const SizedBox(width: 6),
           Text(
-            'Enregistrement...',
+            'Enregistrement…',
             style: AppFonts.ui(
               size: 13,
-              weight: FontWeight.w600,
-              color: AppColors.green,
+              weight: FontWeight.w700,
+              color: AppColors.red,
             ),
           ),
         ],
@@ -424,20 +419,22 @@ class _StopButton extends StatelessWidget {
         onTap: onPressed,
         customBorder: const CircleBorder(),
         child: Container(
-          width: 64,
-          height: 64,
+          width: 80,
+          height: 80,
           alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.white,
+          decoration: const BoxDecoration(
+            color: AppColors.red,
             shape: BoxShape.circle,
-            border: Border.all(color: AppColors.red, width: 3),
+            boxShadow: [
+              BoxShadow(color: AppColors.redLight, spreadRadius: 8),
+            ],
           ),
           child: Container(
-            width: 20,
-            height: 20,
+            width: 24,
+            height: 24,
             decoration: BoxDecoration(
-              color: AppColors.red,
-              borderRadius: BorderRadius.circular(3),
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(5),
             ),
           ),
         ),

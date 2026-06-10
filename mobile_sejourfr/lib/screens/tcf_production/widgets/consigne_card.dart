@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
-/// Carte blanche avec titre "Consigne" + icone signet bleue + corps.
+/// Bannière de consigne (cf. `MPractice` maquette) : fond teinté + liseré
+/// accent à gauche — bleu pour l'EE, rouge pour l'EO ([accent]).
 /// Optionnellement un sur-titre court (ex: "Durée attendue : 2 à 3 minutes")
-/// affiche entre le titre et le corps (cf. EO 01 du HTML).
+/// affiché entre le titre et le corps (cf. briefing EO « Entretien dirigé »).
 class ConsigneCard extends StatelessWidget {
   const ConsigneCard({
     super.key,
@@ -13,26 +13,31 @@ class ConsigneCard extends StatelessWidget {
     this.title = 'Consigne',
     this.subtitle,
     this.subTitleHero,
+    this.accent = AppColors.blue,
+    this.soft = AppColors.blueLight,
   });
 
   final String consigne;
   final String title;
   final String? subtitle;
 
-  /// Si non-null, on affiche `subTitleHero` en gros (18px bold) au-dessus du
-  /// subtitle/corps -- utilise pour le briefing EO "Entretien dirige".
+  /// Si non-null, on affiche `subTitleHero` en gros au-dessus du
+  /// subtitle/corps — utilisé pour le briefing EO "Entretien dirigé".
   final String? subTitleHero;
+
+  final Color accent;
+  final Color soft;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
       decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(14),
+        color: soft,
+        borderRadius: BorderRadius.circular(AppRadii.sm),
+        border: Border(left: BorderSide(color: accent, width: 3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -40,46 +45,29 @@ class ConsigneCard extends StatelessWidget {
           if (subTitleHero != null) ...[
             Text(
               subTitleHero!,
-              style: AppFonts.ui(
-                size: 18,
-                weight: FontWeight.w700,
-                color: AppColors.ink,
-              ),
+              style: AppFonts.display(size: 18),
             ),
             if (subtitle != null && subtitle!.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
                 subtitle!,
-                style: AppFonts.ui(
-                  size: 13,
-                  color: AppColors.muted,
-                ),
+                style: AppFonts.ui(size: 13, color: AppColors.inkSoft),
               ),
             ],
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
           ] else ...[
-            Row(
-              children: [
-                const Icon(LucideIcons.clipboardList, size: 18, color: AppColors.blue),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: AppFonts.ui(
-                    size: 14,
-                    weight: FontWeight.w700,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ],
+            Text(
+              title.toUpperCase(),
+              style: AppFonts.label(size: 11, color: accent),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
           ],
           Text(
             consigne,
             style: AppFonts.ui(
-              size: 14,
-              color: AppColors.ink,
-              height: 1.55,
+              size: 14.5,
+              weight: FontWeight.w500,
+              height: 1.5,
             ),
           ),
         ],

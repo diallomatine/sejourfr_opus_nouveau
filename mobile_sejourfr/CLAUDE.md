@@ -612,27 +612,27 @@ Module distinct du runner QCM : l'utilisateur **produit** un audio (EO) ou un te
 qui le transcrit (Whisper) + le note (Claude) en 10-15 s. Cf. `CLAUDE.md` racine pour le pipeline backend.
 
 **Deux écrans** (`tcf_expression_screen.dart`, remplacent l'ancien couple
-`TcfProductionDetailScreen` + `TcfProductionTaskSubjectsScreen` supprimés). Accent **rouge**
-partout (section TCF). Design calme, sans onglets globaux ni bottom-nav (cf. maquette
-`tcf_eo_training_screen.html`).
+`TcfProductionDetailScreen` + `TcfProductionTaskSubjectsScreen` supprimés). Accents refonte
+2026 : **EO = rouge, EE = bleu** (cf. bloc IA de l'Accueil maquette).
 
-1. **`TcfExpressionScreen`** — hub d'épreuve (`/tcf/eo`, `/tcf/ee`). Un seul scroll :
-   - Carte **« Lancer un examen blanc »** (fond teinté rouge + CTA `Commencer`) → premium
-     check → `showProductionExamBriefingSheet` → `start(niveau)` (session 3 tâches) → briefing.
-   - **« S'entraîner par tâche »** : 3 lignes (`_TaskRow`, pastille colorée T1 vert / T2 ambre /
-     T3 rouge + titre + sous-titre + nb de sujets) → push `/tcf/{eo,ee}/tache/N`.
-   - **« Historique »** (+ Tout voir → `…/historique`) : stats (examens passés, niveau estimé) +
-     dernier examen blanc (`_LastExamCard`, scores T1/T2/T3 → push `…/sessions/{id}`) + dernier
-     entraînement libre (→ push `…/resultats/{id}`). Données via `_hubProvider`.
+1. **`TcfExpressionScreen`** — hub d'épreuve (`/tcf/eo`, `/tcf/ee`), même pattern que les
+   détails CO/CE : `ScreenHeader` + **3 cartes tâche** (`_TaskCard` maquette `MTasks` : chip
+   numéro 50, T1 EO badge « Présentation » rouge, description + nb de sujets) → push
+   `/tcf/{eo,ee}/tache/N` ; **historique en dessous** (stats, dernier examen blanc →
+   `…/sessions/{id}`, dernier entraînement → `…/resultats/{id}`, via `expressionHubProvider`) ;
+   bouton **« Examens blancs » fixé en bas** (`FixedActionBar`, accent du module) →
+   `ProductionExamsScreen` (10 slots).
 
 2. **`TcfTaskTrainingScreen`** (`/tcf/{eo,ee}/tache/:n`) — entraînement d'une tâche :
-   **toggle « Sujets / Exemples »** (`_SubToggle`) → **liste verticale**. Les **sujets** =
-   lignes `production_tasks` du (épreuve, tâche), tous niveaux confondus, marquées
-   **faite/non-faite** (`listMine` → map `production_task_id → dernière submission`). Tap sujet
-   → fiche (`_SubjectSheet`) : consigne + plan d'aide en points (`_planFor`), puis
-   **Enregistrer/Rédiger** (`startSingle(task)` + briefing `/tcf/expression-{orale,ecrite}/t/0`)
-   si non fait, ou **Refaire / Voir le rapport** si déjà fait. Segment **Exemples** = les
-   **modèles** (`GET /api/production-examples?…`) ; tap → modal texte + `explications` + audio EO.
+   `SegmentedTabs` **Sujets / Exemples**. Les **sujets** = lignes `production_tasks` du
+   (épreuve, tâche), marquées faite/non-faite (`listMine` → map
+   `production_task_id → dernière submission`), rendues en cartes maquette `MTask`
+   (`_ExerciseRow` : pastille mic/pen, énoncé, pill niveau + note /20, play/refaire).
+   **Tap un sujet non fait → l'entraînement démarre directement** (`startSingle(task)` +
+   briefing `/tcf/expression-{orale,ecrite}/t/0`) ; sujet fait → sheet Reprendre / Voir le
+   détail. La bannière de consigne (`_IntroCard`/`ConsigneCard`) est teintée accent module
+   avec liseré gauche 3 px. Segment **Exemples** = les **modèles**
+   (`GET /api/production-examples?…`) ; tap → modal texte + `explications` + audio EO.
 
 L'**examen blanc** (session 3 tâches enchaînées) reste fidèle au vrai TCF : **aucune correction
 entre T1/T2/T3** ; après T3 → bilan détaillé (`HistorySessionScreen` `?live=1`, polling IA).

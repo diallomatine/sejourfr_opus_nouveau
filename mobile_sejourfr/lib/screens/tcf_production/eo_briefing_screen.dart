@@ -170,6 +170,8 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
                       consigne: task.consigne,
                       subTitleHero: task.displayTitle,
                       subtitle: _durationLabel(task.dureeMaxSec),
+                      accent: AppColors.red,
+                      soft: AppColors.redLight,
                     ),
                     PreparationCard(isEo: true, tache: task.tacheNumero),
                   ],
