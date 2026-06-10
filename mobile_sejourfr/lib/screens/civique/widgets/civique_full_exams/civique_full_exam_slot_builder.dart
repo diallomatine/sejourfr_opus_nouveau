@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/models/attempt_summary.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -38,12 +39,12 @@ class CiviqueFullExamSlotBuilder {
       secondaryStatus = Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.check_circle_rounded,
+          const Icon(LucideIcons.circleCheck,
               size: 13, color: AppColors.green),
           const SizedBox(width: 3),
           Text(
             '$score/$total',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 11,
               weight: FontWeight.w700,
               color: AppColors.green,

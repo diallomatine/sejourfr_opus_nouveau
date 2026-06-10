@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -67,12 +68,12 @@ class _ExamReportScreenState extends ConsumerState<ExamReportScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          icon: const Icon(LucideIcons.arrowLeft, size: 18),
           onPressed: onBack,
         ),
         title: Text(
           title,
-          style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
+          style: AppFonts.ui(size: 16, weight: FontWeight.w700),
         ),
       ),
       body: SafeArea(
@@ -144,7 +145,7 @@ class _ExamReportScreenState extends ConsumerState<ExamReportScreen> {
                 _filter == _ReportFilter.errors
                     ? 'Aucune erreur sur cet examen 🎉'
                     : 'Aucune question à afficher',
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   color: AppColors.muted,
                   size: 13,
                 ),
@@ -199,7 +200,7 @@ class _Summary extends StatelessWidget {
               children: [
                 Text(
                   '$score',
-                  style: AppFonts.fraunces(
+                  style: AppFonts.display(
                     size: 20,
                     weight: FontWeight.w700,
                     color: AppColors.white,
@@ -223,7 +224,7 @@ class _Summary extends StatelessWidget {
               children: [
                 Text(
                   '$percent % de réussite',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 15,
                     weight: FontWeight.w800,
                   ),
@@ -231,7 +232,7 @@ class _Summary extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   passed ? 'Examen réussi' : 'Touchez une question pour voir le détail',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 12.5,
                     color: AppColors.muted,
                   ),
@@ -280,7 +281,7 @@ class _FilterChip extends StatelessWidget {
         child: Text(
           label,
           textAlign: TextAlign.center,
-          style: AppFonts.jakarta(
+          style: AppFonts.ui(
             size: 12,
             weight: FontWeight.w700,
             color: selected ? AppColors.white : AppColors.muted,
@@ -317,19 +318,19 @@ class _QuestionReviewCard extends StatelessWidget {
       accent = AppColors.muted;
       bg = AppColors.line2.withValues(alpha: 0.5);
       borderColor = AppColors.line;
-      statusIcon = Icons.help_outline;
+      statusIcon = LucideIcons.circleHelp;
       statusLabel = 'Non répondu';
     } else if (isCorrect) {
       accent = AppColors.green;
       bg = AppColors.green.withValues(alpha: 0.05);
       borderColor = AppColors.green.withValues(alpha: 0.35);
-      statusIcon = Icons.check_circle;
+      statusIcon = LucideIcons.circleCheck;
       statusLabel = 'Correct';
     } else {
       accent = AppColors.red;
       bg = AppColors.redLight;
       borderColor = AppColors.red.withValues(alpha: 0.35);
-      statusIcon = Icons.cancel;
+      statusIcon = LucideIcons.circleX;
       statusLabel = 'Incorrect';
     }
 
@@ -362,7 +363,7 @@ class _QuestionReviewCard extends StatelessWidget {
                   ),
                   child: Text(
                     '${aq.position + 1}',
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 12,
                       weight: FontWeight.w800,
                       color: AppColors.white,
@@ -389,14 +390,14 @@ class _QuestionReviewCard extends StatelessWidget {
                           const SizedBox(width: 8),
                           if (q.hasAudio)
                             Icon(
-                              Icons.headphones,
+                              LucideIcons.headphones,
                               size: 12,
                               color: accent.withValues(alpha: 0.7),
                             )
                           else if (q.passageText != null &&
                               q.passageText!.isNotEmpty)
                             Icon(
-                              Icons.menu_book_rounded,
+                              LucideIcons.bookOpen,
                               size: 12,
                               color: accent.withValues(alpha: 0.7),
                             ),
@@ -407,7 +408,7 @@ class _QuestionReviewCard extends StatelessWidget {
                         q.statement,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 13.5,
                           weight: FontWeight.w600,
                           color: AppColors.ink,
@@ -419,7 +420,7 @@ class _QuestionReviewCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Icon(
-                  Icons.chevron_right_rounded,
+                  LucideIcons.chevronRight,
                   color: accent,
                   size: 22,
                 ),
@@ -450,12 +451,12 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_outlined, color: AppColors.red, size: 40),
+            const Icon(LucideIcons.cloudOff, color: AppColors.red, size: 40),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: AppFonts.jakarta(color: AppColors.muted),
+              style: AppFonts.ui(color: AppColors.muted),
             ),
             const SizedBox(height: 16),
             TextButton(onPressed: onRetry, child: const Text('Réessayer')),

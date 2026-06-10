@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
@@ -163,7 +164,7 @@ class _ExamenHero extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(module.isEo ? Icons.mic_rounded : Icons.edit_note_rounded,
+              Icon(module.isEo ? LucideIcons.mic : LucideIcons.penLine,
                   size: 14, color: AppColors.white),
               const SizedBox(width: 6),
               Text(
@@ -179,7 +180,7 @@ class _ExamenHero extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             'Lancer un examen blanc',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
                 size: 19, weight: FontWeight.w800, color: AppColors.white)
               .copyWith(letterSpacing: -0.3),
           ),
@@ -188,7 +189,7 @@ class _ExamenHero extends StatelessWidget {
             module.isEo
                 ? 'Les 3 tâches enchaînées comme le jour J, avec enregistrement.'
                 : 'Les 3 tâches enchaînées comme le jour J, à rédiger.',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
                 size: 13,
                 color: AppColors.white.withValues(alpha: 0.85),
                 height: 1.45),
@@ -204,12 +205,12 @@ class _ExamenHero extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.play_arrow_rounded,
+                  const Icon(LucideIcons.play,
                       size: 16, color: AppColors.redDark),
                   const SizedBox(width: 5),
                   Text(
                     'Commencer',
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                         size: 13,
                         weight: FontWeight.w800,
                         color: AppColors.redDark),
@@ -265,7 +266,7 @@ class _TaskRow extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
                   child: Text('$tache',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                           size: 13, weight: FontWeight.w800, color: fg)),
                 ),
                 const SizedBox(width: 12),
@@ -275,13 +276,13 @@ class _TaskRow extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(meta.title,
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                               size: 14,
                               weight: FontWeight.w700,
                               color: AppColors.ink)),
                       const SizedBox(height: 1),
                       Text(meta.subtitle,
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                               size: 12, color: AppColors.muted)),
                     ],
                   ),
@@ -289,10 +290,10 @@ class _TaskRow extends StatelessWidget {
                 if (count != null) ...[
                   Text('$count exercices',
                       style:
-                          AppFonts.jakarta(size: 11, color: AppColors.muted2)),
+                          AppFonts.ui(size: 11, color: AppColors.muted2)),
                   const SizedBox(width: 6),
                 ],
-                const Icon(Icons.chevron_right_rounded,
+                const Icon(LucideIcons.chevronRight,
                     color: AppColors.muted2, size: 20),
               ],
             ),
@@ -359,7 +360,7 @@ class _History extends StatelessWidget {
           child: Row(
             children: [
               Text('Historique',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                       size: 13,
                       weight: FontWeight.w700,
                       color: AppColors.muted)),
@@ -367,7 +368,7 @@ class _History extends StatelessWidget {
               GestureDetector(
                 onTap: onSeeAll,
                 child: Text('Tout voir',
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                         size: 12,
                         weight: FontWeight.w700,
                         color: AppColors.red)),
@@ -431,10 +432,10 @@ class _HubStat extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: AppFonts.jakarta(size: 11, color: AppColors.muted)),
+              style: AppFonts.ui(size: 11, color: AppColors.muted)),
           const SizedBox(height: 2),
           Text(value,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                   size: 18,
                   weight: FontWeight.w800,
                   color: valueColor ?? AppColors.ink)),
@@ -482,7 +483,7 @@ class _LastExamCard extends StatelessWidget {
                       alignment: Alignment.center,
                       decoration: const BoxDecoration(
                           color: AppColors.blueLight, shape: BoxShape.circle),
-                      child: const Icon(Icons.assignment_turned_in_rounded,
+                      child: const Icon(LucideIcons.clipboardCheck,
                           size: 18, color: AppColors.blue),
                     ),
                     const SizedBox(width: 12),
@@ -491,13 +492,13 @@ class _LastExamCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Examen blanc complet',
-                              style: AppFonts.jakarta(
+                              style: AppFonts.ui(
                                   size: 13.5,
                                   weight: FontWeight.w700,
                                   color: AppColors.ink)),
                           const SizedBox(height: 1),
                           Text(formatLongDate(session.lastSubmittedAt),
-                              style: AppFonts.jakarta(
+                              style: AppFonts.ui(
                                   size: 11, color: AppColors.muted)),
                         ],
                       ),
@@ -509,7 +510,7 @@ class _LastExamCard extends StatelessWidget {
                           color: color.withValues(alpha: 0.14),
                           borderRadius: BorderRadius.circular(8)),
                       child: Text(niveau?.displayName ?? '…',
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                               size: 11, weight: FontWeight.w800, color: color)),
                     ),
                   ],
@@ -547,7 +548,7 @@ class _MiniScore extends StatelessWidget {
           color: AppColors.bg, borderRadius: BorderRadius.circular(6)),
       child: Text(
         note != null ? 'T$tache · ${_formatNote(note!)}/20' : 'T$tache · —',
-        style: AppFonts.jakarta(
+        style: AppFonts.ui(
             size: 11, color: AppColors.muted, weight: FontWeight.w600),
       ),
     );
@@ -586,7 +587,7 @@ class _RecentSingleRow extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(color: badgeBg, shape: BoxShape.circle),
                   child: Text('$tache',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                           size: 13, weight: FontWeight.w800, color: badgeFg)),
                 ),
                 const SizedBox(width: 12),
@@ -595,13 +596,13 @@ class _RecentSingleRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Tâche $tache · entraînement libre',
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                               size: 13,
                               weight: FontWeight.w700,
                               color: AppColors.ink)),
                       const SizedBox(height: 1),
                       Text(formatLongDate(submission.submittedAt),
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                               size: 11, color: AppColors.muted)),
                     ],
                   ),
@@ -614,12 +615,12 @@ class _RecentSingleRow extends StatelessWidget {
                         color: color.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(8)),
                     child: Text(niveau.displayName,
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                             size: 11, weight: FontWeight.w800, color: color)),
                   ),
                   const SizedBox(width: 6),
                 ],
-                const Icon(Icons.chevron_right_rounded,
+                const Icon(LucideIcons.chevronRight,
                     color: AppColors.muted2, size: 20),
               ],
             ),
@@ -787,19 +788,19 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
                 const _SheetHandle(),
                 Text(
                   task.displayTitle,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                       size: 16, weight: FontWeight.w800, color: AppColors.ink),
                 ),
                 if (note != null) ...[
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.check_circle_rounded,
+                      const Icon(LucideIcons.circleCheck,
                           size: 13, color: AppColors.green),
                       const SizedBox(width: 5),
                       Text(
                         'Dernière note : ${_formatNote(note)}/20',
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                             size: 12.5,
                             color: AppColors.green,
                             weight: FontWeight.w700),
@@ -810,7 +811,7 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
                 const SizedBox(height: 16),
                 AppButton(
                   label: 'Voir le détail',
-                  icon: Icons.description_outlined,
+                  icon: LucideIcons.fileText,
                   variant: AppButtonVariant.ghost,
                   height: 46,
                   onPressed: () {
@@ -821,7 +822,7 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
                 const SizedBox(height: 8),
                 AppButton(
                   label: 'Reprendre',
-                  icon: Icons.refresh_rounded,
+                  icon: LucideIcons.refreshCw,
                   variant: AppButtonVariant.danger,
                   height: 46,
                   onPressed: () {
@@ -867,7 +868,7 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
                       final subjects = data.subjects;
                       if (subjects.isEmpty) {
                         return _Placeholder(
-                          icon: Icons.hourglass_empty_rounded,
+                          icon: LucideIcons.hourglass,
                           title: 'Bientôt disponible',
                           description:
                               'Les sujets de cette tâche ne sont pas encore prêts. Reviens vite !',
@@ -964,7 +965,7 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
           child: Text(
             'Modèles corrigés, avec stratégie et formules-clés.',
             style:
-                AppFonts.jakarta(size: 12, color: AppColors.muted, height: 1.4),
+                AppFonts.ui(size: 12, color: AppColors.muted, height: 1.4),
           ),
         ),
         for (final ex in examples)
@@ -1018,7 +1019,7 @@ class _SectionLabel extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 4, 18, 10),
       child: Text(text,
-          style: AppFonts.jakarta(
+          style: AppFonts.ui(
               size: 13, weight: FontWeight.w700, color: AppColors.muted)),
     );
   }
@@ -1043,13 +1044,13 @@ class _PlanRow extends StatelessWidget {
             decoration: BoxDecoration(
                 color: AppColors.green.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(999)),
-            child: const Icon(Icons.check_rounded,
+            child: const Icon(LucideIcons.check,
                 size: 13, color: AppColors.green),
           ),
           const SizedBox(width: 10),
           Expanded(
               child: Text(text,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                       size: 13, color: AppColors.ink2, height: 1.4))),
         ],
       ),
@@ -1124,14 +1125,14 @@ class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
                 padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
                 children: [
                   Text(ex.titre,
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                           size: 19,
                           weight: FontWeight.w800,
                           color: AppColors.ink)),
                   if (ex.resume != null) ...[
                     const SizedBox(height: 6),
                     Text(ex.resume!,
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                             size: 13, color: AppColors.muted, height: 1.4)),
                   ],
                   if (ex.hasAudio) ...[
@@ -1148,13 +1149,13 @@ class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
                           children: [
                             Icon(
                                 playing
-                                    ? Icons.pause_rounded
-                                    : Icons.play_arrow_rounded,
+                                    ? LucideIcons.pause
+                                    : LucideIcons.play,
                                 color: AppColors.white,
                                 size: 24),
                             const SizedBox(width: 10),
                             Text(playing ? 'Pause' : 'Écouter le modèle',
-                                style: AppFonts.jakarta(
+                                style: AppFonts.ui(
                                     size: 14,
                                     weight: FontWeight.w800,
                                     color: AppColors.white)),
@@ -1193,7 +1194,7 @@ class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
                             left: BorderSide(color: AppColors.red, width: 4)),
                       ),
                       child: Text(ex.contenu,
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                               size: 14, color: AppColors.ink2, height: 1.6)),
                     ),
                   ],
@@ -1208,12 +1209,12 @@ class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.lightbulb_outline_rounded,
+                          const Icon(LucideIcons.lightbulb,
                               size: 18, color: AppColors.red),
                           const SizedBox(width: 10),
                           Expanded(
                               child: Text(ex.explications!,
-                                  style: AppFonts.jakarta(
+                                  style: AppFonts.ui(
                                       size: 13,
                                       color: AppColors.ink2,
                                       height: 1.5))),
@@ -1224,7 +1225,7 @@ class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
                   if (ex.planPoints.isNotEmpty) ...[
                     const SizedBox(height: 18),
                     Text('Plan rapide',
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                             size: 15,
                             weight: FontWeight.w800,
                             color: AppColors.ink)),
@@ -1285,7 +1286,7 @@ class _MutedHint extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.line)),
       child: Text(text,
-          style: AppFonts.jakarta(
+          style: AppFonts.ui(
               size: 12.5, color: AppColors.muted, height: 1.4)),
     );
   }
@@ -1319,12 +1320,12 @@ class _Placeholder extends StatelessWidget {
             const SizedBox(height: 16),
             Text(title,
                 textAlign: TextAlign.center,
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                     size: 16, weight: FontWeight.w800, color: AppColors.ink)),
             const SizedBox(height: 8),
             Text(description,
                 textAlign: TextAlign.center,
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                     size: 13, color: AppColors.muted, height: 1.5)),
           ],
         ),
@@ -1347,7 +1348,7 @@ class _ErrorBox extends StatelessWidget {
         decoration: BoxDecoration(
             color: AppColors.redLight, borderRadius: BorderRadius.circular(12)),
         child: Text(message,
-            style: AppFonts.jakarta(size: 12.5, color: AppColors.redDark)),
+            style: AppFonts.ui(size: 12.5, color: AppColors.redDark)),
       ),
     );
   }
@@ -1394,8 +1395,8 @@ class _TaskTabs extends StatelessWidget {
           color: AppColors.line2, borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
-          Expanded(child: _tab(0, Icons.list_rounded, 'Exercices')),
-          Expanded(child: _tab(1, Icons.menu_book_rounded, 'Exemples')),
+          Expanded(child: _tab(0, LucideIcons.list, 'Exercices')),
+          Expanded(child: _tab(1, LucideIcons.bookOpen, 'Exemples')),
         ],
       ),
     );
@@ -1428,7 +1429,7 @@ class _TaskTabs extends StatelessWidget {
             Icon(icon, size: 15, color: on ? AppColors.red : AppColors.muted),
             const SizedBox(width: 6),
             Text(label,
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                     size: 12.5,
                     weight: FontWeight.w700,
                     color: on ? AppColors.ink : AppColors.muted)),
@@ -1454,7 +1455,7 @@ class _IntroCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline_rounded,
+          const Icon(LucideIcons.info,
               size: 18, color: AppColors.redDark),
           const SizedBox(width: 10),
           Expanded(
@@ -1462,13 +1463,13 @@ class _IntroCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Comment ça marche',
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                         size: 12,
                         weight: FontWeight.w800,
                         color: AppColors.redDark)),
                 const SizedBox(height: 3),
                 Text(text,
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                         size: 12, color: AppColors.ink2, height: 1.5)),
               ],
             ),
@@ -1519,7 +1520,7 @@ class _FilterChips extends StatelessWidget {
               ),
               child: Text(
                 labels[i],
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                     size: 12,
                     weight: FontWeight.w700,
                     color: on ? AppColors.white : AppColors.muted),
@@ -1556,7 +1557,7 @@ class _RandomCard extends StatelessWidget {
             alignment: Alignment.center,
             decoration: const BoxDecoration(
                 color: AppColors.redLight, shape: BoxShape.circle),
-            child: const Icon(Icons.casino_rounded,
+            child: const Icon(LucideIcons.dices,
                 size: 20, color: AppColors.red),
           ),
           const SizedBox(width: 12),
@@ -1566,13 +1567,13 @@ class _RandomCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text('Sujet aléatoire',
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                         size: 14,
                         weight: FontWeight.w700,
                         color: AppColors.ink)),
                 const SizedBox(height: 1),
                 Text('Comme à l\'examen, sans le voir',
-                    style: AppFonts.jakarta(size: 12, color: AppColors.muted)),
+                    style: AppFonts.ui(size: 12, color: AppColors.muted)),
               ],
             ),
           ),
@@ -1585,7 +1586,7 @@ class _RandomCard extends StatelessWidget {
                   color: AppColors.red,
                   borderRadius: BorderRadius.circular(10)),
               child: Text('Démarrer',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                       size: 12.5,
                       weight: FontWeight.w800,
                       color: AppColors.white)),
@@ -1648,7 +1649,7 @@ class _ExerciseRow extends StatelessWidget {
                       decoration: BoxDecoration(
                           color: nbg, borderRadius: BorderRadius.circular(999)),
                       child: Text(task.niveauCible,
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                               size: 10, weight: FontWeight.w800, color: nfg)),
                     ),
                     const SizedBox(width: 8),
@@ -1656,12 +1657,12 @@ class _ExerciseRow extends StatelessWidget {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.check_circle_rounded,
+                          const Icon(LucideIcons.circleCheck,
                               size: 13, color: AppColors.green),
                           const SizedBox(width: 3),
                           Text(
                               note != null ? '${_formatNote(note)}/20' : 'Fait',
-                              style: AppFonts.jakarta(
+                              style: AppFonts.ui(
                                   size: 10.5,
                                   weight: FontWeight.w700,
                                   color: AppColors.green)),
@@ -1669,10 +1670,10 @@ class _ExerciseRow extends StatelessWidget {
                       )
                     else
                       Text('Nouveau',
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                               size: 10.5, color: AppColors.muted2)),
                     const Spacer(),
-                    const Icon(Icons.chevron_right_rounded,
+                    const Icon(LucideIcons.chevronRight,
                         size: 18, color: AppColors.muted2),
                   ],
                 ),
@@ -1681,7 +1682,7 @@ class _ExerciseRow extends StatelessWidget {
                   task.consigne,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                       size: 13, color: AppColors.ink, height: 1.45),
                 ),
               ],
@@ -1705,9 +1706,9 @@ class _ShowMoreButton extends StatelessWidget {
       child: TextButton.icon(
         onPressed: onTap,
         icon: Text(label,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
                 size: 13, weight: FontWeight.w700, color: AppColors.red)),
-        label: const Icon(Icons.keyboard_arrow_down_rounded,
+        label: const Icon(LucideIcons.chevronDown,
             size: 18, color: AppColors.red),
       ),
     );
@@ -1738,7 +1739,7 @@ class _FeaturedExampleCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.auto_awesome_rounded,
+              const Icon(LucideIcons.sparkles,
                   size: 14, color: AppColors.red),
               const SizedBox(width: 6),
               Text('EXEMPLE CORRIGÉ',
@@ -1755,14 +1756,14 @@ class _FeaturedExampleCard extends StatelessWidget {
                   decoration: BoxDecoration(
                       color: nbg, borderRadius: BorderRadius.circular(999)),
                   child: Text(example.niveauIndicatif!,
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                           size: 10, weight: FontWeight.w800, color: nfg)),
                 ),
             ],
           ),
           const SizedBox(height: 8),
           Text(example.titre,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                   size: 13.5,
                   weight: FontWeight.w700,
                   color: AppColors.ink,
@@ -1776,7 +1777,7 @@ class _FeaturedExampleCard extends StatelessWidget {
               example.resume ?? example.contenu,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                   size: 12, color: AppColors.muted, height: 1.45),
             ),
           ),
@@ -1785,14 +1786,14 @@ class _FeaturedExampleCard extends StatelessWidget {
             children: [
               Expanded(
                   child: _OutlineBtn(
-                      icon: Icons.description_outlined,
+                      icon: LucideIcons.fileText,
                       label: 'Voir le corrigé',
                       onTap: onOpen)),
               if (example.hasAudio) ...[
                 const SizedBox(width: 6),
                 Expanded(
                     child: _OutlineBtn(
-                        icon: Icons.headphones_rounded,
+                        icon: LucideIcons.headphones,
                         label: 'Écouter',
                         onTap: onOpen)),
               ],
@@ -1828,7 +1829,7 @@ class _OutlineBtn extends StatelessWidget {
             Icon(icon, size: 14, color: AppColors.ink),
             const SizedBox(width: 5),
             Text(label,
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                     size: 12, weight: FontWeight.w700, color: AppColors.ink)),
           ],
         ),
@@ -1865,7 +1866,7 @@ class _StrategyCard extends StatelessWidget {
                   decoration: BoxDecoration(
                       color: AppColors.red.withValues(alpha: 0.15),
                       shape: BoxShape.circle),
-                  child: const Icon(Icons.lightbulb_outline_rounded,
+                  child: const Icon(LucideIcons.lightbulb,
                       size: 18, color: AppColors.redDark),
                 ),
                 const SizedBox(width: 12),
@@ -1875,18 +1876,18 @@ class _StrategyCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text('Méthode & formules-clés',
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                               size: 12.5,
                               weight: FontWeight.w800,
                               color: AppColors.redDark)),
                       const SizedBox(height: 1),
                       Text('Le plan en 3 points',
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                               size: 11, color: AppColors.redDark)),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded,
+                const Icon(LucideIcons.chevronRight,
                     size: 18, color: AppColors.redDark),
               ],
             ),
@@ -1924,7 +1925,7 @@ class _PlanSheet extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                 children: [
                   Text('Méthode & formules-clés',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                           size: 18,
                           weight: FontWeight.w800,
                           color: AppColors.ink)),

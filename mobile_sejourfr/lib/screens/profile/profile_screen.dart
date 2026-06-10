@@ -1,50 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/repositories.dart';
-import '../../core/api/user_content_repository.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/auth_models.dart';
+import '../../core/models/billing_models.dart';
 import '../../core/models/enums.dart';
-import '../../core/models/full_tcf_exam.dart';
+import '../../core/providers/dashboard_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
+import '../../core/widgets/app_sheet.dart';
 import '../../core/widgets/app_tag.dart';
-import '../../core/widgets/paywall_sheet.dart';
-import '../../core/widgets/sejourfr_logo.dart';
+import '../../core/widgets/list_group.dart';
+import '../../core/widgets/screen_header.dart';
+import '../../core/widgets/stat_value_card.dart';
 
-/// Stats agrégées pour la carte "Mes stats" du profil. On lit les 2 stats
-/// + le résumé de progression TCF (pour le niveau CECRL plancher) + l'historique
-/// des examens TCF complets (pour compter combien ont été passés).
-///
-/// On garde tout en `FutureProvider.autoDispose` : la card respecte les états
-/// loading/error sans casser le rendu du profil — si une seule des 4 requêtes
-/// échoue, on dégrade en "—" sur la cellule concernée plutôt que de bloquer.
-final _civiqueStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
-  return ref
-      .watch(userContentRepositoryProvider)
-      .stats(module: AppModule.civique);
+/// Statut d'abonnement pour la carte « Mon pass » du profil. autoDispose :
+/// revenir sur l'onglet refetch (un achat depuis le paywall doit se voir).
+final _subscriptionStatusProvider =
+    FutureProvider.autoDispose<SubscriptionStatusResponse>((ref) {
+  return ref.read(billingRepositoryProvider).getSubscriptionStatus();
 });
 
-final _tcfStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
-  return ref.watch(userContentRepositoryProvider).stats(module: AppModule.tcf);
-});
-
-final _tcfProgressionProvider =
-    FutureProvider.autoDispose<ProgressionSummary>((ref) {
-  return ref
-      .watch(userContentRepositoryProvider)
-      .progression(module: AppModule.tcf);
-});
-
-final _tcfExamsCountProvider = FutureProvider.autoDispose<int>((ref) async {
-  final list =
-      await ref.watch(fullTcfExamRepositoryProvider).listMine(limit: 100);
-  return list.where((e) => e.status == FullTcfExamStatus.completed).length;
-});
-
+/// Onglet « Profil » de la refonte 2026 (cf. `MProfil` maquette) : carte
+/// identité, 3 stats, carte « Mon pass », objectif, groupes Compte / Aide
+/// et actions (déconnexion, suppression).
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
@@ -57,108 +41,139 @@ class ProfileScreen extends ConsumerWidget {
       );
     }
     final user = auth.user;
-
+    final dashboard = ref.watch(dashboardProvider);
+    final subscription = ref.watch(_subscriptionStatusProvider);
     final fromHere = Uri.encodeComponent(AppRoutes.profile);
 
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+        bottom: false,
+        child: Column(
           children: [
-            Text(
-              '§ PROFIL',
-              style: AppFonts.mono(
-                size: 10,
-                color: AppColors.muted,
-                letterSpacing: 2.0,
-              ).copyWith(height: 1.0),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Mon compte',
-              style: AppFonts.fraunces(size: 26, weight: FontWeight.w600),
-            ),
-            const SizedBox(height: 18),
-            _ProfileHero(user: user),
-            const SizedBox(height: 14),
-            const _StatsRow(),
-            const SizedBox(height: 14),
-            _PlanCard(user: user),
-            const SizedBox(height: 14),
-            _TargetCard(
-              user: user,
-              onTap: () =>
-                  context.push('${AppRoutes.targetPath}?from=$fromHere'),
-            ),
-            const SizedBox(height: 24),
-            const _SectionLabel('Préparation'),
-            const SizedBox(height: 10),
-            _SettingTile(
-              icon: Icons.history_rounded,
-              title: 'Mes historiques',
-              subtitle: 'Examens civique, TCF + sessions IA EE/EO',
-              accent: AppColors.blue,
-              onTap: () => context.push(AppRoutes.historiques),
-            ),
-            const SizedBox(height: 22),
-            const _SectionLabel('Compte'),
-            const SizedBox(height: 10),
-            _SettingTile(
-              icon: Icons.person_outline_rounded,
-              title: 'Mes informations',
-              subtitle: 'Identité, email et mot de passe',
-              accent: AppColors.blue,
-              onTap: () => context.push(AppRoutes.personalInfo),
-            ),
-            const SizedBox(height: 8),
-            _SettingTile(
-              icon: Icons.delete_outline_rounded,
-              title: 'Supprimer mon compte',
-              subtitle: 'Suppression définitive de vos données',
-              accent: AppColors.red,
-              onTap: () => _confirmDeleteAccount(context, ref),
-            ),
-            // TODO à remettre en place après.
-            /*const SizedBox(height: 8),
-            _SettingTile(
-              icon: Icons.notifications_none_rounded,
-              title: 'Notifications',
-              subtitle: 'Gérer les rappels d\'entraînement',
-              accent: AppColors.blue,
-              onTap: () => _showSoon(context),
-            ),*/
-            const SizedBox(height: 22),
-            const _SectionLabel('Aide & informations légales'),
-            const SizedBox(height: 10),
-            _SettingTile(
-              icon: Icons.help_outline_rounded,
-              title: 'Centre d\'aide',
-              subtitle: 'FAQ, contact, CGU et politique de confidentialité',
-              accent: AppColors.muted,
-              onTap: () => context.push(AppRoutes.helpCenter),
-            ),
-            const SizedBox(height: 8),
-            _SettingTile(
-              icon: Icons.info_outline_rounded,
-              title: 'À propos de SejourFR',
-              subtitle: 'Outil indépendant · sources officielles',
-              accent: AppColors.muted,
-              onTap: () => context.push(AppRoutes.about),
-            ),
-            const SizedBox(height: 26),
-            _LogoutButton(onTap: () => _confirmLogout(context, ref)),
-            const SizedBox(height: 26),
-            const Center(child: SejourFrTagline()),
-            const SizedBox(height: 8),
-            Center(
-              child: Text(
-                'Version 0.1.0',
-                style: AppFonts.mono(
-                  size: 9,
-                  color: AppColors.muted2,
-                  letterSpacing: 1.5,
-                ),
+            const ScreenHeader(title: 'Profil', large: true),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+                children: [
+                  _IdentityCard(
+                    user: user,
+                    onTap: () => context.push(AppRoutes.personalInfo),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: StatValueCard(
+                          value: dashboard.valueOrNull?.globalSuccessPercent !=
+                                  null
+                              ? '${dashboard.valueOrNull!.globalSuccessPercent} %'
+                              : '—',
+                          label: 'Maîtrise',
+                          color: AppColors.blue,
+                          valueSize: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: StatValueCard(
+                          value: dashboard.valueOrNull != null
+                              ? '${dashboard.valueOrNull!.currentStreakDays} j'
+                              : '—',
+                          label: 'Série',
+                          color: AppColors.red,
+                          valueSize: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: StatValueCard(
+                          value: switch (
+                              dashboard.valueOrNull?.estimatedTcfLevel) {
+                            null => '—',
+                            NiveauCecrl.a1NonAtteint => '<A1',
+                            final l => l.displayName,
+                          },
+                          label: 'Niveau',
+                          color: AppColors.blue,
+                          valueSize: 22,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  const SectionTitle(title: 'Mon pass'),
+                  const SizedBox(height: 12),
+                  _PassCard(user: user, subscription: subscription),
+                  const SizedBox(height: 20),
+                  const SectionTitle(title: 'Mon objectif'),
+                  const SizedBox(height: 12),
+                  _ObjectifCard(
+                    user: user,
+                    onTap: () => context
+                        .push('${AppRoutes.targetPath}?from=$fromHere'),
+                  ),
+                  const SizedBox(height: 20),
+                  const SectionTitle(title: 'Mon compte'),
+                  const SizedBox(height: 12),
+                  ListGroup(
+                    children: [
+                      ListRow(
+                        icon: LucideIcons.penLine,
+                        title: 'Mes informations',
+                        sub: user.email,
+                        onTap: () => context.push(AppRoutes.personalInfo),
+                      ),
+                      ListRow(
+                        icon: LucideIcons.history,
+                        title: 'Mes historiques',
+                        sub: 'Examens civique, TCF + sessions IA EE/EO',
+                        onTap: () => context.push(AppRoutes.historiques),
+                      ),
+                      ListRow(
+                        icon: LucideIcons.bookOpen,
+                        title: "Centre d'aide",
+                        sub: 'FAQ, CGU, confidentialité, contact',
+                        onTap: () => context.push(AppRoutes.helpCenter),
+                      ),
+                      ListRow(
+                        icon: LucideIcons.info,
+                        title: 'À propos de SejourFR',
+                        sub: 'Outil indépendant · sources officielles',
+                        onTap: () => context.push(AppRoutes.about),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  ListGroup(
+                    children: [
+                      ListRow(
+                        icon: LucideIcons.arrowLeft,
+                        iconBg: AppColors.surface2,
+                        iconColor: AppColors.inkSoft,
+                        title: 'Se déconnecter',
+                        onTap: () => _confirmLogout(context, ref),
+                        right: const SizedBox.shrink(),
+                      ),
+                      ListRow(
+                        icon: LucideIcons.x,
+                        iconBg: AppColors.redLight,
+                        iconColor: AppColors.red,
+                        title: 'Supprimer mon compte',
+                        onTap: () => _confirmDeleteAccount(context, ref),
+                        right: const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Text(
+                      'SejourFR · v0.1.0',
+                      style:
+                          AppFonts.ui(size: 12, color: AppColors.inkFaint),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -168,107 +183,93 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          'Se déconnecter ?',
-          style: AppFonts.fraunces(size: 20, weight: FontWeight.w600),
+    final confirmed = await showAppSheet<bool>(
+      context,
+      icon: LucideIcons.arrowLeft,
+      title: 'Se déconnecter ?',
+      sub: 'Vous devrez vous reconnecter pour reprendre votre préparation.',
+      children: [
+        AppButton(
+          label: 'Se déconnecter',
+          onPressed: () => Navigator.of(context).pop(true),
         ),
-        content: Text(
-          'Vous devrez vous reconnecter pour reprendre votre préparation.',
-          style: AppFonts.jakarta(size: 13.5, color: AppColors.muted),
+        AppButton(
+          label: 'Annuler',
+          variant: AppButtonVariant.outline,
+          onPressed: () => Navigator.of(context).pop(false),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              'Se déconnecter',
-              style: AppFonts.jakarta(
-                color: AppColors.red,
-                weight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
+      ],
     );
-    if (result == true) {
+    if (confirmed == true) {
       await ref.read(authControllerProvider.notifier).logout();
     }
   }
 
-  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+  Future<void> _confirmDeleteAccount(
+      BuildContext context, WidgetRef ref) async {
     final auth = ref.read(authControllerProvider);
     final hasPaidAccess = auth is AuthAuthenticated && auth.user.isPremium;
     final message = 'Cette action est irréversible. Vos progrès, examens, '
         'favoris et informations personnelles seront définitivement supprimés.'
-        '${hasPaidAccess ? '\n\nVotre accès payant en cours sera perdu et ne '
-            'fait l\'objet d\'aucun remboursement.' : ''}';
+        '${hasPaidAccess ? "\n\nVotre accès payant en cours sera perdu et ne "
+            "fait l'objet d'aucun remboursement." : ''}';
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          'Supprimer votre compte ?',
-          style: AppFonts.fraunces(size: 20, weight: FontWeight.w600),
-        ),
-        content: Text(
-          message,
-          style: AppFonts.jakarta(size: 13.5, color: AppColors.muted, height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Annuler'),
+    final confirmed = await showAppSheet<bool>(
+      context,
+      icon: LucideIcons.x,
+      iconBg: AppColors.redLight,
+      iconColor: AppColors.red,
+      title: 'Supprimer votre compte ?',
+      sub: 'Cette action est définitive',
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.redLight,
+            borderRadius: BorderRadius.circular(AppRadii.md),
           ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              'Supprimer',
-              style: AppFonts.jakarta(
-                color: AppColors.red,
-                weight: FontWeight.w700,
-              ),
-            ),
+          child: Text(
+            message,
+            style: AppFonts.ui(
+                size: 13, color: AppColors.inkSoft, height: 1.55),
           ),
-        ],
-      ),
+        ),
+        AppButton(
+          label: 'Supprimer définitivement',
+          variant: AppButtonVariant.danger,
+          icon: LucideIcons.x,
+          onPressed: () => Navigator.of(context).pop(true),
+        ),
+        AppButton(
+          label: 'Annuler',
+          variant: AppButtonVariant.outline,
+          onPressed: () => Navigator.of(context).pop(false),
+        ),
+      ],
     );
     if (confirmed != true) return;
+    if (!context.mounted) return;
 
     final controller = ref.read(authControllerProvider.notifier);
     try {
       final result = await controller.deleteAccount();
 
-      // On affiche d'abord, tant que l'écran est monté, le message d'action
-      // manuelle si un abonnement Apple/Google reste à résilier côté store.
+      // Message d'action manuelle si un abonnement Apple/Google reste à
+      // résilier côté store, tant que l'écran est monté.
       if (context.mounted &&
           result.hasActiveSubscription &&
           result.manualActionMessage != null) {
-        await showDialog<void>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text(
-              'Compte supprimé',
-              style: AppFonts.fraunces(size: 20, weight: FontWeight.w600),
+        await showAppSheet<void>(
+          context,
+          icon: LucideIcons.check,
+          title: 'Compte supprimé',
+          sub: result.manualActionMessage,
+          children: [
+            AppButton(
+              label: 'Compris',
+              onPressed: () => Navigator.of(context).pop(),
             ),
-            content: Text(
-              result.manualActionMessage!,
-              style:
-                  AppFonts.jakarta(size: 13.5, color: AppColors.muted, height: 1.5),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Compris'),
-              ),
-            ],
-          ),
+          ],
         );
       }
       // Vide la session locale → le router redirige vers /login.
@@ -285,409 +286,146 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Hero compte — gradient bleu, avatar, nom, badge auth provider
-// ---------------------------------------------------------------------------
-
-class _ProfileHero extends StatelessWidget {
-  const _ProfileHero({required this.user});
+class _IdentityCard extends StatelessWidget {
+  const _IdentityCard({required this.user, required this.onTap});
 
   final AuthUser user;
+  final VoidCallback onTap;
+
+  String get _initials {
+    final f = user.firstName?.trim();
+    final l = user.lastName?.trim();
+    if (f != null && f.isNotEmpty) {
+      final second = l != null && l.isNotEmpty ? l[0] : '';
+      return '${f[0]}$second'.toUpperCase();
+    }
+    return user.email.isNotEmpty ? user.email[0].toUpperCase() : '·';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.blue, AppColors.blueDark],
-        ),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.blue.withValues(alpha: 0.28),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
+    return AppCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: AppColors.blue,
+              borderRadius: BorderRadius.circular(AppRadii.lg),
+            ),
+            child: Center(
+              child: Text(
+                _initials,
+                style: AppFonts.display(size: 26, color: AppColors.white),
+              ),
+            ),
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -50,
-              right: -40,
-              child: Container(
-                width: 170,
-                height: 170,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: AppColors.white.withValues(alpha: 0.08),
-                    width: 16,
-                  ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  user.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppFonts.display(size: 19),
                 ),
-              ),
-            ),
-            Positioned(
-              right: -20,
-              bottom: -30,
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.red.withValues(alpha: 0.22),
+                const SizedBox(height: 2),
+                Text(
+                  user.email,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppFonts.ui(size: 13, color: AppColors.inkSoft),
                 ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 64,
-                        height: 64,
-                        alignment: Alignment.center,
-                        decoration: const BoxDecoration(
-                          color: AppColors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          _initials(user.displayName),
-                          style: AppFonts.jakarta(
-                            size: 22,
-                            weight: FontWeight.w800,
-                            color: AppColors.blue,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'MEMBRE SEJOURFR',
-                              style: AppFonts.mono(
-                                size: 9,
-                                color: AppColors.white.withValues(alpha: 0.65),
-                                letterSpacing: 1.6,
-                                weight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              user.displayName,
-                              style: AppFonts.fraunces(
-                                size: 22,
-                                weight: FontWeight.w600,
-                                color: AppColors.white,
-                                height: 1.1,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              user.email,
-                              style: AppFonts.jakarta(
-                                size: 12,
-                                color: AppColors.white.withValues(alpha: 0.78),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      _HeroChip(
-                        icon: _providerIcon(user.authProvider),
-                        label: _providerLabel(user.authProvider),
-                      ),
-                      if (user.targetProcedure != null)
-                        _HeroChip(
-                          icon: Icons.flag_rounded,
-                          label: user.targetProcedure!.shortLabel,
-                        ),
-                      if (user.targetProcedure?.tcfLevel != null)
-                        _HeroChip(
-                          icon: Icons.translate_rounded,
-                          label: 'TCF ${user.targetProcedure!.tcfLevel}',
-                        ),
-                    ],
+                if (user.targetProcedure != null) ...[
+                  const SizedBox(height: 6),
+                  AppTag(
+                    label: user.targetProcedure!.shortLabel,
+                    icon: LucideIcons.mapPin,
                   ),
                 ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  IconData _providerIcon(AuthProvider p) => switch (p) {
-        AuthProvider.local => Icons.mail_outline_rounded,
-        AuthProvider.google => Icons.g_mobiledata_rounded,
-        AuthProvider.apple => Icons.apple_rounded,
-      };
-
-  String _providerLabel(AuthProvider p) => switch (p) {
-        AuthProvider.local => 'Email',
-        AuthProvider.google => 'Google',
-        AuthProvider.apple => 'Apple',
-      };
-
-  String _initials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty || parts[0].isEmpty) return '?';
-    if (parts.length == 1) return parts[0][0].toUpperCase();
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-}
-
-class _HeroChip extends StatelessWidget {
-  const _HeroChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: AppColors.white.withValues(alpha: 0.95)),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: AppFonts.jakarta(
-              size: 11.5,
-              weight: FontWeight.w700,
-              color: AppColors.white,
-            ).copyWith(letterSpacing: -0.1),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Carte "Mes stats" — 3 cellules : questions vues, examens passés, niveau TCF
-// ---------------------------------------------------------------------------
-
-class _StatsRow extends ConsumerWidget {
-  const _StatsRow();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final civique = ref.watch(_civiqueStatsProvider);
-    final tcf = ref.watch(_tcfStatsProvider);
-    final tcfProg = ref.watch(_tcfProgressionProvider);
-    final tcfExams = ref.watch(_tcfExamsCountProvider);
-
-    // Questions vues : somme byTheme.answered des 2 modules. "—" tant que
-    // l'une des requêtes n'est pas dispo (loading ou error) plutôt qu'un
-    // sous-total trompeur.
-    final viewedLabel = (civique.valueOrNull != null && tcf.valueOrNull != null)
-        ? _formatLargeCount(
-            civique.value!.byTheme.fold<int>(0, (s, t) => s + t.answered) +
-                tcf.value!.byTheme.fold<int>(0, (s, t) => s + t.answered),
-          )
-        : '—';
-
-    // Examens passés = examens TCF complets terminés. Le compteur civique
-    // viendra plus tard quand on aura un endpoint dédié (pour l'instant les
-    // examens civique sont mélangés avec les thématiques dans /api/me/attempts
-    // — déjà filtré dans l'écran d'historique mais pas exposé en KPI).
-    final examsLabel = tcfExams.maybeWhen(
-      data: (n) => n.toString(),
-      orElse: () => '—',
-    );
-
-    // Niveau CECRL : on lit `lastFullExam.finalLevel` (plancher des 4
-    // épreuves CO/CE/EE/EO, la règle officielle TCF IRN). "—" si pas
-    // d'examen passé. C'est un snapshot rapide — pas le best historique.
-    final levelLabel = tcfProg.maybeWhen(
-      data: (p) => _shortLevel(p.tcf?.lastFullExam?.finalLevel),
-      orElse: () => '—',
-    );
-
-    return AppCard(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '§ MES STATS',
-            style: AppFonts.mono(
-              size: 9.5,
-              color: AppColors.muted,
-              letterSpacing: 1.8,
-              weight: FontWeight.w700,
+              ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(width: 8),
           Row(
             children: [
-              Expanded(
-                  child:
-                      _StatCell(value: viewedLabel, label: 'Questions vues')),
-              _StatDivider(),
-              Expanded(
-                  child: _StatCell(value: examsLabel, label: 'Examens TCF')),
-              _StatDivider(),
-              Expanded(
-                  child: _StatCell(value: levelLabel, label: 'Dernier niveau')),
+              Text(
+                'Modifier',
+                style: AppFonts.ui(
+                  size: 12.5,
+                  weight: FontWeight.w600,
+                  color: AppColors.blue,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(LucideIcons.chevronRight,
+                  size: 14, color: AppColors.blue),
             ],
           ),
         ],
       ),
     );
   }
-
-  /// Forme courte pour la pastille niveau (la version "A1 non atteint" est
-  /// trop longue pour la cellule).
-  String _shortLevel(NiveauCecrl? lvl) {
-    if (lvl == null) return '—';
-    if (lvl == NiveauCecrl.a1NonAtteint) return '<A1';
-    return lvl.wire;
-  }
-
-  /// Formate un compteur : 1 234 plutôt que 1234 (groupage français à
-  /// l'espace fine, lisible sur petite cellule).
-  String _formatLargeCount(int n) {
-    if (n < 1000) return n.toString();
-    final s = n.toString();
-    final buf = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      final fromEnd = s.length - i;
-      if (i > 0 && fromEnd % 3 == 0) buf.write(' ');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
 }
 
-class _StatCell extends StatelessWidget {
-  const _StatCell({required this.value, required this.label});
-
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: AppFonts.fraunces(
-            size: 22,
-            weight: FontWeight.w700,
-            color: AppColors.ink,
-            height: 1.0,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 5),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: AppFonts.mono(
-            size: 9,
-            color: AppColors.muted,
-            letterSpacing: 1.0,
-            weight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: 32,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      color: AppColors.line,
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Carte plan / abonnement
-// ---------------------------------------------------------------------------
-
-class _PlanCard extends StatelessWidget {
-  const _PlanCard({required this.user});
+/// Carte « Mon pass » : nom du pass + statut + échéance, tap → gestion.
+/// Compte gratuit : carte Découverte avec CTA vers la page d'abonnement.
+class _PassCard extends StatelessWidget {
+  const _PassCard({required this.user, required this.subscription});
 
   final AuthUser user;
+  final AsyncValue<SubscriptionStatusResponse> subscription;
 
   @override
   Widget build(BuildContext context) {
-    final isPremium = user.isPremium;
-    final hasIntegral = user.hasCivique && user.hasTcf;
-    final planLabel = !isPremium
-        ? 'Plan gratuit'
-        : hasIntegral
-            ? 'Plan Intégral'
-            : user.hasCivique
-                ? 'Plan Civique'
-                : 'Plan TCF';
+    final sub = subscription.valueOrNull;
+    final premium = sub?.isPremium ?? user.isPremium;
 
-    final endLabel = user.premiumEndsAt == null
-        ? null
-        : 'Expire le ${_formatDate(user.premiumEndsAt!)}';
+    final String name;
+    final Color accent;
+    if (!premium) {
+      name = 'Découverte';
+      accent = AppColors.inkSoft;
+    } else if (sub?.moduleAccess == ModuleAccess.integral) {
+      name = 'Pass Intégral';
+      accent = AppColors.red;
+    } else if (sub?.moduleAccess == ModuleAccess.tcf) {
+      name = 'Pass TCF';
+      accent = AppColors.blue;
+    } else {
+      name = 'Pass Civique';
+      accent = AppColors.blue;
+    }
 
-    // Premium → tap pousse l'écran « Mon abonnement » (détails + résiliation).
-    // Gratuit/démo → ouvre la PaywallSheet partagée (l'app vend désormais via
-    // IAP natif Apple/Google, cf. CLAUDE.md mobile § In-App Purchase).
+    final expiresAt = sub?.expiresAt ?? user.premiumEndsAt;
+    final String subLabel;
+    if (!premium) {
+      subLabel = 'Accès limité — débloquez tout SejourFR';
+    } else if (expiresAt != null) {
+      subLabel = "Valable jusqu'au ${_formatDate(expiresAt)}";
+    } else {
+      subLabel = 'Accès actif';
+    }
+
     return AppCard(
-      onTap: isPremium
-          ? () => context.push(AppRoutes.manageSubscription)
-          : () => showPaywallSheet(context),
-      padding: const EdgeInsets.all(16),
+      onTap: () => context.push(AppRoutes.manageSubscription),
       child: Row(
         children: [
           Container(
-            width: 46,
-            height: 46,
-            alignment: Alignment.center,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: isPremium
-                  ? AppColors.amber.withValues(alpha: 0.14)
-                  : AppColors.line2,
-              borderRadius: BorderRadius.circular(13),
+              color: premium ? accent : AppColors.surface3,
+              borderRadius: BorderRadius.circular(AppRadii.md),
             ),
             child: Icon(
-              isPremium
-                  ? Icons.workspace_premium_rounded
-                  : Icons.lock_outline_rounded,
-              size: 22,
-              color: isPremium ? AppColors.amber : AppColors.muted,
+              LucideIcons.graduationCap,
+              size: 23,
+              color: premium ? AppColors.white : AppColors.inkSoft,
             ),
           ),
           const SizedBox(width: 14),
@@ -697,326 +435,98 @@ class _PlanCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      planLabel,
-                      style: AppFonts.jakarta(
-                        size: 14.5,
-                        weight: FontWeight.w800,
+                    Flexible(
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            AppFonts.ui(size: 16, weight: FontWeight.w700),
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    if (isPremium)
-                      const AppTag(label: 'Actif', tone: TagTone.success)
+                    const SizedBox(width: 8),
+                    if (premium)
+                      const AppTag(
+                        label: 'Actif',
+                        tone: TagTone.success,
+                        icon: LucideIcons.check,
+                      )
                     else
-                      const AppTag(label: 'Démo', tone: TagTone.amber),
+                      const AppTag(label: 'Gratuit', tone: TagTone.neutral),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
-                  endLabel ??
-                      (isPremium
-                          ? 'Accès complet aux modules.'
-                          : 'Appuie pour débloquer tous les modules.'),
-                  style: AppFonts.jakarta(
-                    size: 12,
-                    color: AppColors.muted,
-                  ),
-                  maxLines: 2,
+                  subLabel,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  style: AppFonts.ui(size: 12.5, color: AppColors.inkSoft),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.arrow_forward_ios,
-              size: 12, color: AppColors.muted2),
+          const Icon(LucideIcons.chevronRight,
+              size: 16, color: AppColors.inkFaint),
         ],
       ),
     );
   }
 
-  String _formatDate(DateTime d) {
+  String _formatDate(DateTime date) {
     const months = [
-      'janv.',
-      'févr.',
-      'mars',
-      'avr.',
-      'mai',
-      'juin',
-      'juil.',
-      'août',
-      'sept.',
-      'oct.',
-      'nov.',
-      'déc.',
+      'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+      'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
     ];
-    return '${d.day} ${months[d.month - 1]} ${d.year}';
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
 }
 
-// ---------------------------------------------------------------------------
-// Carte "Mon parcours" — seule entrée pour modifier la cible (la tile
-// dupliquée "Ma démarche" a été retirée, c'était redondant).
-// ---------------------------------------------------------------------------
-
-class _TargetCard extends StatelessWidget {
-  const _TargetCard({required this.user, required this.onTap});
+class _ObjectifCard extends StatelessWidget {
+  const _ObjectifCard({required this.user, required this.onTap});
 
   final AuthUser user;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final target = user.targetProcedure;
-    if (target == null) {
-      return AppCard(
-        onTap: onTap,
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.amber.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.flag_outlined,
-                color: AppColors.amber,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Définir mon objectif',
-                    style: AppFonts.jakarta(size: 14, weight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Adaptez les questions à votre démarche',
-                    style: AppFonts.jakarta(size: 12, color: AppColors.muted),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 12,
-              color: AppColors.muted2,
-            ),
-          ],
-        ),
-      );
-    }
-
+    final procedure = user.targetProcedure;
     return AppCard(
+      color: AppColors.surface2,
       onTap: onTap,
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'MON PARCOURS',
-                style: AppFonts.mono(
-                  size: 9,
-                  color: AppColors.muted,
-                  letterSpacing: 1.8,
-                  weight: FontWeight.w700,
-                ),
-              ),
-              const Spacer(),
-              const Icon(
-                Icons.edit_outlined,
-                size: 14,
-                color: AppColors.muted2,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: AppColors.blueLight,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.flag_rounded,
-                  color: AppColors.blue,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      target.fullLabel,
-                      style: AppFonts.jakarta(
-                        size: 15,
-                        weight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        AppTag(
-                            label: 'Civique ${target.wire}',
-                            tone: TagTone.blue),
-                        AppTag(
-                            label: 'TCF ${target.tcfLevel}', tone: TagTone.red),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Section label + tile
-// ---------------------------------------------------------------------------
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Text(
-        '§ ${text.toUpperCase()}',
-        style: AppFonts.mono(
-          size: 10,
-          color: AppColors.muted,
-          letterSpacing: 2.0,
-        ).copyWith(height: 1.0, fontWeight: FontWeight.w500),
-      ),
-    );
-  }
-}
-
-class _SettingTile extends StatelessWidget {
-  const _SettingTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.accent,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color accent;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      onTap: onTap,
-      padding: const EdgeInsets.all(14),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+              color: AppColors.white,
+              border: Border.all(color: AppColors.line),
+              borderRadius: BorderRadius.circular(AppRadii.md),
             ),
-            child: Icon(icon, size: 20, color: accent),
+            child:
+                const Icon(LucideIcons.target, size: 23, color: AppColors.blue),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
-                  style: AppFonts.jakarta(size: 14, weight: FontWeight.w700),
+                  procedure?.fullLabel ?? 'Choisir mon parcours',
+                  style: AppFonts.ui(size: 15, weight: FontWeight.w700),
                 ),
-                const SizedBox(height: 2),
                 Text(
-                  subtitle,
-                  style: AppFonts.jakarta(size: 12, color: AppColors.muted),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  procedure != null
+                      ? 'Parcours visé — toucher pour modifier'
+                      : 'Définissez votre objectif administratif',
+                  style: AppFonts.ui(size: 12.5, color: AppColors.inkFaint),
                 ),
               ],
             ),
           ),
-          const Icon(
-            Icons.arrow_forward_ios,
-            size: 12,
-            color: AppColors.muted2,
-          ),
+          const Icon(LucideIcons.chevronRight,
+              size: 18, color: AppColors.inkFaint),
         ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Logout
-// ---------------------------------------------------------------------------
-
-class _LogoutButton extends StatelessWidget {
-  const _LogoutButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: AppColors.redLight,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.red.withValues(alpha: 0.2)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.logout_rounded, size: 18, color: AppColors.red),
-              const SizedBox(width: 8),
-              Text(
-                'Se déconnecter',
-                style: AppFonts.jakarta(
-                  size: 14,
-                  weight: FontWeight.w700,
-                  color: AppColors.red,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

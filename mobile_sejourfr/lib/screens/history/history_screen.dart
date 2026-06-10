@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -39,12 +40,12 @@ class HistoryScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          icon: const Icon(LucideIcons.arrowLeft, size: 18),
           onPressed: () => context.pop(),
         ),
         title: Text(
           'Examens civique',
-          style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
+          style: AppFonts.ui(size: 16, weight: FontWeight.w700),
         ),
       ),
       body: SafeArea(
@@ -118,12 +119,12 @@ class _Header extends StatelessWidget {
         const SizedBox(height: 8),
         RichText(
           text: TextSpan(
-            style: AppFonts.fraunces(size: 22, weight: FontWeight.w500),
+            style: AppFonts.display(size: 22, weight: FontWeight.w500),
             children: [
               const TextSpan(text: 'Vous progressez '),
               TextSpan(
                 text: good ? 'bien' : 'pas mal',
-                style: AppFonts.fraunces(
+                style: AppFonts.display(
                   size: 22,
                   weight: FontWeight.w700,
                   color: good ? AppColors.green : AppColors.amber,
@@ -140,7 +141,7 @@ class _Header extends StatelessWidget {
               const TextSpan(text: 'Taux moyen : '),
               TextSpan(
                 text: '$avgPercent %',
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 13,
                   color: AppColors.ink,
                   weight: FontWeight.w800,
@@ -150,7 +151,7 @@ class _Header extends StatelessWidget {
                 text: good ? ' · vous êtes sur la bonne voie' : ' · continuez à vous entraîner',
               ),
             ],
-            style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+            style: AppFonts.ui(size: 13, color: AppColors.muted),
           ),
         ),
       ],
@@ -411,7 +412,7 @@ class _SessionItem extends StatelessWidget {
               children: [
                 Text(
                   '$score',
-                  style: AppFonts.fraunces(
+                  style: AppFonts.display(
                     size: 22,
                     weight: FontWeight.w700,
                     color: scoreColor,
@@ -435,7 +436,7 @@ class _SessionItem extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 14,
                     weight: FontWeight.w700,
                   ),
@@ -443,7 +444,7 @@ class _SessionItem extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   meta,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 12,
                     color: AppColors.muted,
                   ),
@@ -451,7 +452,7 @@ class _SessionItem extends StatelessWidget {
               ],
             ),
           ),
-          if (session.isFinished) const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.muted2),
+          if (session.isFinished) const Icon(LucideIcons.chevronRight, size: 12, color: AppColors.muted2),
         ],
       ),
     );
@@ -491,14 +492,13 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.timer_outlined, size: 48, color: AppColors.muted2),
+            const Icon(LucideIcons.timer, size: 48, color: AppColors.muted2),
             const SizedBox(height: 14),
             Text(
               'Aucun examen civique',
-              style: AppFonts.fraunces(
+              style: AppFonts.display(
                 size: 20,
                 weight: FontWeight.w500,
-                fontStyle: FontStyle.italic,
                 color: AppColors.muted,
               ),
             ),
@@ -506,7 +506,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               'Vos examens blancs civique (40 questions) apparaîtront ici.',
               textAlign: TextAlign.center,
-              style: AppFonts.jakarta(size: 13, color: AppColors.muted2),
+              style: AppFonts.ui(size: 13, color: AppColors.muted2),
             ),
           ],
         ),
@@ -529,12 +529,12 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_outlined, size: 36, color: AppColors.red),
+            const Icon(LucideIcons.cloudOff, size: 36, color: AppColors.red),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+              style: AppFonts.ui(size: 13, color: AppColors.muted),
             ),
             const SizedBox(height: 12),
             TextButton(onPressed: onRetry, child: const Text('Réessayer')),

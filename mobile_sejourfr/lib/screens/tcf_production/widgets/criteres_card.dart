@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -30,11 +31,11 @@ class CriteresCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.fact_check_outlined, size: 18, color: AppColors.blue),
+              const Icon(LucideIcons.listChecks, size: 18, color: AppColors.blue),
               const SizedBox(width: 8),
               Text(
                 title,
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 14,
                   weight: FontWeight.w700,
                   color: AppColors.blue,
@@ -63,7 +64,7 @@ class CriteresCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       item,
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 13,
                         color: AppColors.ink,
                         height: 1.5,

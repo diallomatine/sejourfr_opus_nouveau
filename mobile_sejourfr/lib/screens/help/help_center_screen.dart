@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_config.dart';
@@ -28,12 +29,12 @@ class HelpCenterScreen extends StatelessWidget {
         elevation: 0,
         foregroundColor: AppColors.ink,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          icon: const Icon(LucideIcons.arrowLeft, size: 18),
           onPressed: () => context.pop(),
         ),
         title: Text(
           'Centre d\'aide',
-          style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
+          style: AppFonts.ui(size: 16, weight: FontWeight.w700),
         ),
       ),
       body: SafeArea(
@@ -46,7 +47,7 @@ class HelpCenterScreen extends StatelessWidget {
             const _SectionLabel('Ressources'),
             const SizedBox(height: 10),
             _HelpTile(
-              icon: Icons.help_outline_rounded,
+              icon: LucideIcons.circleHelp,
               accent: AppColors.blue,
               title: 'Aide & FAQ',
               subtitle: 'Réponses aux questions fréquentes sur l\'examen et la procédure.',
@@ -56,7 +57,7 @@ class HelpCenterScreen extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             _HelpTile(
-              icon: Icons.mail_outline_rounded,
+              icon: LucideIcons.mail,
               accent: AppColors.red,
               title: 'Nous contacter',
               subtitle: 'Un message à l\'équipe — réponse sous 24 h ouvrées.',
@@ -66,7 +67,7 @@ class HelpCenterScreen extends StatelessWidget {
             const _SectionLabel('Documents légaux'),
             const SizedBox(height: 10),
             _HelpTile(
-              icon: Icons.gavel_rounded,
+              icon: LucideIcons.scale,
               accent: AppColors.muted,
               title: 'Conditions d\'utilisation',
               subtitle: 'Les règles d\'usage du service.',
@@ -76,7 +77,7 @@ class HelpCenterScreen extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             _HelpTile(
-              icon: Icons.shield_outlined,
+              icon: LucideIcons.shield,
               accent: AppColors.muted,
               title: 'Politique de confidentialité',
               subtitle: 'Ce qu\'on collecte, pourquoi et comment.',
@@ -86,7 +87,7 @@ class HelpCenterScreen extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             _HelpTile(
-              icon: Icons.info_outline_rounded,
+              icon: LucideIcons.info,
               accent: AppColors.blue,
               title: 'À propos de SejourFR',
               subtitle:
@@ -133,7 +134,7 @@ class _HelpHero extends StatelessWidget {
               ],
             ),
             child: const Icon(
-              Icons.support_agent_rounded,
+              LucideIcons.headset,
               color: AppColors.blue,
               size: 22,
             ),
@@ -145,7 +146,7 @@ class _HelpHero extends StatelessWidget {
               children: [
                 Text(
                   'Une question ?',
-                  style: AppFonts.fraunces(
+                  style: AppFonts.display(
                     size: 17,
                     weight: FontWeight.w600,
                     color: AppColors.ink,
@@ -154,7 +155,7 @@ class _HelpHero extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'L\'équipe SejourFR te répond sous 24 h ouvrées.',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 12.5,
                     color: AppColors.muted,
                     height: 1.4,
@@ -239,7 +240,7 @@ class _HelpTile extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 14.5,
                         weight: FontWeight.w700,
                         color: AppColors.ink,
@@ -248,7 +249,7 @@ class _HelpTile extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 12.5,
                         color: AppColors.muted,
                         height: 1.4,
@@ -258,7 +259,7 @@ class _HelpTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+              const Icon(LucideIcons.chevronRight, color: AppColors.muted),
             ],
           ),
         ),

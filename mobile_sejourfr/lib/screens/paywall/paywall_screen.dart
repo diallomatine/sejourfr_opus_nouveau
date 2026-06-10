@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/billing/billing_controller.dart';
@@ -61,7 +62,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             behavior: SnackBarBehavior.floating,
             content: Text(
               _welcomeMessage(verified),
-              style: AppFonts.jakarta(color: AppColors.white, size: 13),
+              style: AppFonts.ui(color: AppColors.white, size: 13),
             ),
           ),
         );
@@ -92,7 +93,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           elevation: 0,
           scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.close_rounded, color: AppColors.ink),
+            icon: const Icon(LucideIcons.x, color: AppColors.ink),
             onPressed: state.purchaseInProgress
                 ? null
                 : () => Navigator.of(context, rootNavigator: true).maybePop(),
@@ -144,7 +145,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           Text(
             oneTime ? 'Débloquez votre accès' : 'Choisissez votre formule',
             textAlign: TextAlign.center,
-            style: AppFonts.fraunces(size: 28, weight: FontWeight.w600),
+            style: AppFonts.display(size: 28, weight: FontWeight.w600),
           ),
           const SizedBox(height: 10),
           Text(
@@ -154,7 +155,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 : 'Mensuel, trimestriel ou annuel — annulable à tout moment depuis '
                     'les Réglages de votre appareil.',
             textAlign: TextAlign.center,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13,
               color: AppColors.muted,
               height: 1.5,
@@ -177,7 +178,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           AppButton(
             label: 'Restaurer mes achats',
             variant: AppButtonVariant.secondary,
-            icon: Icons.restore_rounded,
+            icon: LucideIcons.rotateCcw,
             isLoading: state.purchaseInProgress && state.purchasingSku == null,
             onPressed: state.purchaseInProgress
                 ? null
@@ -189,7 +190,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
           Text(
             'Déjà acheté sur un autre appareil ? Récupérez votre accès ici.',
             textAlign: TextAlign.center,
-            style: AppFonts.jakarta(size: 12, color: AppColors.muted, height: 1.5),
+            style: AppFonts.ui(size: 12, color: AppColors.muted, height: 1.5),
           ),
           const SizedBox(height: 24),
           _TrustRow(),
@@ -311,7 +312,7 @@ class _PeriodicityToggle extends StatelessWidget {
                 alignment: Alignment.center,
                 child: Text(
                   p.label,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 13.5,
                     weight: FontWeight.w700,
                     color: active ? AppColors.ink : AppColors.muted,
@@ -403,14 +404,14 @@ class _PlanCard extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             module.label,
-            style: AppFonts.fraunces(size: 24, weight: FontWeight.w600),
+            style: AppFonts.display(size: 24, weight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
           Text(
             module == PlanModuleTarget.civique
                 ? 'Accès complet au module civique pour préparer votre démarche.'
                 : 'Civique + TCF IRN avec EE/EO évalués par IA.',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13,
               color: AppColors.muted,
               height: 1.5,
@@ -507,14 +508,14 @@ class _OneTimeModuleCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(module.label,
-              style: AppFonts.fraunces(size: 24, weight: FontWeight.w600)),
+              style: AppFonts.display(size: 24, weight: FontWeight.w600)),
           const SizedBox(height: 6),
           Text(
             module == PlanModuleTarget.civique
                 ? 'Accès complet au module civique pour préparer votre démarche.'
                 : 'Civique + TCF IRN avec EE/EO évalués par IA.',
             style:
-                AppFonts.jakarta(size: 13, color: AppColors.muted, height: 1.5),
+                AppFonts.ui(size: 13, color: AppColors.muted, height: 1.5),
           ),
           const SizedBox(height: 16),
           _FeatureList(module: module),
@@ -606,14 +607,14 @@ class _PassRow extends StatelessWidget {
                     Text(
                       pass.durationLabel,
                       style:
-                          AppFonts.jakarta(size: 15, weight: FontWeight.w700),
+                          AppFonts.ui(size: 15, weight: FontWeight.w700),
                     ),
                   ],
                 ),
               ),
               Text(
                 pass.localizedPrice,
-                style: AppFonts.fraunces(
+                style: AppFonts.display(
                     size: 20, weight: FontWeight.w700, color: c),
               ),
               const SizedBox(width: 10),
@@ -626,7 +627,7 @@ class _PassRow extends StatelessWidget {
                         valueColor: AlwaysStoppedAnimation(c),
                       ),
                     )
-                  : Icon(Icons.arrow_forward_rounded, size: 18, color: c),
+                  : Icon(LucideIcons.arrowRight, size: 18, color: c),
             ],
           ),
         ),
@@ -646,7 +647,7 @@ class _PriceBlock extends StatelessWidget {
     if (product == null) {
       return Text(
         'Produit non encore configuré.',
-        style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+        style: AppFonts.ui(size: 13, color: AppColors.muted),
       );
     }
     return Row(
@@ -654,7 +655,7 @@ class _PriceBlock extends StatelessWidget {
       children: [
         Text(
           product!.localizedPrice,
-          style: AppFonts.fraunces(size: 32, weight: FontWeight.w700),
+          style: AppFonts.display(size: 32, weight: FontWeight.w700),
         ),
         const SizedBox(width: 6),
         Padding(
@@ -738,7 +739,7 @@ class _FeatureRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            included ? Icons.check_rounded : Icons.close_rounded,
+            included ? LucideIcons.check : LucideIcons.x,
             size: 16,
             color: included ? AppColors.green : AppColors.red,
           ),
@@ -746,7 +747,7 @@ class _FeatureRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13.5,
                 color: included ? AppColors.ink2 : AppColors.red,
                 height: 1.4,
@@ -773,11 +774,11 @@ class _TrustRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.lock_rounded, size: 14, color: AppColors.muted),
+        const Icon(LucideIcons.lock, size: 14, color: AppColors.muted),
         const SizedBox(width: 6),
         Text(
           'Paiement sécurisé via $_storeName',
-          style: AppFonts.jakarta(size: 12, color: AppColors.muted),
+          style: AppFonts.ui(size: 12, color: AppColors.muted),
         ),
       ],
     );
@@ -801,7 +802,7 @@ class _LegalLinks extends StatelessWidget {
           : 'L\'abonnement est géré par le store. Gérez le renouvellement et '
               'annulez à tout moment dans $manageHint.',
       textAlign: TextAlign.center,
-      style: AppFonts.jakarta(size: 11, color: AppColors.muted, height: 1.5),
+      style: AppFonts.ui(size: 11, color: AppColors.muted, height: 1.5),
     );
   }
 }
@@ -823,13 +824,13 @@ class _ErrorBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline_rounded,
+          const Icon(LucideIcons.circleAlert,
               size: 16, color: AppColors.red),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 12.5,
                 color: AppColors.ink,
                 height: 1.5,

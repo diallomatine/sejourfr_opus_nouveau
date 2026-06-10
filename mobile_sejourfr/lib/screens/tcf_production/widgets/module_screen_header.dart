@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -32,7 +33,7 @@ class ModuleScreenHeader extends StatelessWidget {
         children: [
           IconButton(
             onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.ink),
+            icon: const Icon(LucideIcons.arrowLeft, color: AppColors.ink),
             visualDensity: VisualDensity.compact,
           ),
           Expanded(
@@ -45,7 +46,7 @@ class ModuleScreenHeader extends StatelessWidget {
                     Flexible(
                       child: Text(
                         title,
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 17,
                           weight: FontWeight.w700,
                           color: AppColors.ink,
@@ -62,7 +63,7 @@ class ModuleScreenHeader extends StatelessWidget {
                 const SizedBox(height: 1),
                 Text(
                   subtitle,
-                  style: AppFonts.jakarta(size: 12, color: AppColors.muted),
+                  style: AppFonts.ui(size: 12, color: AppColors.muted),
                 ),
               ],
             ),

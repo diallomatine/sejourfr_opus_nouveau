@@ -129,31 +129,43 @@ lib/
 dans `screens/`. Les widgets vraiment génériques (boutons, tags, cards) montent dans `core/widgets/`. Les
 widgets locaux à une feature restent dans `screens/<feature>/widgets/`.
 
-## Identité visuelle
+## Identité visuelle — refonte 2026 (maquette `SejourFR_Mobile_Autonome.html`)
 
-Couleurs officielles (toutes dans `core/theme/app_theme.dart`) :
+L'app suit la maquette mobile autonome (design « bleu-blanc-rouge discret »). Couleurs
+(toutes dans `core/theme/app_theme.dart`) :
 
-- **Bleu France** : `#1E3A8C` (foncé : `#15296B`, clair : `#E8ECF8`, très clair : `#F4F6FC`)
-- **Rouge France** : `#E1372F` (foncé : `#B5251E`, clair : `#FDECEB`)
-- **Ink** : `#0F1839` (texte principal)
-- **Muted** : `#6B7299` / `#9CA2BD` (secondaire)
-- **Vert succès** : `#168F5B`
-- **Ambre** : `#E8A317`
+- **Bleu France** : `#1E3A8C` (`AppColors.blue`, foncé `blueDark`, teinté `blueLight`/`blueSoft`)
+- **Rouge France** : `#E1372F` (`AppColors.red`, foncé `redDark`, teinté `redLight`)
+- **Neutres calmes** : `ink` / `inkSoft` / `inkFaint`, fonds `bg` < `surface2` < `surface3`,
+  bordures `line` / `lineSoft`
+- Sémantique parcours : **TCF = rouge, Civique = bleu** (toggles, héros, icônes de parcours)
+- `masteryColor(0-100)` : rampe rouge → corail → ardoise → bleu → Bleu France pour les barres
+  de maîtrise ; `masteryLabel()` pour le libellé qualitatif. `CecrlColor` inchangé (jamais de
+  rouge pour un niveau).
+- Rayons standard : `AppRadii.sm/md/lg/xl/pill` (8/12/18/26/999). Ombres : `AppShadows.card` (douce) / `.md`.
 
 Typographies :
 
-- **Plus Jakarta Sans** (corps, boutons, navigation) — poids 400 à 800
-- **Fraunces** (titres éditoriaux, italiques décoratives) — poids 500/600
-- **JetBrains Mono** (eyebrows, labels techniques, badges) — taille 10-11 avec letter-spacing
+- **Bricolage Grotesque** (`AppFonts.display`) — titres, gros chiffres, tracking -0.02em
+- **Hanken Grotesk** (`AppFonts.ui`) — corps, boutons, navigation ; `AppFonts.label` pour les
+  petits labels bold
+- `jakarta`/`fraunces` ont été **supprimés** (migration faite partout). `mono` reste en
+  délégué **@Deprecated** vers du Hanken bold — à résorber au fil de l'eau, ne plus l'utiliser.
 
-**Le logo** est un lockup de 3 composants : `Cocarde` (3 cercles concentriques bleu/blanc/rouge),
-`SejourFrWordmark` ("Sejour" en bleu + "FR" en rouge), `SejourFrTagline` ("EXAMEN CIVIQUE · TCF"). Tous trois
-exposés dans `core/widgets/sejourfr_logo.dart`. Pour l'écran d'accueil/splash, utiliser le helper
-`SejourFrLogoLockup` qui combine les trois.
+**Icônes** : `lucide_icons_flutter` (`LucideIcons.*`, trait fin géométrique comme la maquette).
+Migration globale faite — ne plus introduire de `Icons.*` Material (seule exception :
+`Icons.apple` du bouton Sign in with Apple).
 
-**Ne jamais hardcoder une couleur** ailleurs que dans `app_theme.dart` — toujours utiliser `AppColors.blue`,
-`AppColors.red`, etc. Idem pour les polices : passer par les helpers `AppFonts.jakarta(...)`,
-`AppFonts.fraunces(...)`, `AppFonts.mono(...)`.
+**Primitives maquette** (`core/widgets/`) : `ScreenHeader` (en-tête fixe flouté, hors scroll),
+`ListGroup`/`ListRow`/`SectionTitle` (listes encartées), `SegmentedTabs` + `parcoursSegments()`
+(toggle TCF rouge / Civique bleu), `ProgressRing`, `ProgressTrack`, `StatValueCard`,
+`showAppSheet` (bottom sheet à poignée), `AppButton` (pill — variants primary/accent/soft/
+outline/ghost/danger), `AppCard` (r=18), `AppTag` (badge pill, tones).
+
+**Le logo** reste le lockup `core/widgets/sejourfr_logo.dart` (Cocarde + Wordmark + Tagline).
+
+**Ne jamais hardcoder une couleur** ailleurs que dans `app_theme.dart` — toujours `AppColors.*`,
+`AppFonts.display/ui/label`, `AppRadii.*`.
 
 ## Backend
 
@@ -359,11 +371,47 @@ activé (pas de clé à fournir).
 
 ## Bottom nav et hubs Civique / TCF
 
-La bottom nav a 5 onglets : **Accueil · Civique · TCF · Progression · Profil**. Les onglets Civique et
-TCF remplacent les anciens "Entraîner" et "Examen". Les écrans `TrainingSetupScreen` et `ExamSetupScreen`
-ont été **supprimés** : un tap module dans un hub démarre directement un attempt et push le runner
-(plus d'écran setup intermédiaire). Le quota démo (`kDemoBatchSize = 20`) et premium (`kInitialBatchSize = 30`)
-vivent désormais dans `core/widgets/paywall_sheet.dart` avec le bottom sheet `PaywallSheet` réutilisable.
+**Refonte 2026 — nouvelle nav** : la bottom nav a 5 onglets **Accueil · Réviser · Examens ·
+Progrès · Profil** (cf. maquette) :
+
+- **Accueil** (`screens/home/`) : carte « À travailler en priorité » (catégorie la plus faible),
+  3 stat cards (maîtrise/streak/niveau TCF), « Mes parcours », bloc IA EE/EO, raccourci examens.
+- **Réviser** (`screens/reviser/`) : fusion des hubs Civique/TCF derrière `SegmentedTabs`
+  (provider partagé `reviserParcoursProvider` — l'Accueil le présélectionne avant `goTab`).
+  Liste des catégories avec anneau de maîtrise → écrans détail existants.
+- **Examens** (`screens/examens/`) : examens blancs complets des 2 parcours derrière un toggle
+  (`examensParcoursProvider`). Embarque `TcfFullExamsView` et `CiviqueFullExamsView` (corps
+  extraits des écrans pleine page, qui restent pour les push profonds).
+- **Progrès** (`screens/progres/`) : 3 anneaux de synthèse + listes encartées par parcours +
+  `RecoScreen` (route `/progress/recommandations`). L'ancien `screens/stats/` est **supprimé**.
+- **Profil** (`screens/profile/`) : carte identité, 3 stats, carte « Mon pass » →
+  `ManageSubscriptionScreen` (carte gradient maquette + détails + inclusions, paywall pour
+  prolonger), objectif, groupes compte/aide, déconnexion + suppression via `showAppSheet`.
+
+**Données** : `GET /api/me/dashboard` (miroir `core/models/dashboard_models.dart`, provider
+`core/providers/dashboard_provider.dart`) alimente Accueil/Réviser/Progrès en un appel —
+streak, `globalSuccessPercent`, `estimatedTcfLevel`, stats par catégorie (codes `TCF_*` /
+`CIV_*`, mapping icône/route partagé dans `core/utils/dashboard_targets.dart`).
+
+**Les anciens hubs sont supprimés** : `screens/tcf/`, `screens/hub/`, `civique_screen.dart`
+et leurs widgets n'existent plus. `/civique` et `/tcf` sont des **redirects** vers `/reviser`
+(gardés pour les fallbacks et deep links).
+
+**Pattern détail d'épreuve (refonte 2026)** — cf. `MLevels`/`MSeries` maquette :
+- TCF QCM (`/tcf/{co,ce,structure}` → `TcfQcmDetailScreen`) : 3 cartes niveau A2/B1/B2
+  (compteur « X/N séries faites » via `lotsProvider`) + historique des examens du module
+  en dessous + bouton **« Examens blancs » fixé en bas** (`FixedActionBar`) → page des
+  examens du module. Tap niveau → `TcfLevelLotsScreen` (« Séries » = les lots, cartes
+  `SerieCard` partagées avec badge meilleur score) + même bouton fixe.
+- Civique (`/civique/theme/:themeId` → `CiviqueThemeDetailScreen`) : pas de niveaux —
+  séries directes (cap 6 + « Voir plus ») + historique + bouton fixe → 10 examens du thème.
+- `widgets/serie_card.dart` est la carte série partagée TCF/Civique ;
+  `core/widgets/fixed_action_bar.dart` la barre fixe à fondu.
+- Les cartes de slot d'examen partagées (`tcf_production/widgets/exam_slot/`) sont au
+  style maquette : numéro Bricolage, pill « Fait » teinté accent, boutons pill.
+
+Le quota démo (`kDemoBatchSize = 20`) et premium (`kInitialBatchSize = 30`)
+vivent dans `core/widgets/paywall_sheet.dart` avec le bottom sheet `PaywallSheet` réutilisable.
 
 Les 2 hubs (`screens/civique/civique_screen.dart` et `screens/tcf/tcf_screen.dart`) partagent une
 structure visuelle identique implémentée dans `screens/hub/widgets/hub_home_widgets.dart`. Chaque hub

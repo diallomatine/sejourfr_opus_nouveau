@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/router/app_router.dart';
@@ -30,7 +31,7 @@ class MesHistoriquesScreen extends StatelessWidget {
         foregroundColor: AppColors.ink,
         title: Text(
           'Mes historiques',
-          style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
+          style: AppFonts.ui(size: 16, weight: FontWeight.w700),
         ),
       ),
       body: SafeArea(
@@ -40,7 +41,7 @@ class MesHistoriquesScreen extends StatelessWidget {
           children: [
             Text(
               'Consultez vos examens blancs et sessions IA passés.',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13.5,
                 color: AppColors.muted,
                 height: 1.45,
@@ -50,7 +51,7 @@ class MesHistoriquesScreen extends StatelessWidget {
             _SectionLabel('Examens blancs'),
             const SizedBox(height: 10),
             _HistoryCategoryCard(
-              icon: Icons.account_balance_rounded,
+              icon: LucideIcons.landmark,
               accent: AppColors.blue,
               title: 'Examens civique',
               subtitle:
@@ -59,7 +60,7 @@ class MesHistoriquesScreen extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             _HistoryCategoryCard(
-              icon: Icons.translate_rounded,
+              icon: LucideIcons.languages,
               accent: AppColors.red,
               title: 'Examens TCF',
               subtitle:
@@ -70,7 +71,7 @@ class MesHistoriquesScreen extends StatelessWidget {
             _SectionLabel('Sessions IA'),
             const SizedBox(height: 10),
             _HistoryCategoryCard(
-              icon: Icons.edit_note_rounded,
+              icon: LucideIcons.penLine,
               accent: AppColors.green,
               title: 'Expression écrite',
               subtitle:
@@ -79,7 +80,7 @@ class MesHistoriquesScreen extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             _HistoryCategoryCard(
-              icon: Icons.mic_rounded,
+              icon: LucideIcons.mic,
               accent: AppColors.red,
               title: 'Expression orale',
               subtitle:
@@ -170,7 +171,7 @@ class _HistoryCategoryCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 14.5,
                         weight: FontWeight.w700,
                         color: AppColors.ink,
@@ -179,7 +180,7 @@ class _HistoryCategoryCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 12.5,
                         color: AppColors.muted,
                         height: 1.4,
@@ -189,7 +190,7 @@ class _HistoryCategoryCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+              const Icon(LucideIcons.chevronRight, color: AppColors.muted),
             ],
           ),
         ),

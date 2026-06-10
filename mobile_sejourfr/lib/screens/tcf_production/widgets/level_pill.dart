@@ -57,7 +57,7 @@ class LevelPill extends StatelessWidget {
       ),
       child: Text(
         level.displayName,
-        style: AppFonts.jakarta(
+        style: AppFonts.ui(
           size: small ? 11 : 12,
           weight: FontWeight.w700,
           color: _textColor,

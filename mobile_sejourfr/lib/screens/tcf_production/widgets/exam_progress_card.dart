@@ -31,7 +31,7 @@ class ExamProgressCard extends StatelessWidget {
             children: [
               Text(
                 'Progression du parcours',
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 12,
                   weight: FontWeight.w700,
                   color: AppColors.blueDark,
@@ -40,7 +40,7 @@ class ExamProgressCard extends StatelessWidget {
               const Spacer(),
               Text(
                 '$percent %',
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 11,
                   weight: FontWeight.w700,
                   color: AppColors.blue,

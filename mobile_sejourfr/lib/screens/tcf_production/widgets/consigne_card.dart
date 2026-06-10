@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -39,7 +40,7 @@ class ConsigneCard extends StatelessWidget {
           if (subTitleHero != null) ...[
             Text(
               subTitleHero!,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 18,
                 weight: FontWeight.w700,
                 color: AppColors.ink,
@@ -49,7 +50,7 @@ class ConsigneCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 subtitle!,
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 13,
                   color: AppColors.muted,
                 ),
@@ -59,11 +60,11 @@ class ConsigneCard extends StatelessWidget {
           ] else ...[
             Row(
               children: [
-                const Icon(Icons.assignment_outlined, size: 18, color: AppColors.blue),
+                const Icon(LucideIcons.clipboardList, size: 18, color: AppColors.blue),
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 14,
                     weight: FontWeight.w700,
                     color: AppColors.ink,
@@ -75,7 +76,7 @@ class ConsigneCard extends StatelessWidget {
           ],
           Text(
             consigne,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 14,
               color: AppColors.ink,
               height: 1.55,

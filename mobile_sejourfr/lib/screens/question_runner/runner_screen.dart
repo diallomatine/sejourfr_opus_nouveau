@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sejourfr_mobile/core/router/app_router.dart';
 
 import '../../core/auth/auth_controller.dart';
@@ -70,13 +71,13 @@ class _RunnerScreenState extends ConsumerState<RunnerScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.cloud_off_outlined,
+                const Icon(LucideIcons.cloudOff,
                     color: AppColors.red, size: 40),
                 const SizedBox(height: 12),
                 Text(
                   e.toString(),
                   textAlign: TextAlign.center,
-                  style: AppFonts.jakarta(color: AppColors.muted),
+                  style: AppFonts.ui(color: AppColors.muted),
                 ),
                 const SizedBox(height: 16),
                 AppButton(
@@ -116,7 +117,7 @@ class _RunnerView extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.close, size: 22),
+          icon: const Icon(LucideIcons.x, size: 22),
           onPressed: () => _confirmQuit(context, ref),
         ),
         title: _ProgressHeader(state: state),
@@ -125,7 +126,7 @@ class _RunnerView extends ConsumerWidget {
           IconButton(
             tooltip: isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris',
             icon: Icon(
-              isFavorite ? Icons.bookmark_rounded : Icons.bookmark_outline,
+              isFavorite ? LucideIcons.bookmarkCheck : LucideIcons.bookmark,
               size: 22,
               color: isFavorite ? AppColors.red : AppColors.ink,
             ),
@@ -237,7 +238,7 @@ class _RunnerView extends ConsumerWidget {
                       ),
                       child: Text(
                         state.errorMessage!,
-                        style: AppFonts.jakarta(color: AppColors.red, size: 13),
+                        style: AppFonts.ui(color: AppColors.red, size: 13),
                       ),
                     ),
                   ],
@@ -266,11 +267,11 @@ class _RunnerView extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         title: Text(
           title,
-          style: AppFonts.fraunces(size: 20, weight: FontWeight.w600),
+          style: AppFonts.display(size: 20, weight: FontWeight.w600),
         ),
         content: Text(
           message,
-          style: AppFonts.jakarta(size: 13.5, color: AppColors.muted),
+          style: AppFonts.ui(size: 13.5, color: AppColors.muted),
         ),
         actions: [
           TextButton(
@@ -281,7 +282,7 @@ class _RunnerView extends ConsumerWidget {
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
               confirmLabel,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 color: AppColors.red,
                 weight: FontWeight.w700,
               ),
@@ -331,7 +332,7 @@ class _ProgressHeader extends StatelessWidget {
           isInfinite
               ? 'Question ${state.currentIndex + 1}'
               : 'Question ${state.currentIndex + 1} / ${state.activeAttempt.totalQuestions}',
-          style: AppFonts.jakarta(
+          style: AppFonts.ui(
             size: 14,
             weight: FontWeight.w700,
           ),
@@ -351,12 +352,12 @@ class _ProgressBar extends StatelessWidget {
     // Pas de barre déterminée en entraînement infini (pas de total).
     if (state.isInfiniteTraining) {
       return Container(
-        height: 3,
+        height: 5,
         color: AppColors.line2,
         alignment: Alignment.centerLeft,
         child: state.extending
             ? const LinearProgressIndicator(
-                minHeight: 3,
+                minHeight: 5,
                 backgroundColor: AppColors.line2,
                 valueColor: AlwaysStoppedAnimation(AppColors.blue),
               )
@@ -366,7 +367,7 @@ class _ProgressBar extends StatelessWidget {
     final value = (state.currentIndex + 1) / state.activeAttempt.totalQuestions;
     return LinearProgressIndicator(
       value: value,
-      minHeight: 3,
+      minHeight: 5,
       backgroundColor: AppColors.line2,
       valueColor: const AlwaysStoppedAnimation(AppColors.blue),
     );
@@ -423,7 +424,7 @@ class _PassageBlock extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.menu_book_outlined,
+              const Icon(LucideIcons.bookOpen,
                   size: 14, color: AppColors.blue),
               const SizedBox(width: 6),
               Text(
@@ -468,7 +469,7 @@ class _StatementBlock extends StatelessWidget {
     if (paragraphs.length <= 1) {
       return Text(
         text.trim(),
-        style: AppFonts.fraunces(
+        style: AppFonts.display(
           size: 19,
           weight: FontWeight.w600,
           height: 1.4,
@@ -482,7 +483,7 @@ class _StatementBlock extends StatelessWidget {
         for (var i = 0; i < paragraphs.length; i++) ...[
           Text(
             paragraphs[i].trim(),
-            style: AppFonts.fraunces(
+            style: AppFonts.display(
               size: 19,
               weight: FontWeight.w600,
               height: 1.4,
@@ -725,8 +726,8 @@ void _showTrainingResultDialog(
               ),
               child: Icon(
                 isPremium
-                    ? Icons.check_circle
-                    : Icons.workspace_premium_rounded,
+                    ? LucideIcons.circleCheck
+                    : LucideIcons.crown,
                 size: 36,
                 color: isPremium ? AppColors.blue : AppColors.amber,
               ),
@@ -734,13 +735,13 @@ void _showTrainingResultDialog(
             const SizedBox(height: 16),
             Text(
               isPremium ? 'Session terminée' : 'Démo terminée',
-              style: AppFonts.fraunces(size: 22, weight: FontWeight.w600),
+              style: AppFonts.display(size: 22, weight: FontWeight.w600),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
             Text(
               '$score / $total bonnes réponses · $percent %',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 14,
                 color: AppColors.muted,
               ),
@@ -751,7 +752,7 @@ void _showTrainingResultDialog(
               Text(
                 'Pour continuer en illimité et accéder à tous les thèmes, activez l’accès complet sur le web.',
                 textAlign: TextAlign.center,
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 12.5,
                   color: AppColors.muted,
                   height: 1.45,
@@ -760,7 +761,7 @@ void _showTrainingResultDialog(
               const SizedBox(height: 22),
               AppButton(
                 label: 'Gérer mon accès sur le site',
-                icon: Icons.open_in_new_rounded,
+                icon: LucideIcons.externalLink,
                 variant: AppButtonVariant.primary,
                 onPressed: () {
                   Navigator.of(ctx).pop();
@@ -778,7 +779,7 @@ void _showTrainingResultDialog(
                 },
                 child: Text(
                   'Plus tard',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 13,
                     color: AppColors.muted,
                   ),

@@ -171,7 +171,7 @@ class _PreparationPoint extends StatelessWidget {
             ),
             child: Text(
               '$index',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13,
                 weight: FontWeight.w800,
                 color: AppColors.red,
@@ -185,7 +185,7 @@ class _PreparationPoint extends StatelessWidget {
               children: [
                 Text(
                   titre,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 13.5,
                     weight: FontWeight.w800,
                     color: AppColors.ink,
@@ -194,7 +194,7 @@ class _PreparationPoint extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   aide,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 12,
                     color: AppColors.muted,
                     height: 1.4,

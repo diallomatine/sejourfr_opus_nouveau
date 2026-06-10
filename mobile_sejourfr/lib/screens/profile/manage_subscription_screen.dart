@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
@@ -9,15 +10,24 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/format_date.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
-import '../../core/widgets/app_tag.dart';
+import '../../core/widgets/list_group.dart';
 import '../../core/widgets/paywall_sheet.dart';
+import '../../core/widgets/screen_header.dart';
 
-/// Écran « Mon accès » (passes one-time, lot 5) : plan courant + date
-/// d'expiration, avec prolongation et changement d'offre. Pas de résiliation —
-/// un pass est payé une fois, il n'y a rien à annuler.
+/// Écran « Mon pass » (passes one-time, lot 5) — refonte 2026 (cf. `MPass`
+/// maquette) : carte gradient premium avec jours restants, détails encartés,
+/// inclusions, et prolongation / changement d'offre via le paywall. Pas de
+/// résiliation — un pass est payé une fois, il n'y a rien à annuler.
 final _subscriptionStatusProvider =
     FutureProvider.autoDispose<SubscriptionStatusResponse>((ref) {
   return ref.watch(billingRepositoryProvider).getSubscriptionStatus();
+});
+
+/// Plans actifs — sert à retrouver la durée du pass courant (barre des jours
+/// restants) et son libellé commercial depuis le productId du statut.
+final _plansProvider =
+    FutureProvider.autoDispose<List<PlanPublicResponse>>((ref) {
+  return ref.watch(billingRepositoryProvider).listPlans();
 });
 
 class ManageSubscriptionScreen extends ConsumerWidget {
@@ -26,45 +36,57 @@ class ManageSubscriptionScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statusAsync = ref.watch(_subscriptionStatusProvider);
+    final plans = ref.watch(_plansProvider).valueOrNull ?? const [];
 
     return Scaffold(
       backgroundColor: AppColors.bg,
-      appBar: AppBar(
-        backgroundColor: AppColors.bg,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: AppColors.ink, size: 20),
-          onPressed: () => context.pop(),
-        ),
-        title: Text(
-          'Mon accès',
-          style: AppFonts.jakarta(
-              size: 16, weight: FontWeight.w800, color: AppColors.ink),
-        ),
-      ),
       body: SafeArea(
-        child: statusAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => _ErrorView(
-            message: ApiClient.toApiException(e).message,
-            onRetry: () => ref.invalidate(_subscriptionStatusProvider),
-          ),
-          data: (status) => status.isPremium
-              ? _PremiumView(
-                  status: status,
-                  onExtend: () =>
-                      _openPaywall(context, ref, _targetFor(status)),
-                  onChangeOffer: () =>
-                      _openPaywall(context, ref, PlanModuleTarget.integral),
-                )
-              : _NotPremiumView(
-                  onUnlock: () => _openPaywall(context, ref, null),
+        bottom: false,
+        child: Column(
+          children: [
+            ScreenHeader(
+              title: 'Mon pass',
+              sub: 'Paiement unique · sans renouvellement automatique',
+              onBack: () => context.pop(),
+            ),
+            Expanded(
+              child: statusAsync.when(
+                loading: () => const Center(
+                    child: CircularProgressIndicator(color: AppColors.blue)),
+                error: (e, _) => _ErrorView(
+                  message: ApiClient.toApiException(e).message,
+                  onRetry: () => ref.invalidate(_subscriptionStatusProvider),
                 ),
+                data: (status) => status.isPremium
+                    ? _PremiumView(
+                        status: status,
+                        plan: _planFor(status, plans),
+                        onExtend: () =>
+                            _openPaywall(context, ref, _targetFor(status)),
+                        onChangeOffer: () => _openPaywall(
+                            context, ref, PlanModuleTarget.integral),
+                      )
+                    : _NotPremiumView(
+                        onUnlock: () => _openPaywall(context, ref, null),
+                      ),
+              ),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  PlanPublicResponse? _planFor(
+      SubscriptionStatusResponse s, List<PlanPublicResponse> plans) {
+    final id = s.productId;
+    if (id == null) return null;
+    for (final p in plans) {
+      if (p.code == id || p.appleProductId == id || p.googleProductId == id) {
+        return p;
+      }
+    }
+    return null;
   }
 
   PlanModuleTarget _targetFor(SubscriptionStatusResponse s) =>
@@ -72,8 +94,8 @@ class ManageSubscriptionScreen extends ConsumerWidget {
           ? PlanModuleTarget.integral
           : PlanModuleTarget.civique;
 
-  /// Ouvre le paywall puis rafraîchit le statut au retour (la date d'expiration
-  /// peut avoir bougé après un achat).
+  /// Ouvre le paywall puis rafraîchit le statut au retour (la date
+  /// d'expiration peut avoir bougé après un achat).
   Future<void> _openPaywall(
       BuildContext context, WidgetRef ref, PlanModuleTarget? target) async {
     await showPaywallSheet(context, initialTarget: target);
@@ -82,93 +104,150 @@ class ManageSubscriptionScreen extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Vue premium : plan + date + actions
+// Vue premium : carte pass + détails + inclusions + actions
 // ---------------------------------------------------------------------------
 
 class _PremiumView extends StatelessWidget {
   const _PremiumView({
     required this.status,
+    required this.plan,
     required this.onExtend,
     required this.onChangeOffer,
   });
 
   final SubscriptionStatusResponse status;
+  final PlanPublicResponse? plan;
   final VoidCallback onExtend;
   final VoidCallback onChangeOffer;
 
+  bool get _isIntegral => status.moduleAccess == ModuleAccess.integral;
+
+  static const _civiqueFeatures = [
+    'Les 5 catégories civiques',
+    "Séries d'entraînement illimitées",
+    'Examens blancs par thème',
+    'Examens blancs complets',
+    'Suivi, rapports & recommandations',
+  ];
+
+  static const _integralFeatures = [
+    'Tout le Pass Civique inclus',
+    'Les 5 épreuves du TCF IRN',
+    'Compréhension orale & écrite, structure',
+    'Expression écrite & orale + analyse IA',
+    'Examens blancs complets des deux parcours',
+    'Niveau CECRL estimé & plan de révision',
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final isIntegral = status.moduleAccess == ModuleAccess.integral;
     final ends = status.expiresAt;
     final remaining = ends?.difference(DateTime.now()).inDays;
-    final expiresSoon = remaining != null && remaining <= 14;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
       children: [
-        _Hero(
-          planLabel: isIntegral ? 'Intégral · Civique + TCF' : 'Civique',
+        _PassHeroCard(
+          name: _isIntegral ? 'Pass Intégral' : 'Pass Civique',
+          accent: _isIntegral ? AppColors.red : AppColors.blue,
+          accentDeep: _isIntegral ? AppColors.redDark : AppColors.blueDark,
+          planLabel: plan?.name,
           ends: ends,
           remaining: remaining,
-          expiresSoon: expiresSoon,
+          totalDays: plan?.durationDays,
         ),
         const SizedBox(height: 16),
+        if (_isIntegral)
+          AppButton(
+            label: 'Prolonger mon pass',
+            icon: LucideIcons.refreshCw,
+            variant: AppButtonVariant.accent,
+            onPressed: onExtend,
+          )
+        else ...[
+          AppButton(
+            label: 'Prolonger mon Pass Civique',
+            icon: LucideIcons.refreshCw,
+            onPressed: onExtend,
+          ),
+          const SizedBox(height: 10),
+          AppButton(
+            label: 'Passer au Pass Intégral',
+            icon: LucideIcons.zap,
+            variant: AppButtonVariant.accent,
+            onPressed: onChangeOffer,
+          ),
+        ],
+        const SizedBox(height: 20),
         AppCard(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+          padding: EdgeInsets.zero,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '§ DÉTAILS',
-                style: AppFonts.mono(
-                    size: 9.5,
-                    color: AppColors.muted,
-                    letterSpacing: 1.8,
-                    weight: FontWeight.w700),
+              _DetailRow(label: 'Formule', value: plan?.name ?? '—'),
+              const Divider(height: 1),
+              _DetailRow(
+                label: 'Périmètre',
+                value: _isIntegral
+                    ? 'Accès complet à tout SejourFR'
+                    : 'Accès complet au parcours Civique',
               ),
-              const SizedBox(height: 6),
-              _Row(
-                label: 'Géré par',
-                value: _sourceLabel(status.source),
-                icon: _sourceIcon(status.source),
-              ),
-              _Row(
-                label: 'Accès jusqu\'au',
+              const Divider(height: 1),
+              _DetailRow(label: 'Géré par', value: _sourceLabel(status.source)),
+              const Divider(height: 1),
+              _DetailRow(
+                label: 'Expire le',
                 value: ends == null ? '—' : formatLongDate(ends),
-                icon: Icons.event_rounded,
               ),
-              if (status.productId != null)
-                _Row(
-                  label: 'Formule',
-                  value: status.productId!,
-                  icon: Icons.confirmation_number_outlined,
-                  monospace: true,
-                ),
             ],
           ),
         ),
         const SizedBox(height: 20),
-        AppButton(
-          label: 'Prolonger mon accès',
-          icon: Icons.add_rounded,
-          onPressed: onExtend,
-        ),
-        if (!isIntegral) ...[
-          const SizedBox(height: 10),
-          AppButton(
-            label: 'Passer à l\'Intégral',
-            variant: AppButtonVariant.secondary,
-            icon: Icons.auto_awesome_rounded,
-            onPressed: onChangeOffer,
+        const SectionTitle(title: 'Inclus dans votre pass'),
+        const SizedBox(height: 12),
+        AppCard(
+          child: Column(
+            children: [
+              for (final (i, feature) in (_isIntegral
+                      ? _integralFeatures
+                      : _civiqueFeatures)
+                  .indexed) ...[
+                if (i > 0) const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        color: _isIntegral ? AppColors.red : AppColors.blue,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(LucideIcons.check,
+                          size: 13, color: AppColors.white),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(feature, style: AppFonts.ui(size: 13.5)),
+                    ),
+                  ],
+                ),
+              ],
+            ],
           ),
-        ],
-        const SizedBox(height: 14),
-        Text(
-          'Achat unique, sans abonnement. Prolongez quand '
-          'vous le souhaitez, les durées se cumulent.',
-          textAlign: TextAlign.center,
-          style:
-              AppFonts.jakarta(size: 12, color: AppColors.muted, height: 1.5),
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.surface2,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+          ),
+          child: Text(
+            "Un pass s'achète une seule fois, sans renouvellement "
+            'automatique. Prolongez-le quand vous le souhaitez — les durées '
+            'se cumulent.',
+            style:
+                AppFonts.ui(size: 12.5, color: AppColors.inkSoft, height: 1.55),
+          ),
         ),
       ],
     );
@@ -180,87 +259,178 @@ class _PremiumView extends StatelessWidget {
         SubscriptionSource.google => 'Google Play',
         _ => '—',
       };
-
-  static IconData _sourceIcon(SubscriptionSource? s) => switch (s) {
-        SubscriptionSource.stripe => Icons.credit_card_rounded,
-        SubscriptionSource.apple => Icons.apple_rounded,
-        SubscriptionSource.google => Icons.shop_rounded,
-        _ => Icons.help_outline_rounded,
-      };
 }
 
-class _Hero extends StatelessWidget {
-  const _Hero({
+/// Carte « pass » premium (cf. maquette) : gradient de la famille, liseré
+/// tricolore vertical, statut, barre des jours restants.
+class _PassHeroCard extends StatelessWidget {
+  const _PassHeroCard({
+    required this.name,
+    required this.accent,
+    required this.accentDeep,
     required this.planLabel,
     required this.ends,
     required this.remaining,
-    required this.expiresSoon,
+    required this.totalDays,
   });
 
-  final String planLabel;
+  final String name;
+  final Color accent;
+  final Color accentDeep;
+  final String? planLabel;
   final DateTime? ends;
   final int? remaining;
-  final bool expiresSoon;
+  final int? totalDays;
 
   @override
   Widget build(BuildContext context) {
-    final accent = expiresSoon ? AppColors.amber : AppColors.blue;
+    final double? fraction =
+        (remaining != null && totalDays != null && totalDays! > 0)
+            ? (remaining! / totalDays!).clamp(0.0, 1.0)
+            : null;
+
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadii.xl),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: expiresSoon
-              ? const [AppColors.amber, AppColors.redDark]
-              : const [AppColors.blue, AppColors.blueDark],
+          colors: [accent, accentDeep],
         ),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: accent.withValues(alpha: 0.25),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
+        boxShadow: AppShadows.md,
       ),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
-            children: [
-              const Icon(Icons.workspace_premium_rounded,
-                  color: AppColors.white, size: 24),
-              const SizedBox(width: 8),
-              Text(
-                'MON ACCÈS',
-                style: AppFonts.mono(
-                    size: 10,
-                    color: AppColors.white.withValues(alpha: 0.78),
-                    letterSpacing: 1.8,
-                    weight: FontWeight.w700),
-              ),
-              const Spacer(),
-              AppTag(
-                label: expiresSoon ? 'Bientôt terminé' : 'Actif',
-                tone: expiresSoon ? TagTone.amber : TagTone.success,
-              ),
-            ],
+          // Liseré tricolore sur la tranche droite.
+          Positioned(
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: 8,
+            child: Column(
+              children: [
+                Expanded(
+                    child: Container(
+                        color: AppColors.white.withValues(alpha: 0.85))),
+                Expanded(
+                    child: Container(
+                        color: AppColors.white.withValues(alpha: 0.3))),
+                Expanded(child: Container(color: AppColors.red)),
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            planLabel,
-            style: AppFonts.fraunces(
-                size: 26, weight: FontWeight.w600, color: AppColors.white),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            ends == null
-                ? 'Accès actif.'
-                : 'Accès jusqu\'au ${formatLongDate(ends!)}'
-                    '${remaining != null && remaining! >= 0 ? ' · encore $remaining jour${remaining! > 1 ? 's' : ''}' : ''}',
-            style: AppFonts.jakarta(
-                size: 13, color: AppColors.white.withValues(alpha: 0.9)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'SEJOURFR · PASS ACTIF',
+                      style: AppFonts.ui(
+                        size: 11.5,
+                        weight: FontWeight.w700,
+                        color: AppColors.white.withValues(alpha: 0.85),
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(AppRadii.pill),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: const BoxDecoration(
+                              color: AppColors.white,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Actif',
+                            style: AppFonts.ui(
+                              size: 11.5,
+                              weight: FontWeight.w700,
+                              color: AppColors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(name,
+                    style:
+                        AppFonts.display(size: 27, color: AppColors.white)),
+                const SizedBox(height: 2),
+                Text(
+                  planLabel != null
+                      ? 'Formule $planLabel · payé une fois'
+                      : 'Payé une fois, sans abonnement',
+                  style: AppFonts.ui(
+                    size: 13,
+                    color: AppColors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                if (fraction != null) ...[
+                  Container(
+                    height: 7,
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      color: AppColors.white.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(AppRadii.pill),
+                    ),
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: fraction,
+                      heightFactor: 1,
+                      child: const DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.all(
+                              Radius.circular(AppRadii.pill)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      remaining != null && remaining! >= 0
+                          ? '$remaining jour${remaining! > 1 ? 's' : ''} restant${remaining! > 1 ? 's' : ''}'
+                          : 'Accès actif',
+                      style: AppFonts.ui(
+                        size: 12,
+                        weight: FontWeight.w600,
+                        color: AppColors.white,
+                      ),
+                    ),
+                    if (ends != null)
+                      Text(
+                        'Expire le ${formatLongDate(ends!)}',
+                        style: AppFonts.ui(
+                          size: 12,
+                          color: AppColors.white.withValues(alpha: 0.8),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -268,42 +438,32 @@ class _Hero extends StatelessWidget {
   }
 }
 
-class _Row extends StatelessWidget {
-  const _Row({
-    required this.label,
-    required this.value,
-    required this.icon,
-    this.monospace = false,
-  });
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.label, required this.value});
 
   final String label;
   final String value;
-  final IconData icon;
-  final bool monospace;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: AppColors.muted),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(label,
-                style: AppFonts.jakarta(size: 13, color: AppColors.muted)),
+          Text(
+            label,
+            style: AppFonts.ui(
+              size: 13,
+              weight: FontWeight.w600,
+              color: AppColors.inkFaint,
+            ),
           ),
-          Flexible(
+          const SizedBox(width: 14),
+          Expanded(
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: monospace
-                  ? AppFonts.mono(
-                      size: 11.5, color: AppColors.ink, weight: FontWeight.w600)
-                  : AppFonts.jakarta(
-                      size: 13.5,
-                      color: AppColors.ink,
-                      weight: FontWeight.w700),
+              style: AppFonts.ui(size: 13.5, weight: FontWeight.w600),
             ),
           ),
         ],
@@ -328,24 +488,29 @@ class _NotPremiumView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.lock_outline_rounded,
-              size: 36, color: AppColors.muted),
-          const SizedBox(height: 12),
-          Text(
-            'Aucun accès actif',
-            style: AppFonts.fraunces(size: 20, weight: FontWeight.w600),
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.surface3,
+              borderRadius: BorderRadius.circular(AppRadii.md),
+            ),
+            child: const Icon(LucideIcons.lock,
+                size: 26, color: AppColors.inkSoft),
           ),
+          const SizedBox(height: 14),
+          Text('Aucun pass actif', style: AppFonts.display(size: 20)),
           const SizedBox(height: 6),
           Text(
-            'Vous êtes sur le plan gratuit. Débloquez l\'accès complet avec un '
-            'pass à durée fixe, sans abonnement.',
+            "Vous êtes sur le plan gratuit. Débloquez l'accès complet avec "
+            'un pass à durée fixe, payé une seule fois.',
             textAlign: TextAlign.center,
-            style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+            style: AppFonts.ui(size: 13, color: AppColors.inkSoft),
           ),
           const SizedBox(height: 18),
           AppButton(
-            label: 'Débloquer l\'accès',
-            icon: Icons.lock_open_rounded,
+            label: "Découvrir les pass",
+            icon: LucideIcons.zap,
             fullWidth: false,
             onPressed: onUnlock,
           ),
@@ -369,18 +534,17 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_outlined,
-                color: AppColors.red, size: 40),
+            const Icon(LucideIcons.cloudOff, color: AppColors.red, size: 40),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: AppFonts.jakarta(color: AppColors.muted),
+              style: AppFonts.ui(color: AppColors.inkSoft),
             ),
             const SizedBox(height: 16),
             AppButton(
               label: 'Réessayer',
-              variant: AppButtonVariant.secondary,
+              variant: AppButtonVariant.outline,
               fullWidth: false,
               onPressed: onRetry,
             ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -71,7 +72,7 @@ class _ExamTimerState extends State<ExamTimer> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.timer_outlined, size: 14, color: color),
+          Icon(LucideIcons.timer, size: 14, color: color),
           const SizedBox(width: 6),
           Text(
             '$mm:$ss',

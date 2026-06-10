@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
@@ -14,24 +15,25 @@ import '../../core/providers/lots_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
+import '../../core/widgets/app_button.dart';
+import '../../core/widgets/app_card.dart';
+import '../../core/widgets/fixed_action_bar.dart';
 import '../../core/widgets/paywall_sheet.dart';
-import '../tcf_production/widgets/module_screen_header.dart';
+import '../../core/widgets/screen_header.dart';
 import 'civique_exam_briefing_sheet.dart';
 import 'civique_hub_data.dart';
-import 'widgets/civique_hub/civique_exam_hero.dart';
 import 'widgets/civique_hub/civique_history_section.dart';
-import 'widgets/civique_hub/civique_lot_row.dart';
 import 'widgets/exam_done_sheet.dart';
 import 'widgets/lot_done_sheet.dart';
-import 'widgets/qcm_hub/qcm_section_label.dart';
+import 'widgets/serie_card.dart';
 
-/// Plafond du nombre de lots rendus inline dans la section « S'entraîner par
-/// lot » du hub Civique. Au-delà, le bouton « Voir plus » étend la liste —
-/// pendant de la section « S'entraîner par niveau » TCF qui en a 3 fixes.
+/// Plafond du nombre de séries rendues inline. Au-delà, le bouton « Voir
+/// plus » étend la liste — certains thèmes civiques ont beaucoup de lots.
 const int _civiqueLotsInlineCap = 6;
 
-/// Hub Civique d'un thème : single scroll, header + hero rouge (examen blanc
-/// thème) + section lots + historique. Pendant de `TcfQcmDetailScreen`.
+/// Détail d'un thème civique (cf. pattern `MLevels`/`MSeries` maquette,
+/// sans niveaux : Civique n'a pas de palier CECRL). Séries directes +
+/// historique des examens du thème + bouton « Examens blancs » fixé en bas.
 /// Accessible via `/civique/theme/:themeId`.
 class CiviqueThemeDetailScreen extends ConsumerStatefulWidget {
   const CiviqueThemeDetailScreen({super.key, required this.themeId});
@@ -54,8 +56,8 @@ class _CiviqueThemeDetailScreenState
         auth.user.canAccessModule(AppModule.civique);
   }
 
-  /// Tap sur un lot : si déjà fait → sheet « Voir le détail » / « Reprendre »,
-  /// sinon → démarrage direct.
+  /// Tap sur une série : si déjà faite → sheet « Voir le détail » /
+  /// « Reprendre », sinon → démarrage direct.
   void _onLotTap(ThemeDto theme, LotDto lot) {
     if (lot.alreadyAttempted) {
       _openLotDoneSheet(theme, lot);
@@ -93,7 +95,7 @@ class _CiviqueThemeDetailScreenState
         SnackBar(
           content: Text(
               'Détail indisponible — le serveur n\'a pas encore fourni la référence.',
-              style: AppFonts.jakarta(size: 13, color: AppColors.white)),
+              style: AppFonts.ui(size: 13, color: AppColors.white)),
           backgroundColor: AppColors.red,
         ),
       );
@@ -102,8 +104,8 @@ class _CiviqueThemeDetailScreenState
     context.push(AppRoutes.examReport.replaceFirst(':attemptId', id));
   }
 
-  /// Lance un lot précis (15 Q du thème). Lot 1 = découverte gratuite par
-  /// sous-module ; Lot 2+ paywall pour les non-abonnés.
+  /// Lance une série (15 Q du thème). Série 1 = découverte gratuite par
+  /// thème ; série 2+ paywall pour les non-abonnés.
   Future<void> _startLot(ThemeDto theme, LotDto lot) async {
     if (_starting) return;
     if (!_isPremium() && lot.numero > 1) {
@@ -184,7 +186,7 @@ class _CiviqueThemeDetailScreenState
   }
 
   /// Tap sur un examen de l'historique : ouvre le sheet « Voir le détail » /
-  /// « Reprendre », en miroir des lots. Plus de saut direct vers le bilan.
+  /// « Reprendre », en miroir des séries.
   void _showExamSheet(AttemptSummary attempt, ThemeDto theme) {
     final score = attempt.score;
     final total = attempt.totalQuestions;
@@ -233,7 +235,7 @@ class _CiviqueThemeDetailScreenState
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go(AppRoutes.civique);
+      context.go(AppRoutes.reviser);
     }
   }
 
@@ -273,81 +275,79 @@ class _CiviqueThemeDetailScreenState
     final lotsAsync = ref.watch(civiqueLotsProvider(theme.id));
     final historyAsync = ref.watch(civiqueThemeExamsHistoryProvider(theme.id));
     final isPremium = _isPremium();
-    final icon = _iconForTheme(theme.code);
 
-    return Stack(
+    return Column(
       children: [
-        ListView(
-          padding: const EdgeInsets.only(bottom: 32),
-          children: [
-            ModuleScreenHeader(
-              title: theme.name,
-              subtitle: 'Civique · ${theme.questionCount} questions',
-              onBack: _back,
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: CiviqueExamHero(
-                icon: icon,
-                examSubtitle: '20 questions · 20 min',
-                description:
-                    'Conditions réelles sur « ${theme.name} » : 20 Q tirées du thème, seuil 16/20.',
-                onStart: () => _openExamsPage(theme),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const QcmSectionLabel('S\'entraîner par lot'),
-            lotsAsync.when(
-              loading: () => const _LoadingRow(),
-              error: (e, _) => _SmallErrorBox(
-                message: ApiClient.toApiException(e).message,
-              ),
-              data: (lots) => _LotsList(
-                lots: lots,
-                isPremium: isPremium,
-                showAll: _showAllLots,
-                onTap: (lot) => _onLotTap(theme, lot),
-                onToggleShowAll: () => setState(() => _showAllLots = true),
-              ),
-            ),
-            const SizedBox(height: 8),
-            historyAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (history) => CiviqueHistorySection(
-                history: history,
-                onSeeAll: () => _openExamsPage(theme),
-                onTap: (attempt) => _showExamSheet(attempt, theme),
-              ),
-            ),
-          ],
+        ScreenHeader(
+          title: theme.name,
+          sub: 'Civique · ${theme.questionCount} questions',
+          onBack: _back,
         ),
-        if (_starting)
-          const Positioned.fill(
-            child: IgnorePointer(
-              child: ColoredBox(color: Color(0x33000000)),
-            ),
+        Expanded(
+          child: Stack(
+            children: [
+              ListView(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                children: [
+                  lotsAsync.when(
+                    loading: () => const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 60),
+                      child: Center(
+                        child:
+                            CircularProgressIndicator(color: AppColors.blue),
+                      ),
+                    ),
+                    error: (e, _) => AppCard(
+                      child: Text(
+                        ApiClient.toApiException(e).message,
+                        style:
+                            AppFonts.ui(size: 13, color: AppColors.inkSoft),
+                      ),
+                    ),
+                    data: (lots) => _LotsList(
+                      lots: lots,
+                      isPremium: isPremium,
+                      showAll: _showAllLots,
+                      onTap: (lot) => _onLotTap(theme, lot),
+                      onToggleShowAll: () =>
+                          setState(() => _showAllLots = true),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  historyAsync.when(
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, __) => const SizedBox.shrink(),
+                    data: (history) => CiviqueHistorySection(
+                      history: history,
+                      onSeeAll: () => _openExamsPage(theme),
+                      onTap: (attempt) => _showExamSheet(attempt, theme),
+                    ),
+                  ),
+                ],
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: FixedActionBar(
+                  child: AppButton(
+                    label: 'Examens blancs',
+                    icon: LucideIcons.target,
+                    onPressed: () => _openExamsPage(theme),
+                  ),
+                ),
+              ),
+              if (_starting)
+                const Positioned.fill(
+                  child: IgnorePointer(
+                    child: ColoredBox(color: Color(0x33000000)),
+                  ),
+                ),
+            ],
           ),
+        ),
       ],
     );
-  }
-
-  IconData _iconForTheme(String code) {
-    final lower = code.toLowerCase();
-    if (lower.contains('principe') || lower.contains('symbole')) {
-      return Icons.flag_rounded;
-    }
-    if (lower.contains('institution')) return Icons.account_balance_rounded;
-    if (lower.contains('droit') || lower.contains('devoir')) {
-      return Icons.gavel_rounded;
-    }
-    if (lower.contains('histoire') || lower.contains('geo')) {
-      return Icons.public_rounded;
-    }
-    if (lower.contains('societe') || lower.contains('société')) {
-      return Icons.people_alt_rounded;
-    }
-    return Icons.menu_book_rounded;
   }
 }
 
@@ -373,23 +373,11 @@ class _LotsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (lots.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.line),
-          ),
-          child: Text(
-            'Aucun lot pour ce thème. Le pool de questions est en cours de constitution.',
-            style: AppFonts.jakarta(
-              size: 12.5,
-              color: AppColors.muted,
-              height: 1.4,
-            ),
-          ),
+      return AppCard(
+        child: Text(
+          'Aucune série pour ce thème. Le pool de questions est en cours de constitution.',
+          style:
+              AppFonts.ui(size: 12.5, color: AppColors.inkSoft, height: 1.4),
         ),
       );
     }
@@ -397,73 +385,31 @@ class _LotsList extends StatelessWidget {
     final hiddenCount = lots.length - visible.length;
     return Column(
       children: [
-        for (final lot in visible)
-          CiviqueLotRow(
+        for (final lot in visible) ...[
+          SerieCard(
             lot: lot,
+            accent: AppColors.blue,
+            soft: AppColors.blueLight,
             locked: !isPremium && lot.numero > 1,
             onTap: () => onTap(lot),
           ),
+          const SizedBox(height: 10),
+        ],
         if (hiddenCount > 0)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
-            child: TextButton.icon(
-              onPressed: onToggleShowAll,
-              icon: Text(
-                'Voir les lots ${visible.length + 1} à ${lots.length}',
-                style: AppFonts.jakarta(
-                  size: 13,
-                  weight: FontWeight.w700,
-                  color: AppColors.blue,
-                ),
+          TextButton.icon(
+            onPressed: onToggleShowAll,
+            icon: Text(
+              'Voir les séries ${visible.length + 1} à ${lots.length}',
+              style: AppFonts.ui(
+                size: 13,
+                weight: FontWeight.w700,
+                color: AppColors.blue,
               ),
-              label: const Icon(Icons.keyboard_arrow_down_rounded,
-                  size: 18, color: AppColors.blue),
             ),
+            label: const Icon(LucideIcons.chevronDown,
+                size: 16, color: AppColors.blue),
           ),
       ],
-    );
-  }
-}
-
-class _LoadingRow extends StatelessWidget {
-  const _LoadingRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 24),
-      child: Center(
-        child: SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(
-              strokeWidth: 2.4, color: AppColors.blue),
-        ),
-      ),
-    );
-  }
-}
-
-class _SmallErrorBox extends StatelessWidget {
-  const _SmallErrorBox({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 0),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.redLight,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          message,
-          style: AppFonts.jakarta(size: 12, color: AppColors.redDark),
-        ),
-      ),
     );
   }
 }
@@ -483,13 +429,13 @@ class _ErrorBlock extends StatelessWidget {
         children: [
           IconButton(
             onPressed: onBack,
-            icon: const Icon(Icons.chevron_left_rounded),
+            icon: const Icon(LucideIcons.arrowLeft),
             color: AppColors.ink,
           ),
           const SizedBox(height: 20),
           Text(
             message,
-            style: AppFonts.jakarta(size: 14, color: AppColors.red),
+            style: AppFonts.ui(size: 14, color: AppColors.red),
           ),
         ],
       ),

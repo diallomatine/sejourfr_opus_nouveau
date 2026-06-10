@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -112,7 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 8),
                     Text(
                       'Connectez-vous',
-                      style: AppFonts.fraunces(
+                      style: AppFonts.display(
                         size: 30,
                         weight: FontWeight.w600,
                       ),
@@ -120,7 +121,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 6),
                     Text(
                       'Reprenez votre préparation là où vous l\'avez laissée.',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 14,
                         color: AppColors.muted,
                       ),
@@ -131,7 +132,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       controller: _email,
                       keyboardType: TextInputType.emailAddress,
                       autofillHints: const [AutofillHints.username],
-                      prefixIcon: Icons.mail_outline,
+                      prefixIcon: LucideIcons.mail,
                       validator: (v) {
                         final s = v?.trim() ?? '';
                         if (s.isEmpty) return 'Email requis';
@@ -145,13 +146,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       controller: _password,
                       obscureText: _obscure,
                       autofillHints: const [AutofillHints.password],
-                      prefixIcon: Icons.lock_outline,
+                      prefixIcon: LucideIcons.lock,
                       suffixIcon: IconButton(
                         onPressed: () => setState(() => _obscure = !_obscure),
                         icon: Icon(
                           _obscure
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
+                              ? LucideIcons.eye
+                              : LucideIcons.eyeOff,
                           color: AppColors.muted,
                         ),
                       ),
@@ -164,7 +165,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       onChanged: (v) => setState(() => _remember = v),
                       label: Text(
                         'Enregistrer mes identifiants',
-                        style: AppFonts.jakarta(size: 13.5, color: AppColors.ink),
+                        style: AppFonts.ui(size: 13.5, color: AppColors.ink),
                       ),
                     ),
                     Align(
@@ -173,7 +174,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         onPressed: () => context.push(AppRoutes.forgotPassword),
                         child: Text(
                           'Mot de passe oublié ?',
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                             size: 13,
                             color: AppColors.blue,
                             weight: FontWeight.w600,
@@ -200,7 +201,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       children: [
                         Text(
                           'Nouveau ici ? ',
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                             size: 14,
                             color: AppColors.muted,
                           ),
@@ -209,7 +210,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           onTap: () => context.push(AppRoutes.register),
                           child: Text(
                             'Créer un compte',
-                            style: AppFonts.jakarta(
+                            style: AppFonts.ui(
                               size: 14,
                               color: AppColors.blue,
                               weight: FontWeight.w700,
@@ -267,7 +268,7 @@ class _Field extends StatelessWidget {
           obscureText: obscureText,
           autofillHints: autofillHints,
           validator: validator,
-          style: AppFonts.jakarta(size: 14),
+          style: AppFonts.ui(size: 14),
           decoration: InputDecoration(
             prefixIcon: prefixIcon != null
                 ? Icon(prefixIcon, size: 20, color: AppColors.muted)
@@ -296,12 +297,12 @@ class _ErrorBox extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: AppColors.red, size: 18),
+          const Icon(LucideIcons.circleAlert, color: AppColors.red, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: AppFonts.jakarta(size: 13, color: AppColors.red),
+              style: AppFonts.ui(size: 13, color: AppColors.red),
             ),
           ),
         ],

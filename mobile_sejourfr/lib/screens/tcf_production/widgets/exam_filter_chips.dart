@@ -40,7 +40,7 @@ class ExamFilterChips extends StatelessWidget {
               ),
               child: Text(
                 labels[i],
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 12,
                   weight: FontWeight.w700,
                   color: on ? AppColors.white : AppColors.muted,

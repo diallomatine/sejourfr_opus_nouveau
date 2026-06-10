@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -57,7 +58,7 @@ class ProductionAppHeader extends StatelessWidget implements PreferredSizeWidget
               children: [
                 IconButton(
                   visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.chevron_left_rounded, size: 26),
+                  icon: const Icon(LucideIcons.chevronLeft, size: 26),
                   color: AppColors.blue,
                   onPressed: onBack ?? () => _defaultBack(context),
                 ),
@@ -65,7 +66,7 @@ class ProductionAppHeader extends StatelessWidget implements PreferredSizeWidget
                   child: Center(
                     child: Text(
                       title,
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 17,
                         weight: FontWeight.w700,
                         color: AppColors.ink,
@@ -104,7 +105,7 @@ class ProductionAppHeaderQuit extends StatelessWidget {
       ),
       child: Text(
         'Quitter',
-        style: AppFonts.jakarta(
+        style: AppFonts.ui(
           size: 15,
           weight: FontWeight.w600,
           color: AppColors.blue,
@@ -124,7 +125,7 @@ class ProductionAppHeaderInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       visualDensity: VisualDensity.compact,
-      icon: const Icon(Icons.info_outline_rounded, size: 22),
+      icon: const Icon(LucideIcons.info, size: 22),
       color: AppColors.blue,
       onPressed: onPressed,
     );

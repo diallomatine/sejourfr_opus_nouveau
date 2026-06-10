@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:video_player/video_player.dart';
@@ -136,7 +137,7 @@ class _ImageMedia extends StatelessWidget {
           },
           errorBuilder: (_, __, ___) => const _MediaError(
             message: 'Image indisponible',
-            icon: Icons.broken_image_outlined,
+            icon: LucideIcons.imageOff,
           ),
         ),
       ),
@@ -180,7 +181,7 @@ class _ZoomableImage extends StatelessWidget {
           },
           errorBuilder: (_, __, ___) => const Center(
             child: Icon(
-              Icons.broken_image_outlined,
+              LucideIcons.imageOff,
               color: Colors.white70,
               size: 48,
             ),
@@ -247,7 +248,7 @@ class _MediaFrame extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.zoom_in,
+                    const Icon(LucideIcons.zoomIn,
                         size: 12, color: AppColors.white),
                     const SizedBox(width: 4),
                     Text(
@@ -337,7 +338,7 @@ class _FullscreenMediaViewer extends StatelessWidget {
                   onTap: () => Navigator.of(context).pop(),
                   child: const Padding(
                     padding: EdgeInsets.all(10),
-                    child: Icon(Icons.close, color: Colors.white, size: 22),
+                    child: Icon(LucideIcons.x, color: Colors.white, size: 22),
                   ),
                 ),
               ),
@@ -395,7 +396,7 @@ class _VideoMediaState extends State<_VideoMedia> {
     if (_error != null) {
       return const _MediaError(
         message: 'Vidéo indisponible',
-        icon: Icons.videocam_off_outlined,
+        icon: LucideIcons.videoOff,
       );
     }
     if (!_ready) {
@@ -535,7 +536,7 @@ class _VideoControlsOverlay extends StatelessWidget {
                     height: 64,
                     alignment: Alignment.center,
                     child: Icon(
-                      value.isPlaying ? Icons.pause : Icons.play_arrow,
+                      value.isPlaying ? LucideIcons.pause : LucideIcons.play,
                       color: Colors.white,
                       size: 34,
                     ),
@@ -607,7 +608,7 @@ class _VideoControlsOverlay extends StatelessWidget {
                           child: const Padding(
                             padding: EdgeInsets.all(4),
                             child: Icon(
-                              Icons.fullscreen,
+                              LucideIcons.maximize,
                               color: Colors.white,
                               size: 20,
                             ),
@@ -692,7 +693,7 @@ class _FullscreenVideoPageState extends State<_FullscreenVideoPage> {
                   onTap: () => Navigator.of(context).pop(),
                   child: const Padding(
                     padding: EdgeInsets.all(10),
-                    child: Icon(Icons.close, color: Colors.white, size: 22),
+                    child: Icon(LucideIcons.x, color: Colors.white, size: 22),
                   ),
                 ),
               ),
@@ -759,7 +760,7 @@ class _MediaError extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             message,
-            style: AppFonts.jakarta(color: AppColors.muted, size: 12),
+            style: AppFonts.ui(color: AppColors.muted, size: 12),
           ),
         ],
       ),

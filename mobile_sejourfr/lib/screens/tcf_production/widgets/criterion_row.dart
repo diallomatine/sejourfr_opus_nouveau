@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
@@ -28,22 +29,22 @@ class CriterionRow extends StatelessWidget {
   IconData _iconForCode(String code) {
     switch (code) {
       case 'pertinence':
-        return Icons.adjust_rounded;
+        return LucideIcons.target;
       case 'organisation':
       case 'coherence':
-        return Icons.format_list_bulleted_rounded;
+        return LucideIcons.list;
       case 'lexique':
       case 'vocabulaire':
-        return Icons.book_outlined;
+        return LucideIcons.bookOpen;
       case 'morphosyntaxe':
       case 'grammaire':
-        return Icons.spellcheck_rounded;
+        return LucideIcons.spellCheck;
       case 'orthographe':
-        return Icons.text_fields_rounded;
+        return LucideIcons.type;
       case 'prononciation':
-        return Icons.record_voice_over_outlined;
+        return LucideIcons.audioLines;
       default:
-        return Icons.fact_check_outlined;
+        return LucideIcons.listChecks;
     }
   }
 
@@ -104,7 +105,7 @@ class CriterionRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   criterion.label ?? _labelForCode(criterion.code),
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 14,
                     weight: FontWeight.w600,
                     color: AppColors.ink,
@@ -116,7 +117,7 @@ class CriterionRow extends StatelessWidget {
                   children: [
                     TextSpan(
                       text: _formatNote(criterion.noteSurVingt),
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 14,
                         weight: FontWeight.w700,
                         color: color,
@@ -124,7 +125,7 @@ class CriterionRow extends StatelessWidget {
                     ),
                     TextSpan(
                       text: '/20',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 14,
                         weight: FontWeight.w500,
                         color: AppColors.muted2,
@@ -155,7 +156,7 @@ class CriterionRow extends StatelessWidget {
               padding: const EdgeInsets.only(left: 42),
               child: Text(
                 criterion.commentaire,
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 12.5,
                   color: AppColors.muted,
                   height: 1.45,

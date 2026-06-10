@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../models/billing_models.dart';
 import '../theme/app_theme.dart';
@@ -42,13 +43,13 @@ class TcfPaywallCard extends StatelessWidget {
                   color: AppColors.blueLight,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.lock_outline, color: AppColors.blue, size: 22),
+                child: const Icon(LucideIcons.lock, color: AppColors.blue, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Module TCF non activé',
-                  style: AppFonts.fraunces(
+                  style: AppFonts.display(
                     size: 18,
                     weight: FontWeight.w700,
                     color: AppColors.ink,
@@ -61,7 +62,7 @@ class TcfPaywallCard extends StatelessWidget {
           Text(
             'Le module TCF (compréhension écrite, compréhension orale et structure '
             'de la langue) n\'est pas inclus dans votre formule actuelle.',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 14,
               color: AppColors.muted,
               height: 1.5,
@@ -70,7 +71,7 @@ class TcfPaywallCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Vous pouvez activer l\'accès complet (Civique + TCF) directement depuis l\'application.',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 14,
               color: AppColors.ink2,
               weight: FontWeight.w600,
@@ -127,13 +128,13 @@ Future<void> showTcfPaywallSheet(BuildContext context) {
                   color: AppColors.blueLight,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.lock_outline, color: AppColors.blue, size: 22),
+                child: const Icon(LucideIcons.lock, color: AppColors.blue, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   'Module TCF non activé',
-                  style: AppFonts.fraunces(
+                  style: AppFonts.display(
                     size: 18,
                     weight: FontWeight.w700,
                     color: AppColors.ink,
@@ -146,7 +147,7 @@ Future<void> showTcfPaywallSheet(BuildContext context) {
           Text(
             'Le module TCF n\'est pas inclus dans votre formule actuelle. '
             'Vous pouvez activer l\'accès complet directement depuis l\'application.',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 14,
               color: AppColors.muted,
               height: 1.5,
@@ -159,7 +160,7 @@ Future<void> showTcfPaywallSheet(BuildContext context) {
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(
               'Plus tard',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 14,
                 color: AppColors.muted,
                 weight: FontWeight.w600,
@@ -198,14 +199,14 @@ class _OpenSubscriptionButton extends StatelessWidget {
         children: [
           Text(
             'Voir les offres',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 15,
               weight: FontWeight.w700,
               color: AppColors.white,
             ),
           ),
           const SizedBox(width: 8),
-          const Icon(Icons.arrow_forward_rounded, size: 16),
+          const Icon(LucideIcons.arrowRight, size: 16),
         ],
       ),
     );

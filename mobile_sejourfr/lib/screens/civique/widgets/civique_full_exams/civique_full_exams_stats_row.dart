@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../tcf_production/widgets/exam_stat_card.dart';
@@ -29,7 +30,7 @@ class CiviqueFullExamsStatsRow extends StatelessWidget {
       children: [
         Expanded(
           child: ExamStatCard(
-            icon: Icons.checklist_rounded,
+            icon: LucideIcons.listChecks,
             iconColor: AppColors.blue,
             value: '$doneCount',
             suffix: '/$totalCount',
@@ -40,7 +41,7 @@ class CiviqueFullExamsStatsRow extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: ExamStatCard(
-            icon: Icons.adjust_rounded,
+            icon: LucideIcons.target,
             iconColor: AppColors.green,
             value: avgScore == null ? '—' : '$avgScore',
             suffix: avgScore == null ? '' : '/$maxPossible',
@@ -51,7 +52,7 @@ class CiviqueFullExamsStatsRow extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: ExamStatCard(
-            icon: Icons.local_fire_department_rounded,
+            icon: LucideIcons.flame,
             iconColor: AppColors.amber,
             value: bestScore == null ? '—' : '$bestScore',
             suffix: bestScore == null ? '' : '/$maxPossible',

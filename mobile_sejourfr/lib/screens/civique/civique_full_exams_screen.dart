@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -46,16 +47,52 @@ final civiqueGlobalExamsProvider =
 /// Pendant de `TcfFullExamsScreen` côté Civique : 20 slots de 40 Q tous
 /// thèmes, 45 min, seuil 32/40. Slot 1 = examen découverte gratuit,
 /// slots 2-20 = premium. Accent bleu (convention Civique = bleu).
-class CiviqueFullExamsScreen extends ConsumerStatefulWidget {
+/// `CiviqueFullExamsView` (le corps) est réutilisé par l'onglet Examens du
+/// shell, comme `TcfFullExamsView` côté TCF.
+class CiviqueFullExamsScreen extends StatelessWidget {
   const CiviqueFullExamsScreen({super.key});
 
+  void _back(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.reviser);
+    }
+  }
+
   @override
-  ConsumerState<CiviqueFullExamsScreen> createState() =>
-      _CiviqueFullExamsScreenState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            ModuleScreenHeader(
+              title: 'Examens blancs',
+              subtitle: 'Civique · 40 Q tous thèmes',
+              onBack: () => _back(context),
+              trailing: const FlagBadge(),
+            ),
+            const Expanded(child: CiviqueFullExamsView()),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _CiviqueFullExamsScreenState
-    extends ConsumerState<CiviqueFullExamsScreen> {
+/// Corps réutilisable de la page (stats + filtre + 20 slots). Embarqué tel
+/// quel par l'onglet Examens du shell.
+class CiviqueFullExamsView extends ConsumerStatefulWidget {
+  const CiviqueFullExamsView({super.key});
+
+  @override
+  ConsumerState<CiviqueFullExamsView> createState() =>
+      _CiviqueFullExamsViewState();
+}
+
+class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
   int _filter = 0;
   bool _showAll = false;
   bool _starting = false;
@@ -154,45 +191,19 @@ class _CiviqueFullExamsScreenState
     );
   }
 
-  void _back() {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go(AppRoutes.civique);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(civiqueGlobalExamsProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            ModuleScreenHeader(
-              title: 'Examens blancs',
-              subtitle: 'Civique · 40 Q tous thèmes',
-              onBack: _back,
-              trailing: const FlagBadge(),
-            ),
-            Expanded(
-              child: async.when(
-                loading: () => const Center(
-                    child: CircularProgressIndicator(color: AppColors.blue)),
-                error: (e, _) => ExamsErrorView(
-                  message: ApiClient.toApiException(e).message,
-                  onRetry: () => ref.invalidate(civiqueGlobalExamsProvider),
-                  accent: AppColors.blue,
-                ),
-                data: _buildContent,
-              ),
-            ),
-          ],
-        ),
+    return async.when(
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.blue)),
+      error: (e, _) => ExamsErrorView(
+        message: ApiClient.toApiException(e).message,
+        onRetry: () => ref.invalidate(civiqueGlobalExamsProvider),
+        accent: AppColors.blue,
       ),
+      data: _buildContent,
     );
   }
 
@@ -278,7 +289,7 @@ class _CiviqueFullExamsScreenState
                     : _filter == 2
                         ? 'Aucun examen terminé pour l\'instant.'
                         : 'Aucun examen.',
-                style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+                style: AppFonts.ui(size: 13, color: AppColors.muted),
               ),
             ),
           if (hiddenCount > 0)
@@ -288,13 +299,13 @@ class _CiviqueFullExamsScreenState
                 onPressed: () => setState(() => _showAll = true),
                 icon: Text(
                   'Voir les examens ${visible.length + 1} à ${filtered.length}',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 13,
                     weight: FontWeight.w700,
                     color: AppColors.blue,
                   ),
                 ),
-                label: const Icon(Icons.keyboard_arrow_down_rounded,
+                label: const Icon(LucideIcons.chevronDown,
                     size: 18, color: AppColors.blue),
               ),
             ),

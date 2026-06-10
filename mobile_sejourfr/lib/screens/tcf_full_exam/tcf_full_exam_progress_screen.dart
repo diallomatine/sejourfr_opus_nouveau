@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -146,7 +147,7 @@ class _ProgressView extends ConsumerWidget {
           if (allDone)
             AppButton(
               label: 'Voir mon résultat',
-              icon: Icons.workspace_premium_rounded,
+              icon: LucideIcons.crown,
               onPressed: () => context.go(
                 AppRoutes.tcfFullExamBilan.replaceFirst(':parentId', exam.id),
               ),
@@ -154,7 +155,7 @@ class _ProgressView extends ConsumerWidget {
           else
             AppButton(
               label: _ctaLabel(exam),
-              icon: Icons.play_arrow_rounded,
+              icon: LucideIcons.play,
               onPressed: () => _startStep(context, ref, exam, stepIdx),
             ),
           const SizedBox(height: 10),
@@ -222,7 +223,7 @@ class _ProgressView extends ConsumerWidget {
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go(AppRoutes.tcf);
+      context.go(AppRoutes.reviser);
     }
   }
 }
@@ -251,7 +252,7 @@ class _TopBar extends StatelessWidget {
               ),
               alignment: Alignment.center,
               child: const Icon(
-                Icons.chevron_left_rounded,
+                LucideIcons.chevronLeft,
                 size: 22,
                 color: AppColors.ink,
               ),
@@ -267,7 +268,7 @@ class _TopBar extends StatelessWidget {
           ),
           child: Text(
             'EXAMEN BLANC',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 12,
               weight: FontWeight.w800,
               color: AppColors.red,
@@ -331,7 +332,7 @@ class _Hero extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             allDone ? 'Tout est joué' : 'TCF IRN complet',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 26,
               weight: FontWeight.w800,
               color: AppColors.white,
@@ -346,7 +347,7 @@ class _Hero extends StatelessWidget {
                     ? 'Temps écoulé. On finalise ton examen…'
                     : 'Enchaîne les 4 épreuves dans l\'ordre. Le chrono court en arrière-plan, '
                         'même quand tu es dans une épreuve.',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13.5,
               color: AppColors.white.withValues(alpha: 0.9),
               height: 1.45,
@@ -362,13 +363,13 @@ class _Hero extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.hourglass_bottom_rounded,
+                  const Icon(LucideIcons.hourglass,
                       size: 14, color: AppColors.white),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'L\'IA évalue tes productions, encore quelques secondes…',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 12,
                         weight: FontWeight.w600,
                         color: AppColors.white,
@@ -405,7 +406,7 @@ class _GlobalTimer extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.timer_outlined, size: 13, color: AppColors.white),
+          const Icon(LucideIcons.timer, size: 13, color: AppColors.white),
           const SizedBox(width: 5),
           Text(
             timedOut ? '00:00' : _format(remaining),
@@ -521,11 +522,11 @@ class _StepCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: isDone
-                ? const Icon(Icons.check_rounded,
+                ? const Icon(LucideIcons.check,
                     color: AppColors.white, size: 22)
                 : Text(
                     '${index + 1}',
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 16,
                       weight: FontWeight.w800,
                       color: AppColors.white,
@@ -545,7 +546,7 @@ class _StepCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         meta.title,
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 14.5,
                           weight: FontWeight.w800,
                           color: AppColors.ink,
@@ -559,7 +560,7 @@ class _StepCard extends StatelessWidget {
                   lockedProd
                       ? 'Réservé à l\'abonnement Intégral'
                       : _subtitle(meta, sub, state),
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 12,
                     color: AppColors.muted,
                   ),
@@ -600,7 +601,7 @@ class _StepTrailing extends StatelessWidget {
   Widget build(BuildContext context) {
     // EE/EO verrouillées : cadenas premium, jamais le badge niveau / le check.
     if (sub?.locked == true) {
-      return const Icon(Icons.lock_outline_rounded,
+      return const Icon(LucideIcons.lock,
           color: AppColors.muted2, size: 18);
     }
     if (state == _StepState.done && sub?.cecrlLevel != null) {
@@ -612,7 +613,7 @@ class _StepTrailing extends StatelessWidget {
         ),
         child: Text(
           sub!.cecrlLevel!.displayName.replaceAll(' non atteint', ''),
-          style: AppFonts.jakarta(
+          style: AppFonts.ui(
             size: 11,
             weight: FontWeight.w800,
             color: AppColors.green,
@@ -621,10 +622,10 @@ class _StepTrailing extends StatelessWidget {
       );
     }
     if (state == _StepState.locked) {
-      return const Icon(Icons.lock_outline_rounded,
+      return const Icon(LucideIcons.lock,
           color: AppColors.muted2, size: 18);
     }
-    return const Icon(Icons.chevron_right_rounded,
+    return const Icon(LucideIcons.chevronRight,
         color: AppColors.muted, size: 22);
   }
 }
@@ -647,35 +648,35 @@ class _StepMeta {
       case EpreuveType.tcfCo:
         return const _StepMeta(
           title: 'Compréhension orale',
-          icon: Icons.headphones_rounded,
+          icon: LucideIcons.headphones,
           duration: '20 min',
           detail: '25 questions audio',
         );
       case EpreuveType.tcfCe:
         return const _StepMeta(
           title: 'Compréhension écrite',
-          icon: Icons.menu_book_rounded,
+          icon: LucideIcons.bookOpen,
           duration: '30 min',
           detail: '25 questions texte',
         );
       case EpreuveType.tcfEe:
         return const _StepMeta(
           title: 'Expression écrite',
-          icon: Icons.edit_note_rounded,
+          icon: LucideIcons.penLine,
           duration: '30 min',
           detail: '3 tâches IA',
         );
       case EpreuveType.tcfEo:
         return const _StepMeta(
           title: 'Expression orale',
-          icon: Icons.mic_rounded,
+          icon: LucideIcons.mic,
           duration: '10 min',
           detail: '3 tâches IA',
         );
       default:
         return const _StepMeta(
           title: '—',
-          icon: Icons.help_outline_rounded,
+          icon: LucideIcons.circleHelp,
           duration: '—',
           detail: '—',
         );
@@ -697,13 +698,13 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_outlined,
+            const Icon(LucideIcons.cloudOff,
                 size: 40, color: AppColors.red),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: AppFonts.jakarta(color: AppColors.muted),
+              style: AppFonts.ui(color: AppColors.muted),
             ),
             const SizedBox(height: 16),
             AppButton(

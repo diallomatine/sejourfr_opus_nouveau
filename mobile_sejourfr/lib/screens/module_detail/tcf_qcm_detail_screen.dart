@@ -1,24 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/attempt_summary.dart';
 import '../../core/models/enums.dart';
+import '../../core/models/lot_models.dart';
 import '../../core/providers/lots_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
+import '../../core/widgets/app_button.dart';
+import '../../core/widgets/app_card.dart';
+import '../../core/widgets/fixed_action_bar.dart';
 import '../../core/widgets/paywall_sheet.dart';
-import '../tcf_production/widgets/module_screen_header.dart';
+import '../../core/widgets/screen_header.dart';
 import 'qcm_hub_data.dart';
 import 'tcf_module_exam_briefing_screen.dart';
 import 'widgets/exam_done_sheet.dart';
-import 'widgets/qcm_hub/qcm_exam_hero.dart';
 import 'widgets/qcm_hub/qcm_history_section.dart';
-import 'widgets/qcm_hub/qcm_level_row.dart';
 import 'widgets/qcm_hub/qcm_notice_banner.dart';
-import 'widgets/qcm_hub/qcm_section_label.dart';
 
 /// Identifie le module TCF QCM exposé via `/tcf/co`, `/tcf/ce` ou
 /// `/tcf/structure`. EE/EO ont leur propre détail.
@@ -36,7 +38,7 @@ enum TcfQcmModule {
     description: 'Entraîne ton oreille sur des dialogues, annonces et messages — '
         'le format exact de l\'examen. C\'est l\'épreuve qui distingue le '
         'plus les niveaux : la travailler régulièrement sécurise ton palier CECRL.',
-    icon: Icons.headphones_rounded,
+    icon: LucideIcons.ear,
     durationLabel: '≈ 20 min',
     examSubtitle: '25 questions · 20 min',
     heroProgressLine: 'progression A2 → B1 → B2',
@@ -51,7 +53,7 @@ enum TcfQcmModule {
     description: 'Affiches, articles, courriels, formulaires — tu rencontres exactement ce '
         'que tu auras le jour J. Lecture rapide, choix juste : ici se joue ton '
         'aisance écrite au TCF.',
-    icon: Icons.menu_book_rounded,
+    icon: LucideIcons.fileText,
     durationLabel: '≈ 35 min',
     examSubtitle: '25 questions · 35 min',
     heroProgressLine: 'progression A2 → B1 → B2',
@@ -66,7 +68,7 @@ enum TcfQcmModule {
     description: 'Conjugaison, accords, prépositions, connecteurs. Module hors TCF IRN '
         'officiel — mais chaque point de grammaire que tu consolides ici fait '
         'gagner des points sur CE, EE et EO.',
-    icon: Icons.spellcheck_rounded,
+    icon: LucideIcons.layoutGrid,
     durationLabel: '≈ 20 min',
     examSubtitle: '25 questions · 20 min',
     heroProgressLine: 'grammaire en conditions réelles',
@@ -99,23 +101,61 @@ enum TcfQcmModule {
   final IconData icon;
   final String durationLabel;
 
-  /// Sous-titre affiché dans le hero examen blanc (ex: "25 questions · 20 min").
+  /// Sous-titre affiché dans le briefing examen (ex: "25 questions · 20 min").
   final String examSubtitle;
 
-  /// Fragment de phrase utilisé dans la description du hero examen.
-  /// CO/CE → "progression A2 → B1 → B2", Structure → "grammaire en
-  /// conditions réelles" (pas de palier CECRL officiel sur ce module).
+  /// Fragment de phrase utilisé dans la description du briefing examen.
   final String heroProgressLine;
 
-  /// Message d'avertissement affiché en haut du détail (juste sous le titre)
-  /// quand ce module n'est pas une épreuve officielle TCF IRN. `null` pour
-  /// CO/CE.
+  /// Message d'avertissement affiché en haut du détail quand ce module n'est
+  /// pas une épreuve officielle TCF IRN. `null` pour CO/CE.
   final String? notice;
 }
 
-/// Hub d'épreuve pour les modules TCF QCM (CO, CE, Structure). Un seul
-/// scroll : header, bannière notice (Structure), hero examen blanc bleu,
-/// section niveaux A2/B1/B2, historique des 3 derniers examens, card erreurs.
+/// Descriptif d'un niveau pour les cartes de l'écran (cf. `MLevels` maquette).
+class _LevelMeta {
+  const _LevelMeta({
+    required this.level,
+    required this.title,
+    required this.desc,
+    required this.accent,
+    required this.soft,
+  });
+
+  final Difficulty level;
+  final String title;
+  final String desc;
+  final Color accent;
+  final Color soft;
+}
+
+const _levels = <_LevelMeta>[
+  _LevelMeta(
+    level: Difficulty.a2,
+    title: 'Niveau A2',
+    desc: 'Bases — phrases simples et situations courantes.',
+    accent: AppColors.green,
+    soft: AppColors.greenLight,
+  ),
+  _LevelMeta(
+    level: Difficulty.b1,
+    title: 'Niveau B1',
+    desc: 'Intermédiaire — situations du quotidien étendues.',
+    accent: AppColors.amber,
+    soft: AppColors.amberLight,
+  ),
+  _LevelMeta(
+    level: Difficulty.b2,
+    title: 'Niveau B2',
+    desc: 'Avancé — textes longs et argumentation.',
+    accent: AppColors.red,
+    soft: AppColors.redLight,
+  ),
+];
+
+/// Détail d'une épreuve TCF QCM (cf. `MLevels` maquette) : choisir un niveau
+/// (3 cartes A2/B1/B2 avec compteur de séries faites), historique des examens
+/// du module en dessous, bouton « Examens blancs » fixé en bas.
 class TcfQcmDetailScreen extends ConsumerStatefulWidget {
   const TcfQcmDetailScreen({super.key, required this.module});
 
@@ -175,9 +215,8 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
   }
 
   /// « Reprendre » un examen de l'historique : on relance le briefing de CE
-  /// slot précis (puis nouvel attempt), comme la page Examens — au lieu de
-  /// renvoyer vers la grille générique. Refaire un examen est réservé au
-  /// premium (le 1er passage gratuit est déjà consommé).
+  /// slot précis (puis nouvel attempt), comme la page Examens. Refaire un
+  /// examen est réservé au premium (le 1er passage gratuit est consommé).
   void _resumeExam(AttemptSummary attempt) {
     if (!_isPremium()) {
       final history =
@@ -197,7 +236,7 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go('/');
+      context.go(AppRoutes.reviser);
     }
   }
 
@@ -205,92 +244,140 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
   Widget build(BuildContext context) {
     final mod = widget.module;
     final qt = mod.questionType;
-
-    // Lot counts pour A2/B1/B2 en parallèle. Riverpod déduplique le fetch
-    // côté repository (3 family providers indépendants partagent le cache).
-    final lotsA2 = ref.watch(
-        lotsProvider(LotsKey(questionType: qt, difficulty: Difficulty.a2)));
-    final lotsB1 = ref.watch(
-        lotsProvider(LotsKey(questionType: qt, difficulty: Difficulty.b1)));
-    final lotsB2 = ref.watch(
-        lotsProvider(LotsKey(questionType: qt, difficulty: Difficulty.b2)));
-    final countA2 = lotsA2.valueOrNull?.length;
-    final countB1 = lotsB1.valueOrNull?.length;
-    final countB2 = lotsB2.valueOrNull?.length;
-
     final historyAsync = ref.watch(qcmExamsHistoryProvider(qt));
 
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
         bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: 32),
+        child: Column(
           children: [
-            ModuleScreenHeader(
+            ScreenHeader(
               title: mod.title,
-              subtitle: 'TCF IRN · QCM',
+              sub: 'Choisir un niveau · TCF IRN',
               onBack: _back,
             ),
-            if (mod.notice != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: QcmNoticeBanner(message: mod.notice!),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: QcmExamHero(
-                icon: mod.icon,
-                examSubtitle: mod.examSubtitle,
-                description:
-                    'Conditions réelles : ${mod.examSubtitle.toLowerCase()}, ${mod.heroProgressLine}.',
-                onStart: _openExamsPage,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const QcmSectionLabel('S\'entraîner par niveau'),
-            QcmLevelRow(
-              levelLabel: 'A2',
-              title: 'Niveau A2',
-              subtitle:
-                  'Débutant · ${countA2 != null ? "$countA2 lots" : "—"}',
-              accent: AppColors.green,
-              accentBg: AppColors.green.withValues(alpha: 0.14),
-              onTap: () => _openLevel(Difficulty.a2),
-              lotCount: countA2,
-            ),
-            QcmLevelRow(
-              levelLabel: 'B1',
-              title: 'Niveau B1',
-              subtitle:
-                  'Intermédiaire · ${countB1 != null ? "$countB1 lots" : "—"}',
-              accent: AppColors.amber,
-              accentBg: AppColors.amber.withValues(alpha: 0.14),
-              onTap: () => _openLevel(Difficulty.b1),
-              lotCount: countB1,
-            ),
-            QcmLevelRow(
-              levelLabel: 'B2',
-              title: 'Niveau B2',
-              subtitle:
-                  'Avancé · ${countB2 != null ? "$countB2 lots" : "—"}',
-              accent: AppColors.red,
-              accentBg: AppColors.red.withValues(alpha: 0.12),
-              onTap: () => _openLevel(Difficulty.b2),
-              lotCount: countB2,
-            ),
-            const SizedBox(height: 8),
-            historyAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (history) => QcmHistorySection(
-                history: history,
-                onSeeAll: _openExamsPage,
-                onTap: _showExamSheet,
+            Expanded(
+              child: Stack(
+                children: [
+                  ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                    children: [
+                      if (mod.notice != null) ...[
+                        QcmNoticeBanner(message: mod.notice!),
+                        const SizedBox(height: 12),
+                      ],
+                      for (final meta in _levels) ...[
+                        _LevelCard(
+                          meta: meta,
+                          lots: ref
+                              .watch(lotsProvider(LotsKey(
+                                  questionType: qt, difficulty: meta.level)))
+                              .valueOrNull,
+                          onTap: () => _openLevel(meta.level),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      const SizedBox(height: 4),
+                      historyAsync.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
+                        data: (history) => QcmHistorySection(
+                          history: history,
+                          onSeeAll: _openExamsPage,
+                          onTap: _showExamSheet,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: FixedActionBar(
+                      child: AppButton(
+                        label: 'Examens blancs',
+                        icon: LucideIcons.target,
+                        onPressed: _openExamsPage,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Carte d'un niveau (cf. `MLevels` maquette) : chip CECRL 50 px coloré,
+/// titre + description + « X/N séries faites », chevron.
+class _LevelCard extends StatelessWidget {
+  const _LevelCard({
+    required this.meta,
+    required this.lots,
+    required this.onTap,
+  });
+
+  final _LevelMeta meta;
+  final List<LotDto>? lots;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = lots?.length;
+    final done = lots?.where((l) => l.lastScore != null).length;
+
+    return AppCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: meta.soft,
+              borderRadius: BorderRadius.circular(AppRadii.md),
+            ),
+            child: Center(
+              child: Text(
+                meta.level.wire,
+                style: AppFonts.display(size: 20, color: meta.accent),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(meta.title,
+                    style: AppFonts.ui(size: 16, weight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Text(
+                  meta.desc,
+                  style: AppFonts.ui(size: 12.5, color: AppColors.inkSoft),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  total == null
+                      ? 'Chargement des séries…'
+                      : '$done/$total séries faites',
+                  style: AppFonts.ui(
+                    size: 12,
+                    weight: FontWeight.w600,
+                    color: AppColors.inkFaint,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(LucideIcons.chevronRight,
+              size: 18, color: AppColors.inkFaint),
+        ],
       ),
     );
   }

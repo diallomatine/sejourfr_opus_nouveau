@@ -70,7 +70,7 @@ class BilanHero extends StatelessWidget {
                   children: [
                     Text(
                       'Note moyenne',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 12,
                         color: Colors.white.withValues(alpha: 0.78),
                       ),
@@ -81,7 +81,7 @@ class BilanHero extends StatelessWidget {
                         children: [
                           TextSpan(
                             text: moyenneSur20 == null ? '—' : _formatScore(moyenneSur20!),
-                            style: AppFonts.fraunces(
+                            style: AppFonts.display(
                               size: 44,
                               weight: FontWeight.w700,
                               color: Colors.white,
@@ -89,7 +89,7 @@ class BilanHero extends StatelessWidget {
                           ),
                           TextSpan(
                             text: ' / 20',
-                            style: AppFonts.jakarta(
+                            style: AppFonts.ui(
                               size: 18,
                               weight: FontWeight.w500,
                               color: Colors.white.withValues(alpha: 0.65),
@@ -107,7 +107,7 @@ class BilanHero extends StatelessWidget {
                   children: [
                     Text(
                       'Niveau plancher',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 12,
                         color: Colors.white.withValues(alpha: 0.78),
                       ),
@@ -121,7 +121,7 @@ class BilanHero extends StatelessWidget {
                       ),
                       child: Text(
                         niveauGlobal!.displayName,
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 18,
                           weight: FontWeight.w800,
                           color: AppColors.blue,
@@ -140,7 +140,7 @@ class BilanHero extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'L\'évaluation IA est en cours sur tes productions.',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13,
                 color: Colors.white.withValues(alpha: 0.85),
                 height: 1.4,

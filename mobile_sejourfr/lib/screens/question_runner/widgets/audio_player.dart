@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -149,7 +150,7 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
         children: [
           Row(
             children: [
-              const Icon(Icons.headphones, color: AppColors.blue, size: 18),
+              const Icon(LucideIcons.headphones, color: AppColors.blue, size: 18),
               const SizedBox(width: 8),
               Text(
                 'Document audio',
@@ -178,7 +179,7 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
                 _error!,
-                style: AppFonts.jakarta(color: AppColors.red, size: 13),
+                style: AppFonts.ui(color: AppColors.red, size: 13),
               ),
             )
           else
@@ -313,7 +314,7 @@ class _PlayButton extends StatelessWidget {
                   ),
                 )
               : Icon(
-                  playing ? Icons.pause : Icons.play_arrow,
+                  playing ? LucideIcons.pause : LucideIcons.play,
                   color: AppColors.white,
                   size: 26,
                 ),

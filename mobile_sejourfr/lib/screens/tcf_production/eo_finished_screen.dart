@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
@@ -205,7 +206,7 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
                     const SizedBox(height: 16),
                     Text(
                       'Enregistrement termine',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 18,
                         weight: FontWeight.w700,
                         color: AppColors.ink,
@@ -214,12 +215,12 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
                     const SizedBox(height: 18),
                     Text(
                       'Duree enregistree',
-                      style: AppFonts.jakarta(size: 14, color: AppColors.muted),
+                      style: AppFonts.ui(size: 14, color: AppColors.muted),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       _fmt(rec.elapsed),
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 30,
                         weight: FontWeight.w700,
                         color: AppColors.ink,
@@ -253,7 +254,7 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
                 top: false,
                 child: AppButton(
                   label: 'Voir mon evaluation',
-                  icon: Icons.auto_awesome_rounded,
+                  icon: LucideIcons.sparkles,
                   isLoading: _submitting,
                   onPressed: _submitting ? null : () => _submit(context),
                 ),
@@ -282,12 +283,12 @@ class _ShortRecordingHint extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.tips_and_updates_outlined, size: 18, color: AppColors.amber),
+          const Icon(LucideIcons.lightbulb, size: 18, color: AppColors.amber),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Astuce : visez 2-3 minutes pour une meilleure note — vous pouvez tout de même envoyer.',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13,
                 color: AppColors.ink,
                 height: 1.45,
@@ -313,7 +314,7 @@ class _FinishedIcon extends StatelessWidget {
         color: AppColors.green,
         shape: BoxShape.circle,
       ),
-      child: const Icon(Icons.check_rounded, size: 44, color: AppColors.white),
+      child: const Icon(LucideIcons.check, size: 44, color: AppColors.white),
     );
   }
 }
@@ -333,7 +334,7 @@ class _NextInfoCard extends StatelessWidget {
         children: [
           Text(
             'Et maintenant ?',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 14,
               weight: FontWeight.w700,
               color: AppColors.blue,
@@ -343,7 +344,7 @@ class _NextInfoCard extends StatelessWidget {
           Text(
             "Votre enregistrement va etre analyse par notre IA. Vous recevrez une evaluation detaillee dans quelques secondes.",
             textAlign: TextAlign.center,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13,
               color: AppColors.ink,
               height: 1.5,
@@ -371,12 +372,12 @@ class _InlineError extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline_rounded, size: 18, color: AppColors.red),
+          const Icon(LucideIcons.circleAlert, size: 18, color: AppColors.red),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: AppFonts.jakarta(size: 13, color: AppColors.red, height: 1.4),
+              style: AppFonts.ui(size: 13, color: AppColors.red, height: 1.4),
             ),
           ),
         ],
@@ -474,7 +475,7 @@ class _PlaybackBarState extends State<_PlaybackBar> {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                _playing ? LucideIcons.pause : LucideIcons.play,
                 color: AppColors.white,
                 size: 24,
               ),

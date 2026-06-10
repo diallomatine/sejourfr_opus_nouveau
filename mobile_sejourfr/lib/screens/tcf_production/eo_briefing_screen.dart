@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -186,7 +187,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
                   top: false,
                   child: AppButton(
                     label: 'Commencer',
-                    icon: Icons.mic_rounded,
+                    icon: LucideIcons.mic,
                     isLoading: _requestingPerm,
                     onPressed: _requestingPerm ? null : () => _start(context),
                   ),
@@ -221,11 +222,11 @@ class _ErrorBox extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline_rounded, size: 32, color: AppColors.red),
+          const Icon(LucideIcons.circleAlert, size: 32, color: AppColors.red),
           const SizedBox(height: 8),
           Text(
             'Impossible de demarrer la session.',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 14,
               weight: FontWeight.w700,
               color: AppColors.ink,
@@ -235,13 +236,13 @@ class _ErrorBox extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: AppFonts.jakarta(size: 12, color: AppColors.muted),
+            style: AppFonts.ui(size: 12, color: AppColors.muted),
           ),
           const SizedBox(height: 12),
           AppButton(
             label: 'Reessayer',
             onPressed: onRetry,
-            icon: Icons.refresh_rounded,
+            icon: LucideIcons.refreshCw,
           ),
         ],
       ),

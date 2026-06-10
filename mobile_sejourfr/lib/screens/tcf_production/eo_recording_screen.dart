@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -78,7 +79,7 @@ class _EoRecordingScreenState extends ConsumerState<EoRecordingScreen> {
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(
               'Quitter',
-              style: AppFonts.jakarta(weight: FontWeight.w700, color: AppColors.red),
+              style: AppFonts.ui(weight: FontWeight.w700, color: AppColors.red),
             ),
           ),
         ],
@@ -166,7 +167,7 @@ class _EoRecordingScreenState extends ConsumerState<EoRecordingScreen> {
                       const SizedBox(height: 4),
                       Text(
                         'Enregistrement en cours',
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 18,
                           weight: FontWeight.w700,
                           color: AppColors.ink,
@@ -196,7 +197,7 @@ class _EoRecordingScreenState extends ConsumerState<EoRecordingScreen> {
                       const SizedBox(height: 6),
                       Text(
                         'Terminer',
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 14,
                           weight: FontWeight.w600,
                           color: AppColors.ink,
@@ -246,7 +247,7 @@ class _TimerBig extends StatelessWidget {
       children: [
         Text(
           _fmt(elapsed),
-          style: AppFonts.jakarta(
+          style: AppFonts.ui(
             size: 56,
             weight: FontWeight.w700,
             color: _timerColor,
@@ -256,7 +257,7 @@ class _TimerBig extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           '/ ${_fmt(max)}',
-          style: AppFonts.jakarta(
+          style: AppFonts.ui(
             size: 14,
             color: AppColors.muted2,
           ),
@@ -319,7 +320,7 @@ class _RecStatusPillState extends State<_RecStatusPill> with SingleTickerProvide
           const SizedBox(width: 6),
           Text(
             'Enregistrement...',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13,
               weight: FontWeight.w600,
               color: AppColors.green,
@@ -351,7 +352,7 @@ class _ObjectifCallout extends StatelessWidget {
       child: Text(
         'Objectif : $dureeMaxSec s · minimum conseillé $minMin min',
         textAlign: TextAlign.center,
-        style: AppFonts.jakarta(
+        style: AppFonts.ui(
           size: 12,
           weight: FontWeight.w600,
           color: AppColors.amber,
@@ -378,7 +379,7 @@ class _ConseilCallout extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.blue),
+          const Icon(LucideIcons.info, size: 18, color: AppColors.blue),
           const SizedBox(width: 10),
           Expanded(
             child: RichText(
@@ -386,7 +387,7 @@ class _ConseilCallout extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: 'Conseil  ',
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 13,
                       weight: FontWeight.w700,
                       color: AppColors.blue,
@@ -394,7 +395,7 @@ class _ConseilCallout extends StatelessWidget {
                   ),
                   TextSpan(
                     text: text,
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 13,
                       color: AppColors.ink,
                       height: 1.45,

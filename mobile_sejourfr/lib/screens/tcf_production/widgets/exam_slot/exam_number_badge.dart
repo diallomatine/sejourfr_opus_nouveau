@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/app_theme.dart';
 
-/// Badge numéroté d'un slot d'examen blanc. 3 états :
-/// - locked → fond `line2` + icône cadenas
-/// - next → fond `blue` plein + texte blanc (mis en avant comme prochain à
-///   faire)
-/// - default → fond [baseBg] + texte [baseFg] (tinté selon la difficulté
+/// Badge numéroté d'un slot d'examen blanc (cf. maquette : carré 46 px,
+/// numéro en Bricolage). 3 états :
+/// - locked → fond `surface3` + icône cadenas
+/// - next → fond `blue` plein + numéro blanc (prochain à faire)
+/// - default → fond [baseBg] + numéro [baseFg] (tinté selon la difficulté
 ///   pour EE/EO, neutre `blueLight/blue` pour QCM)
 class ExamNumberBadge extends StatelessWidget {
   const ExamNumberBadge({
@@ -27,7 +28,7 @@ class ExamNumberBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = locked
-        ? AppColors.line2
+        ? AppColors.surface3
         : next
             ? AppColors.blue
             : baseBg;
@@ -37,36 +38,18 @@ class ExamNumberBadge extends StatelessWidget {
             ? AppColors.white
             : baseFg;
     return Container(
-      width: 44,
-      height: 44,
+      width: 46,
+      height: 46,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadii.md),
       ),
       child: locked
-          ? Icon(Icons.lock_outline_rounded, size: 18, color: fg)
-          : Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'N°',
-                  style: AppFonts.jakarta(
-                    size: 9,
-                    color: fg.withValues(alpha: 0.75),
-                    height: 1,
-                  ),
-                ),
-                Text(
-                  number.toString().padLeft(2, '0'),
-                  style: AppFonts.jakarta(
-                    size: 18,
-                    weight: FontWeight.w800,
-                    color: fg,
-                    height: 1.1,
-                  ),
-                ),
-              ],
+          ? Icon(LucideIcons.lock, size: 18, color: fg)
+          : Text(
+              '$number',
+              style: AppFonts.display(size: 19, color: fg),
             ),
     );
   }

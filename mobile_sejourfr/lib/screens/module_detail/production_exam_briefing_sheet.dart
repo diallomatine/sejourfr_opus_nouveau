@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/models/enums.dart';
 import '../../core/theme/app_theme.dart';
@@ -92,7 +93,7 @@ class ProductionExamBriefingSheet extends StatelessWidget {
                   const SizedBox(height: 22),
                   AppButton(
                     label: 'Commencer maintenant',
-                    icon: Icons.play_arrow_rounded,
+                    icon: LucideIcons.play,
                     variant: AppButtonVariant.danger,
                     isLoading: starting,
                     onPressed: starting
@@ -232,7 +233,7 @@ class _Hero extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             title,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 22,
               weight: FontWeight.w800,
               color: AppColors.white,
@@ -242,7 +243,7 @@ class _Hero extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             description,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13.5,
               color: AppColors.white.withValues(alpha: 0.92),
               height: 1.45,
@@ -270,11 +271,11 @@ class _DurationBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.timer_outlined, size: 13, color: AppColors.blue),
+          const Icon(LucideIcons.timer, size: 13, color: AppColors.blue),
           const SizedBox(width: 5),
           Text(
             label,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 12,
               weight: FontWeight.w800,
               color: AppColors.blue,
@@ -348,7 +349,7 @@ class _TaskRow extends StatelessWidget {
             ),
             child: Text(
               '${task.index}',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 12,
                 weight: FontWeight.w800,
                 color: AppColors.white,
@@ -362,7 +363,7 @@ class _TaskRow extends StatelessWidget {
               children: [
                 Text(
                   'Tâche ${task.index} · ${task.label}',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 13.5,
                     weight: FontWeight.w800,
                     color: AppColors.ink,
@@ -371,7 +372,7 @@ class _TaskRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   task.detail,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 12,
                     color: AppColors.muted,
                   ),
@@ -405,7 +406,7 @@ class _ConseilCard extends StatelessWidget {
           Row(
             children: [
               const Icon(
-                Icons.lightbulb_outline,
+                LucideIcons.lightbulb,
                 size: 14,
                 color: AppColors.red,
               ),
@@ -424,7 +425,7 @@ class _ConseilCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             text,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13,
               color: AppColors.ink2,
               height: 1.5,

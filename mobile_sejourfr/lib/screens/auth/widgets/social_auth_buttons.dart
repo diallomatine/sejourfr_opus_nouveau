@@ -169,7 +169,7 @@ class _SocialAuthButtonsState extends ConsumerState<SocialAuthButtons> {
   Widget _legalNotice() {
     final providers =
         [if (_showGoogle) 'Google', if (_showApple) 'Apple'].join(' ou ');
-    final linkStyle = AppFonts.jakarta(
+    final linkStyle = AppFonts.ui(
       size: 11.5,
       color: AppColors.blue,
       weight: FontWeight.w700,
@@ -177,7 +177,7 @@ class _SocialAuthButtonsState extends ConsumerState<SocialAuthButtons> {
     );
     return Text.rich(
       TextSpan(
-        style: AppFonts.jakarta(size: 11.5, color: AppColors.muted2, height: 1.5),
+        style: AppFonts.ui(size: 11.5, color: AppColors.muted2, height: 1.5),
         children: [
           TextSpan(text: 'En continuant avec $providers, vous acceptez les '),
           TextSpan(
@@ -257,7 +257,7 @@ class _SocialButton extends StatelessWidget {
                         child: Center(
                           child: Text(
                             label,
-                            style: AppFonts.jakarta(
+                            style: AppFonts.ui(
                               size: 15,
                               color: foreground,
                               weight: FontWeight.w700,

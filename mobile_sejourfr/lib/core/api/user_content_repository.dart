@@ -1,3 +1,4 @@
+import '../models/dashboard_models.dart';
 import '../models/enums.dart';
 import '../models/question_models.dart';
 import 'api_client.dart';
@@ -67,6 +68,16 @@ class UserContentRepository {
       queryParameters: {'module': module.wire},
     );
     return UserStats.fromJson(res.data!);
+  }
+
+  /// Agrégat du tableau de bord (`GET /api/me/dashboard`) : streak,
+  /// progression globale, niveau TCF estimé + une entrée par catégorie des
+  /// deux parcours. Alimente Accueil / Réviser / Progrès en un seul appel.
+  Future<DashboardSummary> dashboard() async {
+    final res = await _client.dio.get<Map<String, dynamic>>(
+      '/api/me/dashboard',
+    );
+    return DashboardSummary.fromJson(res.data!);
   }
 
   /// Résumé de progression aligné sur les examens passés (cf. backend

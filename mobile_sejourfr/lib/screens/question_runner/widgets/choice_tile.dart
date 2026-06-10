@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/question_models.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// Une réponse possible affichée dans le runner.
+/// Une réponse possible affichée dans le runner (cf. `MQuestion` maquette).
 /// 4 états visuels :
 ///   - idle (non sélectionnée, pas de correction)
-///   - selected (cochée, en cours de saisie)
-///   - correct (révélée correcte)
-///   - incorrect (révélée fausse)
+///   - selected (cochée, en cours de saisie — bleu)
+///   - correct (révélée correcte — vert, check dans la pastille)
+///   - incorrect (révélée fausse — rouge, croix dans la pastille)
 class ChoiceTile extends StatelessWidget {
   const ChoiceTile({
     super.key,
@@ -44,30 +45,30 @@ class ChoiceTile extends StatelessWidget {
     Color background = AppColors.white;
     Color border = AppColors.line;
     Color textColor = AppColors.ink;
-    Color letterBg = AppColors.line2;
-    Color letterColor = AppColors.muted;
-    Widget? trailing;
+    Color letterBg = AppColors.surface3;
+    Color letterColor = AppColors.inkSoft;
+    IconData? mark;
 
     final correct = isCorrect ?? choice.correct;
 
     if (showCorrection) {
       if (correct) {
-        background = AppColors.green.withValues(alpha: 0.07);
+        background = AppColors.greenLight;
         border = AppColors.green;
         letterBg = AppColors.green;
         letterColor = AppColors.white;
-        trailing = const Icon(Icons.check_circle, color: AppColors.green);
+        mark = LucideIcons.check;
       } else if (selected) {
         background = AppColors.redLight;
         border = AppColors.red;
         letterBg = AppColors.red;
         letterColor = AppColors.white;
-        trailing = const Icon(Icons.cancel, color: AppColors.red);
+        mark = LucideIcons.x;
       } else {
         textColor = AppColors.muted;
       }
     } else if (selected) {
-      background = AppColors.blueSoft;
+      background = AppColors.blueLight;
       border = AppColors.blue;
       letterBg = AppColors.blue;
       letterColor = AppColors.white;
@@ -81,39 +82,44 @@ class ChoiceTile extends StatelessWidget {
         ? choice.label.trim().toUpperCase()
         : String.fromCharCode('A'.codeUnitAt(0) + index);
 
+    final emphasized =
+        selected || (showCorrection && (isCorrect ?? choice.correct));
+
     return Material(
       color: background,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadii.md),
       child: InkWell(
         onTap: showCorrection ? null : onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadii.md),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
           decoration: BoxDecoration(
             border: Border.all(
               color: border,
-              width: (selected || (showCorrection && (isCorrect ?? choice.correct))) ? 1.5 : 1,
+              width: emphasized ? 1.5 : 1,
             ),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadii.md),
           ),
           child: Row(
             children: [
               Container(
-                width: 30,
-                height: 30,
+                width: 28,
+                height: 28,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: letterBg,
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
                 ),
-                child: Text(
-                  letter,
-                  style: AppFonts.jakarta(
-                    size: 13,
-                    weight: FontWeight.w800,
-                    color: letterColor,
-                  ),
-                ),
+                child: mark != null
+                    ? Icon(mark, size: 16, color: letterColor)
+                    : Text(
+                        letter,
+                        style: AppFonts.ui(
+                          size: 13,
+                          weight: FontWeight.w700,
+                          color: letterColor,
+                        ),
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -121,18 +127,14 @@ class ChoiceTile extends StatelessWidget {
                     ? const SizedBox.shrink()
                     : Text(
                         choice.label,
-                        style: AppFonts.jakarta(
-                          size: 14,
+                        style: AppFonts.ui(
+                          size: 15,
                           weight: FontWeight.w500,
                           color: textColor,
                           height: 1.35,
                         ),
                       ),
               ),
-              if (trailing != null) ...[
-                const SizedBox(width: 8),
-                trailing,
-              ],
             ],
           ),
         ),

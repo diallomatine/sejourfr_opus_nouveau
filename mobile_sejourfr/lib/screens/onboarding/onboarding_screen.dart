@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -45,7 +46,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       titleEmphasis: 'sereinement',
       description:
           'Civique et TCF, dans une seule app. Entraînement par questions, corrections expliquées, examens blancs.',
-      icon: Icons.school_outlined,
+      icon: LucideIcons.graduationCap,
       accent: AppColors.blue,
     ),
     _Slide(
@@ -53,7 +54,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       title: 'CSP, carte de résident,',
       titleEmphasis: 'naturalisation',
       description: 'Trois niveaux de difficulté pour le civique, trois pour le TCF. Choisissez le vôtre.',
-      icon: Icons.flag_outlined,
+      icon: LucideIcons.flag,
       accent: AppColors.red,
     ),
     _Slide(
@@ -62,7 +63,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       titleEmphasis: 'examens blancs',
       description:
           '40 questions en 45 minutes pour le civique. Chronomètre, score, seuil de réussite. Comme le jour J.',
-      icon: Icons.timer_outlined,
+      icon: LucideIcons.timer,
       accent: AppColors.amber,
     ),
   ];
@@ -110,7 +111,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     onPressed: _finish,
                     child: Text(
                       'Passer',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 13,
                         color: AppColors.muted,
                         weight: FontWeight.w600,
@@ -207,7 +208,7 @@ class _SlideView extends StatelessWidget {
           const SizedBox(height: 10),
           RichText(
             text: TextSpan(
-              style: AppFonts.fraunces(size: 32, weight: FontWeight.w600),
+              style: AppFonts.display(size: 32, weight: FontWeight.w600),
               children: [
                 TextSpan(text: '${slide.title} '),
                 TextSpan(
@@ -223,7 +224,7 @@ class _SlideView extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             slide.description,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 14.5,
               color: AppColors.muted,
               height: 1.5,

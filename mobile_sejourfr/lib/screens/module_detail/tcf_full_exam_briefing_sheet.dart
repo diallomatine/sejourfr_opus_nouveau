@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
@@ -85,7 +86,7 @@ class TcfFullExamBriefingSheet extends StatelessWidget {
                   const SizedBox(height: 22),
                   AppButton(
                     label: 'Lancer l\'examen blanc',
-                    icon: Icons.play_arrow_rounded,
+                    icon: LucideIcons.play,
                     onPressed: () {
                       Navigator.of(context).pop();
                       onStart();
@@ -144,12 +145,12 @@ class _FreeNoteCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.blue),
+          const Icon(LucideIcons.info, size: 18, color: AppColors.blue),
           const SizedBox(width: 10),
           Expanded(
             child: Text.rich(
               TextSpan(
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 12.5,
                   color: AppColors.ink2,
                   height: 1.45,
@@ -159,7 +160,7 @@ class _FreeNoteCard extends StatelessWidget {
                   TextSpan(
                     text: 'l\'expression écrite et orale, évaluées par l\'IA, '
                         'te sont offertes une seule fois',
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 12.5,
                       weight: FontWeight.w800,
                       color: AppColors.blue,
@@ -217,7 +218,7 @@ class _Hero extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
             ),
             child: const Icon(
-              Icons.workspace_premium_rounded,
+              LucideIcons.crown,
               size: 30,
               color: AppColors.white,
             ),
@@ -225,7 +226,7 @@ class _Hero extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'TCF IRN en conditions réelles',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 22,
               weight: FontWeight.w800,
               color: AppColors.white,
@@ -235,7 +236,7 @@ class _Hero extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'Enchaîne les 4 épreuves : compréhension orale, écrite, expression écrite et orale. Tu obtiens un niveau CECRL global à la fin.',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13.5,
               color: AppColors.white.withValues(alpha: 0.92),
               height: 1.45,
@@ -263,11 +264,11 @@ class _DurationBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.timer_outlined, size: 13, color: AppColors.blue),
+          const Icon(LucideIcons.timer, size: 13, color: AppColors.blue),
           const SizedBox(width: 5),
           Text(
             label,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 12,
               weight: FontWeight.w800,
               color: AppColors.blue,
@@ -346,12 +347,12 @@ class _DerouleRowWidget extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(row.icon, style: AppFonts.jakarta(size: 18)),
+          Text(row.icon, style: AppFonts.ui(size: 18)),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               row.label,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13.5,
                 weight: FontWeight.w700,
                 color: AppColors.ink,
@@ -360,7 +361,7 @@ class _DerouleRowWidget extends StatelessWidget {
           ),
           Text(
             row.duration,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 12.5,
               weight: FontWeight.w800,
               color: AppColors.blue,
@@ -396,7 +397,7 @@ class _ASavoirCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.lightbulb_outline, size: 14, color: AppColors.red),
+              const Icon(LucideIcons.lightbulb, size: 14, color: AppColors.red),
               const SizedBox(width: 6),
               Text(
                 'À SAVOIR',
@@ -413,12 +414,12 @@ class _ASavoirCard extends StatelessWidget {
           for (int i = 0; i < _items.length; i++) ...[
             Row(
               children: [
-                Text(_items[i].icon, style: AppFonts.jakarta(size: 16)),
+                Text(_items[i].icon, style: AppFonts.ui(size: 16)),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     _items[i].label,
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 13,
                       color: AppColors.ink2,
                       height: 1.4,

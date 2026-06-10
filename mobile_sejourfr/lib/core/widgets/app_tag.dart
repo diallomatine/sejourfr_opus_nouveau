@@ -4,65 +4,78 @@ import '../theme/app_theme.dart';
 
 enum TagTone { blue, red, neutral, success, amber, ghost }
 
+/// Badge pill de la refonte 2026 (cf. `Badge` maquette) : fond teinté doux,
+/// Hanken 12 w600, icône optionnelle. Le libellé est rendu tel quel.
 class AppTag extends StatelessWidget {
-  const AppTag({super.key, required this.label, this.tone = TagTone.blue});
+  const AppTag({
+    super.key,
+    required this.label,
+    this.tone = TagTone.blue,
+    this.icon,
+  });
 
   final String label;
   final TagTone tone;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     final Color bg;
-    final Color border;
     final Color fg;
 
     switch (tone) {
       case TagTone.blue:
         bg = AppColors.blueLight;
-        border = AppColors.blue.withValues(alpha: 0.3);
-        fg = AppColors.blue;
+        fg = AppColors.blueDark;
         break;
       case TagTone.red:
         bg = AppColors.redLight;
-        border = AppColors.red.withValues(alpha: 0.3);
         fg = AppColors.red;
         break;
       case TagTone.success:
-        bg = AppColors.green.withValues(alpha: 0.08);
-        border = AppColors.green.withValues(alpha: 0.35);
+        bg = AppColors.greenLight;
         fg = AppColors.green;
         break;
       case TagTone.amber:
-        bg = AppColors.amber.withValues(alpha: 0.1);
-        border = AppColors.amber.withValues(alpha: 0.4);
-        fg = AppColors.amber;
+        bg = AppColors.amberLight;
+        fg = const Color(0xFF9A6A0B);
         break;
       case TagTone.neutral:
-        bg = AppColors.line2;
-        border = AppColors.line;
-        fg = AppColors.muted;
+        bg = AppColors.surface3;
+        fg = AppColors.inkSoft;
         break;
       case TagTone.ghost:
         bg = Colors.transparent;
-        border = AppColors.line;
-        fg = AppColors.muted;
+        fg = AppColors.inkSoft;
         break;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: bg,
-        border: Border.all(color: border, width: 1),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+        border: tone == TagTone.ghost
+            ? Border.all(color: AppColors.line)
+            : null,
       ),
-      child: Text(
-        label.toUpperCase(),
-        style: AppFonts.mono(
-          size: 10,
-          color: fg,
-          letterSpacing: 1.0,
-        ).copyWith(fontWeight: FontWeight.w500),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 13, color: fg),
+            const SizedBox(width: 5),
+          ],
+          Text(
+            label,
+            style: AppFonts.ui(
+              size: 12,
+              weight: FontWeight.w600,
+              color: fg,
+              height: 1.3,
+            ),
+          ),
+        ],
       ),
     );
   }

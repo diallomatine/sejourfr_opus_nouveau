@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/models/enums.dart';
@@ -23,7 +24,7 @@ class TargetPathBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.flag_outlined, size: 16, color: AppColors.blue),
+          const Icon(LucideIcons.flag, size: 16, color: AppColors.blue),
           const SizedBox(width: 8),
           Expanded(
             child: Text.rich(
@@ -33,14 +34,14 @@ class TargetPathBanner extends StatelessWidget {
                   TextSpan(
                     text:
                         '${procedure.shortLabel} (${procedure.wire})',
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 13,
                       weight: FontWeight.w800,
                       color: AppColors.blue,
                     ),
                   ),
                 ],
-                style: AppFonts.jakarta(size: 13, color: AppColors.ink),
+                style: AppFonts.ui(size: 13, color: AppColors.ink),
               ),
             ),
           ),
@@ -58,7 +59,7 @@ class TargetPathBanner extends StatelessWidget {
             ),
             child: Text(
               'Modifier',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 12,
                 weight: FontWeight.w700,
                 color: AppColors.blue,

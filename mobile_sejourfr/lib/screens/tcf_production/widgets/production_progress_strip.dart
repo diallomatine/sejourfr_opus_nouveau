@@ -63,7 +63,7 @@ class ProductionProgressStrip extends StatelessWidget {
               Expanded(
                 child: RichText(
                   text: TextSpan(
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 14,
                       weight: FontWeight.w600,
                       color: AppColors.ink,
@@ -79,7 +79,7 @@ class ProductionProgressStrip extends StatelessWidget {
                             if (subtitle != null && subtitle!.isNotEmpty)
                               TextSpan(
                                 text: ' · $subtitle',
-                                style: AppFonts.jakarta(
+                                style: AppFonts.ui(
                                   size: 14,
                                   weight: FontWeight.w500,
                                   color: AppColors.muted2,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -103,7 +104,7 @@ class TcfLotResultScreen extends ConsumerWidget {
                     const SizedBox(height: 10),
                     Text(
                       tier.heading,
-                      style: AppFonts.fraunces(
+                      style: AppFonts.display(
                         size: 30,
                         weight: FontWeight.w600,
                         color: AppColors.ink,
@@ -124,7 +125,7 @@ class TcfLotResultScreen extends ConsumerWidget {
                 Text(
                   _caption(percent),
                   textAlign: TextAlign.center,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 13,
                     color: AppColors.muted,
                     height: 1.45,
@@ -196,20 +197,20 @@ class _ResultTier {
     if (percent >= 70) {
       return const _ResultTier(
         accent: AppColors.green,
-        icon: Icons.emoji_events_rounded,
+        icon: LucideIcons.trophy,
         heading: 'Bravo !',
       );
     }
     if (percent >= 40) {
       return const _ResultTier(
         accent: AppColors.amber,
-        icon: Icons.trending_up_rounded,
+        icon: LucideIcons.trendingUp,
         heading: 'Bien joué !',
       );
     }
     return const _ResultTier(
       accent: AppColors.red,
-      icon: Icons.replay_rounded,
+      icon: LucideIcons.rotateCcw,
       heading: 'Continue !',
     );
   }
@@ -244,7 +245,7 @@ class _TopBar extends StatelessWidget {
                 border: Border.all(color: AppColors.line),
               ),
               alignment: Alignment.center,
-              child: const Icon(Icons.close_rounded,
+              child: const Icon(LucideIcons.x,
                   size: 20, color: AppColors.ink),
             ),
           ),
@@ -305,7 +306,7 @@ class _ScoreCircle extends StatelessWidget {
               children: [
                 Text(
                   '$score/$total',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 28,
                     weight: FontWeight.w800,
                     color: AppColors.ink,
@@ -451,7 +452,7 @@ class _Row extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13,
                 color: AppColors.ink2,
               ),
@@ -459,7 +460,7 @@ class _Row extends StatelessWidget {
           ),
           Text(
             value,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13.5,
               weight: FontWeight.w800,
               color: valueColor ?? AppColors.ink,
@@ -509,7 +510,7 @@ class _AdviceCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             advice,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13,
               color: AppColors.ink2,
               height: 1.45,
@@ -536,13 +537,13 @@ class _ErrorView extends StatelessWidget {
         children: [
           IconButton(
             onPressed: onClose,
-            icon: const Icon(Icons.close_rounded),
+            icon: const Icon(LucideIcons.x),
             color: AppColors.ink,
           ),
           const SizedBox(height: 20),
           Text(
             message,
-            style: AppFonts.jakarta(size: 14, color: AppColors.red),
+            style: AppFonts.ui(size: 14, color: AppColors.red),
           ),
         ],
       ),

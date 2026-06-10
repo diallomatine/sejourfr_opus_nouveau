@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -15,25 +16,25 @@ class AboutScreen extends StatelessWidget {
 
   static const _officialLinks = [
     _OfficialLink(
-      icon: Icons.account_balance_rounded,
+      icon: LucideIcons.landmark,
       title: 'Démarches séjour / naturalisation',
       subtitle: 'service-public.fr',
       url: 'https://www.service-public.fr',
     ),
     _OfficialLink(
-      icon: Icons.gavel_rounded,
+      icon: LucideIcons.scale,
       title: 'Examen civique — ministère de l\'Intérieur',
       subtitle: 'immigration.interieur.gouv.fr',
       url: 'https://www.immigration.interieur.gouv.fr',
     ),
     _OfficialLink(
-      icon: Icons.translate_rounded,
+      icon: LucideIcons.languages,
       title: 'TCF — France Éducation International',
       subtitle: 'france-education-international.fr',
       url: 'https://www.france-education-international.fr',
     ),
     _OfficialLink(
-      icon: Icons.badge_rounded,
+      icon: LucideIcons.idCard,
       title: 'OFII',
       subtitle: 'ofii.fr',
       url: 'https://www.ofii.fr',
@@ -49,12 +50,12 @@ class AboutScreen extends StatelessWidget {
         elevation: 0,
         foregroundColor: AppColors.ink,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          icon: const Icon(LucideIcons.arrowLeft, size: 18),
           onPressed: () => context.pop(),
         ),
         title: Text(
           'À propos',
-          style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
+          style: AppFonts.ui(size: 16, weight: FontWeight.w700),
         ),
       ),
       body: SafeArea(
@@ -70,7 +71,7 @@ class AboutScreen extends StatelessWidget {
               '(A2/B1/B2) : QCM corrigés, examens blancs en conditions '
               'réelles et productions évaluées.',
               textAlign: TextAlign.center,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13,
                 color: AppColors.muted,
                 height: 1.55,
@@ -84,7 +85,7 @@ class AboutScreen extends StatelessWidget {
             Text(
               'Pour toute démarche administrative et pour l\'inscription aux '
               'épreuves, référez-vous uniquement aux sites officiels :',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 12.5,
                 color: AppColors.muted,
                 height: 1.45,
@@ -125,7 +126,7 @@ class _DisclaimerCard extends StatelessWidget {
           Row(
             children: [
               const Icon(
-                Icons.info_outline_rounded,
+                LucideIcons.info,
                 size: 16,
                 color: AppColors.blue,
               ),
@@ -147,7 +148,7 @@ class _DisclaimerCard extends StatelessWidget {
             'application n\'est affiliée ni au gouvernement français, ni à '
             'l\'OFII, ni au ministère de l\'Intérieur, ni à France Éducation '
             'International. Elle ne garantit pas la réussite aux examens.',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13.5,
               color: AppColors.ink,
               height: 1.55,
@@ -254,7 +255,7 @@ class _OfficialLinkTile extends StatelessWidget {
                   children: [
                     Text(
                       link.title,
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 14,
                         weight: FontWeight.w700,
                         color: AppColors.ink,
@@ -274,7 +275,7 @@ class _OfficialLinkTile extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               const Icon(
-                Icons.open_in_new_rounded,
+                LucideIcons.externalLink,
                 size: 16,
                 color: AppColors.muted,
               ),

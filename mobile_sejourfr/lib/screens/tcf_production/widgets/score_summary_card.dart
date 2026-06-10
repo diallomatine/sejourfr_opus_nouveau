@@ -57,7 +57,7 @@ class ScoreSummaryCard extends StatelessWidget {
                         children: [
                           TextSpan(
                             text: note == null ? '—' : _formatNote(note!),
-                            style: AppFonts.fraunces(
+                            style: AppFonts.display(
                               size: 40,
                               weight: FontWeight.w700,
                               color: Colors.white,
@@ -65,7 +65,7 @@ class ScoreSummaryCard extends StatelessWidget {
                           ),
                           TextSpan(
                             text: ' / 20',
-                            style: AppFonts.jakarta(
+                            style: AppFonts.ui(
                               size: 16,
                               weight: FontWeight.w600,
                               color: Colors.white.withValues(alpha: 0.7),
@@ -78,7 +78,7 @@ class ScoreSummaryCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         'Niveau estime : ${niveau!.displayName}',
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 13,
                           weight: FontWeight.w600,
                           color: Colors.white.withValues(alpha: 0.85),

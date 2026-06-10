@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -67,7 +68,7 @@ class MotsCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.schedule_rounded, size: 18, color: c.accent),
+          Icon(LucideIcons.clock, size: 18, color: c.accent),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -75,7 +76,7 @@ class MotsCard extends StatelessWidget {
               children: [
                 Text(
                   'Nombre de mots',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 13,
                     weight: FontWeight.w700,
                     color: c.accent,
@@ -84,7 +85,7 @@ class MotsCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   'Min $min / Max $max',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 12,
                     color: AppColors.muted,
                   ),
@@ -101,7 +102,7 @@ class MotsCard extends StatelessWidget {
             ),
             child: Text(
               '$current mots',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13,
                 weight: isBold ? FontWeight.w800 : FontWeight.w700,
                 color: c.accent,

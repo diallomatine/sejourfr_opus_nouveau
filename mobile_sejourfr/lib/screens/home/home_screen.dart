@@ -1,65 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../core/api/repositories.dart';
-import '../../core/api/user_content_repository.dart';
+import '../../core/api/api_client.dart';
 import '../../core/auth/auth_controller.dart';
-import '../../core/models/auth_models.dart';
+import '../../core/models/dashboard_models.dart';
 import '../../core/models/enums.dart';
+import '../../core/providers/dashboard_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/selected_module.dart';
+import '../../core/utils/dashboard_targets.dart';
+import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
-import '../../core/widgets/sejourfr_logo.dart';
+import '../../core/widgets/list_group.dart';
+import '../../core/widgets/progress_ring.dart';
+import '../../core/widgets/screen_header.dart';
+import '../../core/widgets/stat_value_card.dart';
+import '../examens/examens_screen.dart';
+import '../reviser/reviser_screen.dart';
 
-final _civiqueStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
-  return ref
-      .watch(userContentRepositoryProvider)
-      .stats(module: AppModule.civique);
-});
-
-final _tcfStatsProvider = FutureProvider.autoDispose<UserStats>((ref) {
-  return ref.watch(userContentRepositoryProvider).stats(module: AppModule.tcf);
-});
-
-/// Snapshot agrégé d'un module pour la card du home : couverture +
-/// précision globales. Calculées depuis `byTheme` (somme answered, correct,
-/// total) — même logique que les hubs et l'écran Progression pour rester
-/// cohérent sur les 3 surfaces.
-class _ModuleProgress {
-  const _ModuleProgress({
-    required this.answered,
-    required this.correct,
-    required this.total,
-    required this.sessions,
-  });
-
-  final int answered;
-  final int correct;
-  final int total;
-  final int sessions;
-
-  bool get isStarted => answered > 0;
-
-  // Progression = maîtrise : bonnes réponses / total de questions du module.
-  double get mastery => total == 0 ? 0.0 : (correct / total).clamp(0.0, 1.0);
-
-  int get masteryPct => (mastery * 100).round();
-
-  static _ModuleProgress fromStats(UserStats s) {
-    final answered = s.byTheme.fold<int>(0, (sum, t) => sum + t.answered);
-    final correct = s.byTheme.fold<int>(0, (sum, t) => sum + t.correct);
-    final total = s.byTheme.fold<int>(0, (sum, t) => sum + t.total);
-    return _ModuleProgress(
-      answered: answered,
-      correct: correct,
-      total: total,
-      sessions: s.attemptsTotal,
-    );
-  }
-}
-
+/// Accueil de la refonte 2026 (cf. `MHome` maquette) : salutation + avatar,
+/// carte « À travailler en priorité » (catégorie la plus faible), 3 stat
+/// cards (maîtrise / série / niveau TCF), « Mes parcours », bloc IA (EE/EO)
+/// et raccourci examens blancs. Tout vient de `GET /api/me/dashboard`.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -67,140 +31,123 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
     final user = auth is AuthAuthenticated ? auth.user : null;
-    final civiqueStats = ref.watch(_civiqueStatsProvider);
-    final tcfStats = ref.watch(_tcfStatsProvider);
+    final dashboard = ref.watch(dashboardProvider);
 
-    void selectAndGo(AppModule module, String route) {
-      ref.read(selectedModuleProvider.notifier).state = module;
-      context.go(route);
-    }
-
-    final civiqueIsDemo =
-        user != null && !user.canAccessModule(AppModule.civique);
-    final tcfIsDemo = user != null && !user.canAccessModule(AppModule.tcf);
-
-    // Compteur global "X vues" rendu en chip top-right du card bleu. Somme
-    // des answered des 2 modules (même grammaire que les hubs). null tant
-    // qu'au moins un des deux stats charge encore → on attend pour ne pas
-    // afficher un sous-total trompeur, et le chip ne paraît pas si le user
-    // n'a encore rien vu (évite "0 vues" déprimant à l'onboarding).
-    final int? viewedCount = (civiqueStats.valueOrNull != null &&
-            tcfStats.valueOrNull != null)
-        ? civiqueStats.value!.byTheme
-                .fold<int>(0, (sum, t) => sum + t.answered) +
-            tcfStats.value!.byTheme.fold<int>(0, (sum, t) => sum + t.answered)
-        : null;
+    final firstName = user?.firstName?.trim();
+    final title = firstName != null && firstName.isNotEmpty
+        ? 'Bonjour $firstName 👋'
+        : 'Bonjour 👋';
 
     return Scaffold(
       backgroundColor: AppColors.bg,
       body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.blue,
-          onRefresh: () async {
-            ref.invalidate(_civiqueStatsProvider);
-            ref.invalidate(_tcfStatsProvider);
-            await Future.wait([
-              ref.read(_civiqueStatsProvider.future),
-              ref.read(_tcfStatsProvider.future),
-            ]);
-          },
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-            children: [
-              _Header(user: user),
-              const SizedBox(height: 22),
-              _HeroParcoursCard(
-                target: user?.targetProcedure,
-                viewedCount: viewedCount,
+        bottom: false,
+        child: Column(
+          children: [
+            ScreenHeader(
+              title: title,
+              sub: 'Prêt pour votre entraînement du jour ?',
+              large: true,
+              right: _AvatarButton(
+                initials: _initials(user?.firstName, user?.lastName,
+                    fallback: user?.email),
+                onTap: () => context.go(AppRoutes.profile),
               ),
-              const SizedBox(height: 24),
-              _SectionTitle(
-                label: 'Vos modules',
-                trailing: user?.targetProcedure != null
-                    ? 'PARCOURS · ${user!.targetProcedure!.shortLabel}'
-                    : null,
-              ),
-              const SizedBox(height: 12),
-              _ModuleCard(
-                kind: _ModuleKind.civique,
-                stats: civiqueStats,
-                isDemo: civiqueIsDemo,
-                onTap: () => selectAndGo(AppModule.civique, AppRoutes.civique),
-              ),
-              const SizedBox(height: 10),
-              _ModuleCard(
-                kind: _ModuleKind.tcf,
-                stats: tcfStats,
-                isDemo: tcfIsDemo,
-                onTap: () => selectAndGo(AppModule.tcf, AppRoutes.tcf),
-              ),
-              const SizedBox(height: 26),
-              const _SectionTitle(label: 'Raccourcis'),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _ShortcutTile(
-                      icon: Icons.insights_rounded,
-                      title: 'Progression',
-                      subtitle: 'Forces et axes\nà retravailler',
-                      accent: AppColors.blue,
-                      accentBg: AppColors.blueLight,
-                      onTap: () => context.go(AppRoutes.progress),
-                    ),
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                color: AppColors.blue,
+                onRefresh: () async {
+                  ref.invalidate(dashboardProvider);
+                  await ref.read(dashboardProvider.future);
+                },
+                child: dashboard.when(
+                  loading: () => ListView(
+                    children: const [
+                      Padding(
+                        padding: EdgeInsets.only(top: 120),
+                        child: Center(
+                          child:
+                              CircularProgressIndicator(color: AppColors.blue),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _ShortcutTile(
-                      icon: Icons.bookmark_rounded,
-                      title: 'Mes questions',
-                      subtitle: 'Favoris et\nerreurs récentes',
-                      accent: AppColors.red,
-                      accentBg: AppColors.redLight,
-                      onTap: () => context.push(AppRoutes.review),
-                    ),
+                  error: (e, _) => ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      AppCard(
+                        child: Column(
+                          children: [
+                            Text(
+                              ApiClient.toApiException(e).message,
+                              textAlign: TextAlign.center,
+                              style: AppFonts.ui(
+                                  size: 13.5, color: AppColors.inkSoft),
+                            ),
+                            const SizedBox(height: 12),
+                            AppButton(
+                              label: 'Réessayer',
+                              variant: AppButtonVariant.soft,
+                              height: 44,
+                              fullWidth: false,
+                              onPressed: () =>
+                                  ref.invalidate(dashboardProvider),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                  data: (d) => _HomeBody(summary: d),
+                ),
               ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _ShortcutTile(
-                      icon: Icons.edit_note_rounded,
-                      title: 'Expression écrite',
-                      subtitle: 'corrigée par IA',
-                      accent: AppColors.blue,
-                      accentBg: AppColors.blueLight,
-                      onTap: () {
-                        ref.read(selectedModuleProvider.notifier).state =
-                            AppModule.tcf;
-                        context.push(AppRoutes.tcfEeDetail);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _ShortcutTile(
-                      icon: Icons.mic_rounded,
-                      title: 'Expression orale',
-                      subtitle: 'corrigée par IA',
-                      accent: AppColors.red,
-                      accentBg: AppColors.redLight,
-                      onTap: () {
-                        ref.read(selectedModuleProvider.notifier).state =
-                            AppModule.tcf;
-                        context.push(AppRoutes.tcfEoDetail);
-                      },
-                    ),
-                  ),
-                ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _initials(String? firstName, String? lastName, {String? fallback}) {
+    final f = firstName?.trim();
+    final l = lastName?.trim();
+    if (f != null && f.isNotEmpty) {
+      final second = l != null && l.isNotEmpty ? l[0] : '';
+      return '${f[0]}$second'.toUpperCase();
+    }
+    final email = fallback?.trim();
+    if (email != null && email.isNotEmpty) return email[0].toUpperCase();
+    return '·';
+  }
+}
+
+class _AvatarButton extends StatelessWidget {
+  const _AvatarButton({required this.initials, required this.onTap});
+
+  final String initials;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.blue,
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: SizedBox(
+          width: 38,
+          height: 38,
+          child: Center(
+            child: Text(
+              initials,
+              style: AppFonts.ui(
+                size: 14,
+                weight: FontWeight.w700,
+                color: AppColors.white,
               ),
-              const SizedBox(height: 24),
-              const _DailyTip(),
-              const SizedBox(height: 16),
-              const _IndependenceNote(),
-            ],
+            ),
           ),
         ),
       ),
@@ -208,311 +155,276 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// HEADER
-// ---------------------------------------------------------------------------
+class _HomeBody extends ConsumerWidget {
+  const _HomeBody({required this.summary});
 
-class _Header extends StatelessWidget {
-  const _Header({required this.user});
+  final DashboardSummary summary;
 
-  final AuthUser? user;
+  /// Catégorie la plus faible parmi celles déjà travaillées ; pour un compte
+  /// vierge, la première épreuve TCF (CO) pour amorcer l'entraînement.
+  DashboardCategoryStat _priority() {
+    final worked = summary.allCategories
+        .where((s) => s.percent != null)
+        .toList()
+      ..sort((a, b) => a.percent!.compareTo(b.percent!));
+    if (worked.isNotEmpty) return worked.first;
+    final ordered = orderedTcfCategories(summary.tcf);
+    return ordered.isNotEmpty ? ordered.first : summary.allCategories.first;
+  }
+
+  int? _parcoursAverage(List<DashboardCategoryStat> stats) {
+    if (stats.isEmpty) return null;
+    final values = stats.map((s) => s.percent ?? 0).toList();
+    return (values.reduce((a, b) => a + b) / values.length).round();
+  }
 
   @override
-  Widget build(BuildContext context) {
-    final firstName = user?.firstName?.trim() ?? '';
-    final now = DateTime.now();
-    final day = _frenchDayLabel(now);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final priority = _priority();
+    final global = summary.globalSuccessPercent ?? 0;
+    final level = summary.estimatedTcfLevel;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
       children: [
-        Row(
-          children: [
-            const Cocarde(size: 32),
-            const SizedBox(width: 10),
-            Text(
-              'Sejour',
-              style: AppFonts.jakarta(
-                size: 17,
-                weight: FontWeight.w800,
-                color: AppColors.blue,
-              ).copyWith(letterSpacing: -0.3),
+        _PriorityCard(
+          stat: priority,
+          onTap: () => context.push(dashboardCategoryRoute(priority)),
+        ),
+        const SizedBox(height: 16),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: AppCard(
+                  padding: const EdgeInsets.all(14),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ProgressRing(
+                      value: global.toDouble(),
+                      size: 54,
+                      stroke: 6,
+                      color: global < 50 ? AppColors.red : AppColors.blue,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Maîtrise',
+                      style: AppFonts.ui(
+                        size: 12,
+                        weight: FontWeight.w600,
+                        color: AppColors.inkFaint,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            Text(
-              'FR',
-              style: AppFonts.jakarta(
-                size: 17,
-                weight: FontWeight.w800,
+            const SizedBox(width: 12),
+            Expanded(
+              child: StatValueCard(
+                value: '${summary.currentStreakDays} j',
+                label: 'Série en cours',
                 color: AppColors.red,
-              ).copyWith(letterSpacing: -0.3),
+              ),
             ),
-            const Spacer(),
-            _IconChip(
-              icon: Icons.person_outline_rounded,
-              onTap: () => context.go(AppRoutes.profile),
+            const SizedBox(width: 12),
+            Expanded(
+              child: StatValueCard(
+                value: level == null
+                    ? '—'
+                    : level == NiveauCecrl.a1NonAtteint
+                        ? '<A1'
+                        : level.displayName,
+                label: 'Niveau TCF',
+                color: AppColors.blue,
+              ),
             ),
           ],
-        ),
-        const SizedBox(height: 22),
-        Text(
-          day.toUpperCase(),
-          style: AppFonts.mono(
-            size: 10,
-            color: AppColors.muted,
-            letterSpacing: 2.0,
-            weight: FontWeight.w500,
           ),
         ),
-        const SizedBox(height: 8),
-        RichText(
-          text: TextSpan(
-            style: AppFonts.jakarta(
-              size: 26,
-              weight: FontWeight.w700,
-              color: AppColors.ink,
-              height: 1.15,
-            ).copyWith(letterSpacing: -0.5),
+        const SizedBox(height: 20),
+        const SectionTitle(title: 'Mes parcours'),
+        const SizedBox(height: 12),
+        _ParcoursCard(
+          label: 'TCF IRN',
+          icon: LucideIcons.audioLines,
+          color: AppColors.red,
+          average: _parcoursAverage(summary.tcf),
+          count: summary.tcf.length,
+          onTap: () {
+            ref.read(reviserParcoursProvider.notifier).state = AppModule.tcf;
+            context.go(AppRoutes.reviser);
+          },
+        ),
+        const SizedBox(height: 12),
+        _ParcoursCard(
+          label: 'Examen civique',
+          icon: LucideIcons.landmark,
+          color: AppColors.blue,
+          average: _parcoursAverage(summary.civique),
+          count: summary.civique.length,
+          onTap: () {
+            ref.read(reviserParcoursProvider.notifier).state =
+                AppModule.civique;
+            context.go(AppRoutes.reviser);
+          },
+        ),
+        const SizedBox(height: 20),
+        const SectionTitle(title: "Travailler avec l'IA"),
+        const SizedBox(height: 12),
+        const _AiCard(),
+        const SizedBox(height: 16),
+        AppCard(
+          color: AppColors.surface2,
+          onTap: () {
+            ref.read(examensParcoursProvider.notifier).state = AppModule.tcf;
+            context.go(AppRoutes.examens);
+          },
+          child: Row(
             children: [
-              const TextSpan(text: 'Bonjour'),
-              if (firstName.isNotEmpty)
-                TextSpan(
-                  text: ' $firstName',
-                  style: AppFonts.jakarta(
-                    size: 26,
-                    weight: FontWeight.w800,
-                    color: AppColors.blue,
-                    height: 1.15,
-                  ).copyWith(letterSpacing: -0.5),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  border: Border.all(color: AppColors.line),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
                 ),
-              const TextSpan(text: ',\ncontinuons votre '),
-              TextSpan(
-                text: 'préparation',
-                style: AppFonts.jakarta(
-                  size: 26,
-                  weight: FontWeight.w800,
-                  color: AppColors.blue,
-                  height: 1.15,
-                ).copyWith(letterSpacing: -0.5),
+                child: const Icon(LucideIcons.target,
+                    size: 23, color: AppColors.blue),
               ),
-              const TextSpan(text: '.'),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Examens blancs complets',
+                      style: AppFonts.ui(size: 15, weight: FontWeight.w700),
+                    ),
+                    Text(
+                      '20 épreuves par parcours, conditions réelles',
+                      style:
+                          AppFonts.ui(size: 12.5, color: AppColors.inkFaint),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(LucideIcons.chevronRight,
+                  size: 18, color: AppColors.inkFaint),
             ],
           ),
         ),
       ],
     );
   }
-
-  String _frenchDayLabel(DateTime d) {
-    const days = [
-      'Lundi',
-      'Mardi',
-      'Mercredi',
-      'Jeudi',
-      'Vendredi',
-      'Samedi',
-      'Dimanche'
-    ];
-    const months = [
-      'janvier',
-      'février',
-      'mars',
-      'avril',
-      'mai',
-      'juin',
-      'juillet',
-      'août',
-      'septembre',
-      'octobre',
-      'novembre',
-      'décembre',
-    ];
-    final dayName = days[d.weekday - 1];
-    final monthName = months[d.month - 1];
-    return '$dayName ${d.day} $monthName';
-  }
 }
 
-class _IconChip extends StatelessWidget {
-  const _IconChip({required this.icon, this.onTap});
+/// Carte bleue « À travailler en priorité » (cf. maquette) : catégorie la
+/// plus faible, barre blanche + %, pied « Continuer ».
+class _PriorityCard extends StatelessWidget {
+  const _PriorityCard({required this.stat, required this.onTap});
 
-  final IconData icon;
-  final VoidCallback? onTap;
+  final DashboardCategoryStat stat;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(11),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(11),
-        child: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(11),
-            border: Border.all(color: AppColors.line),
-          ),
-          alignment: Alignment.center,
-          child: Icon(icon, size: 18, color: AppColors.ink),
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// HERO PARCOURS — card bleu premium en lecture seule (l'édition de
-// l'objectif vit désormais dans le profil, pas dans le home — le home doit
-// rester un point d'entrée motivant, pas un panneau de réglages).
-// ---------------------------------------------------------------------------
-
-class _HeroParcoursCard extends StatelessWidget {
-  const _HeroParcoursCard({required this.target, required this.viewedCount});
-
-  final TargetProcedure? target;
-
-  /// Nombre total de questions vues (civique + tcf). `null` = en cours de
-  /// chargement → on n'affiche pas le chip pour ne pas afficher un sous-
-  /// total. `0` = pas encore commencé → idem, on cache (évite l'effet
-  /// "0 vues" déprimant à l'onboarding).
-  final int? viewedCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasTarget = target != null;
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.blue, AppColors.blueDark],
-        ),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.blue.withValues(alpha: 0.28),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
+    final percent = stat.percent ?? 0;
+    return AppCard(
+      padding: EdgeInsets.zero,
+      onTap: onTap,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: Stack(
+        borderRadius: BorderRadius.circular(AppRadii.lg - 1),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Décors géométriques — cohérence avec les hero des hubs.
-            Positioned(
-              top: -50,
-              right: -40,
-              child: Container(
-                width: 160,
-                height: 160,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.white.withValues(alpha: 0.06),
-                ),
-              ),
-            ),
-            Positioned(
-              right: -10,
-              bottom: -30,
-              child: Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.red.withValues(alpha: 0.22),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+            Container(
+              color: AppColors.blue,
+              padding: const EdgeInsets.all(18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
+                      Icon(LucideIcons.zap,
+                          size: 15,
+                          color: AppColors.white.withValues(alpha: 0.85)),
+                      const SizedBox(width: 6),
                       Text(
-                        'TON PARCOURS',
-                        style: AppFonts.mono(
-                          size: 10,
-                          color: AppColors.white.withValues(alpha: 0.7),
-                          letterSpacing: 1.8,
+                        'À TRAVAILLER EN PRIORITÉ',
+                        style: AppFonts.ui(
+                          size: 12.5,
                           weight: FontWeight.w600,
+                          color: AppColors.white.withValues(alpha: 0.85),
                         ),
                       ),
-                      const Spacer(),
-                      if (viewedCount != null && viewedCount! > 0)
-                        _ViewedChip(count: viewedCount!),
                     ],
                   ),
-                  const SizedBox(height: 14),
-                  if (hasTarget) ...[
-                    Text(
-                      target!.shortLabel,
-                      style: AppFonts.jakarta(
-                        size: 22,
-                        weight: FontWeight.w800,
-                        color: AppColors.white,
-                        height: 1.15,
-                      ).copyWith(letterSpacing: -0.4),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
+                  const SizedBox(height: 6),
+                  Text(
+                    stat.label,
+                    style:
+                        AppFonts.display(size: 20, color: AppColors.white),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 7,
+                          clipBehavior: Clip.antiAlias,
                           decoration: BoxDecoration(
-                            color: AppColors.white.withValues(alpha: 0.16),
-                            borderRadius: BorderRadius.circular(99),
+                            color: AppColors.white.withValues(alpha: 0.25),
+                            borderRadius:
+                                BorderRadius.circular(AppRadii.pill),
                           ),
-                          child: Text(
-                            'TCF ${target!.tcfLevel}',
-                            style: AppFonts.mono(
-                              size: 10,
-                              color: AppColors.white,
-                              letterSpacing: 1.4,
-                              weight: FontWeight.w700,
+                          alignment: Alignment.centerLeft,
+                          child: FractionallySizedBox(
+                            widthFactor: percent / 100,
+                            heightFactor: 1,
+                            child: const DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: AppColors.white,
+                                borderRadius: BorderRadius.all(
+                                    Radius.circular(AppRadii.pill)),
+                              ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(
-                            _parcoursPitch(target!),
-                            style: AppFonts.jakarta(
-                              size: 12.5,
-                              color: AppColors.white.withValues(alpha: 0.85),
-                              height: 1.35,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    Text(
-                      'Choisis ton parcours',
-                      style: AppFonts.jakarta(
-                        size: 22,
-                        weight: FontWeight.w800,
-                        color: AppColors.white,
-                      ).copyWith(letterSpacing: -0.4),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'CSP · CR · NAT — définis ta cible depuis ton profil pour personnaliser tes entraînements.',
-                      style: AppFonts.jakarta(
-                        size: 12.5,
-                        color: AppColors.white.withValues(alpha: 0.85),
-                        height: 1.4,
                       ),
+                      const SizedBox(width: 10),
+                      Text(
+                        '$percent %',
+                        style: AppFonts.ui(
+                          size: 13,
+                          weight: FontWeight.w700,
+                          color: AppColors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Continuer',
+                    style: AppFonts.ui(
+                      size: 14,
+                      weight: FontWeight.w600,
+                      color: AppColors.blue,
                     ),
-                  ],
+                  ),
+                  const Icon(LucideIcons.arrowRight,
+                      size: 18, color: AppColors.blue),
                 ],
               ),
             ),
@@ -521,525 +433,231 @@ class _HeroParcoursCard extends StatelessWidget {
       ),
     );
   }
-
-  String _parcoursPitch(TargetProcedure t) {
-    switch (t) {
-      case TargetProcedure.csp:
-        return 'Titre de séjour — niveau A2 visé.';
-      case TargetProcedure.cr:
-        return 'Carte de résident — niveau B1 visé.';
-      case TargetProcedure.nat:
-        return 'Naturalisation — niveau B2 visé.';
-    }
-  }
 }
 
-/// Chip top-right du card bleu : compteur global de questions vues (civique
-/// + tcf agrégés). Donnée 100 % réelle (somme `byTheme.answered`), pas de
-/// fake number. Pluriel à 2+, masqué à 0 (cf. param `viewedCount`).
-class _ViewedChip extends StatelessWidget {
-  const _ViewedChip({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = count > 1 ? '$count vues' : '$count vue';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.check_circle_rounded,
-            size: 13,
-            color: AppColors.white.withValues(alpha: 0.95),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: AppFonts.jakarta(
-              size: 12,
-              weight: FontWeight.w800,
-              color: AppColors.white,
-            ).copyWith(letterSpacing: -0.1),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// SECTION TITLE
-// ---------------------------------------------------------------------------
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.label, this.trailing});
+class _ParcoursCard extends StatelessWidget {
+  const _ParcoursCard({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.average,
+    required this.count,
+    required this.onTap,
+  });
 
   final String label;
-  final String? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Text(
-          label,
-          style: AppFonts.jakarta(
-            size: 17,
-            weight: FontWeight.w800,
-            color: AppColors.ink,
-          ).copyWith(letterSpacing: -0.3),
-        ),
-        const Spacer(),
-        if (trailing != null)
-          Flexible(
-            child: Text(
-              trailing!,
-              style: AppFonts.mono(
-                size: 9.5,
-                color: AppColors.muted,
-                letterSpacing: 1.8,
-                weight: FontWeight.w500,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.right,
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// MODULE CARD COMPACTE — horizontale, ~88px de hauteur, accent latéral
-// ---------------------------------------------------------------------------
-
-enum _ModuleKind { civique, tcf }
-
-class _ModuleCard extends StatelessWidget {
-  const _ModuleCard({
-    required this.kind,
-    required this.stats,
-    required this.onTap,
-    this.isDemo = false,
-  });
-
-  final _ModuleKind kind;
-  final AsyncValue<UserStats> stats;
-  final VoidCallback onTap;
-  final bool isDemo;
-
-  bool get _isCivique => kind == _ModuleKind.civique;
-
-  Color get _accent => _isCivique ? AppColors.blue : AppColors.red;
-
-  Color get _accentLight =>
-      _isCivique ? AppColors.blueLight : AppColors.redLight;
-
-  IconData get _icon =>
-      _isCivique ? Icons.account_balance_rounded : Icons.translate_rounded;
-
-  String get _title => _isCivique ? 'Examen civique' : 'TCF · Test de français';
-
-  String get _subtitle => _isCivique ? 'CSP · CR · NAT' : 'A2 · B1 · B2';
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = stats.maybeWhen(
-      data: _ModuleProgress.fromStats,
-      orElse: () => null,
-    );
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.line),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.ink.withValues(alpha: 0.03),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            child: Stack(
-              children: [
-                // Filet latéral coloré (4px)
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  child: Container(width: 4, color: _accent),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          // Icône
-                          Container(
-                            width: 46,
-                            height: 46,
-                            decoration: BoxDecoration(
-                              color: _accentLight,
-                              borderRadius: BorderRadius.circular(13),
-                            ),
-                            alignment: Alignment.center,
-                            child: Icon(_icon, size: 22, color: _accent),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Row(
-                                  children: [
-                                    Flexible(
-                                      child: Text(
-                                        _title,
-                                        style: AppFonts.jakarta(
-                                          size: 15.5,
-                                          weight: FontWeight.w800,
-                                          color: AppColors.ink,
-                                        ).copyWith(letterSpacing: -0.2),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    if (isDemo) ...[
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 2,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.amber
-                                              .withValues(alpha: 0.16),
-                                          borderRadius:
-                                              BorderRadius.circular(4),
-                                        ),
-                                        child: Text(
-                                          'DÉMO',
-                                          style: AppFonts.mono(
-                                            size: 8.5,
-                                            color: AppColors.amber,
-                                            letterSpacing: 1.2,
-                                            weight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _subtitle,
-                                  style: AppFonts.mono(
-                                    size: 10,
-                                    color: AppColors.muted,
-                                    letterSpacing: 1.4,
-                                    weight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            color: _accent,
-                            size: 22,
-                          ),
-                        ],
-                      ),
-                      // Barre de couverture + label si le user a déjà touché
-                      // au module. Sinon état "Pas encore commencé" pour
-                      // inviter à démarrer. Aligné avec les hubs et l'écran
-                      // Progression : `answered/total` du pool.
-                      const SizedBox(height: 12),
-                      _ModuleProgressStrip(
-                        progress: progress,
-                        accent: _accent,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Mini barre de progression (maîtrise = bonnes réponses / total) + label
-/// "X/Y réussies · N vues" sous la card module. Quand le user n'a pas encore
-/// touché au module, affichage "Pas encore commencé — appuie pour démarrer".
-class _ModuleProgressStrip extends StatelessWidget {
-  const _ModuleProgressStrip({required this.progress, required this.accent});
-
-  final _ModuleProgress? progress;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = progress;
-    if (p == null || !p.isStarted) {
-      return Row(
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: AppColors.muted2,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            p == null
-                ? 'Chargement…'
-                : 'Pas encore commencé · appuie pour démarrer',
-            style: AppFonts.jakarta(
-              size: 11.5,
-              color: AppColors.muted,
-            ),
-          ),
-        ],
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Barre 4px, accent module.
-        Stack(
-          children: [
-            Container(
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.line2,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-            FractionallySizedBox(
-              alignment: Alignment.centerLeft,
-              widthFactor: p.mastery.clamp(0.02, 1.0),
-              child: Container(
-                height: 4,
-                decoration: BoxDecoration(
-                  color: accent,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          '${p.correct}/${p.total} réussies · ${p.masteryPct} % · ${p.answered} vues',
-          style: AppFonts.jakarta(
-            size: 11.5,
-            color: AppColors.muted,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// SHORTCUT TILES
-// ---------------------------------------------------------------------------
-
-class _ShortcutTile extends StatelessWidget {
-  const _ShortcutTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.accent,
-    required this.accentBg,
-    required this.onTap,
-  });
-
   final IconData icon;
-  final String title;
-  final String subtitle;
-  final Color accent;
-  final Color accentBg;
+  final Color color;
+  final int? average;
+  final int count;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final sub = average == null
+        ? '$count catégories'
+        : '$count catégories · $average % de maîtrise';
     return AppCard(
       onTap: onTap,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: accentBg,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Icon(icon, size: 18, color: accent),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: AppFonts.jakarta(size: 14, weight: FontWeight.w800),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: AppFonts.jakarta(
-              size: 11.5,
-              color: AppColors.muted,
-              height: 1.35,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// NOTE D'INDÉPENDANCE — disclaimer court de non-affiliation (conformité
-// stores). Le « En savoir plus » pousse la page À propos (disclaimer complet
-// + sources officielles).
-// ---------------------------------------------------------------------------
-
-class _IndependenceNote extends StatelessWidget {
-  const _IndependenceNote();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(8),
-          onTap: () => context.push(AppRoutes.about),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            child: Text.rich(
-              TextSpan(
-                style: AppFonts.jakarta(
-                  size: 11.5,
-                  color: AppColors.muted,
-                  height: 1.4,
-                ),
-                children: [
-                  const TextSpan(
-                    text: 'Outil indépendant — non affilié à l\'État français · ',
-                  ),
-                  TextSpan(
-                    text: 'En savoir plus',
-                    style: AppFonts.jakarta(
-                      size: 11.5,
-                      color: AppColors.blue,
-                      weight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// DAILY TIP
-// ---------------------------------------------------------------------------
-
-class _DailyTip extends StatelessWidget {
-  const _DailyTip();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-      decoration: BoxDecoration(
-        color: AppColors.blueSoft,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.blue.withValues(alpha: 0.08)),
-      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 3,
-            height: 56,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: AppColors.blue.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(2),
+              color: color,
+              borderRadius: BorderRadius.circular(AppRadii.md),
             ),
+            child: Icon(icon, size: 24, color: AppColors.white),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'LE SAVIEZ-VOUS ?',
-                  style: AppFonts.mono(
-                    size: 9.5,
-                    color: AppColors.blue,
-                    letterSpacing: 1.8,
-                    weight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '« Liberté, Égalité, Fraternité »',
-                  style: AppFonts.fraunces(
-                    size: 17,
-                    weight: FontWeight.w500,
-                    fontStyle: FontStyle.italic,
-                    height: 1.3,
-                    color: AppColors.ink,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'Devise inscrite à l\'article 2 de la Constitution du 4 octobre 1958.',
-                  style: AppFonts.jakarta(
-                    size: 12,
-                    color: AppColors.muted,
-                    height: 1.4,
-                  ),
-                ),
+                Text(label,
+                    style: AppFonts.ui(size: 16, weight: FontWeight.w700)),
+                Text(sub,
+                    style:
+                        AppFonts.ui(size: 12.5, color: AppColors.inkFaint)),
               ],
             ),
           ),
+          const Icon(LucideIcons.chevronRight,
+              size: 18, color: AppColors.inkFaint),
         ],
+      ),
+    );
+  }
+}
+
+/// Bloc « Travailler avec l'IA » : bandeau gradient bleu + deux entrées
+/// Expression écrite / Expression orale côte à côte.
+class _AiCard extends StatelessWidget {
+  const _AiCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadii.lg - 1),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.blue, AppColors.blueDark],
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(AppRadii.md),
+                    ),
+                    child: const Icon(LucideIcons.sparkles,
+                        size: 22, color: AppColors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Améliorez votre expression',
+                          style: AppFonts.display(
+                              size: 15.5, color: AppColors.white),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          "Correction détaillée par l'IA et niveau estimé en quelques secondes",
+                          style: AppFonts.ui(
+                            size: 12.5,
+                            color: AppColors.white.withValues(alpha: 0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IntrinsicHeight(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _AiEntry(
+                      icon: LucideIcons.penLine,
+                      iconBg: AppColors.blueLight,
+                      iconColor: AppColors.blueDark,
+                      title: 'Expression écrite',
+                      action: 'Rédiger',
+                      actionColor: AppColors.blue,
+                      onTap: () => context.push(AppRoutes.tcfEeDetail),
+                    ),
+                  ),
+                  const VerticalDivider(width: 1),
+                  Expanded(
+                    child: _AiEntry(
+                      icon: LucideIcons.mic,
+                      iconBg: AppColors.redLight,
+                      iconColor: AppColors.red,
+                      title: 'Expression orale',
+                      action: 'Enregistrer',
+                      actionColor: AppColors.red,
+                      onTap: () => context.push(AppRoutes.tcfEoDetail),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AiEntry extends StatelessWidget {
+  const _AiEntry({
+    required this.icon,
+    required this.iconBg,
+    required this.iconColor,
+    required this.title,
+    required this.action,
+    required this.actionColor,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color iconBg;
+  final Color iconColor;
+  final String title;
+  final String action;
+  final Color actionColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.white,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                child: Icon(icon, size: 20, color: iconColor),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppFonts.ui(size: 14, weight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 1),
+                    Row(
+                      children: [
+                        Text(
+                          action,
+                          style: AppFonts.ui(
+                            size: 11.5,
+                            weight: FontWeight.w600,
+                            color: actionColor,
+                          ),
+                        ),
+                        const SizedBox(width: 3),
+                        Icon(LucideIcons.arrowRight,
+                            size: 12, color: actionColor),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

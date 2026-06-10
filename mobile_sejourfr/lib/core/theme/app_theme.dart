@@ -3,7 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../models/enums.dart';
 
-/// Palette de couleurs officielle SejourFR — exactement les valeurs du template.
+/// Palette SejourFR — refonte 2026 (maquette `SejourFR_Mobile_Autonome.html`).
+///
+/// Marque : Bleu France + Rouge France conservés. Neutres calmes en trois
+/// niveaux de surface (surface > surface2 > surface3) sur fond très clair.
+/// Sémantique maquette : `primary` = bleu, `accent` = rouge (usage rare),
+/// TCF = rouge, Civique = bleu.
 class AppColors {
   static const blue = Color(0xFF1E3A8C);
   static const blueDark = Color(0xFF15296B);
@@ -21,11 +26,34 @@ class AppColors {
 
   static const line = Color(0xFFE4E7F2);
   static const line2 = Color(0xFFEEF0F8);
-  static const bg = Color(0xFFF7F8FC);
+  static const bg = Color(0xFFF9FAFD);
   static const white = Color(0xFFFFFFFF);
 
+  /// Surfaces intermédiaires (cartes dans cartes, fonds de pastilles).
+  static const surface2 = Color(0xFFF3F5FA);
+  static const surface3 = Color(0xFFEBEEF5);
+
   static const green = Color(0xFF168F5B);
+  static const greenLight = Color(0xFFE3F4EB);
   static const amber = Color(0xFFE8A317);
+  static const amberLight = Color(0xFFFCF1DA);
+
+  // Alias sémantiques maquette.
+  static const inkSoft = muted;
+  static const inkFaint = muted2;
+  static const lineSoft = line2;
+
+  /// Voile sombre des bottom sheets.
+  static const scrim = Color(0x660E1624);
+}
+
+/// Rayons standardisés de la maquette.
+class AppRadii {
+  static const sm = 8.0;
+  static const md = 12.0;
+  static const lg = 18.0;
+  static const xl = 26.0;
+  static const pill = 999.0;
 }
 
 /// Couleur associée à un niveau CECRL pour les badges / barres de niveau.
@@ -43,28 +71,87 @@ extension CecrlColor on NiveauCecrl {
       };
 }
 
+/// Rampe de couleur d'une maîtrise 0-100 (rouge → corail → ardoise → bleu →
+/// Bleu France). Reprise de `mBarColor` de la maquette, re-teintée marque.
+Color masteryColor(num value) {
+  if (value < 40) return const Color(0xFFCB4341);
+  if (value < 55) return const Color(0xFFC96A3F);
+  if (value < 70) return const Color(0xFF5C73A6);
+  if (value < 85) return const Color(0xFF3355B0);
+  return AppColors.blue;
+}
+
+/// Libellé qualitatif d'une maîtrise 0-100 (cf. `masteryLabel` maquette).
+String masteryLabel(num value) {
+  if (value >= 80) return 'Solide';
+  if (value >= 60) return 'En bonne voie';
+  if (value >= 40) return 'À renforcer';
+  return 'Fragile';
+}
+
 /// Ombres réutilisables partagées entre les cartes du produit.
 class AppShadows {
-  /// Ombre douce sous les cartes blanches (hubs TCF, Civique, EE/EO).
+  /// Ombre très douce des cartes blanches (shadow-sm maquette).
   static const card = <BoxShadow>[
     BoxShadow(
-      color: Color(0x0A0F1839),
-      blurRadius: 12,
-      offset: Offset(0, 4),
+      color: Color(0x0F32405E),
+      blurRadius: 3,
+      offset: Offset(0, 1),
+    ),
+    BoxShadow(
+      color: Color(0x0A32405E),
+      blurRadius: 2,
+      offset: Offset(0, 1),
+    ),
+  ];
+
+  /// Ombre marquée des éléments en avant (héros, sheets, carte pass).
+  static const md = <BoxShadow>[
+    BoxShadow(
+      color: Color(0x1432405E),
+      blurRadius: 20,
+      offset: Offset(0, 8),
+    ),
+    BoxShadow(
+      color: Color(0x0D32405E),
+      blurRadius: 4,
+      offset: Offset(0, 2),
     ),
   ];
 }
 
-/// Helpers pour les polices Google Fonts.
+/// Helpers typographiques.
+///
+/// Refonte 2026 : **Bricolage Grotesque** pour les titres et les chiffres
+/// (display), **Hanken Grotesk** pour tout le reste (ui). Les anciens helpers
+/// `jakarta` / `fraunces` / `mono` délèguent vers les nouveaux le temps de la
+/// migration écran par écran — ne plus les utiliser dans du code neuf.
 class AppFonts {
-  static TextStyle jakarta({
+  /// Titres, gros chiffres, identité (Bricolage Grotesque).
+  /// Tracking serré (-0.02em) comme la maquette.
+  static TextStyle display({
+    double size = 19,
+    FontWeight weight = FontWeight.w700,
+    Color color = AppColors.ink,
+    double? height,
+  }) =>
+      GoogleFonts.bricolageGrotesque(
+        fontSize: size,
+        fontWeight: weight,
+        color: color,
+        height: height ?? 1.1,
+        letterSpacing: size * -0.02,
+      );
+
+  /// Corps, boutons, navigation (Hanken Grotesk).
+  static TextStyle ui({
     double size = 14,
     FontWeight weight = FontWeight.w500,
     Color color = AppColors.ink,
     double? height,
     double? letterSpacing,
   }) =>
-      GoogleFonts.plusJakartaSans(
+      GoogleFonts.hankenGrotesk(
         fontSize: size,
         fontWeight: weight,
         color: color,
@@ -72,41 +159,35 @@ class AppFonts {
         letterSpacing: letterSpacing,
       );
 
-  static TextStyle fraunces({
-    double size = 28,
-    FontWeight weight = FontWeight.w600,
-    Color color = AppColors.ink,
-    double? height,
-    double? letterSpacing = -0.02,
-    FontStyle? fontStyle,
+  /// Petits labels d'entête de section (uppercase, tracking léger).
+  static TextStyle label({
+    double size = 12,
+    Color color = AppColors.inkFaint,
   }) =>
-      GoogleFonts.fraunces(
-        fontSize: size,
-        fontWeight: weight,
+      ui(
+        size: size,
+        weight: FontWeight.w700,
         color: color,
-        height: height,
-        letterSpacing: letterSpacing,
-        fontStyle: fontStyle,
+        letterSpacing: size * 0.05,
       );
 
+  @Deprecated('Refonte 2026 : utiliser AppFonts.label')
   static TextStyle mono({
     double size = 11,
     FontWeight weight = FontWeight.w500,
     Color color = AppColors.muted,
     double letterSpacing = 1.8,
   }) =>
-      GoogleFonts.jetBrainsMono(
-        fontSize: size,
-        fontWeight: weight,
+      ui(
+        size: size,
+        weight: FontWeight.w700,
         color: color,
-        letterSpacing: letterSpacing,
+        letterSpacing: size * 0.05,
       );
 
-  /// Eyebrow typographique : petits labels en monospace majuscule.
+  /// Eyebrow typographique : petits labels en majuscule.
   static TextStyle eyebrow({Color color = AppColors.muted}) =>
-      mono(size: 10, color: color, letterSpacing: 2.0).copyWith(
-        height: 1.0,
-      );
+      label(size: 10.5, color: color).copyWith(height: 1.0);
 }
 
 /// Configuration du Material Theme.
@@ -122,7 +203,7 @@ ThemeData buildAppTheme() {
       error: AppColors.red,
       brightness: Brightness.light,
     ),
-    textTheme: GoogleFonts.plusJakartaSansTextTheme().apply(
+    textTheme: GoogleFonts.hankenGroteskTextTheme().apply(
       bodyColor: AppColors.ink,
       displayColor: AppColors.ink,
     ),
@@ -131,11 +212,7 @@ ThemeData buildAppTheme() {
       elevation: 0,
       scrolledUnderElevation: 0,
       surfaceTintColor: Colors.transparent,
-      titleTextStyle: AppFonts.jakarta(
-        size: 16,
-        weight: FontWeight.w700,
-        color: AppColors.ink,
-      ),
+      titleTextStyle: AppFonts.display(size: 17, color: AppColors.ink),
       iconTheme: const IconThemeData(color: AppColors.ink),
     ),
     inputDecorationTheme: InputDecorationTheme(
@@ -143,26 +220,30 @@ ThemeData buildAppTheme() {
       fillColor: AppColors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.md),
         borderSide: const BorderSide(color: AppColors.line),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.md),
         borderSide: const BorderSide(color: AppColors.line),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.md),
         borderSide: const BorderSide(color: AppColors.blue, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadii.md),
         borderSide: const BorderSide(color: AppColors.red),
       ),
-      labelStyle: AppFonts.mono(color: AppColors.muted, size: 10),
-      hintStyle: AppFonts.jakarta(color: AppColors.muted2),
+      labelStyle: AppFonts.ui(
+        size: 13,
+        weight: FontWeight.w600,
+        color: AppColors.muted,
+      ),
+      hintStyle: AppFonts.ui(color: AppColors.muted2),
     ),
     dividerTheme: const DividerThemeData(
-      color: AppColors.line,
+      color: AppColors.lineSoft,
       thickness: 1,
       space: 1,
     ),

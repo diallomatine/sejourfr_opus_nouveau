@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -148,10 +149,10 @@ class _WritingZoneState extends State<WritingZone>
   }
 
   IconData get _statusIcon {
-    if (widget.wordCount == 0) return Icons.edit_outlined;
-    if (_overMax) return Icons.warning_amber_rounded;
-    if (_underMin) return Icons.info_outline_rounded;
-    return Icons.check_circle_rounded;
+    if (widget.wordCount == 0) return LucideIcons.penLine;
+    if (_overMax) return LucideIcons.triangleAlert;
+    if (_underMin) return LucideIcons.info;
+    return LucideIcons.circleCheck;
   }
 
   // ---------- Stats dérivées ----------
@@ -197,7 +198,7 @@ class _WritingZoneState extends State<WritingZone>
         ),
         title: Text(
           'Effacer la rédaction ?',
-          style: AppFonts.jakarta(
+          style: AppFonts.ui(
             size: 16,
             weight: FontWeight.w700,
             color: AppColors.ink,
@@ -205,7 +206,7 @@ class _WritingZoneState extends State<WritingZone>
         ),
         content: Text(
           'Tout le texte sera supprimé. Cette action est irréversible.',
-          style: AppFonts.jakarta(
+          style: AppFonts.ui(
             size: 14,
             color: AppColors.muted,
             height: 1.4,
@@ -216,7 +217,7 @@ class _WritingZoneState extends State<WritingZone>
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(
               'Annuler',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 14,
                 weight: FontWeight.w600,
                 color: AppColors.muted,
@@ -233,7 +234,7 @@ class _WritingZoneState extends State<WritingZone>
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(
               'Effacer',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 14,
                 weight: FontWeight.w700,
                 color: AppColors.white,
@@ -295,7 +296,7 @@ class _WritingZoneState extends State<WritingZone>
           child: Row(
             children: [
               Icon(
-                Icons.edit_note_rounded,
+                LucideIcons.penLine,
                 size: 18,
                 color: focused ? AppColors.blue : AppColors.ink,
               ),
@@ -303,7 +304,7 @@ class _WritingZoneState extends State<WritingZone>
               Flexible(
                 child: Text(
                   widget.title,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 14,
                     weight: FontWeight.w700,
                     color: focused ? AppColors.blue : AppColors.ink,
@@ -330,7 +331,7 @@ class _WritingZoneState extends State<WritingZone>
             ),
             child: Text(
               '${widget.wordCount} mots',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 12,
                 weight: FontWeight.w700,
                 color: _inRange ? AppColors.green : AppColors.muted,
@@ -341,7 +342,7 @@ class _WritingZoneState extends State<WritingZone>
         if (widget.onExpand != null) ...[
           const SizedBox(width: 8),
           _IconAction(
-            icon: Icons.open_in_full_rounded,
+            icon: LucideIcons.maximize2,
             tooltip: 'Mode plein écran',
             onTap: widget.onExpand!,
             color: AppColors.muted,
@@ -446,7 +447,7 @@ class _WritingZoneState extends State<WritingZone>
         cursorColor: AppColors.blue,
         cursorWidth: 1.5,
         cursorRadius: const Radius.circular(1),
-        style: AppFonts.jakarta(
+        style: AppFonts.ui(
           size: 15,
           color: AppColors.ink,
           height: 1.6,
@@ -462,7 +463,7 @@ class _WritingZoneState extends State<WritingZone>
           errorBorder: InputBorder.none,
           focusedErrorBorder: InputBorder.none,
           hintText: widget.hint,
-          hintStyle: AppFonts.jakarta(
+          hintStyle: AppFonts.ui(
             size: 15,
             color: AppColors.muted2,
             height: 1.6,
@@ -484,22 +485,22 @@ class _WritingZoneState extends State<WritingZone>
               runSpacing: 4,
               children: [
                 _StatChip(
-                  icon: Icons.text_fields_rounded,
+                  icon: LucideIcons.type,
                   label: '${widget.wordCount} mots',
                 ),
                 _StatChip(
-                  icon: Icons.short_text_rounded,
+                  icon: LucideIcons.text,
                   label: '$_charCount car.',
                 ),
                 if (_sentenceCount > 0)
                   _StatChip(
-                    icon: Icons.format_quote_rounded,
+                    icon: LucideIcons.quote,
                     label:
                         '$_sentenceCount ${_sentenceCount > 1 ? "phrases" : "phrase"}',
                   ),
                 if (_readingTimeSec > 0)
                   _StatChip(
-                    icon: Icons.schedule_rounded,
+                    icon: LucideIcons.clock,
                     label: _readingTimeLabel,
                   ),
               ],
@@ -524,7 +525,7 @@ class _WritingZoneState extends State<WritingZone>
                   child: Text(
                     _statusLabel,
                     overflow: TextOverflow.ellipsis,
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 12,
                       weight: FontWeight.w600,
                       color: _statusColor,
@@ -537,7 +538,7 @@ class _WritingZoneState extends State<WritingZone>
           if (widget.onClear != null) ...[
             const SizedBox(width: 8),
             _IconAction(
-              icon: Icons.delete_outline_rounded,
+              icon: LucideIcons.trash2,
               tooltip: 'Effacer',
               onTap: _handleClear,
               color: AppColors.red,
@@ -567,18 +568,18 @@ class _WritingZoneState extends State<WritingZone>
             const SizedBox(width: 6),
             Text(
               'Enregistrement…',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 11,
                 color: AppColors.muted,
                 weight: FontWeight.w500,
               ),
             ),
           ] else if (widget.lastSavedAt != null) ...[
-            Icon(Icons.cloud_done_outlined, size: 12, color: AppColors.green),
+            Icon(LucideIcons.cloudCheck, size: 12, color: AppColors.green),
             const SizedBox(width: 4),
             Text(
               'Enregistré ${_formatSavedAt(widget.lastSavedAt!)}',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 11,
                 color: AppColors.muted,
                 weight: FontWeight.w500,
@@ -608,7 +609,7 @@ class _StatChip extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           label,
-          style: AppFonts.jakarta(
+          style: AppFonts.ui(
             size: 12,
             color: AppColors.muted,
             weight: FontWeight.w500,

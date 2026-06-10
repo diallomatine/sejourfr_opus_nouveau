@@ -45,7 +45,7 @@ class ExamStatCard extends StatelessWidget {
               text: TextSpan(children: [
                 TextSpan(
                   text: value,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 18,
                     weight: FontWeight.w700,
                     color: valueColor,
@@ -54,7 +54,7 @@ class ExamStatCard extends StatelessWidget {
                 if (suffix.isNotEmpty)
                   TextSpan(
                     text: suffix,
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 12,
                       weight: FontWeight.w500,
                       color: AppColors.muted2,
@@ -66,7 +66,7 @@ class ExamStatCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: AppFonts.jakarta(size: 10.5, color: AppColors.muted),
+            style: AppFonts.ui(size: 10.5, color: AppColors.muted),
             textAlign: TextAlign.center,
           ),
         ],

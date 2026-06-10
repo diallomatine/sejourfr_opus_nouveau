@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -106,7 +107,7 @@ class _EoResultsScreenState extends ConsumerState<EoResultsScreen> {
             padding: const EdgeInsets.all(20),
             child: Text(
               ApiClient.toApiException(e).message,
-              style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+              style: AppFonts.ui(size: 13, color: AppColors.muted),
               textAlign: TextAlign.center,
             ),
           ),
@@ -245,7 +246,7 @@ class _Body extends ConsumerWidget {
                 const SizedBox(height: 4),
                 Text(
                   'Transcription de votre enregistrement',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 15,
                     weight: FontWeight.w700,
                     color: AppColors.ink,
@@ -268,7 +269,7 @@ class _Body extends ConsumerWidget {
             child: isHistory
                 ? AppButton(
                     label: 'Retour',
-                    icon: Icons.arrow_back_rounded,
+                    icon: LucideIcons.arrowLeft,
                     onPressed: () {
                       if (Navigator.of(context).canPop()) {
                         Navigator.of(context).pop();
@@ -278,7 +279,7 @@ class _Body extends ConsumerWidget {
                 : _isSingleTask
                     ? AppButton(
                         label: 'Retour à l\'entraînement',
-                        icon: Icons.grid_view_rounded,
+                        icon: LucideIcons.layoutGrid,
                         onPressed: () {
                           // Retour à l'écran d'entraînement Expression orale
                           // (onglet Entraînement, carrousel de situations).
@@ -294,7 +295,7 @@ class _Body extends ConsumerWidget {
                         // jamais sur ce screen — le bilan détaillé est
                         // poussé directement par `eo_finished_screen`.
                         label: _bilanCtaLabel,
-                        icon: Icons.bar_chart_rounded,
+                        icon: LucideIcons.chartColumn,
                         onPressed: () => _navigateToBilan(context, ref),
                       ),
           ),
@@ -339,7 +340,7 @@ class _CriteresCard extends StatelessWidget {
         children: [
           Text(
             'Detail par criteres',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 15,
               weight: FontWeight.w700,
               color: AppColors.ink,
@@ -374,12 +375,12 @@ class _CorrectionsCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.lightbulb_outline_rounded,
+              const Icon(LucideIcons.lightbulb,
                   size: 18, color: AppColors.amber),
               const SizedBox(width: 8),
               Text(
                 'Exemples et corrections',
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 15,
                   weight: FontWeight.w700,
                   color: AppColors.ink,
@@ -408,12 +409,12 @@ class _FailedBlock extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline_rounded,
+          const Icon(LucideIcons.circleAlert,
               size: 40, color: AppColors.red),
           const SizedBox(height: 12),
           Text(
             "L'evaluation n'a pas abouti",
-            style: AppFonts.fraunces(
+            style: AppFonts.display(
               size: 18,
               weight: FontWeight.w700,
               color: AppColors.ink,
@@ -423,7 +424,7 @@ class _FailedBlock extends StatelessWidget {
           Text(
             submission.erreurMessage ?? 'Une erreur est survenue.',
             textAlign: TextAlign.center,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13,
               color: AppColors.muted,
               height: 1.45,
@@ -434,7 +435,7 @@ class _FailedBlock extends StatelessWidget {
             label: submission.retryCount >= 3
                 ? 'Plafond de retries atteint'
                 : "Reessayer l'evaluation",
-            icon: Icons.refresh_rounded,
+            icon: LucideIcons.refreshCw,
             onPressed: submission.retryCount >= 3 ? null : onRetry,
           ),
         ],

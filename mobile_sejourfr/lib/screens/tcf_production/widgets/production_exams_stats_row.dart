@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/enums.dart';
 import '../../../core/theme/app_theme.dart';
@@ -28,7 +29,7 @@ class ProductionExamsStatsRow extends StatelessWidget {
       children: [
         Expanded(
           child: ExamStatCard(
-            icon: Icons.checklist_rounded,
+            icon: LucideIcons.listChecks,
             iconColor: AppColors.blue,
             value: '$doneCount',
             suffix: '/$totalCount',
@@ -39,7 +40,7 @@ class ProductionExamsStatsRow extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: ExamStatCard(
-            icon: Icons.adjust_rounded,
+            icon: LucideIcons.target,
             iconColor: AppColors.green,
             value: avgScore == null ? '—' : avgScore!.round().toString(),
             suffix: avgScore == null ? '' : '/20',
@@ -50,7 +51,7 @@ class ProductionExamsStatsRow extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: ExamStatCard(
-            icon: Icons.local_fire_department_rounded,
+            icon: LucideIcons.flame,
             iconColor: AppColors.red,
             value: niveau?.displayName ?? '—',
             suffix: '',

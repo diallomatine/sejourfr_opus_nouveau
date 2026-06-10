@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/sejourfr_logo.dart';
@@ -38,11 +39,11 @@ class _EvaluationLoadingViewState extends State<EvaluationLoadingView>
       duration: const Duration(seconds: 6),
     )..repeat();
     _steps = [
-      const _Step(label: 'Envoi de votre production', icon: Icons.cloud_upload_outlined),
+      const _Step(label: 'Envoi de votre production', icon: LucideIcons.cloudUpload),
       if (widget.includeTranscription)
-        const _Step(label: 'Transcription audio', icon: Icons.graphic_eq_rounded),
-      const _Step(label: 'Analyse pedagogique', icon: Icons.psychology_outlined),
-      const _Step(label: 'Preparation de votre bilan', icon: Icons.assignment_turned_in_outlined),
+        const _Step(label: 'Transcription audio', icon: LucideIcons.audioLines),
+      const _Step(label: 'Analyse pedagogique', icon: LucideIcons.brain),
+      const _Step(label: 'Preparation de votre bilan', icon: LucideIcons.clipboardCheck),
     ];
     // Cadences indicatives (en secondes), recalibrees selon la vitesse reelle
     // si jamais on bascule en async un jour. Total ~18 s avec transcription,
@@ -90,14 +91,14 @@ class _EvaluationLoadingViewState extends State<EvaluationLoadingView>
               const SizedBox(height: 28),
               Text(
                 'Analyse en cours',
-                style: AppFonts.fraunces(size: 22, weight: FontWeight.w700, color: AppColors.ink),
+                style: AppFonts.display(size: 22, weight: FontWeight.w700, color: AppColors.ink),
               ),
               const SizedBox(height: 6),
               Text(
                 _stepIndex == _steps.length - 1
                     ? 'Encore quelques secondes…'
                     : 'Votre evaluation arrive juste apres.',
-                style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+                style: AppFonts.ui(size: 13, color: AppColors.muted),
               ),
               const SizedBox(height: 28),
               ..._steps.asMap().entries.map((entry) {
@@ -159,7 +160,7 @@ class _StepTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: isDone
-                ? const Icon(Icons.check_rounded, size: 18, color: AppColors.green)
+                ? const Icon(LucideIcons.check, size: 18, color: AppColors.green)
                 : isActive
                     ? SizedBox(
                         width: 14,
@@ -175,7 +176,7 @@ class _StepTile extends StatelessWidget {
           Expanded(
             child: Text(
               step.label,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13,
                 weight: isActive || isDone ? FontWeight.w700 : FontWeight.w500,
                 color: isActive || isDone ? AppColors.ink : AppColors.muted,
