@@ -141,6 +141,24 @@ function ExamsConnectedHome() {
         () => examSlotGrid(civique, SLOTS),
         [civique],
     );
+    // Check vert civique : examen terminé (qu'il soit réussi ou non, comme le
+    // full exam TCF qui coche dès qu'il est terminé). Le score reste coloré
+    // vert/rouge selon le seuil ; le check marque juste « déjà passé ».
+    const civiqueSlotData: (ExamSlotData | null)[] = useMemo(
+        () =>
+            civiqueBySlot.map((a) =>
+                a
+                    ? {
+                        id: a.id,
+                        score: a.score,
+                        totalQuestions: a.totalQuestions,
+                        passThreshold: a.passThreshold,
+                        passed: true,
+                    }
+                    : null,
+            ),
+        [civiqueBySlot],
+    );
     const {bySlot: tcfCompBySlot, latest: tcfCompLatest} = useMemo(
         () => examSlotGrid(tcfComprehension, SLOTS),
         [tcfComprehension],
@@ -160,6 +178,7 @@ function ExamsConnectedHome() {
         e
             ? {
                 id: e.id,
+                passed: e.status === "COMPLETED",
                 metaOverride:
                     e.status === "COMPLETED"
                         ? niveauCecrlLabel(e.finalCecrlLevel)
@@ -288,7 +307,7 @@ function ExamsConnectedHome() {
             >
                 <ExamsGrid
                     count={SLOTS}
-                    exams={civiqueBySlot}
+                    exams={civiqueSlotData}
                     premium={civiquePremium}
                     starting={false}
                     itemLabel="Examen"

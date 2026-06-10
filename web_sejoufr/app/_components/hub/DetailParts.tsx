@@ -26,6 +26,10 @@ export interface ExamSlotData {
   /** Remplace l'affichage « Dernier : score/total » (ex: niveau CECRL d'un
    *  examen TCF complet, « Éval en cours… »). */
   metaOverride?: string | null;
+  /** Examen réussi/terminé → check vert sur le numéro. Si omis, on dérive du
+   *  seuil (`passThreshold`) ; un examen sans seuil ni métadonnée « en cours »
+   *  compte comme réussi. */
+  passed?: boolean | null;
 }
 
 /**
@@ -306,6 +310,22 @@ export function ExamsGrid({
           const slot = i + 1;
           const exam = exams[i] ?? null;
           const locked = !premium && slot > freeSlots;
+          const passThresholdMet =
+            exam && exam.passThreshold != null
+              ? (exam.score ?? 0) >= exam.passThreshold
+              : null;
+          // Check vert : état explicite si fourni, sinon seuil franchi, sinon
+          // examen sans seuil ni « en cours » = terminé (diagnostic, etc.).
+          const passed =
+            exam == null
+              ? null
+              : exam.passed != null
+                ? exam.passed
+                : passThresholdMet != null
+                  ? passThresholdMet
+                  : exam.metaOverride == null
+                    ? true
+                    : null;
           return (
             <ExamCard
               key={slot}
@@ -325,11 +345,8 @@ export function ExamsGrid({
               locked={locked}
               lockedLabel={lockedLabel}
               starting={starting}
-              passThresholdMet={
-                exam && exam.passThreshold != null
-                  ? (exam.score ?? 0) >= exam.passThreshold
-                  : null
-              }
+              passThresholdMet={passThresholdMet}
+              passed={passed}
               onStart={onStart}
               onLocked={onLocked}
             />
@@ -369,6 +386,7 @@ export function ExamCard({
   lockedLabel = "Premium",
   starting,
   passThresholdMet,
+  passed = null,
   itemLabel = "Examen",
   reportHref,
   onStart,
@@ -386,6 +404,8 @@ export function ExamCard({
   lockedLabel?: string;
   starting: boolean;
   passThresholdMet: boolean | null;
+  /** Examen réussi/terminé → check vert sur le numéro. */
+  passed?: boolean | null;
   itemLabel?: string;
   /** Cible du bouton Rapport (défaut : /sessions/{id}). */
   reportHref?: string;
@@ -397,6 +417,16 @@ export function ExamCard({
     <article className={`${styles.examCard} ${done ? styles.examCardDone : ""}`}>
       <span className={`${styles.examNum} ${done ? styles.examNumDone : ""}`}>
         {String(slot).padStart(2, "0")}
+        {passed === true && (
+          <span
+            className={`${styles.examCheck} ${
+              passThresholdMet === false ? styles.examCheckFail : ""
+            }`}
+            aria-label={passThresholdMet === false ? "Passé, non réussi" : "Réussi"}
+          >
+            <Check size={12} strokeWidth={3} aria-hidden />
+          </span>
+        )}
       </span>
       <span className={styles.examTitle}>
         {itemLabel} {slot}

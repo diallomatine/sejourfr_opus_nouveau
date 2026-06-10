@@ -578,6 +578,7 @@
 }
 
 .examNum {
+  position: relative;
   width: 44px;
   height: 44px;
   border-radius: 12px;
@@ -588,6 +589,25 @@
   font-weight: 700;
   display: grid;
   place-items: center;
+}
+
+.examCheck {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--color-green);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(15, 24, 57, 0.18);
+}
+
+.examCheckFail {
+  background: var(--color-red);
 }
 
 .examNumDone {
