@@ -26,8 +26,12 @@ public class Message {
     @Column(name = "sender_type", nullable = false, length = 16)
     private MessageSender senderType;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "author_id", nullable = false)
+    /**
+     * Auteur du message. {@code null} pour le message entrant d'un contact non
+     * connecté (formulaire). Les réponses admin portent toujours un auteur.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "author_id")
     private User author;
 
     @Column(nullable = false, columnDefinition = "text")

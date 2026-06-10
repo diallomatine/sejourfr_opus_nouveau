@@ -39,7 +39,14 @@ src/
 │   ├── dashboard/
 │   ├── questions/           Le plus complexe : liste + filtres + modal CRUD
 │   ├── themes/
-│   ├── conversations/       Vue split list/detail style "boîte mail"
+│   ├── conversations/       Vue split list/detail style "boîte mail".
+│   │                        Alimentée par le formulaire de contact public
+│   │                        (backend ContactService → ConversationService.
+│   │                        createFromContact) : chaque message devient une
+│   │                        conversation. Supporte les invités sans compte
+│   │                        (userId/authorId null → coordonnées dans
+│   │                        userEmail/userFullName). « Répondre » envoie un
+│   │                        email au contact (MailService, Reply-To support).
 │   ├── audioQuestions/      Génération assistée TCF CO : form + preview + audit
 │   │                        (modes WRITTEN_QUESTION / FULL_AUDIO — cf CLAUDE.md racine)
 │   └── exampleAudio/        Génération batch + validation des audios des exemples

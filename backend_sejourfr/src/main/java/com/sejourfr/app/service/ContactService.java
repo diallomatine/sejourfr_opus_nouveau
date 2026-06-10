@@ -9,13 +9,11 @@ import org.springframework.stereotype.Service;
 import java.util.UUID;
 
 /**
- * Service du formulaire de contact. Relaye le message vers l'adresse support
- * (configurée via {@code sejourfr.contact.to}, défaut {@code support@sejourfr.fr}).
- *
- * <p>Pas de persistance : pour cette itération on traite le message comme
- * un email transitoire. Si on veut un suivi côté admin plus tard, on
- * ajoutera une entité {@code ContactMessage} + un controller admin pour la
- * liste.
+ * Service du formulaire de contact. Chaque soumission devient une
+ * <b>conversation</b> dans la boite de réception admin ({@code /conversations})
+ * — c'est la source de vérité. En plus, deux emails best-effort : une
+ * notification à l'équipe support et un accusé de réception à l'expéditeur.
+ * La réponse de l'admin (depuis la console) repart par email au contact.
  */
 @Service
 @Slf4j
@@ -23,6 +21,7 @@ import java.util.UUID;
 public class ContactService {
 
     private final MailService mailService;
+    private final ConversationService conversationService;
 
     /**
      * Défense en profondeur contre l'injection de headers SMTP : on retire
@@ -53,11 +52,18 @@ public class ContactService {
 
         log.info("Contact form submission from {} : '{}' (ticket {})", email, subject, ticketId);
 
-        // Critique : le message DOIT arriver au support (lève si l'envoi échoue).
-        mailService.sendContactMessage(sanitizeHeader(name), email, sanitizeHeader(subject), message);
+        // Source de vérité : la demande atterrit dans la boite de réception admin.
+        conversationService.createFromContact(name, email, subject, message);
 
-        // Best-effort : accusé de réception à l'expéditeur (async, n'échoue pas
-        // la soumission si le SMTP de cet envoi-là flanche).
+        // Notification best-effort à l'équipe (la boite admin reste l'autorité,
+        // donc un échec SMTP ici ne doit pas faire échouer la soumission).
+        try {
+            mailService.sendContactMessage(sanitizeHeader(name), email, sanitizeHeader(subject), message);
+        } catch (RuntimeException e) {
+            log.warn("Contact support notification failed (ticket {}) : {}", ticketId, e.getMessage());
+        }
+
+        // Best-effort : accusé de réception à l'expéditeur (async).
         mailService.sendContactReceivedEmail(email, name, subject, message, ticketId);
 
         return new ContactResponse(ticketId);

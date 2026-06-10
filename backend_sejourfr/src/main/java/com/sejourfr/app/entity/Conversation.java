@@ -20,9 +20,23 @@ public class Conversation {
     @Column(columnDefinition = "uuid")
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    /**
+     * Auteur côté utilisateur. {@code null} pour une conversation issue du
+     * formulaire de contact d'un visiteur non connecté — on s'appuie alors sur
+     * {@link #contactName} / {@link #contactEmail}.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
     private User user;
+
+    /** Nom du contact quand la conversation vient du formulaire (user null). */
+    @Column(name = "contact_name", length = 120)
+    private String contactName;
+
+    /** Email du contact — adresse de réponse quand la conversation vient du
+     *  formulaire (user null). */
+    @Column(name = "contact_email", length = 255)
+    private String contactEmail;
 
     @Column(nullable = false, length = 240)
     private String subject;
@@ -59,6 +73,12 @@ public class Conversation {
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
+
+    public String getContactName() { return contactName; }
+    public void setContactName(String contactName) { this.contactName = contactName; }
+
+    public String getContactEmail() { return contactEmail; }
+    public void setContactEmail(String contactEmail) { this.contactEmail = contactEmail; }
 
     public String getSubject() { return subject; }
     public void setSubject(String subject) { this.subject = subject; }

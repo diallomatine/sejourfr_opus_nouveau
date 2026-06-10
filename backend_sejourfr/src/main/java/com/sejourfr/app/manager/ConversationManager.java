@@ -24,6 +24,10 @@ public class ConversationManager {
         return repository.findById(id);
     }
 
+    public Conversation save(Conversation conversation) {
+        return repository.save(conversation);
+    }
+
     /** Recherche paginee avec specifications dynamiques (filtres admin). */
     public Page<Conversation> search(Specification<Conversation> spec, Pageable pageable) {
         return repository.findAll(spec, pageable);

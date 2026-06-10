@@ -40,6 +40,7 @@ public class ConversationService {
     private final MessageManager messageManager;
     private final UserManager userManager;
     private final MessageMapper mapper;
+    private final MailService mailService;
 
     @Transactional(readOnly = true)
     public Page<ConversationSummaryDto> search(
@@ -86,7 +87,42 @@ public class ConversationService {
         c.setUnreadForUser(true);
         c.setStatus(MessageStatus.REPONDU);
 
+        // Conversation issue du formulaire de contact (visiteur sans compte) :
+        // la réponse part par email (async, best-effort). Les conversations
+        // in-app (user rattaché) se lisent dans l'app, pas d'email.
+        if (c.getContactEmail() != null && !c.getContactEmail().isBlank()) {
+            mailService.sendConversationReplyEmail(
+                    c.getContactEmail(), c.getContactName(), c.getSubject(), body);
+        }
+
         return mapper.toDto(saved);
+    }
+
+    /**
+     * Crée une conversation depuis le formulaire de contact public : un message
+     * entrant (côté USER, sans auteur car le visiteur n'a pas forcément de
+     * compte), non lu côté admin, statut {@code NOUVEAU}. C'est ce qui alimente
+     * la boite de réception admin.
+     */
+    public Conversation createFromContact(String name, String email, String subject, String message) {
+        Conversation c = new Conversation();
+        c.setContactName(name);
+        c.setContactEmail(email);
+        c.setSubject(subject);
+        c.setStatus(MessageStatus.NOUVEAU);
+        c.setUnreadForAdmin(true);
+        c.setUnreadForUser(false);
+        Conversation saved = conversationManager.save(c);
+
+        Message m = new Message();
+        m.setConversation(saved);
+        m.setSenderType(MessageSender.USER);
+        m.setBody(message);
+        Message savedMessage = messageManager.save(m);
+
+        saved.setLastMessageAt(
+                savedMessage.getCreatedAt() != null ? savedMessage.getCreatedAt() : Instant.now());
+        return saved;
     }
 
     public ConversationDetailDto updateStatus(UUID id, MessageStatus newStatus) {

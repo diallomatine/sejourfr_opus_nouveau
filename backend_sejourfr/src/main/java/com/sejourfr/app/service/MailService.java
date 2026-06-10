@@ -242,6 +242,10 @@ public class MailService {
      * warn sans propager.
      */
     private void sendHtmlWithLogo(String to, String subject, String html) {
+        sendHtmlWithLogo(to, subject, html, null);
+    }
+
+    private void sendHtmlWithLogo(String to, String subject, String html, String replyTo) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(
@@ -250,6 +254,9 @@ public class MailService {
             );
             helper.setFrom(fromAddress);
             helper.setTo(to);
+            if (replyTo != null && !replyTo.isBlank()) {
+                helper.setReplyTo(replyTo);
+            }
             helper.setSubject(subject);
             helper.setText(html, true);
 
@@ -305,6 +312,26 @@ public class MailService {
      * relai vers le support, lui, est critique). Brandé comme les autres mails
      * clients (layout + logo).
      */
+    /**
+     * Réponse de l'équipe support à un message du formulaire de contact, envoyée
+     * à l'expéditeur. {@code Reply-To} pointe vers l'adresse support pour que sa
+     * réponse éventuelle y revienne. Best-effort / {@code @Async}.
+     */
+    @Async
+    public void sendConversationReplyEmail(
+            String to, String contactName, String subject, String replyBody) {
+        String body = templateRenderer.render("conversation-reply.html", Map.of(
+                "greeting", displayNameOrFallback(contactName),
+                "subject", subject == null ? "" : subject,
+                "reply", replyBody
+        ));
+        String html = renderLayout(
+                "Réponse à votre message",
+                "Notre équipe a répondu à votre demande.",
+                body);
+        sendHtmlWithLogo(to, "SejourFR — Réponse à votre message", html, contactAddress);
+    }
+
     @Async
     public void sendContactReceivedEmail(
             String to, String senderName, String subject, String message, String ticketId) {

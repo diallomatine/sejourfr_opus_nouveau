@@ -285,7 +285,9 @@ export interface ExamCompositionSuggestionDto {
 // ---------------------------------------------------------------------------
 export interface ConversationSummaryDto {
   id: string;
-  userId: string;
+  /** Null pour une conversation issue du formulaire de contact (visiteur sans
+   *  compte) ; userEmail/userFullName portent alors les coordonnées du contact. */
+  userId: string | null;
   userEmail: string;
   userFullName: string;
   subject: string;
@@ -301,7 +303,8 @@ export interface MessageDto {
   id: string;
   conversationId: string;
   senderType: MessageSender;
-  authorId: string;
+  /** Null pour le message entrant d'un contact non connecté (formulaire). */
+  authorId: string | null;
   authorName: string;
   body: string;
   createdAt: string;
@@ -309,7 +312,8 @@ export interface MessageDto {
 
 export interface ConversationDetailDto {
   id: string;
-  userId: string;
+  /** Null pour une conversation issue du formulaire de contact. */
+  userId: string | null;
   userEmail: string;
   userFullName: string;
   subject: string;
