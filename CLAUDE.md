@@ -78,6 +78,20 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
   les essais d'entraînement restants ; une session ne compte que si ≥ 1 tâche
   soumise. Règles dans `ProductionSubmissionService` /
   `AttemptService.startProductionAttempt`. QCM : série 1 gratuite, 2+ premium.
+- **Compte gratuit, examen blanc TCF complet** (`/api/full-tcf-exams`,
+  orchestré CO→CE→EE→EO) : **examen 1 offert** (slot 1, même grille que les
+  abonnés) avec **EE + EO évaluées une seule fois à vie**. Au-delà, l'examen 1
+  reste rejouable en compréhension (CO+CE) mais ses épreuves EE/EO sont
+  **verrouillées** : `FullTcfExamService.start` les pré-termine (finishedAt +
+  TERMINE → comptées `A1_NON_ATTEINT` au bilan) et pose
+  `attempts.production_locked=true` (V015) sur le parent, exposé en
+  `FullTcfExamResponse.SubAttempt.locked` (cadenas + invite abonnement côté
+  fronts). Freebie consommé dès qu'une tâche EE/EO a été soumise dans un examen
+  complet (`ProductionSubmissionManager.hasFullExamProductionSubmission`) —
+  indépendant des freebies EE/EO standalone et des examens module CO/CE
+  (le verrou `startModuleExam` ignore les sous-attempts d'un complet). Examens
+  complets 2-20 → premium. `start` n'exige plus `hasTcf` ; soumettre vers une
+  épreuve déjà terminée est refusé (`enforceQuota`).
 
 ## Identité visuelle (résumé)
 

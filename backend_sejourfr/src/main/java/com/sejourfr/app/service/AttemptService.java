@@ -626,7 +626,12 @@ public class AttemptService {
                     qType,
                     null,
                     50);
-            final boolean alreadyTaken = previous.stream().anyMatch(a -> a.getFinishedAt() != null);
+            // On ignore les sous-attempts d'un examen blanc TCF complet
+            // (parent non null) : le freebie de l'examen module CO/CE standalone
+            // est indépendant de celui de l'examen complet (les surfaces ne se
+            // mélangent pas), comme pour les quotas EE/EO.
+            final boolean alreadyTaken = previous.stream()
+                    .anyMatch(a -> a.getFinishedAt() != null && a.getParentAttempt() == null);
             if (alreadyTaken) {
                 throw new AccessDeniedException(
                         "L'examen blanc " + qType + " a déjà été passé ; les relances sont réservées aux abonnés TCF.");

@@ -525,6 +525,19 @@
   font-size: 0.875rem;
   margin-bottom: 1rem;
 }
+.freeNote {
+  background: var(--color-blue-soft);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+  margin-bottom: 1rem;
+}
+.freeNote strong {
+  color: var(--color-blue);
+}
 
 @media (max-width: 480px) {
   .page {

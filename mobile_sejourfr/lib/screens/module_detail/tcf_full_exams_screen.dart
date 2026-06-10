@@ -81,19 +81,26 @@ class TcfFullExamsView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyAsync = ref.watch(fullExamsHistoryProvider);
+    final auth = ref.watch(authControllerProvider);
+    final isPremium = auth is AuthAuthenticated &&
+        auth.user.canAccessModule(AppModule.tcf);
 
     Future<void> startNew(int slot) async {
       final auth = ref.read(authControllerProvider);
       final isPremium = auth is AuthAuthenticated &&
           auth.user.canAccessModule(AppModule.tcf);
       ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
-      if (!isPremium) {
+      // Compte gratuit : examen 1 offert (EE/EO évaluées une fois) ; les examens
+      // 2+ restent premium. L'examen 1 reste rejouable (EE/EO verrouillées au
+      // refaire, géré côté backend).
+      if (!isPremium && slot > 1) {
         showPaywallSheet(context);
         return;
       }
       showTcfFullExamBriefingSheet(
         context,
         slot: slot,
+        isFreeAccount: !isPremium,
         onStart: () async {
           try {
             final exam = await ref
@@ -154,6 +161,7 @@ class TcfFullExamsView extends ConsumerWidget {
             ),
             data: (history) => _SlotsSection(
               history: history,
+              isPremium: isPremium,
               onTapDone: (exam) => _openExam(context, exam),
               onTapEmpty: startNew,
             ),
@@ -363,11 +371,15 @@ class _StatCell extends StatelessWidget {
 class _SlotsSection extends StatefulWidget {
   const _SlotsSection({
     required this.history,
+    required this.isPremium,
     required this.onTapDone,
     required this.onTapEmpty,
   });
 
   final List<FullTcfExamSummary> history;
+  /// Abonné TCF : tous les slots ouverts. Gratuit : seul le slot 1 est jouable
+  /// (examen offert), les slots 2+ affichent un cadenas → paywall.
+  final bool isPremium;
   final void Function(FullTcfExamSummary) onTapDone;
   final void Function(int slot) onTapEmpty;
 
@@ -422,6 +434,7 @@ class _SlotsSectionState extends State<_SlotsSection> {
           _ExamSlotCard(
             slot: i + 1,
             exam: bySlot[i + 1],
+            locked: !widget.isPremium && i + 1 > 1,
             onTapDone: widget.onTapDone,
             onTapEmpty: () => widget.onTapEmpty(i + 1),
           ),
@@ -458,16 +471,20 @@ class _ExamSlotCard extends StatelessWidget {
     required this.exam,
     required this.onTapDone,
     required this.onTapEmpty,
+    this.locked = false,
   });
 
   final int slot;
   final FullTcfExamSummary? exam;
+  /// Slot réservé à l'abonnement (compte gratuit, slot > 1) : cadenas + paywall.
+  final bool locked;
   final void Function(FullTcfExamSummary) onTapDone;
   final VoidCallback onTapEmpty;
 
   @override
   Widget build(BuildContext context) {
     final done = exam != null;
+    final lockedEmpty = locked && !done;
     final level = exam?.finalCecrlLevel;
     final accent = done ? _statusAccent(exam!.status, level) : AppColors.muted;
 
@@ -524,7 +541,11 @@ class _ExamSlotCard extends StatelessWidget {
                         Text(
                           done
                               ? _doneSubtitle(exam!)
-                              : 'Disponible · 4 épreuves, 90 min',
+                              : lockedEmpty
+                                  ? 'Réservé à l\'abonnement Intégral'
+                                  : slot == 1
+                                      ? 'Offert · 4 épreuves, 90 min'
+                                      : 'Disponible · 4 épreuves, 90 min',
                           style: AppFonts.jakarta(
                             size: 12,
                             color: AppColors.muted,
@@ -541,6 +562,12 @@ class _ExamSlotCard extends StatelessWidget {
                       status: exam!.status,
                       level: level,
                       accent: accent,
+                    )
+                  else if (lockedEmpty)
+                    const Icon(
+                      Icons.lock_outline_rounded,
+                      color: AppColors.muted2,
+                      size: 20,
                     )
                   else
                     const Icon(

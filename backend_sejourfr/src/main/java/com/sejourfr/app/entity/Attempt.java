@@ -139,6 +139,14 @@ public class Attempt {
     @Column(name = "slot_number")
     private Integer slotNumber;
 
+    // Examen blanc TCF complet (TCF_COMPLET) uniquement : true quand les
+    // sous-épreuves EE/EO sont verrouillées (compte gratuit qui a déjà
+    // consommé l'expression écrite/orale offerte une fois). L'examen reste
+    // rejouable en compréhension (CO+CE) ; EE/EO comptent A1_NON_ATTEINT.
+    // Toujours false pour les abonnés et le 1ᵉʳ examen complet d'un gratuit.
+    @Column(name = "production_locked", nullable = false)
+    private boolean productionLocked = false;
+
     // Score pondéré par niveau (A2=1, B1=2, B2=3) — calculé à la finalisation
     // des examens module pour éviter de re-joindre questions à chaque lecture.
     // Reste NULL pour les autres attempts (training, examens complets, lots).
@@ -275,6 +283,9 @@ public class Attempt {
 
     public Integer getSlotNumber() { return slotNumber; }
     public void setSlotNumber(Integer slotNumber) { this.slotNumber = slotNumber; }
+
+    public boolean isProductionLocked() { return productionLocked; }
+    public void setProductionLocked(boolean productionLocked) { this.productionLocked = productionLocked; }
 
     public Integer getWeightedScore() { return weightedScore; }
     public void setWeightedScore(Integer weightedScore) { this.weightedScore = weightedScore; }

@@ -22,11 +22,13 @@ const A_SAVOIR = [
 interface Props {
   slotNumber: number;
   onClose: () => void;
+  /** Compte sans abonnement TCF : on rappelle que l'EE/EO n'est offerte qu'une fois. */
+  isFreeAccount?: boolean;
   /** Appelé si le backend refuse (403, abonnement Intégral requis). */
   onNeedsPremium?: () => void;
 }
 
-export function TcfFullExamBriefingSheet({ slotNumber, onClose, onNeedsPremium }: Props) {
+export function TcfFullExamBriefingSheet({ slotNumber, onClose, isFreeAccount, onNeedsPremium }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +85,15 @@ export function TcfFullExamBriefingSheet({ slotNumber, onClose, onNeedsPremium }
             ))}
           </ul>
         </div>
+
+        {isFreeAccount && (
+          <div className={s.freeNote}>
+            <strong>Compte gratuit :</strong> l&apos;expression écrite et orale (EE + EO),
+            évaluées par l&apos;IA, vous sont offertes <strong>une seule fois</strong>. Vous
+            pourrez ensuite refaire cet examen en compréhension (CO + CE) ; l&apos;EE et l&apos;EO
+            passeront en abonnement Intégral.
+          </div>
+        )}
 
         {error && <div className={s.error}>{error}</div>}
 

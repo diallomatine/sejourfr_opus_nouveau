@@ -700,6 +700,16 @@ type production. `core/models/attempt_models.dart` coerce `null → 0` pour ne p
 Backend : cf. `CLAUDE.md` racine section « Examen blanc TCF complet ». Côté mobile, l'orchestration vit
 dans `screens/tcf_full_exam/` :
 
+**Freemium (parité web/backend)** : l'examen complet n'est plus 100 % premium.
+`TcfFullExamsView` ouvre le **slot 1 aux comptes gratuits** (examen offert,
+EE/EO évaluées une fois) ; les slots 2-20 affichent un cadenas → `showPaywallSheet`
+(`_ExamSlotCard.locked = !isPremium && slot > 1`). Le briefing
+(`TcfFullExamBriefingSheet isFreeAccount`) rappelle que l'EE/EO n'est offerte
+qu'une fois. Au refaire de l'examen 1, le backend renvoie les sous-attempts EE/EO
+avec `FullTcfExamSubAttempt.locked=true` (pré-terminés) : le progress screen et
+le bilan les rendent « Réservé à l'abonnement Intégral » + cadenas (jamais badge
+niveau ni check vert ni lien). Miroir `locked` dans `core/models/full_tcf_exam.dart`.
+
 - **`TcfFullExamProgressScreen`** (route `/tcf/examen-blanc/:parentId`) — hub de progression. Charge le
   parent + ses 4 sous-attempts via `fullTcfExamProvider` (FutureProvider.autoDispose.family), affiche 4
   cards d'étape (CO/CE/EE/EO) avec leur état Done/Current/Locked, CTA « Commencer · [épreuve courante] »

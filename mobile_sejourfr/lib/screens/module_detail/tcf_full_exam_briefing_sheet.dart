@@ -16,12 +16,16 @@ class TcfFullExamBriefingSheet extends StatelessWidget {
     super.key,
     required this.slot,
     required this.onStart,
+    this.isFreeAccount = false,
   });
 
   /// Numéro 1-20 du slot d'examen choisi — affiché dans le header pour le
   /// repérage. Les questions/sujets restent tirés aléatoirement côté backend.
   final int slot;
   final VoidCallback onStart;
+
+  /// Compte sans abonnement TCF : rappelle que l'EE/EO n'est offerte qu'une fois.
+  final bool isFreeAccount;
 
   @override
   Widget build(BuildContext context) {
@@ -74,6 +78,10 @@ class TcfFullExamBriefingSheet extends StatelessWidget {
                   _DerouleCard(),
                   const SizedBox(height: 12),
                   const _ASavoirCard(),
+                  if (isFreeAccount) ...[
+                    const SizedBox(height: 12),
+                    const _FreeNoteCard(),
+                  ],
                   const SizedBox(height: 22),
                   AppButton(
                     label: 'Lancer l\'examen blanc',
@@ -104,13 +112,73 @@ void showTcfFullExamBriefingSheet(
   BuildContext context, {
   required int slot,
   required VoidCallback onStart,
+  bool isFreeAccount = false,
 }) {
   showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => TcfFullExamBriefingSheet(slot: slot, onStart: onStart),
+    builder: (_) => TcfFullExamBriefingSheet(
+      slot: slot,
+      onStart: onStart,
+      isFreeAccount: isFreeAccount,
+    ),
   );
+}
+
+/// Encart compte gratuit : l'expression écrite et orale (EE/EO) n'est offerte
+/// qu'une fois dans l'examen complet ; ensuite l'examen reste jouable en
+/// compréhension (CO+CE) mais EE/EO passent en abonnement.
+class _FreeNoteCard extends StatelessWidget {
+  const _FreeNoteCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: AppColors.blueSoft,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.blue),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                style: AppFonts.jakarta(
+                  size: 12.5,
+                  color: AppColors.ink2,
+                  height: 1.45,
+                ),
+                children: [
+                  const TextSpan(text: 'Compte gratuit : '),
+                  TextSpan(
+                    text: 'l\'expression écrite et orale, évaluées par l\'IA, '
+                        'te sont offertes une seule fois',
+                    style: AppFonts.jakarta(
+                      size: 12.5,
+                      weight: FontWeight.w800,
+                      color: AppColors.blue,
+                      height: 1.45,
+                    ),
+                  ),
+                  const TextSpan(
+                    text: '. Tu pourras ensuite refaire cet examen en '
+                        'compréhension (CO + CE) ; l\'EE et l\'EO passeront en '
+                        'abonnement Intégral.',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _Hero extends StatelessWidget {

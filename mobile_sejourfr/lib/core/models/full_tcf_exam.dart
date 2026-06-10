@@ -28,6 +28,7 @@ class FullTcfExamSubAttempt {
     required this.maxScore,
     required this.submissionsCount,
     required this.failedSubmissionIds,
+    this.locked = false,
   });
 
   final String attemptId;
@@ -42,6 +43,12 @@ class FullTcfExamSubAttempt {
   /// EE/EO : ids des submissions FAILED — le mobile peut les retenter via
   /// `POST /api/production-submissions/{id}/retry`. Vide pour CO/CE.
   final List<String> failedSubmissionIds;
+
+  /// EE/EO seulement : épreuve verrouillée pour un compte gratuit ayant déjà
+  /// utilisé l'expression écrite/orale offerte une fois. Pré-terminée, comptée
+  /// A1_NON_ATTEINT — afficher un cadenas + invitation à l'abonnement plutôt
+  /// qu'un état « non passé ». Toujours false pour CO/CE et les abonnés.
+  final bool locked;
 
   bool get isFinished => finishedAt != null;
   bool get hasFailures => failedSubmissionIds.isNotEmpty;
@@ -59,6 +66,7 @@ class FullTcfExamSubAttempt {
       maxScore: json['maxScore'] as int?,
       submissionsCount: json['submissionsCount'] as int?,
       failedSubmissionIds: failed.map((e) => e as String).toList(),
+      locked: json['locked'] as bool? ?? false,
     );
   }
 }

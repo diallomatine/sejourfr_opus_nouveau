@@ -280,6 +280,21 @@ function StepCard({
   const isProduction = sub.epreuve === "TCF_EE" || sub.epreuve === "TCF_EO";
   const evaluating = sub.finishedAt && isProduction && sub.cecrlLevel === null;
 
+  // EE/EO verrouillées (compte gratuit ayant déjà utilisé l'expression offerte
+  // une fois) : on affiche un cadenas + le motif, sans badge de niveau.
+  if (sub.locked) {
+    return (
+      <div className={`${s.stepCard} ${s.locked}`}>
+        <span className={s.stepIcon}>{meta.icon}</span>
+        <span className={s.stepBody}>
+          <span className={s.stepLabel}>{meta.label}</span>
+          <span className={s.stepMeta}>Réservé à l&apos;abonnement Intégral</span>
+        </span>
+        <Lock size={16} style={{ color: "var(--color-muted-2)", flexShrink: 0 }} />
+      </div>
+    );
+  }
+
   return (
     <div
       className={`${s.stepCard} ${state === "current" ? s.current : ""} ${state === "done" ? s.done : ""} ${state === "locked" ? s.locked : ""}`}

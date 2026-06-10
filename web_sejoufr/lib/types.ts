@@ -901,7 +901,10 @@ export type FullTcfExamStatus = "IN_PROGRESS" | "PENDING_EVALUATIONS" | "COMPLET
 /** Une sous-épreuve de l'examen complet. `finishedAt` non nul = terminée. Pour
  *  CO/CE : `score`/`maxScore` (QCM). Pour EE/EO : `submissionsCount` (tâches
  *  EVALUATED sur 3) + `failedSubmissionIds` (à relancer). `cecrlLevel` apparaît
- *  une fois l'épreuve évaluée. */
+ *  une fois l'épreuve évaluée. `locked` (EE/EO seulement) : épreuve verrouillée
+ *  pour un compte gratuit ayant déjà utilisé l'EE/EO offerte une fois — pré-
+ *  terminée, comptée A1_NON_ATTEINT ; afficher un cadenas + invitation à
+ *  l'abonnement plutôt qu'un état « non passé ». */
 export interface FullTcfExamSubAttempt {
   attemptId: string;
   epreuve: EpreuveType;
@@ -911,6 +914,7 @@ export interface FullTcfExamSubAttempt {
   maxScore: number | null;
   submissionsCount: number | null;
   failedSubmissionIds: string[];
+  locked: boolean;
 }
 
 export interface FullTcfExamResponse {

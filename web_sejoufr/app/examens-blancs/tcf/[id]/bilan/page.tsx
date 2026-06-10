@@ -222,6 +222,21 @@ function SubAttemptCard({
   const meta = EPREUVE_META[sa.epreuve];
   if (!meta) return null;
 
+  // EE/EO verrouillées (compte gratuit ayant déjà utilisé l'EE/EO offerte) :
+  // épreuve non passée, réservée à l'abonnement — pas de score, pas de lien.
+  if (sa.locked) {
+    return (
+      <div className={s.bilanCard}>
+        <span className={s.bilanCardIcon}>{meta.icon}</span>
+        <span className={s.bilanCardBody}>
+          <span className={s.bilanCardLabel}>{meta.label}</span>
+          <span className={s.bilanCardSub}>Réservé à l&apos;abonnement Intégral</span>
+        </span>
+        <span className={s.bilanCardLevelPending}>🔒</span>
+      </div>
+    );
+  }
+
   const isProduction = sa.epreuve === "TCF_EE" || sa.epreuve === "TCF_EO";
   const evaluated = sa.cecrlLevel !== null;
   const pending = sa.finishedAt && !evaluated;

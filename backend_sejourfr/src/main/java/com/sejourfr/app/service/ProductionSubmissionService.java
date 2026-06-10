@@ -139,9 +139,18 @@ public class ProductionSubmissionService {
         // ne consomment pas le quota d'entrainement.
         if (attemptId != null) {
             Attempt attempt = attemptManager.findById(attemptId).orElse(null);
-            if (attempt != null
-                    && (attempt.getSlotNumber() != null || attempt.getParentAttempt() != null)) {
-                return;
+            if (attempt != null) {
+                // Epreuve deja terminee : aucune soumission. Couvre les EE/EO
+                // verrouillees d'un examen complet gratuit (pre-terminees au
+                // start) — empeche un client de contourner le verrou.
+                if (attempt.getFinishedAt() != null) {
+                    throw new AccessDeniedException(
+                            "Cette epreuve est terminee. L'expression ecrite et orale ne sont "
+                                    + "offertes qu'une fois ; passez Premium pour continuer.");
+                }
+                if (attempt.getSlotNumber() != null || attempt.getParentAttempt() != null) {
+                    return;
+                }
             }
         }
 

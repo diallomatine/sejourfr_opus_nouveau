@@ -80,18 +80,27 @@ public class FullTcfExamService {
 
     /**
      * Crée un examen blanc TCF complet : parent {@code TCF_COMPLET} + 4
-     * sous-attempts (CO, CE, EE, EO) en une seule transaction. Réservé aux
-     * comptes premium TCF.
+     * sous-attempts (CO, CE, EE, EO) en une seule transaction.
+     *
+     * <p><b>Freemium</b> — accessible aux comptes gratuits, pas seulement aux
+     * abonnés TCF : le PREMIER examen complet inclut l'expression écrite et
+     * orale (EE/EO) évaluées par l'IA, offertes une fois. Les examens complets
+     * suivants restent rejouables en compréhension (CO+CE) mais leurs épreuves
+     * EE/EO sont verrouillées (pré-terminées, comptées A1_NON_ATTEINT, marquées
+     * {@code production_locked} sur le parent). Les abonnés TCF ont un accès
+     * illimité aux 4 épreuves.
      */
     @Transactional
     public FullTcfExamResponse start(UUID userId, Integer slotNumber) {
         User user = userManager.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
-        if (!subscriptionService.hasTcf(userId)) {
-            throw new AccessDeniedException("L'examen blanc TCF complet est réservé aux abonnés TCF.");
-        }
 
-        Attempt parent = createParent(user, slotNumber);
+        // EE/EO déverrouillées pour les abonnés, et pour un compte gratuit tant
+        // qu'il n'a pas encore soumis de tâche EE/EO en examen complet.
+        boolean productionUnlocked = subscriptionService.hasTcf(userId)
+                || !productionSubmissionManager.hasFullExamProductionSubmission(userId);
+
+        Attempt parent = createParent(user, slotNumber, !productionUnlocked);
 
         // CO + CE : QCM avec questions tirées + chrono propre.
         attemptService.startModuleExamSubAttempt(user, QuestionType.CO, parent);
@@ -104,11 +113,33 @@ public class FullTcfExamService {
         attemptService.startProductionAttempt(userId, new ProductionAttemptStartRequest(
                 Module.TCF, EpreuveType.TCF_EO, parent.getId(), null));
 
-        log.info("Full TCF exam created: parentId={} user={}", parent.getId(), userId);
+        // Compte gratuit ayant déjà consommé son EE/EO offerte : on pré-termine
+        // les sous-attempts EE/EO (aucune soumission possible — le garde
+        // finishedAt côté ProductionSubmissionService double le verrou) ; le
+        // bilan les comptera A1_NON_ATTEINT, l'examen reste jouable en CO+CE.
+        if (!productionUnlocked) {
+            lockProductionSubAttempts(parent);
+        }
+
+        log.info("Full TCF exam created: parentId={} user={} productionUnlocked={}",
+                parent.getId(), userId, productionUnlocked);
         return buildResponse(parent);
     }
 
-    private Attempt createParent(User user, Integer slotNumber) {
+    /** Pré-termine les sous-attempts EE/EO d'un examen complet verrouillé. */
+    private void lockProductionSubAttempts(Attempt parent) {
+        Instant now = Instant.now();
+        for (Attempt sub : attemptManager.findSubAttempts(parent.getId())) {
+            if ((sub.getEpreuve() == EpreuveType.TCF_EE || sub.getEpreuve() == EpreuveType.TCF_EO)
+                    && sub.getFinishedAt() == null) {
+                sub.setFinishedAt(now);
+                sub.setStatus(AttemptStatus.TERMINE);
+                attemptManager.save(sub);
+            }
+        }
+    }
+
+    private Attempt createParent(User user, Integer slotNumber, boolean productionLocked) {
         Attempt parent = new Attempt();
         parent.setUser(user);
         parent.setType(AttemptType.MOCK_EXAM);
@@ -123,6 +154,7 @@ public class FullTcfExamService {
         if (slotNumber != null) {
             parent.setSlotNumber(slotNumber);
         }
+        parent.setProductionLocked(productionLocked);
         // totalQuestions / score / passThreshold restent NULL — le parent
         // n'a pas de questions propres, le résultat est porté par finalCecrlLevel.
         return attemptManager.save(parent);
@@ -307,7 +339,7 @@ public class FullTcfExamService {
         List<Attempt> subs = attemptManager.findSubAttempts(parent.getId());
         Map<EpreuveType, FullTcfExamResponse.SubAttempt> mapped = new EnumMap<>(EpreuveType.class);
         for (Attempt sub : subs) {
-            mapped.put(sub.getEpreuve(), mapSubAttempt(sub));
+            mapped.put(sub.getEpreuve(), mapSubAttempt(sub, parent.isProductionLocked()));
         }
 
         // Ordre canonique d'affichage : CO → CE → EE → EO.
@@ -345,8 +377,11 @@ public class FullTcfExamService {
                 parent.getSlotNumber());
     }
 
-    private FullTcfExamResponse.SubAttempt mapSubAttempt(Attempt sub) {
+    private FullTcfExamResponse.SubAttempt mapSubAttempt(Attempt sub, boolean parentProductionLocked) {
         EpreuveType e = sub.getEpreuve();
+        // Le verrou ne concerne que les épreuves productives EE/EO.
+        boolean locked = parentProductionLocked
+                && (e == EpreuveType.TCF_EE || e == EpreuveType.TCF_EO);
         if (e == EpreuveType.TCF_CO || e == EpreuveType.TCF_CE) {
             // Source de vérité : cecrl_level posé à la finalisation par
             // TcfLevelEstimatorService. Fallback weightedScoreToCecrl pour les
@@ -361,7 +396,7 @@ public class FullTcfExamService {
             return new FullTcfExamResponse.SubAttempt(
                     sub.getId(), e, sub.getFinishedAt(), level,
                     sub.getWeightedScore(), sub.getMaxWeightedScore(),
-                    null, List.of());
+                    null, List.of(), locked);
         }
         // EE / EO : on compte les submissions EVALUATED pour le niveau CECRL
         // ET on remonte les ids des FAILED — le mobile propose un bouton
@@ -399,7 +434,7 @@ public class FullTcfExamService {
         }
         return new FullTcfExamResponse.SubAttempt(
                 sub.getId(), e, sub.getFinishedAt(), level,
-                null, null, evaluatedCount, failedIds);
+                null, null, evaluatedCount, failedIds, locked);
     }
 
     private FullTcfExamResponse.FullTcfExamStatus computeStatus(

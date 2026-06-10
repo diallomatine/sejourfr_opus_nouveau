@@ -482,8 +482,11 @@ class _StepCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final meta = _StepMeta.of(epreuve);
-    final isCurrent = state == _StepState.current;
-    final isDone = state == _StepState.done;
+    // EE/EO verrouillées (compte gratuit ayant déjà utilisé l'EE/EO offerte) :
+    // ni « à faire » ni « terminé » — réservées à l'abonnement.
+    final lockedProd = sub?.locked == true;
+    final isCurrent = state == _StepState.current && !lockedProd;
+    final isDone = state == _StepState.done && !lockedProd;
     final accent = isCurrent ? AppColors.red : AppColors.ink;
 
     return Container(
@@ -553,7 +556,9 @@ class _StepCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  _subtitle(meta, sub, state),
+                  lockedProd
+                      ? 'Réservé à l\'abonnement Intégral'
+                      : _subtitle(meta, sub, state),
                   style: AppFonts.jakarta(
                     size: 12,
                     color: AppColors.muted,
@@ -593,6 +598,11 @@ class _StepTrailing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // EE/EO verrouillées : cadenas premium, jamais le badge niveau / le check.
+    if (sub?.locked == true) {
+      return const Icon(Icons.lock_outline_rounded,
+          color: AppColors.muted2, size: 18);
+    }
     if (state == _StepState.done && sub?.cecrlLevel != null) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

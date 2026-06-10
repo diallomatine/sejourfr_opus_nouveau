@@ -20,7 +20,6 @@ import {
     type DashboardSummaryResponse,
     type ExamTemplateSummary,
     type FullTcfExamSummaryResponse,
-    isProductionAttempt,
     type Module as ModuleEnum,
     type NiveauCecrl,
     niveauCecrlLabel,
@@ -38,8 +37,7 @@ interface StatItem {
     label: string;
 }
 
-/** Templates de référence des examens complets (briefing + lancement). */
-const TCF_FREE_DIAGNOSTIC_SLUG = "tcf-mix-01";
+/** Template de référence de l'examen civique complet (briefing + lancement). */
 const CIVIQUE_FULL_EXAM_SLUG = "civique-decouverte";
 
 /**
@@ -69,7 +67,6 @@ function ExamsConnectedHome() {
     const {user, status} = useAuth();
 
     const [civique, setCivique] = useState<AttemptSummaryResponse[]>([]);
-    const [tcfComprehension, setTcfComprehension] = useState<AttemptSummaryResponse[]>([]);
     const [fullExams, setFullExams] = useState<FullTcfExamSummaryResponse[]>([]);
     const [paywallModule, setPaywallModule] = useState<"CIVIQUE" | "INTEGRAL" | null>(null);
     /** Slot dont le briefing d'examen complet est ouvert (lancement inline). */
@@ -89,31 +86,14 @@ function ExamsConnectedHome() {
     useEffect(() => {
         if (status !== "authenticated") return;
         let cancelled = false;
-        Promise.allSettled([
-            attemptApi.listMine({type: "MOCK_EXAM", module: "CIVIQUE", limit: 100}),
-            attemptApi.listMine({type: "MOCK_EXAM", module: "TCF", limit: 100}),
-        ]).then(([c, t]) => {
-            if (cancelled) return;
-            if (c.status === "fulfilled") {
-                // Examens complets civiques (40 Q tous thèmes) : on écarte les examens
-                // thématiques (lotThemeId non null). Rangés par slot plus bas.
-                setCivique(c.value.filter((a) => a.finishedAt && !a.lotThemeId));
-            }
-            if (t.status === "fulfilled") {
-                // Diagnostic de compréhension TCF (50 Q CO → CE) : on écarte les examens
-                // module (CO/CE/Structure) et les productions / TCF_COMPLET. Sert de
-                // carte pour les comptes gratuits (1 offert).
-                setTcfComprehension(
-                    t.value.filter(
-                        (a) =>
-                            a.finishedAt &&
-                            !a.moduleExamQuestionType &&
-                            !isProductionAttempt(a) &&
-                            a.totalQuestions != null,
-                    ),
-                );
-            }
-        });
+        // Examens complets civiques (40 Q tous thèmes) : on écarte les examens
+        // thématiques (lotThemeId non null). Rangés par slot plus bas.
+        attemptApi
+            .listMine({type: "MOCK_EXAM", module: "CIVIQUE", limit: 100})
+            .then((list) => {
+                if (!cancelled) setCivique(list.filter((a) => a.finishedAt && !a.lotThemeId));
+            })
+            .catch(() => undefined);
         return () => {
             cancelled = true;
         };
@@ -150,9 +130,10 @@ function ExamsConnectedHome() {
         };
     }, [status]);
 
-    // Examens TCF complets : seulement pour les abonnés (le backend exige hasTcf).
+    // Examens TCF complets : pour tous les comptes. Le 1ᵉʳ examen est offert aux
+    // comptes gratuits (EE/EO évaluées une fois), les suivants sont premium.
     useEffect(() => {
-        if (status !== "authenticated" || !tcfPremium) return;
+        if (status !== "authenticated") return;
         let cancelled = false;
         fullTcfExamApi
             .listMine(SLOTS)
@@ -165,7 +146,7 @@ function ExamsConnectedHome() {
         return () => {
             cancelled = true;
         };
-    }, [status, tcfPremium]);
+    }, [status]);
 
     // Grilles indexées par slot : refaire l'examen N met à jour la case N.
     const {bySlot: civiqueBySlot} = useMemo(
@@ -189,10 +170,6 @@ function ExamsConnectedHome() {
                     : null,
             ),
         [civiqueBySlot],
-    );
-    const {bySlot: tcfCompBySlot} = useMemo(
-        () => examSlotGrid(tcfComprehension, SLOTS),
-        [tcfComprehension],
     );
     const {bySlot: fullExamBySlot} = useMemo(
         () => examSlotGrid(fullExams, SLOTS),
@@ -265,42 +242,25 @@ function ExamsConnectedHome() {
         }
     }
 
-    // Le slot voulu est transmis au briefing TCF gratuit (?slot=N) qui le repasse
-    // au start : refaire l'examen N réutilise slot_number=N.
-    function startTcfDiagnostic(slot: number) {
-        router.push(`/examens-blancs/${TCF_FREE_DIAGNOSTIC_SLUG}?slot=${slot}`);
-    }
-
     // ---- Stat cards + tips sous le toggle (données réelles, pas de valeurs en dur) ----
+    // Tous les comptes passent désormais l'examen complet (le 1ᵉʳ offert aux
+    // gratuits) : mêmes stats niveau CECRL pour tous, basées sur fullExams.
     const estimatedTcf = niveauCecrlLabel(summary?.estimatedTcfLevel ?? null);
-    let tcfStats: StatItem[];
-    let tcfTips: string[];
-    if (tcfPremium) {
-        const completed = fullExams.filter((e) => e.status === "COMPLETED");
-        const bestLevel = completed.reduce<NiveauCecrl | null>(
-            (best, e) =>
-                best == null || cecrlIndex(e.finalCecrlLevel) > cecrlIndex(best)
-                    ? e.finalCecrlLevel
-                    : best,
-            null,
-        );
-        const last = mostRecentFull(completed);
-        tcfStats = [
-            {value: niveauCecrlLabel(bestLevel), label: "Meilleur niveau"},
-            {value: last ? niveauCecrlLabel(last.finalCecrlLevel) : "—", label: "Dernier examen"},
-            {value: estimatedTcf, label: "Niveau estimé"},
-        ];
-        tcfTips = ["Conditions réelles", "90 minutes", "4 épreuves", "Niveau CECRL"];
-    } else {
-        const best = bestTcfScore(tcfComprehension);
-        const last = mostRecent(tcfComprehension);
-        tcfStats = [
-            {value: tcfScoreLabel(best), label: "Meilleur score"},
-            {value: tcfScoreLabel(last), label: "Dernier examen"},
-            {value: niveauCecrlLabel(summary?.estimatedTcfLevel ?? last?.cecrlLevel ?? null), label: "Niveau estimé"},
-        ];
-        tcfTips = ["Conditions réelles", "55 minutes", "50 questions", "CO puis CE"];
-    }
+    const completedFull = fullExams.filter((e) => e.status === "COMPLETED");
+    const bestFullLevel = completedFull.reduce<NiveauCecrl | null>(
+        (best, e) =>
+            best == null || cecrlIndex(e.finalCecrlLevel) > cecrlIndex(best)
+                ? e.finalCecrlLevel
+                : best,
+        null,
+    );
+    const lastFull = mostRecentFull(completedFull);
+    const tcfStats: StatItem[] = [
+        {value: niveauCecrlLabel(bestFullLevel), label: "Meilleur niveau"},
+        {value: lastFull ? niveauCecrlLabel(lastFull.finalCecrlLevel) : "—", label: "Dernier examen"},
+        {value: estimatedTcf, label: "Niveau estimé"},
+    ];
+    const tcfTips = ["Conditions réelles", "90 minutes", "4 épreuves", "Niveau CECRL"];
 
     const civiqueProgress = summary ? moduleAverage(summary.civique) : null;
     const civiqueStats: StatItem[] = [
@@ -340,34 +300,23 @@ function ExamsConnectedHome() {
                     tone="red"
                     icon={<Waves size={22} strokeWidth={1.8}/>}
                     title="TCF IRN"
-                    chip={tcfPremium ? "CO · CE · EE · EO" : "CO puis CE"}
+                    chip="CO · CE · EE · EO"
+                    sub={tcfPremium ? undefined : "Examen 1 offert · expression écrite et orale évaluées une fois"}
                     stats={tcfStats}
                     tips={tcfTips}
                 >
-                    {tcfPremium ? (
-                        <ExamsGrid
-                            count={SLOTS}
-                            exams={fullExamSlotData}
-                            premium
-                            starting={false}
-                            itemLabel="Examen"
-                            collapsedCount={COLLAPSED}
-                            reportPath={fullExamReportPath}
-                            onStart={startFullExam}
-                            onLocked={() => setPaywallModule("INTEGRAL")}
-                        />
-                    ) : (
-                        <ExamsGrid
-                            count={SLOTS}
-                            exams={tcfCompBySlot}
-                            premium={false}
-                            starting={false}
-                            itemLabel="Épreuve"
-                            collapsedCount={COLLAPSED}
-                            onStart={startTcfDiagnostic}
-                            onLocked={() => setPaywallModule("INTEGRAL")}
-                        />
-                    )}
+                    <ExamsGrid
+                        count={SLOTS}
+                        exams={fullExamSlotData}
+                        premium={tcfPremium}
+                        freeSlots={1}
+                        starting={false}
+                        itemLabel="Examen"
+                        collapsedCount={COLLAPSED}
+                        reportPath={fullExamReportPath}
+                        onStart={startFullExam}
+                        onLocked={() => setPaywallModule("INTEGRAL")}
+                    />
                 </ModuleExamsSection>
             ) : (
                 <ModuleExamsSection
@@ -394,6 +343,7 @@ function ExamsConnectedHome() {
             {briefingSlot !== null && (
                 <TcfFullExamBriefingSheet
                     slotNumber={briefingSlot}
+                    isFreeAccount={!tcfPremium}
                     onClose={() => setBriefingSlot(null)}
                     onNeedsPremium={() => {
                         setBriefingSlot(null);
@@ -457,15 +407,6 @@ function bestScored(exams: AttemptSummaryResponse[]): AttemptSummaryResponse | n
     );
 }
 
-/** Attempt TCF au meilleur score (calibré /499 prioritaire, sinon brut). */
-function bestTcfScore(exams: AttemptSummaryResponse[]): AttemptSummaryResponse | null {
-    const val = (a: AttemptSummaryResponse) => a.calibratedScore ?? a.score ?? -1;
-    return exams.reduce<AttemptSummaryResponse | null>(
-        (best, a) => (best == null || val(a) > val(best) ? a : best),
-        null,
-    );
-}
-
 /** Attempt le plus récent (par date de fin, fallback date de début). */
 function mostRecent(exams: AttemptSummaryResponse[]): AttemptSummaryResponse | null {
     return exams.reduce<AttemptSummaryResponse | null>((latest, a) => {
@@ -484,14 +425,6 @@ function mostRecentFull(
         const lt = latest ? (latest.finishedAt ?? latest.startedAt) : "";
         return latest == null || t > lt ? e : latest;
     }, null);
-}
-
-/** Score TCF affichable : calibré /499 si dispo, sinon brut /50, sinon « — ». */
-function tcfScoreLabel(a: AttemptSummaryResponse | null): string {
-    if (!a) return "—";
-    if (a.calibratedScore != null) return `${a.calibratedScore}/499`;
-    if (a.score != null) return `${a.score}/50`;
-    return "—";
 }
 
 /** Score civique affichable : brut sur le total de questions, sinon « — ». */

@@ -620,15 +620,24 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
   Widget build(BuildContext context) {
     final meta = _epreuveMeta(widget.epreuve);
     final sub = widget.sub;
-    final level = sub?.cecrlLevel;
-    final pending = sub != null && level == null && sub.isFinished && (sub.failedSubmissionIds.isEmpty);
-    final hasFailures = sub != null && sub.failedSubmissionIds.isNotEmpty;
+    // EE/EO verrouillées (compte gratuit ayant déjà utilisé l'EE/EO offerte) :
+    // épreuve non passée, réservée à l'abonnement — pas de niveau, pas de lien.
+    final lockedProd = sub?.locked == true;
+    final level = lockedProd ? null : sub?.cecrlLevel;
+    final pending = !lockedProd &&
+        sub != null &&
+        level == null &&
+        sub.isFinished &&
+        (sub.failedSubmissionIds.isEmpty);
+    final hasFailures =
+        !lockedProd && sub != null && sub.failedSubmissionIds.isNotEmpty;
 
     // Card tappable quand le sous-attempt est fini ET qu'on a une route de
     // détails à ouvrir (toutes les épreuves CO/CE/EE/EO en ont une). Sinon
-    // (sub == null ou pas encore fini), on reste passif — pas d'illusion
-    // clickable sur quelque chose qui n'existe pas.
-    final tappable = sub != null && sub.isFinished && _detailsRouteFor(sub) != null;
+    // (sub == null, pas encore fini, ou EE/EO verrouillée), on reste passif —
+    // pas d'illusion clickable sur quelque chose qui n'existe pas.
+    final tappable =
+        !lockedProd && sub != null && sub.isFinished && _detailsRouteFor(sub) != null;
 
     return Container(
       decoration: BoxDecoration(
@@ -673,7 +682,9 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            _subtitle(sub, pending),
+                            lockedProd
+                                ? 'Réservé à l\'abonnement Intégral'
+                                : _subtitle(sub, pending),
                             style: AppFonts.jakarta(
                               size: 12,
                               color: AppColors.muted,
@@ -683,7 +694,10 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    if (level != null)
+                    if (lockedProd)
+                      const Icon(Icons.lock_outline_rounded,
+                          color: AppColors.muted2, size: 20)
+                    else if (level != null)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(

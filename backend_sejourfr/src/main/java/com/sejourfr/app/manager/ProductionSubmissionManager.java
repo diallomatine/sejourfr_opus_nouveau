@@ -44,6 +44,15 @@ public class ProductionSubmissionManager {
         return repository.countTrainingByUserAndEpreuve(userId, epreuve);
     }
 
+    /**
+     * Vrai si l'utilisateur a déjà soumis au moins une tâche EE/EO dans un
+     * examen blanc TCF complet. Au-delà, les examens complets gratuits
+     * verrouillent EE/EO (freebie consommé).
+     */
+    public boolean hasFullExamProductionSubmission(UUID userId) {
+        return repository.countByUserAndParentEpreuve(userId, EpreuveType.TCF_COMPLET) > 0;
+    }
+
     /** Historique utilisateur, tri descendant, plafonne par {@code limit}. */
     public List<ProductionSubmission> findRecentByUser(UUID userId, int limit) {
         return repository.findByUserIdOrderBySubmittedAtDesc(userId, PageRequest.of(0, limit));

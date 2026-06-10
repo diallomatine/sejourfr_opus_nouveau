@@ -44,6 +44,22 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
             """)
     long countTrainingByUserAndEpreuve(@Param("userId") UUID userId, @Param("epreuve") EpreuveType epreuve);
 
+    /**
+     * Nombre de tâches EE/EO déjà soumises par l'utilisateur DANS un examen
+     * blanc TCF complet (sous-attempt rattaché à un parent {@code TCF_COMPLET}).
+     * Sert au freebie « EE/EO offerts une fois dans l'examen complet » des
+     * comptes gratuits : dès qu'une tâche a réellement été soumise (> 0), les
+     * examens complets suivants verrouillent EE/EO. Un examen complet lancé puis
+     * abandonné sans rien soumettre ne consomme pas le freebie.
+     */
+    @Query("""
+            SELECT COUNT(s) FROM ProductionSubmission s
+            WHERE s.user.id = :userId
+              AND s.attempt.parentAttempt.epreuve = :parentEpreuve
+            """)
+    long countByUserAndParentEpreuve(@Param("userId") UUID userId,
+                                     @Param("parentEpreuve") EpreuveType parentEpreuve);
+
     /** Historique filtre par epreuve (jointure sur la task). */
     @Query("""
             SELECT s FROM ProductionSubmission s

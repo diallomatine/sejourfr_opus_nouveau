@@ -455,12 +455,17 @@ Chantier découpé en vagues :
       parent → bilan (corrige aussi l'auto-finish chrono 0 qui plantait sur un
       examen incomplet). Examens autonomes (diagnostic guest, mocks) :
       `QuestionRunner` prop `quitMode="confirmFinish"` → avertit + finalise.
-    - **Freemium** : full exam premium (Intégral, backend `hasTcf`). Sur
-      `/examens-blancs`, la carte TCF branche : **abonné** → cards style Civique
-      (`ExamsGrid`, Refaire/Rapport, niveau CECRL via `ExamCard.metaOverride`) →
-      briefing inline → hub ; **invité / compte gratuit** → diagnostic CO+CE
-      (`tcf-mix-01`, EE/EO cadenassés). `ModuleExamsSection` = chrome + grille en
-      `children`.
+    - **Freemium** : sur `/examens-blancs`, **connecté gratuit ET abonné voient
+      la même grille d'examen complet** (`fullExamSlotData`, `fullTcfExamApi`).
+      Gratuit → `premium={false} freeSlots={1}` : **examen 1 offert** (EE/EO
+      évaluées une fois, message via `TcfFullExamBriefingSheet isFreeAccount`),
+      examens 2-20 → paywall INTEGRAL. Abonné → `premium` (20 slots). Le backend
+      (`FullTcfExamService.start`) n'exige plus `hasTcf` ; au refaire de l'examen
+      1, EE/EO arrivent verrouillées (`SubAttempt.locked` → cadenas au hub
+      `tcf/[id]` et au bilan, pas de lien). L'ancien diagnostic CO+CE connecté
+      gratuit (`tcf-mix-01`) est retiré de cette page (reste pour les **invités**
+      via la page briefing `[slug]`). `ModuleExamsSection` = chrome + grille en
+      `children`. Miroir `FullTcfExamSubAttempt.locked` dans `lib/types.ts`.
     - **Statut backend** (`FullTcfExamService`) : un examen abandonné sans soumettre
       EE/EO ne reste PAS `PENDING_EVALUATIONS` — le statut ne dépend que des
       submissions réellement en pipeline (`hasInFlightProduction`) ; une épreuve

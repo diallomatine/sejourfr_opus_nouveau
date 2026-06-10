@@ -59,6 +59,11 @@ public record FullTcfExamResponse(
      * @param submissionsCount    EE/EO uniquement : submissions EVALUATED (sur 3 attendues)
      * @param failedSubmissionIds EE/EO uniquement : ids des submissions FAILED — le mobile
      *                            peut les retry via POST /api/production-submissions/{id}/retry
+     * @param locked              EE/EO uniquement : true quand l'épreuve est verrouillée
+     *                            (compte gratuit ayant déjà consommé l'EE/EO offerte une
+     *                            fois). L'épreuve est pré-terminée, comptée A1_NON_ATTEINT ;
+     *                            les fronts affichent un cadenas + invitation à l'abonnement
+     *                            au lieu d'un état « non passé ». Toujours false pour CO/CE.
      */
     public record SubAttempt(
             UUID attemptId,
@@ -68,7 +73,8 @@ public record FullTcfExamResponse(
             Integer score,
             Integer maxScore,
             Integer submissionsCount,
-            List<UUID> failedSubmissionIds
+            List<UUID> failedSubmissionIds,
+            boolean locked
     ) {
     }
 }
