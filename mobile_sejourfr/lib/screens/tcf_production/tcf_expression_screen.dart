@@ -667,7 +667,6 @@ class TcfTaskTrainingScreen extends ConsumerStatefulWidget {
 class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
   bool _starting = false;
   int _tab = 0; // 0 = Exercices (sujets), 1 = Exemples
-  int _filter = 0; // 0 = Tous, 1 = À faire, 2 = Faits
   bool _showAll = false;
 
   void _openExample(ProductionExampleDto example) {
@@ -707,14 +706,6 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
     } finally {
       if (mounted) setState(() => _starting = false);
     }
-  }
-
-  void _startRandom(List<ProductionTaskDto> subjects,
-      Map<String, ProductionSubmissionDto> done) {
-    final todo = subjects.where((t) => !done.containsKey(t.id)).toList();
-    final pool = todo.isNotEmpty ? todo : subjects;
-    pool.shuffle();
-    _practice(pool.first);
   }
 
   void _openPlan() {
@@ -874,30 +865,9 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
   List<Widget> _buildExercices(TcfProductionModule mod, _TaskData data) {
     final subjects = data.subjects;
     final done = data.lastByTaskId;
-    final doneCount = subjects.where((t) => done.containsKey(t.id)).length;
-    final List<ProductionTaskDto> filtered = switch (_filter) {
-      1 => subjects.where((t) => !done.containsKey(t.id)).toList(),
-      2 => subjects.where((t) => done.containsKey(t.id)).toList(),
-      _ => subjects,
-    };
-    final visible = _showAll ? filtered : filtered.take(6).toList();
-    final remaining = filtered.length - visible.length;
+    final visible = _showAll ? subjects : subjects.take(6).toList();
+    final remaining = subjects.length - visible.length;
     return [
-      _IntroCard(text: _introFor(mod, widget.tache), module: mod),
-      const SizedBox(height: 12),
-      _FilterChips(
-        active: _filter,
-        total: subjects.length,
-        todo: subjects.length - doneCount,
-        done: doneCount,
-        onChanged: (i) => setState(() {
-          _filter = i;
-          _showAll = false;
-        }),
-      ),
-      const SizedBox(height: 12),
-      _RandomCard(onStart: () => _startRandom(subjects, done)),
-      const SizedBox(height: 12),
       for (int i = 0; i < visible.length; i++)
         _ExerciseRow(
           module: mod,
@@ -912,7 +882,6 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
             }
           },
         ),
-      if (filtered.isEmpty) _MutedHint(text: 'Aucun sujet dans ce filtre.'),
       if (remaining > 0)
         _ShowMoreButton(
           label: 'Voir les $remaining autres',
@@ -944,26 +913,6 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
       const SizedBox(height: 4),
       _StrategyCard(onTap: _openPlan),
     ];
-  }
-
-  String _introFor(TcfProductionModule mod, int tache) {
-    if (mod.isEo) {
-      return switch (tache) {
-        1 =>
-          'Présentez-vous clairement : identité, parcours, loisirs et projets. Parlez 2 à 3 minutes.',
-        2 =>
-          'Obtenez une information en posant des questions à l\'examinateur. Pensez à varier les formules.',
-        _ =>
-          'Donnez votre opinion et défendez-la avec deux arguments illustrés d\'exemples.',
-      };
-    }
-    return switch (tache) {
-      1 => 'Répondez au message reçu : soyez clair et complet en 60-120 mots.',
-      2 =>
-        'Racontez une expérience au passé : contexte, déroulement, puis bilan.',
-      _ =>
-        'Donnez un avis argumenté : thèse, deux arguments illustrés, et une objection.',
-    };
   }
 
   void _back(BuildContext context) {
@@ -1332,149 +1281,6 @@ String _formatNote(double n) => n.toStringAsFixed(1).replaceAll('.', ',');
 /// Onglets « Exercices / Exemples » (segment blanc actif, façon iOS).
 /// Bannière de consigne de la tâche (cf. `MPractice` maquette) : fond
 /// teinté + liseré accent à gauche — rouge EO, bleu EE.
-class _IntroCard extends StatelessWidget {
-  const _IntroCard({required this.text, required this.module});
-
-  final String text;
-  final TcfProductionModule module;
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = module.isEo ? AppColors.red : AppColors.blue;
-    final soft = module.isEo ? AppColors.redLight : AppColors.blueLight;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
-      decoration: BoxDecoration(
-        color: soft,
-        borderRadius: BorderRadius.circular(AppRadii.sm),
-        border: Border(left: BorderSide(color: accent, width: 3)),
-      ),
-      child: Text(
-        text,
-        style: AppFonts.ui(size: 14, weight: FontWeight.w500, height: 1.45),
-      ),
-    );
-  }
-}
-
-/// Chips de filtre Tous / À faire / Faits.
-class _FilterChips extends StatelessWidget {
-  const _FilterChips({
-    required this.active,
-    required this.total,
-    required this.todo,
-    required this.done,
-    required this.onChanged,
-  });
-
-  final int active;
-  final int total;
-  final int todo;
-  final int done;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final labels = ['Tous · $total', 'À faire · $todo', 'Faits · $done'];
-    return SizedBox(
-      height: 32,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.zero,
-        itemCount: labels.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, i) {
-          final on = active == i;
-          return GestureDetector(
-            onTap: () => onChanged(i),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 13),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: on ? AppColors.red : AppColors.white,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: on ? AppColors.red : AppColors.line),
-              ),
-              child: Text(
-                labels[i],
-                style: AppFonts.ui(
-                    size: 12,
-                    weight: FontWeight.w700,
-                    color: on ? AppColors.white : AppColors.muted),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// Carte « Sujet aléatoire » (bord pointillé).
-class _RandomCard extends StatelessWidget {
-  const _RandomCard({required this.onStart});
-
-  final VoidCallback onStart;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.line),
-        boxShadow: AppShadows.card,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-                color: AppColors.redLight, shape: BoxShape.circle),
-            child:
-                const Icon(LucideIcons.dices, size: 20, color: AppColors.red),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Sujet aléatoire',
-                    style: AppFonts.ui(
-                        size: 14,
-                        weight: FontWeight.w700,
-                        color: AppColors.ink)),
-                const SizedBox(height: 1),
-                Text('Comme à l\'examen, sans le voir',
-                    style: AppFonts.ui(size: 12, color: AppColors.muted)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: onStart,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-              decoration: BoxDecoration(
-                  color: AppColors.red,
-                  borderRadius: BorderRadius.circular(10)),
-              child: Text('Démarrer',
-                  style: AppFonts.ui(
-                      size: 12.5,
-                      weight: FontWeight.w800,
-                      color: AppColors.white)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// Carte d'un sujet (cf. `MTask` maquette) : icône mic/pen en pastille,
 /// énoncé, pill niveau + note si déjà fait, icône play / refaire. Tap →
 /// l'entraînement démarre directement sur ce sujet.
@@ -1607,15 +1413,74 @@ class _ShowMoreButton extends StatelessWidget {
   }
 }
 
-/// Carte « exemple corrigé » mise en avant (onglet Exemples).
-class _FeaturedExampleCard extends StatelessWidget {
+/// Carte « exemple corrigé » mise en avant (onglet Exemples). Quand l'exemple
+/// porte un audio (EO), la carte intègre un lecteur inline : bouton Écouter,
+/// barre de progression et durée totale. Sinon (EE, texte), elle ouvre le
+/// corrigé rédigé.
+class _FeaturedExampleCard extends StatefulWidget {
   const _FeaturedExampleCard({required this.example, required this.onOpen});
 
   final ProductionExampleDto example;
   final VoidCallback onOpen;
 
   @override
+  State<_FeaturedExampleCard> createState() => _FeaturedExampleCardState();
+}
+
+class _FeaturedExampleCardState extends State<_FeaturedExampleCard> {
+  AudioPlayer? _player;
+  bool _ready = false;
+  Duration _pos = Duration.zero;
+  Duration _dur = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    final url = widget.example.audioUrl;
+    if (widget.example.hasAudio && url != null && url.isNotEmpty) {
+      final player = AudioPlayer();
+      _player = player;
+      player.setUrl(url).then((d) {
+        if (!mounted) return;
+        setState(() {
+          _ready = true;
+          if (d != null) _dur = d;
+        });
+      }).catchError((_) {});
+      player.durationStream.listen((d) {
+        if (mounted && d != null) setState(() => _dur = d);
+      });
+      player.positionStream.listen((p) {
+        if (mounted) setState(() => _pos = p);
+      });
+      player.playerStateStream.listen((_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _player?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    final player = _player;
+    if (player == null) return;
+    if (player.playing) {
+      await player.pause();
+    } else {
+      if (player.processingState == ProcessingState.completed) {
+        await player.seek(Duration.zero);
+      }
+      await player.play();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final example = widget.example;
     final (nbg, nfg) = _niveauColors(example.niveauIndicatif);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -1634,7 +1499,7 @@ class _FeaturedExampleCard extends StatelessWidget {
               const Icon(LucideIcons.sparkles, size: 14, color: AppColors.red),
               const SizedBox(width: 6),
               Text('EXEMPLE CORRIGÉ',
-                  style: AppFonts.mono(
+                  style: AppFonts.ui(
                       size: 9.5,
                       color: AppColors.red,
                       letterSpacing: 0.8,
@@ -1659,41 +1524,94 @@ class _FeaturedExampleCard extends StatelessWidget {
                   weight: FontWeight.w700,
                   color: AppColors.ink,
                   height: 1.4)),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(11),
-            decoration: BoxDecoration(
-                color: AppColors.bg, borderRadius: BorderRadius.circular(10)),
-            child: Text(
-              example.resume ?? example.contenu,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style:
-                  AppFonts.ui(size: 12, color: AppColors.muted, height: 1.45),
+          const SizedBox(height: 10),
+          if (example.hasAudio)
+            _buildPlayer()
+          else
+            _OutlineBtn(
+                icon: LucideIcons.fileText,
+                label: 'Voir le corrigé',
+                onTap: widget.onOpen),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlayer() {
+    final playing = _player?.playing ?? false;
+    final progress = _dur.inMilliseconds > 0
+        ? (_pos.inMilliseconds / _dur.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+          color: AppColors.bg, borderRadius: BorderRadius.circular(12)),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: _ready ? _toggle : null,
+            child: Container(
+              width: 42,
+              height: 42,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  color: _ready ? AppColors.red : AppColors.muted2,
+                  shape: BoxShape.circle),
+              child: _ready
+                  ? Icon(playing ? LucideIcons.pause : LucideIcons.play,
+                      color: AppColors.white, size: 20)
+                  : const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.white)),
             ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                  child: _OutlineBtn(
-                      icon: LucideIcons.fileText,
-                      label: 'Voir le corrigé',
-                      onTap: onOpen)),
-              if (example.hasAudio) ...[
-                const SizedBox(width: 6),
-                Expanded(
-                    child: _OutlineBtn(
-                        icon: LucideIcons.headphones,
-                        label: 'Écouter',
-                        onTap: onOpen)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 5,
+                    backgroundColor: AppColors.line,
+                    valueColor:
+                        const AlwaysStoppedAnimation<Color>(AppColors.red),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(_fmtClock(_pos),
+                        style: AppFonts.ui(
+                            size: 11,
+                            color: AppColors.muted,
+                            weight: FontWeight.w600)),
+                    Text(_fmtClock(_dur),
+                        style: AppFonts.ui(
+                            size: 11,
+                            color: AppColors.muted,
+                            weight: FontWeight.w600)),
+                  ],
+                ),
               ],
-            ],
+            ),
           ),
         ],
       ),
     );
   }
+}
+
+String _fmtClock(Duration d) {
+  final m = d.inMinutes;
+  final s = d.inSeconds % 60;
+  return '$m:${s.toString().padLeft(2, '0')}';
 }
 
 class _OutlineBtn extends StatelessWidget {

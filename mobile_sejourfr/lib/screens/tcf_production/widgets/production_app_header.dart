@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -14,7 +14,8 @@ import '../../../core/theme/app_theme.dart';
 /// fallback est `context.go(fallbackRoute)` (par défaut le hub TCF) — pas
 /// un no-op silencieux. Les écrans qui ont une cible précise (hub d'examen
 /// blanc complet, etc.) la passent via `fallbackRoute`.
-class ProductionAppHeader extends StatelessWidget implements PreferredSizeWidget {
+class ProductionAppHeader extends StatelessWidget
+    implements PreferredSizeWidget {
   const ProductionAppHeader({
     super.key,
     required this.title,
@@ -78,7 +79,9 @@ class ProductionAppHeader extends StatelessWidget implements PreferredSizeWidget
                 ),
                 SizedBox(
                   width: 56,
-                  child: Align(alignment: Alignment.centerRight, child: rightAction ?? const SizedBox()),
+                  child: Align(
+                      alignment: Alignment.centerRight,
+                      child: rightAction ?? const SizedBox()),
                 ),
               ],
             ),
@@ -95,6 +98,7 @@ class ProductionAppHeaderQuit extends StatelessWidget {
 
   final VoidCallback onPressed;
 
+// TODO non utilisé, à supprimer
   @override
   Widget build(BuildContext context) {
     return TextButton(
@@ -104,7 +108,7 @@ class ProductionAppHeaderQuit extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8),
       ),
       child: Text(
-        'Quitter',
+        '',
         style: AppFonts.ui(
           size: 15,
           weight: FontWeight.w600,

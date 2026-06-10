@@ -1,10 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
@@ -67,7 +67,8 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
       }
       if (!context.mounted) return;
       final session = ref.read(eoSessionProvider).value;
-      final hasNext = session != null && widget.taskIndex + 1 < session.totalTasks;
+      final hasNext =
+          session != null && widget.taskIndex + 1 < session.totalTasks;
       if (hasNext) {
         context.pushReplacement(
           withCurrentQuery(
@@ -81,7 +82,9 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
                 parentAttemptId: fullExamId,
                 epreuveWire: 'TCF_EO',
               );
-        } catch (_) {/* hook auto backend fallback */}
+        } catch (_) {
+          /* hook auto backend fallback */
+        }
         if (!context.mounted) return;
         ref.read(eoSessionProvider.notifier).reset();
         ref.invalidate(fullTcfExamProvider(fullExamId));
@@ -103,7 +106,8 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
       if (!context.mounted) return;
       final session = ref.read(eoSessionProvider).value;
       final isExamMode = session != null && session.totalTasks > 1;
-      final hasNext = session != null && widget.taskIndex + 1 < session.totalTasks;
+      final hasNext =
+          session != null && widget.taskIndex + 1 < session.totalTasks;
       if (isExamMode) {
         // Mode session 3-tâches (onglet Examens) : pas d'évaluation visible
         // entre les tâches, comme dans le vrai TCF. On enchaîne directement
@@ -167,9 +171,8 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
 
     final goState = GoRouterState.of(context);
     final fullExamId = goState.uri.queryParameters['fullExamId'];
-    final fallbackRoute = fullExamId != null
-        ? '/tcf/examen-blanc/$fullExamId'
-        : '/tcf/eo';
+    final fallbackRoute =
+        fullExamId != null ? '/tcf/examen-blanc/$fullExamId' : '/tcf/eo';
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: ProductionAppHeader(
@@ -253,7 +256,7 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
               child: SafeArea(
                 top: false,
                 child: AppButton(
-                  label: 'Voir mon evaluation',
+                  label: 'Voir mon évaluation',
                   icon: LucideIcons.sparkles,
                   isLoading: _submitting,
                   onPressed: _submitting ? null : () => _submit(context),
@@ -342,7 +345,7 @@ class _NextInfoCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            "Votre enregistrement va etre analyse par notre IA. Vous recevrez une evaluation detaillee dans quelques secondes.",
+            "Votre enregistrement va être analysé par notre IA. Vous recevrez une evaluation détaillée dans quelques secondes.",
             textAlign: TextAlign.center,
             style: AppFonts.ui(
               size: 13,
@@ -358,6 +361,7 @@ class _NextInfoCard extends StatelessWidget {
 
 class _InlineError extends StatelessWidget {
   const _InlineError({required this.message});
+
   final String message;
 
   @override
@@ -495,7 +499,8 @@ class _PlaybackBarState extends State<_PlaybackBar> {
                             .clamp(0, 1),
                     minHeight: 5,
                     backgroundColor: AppColors.blueLight,
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.blue),
+                    valueColor:
+                        const AlwaysStoppedAnimation<Color>(AppColors.blue),
                   ),
                 ),
                 const SizedBox(height: 6),
