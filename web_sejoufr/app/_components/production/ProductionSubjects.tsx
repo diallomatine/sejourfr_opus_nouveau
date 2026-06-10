@@ -190,7 +190,7 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
         ) : (
           <div className={detail.exampleList}>
             {examples.map((ex) => (
-              <ExampleCard key={ex.id} example={ex} />
+              <ExampleCard key={ex.id} example={ex} hideText={config.mode === "audio"} />
             ))}
           </div>
         )}
@@ -199,7 +199,13 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
   );
 }
 
-function ExampleCard({ example: ex }: { example: ProductionExampleDto }) {
+function ExampleCard({
+  example: ex,
+  hideText,
+}: {
+  example: ProductionExampleDto;
+  hideText: boolean;
+}) {
   return (
     <div className={prod.example}>
       <h3 className={prod.exampleTitle}>
@@ -212,7 +218,7 @@ function ExampleCard({ example: ex }: { example: ProductionExampleDto }) {
           <audio src={ex.audioUrl} controls preload="none" />
         </div>
       )}
-      {ex.contenu && <p className={prod.exampleBody}>{ex.contenu}</p>}
+      {!hideText && ex.contenu && <p className={prod.exampleBody}>{ex.contenu}</p>}
       {ex.planPoints.length > 0 && (
         <ol className={prod.planList}>
           {ex.planPoints.map((p, i) => (

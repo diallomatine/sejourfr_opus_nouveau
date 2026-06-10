@@ -1170,28 +1170,33 @@ class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 18),
-                  Text(
-                    widget.module.isEo ? 'Transcription' : 'Texte du modèle',
-                    style: AppFonts.mono(
-                        size: 10,
-                        color: AppColors.muted,
-                        letterSpacing: 1.4,
-                        weight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: AppColors.bg,
-                      borderRadius: BorderRadius.circular(16),
-                      border: const Border(
-                          left: BorderSide(color: AppColors.red, width: 4)),
+                  // EO : on n'affiche pas la transcription du dialogue, le
+                  // candidat doit s'entraîner à l'écoute seule. EE : le texte
+                  // EST le modèle, on le montre.
+                  if (!widget.module.isEo) ...[
+                    const SizedBox(height: 18),
+                    Text(
+                      'Texte du modèle',
+                      style: AppFonts.mono(
+                          size: 10,
+                          color: AppColors.muted,
+                          letterSpacing: 1.4,
+                          weight: FontWeight.w700),
                     ),
-                    child: Text(ex.contenu,
-                        style: AppFonts.jakarta(
-                            size: 14, color: AppColors.ink2, height: 1.6)),
-                  ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: const Border(
+                            left: BorderSide(color: AppColors.red, width: 4)),
+                      ),
+                      child: Text(ex.contenu,
+                          style: AppFonts.jakarta(
+                              size: 14, color: AppColors.ink2, height: 1.6)),
+                    ),
+                  ],
                   if (ex.explications != null &&
                       ex.explications!.isNotEmpty) ...[
                     const SizedBox(height: 16),
