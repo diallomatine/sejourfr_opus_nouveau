@@ -37,7 +37,11 @@ export function isAppGroupRoute(pathname: string | null): boolean {
 /** Refonte web_refonte : pour un utilisateur connecté, les routes "app"
  *  (groupe (app) + routes duales) sont un shell applicatif pur — la sidebar
  *  porte toute la navigation, le header marketing et le footer publics
- *  disparaissent. Les guests gardent le chrome global partout. */
+ *  disparaissent. Les guests gardent le chrome global partout.
+ *
+ *  L'accueil `/` reste hors de ce périmètre : un connecté y garde le header +
+ *  footer marketing (desktop comme avant, sans sidebar) ; seul le drawer mobile
+ *  du SiteHeader bascule sur l'AppSidebar (cf. SiteHeader). */
 export function shouldHideGlobalChrome(
   pathname: string | null,
   isAuthenticated: boolean,

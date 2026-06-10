@@ -5,6 +5,7 @@ import {usePathname, useRouter} from "next/navigation";
 import {useEffect, useRef, useState} from "react";
 import {Menu, X} from "lucide-react";
 import {Brand} from "./Brand";
+import {AppSidebar} from "./AppSidebar";
 import {useAuth} from "@/lib/auth-context";
 import {isAppGroupRoute, isDualChromeRoute, shouldHideGlobalChrome,} from "@/lib/chrome-routes";
 
@@ -365,6 +366,14 @@ export function SiteHeader() {
           from { transform: translateX(-100%); }
           to { transform: translateX(0); }
         }
+        /* Variante connectée : l'AppSidebar (via .ms-drawer-inner) porte son
+           propre padding/scroll, le panneau ne fait que le cadre fixe. */
+        .site-header__mobilePanel--app {
+          padding: 0;
+          gap: 0;
+          overflow: hidden;
+          width: min(86vw, 300px);
+        }
         .site-header__mobileHead {
           display: flex; align-items: center; justify-content: space-between;
           padding-bottom: 14px;
@@ -444,68 +453,78 @@ export function SiteHeader() {
                         onClick={() => setMobileNavOpen(false)}
                         aria-hidden
                     />
-                    <aside
-                        className="site-header__mobilePanel"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-label="Menu"
-                    >
-                        <div className="site-header__mobileHead">
-                            <Brand href={homeHref}/>
+                    {isAuth ? (
+                        /* Connecté (accueil + autres routes vitrine) : le drawer
+                           rend la même AppSidebar que l'espace perso, pour que le
+                           burger soit identique partout. Réutilise les overrides
+                           globaux `.ms-drawer-inner .app-sidebar` + `.ms-close`. */
+                        <aside
+                            className="site-header__mobilePanel site-header__mobilePanel--app"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label="Menu"
+                        >
                             <button
                                 type="button"
-                                className="site-header__mobileClose"
+                                className="ms-close"
                                 onClick={() => setMobileNavOpen(false)}
                                 aria-label="Fermer le menu"
                             >
                                 <X size={18} aria-hidden/>
                             </button>
-                        </div>
-
-                        {NAV_LINKS.map((l) => (
-                            <Link
-                                key={l.href}
-                                href={l.href}
-                                className="site-header__mobileLink"
-                                onClick={() => setMobileNavOpen(false)}
+                            <div
+                                className="ms-drawer-inner"
+                                onClick={(e) => {
+                                    if ((e.target as HTMLElement).closest("a, button")) {
+                                        setMobileNavOpen(false);
+                                    }
+                                }}
                             >
-                                {l.label}
-                            </Link>
-                        ))}
+                                <AppSidebar/>
+                            </div>
+                        </aside>
+                    ) : (
+                        <aside
+                            className="site-header__mobilePanel"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label="Menu"
+                        >
+                            <div className="site-header__mobileHead">
+                                <Brand href={homeHref}/>
+                                <button
+                                    type="button"
+                                    className="site-header__mobileClose"
+                                    onClick={() => setMobileNavOpen(false)}
+                                    aria-label="Fermer le menu"
+                                >
+                                    <X size={18} aria-hidden/>
+                                </button>
+                            </div>
 
-                        <div className="site-header__mobileCtas">
-                            {isAuth ? (
-                                <>
-                                    <Link href="/dashboard" className="site-header__mobileGhost"
-                                          onClick={() => setMobileNavOpen(false)}>
-                                        Tableau de bord
-                                    </Link>
-                                    <Link href="/profil" className="site-header__mobileGhost"
-                                          onClick={() => setMobileNavOpen(false)}>
-                                        Mon profil
-                                    </Link>
-                                    <button
-                                        type="button"
-                                        className="btn btn-ghost site-header__mobilePrimary"
-                                        onClick={handleLogout}
-                                    >
-                                        Se déconnecter
-                                    </button>
-                                </>
-                            ) : (
-                                <>
-                                    <Link href="/connexion" className="site-header__mobileGhost"
-                                          onClick={() => setMobileNavOpen(false)}>
-                                        Se connecter
-                                    </Link>
-                                    <Link href="/inscription" className="btn site-header__mobilePrimary"
-                                          onClick={() => setMobileNavOpen(false)}>
-                                        Commencer
-                                    </Link>
-                                </>
-                            )}
-                        </div>
-                    </aside>
+                            {NAV_LINKS.map((l) => (
+                                <Link
+                                    key={l.href}
+                                    href={l.href}
+                                    className="site-header__mobileLink"
+                                    onClick={() => setMobileNavOpen(false)}
+                                >
+                                    {l.label}
+                                </Link>
+                            ))}
+
+                            <div className="site-header__mobileCtas">
+                                <Link href="/connexion" className="site-header__mobileGhost"
+                                      onClick={() => setMobileNavOpen(false)}>
+                                    Se connecter
+                                </Link>
+                                <Link href="/inscription" className="btn site-header__mobilePrimary"
+                                      onClick={() => setMobileNavOpen(false)}>
+                                    Commencer
+                                </Link>
+                            </div>
+                        </aside>
+                    )}
                 </>
             )}
         </>
