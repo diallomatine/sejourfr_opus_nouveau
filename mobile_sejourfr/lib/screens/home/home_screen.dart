@@ -160,15 +160,22 @@ class _HomeBody extends ConsumerWidget {
 
   final DashboardSummary summary;
 
-  /// Catégorie la plus faible parmi celles déjà travaillées ; pour un compte
-  /// vierge, la première épreuve TCF (CO) pour amorcer l'entraînement.
-  DashboardCategoryStat _priority() {
-    final worked = summary.allCategories
-        .where((s) => s.percent != null)
+  /// Catégorie la plus faible à pousser en priorité. Le périmètre dépend de
+  /// l'abonnement : un abonné **Civique seul** ne voit que des thèmes civiques ;
+  /// tous les autres (Intégral, TCF seul, ou compte gratuit) voient une épreuve
+  /// TCF. Sur compte vierge, la première catégorie du périmètre (TCF → CO) pour
+  /// amorcer l'entraînement. `TCF_STRUCTURE` est toujours exclu : thème bonus
+  /// non évalué au TCF IRN, on ne le pousse jamais comme priorité.
+  DashboardCategoryStat _priority({required bool civiqueOnly}) {
+    final pool = civiqueOnly ? summary.civique : summary.tcf;
+    final worked = pool
+        .where((s) => s.percent != null && s.code != 'TCF_STRUCTURE')
         .toList()
       ..sort((a, b) => a.percent!.compareTo(b.percent!));
     if (worked.isNotEmpty) return worked.first;
-    final ordered = orderedTcfCategories(summary.tcf);
+    final ordered = (civiqueOnly ? pool : orderedTcfCategories(summary.tcf))
+        .where((s) => s.code != 'TCF_STRUCTURE')
+        .toList();
     return ordered.isNotEmpty ? ordered.first : summary.allCategories.first;
   }
 
@@ -180,7 +187,10 @@ class _HomeBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final priority = _priority();
+    final auth = ref.watch(authControllerProvider);
+    final user = auth is AuthAuthenticated ? auth.user : null;
+    final civiqueOnly = user != null && user.hasCivique && !user.hasTcf;
+    final priority = _priority(civiqueOnly: civiqueOnly);
     final global = summary.globalSuccessPercent ?? 0;
     final level = summary.estimatedTcfLevel;
 
