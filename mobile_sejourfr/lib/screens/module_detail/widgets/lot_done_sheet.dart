@@ -68,7 +68,7 @@ class LotDoneSheet extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               _LotSheetButton(
-                label: 'Reprendre',
+                label: 'Refaire',
                 icon: LucideIcons.refreshCw,
                 background: AppColors.red,
                 foreground: AppColors.white,

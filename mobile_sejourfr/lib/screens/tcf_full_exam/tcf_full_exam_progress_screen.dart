@@ -11,6 +11,7 @@ import '../../core/models/full_tcf_exam.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
+import '../../core/widgets/app_sheet.dart';
 import 'full_tcf_exam_provider.dart';
 
 /// Hub de progression d'un examen blanc TCF complet : 4 étapes (CO → CE →
@@ -24,7 +25,13 @@ import 'full_tcf_exam_provider.dart';
 /// ce hub pour que les épreuves récemment terminées apparaissent.
 ///
 /// **Timer global** : 90 min décomptés depuis `exam.startedAt`. À 0,
-/// finalisation automatique côté backend + redirect vers le bilan.
+/// finalisation automatique + redirect vers le bilan.
+///
+/// **Abandon** (parité web) : quitter un examen en cours ne le laisse plus
+/// « En cours ». On affiche un avertissement, puis on finalise chaque épreuve
+/// non terminée (CO/CE = score sur les réponses données, 0 si aucune ; EE/EO =
+/// `sub-done` → comptée A1 non atteint côté backend), on finalise le parent et
+/// on route vers le bilan. Le reste est donc bien noté 0 et le résultat affiché.
 class TcfFullExamProgressScreen extends ConsumerStatefulWidget {
   const TcfFullExamProgressScreen({super.key, required this.parentAttemptId});
 
@@ -43,6 +50,7 @@ class _TcfFullExamProgressScreenState
     extends ConsumerState<TcfFullExamProgressScreen> {
   Timer? _ticker;
   bool _timeoutHandled = false;
+  bool _finishing = false;
 
   @override
   void initState() {
@@ -73,29 +81,40 @@ class _TcfFullExamProgressScreenState
 
     return Scaffold(
       backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: examAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => _ErrorView(
-            message: e.toString(),
-            onRetry: () => ref.invalidate(
-                fullTcfExamProvider(widget.parentAttemptId)),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: examAsync.when(
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
+              error: (e, _) => _ErrorView(
+                message: e.toString(),
+                onRetry: () => ref.invalidate(
+                    fullTcfExamProvider(widget.parentAttemptId)),
+              ),
+              data: (exam) {
+                final remaining = _remaining(exam);
+                // Temps épuisé : on finalise une seule fois (les épreuves
+                // restantes comptées 0) et on redirige vers le bilan.
+                if (remaining <= Duration.zero &&
+                    !_timeoutHandled &&
+                    exam.finishedAt == null) {
+                  _timeoutHandled = true;
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) _finalizeAndGoToBilan(exam);
+                  });
+                }
+                return _ProgressView(
+                  exam: exam,
+                  remaining: remaining,
+                  finishing: _finishing,
+                  onQuit: () => _confirmQuit(exam),
+                );
+              },
+            ),
           ),
-          data: (exam) {
-            final remaining = _remaining(exam);
-            // Temps épuisé : on lance le finish backend une seule fois et on
-            // redirige vers le bilan où le polling prendra le relais.
-            if (remaining <= Duration.zero &&
-                !_timeoutHandled &&
-                exam.finishedAt == null) {
-              _timeoutHandled = true;
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) _handleTimeout(exam.id);
-              });
-            }
-            return _ProgressView(exam: exam, remaining: remaining);
-          },
-        ),
+          if (_finishing) const Positioned.fill(child: _FinishingOverlay()),
+        ],
       ),
     );
   }
@@ -106,23 +125,97 @@ class _TcfFullExamProgressScreenState
     return diff.isNegative ? Duration.zero : diff;
   }
 
-  Future<void> _handleTimeout(String parentId) async {
+  /// Avertit avant d'abandonner un examen en cours, puis finalise. Si l'examen
+  /// est déjà finalisé (éval IA en cours / terminé) ou que les 4 épreuves sont
+  /// jouées, il n'y a rien à abandonner → simple sortie.
+  Future<void> _confirmQuit(FullTcfExamResponse exam) async {
+    final allDone = exam.currentStepIndex >= 4;
+    if (exam.finishedAt != null || allDone) {
+      _close(context);
+      return;
+    }
+    final confirmed = await showAppSheet<bool>(
+      context,
+      icon: LucideIcons.triangleAlert,
+      iconBg: AppColors.redLight,
+      iconColor: AppColors.red,
+      title: 'Abandonner l\'examen ?',
+      sub: 'Vous perdez tout ce qui n\'a pas été terminé : les épreuves '
+          'restantes sont comptées 0 et l\'examen est finalisé. Vous verrez '
+          'votre résultat. Cette action est définitive.',
+      children: [
+        AppButton(
+          label: 'Abandonner et voir le résultat',
+          variant: AppButtonVariant.danger,
+          onPressed: () => Navigator.pop(context, true),
+        ),
+        AppButton(
+          label: 'Continuer l\'examen',
+          variant: AppButtonVariant.ghost,
+          onPressed: () => Navigator.pop(context, false),
+        ),
+      ],
+    );
+    if (confirmed == true) {
+      await _finalizeAndGoToBilan(exam);
+    }
+  }
+
+  /// Finalise l'examen et va au bilan. Toute épreuve non terminée est finalisée
+  /// (CO/CE = score sur les réponses données, 0 si aucune ; EE/EO = `markSubDone`
+  /// → comptée A1 non atteint côté backend), sinon le `finish` parent échouerait
+  /// (le backend exige les 4 terminées). Parité avec le web.
+  Future<void> _finalizeAndGoToBilan(FullTcfExamResponse exam) async {
+    if (_finishing) return;
+    setState(() => _finishing = true);
+    final repo = ref.read(fullTcfExamRepositoryProvider);
+    final attempts = ref.read(attemptsRepositoryProvider);
+    for (final sa in exam.subAttempts) {
+      if (sa.finishedAt != null) continue;
+      try {
+        if (sa.epreuve == EpreuveType.tcfCo ||
+            sa.epreuve == EpreuveType.tcfCe) {
+          await attempts.finish(sa.attemptId);
+        } else {
+          await repo.markSubDone(
+            parentAttemptId: exam.id,
+            epreuveWire: sa.epreuve.wire,
+          );
+        }
+      } catch (_) {
+        // Best-effort : on tente quand même le finish parent.
+      }
+    }
     try {
-      await ref.read(fullTcfExamRepositoryProvider).finish(parentId);
+      await repo.finish(exam.id);
     } catch (_) {
-      // Ignore : si un sous-attempt n'est pas fini, le backend rejette.
-      // Le bilan se chargera quand même de poller pour récupérer le statut.
+      // Idempotent / déjà fini — le bilan lira l'état réel via polling.
     }
     if (!mounted) return;
-    context.go(AppRoutes.tcfFullExamBilan.replaceFirst(':parentId', parentId));
+    context.go(AppRoutes.tcfFullExamBilan.replaceFirst(':parentId', exam.id));
+  }
+
+  void _close(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.reviser);
+    }
   }
 }
 
 class _ProgressView extends ConsumerWidget {
-  const _ProgressView({required this.exam, required this.remaining});
+  const _ProgressView({
+    required this.exam,
+    required this.remaining,
+    required this.finishing,
+    required this.onQuit,
+  });
 
   final FullTcfExamResponse exam;
   final Duration remaining;
+  final bool finishing;
+  final VoidCallback onQuit;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -138,7 +231,7 @@ class _ProgressView extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
         children: [
-          _TopBar(onClose: () => _close(context)),
+          _TopBar(onClose: finishing ? () {} : onQuit),
           const SizedBox(height: 20),
           _Hero(exam: exam, remaining: remaining),
           const SizedBox(height: 18),
@@ -160,9 +253,9 @@ class _ProgressView extends ConsumerWidget {
             ),
           const SizedBox(height: 10),
           AppButton(
-            label: 'Quitter pour le moment',
+            label: allDone ? 'Quitter' : 'Abandonner l\'examen',
             variant: AppButtonVariant.ghost,
-            onPressed: () => _close(context),
+            onPressed: finishing ? null : onQuit,
           ),
         ],
       ),
@@ -218,13 +311,37 @@ class _ProgressView extends ConsumerWidget {
         break;
     }
   }
+}
 
-  void _close(BuildContext context) {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go(AppRoutes.reviser);
-    }
+/// Scrim plein écran pendant la finalisation d'un abandon : bloque les taps et
+/// indique que l'examen se finalise avant la redirection vers le bilan.
+class _FinishingOverlay extends StatelessWidget {
+  const _FinishingOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {},
+      child: Container(
+        color: AppColors.scrim,
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: AppColors.white),
+            const SizedBox(height: 14),
+            Text(
+              'Finalisation de l\'examen…',
+              style: AppFonts.ui(
+                size: 14,
+                weight: FontWeight.w700,
+                color: AppColors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

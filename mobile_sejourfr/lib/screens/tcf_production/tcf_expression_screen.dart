@@ -779,7 +779,7 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
                 ),
                 const SizedBox(height: 8),
                 AppButton(
-                  label: 'Reprendre',
+                  label: 'Refaire',
                   icon: LucideIcons.refreshCw,
                   variant: AppButtonVariant.danger,
                   height: 46,

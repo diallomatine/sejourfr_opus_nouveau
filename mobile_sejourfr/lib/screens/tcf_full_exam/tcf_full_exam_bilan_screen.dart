@@ -264,7 +264,14 @@ class _BilanView extends StatelessWidget {
   }
 
   void _backToExams(BuildContext context) {
-    context.go(AppRoutes.tcfFullExams);
+    // Revenir à la page précédente quand on a été poussé dessus (consultation
+    // d'un examen depuis la liste). Sinon (arrivée via `go` après avoir fini un
+    // examen → pile remplacée), repli sur la liste des examens.
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.tcfFullExams);
+    }
   }
 }
 

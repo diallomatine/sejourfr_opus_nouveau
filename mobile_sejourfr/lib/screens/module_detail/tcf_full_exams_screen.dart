@@ -17,11 +17,13 @@ import '../../core/widgets/stat_value_card.dart';
 import '../tcf_production/widgets/exam_info_chips.dart';
 import '../tcf_production/widgets/exam_slot/full_exam_slot_card.dart';
 import 'tcf_full_exam_briefing_sheet.dart';
+import 'widgets/exam_done_sheet.dart';
 
 /// Liste des examens blancs TCF complets de l'utilisateur. Chaque examen
 /// passé est affiché avec son niveau CECRL plancher, sa date et son statut.
 /// Tap :
-/// - {@code COMPLETED} / {@code PENDING_EVALUATIONS} → push le bilan
+/// - {@code COMPLETED} / {@code PENDING_EVALUATIONS} → petite modale
+///   (Refaire / Voir le détail), comme les examens module et les séries
 /// - {@code IN_PROGRESS} → reprend l'examen sur le hub de progression
 /// - Bouton "Lancer un nouvel examen" → briefing modal + POST `/api/full-tcf-exams`
 ///
@@ -178,7 +180,7 @@ class TcfFullExamsView extends ConsumerWidget {
             data: (history) => _SlotsSection(
               history: history,
               isPremium: isPremium,
-              onTapDone: (exam) => _openExam(context, exam),
+              onTapDone: (exam) => _openExam(context, exam, startNew),
               onTapEmpty: startNew,
             ),
           ),
@@ -187,20 +189,49 @@ class TcfFullExamsView extends ConsumerWidget {
     );
   }
 
-  void _openExam(BuildContext context, FullTcfExamSummary exam) {
-    switch (exam.status) {
-      case FullTcfExamStatus.inProgress:
-        context.go(
-          AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', exam.id),
-        );
-        break;
-      case FullTcfExamStatus.pendingEvaluations:
-      case FullTcfExamStatus.completed:
-        context.go(
-          AppRoutes.tcfFullExamBilan.replaceFirst(':parentId', exam.id),
-        );
-        break;
+  void _openExam(
+    BuildContext context,
+    FullTcfExamSummary exam,
+    void Function(int slot) startNew,
+  ) {
+    // En cours : on reprend directement le hub de progression (ce n'est pas
+    // un examen « déjà fait »).
+    if (exam.status == FullTcfExamStatus.inProgress) {
+      context.go(
+        AppRoutes.tcfFullExamProgress.replaceFirst(':parentId', exam.id),
+      );
+      return;
     }
+    // Terminé / éval IA en cours : même petite modale que les examens module
+    // et les séries → Refaire (nouvelle session sur le slot) ou Voir le détail
+    // (bilan). Plus d'ouverture directe du rapport.
+    final slot = exam.slotNumber;
+    final level = exam.finalCecrlLevel;
+    final subtitle = exam.status == FullTcfExamStatus.pendingEvaluations
+        ? 'Évaluation IA en cours'
+        : (level != null ? 'Dernier niveau : ${_shortLevel(level)}' : 'Terminé');
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetCtx) => ExamDoneSheet(
+        title: slot != null ? 'Examen blanc $slot' : 'Examen blanc',
+        subtitle: subtitle,
+        accent: AppColors.red,
+        onViewDetail: () {
+          Navigator.of(sheetCtx).pop();
+          // push (pas go) : le bilan se pose au-dessus de la liste → le back
+          // du bilan revient bien à la page précédente, pas à Réviser.
+          context.push(
+            AppRoutes.tcfFullExamBilan.replaceFirst(':parentId', exam.id),
+          );
+        },
+        onResume: () {
+          Navigator.of(sheetCtx).pop();
+          if (slot != null) startNew(slot);
+        },
+      ),
+    );
   }
 }
 

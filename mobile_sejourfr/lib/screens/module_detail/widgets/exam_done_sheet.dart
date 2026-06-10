@@ -68,7 +68,7 @@ class ExamDoneSheet extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               _ExamSheetButton(
-                label: 'Reprendre',
+                label: 'Refaire',
                 icon: LucideIcons.refreshCw,
                 background: AppColors.red,
                 foreground: AppColors.white,
