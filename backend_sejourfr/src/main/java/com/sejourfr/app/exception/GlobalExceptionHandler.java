@@ -24,6 +24,11 @@ import java.util.stream.Collectors;
 /**
  * Mappe les exceptions vers des réponses JSON cohérentes,
  * compatibles avec le client mobile (qui lit 'message' et 'fieldErrors').
+ *
+ * <p>Le log est centralisé dans {@link #build} : chaque exception gérée est
+ * tracée une seule fois, avec sa stack, au niveau adapté au status HTTP
+ * (5xx → {@code error}, 4xx → {@code warn}). Les handlers n'ont donc plus à
+ * logger eux-mêmes.</p>
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -32,48 +37,47 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNotFoundCustom(NotFoundException e, WebRequest req) {
-        return build(HttpStatus.NOT_FOUND, e.getMessage(), req, null);
+        return build(HttpStatus.NOT_FOUND, e.getMessage(), req, null, e);
     }
 
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNotFound(EntityNotFoundException e, WebRequest req) {
-        return build(HttpStatus.NOT_FOUND, e.getMessage(), req, null);
+        return build(HttpStatus.NOT_FOUND, e.getMessage(), req, null, e);
     }
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Map<String, Object>> handleBusiness(BusinessException e, WebRequest req) {
-        return build(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage(), req, null);
+        return build(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage(), req, null, e);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleForbidden(AccessDeniedException e, WebRequest req) {
-        return build(HttpStatus.FORBIDDEN, e.getMessage(), req, null);
+        return build(HttpStatus.FORBIDDEN, e.getMessage(), req, null, e);
     }
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException e, WebRequest req) {
-        return build(HttpStatus.UNAUTHORIZED, "Identifiants invalides", req, null);
+        return build(HttpStatus.UNAUTHORIZED, "Identifiants invalides", req, null, e);
     }
 
     @ExceptionHandler(InvalidSocialTokenException.class)
     public ResponseEntity<Map<String, Object>> handleInvalidSocialToken(InvalidSocialTokenException e, WebRequest req) {
-        log.warn("Social sign-in refuse : {}", e.getMessage());
-        return build(HttpStatus.UNAUTHORIZED, e.getMessage(), req, null);
+        return build(HttpStatus.UNAUTHORIZED, e.getMessage(), req, null, e);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalArgumentException e, WebRequest req) {
-        return build(HttpStatus.BAD_REQUEST, e.getMessage(), req, null);
+        return build(HttpStatus.BAD_REQUEST, e.getMessage(), req, null, e);
     }
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleConflict(IllegalStateException e, WebRequest req) {
-        return build(HttpStatus.CONFLICT, e.getMessage(), req, null);
+        return build(HttpStatus.CONFLICT, e.getMessage(), req, null, e);
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, Object>> handleMaxUpload(MaxUploadSizeExceededException e, WebRequest req) {
-        return build(HttpStatus.PAYLOAD_TOO_LARGE, "Fichier trop volumineux", req, null);
+        return build(HttpStatus.PAYLOAD_TOO_LARGE, "Fichier trop volumineux", req, null, e);
     }
 
     /**
@@ -89,7 +93,7 @@ public class GlobalExceptionHandler {
         if (status == null) {
             status = HttpStatus.INTERNAL_SERVER_ERROR;
         }
-        return build(status, e.getReason(), req, null);
+        return build(status, e.getReason(), req, null, e);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -106,18 +110,19 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST,
                 "Validation échouée",
                 req,
-                fieldErrors
+                fieldErrors,
+                e
         );
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleAny(Exception e, WebRequest req) {
-        log.error("Unhandled exception", e);
         return build(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "Erreur interne du serveur",
                 req,
-                null
+                null,
+                e
         );
     }
 
@@ -132,14 +137,28 @@ public class GlobalExceptionHandler {
             HttpStatus status,
             String message,
             WebRequest req,
-            List<Map<String, String>> fieldErrors
+            List<Map<String, String>> fieldErrors,
+            Throwable e
     ) {
+        String path = req.getDescription(false).replace("uri=", "");
+        // Log centralisé : toutes les erreurs gérées passent ici.
+        // - 5xx (bug serveur) → error AVEC la stack trace (diagnostic).
+        // - 4xx (erreur client attendue : validation, 404, 401…) → warn d'une
+        //   seule ligne, SANS stack trace (sinon une simple validation déverse
+        //   tout le filter chain Spring dans les logs pour rien).
+        if (status.is5xxServerError()) {
+            log.error("{} {} -> {} : {}", status.value(), path, status.getReasonPhrase(), message, e);
+        } else {
+            log.warn("{} {} -> {} : {} ({})",
+                    status.value(), path, status.getReasonPhrase(), message, e.getClass().getSimpleName());
+        }
+
         Map<String, Object> body = new java.util.LinkedHashMap<>();
         body.put("timestamp", Instant.now().toString());
         body.put("status", status.value());
         body.put("error", status.getReasonPhrase());
         body.put("message", message != null ? message : status.getReasonPhrase());
-        body.put("path", req.getDescription(false).replace("uri=", ""));
+        body.put("path", path);
         if (fieldErrors != null && !fieldErrors.isEmpty()) {
             body.put("fieldErrors", fieldErrors);
         }
