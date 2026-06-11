@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/enums.dart';
 import '../../core/theme/app_theme.dart';
@@ -22,6 +23,28 @@ import 'widgets/flag_badge.dart';
 import 'widgets/module_screen_header.dart';
 import 'widgets/production_exam_done_result.dart';
 import 'widgets/production_exams_stats_row.dart';
+
+/// Niveau estimé d'une épreuve = le plus élevé des `niveauGlobal` des bilans
+/// d'examen blanc complets. Fetch en parallèle les `production-bilan` des
+/// sessions terminées (≥ 3 tâches) de l'historique. Renvoie null si aucun
+/// bilan exposé de niveau (entraînements libres / examens incomplets).
+final _niveauEstimeProvider =
+    FutureProvider.autoDispose.family<NiveauCecrl?, EpreuveType>((ref, epreuve) async {
+  final repo = ref.watch(productionRepositoryProvider);
+  final data = await ref.watch(expressionHubProvider(epreuve).future);
+  final completed = data.exams.where((e) => e.isFullyEvaluated).toList();
+  if (completed.isEmpty) return null;
+  final bilans = await Future.wait(
+    completed.map((e) => repo.getProductionBilan(e.attemptId)),
+  );
+  NiveauCecrl? best;
+  for (final b in bilans) {
+    final n = b.niveauGlobal;
+    if (n == null) continue;
+    if (best == null || n.scaleIndex > best.scaleIndex) best = n;
+  }
+  return best;
+});
 
 /// Nombre de slots d'examens blancs proposés pour une épreuve EE/EO.
 const int _examSlotsCount = 10;
@@ -226,13 +249,10 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
         ? null
         : completed.map((e) => e.avgScore ?? 0).reduce((a, b) => a + b) /
             completed.length;
-    final niveauEstime = completed
-        .map((e) => e.niveauPlancher)
-        .whereType<NiveauCecrl>()
-        .fold<NiveauCecrl?>(null, (best, n) {
-      if (best == null) return n;
-      return n.scaleIndex > best.scaleIndex ? n : best;
-    });
+    // Niveau estimé alimenté par le backend (bilans d'examen blanc), pas
+    // dérivé localement par tâche.
+    final niveauEstime =
+        ref.watch(_niveauEstimeProvider(widget.module.epreuve)).valueOrNull;
 
     final lockedTodo = _isPremium() ? 0 : (_examSlotsCount - _freeSlots);
     final todoCount = _examSlotsCount - doneCount - lockedTodo;

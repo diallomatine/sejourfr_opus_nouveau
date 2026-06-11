@@ -72,6 +72,9 @@ Cf. `exams-tcf.md`.
 - `GET /api/users/me/production-submissions/last-per-task?epreuve=...&niveau=...`
   → dernière submission de l'utilisateur par numéro de tâche (0 à 3 lignes), utilisé par le hub
   mobile.
+- `GET /api/attempts/{attemptId}/production-bilan` → bilan serveur d'une session EE/EO
+  (`ProductionBilanResponse`) ; `niveauGlobal` rempli seulement pour une session d'examen
+  blanc entièrement évaluée — jamais de niveau CECRL en entraînement.
 
 Cf. `pipeline-evaluation-eo-ee.md`.
 

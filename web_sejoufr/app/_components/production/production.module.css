@@ -196,7 +196,7 @@
   line-height: 1.5;
 }
 
-/* ---------- Donut score + niveau CECRL ---------- */
+/* ---------- Donut note /20 (sans niveau) ---------- */
 .scoreCard {
   background: #fff;
   border: 1px solid var(--color-line);
@@ -229,56 +229,20 @@
 .donutOf { font-size: 0.45em; color: var(--color-muted-2); }
 .donutPct { font-family: var(--font-mono); font-size: 12px; color: var(--color-muted); margin-top: 4px; }
 .scoreSide { flex: 1; min-width: 0; }
-.cecrlPill {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: 100px;
-  background: var(--color-blue-soft);
-  margin-bottom: 10px;
-}
-.cecrlPillLabel {
+.scoreNoteLabel {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-muted);
   font-weight: 700;
+  margin: 0 0 6px;
 }
-.cecrlPillVal {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 18px;
-  color: var(--color-blue);
-  letter-spacing: -0.01em;
-}
-.scoreJustif {
+.scoreNoteHint {
   font-size: 13.5px;
   line-height: 1.5;
   color: var(--color-muted);
   margin: 0;
-}
-
-/* échelle CECRL (6 segments) */
-.cecrlScale { display: flex; gap: 4px; margin: 14px 0 0; }
-.cecrlSeg {
-  flex: 1;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--color-line-2);
-}
-.cecrlSegOn { background: var(--color-blue-light); }
-.cecrlSegTarget { background: var(--color-blue); }
-.cecrlLabels {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 5px;
-}
-.cecrlLabels span {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: var(--color-muted-2);
 }
 
 /* ---------- Critères notés (feedback) ---------- */

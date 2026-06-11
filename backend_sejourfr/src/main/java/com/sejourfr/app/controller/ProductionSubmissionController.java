@@ -1,5 +1,6 @@
 package com.sejourfr.app.controller;
 
+import com.sejourfr.app.dto.ProductionBilanResponse;
 import com.sejourfr.app.dto.ProductionSubmissionDto;
 import com.sejourfr.app.dto.SubmitProductionTextRequest;
 import com.sejourfr.app.enums.EpreuveType;
@@ -55,6 +56,15 @@ public class ProductionSubmissionController {
     @GetMapping("/api/production-submissions/{id}")
     public ProductionSubmissionDto detail(@PathVariable UUID id) {
         return productionSubmissionService.getOwnDetail(id);
+    }
+
+    /**
+     * Bilan serveur d'une session production EE/EO. Le niveau CECRL d'epreuve
+     * n'est rempli que pour une session d'examen blanc entierement evaluee.
+     */
+    @GetMapping("/api/attempts/{attemptId}/production-bilan")
+    public ProductionBilanResponse bilan(@PathVariable UUID attemptId) {
+        return productionSubmissionService.bilan(attemptId);
     }
 
     /** Historique de l'utilisateur, optionnellement filtre par epreuve. */

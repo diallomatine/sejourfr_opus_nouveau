@@ -155,25 +155,15 @@ class EvaluationResult {
   EvaluationResult({
     required this.feedback,
     this.noteSurVingt,
-    this.niveauCecrl,
-    this.justificationNiveau,
   });
 
   /// Note 0..20, peut etre nulle si l'IA n'a pas pu noter (ex: production vide).
   final double? noteSurVingt;
-  final NiveauCecrl? niveauCecrl;
-
-  /// Justification du niveau CECRL attribue : 2-3 phrases citant des marqueurs
-  /// concrets de la production. Null pour les evaluations en prompt-version
-  /// v1.0 (champ ajoute en v1.1) ou si le LLM ne l'a pas renvoye.
-  final String? justificationNiveau;
 
   final EvaluationFeedback feedback;
 
   factory EvaluationResult.fromJson(Map<String, dynamic> json) => EvaluationResult(
         noteSurVingt: (json['noteSurVingt'] as num?)?.toDouble(),
-        niveauCecrl: NiveauCecrl.fromWireNullable(json['niveauCecrl'] as String?),
-        justificationNiveau: json['justificationNiveau'] as String?,
         feedback: EvaluationFeedback.fromJson(
           (json['feedback'] as Map<String, dynamic>?) ?? const {},
         ),
@@ -184,7 +174,6 @@ class EvaluationResult {
 class EvaluationFeedback {
   EvaluationFeedback({
     this.noteGlobale,
-    this.niveauCecrl,
     this.scoresCriteres = const [],
     this.pointsForts = const [],
     this.pointsAAmeliorer = const [],
@@ -194,7 +183,6 @@ class EvaluationFeedback {
   });
 
   final double? noteGlobale;
-  final NiveauCecrl? niveauCecrl;
   final List<CriterionScore> scoresCriteres;
   final List<String> pointsForts;
   final List<String> pointsAAmeliorer;
@@ -205,7 +193,6 @@ class EvaluationFeedback {
   factory EvaluationFeedback.fromJson(Map<String, dynamic> json) {
     return EvaluationFeedback(
       noteGlobale: (json['note_globale'] as num?)?.toDouble(),
-      niveauCecrl: NiveauCecrl.fromWireNullable(json['niveau_cecrl'] as String?),
       scoresCriteres: ((json['scores_criteres'] as List?) ?? const [])
           .map((e) => CriterionScore.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -303,5 +290,51 @@ class ProductionExampleDto {
         planPoints:
             ((json['planPoints'] as List?) ?? const []).map((e) => e.toString()).toList(),
         niveauIndicatif: json['niveauIndicatif'] as String?,
+      );
+}
+
+/// Bilan d'epreuve de production EO/EE — miroir de ProductionBilanResponse.
+/// Le `niveauGlobal` n'est calcule (cote backend) qu'en session d'examen blanc
+/// (`exam == true`) et quand les evaluations sont completes ; il reste null en
+/// entrainement libre ou tant qu'une tache n'est pas evaluee.
+///
+///   GET /api/attempts/{attemptId}/production-bilan
+class ProductionBilan {
+  ProductionBilan({
+    required this.attemptId,
+    required this.epreuve,
+    required this.exam,
+    required this.evaluatedCount,
+    required this.expectedCount,
+    this.moyenneSur20,
+    this.niveauGlobal,
+  });
+
+  final String attemptId;
+  final EpreuveType epreuve;
+
+  /// True quand l'attempt est une session d'examen blanc (slot ou sous-attempt
+  /// d'un TCF complet) — seul cas ou `niveauGlobal` est renseigne.
+  final bool exam;
+
+  final int evaluatedCount;
+  final int expectedCount;
+
+  /// Moyenne ponderee /20 ; null si aucune evaluation.
+  final double? moyenneSur20;
+
+  /// Niveau CECRL global ; null si `!exam` ou evaluations incompletes.
+  final NiveauCecrl? niveauGlobal;
+
+  bool get isComplete => evaluatedCount >= expectedCount && expectedCount > 0;
+
+  factory ProductionBilan.fromJson(Map<String, dynamic> json) => ProductionBilan(
+        attemptId: json['attemptId'] as String,
+        epreuve: EpreuveType.fromWire(json['epreuve'] as String),
+        exam: json['exam'] as bool? ?? false,
+        evaluatedCount: (json['evaluatedCount'] as num?)?.toInt() ?? 0,
+        expectedCount: (json['expectedCount'] as num?)?.toInt() ?? 0,
+        moyenneSur20: (json['moyenneSur20'] as num?)?.toDouble(),
+        niveauGlobal: NiveauCecrl.fromWireNullable(json['niveauGlobal'] as String?),
       );
 }

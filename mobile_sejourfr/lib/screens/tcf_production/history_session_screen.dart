@@ -33,6 +33,14 @@ final _historyForBilanProvider =
   return ref.watch(productionRepositoryProvider).listMine(epreuve: epreuve, limit: 200);
 });
 
+/// Bilan d'epreuve calcule cote backend (moyenne ponderee + niveau global en
+/// examen blanc). Re-fetche en mode live au meme rythme que le polling des
+/// submissions, jusqu'a ce que les evaluations soient completes.
+final _bilanProvider =
+    FutureProvider.autoDispose.family<ProductionBilan, String>((ref, attemptId) {
+  return ref.watch(productionRepositoryProvider).getProductionBilan(attemptId);
+});
+
 /// Bilan d'une session de production EE/EO — sert à la fois pour les
 /// sessions passées (depuis l'historique) et comme bilan vivant après la
 /// 3ème tâche d'un examen 3-tâches.
@@ -102,6 +110,7 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
       return;
     }
     ref.invalidate(_historyForBilanProvider(widget.epreuve));
+    ref.invalidate(_bilanProvider(widget.attemptId));
     try {
       final all = await ref.read(_historyForBilanProvider(widget.epreuve).future);
       if (!mounted) return;
@@ -120,6 +129,7 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
   Future<void> _onManualRefresh() async {
     if (_pollExhausted) setState(() => _pollExhausted = false);
     ref.invalidate(_historyForBilanProvider(widget.epreuve));
+    ref.invalidate(_bilanProvider(widget.attemptId));
     try {
       final all = await ref.read(_historyForBilanProvider(widget.epreuve).future);
       if (!mounted) return;
@@ -153,6 +163,7 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
   Widget build(BuildContext context) {
     final history = ref.watch(_historyForBilanProvider(widget.epreuve));
     final allTasks = ref.watch(_allTasksProvider(widget.epreuve));
+    final bilan = ref.watch(_bilanProvider(widget.attemptId)).valueOrNull;
 
     final fallbackRoute =
         widget.epreuve == EpreuveType.tcfEo ? '/tcf/eo' : '/tcf/ee';
@@ -195,6 +206,7 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
                 epreuve: widget.epreuve,
                 submissions: session,
                 tasksById: tasksById,
+                bilan: bilan,
                 liveMode: liveMode,
                 pollExhausted: _pollExhausted,
                 onTapTache: (i) {
@@ -229,6 +241,7 @@ class _Body extends StatelessWidget {
     required this.epreuve,
     required this.submissions,
     required this.tasksById,
+    required this.bilan,
     required this.liveMode,
     required this.pollExhausted,
     required this.onTapTache,
@@ -239,6 +252,10 @@ class _Body extends StatelessWidget {
   final EpreuveType epreuve;
   final List<ProductionSubmissionDto> submissions;
   final Map<String, ProductionTaskDto> tasksById;
+
+  /// Bilan d'epreuve backend (null tant que non charge / en erreur). Source du
+  /// niveau global (examen blanc uniquement) et de la moyenne ponderee.
+  final ProductionBilan? bilan;
   final bool liveMode;
   final bool pollExhausted;
   final ValueChanged<int> onTapTache;
@@ -249,24 +266,17 @@ class _Body extends StatelessWidget {
 
   int get _evaluatedCount => submissions.where((s) => s.evaluation != null).length;
 
-  double? get _moyenne {
+  /// Moyenne locale de secours quand le backend n'a pas (encore) renvoyé de
+  /// `moyenneSur20` dans le bilan.
+  double? get _moyenneLocale {
     final notes = submissions.map((s) => s.evaluation?.noteSurVingt).whereType<double>().toList();
     if (notes.isEmpty) return null;
     return notes.reduce((a, b) => a + b) / notes.length;
   }
 
-  /// Niveau CECRL plancher des évaluations disponibles (règle officielle
-  /// TCF IRN : le niveau retenu est le plus bas des 3 tâches). Cohérent avec
-  /// le full TCF exam bilan et la card d'examen dans l'onglet Examens.
-  NiveauCecrl? get _niveauGlobal {
-    NiveauCecrl? floor;
-    for (final s in submissions) {
-      final n = s.evaluation?.niveauCecrl;
-      if (n == null) continue;
-      if (floor == null || n.scaleIndex < floor.scaleIndex) floor = n;
-    }
-    return floor;
-  }
+  /// Niveau global du bilan d'épreuve (renseigné par le backend uniquement en
+  /// examen blanc avec évaluations complètes). Null en entraînement libre.
+  NiveauCecrl? get _niveauGlobal => bilan?.niveauGlobal;
 
   String _nextStepsMessage() {
     final niveau = _niveauGlobal;
@@ -311,7 +321,7 @@ class _Body extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 20),
             children: [
               BilanHero(
-                moyenneSur20: _moyenne,
+                moyenneSur20: bilan?.moyenneSur20 ?? _moyenneLocale,
                 niveauGlobal: _niveauGlobal,
               ),
               if (liveMode && hasPending) ...[
@@ -352,7 +362,6 @@ class _Body extends StatelessWidget {
                   child: TacheBilanRow(
                     name: _taskName(i),
                     score: submissions[i].evaluation?.noteSurVingt,
-                    niveauObtenu: submissions[i].evaluation?.niveauCecrl,
                     pending: !submissions[i].statut.isFinal,
                   ),
                 ),

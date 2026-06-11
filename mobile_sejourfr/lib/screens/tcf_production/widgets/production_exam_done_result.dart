@@ -6,9 +6,9 @@ import '../../../core/utils/format_date.dart';
 import '../expression_hub_data.dart';
 
 /// Widget compact rendu à droite du pill « difficulté » dans un slot
-/// d'examen blanc EE/EO terminé : check vert + (Niveau · Score/20). Ré-utilise
-/// [ExamSession.niveauPlancher] et `avgScore` exposés par
-/// `expression_hub_data.dart`.
+/// d'examen blanc EE/EO terminé : check vert + Score/20 (moyenne). Le niveau
+/// CECRL n'apparaît plus ici — il est réservé au bilan d'épreuve. Ré-utilise
+/// `avgScore` exposé par `expression_hub_data.dart`.
 class ProductionExamDoneResult extends StatelessWidget {
   const ProductionExamDoneResult({super.key, required this.exam});
 
@@ -16,10 +16,8 @@ class ProductionExamDoneResult extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final niveau = exam.niveauPlancher;
     final score = exam.avgScore;
     final parts = <String>[
-      if (niveau != null) niveau.displayName,
       if (score != null) '${formatScore(score)}/20',
     ];
     return Row(

@@ -4,7 +4,6 @@ import com.sejourfr.app.dto.FullTcfExamResponse;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
-import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.UserManager;
@@ -53,14 +52,14 @@ class FullTcfExamServiceFreemiumTest {
         attemptManager = mock(AttemptManager.class);
         UserManager userManager = mock(UserManager.class);
         productionSubmissionManager = mock(ProductionSubmissionManager.class);
-        AiEvaluationManager aiEvaluationManager = mock(AiEvaluationManager.class);
         subscriptionService = mock(SubscriptionService.class);
         AttemptService attemptService = mock(AttemptService.class);
         TcfLevelEstimatorService levelEstimator = mock(TcfLevelEstimatorService.class);
+        ProductionBilanService productionBilanService = mock(ProductionBilanService.class);
 
         service = new FullTcfExamService(
                 attemptManager, userManager, productionSubmissionManager,
-                aiEvaluationManager, subscriptionService, attemptService, levelEstimator);
+                subscriptionService, attemptService, levelEstimator, productionBilanService);
 
         when(userManager.findById(userId)).thenReturn(Optional.of(new User()));
         // Compte gratuit (pas d'abonnement TCF).

@@ -455,12 +455,26 @@ export interface ProductionExampleDto {
 }
 
 /** Résultat IA. `feedback` est le JSONB brut (clés snake_case) — utiliser
- *  {@link parseEeFeedback} pour le normaliser avant affichage. */
+ *  {@link parseEeFeedback} pour le normaliser avant affichage. Le niveau CECRL
+ *  n'est plus attribué par tâche : il ne vit qu'au niveau du bilan d'épreuve
+ *  (cf. {@link ProductionBilanResponse}). */
 export interface EvaluationResultDto {
   noteSurVingt: number | null;
-  niveauCecrl: NiveauCecrl | null;
-  justificationNiveau: string | null;
   feedback: Record<string, unknown> | null;
+}
+
+/** Bilan d'une épreuve productive (EE/EO) au niveau attempt. Le `niveauGlobal`
+ *  n'est calculé (côté backend, moyenne pondérée des 3 tâches) qu'en session
+ *  d'examen blanc (`exam=true`) et seulement quand les 3 tâches sont évaluées —
+ *  null en entraînement libre ou éval incomplète. */
+export interface ProductionBilanResponse {
+  attemptId: string;
+  epreuve: EpreuveType;
+  exam: boolean;
+  evaluatedCount: number;
+  expectedCount: number;
+  moyenneSur20: number | null;
+  niveauGlobal: NiveauCecrl | null;
 }
 
 export interface ProductionSubmissionDto {
@@ -615,8 +629,6 @@ export interface EeCorrection {
 
 export interface EeFeedback {
   noteGlobale: number | null;
-  niveauCecrl: NiveauCecrl | null;
-  justification: string | null;
   criteres: EeCriterion[];
   pointsForts: string[];
   pointsAAmeliorer: string[];
@@ -659,8 +671,6 @@ export function parseEeFeedback(
 ): EeFeedback {
   const empty: EeFeedback = {
     noteGlobale: evaluation?.noteSurVingt ?? null,
-    niveauCecrl: evaluation?.niveauCecrl ?? null,
-    justification: evaluation?.justificationNiveau ?? null,
     criteres: [],
     pointsForts: [],
     pointsAAmeliorer: [],
@@ -705,8 +715,6 @@ export function parseEeFeedback(
 
   return {
     noteGlobale: asNumber(fb.note_globale) ?? empty.noteGlobale,
-    niveauCecrl: (asString(fb.niveau_cecrl) as NiveauCecrl | null) ?? empty.niveauCecrl,
-    justification: asString(fb.justification_niveau) ?? empty.justification,
     criteres,
     pointsForts: asStringList(fb.points_forts),
     pointsAAmeliorer: asStringList(fb.points_a_ameliorer),

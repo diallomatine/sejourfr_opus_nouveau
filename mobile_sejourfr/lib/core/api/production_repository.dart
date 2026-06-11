@@ -165,6 +165,17 @@ class ProductionRepository {
     return ProductionSubmissionDto.fromJson(res.data!);
   }
 
+  /// Bilan d'epreuve d'un attempt de production EO/EE. Le `niveauGlobal` n'est
+  /// renseigne qu'en session d'examen blanc avec evaluations completes (calcul
+  /// backend : moyenne ponderee + min local).
+  ///   GET /api/attempts/{attemptId}/production-bilan
+  Future<ProductionBilan> getProductionBilan(String attemptId) async {
+    final res = await _client.dio.get<Map<String, dynamic>>(
+      '/api/attempts/$attemptId/production-bilan',
+    );
+    return ProductionBilan.fromJson(res.data!);
+  }
+
   Future<List<ProductionSubmissionDto>> listMine({
     EpreuveType? epreuve,
     int limit = 20,

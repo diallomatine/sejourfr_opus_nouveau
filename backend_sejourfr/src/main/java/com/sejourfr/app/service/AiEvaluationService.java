@@ -289,7 +289,8 @@ public class AiEvaluationService {
             log.warn("niveau_cecrl : critere(s) porteur(s) {} manquant(s) dans scores_criteres "
                 + "(submission={}) — fallback sur la moyenne ponderee.", sourceCodes, submissionId);
         }
-        NiveauCecrl calcule = computeNiveau(scores, sourceCodes, noteGlobale, props.getNiveauCecrl());
+        NiveauCecrl calcule = ProductionBilanService.computeNiveau(
+                scores, sourceCodes, noteGlobale, props.getNiveauCecrl());
         if (calcule == null) {
             log.warn("niveau_cecrl non calculable serveur (submission={}) — niveau LLM conserve.", submissionId);
             return niveauIa; // feedback.niveau_cecrl reste la valeur LLM
@@ -312,57 +313,6 @@ public class AiEvaluationService {
             }
         }
         return present.containsAll(sourceCodes);
-    }
-
-    /**
-     * {@code competence = moyenne(note_sur_20[source-criteres])} → bande CECRL via
-     * les seuils config (plafond B2). Hors-sujet ({@code note_globale == 0}) →
-     * {@code A1_NON_ATTEINT}. Si un critere source manque, fallback sur la moyenne
-     * ponderee deja calculee ({@code note_globale}). Retourne null si rien
-     * d'exploitable. Package-private pour le test unitaire.
-     */
-    static NiveauCecrl computeNiveau(Object scoresCriteres, List<String> sourceCodes,
-                                     BigDecimal noteGlobale, ProductionEvaluationProperties.NiveauCecrl seuils) {
-        if (noteGlobale != null && noteGlobale.compareTo(BigDecimal.ZERO) == 0) {
-            return NiveauCecrl.A1_NON_ATTEINT; // hors-sujet : coherent avec note_globale = 0
-        }
-        Map<String, BigDecimal> byCode = new HashMap<>();
-        if (scoresCriteres instanceof List<?> scores) {
-            for (Object s : scores) {
-                if (s instanceof Map<?, ?> m && m.get("code") != null && m.get("note_sur_20") instanceof Number n) {
-                    byCode.put(m.get("code").toString(), new BigDecimal(n.toString()));
-                }
-            }
-        }
-        List<BigDecimal> src = new ArrayList<>();
-        for (String code : sourceCodes) {
-            BigDecimal v = byCode.get(code);
-            if (v != null) src.add(v);
-        }
-
-        BigDecimal competence;
-        if (!sourceCodes.isEmpty() && src.size() == sourceCodes.size()) {
-            competence = moyenne(src);
-        } else if (noteGlobale != null) {
-            competence = noteGlobale; // fallback : moyenne ponderee des criteres presents
-        } else if (!src.isEmpty()) {
-            competence = moyenne(src);
-        } else {
-            return null;
-        }
-
-        double c = competence.doubleValue();
-        if (c >= seuils.getSeuilB2()) return NiveauCecrl.B2; // plafond B2
-        if (c >= seuils.getSeuilB1()) return NiveauCecrl.B1;
-        if (c >= seuils.getSeuilA2()) return NiveauCecrl.A2;
-        if (c > 0) return NiveauCecrl.A1;
-        return NiveauCecrl.A1_NON_ATTEINT;
-    }
-
-    private static BigDecimal moyenne(List<BigDecimal> values) {
-        BigDecimal sum = BigDecimal.ZERO;
-        for (BigDecimal v : values) sum = sum.add(v);
-        return sum.divide(BigDecimal.valueOf(values.size()), 4, RoundingMode.HALF_UP);
     }
 
     private static String formatMinutes(int sec) {

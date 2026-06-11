@@ -138,12 +138,35 @@ niveau absolu sur texte court (observé : lexique 16 + morpho 16 → bande B2, m
 
 Plafond **B2** (cible naturalisation ; C1/C2 non fiables sur T1). Si un critère source manque :
 WARN + fallback sur `note_globale` (moyenne pondérée déjà calculée) — jamais de crash. Le niveau
-calculé **écrase** `feedback.niveau_cecrl` (lu par le mobile) ; le niveau brut du LLM est conservé en
+calculé **écrase** `feedback.niveau_cecrl` (persisté) ; le niveau brut du LLM est conservé en
 base dans **`ai_evaluations.niveau_cecrl_ia`** (V429, interne, **jamais exposé**) pour mesurer
 l'écart. Une divergence ≥ 1 cran IA vs calcul est loggée (sens sous/sur-estimation) et agrégée par
 `AdminCalibrationService.niveauStats()` → `GET /api/admin/calibration/stats/niveau`. Seuils
-ajustables sans redéploiement. `EvaluationResultDto.niveauCecrl` = niveau **calculé** →
-**aucun changement Flutter**.
+ajustables sans redéploiement. La math (computeNiveau/competence/seuils) vit dans
+`ProductionBilanService` ; `AiEvaluationService` la délègue.
+
+### Niveau CECRL : jamais par tâche, seulement au bilan d'épreuve en examen blanc
+
+Décision produit (2026-06-11) : l'IA note mal une production courte isolée (EE T1 = 30-60
+mots), donc **aucun niveau CECRL n'est exposé tâche par tâche**, ni en entraînement ni en
+examen — le niveau par soumission reste calculé et persisté (`ai_evaluations.niveau_cecrl`)
+pour la calibration admin, mais :
+
+- `EvaluationResultDto` ne porte plus que `noteSurVingt` + `feedback` (les champs
+  `niveauCecrl`/`justificationNiveau` ont été supprimés) ; `ProductionSubmissionMapper`
+  expurge `niveau_cecrl` et `justification_niveau` du feedback avant envoi.
+- **Entraînement libre** : note /20 + feedback critères, point final.
+- **Examen blanc** (session module EE/EO `slot_number` ou sous-attempt d'un TCF complet) :
+  le niveau apparaît au **bilan d'épreuve**, calculé par `ProductionBilanService.bilanEpreuve` =
+  moyenne **pondérée** des compétences des 3 tâches (poids croissants `poids-taches`,
+  défaut 1/2/3 comme la pondération officielle TCF) → mêmes seuils → plafond B2. Remplace
+  l'ancien plancher `min()` des 3 niveaux (une seule éval basse plafonnait l'épreuve).
+  Hors-sujet (note 0) = compétence 0 : pénalise sans annuler.
+- Exposition : `GET /api/attempts/{attemptId}/production-bilan` → `ProductionBilanResponse
+  {attemptId, epreuve, exam, evaluatedCount, expectedCount, moyenneSur20, niveauGlobal}`
+  (`niveauGlobal` null hors examen ou tant que les 3 tâches ne sont pas évaluées), et
+  `FullTcfExamResponse.SubAttempt.cecrlLevel` (même calcul via `FullTcfExamService`).
+  Les fronts ne calculent **plus aucun plancher local**.
 
 ### Historique des versions
 

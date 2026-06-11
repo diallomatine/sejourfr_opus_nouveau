@@ -20,6 +20,7 @@ import type {
   Module as ModuleEnum,
   PlanPublicResponse,
   ProductionAttemptStartRequest,
+  ProductionBilanResponse,
   ProductionExampleDto,
   ProductionSubmissionDto,
   ProductionTaskDto,
@@ -805,6 +806,14 @@ export const productionApi = {
     lastPerTask(epreuve: EpreuveType, niveau: string): Promise<ProductionSubmissionDto[]> {
         return apiFetch<ProductionSubmissionDto[]>(
             `/api/users/me/production-submissions/last-per-task?epreuve=${epreuve}&niveau=${niveau}`,
+            {auth: true},
+        );
+    },
+
+    /** Bilan d'épreuve (moyenne /20 + niveau global en examen blanc seulement). */
+    getBilan(attemptId: string): Promise<ProductionBilanResponse> {
+        return apiFetch<ProductionBilanResponse>(
+            `/api/attempts/${attemptId}/production-bilan`,
             {auth: true},
         );
     },

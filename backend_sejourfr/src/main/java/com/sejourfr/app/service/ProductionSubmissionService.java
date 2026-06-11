@@ -1,11 +1,14 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.dto.ProductionBilanResponse;
 import com.sejourfr.app.dto.ProductionSubmissionDto;
 import com.sejourfr.app.dto.SubmitProductionTextRequest;
+import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
@@ -20,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -56,6 +60,7 @@ public class ProductionSubmissionService {
     private final ProductionSubmissionMapper mapper;
     private final CurrentUser currentUser;
     private final SubscriptionService subscriptionService;
+    private final ProductionBilanService bilanService;
 
     public ProductionSubmissionDto submitAudio(UUID productionTaskId, UUID attemptId, MultipartFile audio) {
         UUID userId = currentUser.getId();
@@ -118,6 +123,45 @@ public class ProductionSubmissionService {
         List<ProductionSubmission> list = submissionManager.findLatestPerTask(
                 userId, epreuve, niveau.toUpperCase());
         return list.stream().map(this::mapWithSignedAudioIfPresent).toList();
+    }
+
+    /**
+     * Bilan serveur d'une session production. Le niveau CECRL d'épreuve n'est
+     * calculé que pour une session d'examen blanc ({@code slotNumber} posé ou
+     * sous-attempt d'un examen TCF complet) dont les 3 tâches sont évaluées —
+     * jamais pour un entraînement libre.
+     */
+    @Transactional(readOnly = true)
+    public ProductionBilanResponse bilan(UUID attemptId) {
+        UUID userId = currentUser.getId();
+        Attempt attempt = attemptManager.findById(attemptId)
+                .orElseThrow(() -> new NotFoundException("Attempt introuvable : " + attemptId));
+        if (attempt.getUser() == null || !attempt.getUser().getId().equals(userId)) {
+            // 404 plutot que 403 : ne pas reveler l'existence des attempts d'autrui.
+            throw new NotFoundException("Attempt introuvable : " + attemptId);
+        }
+        EpreuveType epreuve = attempt.getEpreuve();
+        if (epreuve != EpreuveType.TCF_EE && epreuve != EpreuveType.TCF_EO) {
+            throw new BusinessException("Le bilan production attend un attempt TCF_EE ou TCF_EO.");
+        }
+        boolean exam = attempt.getSlotNumber() != null || attempt.getParentAttempt() != null;
+
+        List<ProductionSubmission> submissions = submissionManager.findByAttemptId(attemptId);
+        Map<Integer, AiEvaluation> evalsByTache = bilanService.latestEvalsByTache(submissions);
+        int evaluatedCount = evalsByTache.size();
+
+        NiveauCecrl niveauGlobal = null;
+        if (exam && evaluatedCount >= ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE) {
+            niveauGlobal = bilanService.bilanEpreuve(evalsByTache);
+        }
+        return new ProductionBilanResponse(
+                attemptId,
+                epreuve,
+                exam,
+                evaluatedCount,
+                ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE,
+                bilanService.moyenneNotes(evalsByTache),
+                niveauGlobal);
     }
 
     private ProductionTask loadActiveTask(UUID taskId) {

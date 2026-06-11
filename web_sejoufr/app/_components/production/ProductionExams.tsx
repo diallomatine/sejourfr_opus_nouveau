@@ -30,12 +30,12 @@ import detail from "@/app/_components/hub/detail.module.css";
 
 const SLOTS = 20;
 
-/** Session d'examen blanc production : note moyenne /20 + CECRL plancher. */
+/** Session d'examen blanc production : note moyenne /20. Le niveau CECRL n'est
+ *  plus dérivé localement — il vient du bilan d'épreuve backend. */
 interface PastSession {
   attemptId: string;
   date: string;
   avgNote: number | null;
-  floorLevel: NiveauCecrl | null;
 }
 
 /**
@@ -53,6 +53,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
   const level = resolveTcfLevel(user);
 
   const [past, setPast] = useState<PastSession[]>([]);
+  const [bestLevel, setBestLevel] = useState<NiveauCecrl | null>(null);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
@@ -64,7 +65,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
     let cancelled = false;
     productionApi
       .listMine({ epreuve: config.epreuve, limit: 100 })
-      .then((list) => {
+      .then(async (list) => {
         if (cancelled) return;
         // Une session d'examen = un attempt portant ≥ 2 soumissions (les
         // entraînements par tâche n'en portent qu'une).
@@ -83,24 +84,31 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
           const notes = items
             .map((i) => i.evaluation?.noteSurVingt)
             .filter((v): v is number => v != null);
-          const levels = items
-            .map((i) => i.evaluation?.niveauCecrl)
-            .filter((v): v is NiveauCecrl => v != null);
           sessions.push({
             attemptId,
             date,
             avgNote: notes.length
               ? Math.round(notes.reduce((s, v) => s + v, 0) / notes.length)
               : null,
-            // Plancher CECRL : règle préfecture — le niveau global d'une
-            // session productive est le plus bas de ses tâches.
-            floorLevel: levels.length
-              ? levels.reduce((min, l) => (cecrlIndex(l) < cecrlIndex(min) ? l : min))
-              : null,
           });
         }
         sessions.sort((a, b) => a.date.localeCompare(b.date));
+        if (cancelled) return;
         setPast(sessions);
+
+        // Niveau estimé = plus haut `niveauGlobal` (calculé backend) parmi les
+        // sessions d'examen complètes. Fetch en parallèle des bilans d'épreuve.
+        const bilans = await Promise.all(
+          sessions.map((s) => productionApi.getBilan(s.attemptId).catch(() => null)),
+        );
+        if (cancelled) return;
+        let top: NiveauCecrl | null = null;
+        for (const b of bilans) {
+          const niv = b?.niveauGlobal ?? null;
+          if (!niv) continue;
+          if (top === null || cecrlIndex(niv) > cecrlIndex(top)) top = niv;
+        }
+        setBestLevel(top);
       })
       .catch(() => undefined);
     return () => {
@@ -157,16 +165,13 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
   );
 
   const done = Math.min(past.length, SLOTS);
-  const { bestNote, bestLevel } = useMemo(() => {
-    let best: PastSession | null = null;
+  const bestNote = useMemo(() => {
+    let best: number | null = null;
     for (const s of past) {
       if (s.avgNote == null) continue;
-      if (!best || s.avgNote > (best.avgNote ?? -1)) best = s;
+      if (best === null || s.avgNote > best) best = s.avgNote;
     }
-    return {
-      bestNote: best?.avgNote ?? null,
-      bestLevel: best?.floorLevel ?? null,
-    };
+    return best;
   }, [past]);
 
   if (status === "loading") return <div className={ds.gate} />;

@@ -2,26 +2,23 @@
 
 import {AlertTriangle, Lightbulb, ThumbsUp, TrendingUp} from "lucide-react";
 import {parseEeFeedback, type EvaluationResultDto} from "@/lib/types";
-import {CecrlScoreDonut} from "./CecrlScoreDonut";
+import {NoteScoreDonut} from "./NoteScoreDonut";
 import styles from "./production.module.css";
 
 /**
  * Rendu complet d'une évaluation IA d'une production (écrite ou orale) : donut
- * note/20 + niveau CECRL, critères notés (barre + commentaire), puis blocs
- * « points forts / à améliorer / suggestions / corrections ». Miroir des écrans
- * de résultats mobiles. Réutilisé en entraînement libre comme en examen blanc,
- * EE comme EO (le feedback IA a la même structure).
+ * note/20, critères notés (barre + commentaire), puis blocs « points forts /
+ * à améliorer / suggestions / corrections ». Miroir des écrans de résultats
+ * mobiles. Réutilisé en entraînement libre comme en examen blanc, EE comme EO
+ * (le feedback IA a la même structure). Le niveau CECRL n'est plus affiché par
+ * tâche — il ne vit qu'au bilan d'épreuve en examen blanc.
  */
 export function ProductionFeedbackView({evaluation}: {evaluation: EvaluationResultDto}) {
   const fb = parseEeFeedback(evaluation);
 
   return (
     <div className={styles.wrap} style={{padding: 0, gap: 16}}>
-      <CecrlScoreDonut
-        noteSurVingt={fb.noteGlobale}
-        niveauCecrl={fb.niveauCecrl}
-        justification={fb.justification}
-      />
+      <NoteScoreDonut noteSurVingt={fb.noteGlobale} />
 
       {fb.avertissements.length > 0 && (
         <div className={styles.warnBox}>

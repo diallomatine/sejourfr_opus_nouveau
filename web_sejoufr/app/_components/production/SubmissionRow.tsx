@@ -3,7 +3,6 @@
 import {ChevronRight} from "lucide-react";
 import {
   type EpreuveType,
-  niveauCecrlLabel,
   productionTaskTitle,
   type ProductionSubmissionDto,
 } from "@/lib/types";
@@ -11,8 +10,8 @@ import styles from "./production.module.css";
 
 /**
  * Ligne d'une soumission de production (EE/EO) : numéro de tâche, titre (selon
- * l'épreuve), état (note + niveau si évaluée, sinon « en cours » / « échouée »).
- * Partagée entre les hubs et les historiques.
+ * l'épreuve), état (note si évaluée, sinon « en cours » / « échouée »). Pas de
+ * niveau CECRL par tâche. Partagée entre les hubs et les historiques.
  */
 export function SubmissionRow({
   submission: s,
@@ -30,7 +29,7 @@ export function SubmissionRow({
       ? "Évaluation échouée — relancer"
       : pending
         ? "Évaluation en cours…"
-        : `${niveauCecrlLabel(s.evaluation?.niveauCecrl)} · ${formatDay(s.submittedAt)}`;
+        : formatDay(s.submittedAt);
 
   const toneClass =
     s.tacheNumero === 1

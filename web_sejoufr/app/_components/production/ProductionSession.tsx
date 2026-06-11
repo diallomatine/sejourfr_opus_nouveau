@@ -11,6 +11,7 @@ import {
   isSubmissionPending,
   niveauCecrlLabel,
   type NiveauCecrl,
+  type ProductionBilanResponse,
   productionTaskTitle,
   type ProductionSubmissionDto,
   type ProductionTaskDto,
@@ -51,6 +52,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
 
   const [tasks, setTasks] = useState<ProductionTaskDto[]>([]);
   const [subsByTache, setSubsByTache] = useState<Map<number, ProductionSubmissionDto>>(new Map());
+  const [bilan, setBilan] = useState<ProductionBilanResponse | null>(null);
   const [phase, setPhase] = useState<"loading" | "writing" | "bilan">("loading");
   const [currentTache, setCurrentTache] = useState<number>(1);
   const [submitting, setSubmitting] = useState(false);
@@ -85,13 +87,19 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     pollsRef.current = 0;
     const tick = async () => {
       try {
-        const subs = await fetchSubs();
+        const [subs, bil] = await Promise.all([
+          fetchSubs(),
+          productionApi.getBilan(attemptId).catch(() => null),
+        ]);
         if (cancelledRef.current) return;
         setSubsByTache(subs);
-        const allDone = TACHES.every((n) => {
-          const s = subs.get(n);
-          return s && !isSubmissionPending(s);
-        });
+        if (bil) setBilan(bil);
+        const allDone = bil
+          ? bil.evaluatedCount >= bil.expectedCount
+          : TACHES.every((n) => {
+              const s = subs.get(n);
+              return s && !isSubmissionPending(s);
+            });
         if (!allDone && pollsRef.current < MAX_POLLS) {
           pollsRef.current += 1;
           timerRef.current = setTimeout(tick, POLL_MS);
@@ -101,7 +109,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       }
     };
     void tick();
-  }, [fetchSubs]);
+  }, [fetchSubs, attemptId]);
 
   useEffect(() => {
     if (status !== "authenticated" || !attemptId) return;
@@ -213,7 +221,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         title={phase === "bilan" ? "Bilan de la session" : "Examen blanc"}
         subtitle={
           phase === "bilan"
-            ? `Niveau ${level} · le niveau retenu est le plancher de vos 3 tâches (règle TCF IRN).`
+            ? `Niveau ${level} · le niveau global est calculé sur vos 3 tâches une fois évaluées.`
             : `3 tâches enchaînées, niveau ${level} — évaluation IA à la fin.`
         }
       >
@@ -278,6 +286,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           <BilanView
             config={config}
             subsByTache={subsByTache}
+            bilan={bilan}
             backTo={backTo}
             onOpenResult={(id) => router.push(`${config.base}/resultats/${id}`)}
           />
@@ -319,47 +328,38 @@ function nextStepsMessage(level: NiveauCecrl | null): string {
 
 /**
  * Bilan d'une session de production (3 tâches), calqué sur le mobile
- * (HistorySessionScreen) : hero bleu (note moyenne + niveau plancher + échelle
- * CECRL), détail par tâche cliquable, conseil « prochaines étapes ». `backTo`
- * = retour au bilan de l'examen complet quand on y arrive depuis celui-ci.
+ * (HistorySessionScreen) : hero bleu (note moyenne + niveau global du backend +
+ * échelle CECRL), détail par tâche cliquable (note seule, plus de niveau par
+ * tâche), conseil « prochaines étapes » dérivé du niveau global. La note
+ * moyenne et le niveau global viennent de `GET …/production-bilan` (le niveau
+ * n'est calculé qu'en examen blanc, 3 tâches évaluées). `backTo` = retour au
+ * bilan de l'examen complet quand on y arrive depuis celui-ci.
  */
 function BilanView({
   config,
   subsByTache,
+  bilan,
   backTo,
   onOpenResult,
 }: {
   config: ProductionConfig;
   subsByTache: Map<number, ProductionSubmissionDto>;
+  bilan: ProductionBilanResponse | null;
   backTo: string | null;
   onOpenResult: (submissionId: string) => void;
 }) {
-  const evaluated = TACHES.map((n) => subsByTache.get(n)).filter(
-    (s): s is ProductionSubmissionDto => !!s && s.statut === "EVALUATED",
-  );
   const anyPending = TACHES.some((n) => {
     const s = subsByTache.get(n);
     return s && isSubmissionPending(s);
   });
-  const allEvaluated = evaluated.length === TACHES.length;
 
-  let plancher: NiveauCecrl | null = null;
-  for (const s of evaluated) {
-    const niv = s.evaluation?.niveauCecrl ?? null;
-    if (!niv) continue;
-    if (plancher === null || cecrlIndex(niv) < cecrlIndex(plancher)) plancher = niv;
-  }
-  const notes = evaluated
-    .map((s) => s.evaluation?.noteSurVingt)
-    .filter((v): v is number => v != null);
-  const avgNote = notes.length
-    ? Math.round((notes.reduce((sum, v) => sum + v, 0) / notes.length) * 10) / 10
-    : null;
-  const targetIdx = allEvaluated ? cecrlIndex(plancher) : -1;
+  const avgNote = bilan?.moyenneSur20 ?? null;
+  const niveauGlobal = bilan?.niveauGlobal ?? null;
+  const targetIdx = niveauGlobal != null ? cecrlIndex(niveauGlobal) : -1;
 
   return (
     <>
-      {/* Hero bleu : note moyenne + niveau plancher + échelle CECRL */}
+      {/* Hero bleu : note moyenne + niveau global (examen blanc) + échelle CECRL */}
       <div className={prod.sessHero}>
         <div className={prod.sessHeroEyebrow}>BILAN DE LA SESSION</div>
         <div className={prod.sessHeroRow}>
@@ -371,33 +371,37 @@ function BilanView({
             </div>
           </div>
           <div className={prod.sessHeroSide}>
-            <div className={prod.sessHeroSideLabel}>Niveau plancher</div>
-            {allEvaluated && plancher != null ? (
-              <span className={prod.sessHeroBadge}>{niveauCecrlLabel(plancher)}</span>
+            <div className={prod.sessHeroSideLabel}>Niveau global</div>
+            {niveauGlobal != null ? (
+              <span className={prod.sessHeroBadge}>{niveauCecrlLabel(niveauGlobal)}</span>
             ) : (
               <span className={prod.sessHeroBadgePending}>Évaluation en cours…</span>
             )}
           </div>
         </div>
-        <div className={prod.sessScale} aria-hidden>
-          {CECRL_SCALE.map((lvl, i) => (
-            <span
-              key={lvl}
-              className={`${prod.sessSeg} ${
-                targetIdx >= 0 && i === targetIdx
-                  ? prod.sessSegTarget
-                  : targetIdx >= 0 && i < targetIdx
-                    ? prod.sessSegOn
-                    : ""
-              }`}
-            />
-          ))}
-        </div>
-        <div className={prod.sessScaleLabels} aria-hidden>
-          {CECRL_SCALE.map((lvl) => (
-            <span key={lvl}>{lvl}</span>
-          ))}
-        </div>
+        {niveauGlobal != null && (
+          <>
+            <div className={prod.sessScale} aria-hidden>
+              {CECRL_SCALE.map((lvl, i) => (
+                <span
+                  key={lvl}
+                  className={`${prod.sessSeg} ${
+                    i === targetIdx
+                      ? prod.sessSegTarget
+                      : i < targetIdx
+                        ? prod.sessSegOn
+                        : ""
+                  }`}
+                />
+              ))}
+            </div>
+            <div className={prod.sessScaleLabels} aria-hidden>
+              {CECRL_SCALE.map((lvl) => (
+                <span key={lvl}>{lvl}</span>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {anyPending && (
@@ -419,7 +423,6 @@ function BilanView({
           const evaluatedOk = s?.statut === "EVALUATED";
           const failed = s?.statut === "FAILED";
           const note = s?.evaluation?.noteSurVingt;
-          const niv = s?.evaluation?.niveauCecrl;
           return (
             <button
               key={n}
@@ -451,8 +454,8 @@ function BilanView({
                           : "Évaluée"}
                 </span>
               </span>
-              {evaluatedOk && niv && (
-                <span className={prod.sessTachePill}>{niveauCecrlLabel(niv)}</span>
+              {evaluatedOk && note != null && (
+                <span className={prod.sessTachePill}>{formatNote(note)}/20</span>
               )}
               {s && !pending && (
                 <ChevronRight size={18} className={prod.sessTacheChevron} aria-hidden />
@@ -462,12 +465,14 @@ function BilanView({
         })}
       </div>
 
-      <div className={prod.sessNext}>
-        <p className={prod.sessNextTitle}>
-          <Lightbulb size={16} aria-hidden /> Tes prochaines étapes
-        </p>
-        <p className={prod.sessNextBody}>{nextStepsMessage(allEvaluated ? plancher : null)}</p>
-      </div>
+      {niveauGlobal != null && (
+        <div className={prod.sessNext}>
+          <p className={prod.sessNextTitle}>
+            <Lightbulb size={16} aria-hidden /> Tes prochaines étapes
+          </p>
+          <p className={prod.sessNextBody}>{nextStepsMessage(niveauGlobal)}</p>
+        </div>
+      )}
 
       <div className={prod.bilanFoot}>
         {backTo ? (
