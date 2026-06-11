@@ -1,5 +1,7 @@
 # Déploiement backend SejourFR — Mémo serveur
 
+./mvnw spring-boot:run
+
 > Ce document récapitule **où se trouve chaque chose** sur le serveur de prod
 > pour le backend Spring Boot, avec les commandes utiles pour intervenir.
 

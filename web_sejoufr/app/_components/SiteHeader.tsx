@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import {usePathname, useRouter} from "next/navigation";
-import {useEffect, useRef, useState} from "react";
+import {usePathname, useRouter, useSearchParams} from "next/navigation";
+import {Suspense, useEffect, useRef, useState} from "react";
 import {Menu, X} from "lucide-react";
 import {Brand} from "./Brand";
 import {AppSidebar} from "./AppSidebar";
@@ -18,6 +18,67 @@ const NAV_LINKS = [
     {href: "/examens-blancs", label: "Examens blancs"},
     {href: "/tarifs", label: "Tarifs"},
 ];
+
+/** Décompose un href de nav en path + module (les liens /entrainement ne
+ *  diffèrent que par `?module=`). */
+function parseNavHref(href: string): {path: string; module: string | null} {
+    const [path, query] = href.split("?");
+    return {path, module: query ? new URLSearchParams(query).get("module") : null};
+}
+
+type NavVariant = "desktop" | "mobile";
+
+function renderNavLinks(
+    variant: NavVariant,
+    isActive: (href: string) => boolean,
+    onNavigate?: () => void,
+) {
+    return NAV_LINKS.map((l) => {
+        const active = isActive(l.href);
+        if (variant === "desktop") {
+            return (
+                <Link
+                    key={l.href}
+                    href={l.href}
+                    className={active ? "is-active" : undefined}
+                    aria-current={active ? "page" : undefined}
+                >
+                    {l.label}
+                </Link>
+            );
+        }
+        return (
+            <Link
+                key={l.href}
+                href={l.href}
+                className={active ? "site-header__mobileLink is-active" : "site-header__mobileLink"}
+                aria-current={active ? "page" : undefined}
+                onClick={onNavigate}
+            >
+                {l.label}
+            </Link>
+        );
+    });
+}
+
+/** Liens de nav avec marquage de l'onglet courant. Isolé dans son propre
+ *  <Suspense> (cf. usages) car `useSearchParams` y est lu — on évite ainsi de
+ *  différer l'hydratation du reste du header (sinon les CTAs auth flashent un
+ *  mismatch loading/guest). */
+function ActiveNavLinks({variant, onNavigate}: {variant: NavVariant; onNavigate?: () => void}) {
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const currentModule = searchParams.get("module");
+    const isActive = (href: string) => {
+        const {path, module} = parseNavHref(href);
+        if (path === "/") return pathname === "/";
+        if (pathname !== path && !pathname.startsWith(`${path}/`)) return false;
+        // /entrainement : on départage TCF / Civique sur le module (défaut = CIVIQUE).
+        if (module) return (currentModule ?? "CIVIQUE") === module;
+        return true;
+    };
+    return <>{renderNavLinks(variant, isActive, onNavigate)}</>;
+}
 
 export function SiteHeader() {
     const {status, user, logout} = useAuth();
@@ -80,9 +141,9 @@ export function SiteHeader() {
                     <Brand href={homeHref}/>
 
                     <div className="site-header__links">
-                        {NAV_LINKS.map((l) => (
-                            <Link key={l.href} href={l.href}>{l.label}</Link>
-                        ))}
+                        <Suspense fallback={renderNavLinks("desktop", () => false)}>
+                            <ActiveNavLinks variant="desktop"/>
+                        </Suspense>
                     </div>
 
                     {!hideMobileBurger && (
@@ -216,8 +277,21 @@ export function SiteHeader() {
           display: flex; align-items: center; gap: 32px;
           font-size: 14px; font-weight: 500; color: var(--color-ink-2);
         }
-        .site-header__links a { color: inherit; text-decoration: none; transition: color 0.15s; }
+        .site-header__links a {
+          position: relative;
+          color: inherit; text-decoration: none;
+          padding: 4px 1px;
+          transition: color 0.15s;
+        }
         .site-header__links a:hover { color: var(--color-blue); }
+        .site-header__links a.is-active { color: var(--color-blue); }
+        .site-header__links a.is-active::after {
+          content: "";
+          position: absolute;
+          left: 1px; right: 1px; bottom: -5px;
+          height: 2px; border-radius: 2px;
+          background: var(--color-blue);
+        }
         .site-header__ctas {
           display: flex; align-items: center; gap: 10px;
         }
@@ -402,6 +476,10 @@ export function SiteHeader() {
           background: var(--color-blue-soft);
           color: var(--color-blue);
         }
+        .site-header__mobileLink.is-active {
+          background: var(--color-blue-soft);
+          color: var(--color-blue);
+        }
         .site-header__mobileCtas {
           display: flex; flex-direction: column; gap: 10px;
           margin-top: 18px;
@@ -502,16 +580,16 @@ export function SiteHeader() {
                                 </button>
                             </div>
 
-                            {NAV_LINKS.map((l) => (
-                                <Link
-                                    key={l.href}
-                                    href={l.href}
-                                    className="site-header__mobileLink"
-                                    onClick={() => setMobileNavOpen(false)}
-                                >
-                                    {l.label}
-                                </Link>
-                            ))}
+                            <Suspense
+                                fallback={renderNavLinks("mobile", () => false, () =>
+                                    setMobileNavOpen(false),
+                                )}
+                            >
+                                <ActiveNavLinks
+                                    variant="mobile"
+                                    onNavigate={() => setMobileNavOpen(false)}
+                                />
+                            </Suspense>
 
                             <div className="site-header__mobileCtas">
                                 <Link href="/connexion" className="site-header__mobileGhost"
