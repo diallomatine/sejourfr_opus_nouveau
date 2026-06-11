@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
@@ -19,15 +20,15 @@ Future<void> showCiviqueExamBriefingSheet(
       title: 'Prêt à passer ?',
       rows: const [
         _BriefRowData(
-          icon: Icons.quiz_outlined,
+          icon: LucideIcons.circleHelp,
           text: '40 questions tirées sur les 5 thèmes officiels.',
         ),
         _BriefRowData(
-          icon: Icons.timer_outlined,
+          icon: LucideIcons.timer,
           text: '45 minutes chrono, pas de retour en arrière.',
         ),
         _BriefRowData(
-          icon: Icons.check_circle_outline_rounded,
+          icon: LucideIcons.circleCheck,
           text: 'Seuil de réussite : 32 / 40 bonnes réponses.',
         ),
       ],
@@ -55,15 +56,15 @@ Future<void> showCiviqueThemeExamBriefingSheet(
       title: 'Prêt à passer ?',
       rows: [
         _BriefRowData(
-          icon: Icons.quiz_outlined,
+          icon: LucideIcons.circleHelp,
           text: '20 questions tirées uniquement du thème « $themeName ».',
         ),
         const _BriefRowData(
-          icon: Icons.timer_outlined,
+          icon: LucideIcons.timer,
           text: '20 minutes chrono, pas de retour en arrière.',
         ),
         const _BriefRowData(
-          icon: Icons.check_circle_outline_rounded,
+          icon: LucideIcons.circleCheck,
           text: 'Seuil de réussite : 16 / 20 bonnes réponses.',
         ),
       ],
@@ -133,7 +134,7 @@ class _CiviqueBriefingBody extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 title,
-                style: AppFonts.fraunces(size: 24, weight: FontWeight.w600),
+                style: AppFonts.display(size: 24, weight: FontWeight.w600),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 14),
@@ -141,7 +142,7 @@ class _CiviqueBriefingBody extends StatelessWidget {
               const SizedBox(height: 22),
               AppButton(
                 label: 'Commencer maintenant',
-                icon: Icons.play_arrow_rounded,
+                icon: LucideIcons.play,
                 onPressed: onStart,
               ),
               const SizedBox(height: 8),
@@ -187,7 +188,7 @@ class _BriefRow extends StatelessWidget {
               padding: const EdgeInsets.only(top: 4),
               child: Text(
                 text,
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 13,
                   color: AppColors.ink2,
                   height: 1.4,

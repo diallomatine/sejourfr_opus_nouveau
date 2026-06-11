@@ -46,7 +46,7 @@ class CorrectionExampleCard extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: 'Explication : ',
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 12,
                       weight: FontWeight.w700,
                       color: AppColors.muted,
@@ -54,7 +54,7 @@ class CorrectionExampleCard extends StatelessWidget {
                   ),
                   TextSpan(
                     text: example.explication,
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 12,
                       color: AppColors.muted,
                       height: 1.5,
@@ -92,7 +92,7 @@ class _Line extends StatelessWidget {
         children: [
           TextSpan(
             text: '$label ',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13,
               weight: FontWeight.w700,
               color: labelColor,
@@ -100,7 +100,7 @@ class _Line extends StatelessWidget {
           ),
           TextSpan(
             text: text,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13,
               weight: textBold ? FontWeight.w600 : FontWeight.w500,
               color: textColor,

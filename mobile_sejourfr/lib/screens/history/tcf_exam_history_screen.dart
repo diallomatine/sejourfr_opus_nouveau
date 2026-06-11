@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -33,12 +34,12 @@ class TcfExamHistoryScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          icon: const Icon(LucideIcons.arrowLeft, size: 18),
           onPressed: () => context.pop(),
         ),
         title: Text(
           'Examens TCF',
-          style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
+          style: AppFonts.ui(size: 16, weight: FontWeight.w700),
         ),
       ),
       body: SafeArea(
@@ -102,12 +103,12 @@ class _Header extends StatelessWidget {
         if (best != null)
           RichText(
             text: TextSpan(
-              style: AppFonts.fraunces(size: 22, weight: FontWeight.w500),
+              style: AppFonts.display(size: 22, weight: FontWeight.w500),
               children: [
                 const TextSpan(text: 'Meilleur niveau atteint : '),
                 TextSpan(
                   text: best.wire,
-                  style: AppFonts.fraunces(
+                  style: AppFonts.display(
                     size: 22,
                     weight: FontWeight.w700,
                     color: AppColors.red,
@@ -119,12 +120,12 @@ class _Header extends StatelessWidget {
         else
           Text(
             'Aucun niveau CECRL plancher disponible pour l\'instant.',
-            style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+            style: AppFonts.ui(size: 13, color: AppColors.muted),
           ),
         const SizedBox(height: 6),
         Text(
           'Le niveau du TCF IRN est le plancher des 4 épreuves (CO · CE · EE · EO).',
-          style: AppFonts.jakarta(
+          style: AppFonts.ui(
             size: 12.5,
             color: AppColors.muted,
             height: 1.4,
@@ -182,7 +183,7 @@ class _ExamItem extends StatelessWidget {
             ),
             child: Text(
               _shortLevel(lvl),
-              style: AppFonts.fraunces(
+              style: AppFonts.display(
                 size: 18,
                 weight: FontWeight.w700,
                 color: badgeColor,
@@ -197,17 +198,17 @@ class _ExamItem extends StatelessWidget {
               children: [
                 Text(
                   'Examen blanc · 4 épreuves',
-                  style: AppFonts.jakarta(size: 14, weight: FontWeight.w700),
+                  style: AppFonts.ui(size: 14, weight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '$dateStr · $statusLabel',
-                  style: AppFonts.jakarta(size: 12, color: AppColors.muted),
+                  style: AppFonts.ui(size: 12, color: AppColors.muted),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.muted2),
+          const Icon(LucideIcons.chevronRight, size: 12, color: AppColors.muted2),
         ],
       ),
     );
@@ -278,14 +279,13 @@ class _EmptyState extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.timer_outlined, size: 48, color: AppColors.muted2),
+            const Icon(LucideIcons.timer, size: 48, color: AppColors.muted2),
             const SizedBox(height: 14),
             Text(
               'Aucun examen TCF',
-              style: AppFonts.fraunces(
+              style: AppFonts.display(
                 size: 20,
                 weight: FontWeight.w500,
-                fontStyle: FontStyle.italic,
                 color: AppColors.muted,
               ),
             ),
@@ -293,14 +293,14 @@ class _EmptyState extends ConsumerWidget {
             Text(
               'Vos examens blancs TCF complets (CO + CE + EE + EO) apparaîtront ici.',
               textAlign: TextAlign.center,
-              style: AppFonts.jakarta(size: 13, color: AppColors.muted2),
+              style: AppFonts.ui(size: 13, color: AppColors.muted2),
             ),
             const SizedBox(height: 18),
             TextButton(
               onPressed: () => context.push(AppRoutes.tcfFullExams),
               child: Text(
                 'Lancer un examen blanc TCF',
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 13.5,
                   weight: FontWeight.w700,
                   color: AppColors.red,
@@ -328,12 +328,12 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_outlined, size: 36, color: AppColors.red),
+            const Icon(LucideIcons.cloudOff, size: 36, color: AppColors.red),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+              style: AppFonts.ui(size: 13, color: AppColors.muted),
             ),
             const SizedBox(height: 12),
             TextButton(onPressed: onRetry, child: const Text('Réessayer')),

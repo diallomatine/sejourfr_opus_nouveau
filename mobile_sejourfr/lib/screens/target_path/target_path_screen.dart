@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -74,7 +75,7 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
       appBar: canPop
           ? AppBar(
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+                icon: const Icon(LucideIcons.arrowLeft, size: 18),
                 onPressed: () => context.go(_fromRoute!),
               ),
             )
@@ -87,13 +88,13 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
             const SizedBox(height: 8),
             Text(
               'Quelle démarche préparez-vous ?',
-              style: AppFonts.fraunces(size: 28, weight: FontWeight.w600),
+              style: AppFonts.display(size: 28, weight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Text(
               'Nous adapterons votre entraînement en fonction de votre objectif. '
               'Vous pourrez toujours modifier ce choix depuis votre profil.',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13.5,
                 color: AppColors.muted,
                 height: 1.5,
@@ -120,7 +121,7 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
                 ),
                 child: Text(
                   _error!,
-                  style: AppFonts.jakarta(color: AppColors.red, size: 13),
+                  style: AppFonts.ui(color: AppColors.red, size: 13),
                 ),
               ),
             ],
@@ -168,7 +169,7 @@ class _PathCard extends StatelessWidget {
               children: [
                 Text(
                   procedure.fullLabel,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 15,
                     weight: FontWeight.w700,
                   ),
@@ -176,7 +177,7 @@ class _PathCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'Niveau TCF requis : ${procedure.tcfLevel}',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 12.5,
                     color: AppColors.muted,
                   ),
@@ -186,7 +187,7 @@ class _PathCard extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           if (selected)
-            const Icon(Icons.check_circle, color: AppColors.blue, size: 24)
+            const Icon(LucideIcons.circleCheck, color: AppColors.blue, size: 24)
           else
             Container(
               width: 22,

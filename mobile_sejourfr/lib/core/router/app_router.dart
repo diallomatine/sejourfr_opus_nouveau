@@ -10,7 +10,8 @@ import '../../screens/auth/forgot_password_screen.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/register_screen.dart';
 import '../../screens/civique/civique_full_exams_screen.dart';
-import '../../screens/civique/civique_screen.dart';
+import '../../screens/examens/examens_screen.dart';
+import '../../screens/reviser/reviser_screen.dart';
 import '../../screens/home/home_screen.dart';
 import '../../screens/module_detail/civique_theme_detail_screen.dart';
 import '../../screens/module_detail/civique_theme_exams_screen.dart';
@@ -28,22 +29,22 @@ import '../../screens/help/help_center_screen.dart';
 import '../../screens/help/in_app_webview_screen.dart';
 import '../../screens/profile/manage_subscription_screen.dart';
 import '../../screens/profile/mes_historiques_screen.dart';
+import '../../screens/profile/mon_entrainement_screen.dart';
 import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/question_runner/runner_screen.dart';
 import '../../screens/review/review_screen.dart';
 import '../../screens/shell/main_shell.dart';
+import '../../screens/progres/progres_screen.dart';
+import '../../screens/progres/reco_screen.dart';
 import '../../screens/splash/splash_screen.dart';
-import '../../screens/stats/stats_screen.dart';
 import '../../screens/target_path/target_path_screen.dart';
-import '../../screens/tcf/tcf_screen.dart';
 import '../../screens/tcf_full_exam/tcf_full_exam_bilan_screen.dart';
 import '../../screens/tcf_full_exam/tcf_full_exam_progress_screen.dart';
 import '../../screens/tcf_production/ee_briefing_writing_screen.dart';
 import '../../screens/tcf_production/ee_results_screen.dart';
 import '../../screens/tcf_production/eo_briefing_screen.dart';
 import '../../screens/tcf_production/eo_finished_screen.dart';
-import '../../screens/tcf_production/eo_recording_screen.dart';
 import '../../screens/tcf_production/eo_results_screen.dart';
 import '../../screens/tcf_production/history_session_screen.dart';
 import '../../screens/tcf_production/production_exams_screen.dart';
@@ -58,6 +59,12 @@ class AppRoutes {
   static const register = '/register';
   static const forgotPassword = '/forgot-password';
   static const home = '/';
+
+  // Onglets de la refonte 2026 : Réviser (hub fusionné Civique/TCF avec
+  // toggle) et Examens (examens blancs complets des deux parcours).
+  static const reviser = '/reviser';
+  static const examens = '/examens';
+
   static const civique = '/civique';
   // Page « Examens blancs » civique GLOBAUX (20 slots de 40 Q tous thèmes,
   // 45 min, seuil 32/40). Pushée depuis le hero du hub Civique. Distincte
@@ -105,7 +112,13 @@ class AppRoutes {
   static const tcfLotResult = '/tcf/lot-result/:attemptId';
   static const runner = '/runner/:attemptId';
   static const progress = '/progress';
-  static const review = '/review';
+
+  // Plan de révision personnalisé (catégories les plus faibles d'abord),
+  // pushé depuis l'onglet Progrès.
+  static const progresReco = '/progress/recommandations';
+  // Pages de révision dédiées, poussées depuis le hub "Mon entraînement".
+  static const mesQuestions = '/mes-questions';
+  static const mesFavoris = '/mes-favoris';
   static const profile = '/profile';
   static const onboarding = '/onboarding';
   static const targetPath = '/target-path';
@@ -120,8 +133,12 @@ class AppRoutes {
   static const tcfExamHistory = '/historiques/tcf';
   static const examReport = '/exam-report/:attemptId';
 
-  // Hub "Mes historiques" depuis le profil : regroupe QCM + EE + EO.
+  // Hub "Mes historiques" : regroupe QCM + EE + EO. Atteint depuis le hub
+  // "Mon entraînement" du profil.
   static const historiques = '/historiques';
+
+  // Hub "Mon entraînement" depuis le profil : historique + questions + favoris.
+  static const monEntrainement = '/mon-entrainement';
 
   // Centre d'aide (hub) + contact natif + WebView générique pour FAQ/CGU/Privacy.
   static const helpCenter = '/help';
@@ -262,6 +279,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const MesHistoriquesScreen(),
       ),
       GoRoute(
+        path: AppRoutes.monEntrainement,
+        builder: (_, __) => const MonEntrainementScreen(),
+      ),
+      // Hors shell : poussées depuis le hub "Mon entraînement" (lui-même hors
+      // shell). Les garder dans le ShellRoute provoquait une collision de page
+      // key (double instanciation du shell) au push depuis un écran hors shell.
+      GoRoute(
+        path: AppRoutes.mesQuestions,
+        builder: (_, __) => const MesQuestionsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.mesFavoris,
+        builder: (_, __) => const MesFavorisScreen(),
+      ),
+      GoRoute(
         path: AppRoutes.helpCenter,
         builder: (_, __) => const HelpCenterScreen(),
       ),
@@ -306,26 +338,40 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const HomeScreen(),
           ),
           GoRoute(
+            path: AppRoutes.reviser,
+            builder: (_, __) => const ReviserScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.examens,
+            builder: (_, __) => const ExamensScreen(),
+          ),
+          // Anciens hubs Civique/TCF — absorbés par l'onglet Réviser
+          // (refonte 2026). Redirects gardés pour les fallbacks/deep links.
+          GoRoute(
             path: AppRoutes.civique,
-            builder: (_, __) => const CiviqueScreen(),
+            redirect: (_, state) =>
+                state.uri.path == AppRoutes.civique ? AppRoutes.reviser : null,
           ),
           GoRoute(
             path: AppRoutes.tcf,
-            builder: (_, __) => const TcfScreen(),
+            redirect: (_, state) =>
+                state.uri.path == AppRoutes.tcf ? AppRoutes.reviser : null,
           ),
           GoRoute(
             path: AppRoutes.progress,
-            builder: (_, __) => const StatsScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.review,
-            builder: (_, __) => const ReviewScreen(),
+            builder: (_, __) => const ProgresScreen(),
           ),
           GoRoute(
             path: AppRoutes.profile,
             builder: (_, __) => const ProfileScreen(),
           ),
         ],
+      ),
+
+      // Recommandations (pushé depuis Progrès, hors shell).
+      GoRoute(
+        path: AppRoutes.progresReco,
+        builder: (_, __) => const RecoScreen(),
       ),
 
       // Runner hors shell (plein écran)
@@ -480,8 +526,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       //   /tcf/expression-orale/historique               -> historique des sessions passees
       //   /tcf/expression-orale/sessions/:attemptId      -> bilan détaillé d'une session
       //                                                    (mode `?live=1` après T3 = polling actif)
-      //   /tcf/expression-orale/t/:idx                   -> briefing T(idx+1)
-      //   /tcf/expression-orale/t/:idx/enregistrement    -> capture audio
+      //   /tcf/expression-orale/t/:idx                   -> briefing + enregistrement (sur place)
       //   /tcf/expression-orale/t/:idx/termine           -> ecoute + soumission
       //   /tcf/expression-orale/resultats/:id?taskIndex=N&history=1  -> resultats (live ou history)
       //
@@ -523,13 +568,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               return EoBriefingScreen(taskIndex: idx);
             },
             routes: [
-              GoRoute(
-                path: 'enregistrement',
-                builder: (_, state) {
-                  final idx = int.tryParse(state.pathParameters['taskIndex'] ?? '0') ?? 0;
-                  return EoRecordingScreen(taskIndex: idx);
-                },
-              ),
               GoRoute(
                 path: 'termine',
                 builder: (_, state) {

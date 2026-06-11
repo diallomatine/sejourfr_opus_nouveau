@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -26,32 +27,49 @@ final _wrongProvider = FutureProvider.autoDispose<List<QuestionDto>>((ref) {
 
 enum _Tab { errors, favorites }
 
-class ReviewScreen extends ConsumerStatefulWidget {
-  const ReviewScreen({super.key});
+/// « Mes questions » : les questions ratées. Page dédiée (cf. hub
+/// « Mon entraînement »).
+class MesQuestionsScreen extends StatelessWidget {
+  const MesQuestionsScreen({super.key});
 
   @override
-  ConsumerState<ReviewScreen> createState() => _ReviewScreenState();
+  Widget build(BuildContext context) =>
+      const _ReviewListScreen(mode: _Tab.errors);
 }
 
-class _ReviewScreenState extends ConsumerState<ReviewScreen> {
-  _Tab _tab = _Tab.errors;
+/// « Mes favoris » : les questions épinglées. Page dédiée.
+class MesFavorisScreen extends StatelessWidget {
+  const MesFavorisScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final wrong = ref.watch(_wrongProvider);
-    final favorites = ref.watch(_favoritesProvider);
+  Widget build(BuildContext context) =>
+      const _ReviewListScreen(mode: _Tab.favorites);
+}
+
+/// Corps partagé d'une page de révision (erreurs OU favoris). Chaque mode a sa
+/// propre page : plus de toggle segmenté Erreurs/Favoris (qui se superposait au
+/// sélecteur de module Civique/TCF).
+class _ReviewListScreen extends ConsumerWidget {
+  const _ReviewListScreen({required this.mode});
+
+  final _Tab mode;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isErrors = mode == _Tab.errors;
+    final provider = isErrors ? _wrongProvider : _favoritesProvider;
 
     return Scaffold(
       appBar: AppBar(
         leading: Navigator.of(context).canPop()
             ? IconButton(
-                icon: const Icon(Icons.arrow_back, size: 22),
+                icon: const Icon(LucideIcons.arrowLeft, size: 22),
                 onPressed: () => Navigator.of(context).pop(),
               )
             : null,
         title: Text(
-          'Mes questions',
-          style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
+          isErrors ? 'Mes questions' : 'Mes favoris',
+          style: AppFonts.ui(size: 16, weight: FontWeight.w700),
         ),
       ),
       body: SafeArea(
@@ -65,8 +83,10 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Revoyez vos erreurs et les questions que vous avez marquées.',
-                    style: AppFonts.jakarta(
+                    isErrors
+                        ? 'Revoyez les questions auxquelles vous avez mal répondu.'
+                        : 'Retrouvez les questions que vous avez marquées.',
+                    style: AppFonts.ui(
                       size: 13,
                       color: AppColors.muted,
                       height: 1.45,
@@ -74,158 +94,14 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                   ),
                   const SizedBox(height: 14),
                   const ModuleSwitch(),
-                  const SizedBox(height: 16),
-                  _SegmentedTabs(
-                    current: _tab,
-                    errorsCount: wrong.maybeWhen(
-                      data: (q) => q.length,
-                      orElse: () => null,
-                    ),
-                    favoritesCount: favorites.maybeWhen(
-                      data: (q) => q.length,
-                      orElse: () => null,
-                    ),
-                    onChanged: (t) => setState(() => _tab = t),
-                  ),
                 ],
               ),
             ),
             const SizedBox(height: 6),
             Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                switchInCurve: Curves.easeOut,
-                child: KeyedSubtree(
-                  key: ValueKey(_tab),
-                  child: _tab == _Tab.errors
-                      ? _QuestionList(
-                          provider: _wrongProvider,
-                          mode: _Tab.errors,
-                        )
-                      : _QuestionList(
-                          provider: _favoritesProvider,
-                          mode: _Tab.favorites,
-                        ),
-                ),
-              ),
+              child: _QuestionList(provider: provider, mode: mode),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SegmentedTabs extends StatelessWidget {
-  const _SegmentedTabs({
-    required this.current,
-    required this.errorsCount,
-    required this.favoritesCount,
-    required this.onChanged,
-  });
-
-  final _Tab current;
-  final int? errorsCount;
-  final int? favoritesCount;
-  final ValueChanged<_Tab> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          _SegmentTab(
-            label: 'Erreurs',
-            count: errorsCount,
-            active: current == _Tab.errors,
-            activeColor: AppColors.red,
-            onTap: () => onChanged(_Tab.errors),
-          ),
-          _SegmentTab(
-            label: 'Favoris',
-            count: favoritesCount,
-            active: current == _Tab.favorites,
-            activeColor: AppColors.blue,
-            onTap: () => onChanged(_Tab.favorites),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SegmentTab extends StatelessWidget {
-  const _SegmentTab({
-    required this.label,
-    required this.count,
-    required this.active,
-    required this.activeColor,
-    required this.onTap,
-  });
-
-  final String label;
-  final int? count;
-  final bool active;
-  final Color activeColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(9),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            decoration: BoxDecoration(
-              color: active ? activeColor : Colors.transparent,
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  label,
-                  style: AppFonts.jakarta(
-                    size: 13,
-                    weight: FontWeight.w700,
-                    color: active ? AppColors.white : AppColors.muted,
-                  ),
-                ),
-                if (count != null) ...[
-                  const SizedBox(width: 7),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: active
-                          ? AppColors.white.withValues(alpha: 0.22)
-                          : AppColors.line2,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '$count',
-                      style: AppFonts.mono(
-                        size: 10,
-                        color: active ? AppColors.white : AppColors.muted,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
         ),
       ),
     );
@@ -322,7 +198,7 @@ class _ShowMoreButton extends StatelessWidget {
             ),
             child: Text(
               'Afficher plus ($remaining restante${remaining > 1 ? 's' : ''})',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13.5,
                 weight: FontWeight.w700,
                 color: AppColors.blue,
@@ -347,8 +223,8 @@ class _QuestionItem extends ConsumerWidget {
     final accentBg =
         mode == _Tab.errors ? AppColors.redLight : AppColors.blueLight;
     final accentIcon = mode == _Tab.errors
-        ? Icons.close_rounded
-        : Icons.bookmark_rounded;
+        ? LucideIcons.x
+        : LucideIcons.bookmarkCheck;
 
     return Material(
       color: AppColors.white,
@@ -414,7 +290,7 @@ class _QuestionItem extends ConsumerWidget {
                             ),
                             const Spacer(),
                             const Icon(
-                              Icons.chevron_right_rounded,
+                              LucideIcons.chevronRight,
                               color: AppColors.muted2,
                               size: 20,
                             ),
@@ -423,7 +299,7 @@ class _QuestionItem extends ConsumerWidget {
                         const SizedBox(height: 12),
                         Text(
                           question.statement,
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                             size: 14,
                             weight: FontWeight.w600,
                             height: 1.4,
@@ -436,7 +312,7 @@ class _QuestionItem extends ConsumerWidget {
                         Row(
                           children: [
                             const Icon(
-                              Icons.bookmarks_outlined,
+                              LucideIcons.bookmark,
                               size: 12,
                               color: AppColors.muted2,
                             ),
@@ -655,15 +531,15 @@ class _FavoriteToggleButton extends StatelessWidget {
               else
                 Icon(
                   isFavorite
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_outline,
+                      ? LucideIcons.bookmarkCheck
+                      : LucideIcons.bookmark,
                   size: 16,
                   color: accent,
                 ),
               const SizedBox(width: 6),
               Text(
                 isFavorite ? 'Favori' : 'Ajouter aux favoris',
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 12,
                   weight: FontWeight.w700,
                   color: accent,
@@ -724,7 +600,7 @@ class _DetailContent extends StatelessWidget {
         const SizedBox(height: 16),
         Text(
           question.statement,
-          style: AppFonts.fraunces(
+          style: AppFonts.display(
             size: 19,
             weight: FontWeight.w600,
             height: 1.35,
@@ -765,7 +641,7 @@ class _DetailContent extends StatelessWidget {
             ),
             child: Text(
               error!,
-              style: AppFonts.jakarta(color: AppColors.red, size: 13),
+              style: AppFonts.ui(color: AppColors.red, size: 13),
             ),
           ),
         ],
@@ -784,14 +660,14 @@ class _DetailContent extends StatelessWidget {
                 Row(
                   children: [
                     const Icon(
-                      Icons.lightbulb_outline,
+                      LucideIcons.lightbulb,
                       color: AppColors.green,
                       size: 18,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'Explication',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 14,
                         weight: FontWeight.w800,
                         color: AppColors.green,
@@ -802,7 +678,7 @@ class _DetailContent extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   question.explanation!,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 13.5,
                     color: AppColors.ink2,
                     height: 1.5,
@@ -852,7 +728,7 @@ class _ReviewChoiceTile extends StatelessWidget {
                 BoxDecoration(color: letterBg, shape: BoxShape.circle),
             child: Text(
               letter,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13,
                 weight: FontWeight.w800,
                 color: letterColor,
@@ -863,7 +739,7 @@ class _ReviewChoiceTile extends StatelessWidget {
           Expanded(
             child: Text(
               choice.label,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 14,
                 weight: FontWeight.w500,
                 color: textColor,
@@ -873,7 +749,7 @@ class _ReviewChoiceTile extends StatelessWidget {
           ),
           if (correct) ...[
             const SizedBox(width: 8),
-            const Icon(Icons.check_circle, color: AppColors.green),
+            const Icon(LucideIcons.circleCheck, color: AppColors.green),
           ],
         ],
       ),
@@ -893,8 +769,8 @@ class _EmptyState extends ConsumerWidget {
         module == AppModule.civique ? AppRoutes.civique : AppRoutes.tcf;
     final isErrors = mode == _Tab.errors;
     final icon = isErrors
-        ? Icons.verified_rounded
-        : Icons.bookmark_border_rounded;
+        ? LucideIcons.badgeCheck
+        : LucideIcons.bookmark;
     final iconColor = isErrors ? AppColors.green : AppColors.blue;
     final iconBg = isErrors
         ? AppColors.green.withValues(alpha: 0.10)
@@ -925,17 +801,16 @@ class _EmptyState extends ConsumerWidget {
         Text(
           title,
           textAlign: TextAlign.center,
-          style: AppFonts.fraunces(
+          style: AppFonts.display(
             size: 22,
             weight: FontWeight.w600,
-            fontStyle: FontStyle.italic,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           hint,
           textAlign: TextAlign.center,
-          style: AppFonts.jakarta(
+          style: AppFonts.ui(
             size: 13,
             color: AppColors.muted,
             height: 1.45,
@@ -945,7 +820,7 @@ class _EmptyState extends ConsumerWidget {
         Center(
           child: AppButton(
             label: 'Lancer un entraînement',
-            icon: Icons.play_arrow_rounded,
+            icon: LucideIcons.play,
             variant: AppButtonVariant.secondary,
             fullWidth: false,
             onPressed: () => context.go(hubRoute),
@@ -992,13 +867,13 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_outlined,
+            const Icon(LucideIcons.cloudOff,
                 size: 36, color: AppColors.red),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+              style: AppFonts.ui(size: 13, color: AppColors.muted),
             ),
             const SizedBox(height: 8),
             TextButton(onPressed: onRetry, child: const Text('Réessayer')),

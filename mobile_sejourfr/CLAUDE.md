@@ -114,12 +114,12 @@ lib/
     │   ├── ee_session_controller.dart   Session EE (1 ou 3 tâches, attempt parent partagé)
     │   ├── eo_session_controller.dart   Session EO (idem)
     │   ├── ee_briefing_writing_screen.dart  Briefing + zone d'écriture combinés
-    │   ├── eo_briefing_screen.dart      + recording + finished + results screens
+    │   ├── eo_briefing_screen.dart      briefing + enregistrement fusionnés (+ finished + results)
     │   ├── history_session_screen.dart  Bilan détaillé d'une session (live ou historique) :
     │   │                                hero CECRL + détail par tâche tappable, polling
     │   │                                automatique sur les évals IA quand `?live=1`
     │   └── widgets/                     production_app_header, donut_chart_score,
-    │                                    mots_card, writing_zone, criterion_row,
+    │                                    consigne_card, writing_zone, criterion_row,
     │                                    feedback_block, transcription_section, etc.
     ├── review/                    Favoris + erreurs récentes (tabs)
     └── profile/                   Compte + paramètres + logout + suppression de compte
@@ -129,31 +129,43 @@ lib/
 dans `screens/`. Les widgets vraiment génériques (boutons, tags, cards) montent dans `core/widgets/`. Les
 widgets locaux à une feature restent dans `screens/<feature>/widgets/`.
 
-## Identité visuelle
+## Identité visuelle — refonte 2026 (maquette `SejourFR_Mobile_Autonome.html`)
 
-Couleurs officielles (toutes dans `core/theme/app_theme.dart`) :
+L'app suit la maquette mobile autonome (design « bleu-blanc-rouge discret »). Couleurs
+(toutes dans `core/theme/app_theme.dart`) :
 
-- **Bleu France** : `#1E3A8C` (foncé : `#15296B`, clair : `#E8ECF8`, très clair : `#F4F6FC`)
-- **Rouge France** : `#E1372F` (foncé : `#B5251E`, clair : `#FDECEB`)
-- **Ink** : `#0F1839` (texte principal)
-- **Muted** : `#6B7299` / `#9CA2BD` (secondaire)
-- **Vert succès** : `#168F5B`
-- **Ambre** : `#E8A317`
+- **Bleu France** : `#1E3A8C` (`AppColors.blue`, foncé `blueDark`, teinté `blueLight`/`blueSoft`)
+- **Rouge France** : `#E1372F` (`AppColors.red`, foncé `redDark`, teinté `redLight`)
+- **Neutres calmes** : `ink` / `inkSoft` / `inkFaint`, fonds `bg` < `surface2` < `surface3`,
+  bordures `line` / `lineSoft`
+- Sémantique parcours : **TCF = rouge, Civique = bleu** (toggles, héros, icônes de parcours)
+- `masteryColor(0-100)` : rampe rouge → corail → ardoise → bleu → Bleu France pour les barres
+  de maîtrise ; `masteryLabel()` pour le libellé qualitatif. `CecrlColor` inchangé (jamais de
+  rouge pour un niveau).
+- Rayons standard : `AppRadii.sm/md/lg/xl/pill` (8/12/18/26/999). Ombres : `AppShadows.card` (douce) / `.md`.
 
 Typographies :
 
-- **Plus Jakarta Sans** (corps, boutons, navigation) — poids 400 à 800
-- **Fraunces** (titres éditoriaux, italiques décoratives) — poids 500/600
-- **JetBrains Mono** (eyebrows, labels techniques, badges) — taille 10-11 avec letter-spacing
+- **Bricolage Grotesque** (`AppFonts.display`) — titres, gros chiffres, tracking -0.02em
+- **Hanken Grotesk** (`AppFonts.ui`) — corps, boutons, navigation ; `AppFonts.label` pour les
+  petits labels bold
+- `jakarta`/`fraunces` ont été **supprimés** (migration faite partout). `mono` reste en
+  délégué **@Deprecated** vers du Hanken bold — à résorber au fil de l'eau, ne plus l'utiliser.
 
-**Le logo** est un lockup de 3 composants : `Cocarde` (3 cercles concentriques bleu/blanc/rouge),
-`SejourFrWordmark` ("Sejour" en bleu + "FR" en rouge), `SejourFrTagline` ("EXAMEN CIVIQUE · TCF"). Tous trois
-exposés dans `core/widgets/sejourfr_logo.dart`. Pour l'écran d'accueil/splash, utiliser le helper
-`SejourFrLogoLockup` qui combine les trois.
+**Icônes** : `lucide_icons_flutter` (`LucideIcons.*`, trait fin géométrique comme la maquette).
+Migration globale faite — ne plus introduire de `Icons.*` Material (seule exception :
+`Icons.apple` du bouton Sign in with Apple).
 
-**Ne jamais hardcoder une couleur** ailleurs que dans `app_theme.dart` — toujours utiliser `AppColors.blue`,
-`AppColors.red`, etc. Idem pour les polices : passer par les helpers `AppFonts.jakarta(...)`,
-`AppFonts.fraunces(...)`, `AppFonts.mono(...)`.
+**Primitives maquette** (`core/widgets/`) : `ScreenHeader` (en-tête fixe flouté, hors scroll),
+`ListGroup`/`ListRow`/`SectionTitle` (listes encartées), `SegmentedTabs` + `parcoursSegments()`
+(toggle TCF rouge / Civique bleu), `ProgressRing`, `ProgressTrack`, `StatValueCard`,
+`showAppSheet` (bottom sheet à poignée), `AppButton` (pill — variants primary/accent/soft/
+outline/ghost/danger), `AppCard` (r=18), `AppTag` (badge pill, tones).
+
+**Le logo** reste le lockup `core/widgets/sejourfr_logo.dart` (Cocarde + Wordmark + Tagline).
+
+**Ne jamais hardcoder une couleur** ailleurs que dans `app_theme.dart` — toujours `AppColors.*`,
+`AppFonts.display/ui/label`, `AppRadii.*`.
 
 ## Backend
 
@@ -359,11 +371,47 @@ activé (pas de clé à fournir).
 
 ## Bottom nav et hubs Civique / TCF
 
-La bottom nav a 5 onglets : **Accueil · Civique · TCF · Progression · Profil**. Les onglets Civique et
-TCF remplacent les anciens "Entraîner" et "Examen". Les écrans `TrainingSetupScreen` et `ExamSetupScreen`
-ont été **supprimés** : un tap module dans un hub démarre directement un attempt et push le runner
-(plus d'écran setup intermédiaire). Le quota démo (`kDemoBatchSize = 20`) et premium (`kInitialBatchSize = 30`)
-vivent désormais dans `core/widgets/paywall_sheet.dart` avec le bottom sheet `PaywallSheet` réutilisable.
+**Refonte 2026 — nouvelle nav** : la bottom nav a 5 onglets **Accueil · Réviser · Examens ·
+Progrès · Profil** (cf. maquette) :
+
+- **Accueil** (`screens/home/`) : carte « À travailler en priorité » (catégorie la plus faible),
+  3 stat cards (maîtrise/streak/niveau TCF), « Mes parcours », bloc IA EE/EO, raccourci examens.
+- **Réviser** (`screens/reviser/`) : fusion des hubs Civique/TCF derrière `SegmentedTabs`
+  (provider partagé `reviserParcoursProvider` — l'Accueil le présélectionne avant `goTab`).
+  Liste des catégories avec anneau de maîtrise → écrans détail existants.
+- **Examens** (`screens/examens/`) : examens blancs complets des 2 parcours derrière un toggle
+  (`examensParcoursProvider`). Embarque `TcfFullExamsView` et `CiviqueFullExamsView` (corps
+  extraits des écrans pleine page, qui restent pour les push profonds).
+- **Progrès** (`screens/progres/`) : 3 anneaux de synthèse + listes encartées par parcours +
+  `RecoScreen` (route `/progress/recommandations`). L'ancien `screens/stats/` est **supprimé**.
+- **Profil** (`screens/profile/`) : carte identité, 3 stats, carte « Mon pass » →
+  `ManageSubscriptionScreen` (carte gradient maquette + détails + inclusions, paywall pour
+  prolonger), objectif, groupes compte/aide, déconnexion + suppression via `showAppSheet`.
+
+**Données** : `GET /api/me/dashboard` (miroir `core/models/dashboard_models.dart`, provider
+`core/providers/dashboard_provider.dart`) alimente Accueil/Réviser/Progrès en un appel —
+streak, `globalSuccessPercent`, `estimatedTcfLevel`, stats par catégorie (codes `TCF_*` /
+`CIV_*`, mapping icône/route partagé dans `core/utils/dashboard_targets.dart`).
+
+**Les anciens hubs sont supprimés** : `screens/tcf/`, `screens/hub/`, `civique_screen.dart`
+et leurs widgets n'existent plus. `/civique` et `/tcf` sont des **redirects** vers `/reviser`
+(gardés pour les fallbacks et deep links).
+
+**Pattern détail d'épreuve (refonte 2026)** — cf. `MLevels`/`MSeries` maquette :
+- TCF QCM (`/tcf/{co,ce,structure}` → `TcfQcmDetailScreen`) : 3 cartes niveau A2/B1/B2
+  (compteur « X/N séries faites » via `lotsProvider`) + historique des examens du module
+  en dessous + bouton **« Examens blancs » fixé en bas** (`FixedActionBar`) → page des
+  examens du module. Tap niveau → `TcfLevelLotsScreen` (« Séries » = les lots, cartes
+  `SerieCard` partagées avec badge meilleur score) + même bouton fixe.
+- Civique (`/civique/theme/:themeId` → `CiviqueThemeDetailScreen`) : pas de niveaux —
+  séries directes (cap 6 + « Voir plus ») + historique + bouton fixe → 10 examens du thème.
+- `widgets/serie_card.dart` est la carte série partagée TCF/Civique ;
+  `core/widgets/fixed_action_bar.dart` la barre fixe à fondu.
+- Les cartes de slot d'examen partagées (`tcf_production/widgets/exam_slot/`) sont au
+  style maquette : numéro Bricolage, pill « Fait » teinté accent, boutons pill.
+
+Le quota démo (`kDemoBatchSize = 20`) et premium (`kInitialBatchSize = 30`)
+vivent dans `core/widgets/paywall_sheet.dart` avec le bottom sheet `PaywallSheet` réutilisable.
 
 Les 2 hubs (`screens/civique/civique_screen.dart` et `screens/tcf/tcf_screen.dart`) partagent une
 structure visuelle identique implémentée dans `screens/hub/widgets/hub_home_widgets.dart`. Chaque hub
@@ -564,27 +612,27 @@ Module distinct du runner QCM : l'utilisateur **produit** un audio (EO) ou un te
 qui le transcrit (Whisper) + le note (Claude) en 10-15 s. Cf. `CLAUDE.md` racine pour le pipeline backend.
 
 **Deux écrans** (`tcf_expression_screen.dart`, remplacent l'ancien couple
-`TcfProductionDetailScreen` + `TcfProductionTaskSubjectsScreen` supprimés). Accent **rouge**
-partout (section TCF). Design calme, sans onglets globaux ni bottom-nav (cf. maquette
-`tcf_eo_training_screen.html`).
+`TcfProductionDetailScreen` + `TcfProductionTaskSubjectsScreen` supprimés). Accents refonte
+2026 : **EO = rouge, EE = bleu** (cf. bloc IA de l'Accueil maquette).
 
-1. **`TcfExpressionScreen`** — hub d'épreuve (`/tcf/eo`, `/tcf/ee`). Un seul scroll :
-   - Carte **« Lancer un examen blanc »** (fond teinté rouge + CTA `Commencer`) → premium
-     check → `showProductionExamBriefingSheet` → `start(niveau)` (session 3 tâches) → briefing.
-   - **« S'entraîner par tâche »** : 3 lignes (`_TaskRow`, pastille colorée T1 vert / T2 ambre /
-     T3 rouge + titre + sous-titre + nb de sujets) → push `/tcf/{eo,ee}/tache/N`.
-   - **« Historique »** (+ Tout voir → `…/historique`) : stats (examens passés, niveau estimé) +
-     dernier examen blanc (`_LastExamCard`, scores T1/T2/T3 → push `…/sessions/{id}`) + dernier
-     entraînement libre (→ push `…/resultats/{id}`). Données via `_hubProvider`.
+1. **`TcfExpressionScreen`** — hub d'épreuve (`/tcf/eo`, `/tcf/ee`), même pattern que les
+   détails CO/CE : `ScreenHeader` + **3 cartes tâche** (`_TaskCard` maquette `MTasks` : chip
+   numéro 50, T1 EO badge « Présentation » rouge, description + nb de sujets) → push
+   `/tcf/{eo,ee}/tache/N` ; **historique en dessous** (stats, dernier examen blanc →
+   `…/sessions/{id}`, dernier entraînement → `…/resultats/{id}`, via `expressionHubProvider`) ;
+   bouton **« Examens blancs » fixé en bas** (`FixedActionBar`, accent du module) →
+   `ProductionExamsScreen` (10 slots).
 
 2. **`TcfTaskTrainingScreen`** (`/tcf/{eo,ee}/tache/:n`) — entraînement d'une tâche :
-   **toggle « Sujets / Exemples »** (`_SubToggle`) → **liste verticale**. Les **sujets** =
-   lignes `production_tasks` du (épreuve, tâche), tous niveaux confondus, marquées
-   **faite/non-faite** (`listMine` → map `production_task_id → dernière submission`). Tap sujet
-   → fiche (`_SubjectSheet`) : consigne + plan d'aide en points (`_planFor`), puis
-   **Enregistrer/Rédiger** (`startSingle(task)` + briefing `/tcf/expression-{orale,ecrite}/t/0`)
-   si non fait, ou **Refaire / Voir le rapport** si déjà fait. Segment **Exemples** = les
-   **modèles** (`GET /api/production-examples?…`) ; tap → modal texte + `explications` + audio EO.
+   `SegmentedTabs` **Sujets / Exemples**. Les **sujets** = lignes `production_tasks` du
+   (épreuve, tâche), marquées faite/non-faite (`listMine` → map
+   `production_task_id → dernière submission`), rendues en cartes maquette `MTask`
+   (`_ExerciseRow` : pastille mic/pen, énoncé, pill niveau + note /20, play/refaire).
+   **Tap un sujet non fait → l'entraînement démarre directement** (`startSingle(task)` +
+   briefing `/tcf/expression-{orale,ecrite}/t/0`) ; sujet fait → sheet Reprendre / Voir le
+   détail. La bannière de consigne (`_IntroCard`/`ConsigneCard`) est teintée accent module
+   avec liseré gauche 3 px. Segment **Exemples** = les **modèles**
+   (`GET /api/production-examples?…`) ; tap → modal texte + `explications` + audio EO.
 
 L'**examen blanc** (session 3 tâches enchaînées) reste fidèle au vrai TCF : **aucune correction
 entre T1/T2/T3** ; après T3 → bilan détaillé (`HistorySessionScreen` `?live=1`, polling IA).
@@ -598,8 +646,8 @@ entre T1/T2/T3** ; après T3 → bilan détaillé (`HistorySessionScreen` `?live
   `HistorySessionScreen`. En mode `live=1` (juste après T3) il poll les évaluations IA. Sinon
   (depuis historique) il lit la donnée déjà figée. Chaque ligne de tâche est tappable → push
   l'écran `resultats/:submissionId` du detail complet.
-- `/tcf/expression-orale/t/:idx` → briefing T(idx+1)
-- `/tcf/expression-orale/t/:idx/enregistrement` → capture audio (EO uniquement)
+- `/tcf/expression-orale/t/:idx` → briefing **+ capture audio sur place** T(idx+1) (EO uniquement ;
+  l'ancienne sous-route `/enregistrement` a été supprimée, cf. flow EO plus bas)
 - `/tcf/expression-orale/t/:idx/termine` → écoute + soumission (EO uniquement)
 - `/tcf/expression-orale/resultats/:id?taskIndex=N&history=1` → résultats détaillés d'une
   submission (correction IA complète) — push en single-task après soumission, ou depuis le
@@ -632,15 +680,30 @@ réutilise le flux briefing → enregistrement (EO) / `ee_briefing_writing_scree
   `GET /api/production-tasks/{id}` (détail sujet), `GET /api/production-examples?epreuve=…&tacheNumero=…` (modèles).
 - La correction IA réutilise le pipeline existant (Whisper + Claude).
 
-**Flow EO (3 écrans + résultats)** — inchangé en single-task, le SessionController a juste 1 tâche :
-1. **Briefing** (`eo_briefing_screen.dart`) : consigne + conseils + CTA "Commencer" qui demande la permission
-   micro via `_recorder.hasPermission()` du package `record` directement (✋ **ne pas utiliser
-   `permission_handler` seul** : il court-circuite l'auth iOS dans certains cas et ne déclenche pas le dialog).
-2. **Recording** (`eo_recording_screen.dart`) : timer big + waveform animée (33 barres calées sur
-   l'amplitude réelle + sinusoïde) + bouton stop rond rouge. Auto-stop à `dureeMaxSec`.
-3. **Finished** (`eo_finished_screen.dart`) : check vert + mini-player just_audio sur le fichier local +
-   CTA "Voir mon évaluation" → swap vers `EvaluationLoadingView(includeTranscription: true)` pendant
-   l'upload R2 + Whisper + Claude (~15 s), puis push résultats.
+**Flow EO (2 écrans + résultats)** — single-task : le SessionController a juste 1 tâche. Les écrans
+suivent le « studio » du template `SejourFR_Mobile_Autonome.html` : **consigne épinglée en haut,
+action en bas, UI épurée** (cf. `clicktcf-web/src/features/speaking`). ⚠️ **Briefing et
+enregistrement sont fusionnés sur un seul écran** (`eo_briefing_screen.dart`) : on n'ouvre plus de
+page intermédiaire pour capturer — le tap sur le micro lance la capture sur place. La route
+`/t/:idx/enregistrement` et l'ancien `eo_recording_screen.dart` ont été **supprimés**.
+1. **Briefing + enregistrement** (`eo_briefing_screen.dart`, écran unique à 2 phases pilotées par
+   `recordingControllerProvider.phase`) :
+   - **idle** : `ConsigneCard` rouge (consigne complète) en haut + panneau bas `_MicStartButton`
+     (gros micro rond style « idle » du template + invite à parler). Tap → permission micro via
+     `recorder.requestPermission()` (le package `record` — ✋ **ne pas utiliser `permission_handler`
+     seul** : il court-circuite l'auth iOS dans certains cas et ne déclenche pas le dialog) →
+     `recorder.start(maxDuration: dureeMaxSec)` **sans navigation**.
+   - **recording** (`_RecordingView`) : `ConsigneCard` rouge compacte (`maxLines: 3`) en haut, puis
+     bloc centré REC pill + timer big + waveform animée rouge (33 barres calées sur l'amplitude
+     réelle + sinusoïde, param `color`) + bouton stop rond rouge. Stop manuel ou auto-stop à
+     `dureeMaxSec` → le service passe en `finished` → un `ref.listen` pousse `…/t/:idx/termine`
+     (garde `_navigated` anti-double-push). `initState` appelle `recorder.cancel()` pour repartir
+     d'un état au repos (sinon un `finished` résiduel d'une tâche précédente naviguerait aussitôt).
+     `PopScope`/flèche retour passent par une confirmation d'abandon pendant la capture.
+2. **Finished** (`eo_finished_screen.dart`) : `ConsigneCard` rouge compacte (`maxLines: 2`) +
+   check vert + mini-player just_audio sur le fichier local + CTA "Voir mon évaluation" → swap vers
+   `EvaluationLoadingView(includeTranscription: true)` pendant l'upload R2 + Whisper + Claude
+   (~15 s), puis push résultats.
 4. **Résultats** (`eo_results_screen.dart`) : score donut violet + critères + feedback + **transcription
    Whisper**. Atteint en single-task après soumission, ou depuis le bilan en tap d'une ligne, ou
    depuis l'historique des sessions passées (mode `isHistory`). En 3-tâches, `eo_finished_screen`
@@ -648,15 +711,19 @@ réutilise le flux briefing → enregistrement (EO) / `ee_briefing_writing_scree
    bilan détaillé. CTAs : "Retour aux sujets" (single-task) ou "Continuer l'examen blanc" (full
    TCF exam) ou "Retour" (history).
 
-**Flow EE** : 1 seul écran combiné `ee_briefing_writing_screen.dart` (briefing + textarea + compteur live +
-`MotsCard` ambre + brouillon auto-save 3 s dans `SharedPreferences` via `EeDraftService`).
+**Flow EE** : 1 seul écran combiné `ee_briefing_writing_screen.dart`, épuré sur le modèle du
+template (`clicktcf-web/src/features/writing`) : **consigne en haut, saisie en bas**. La ListView
+ne contient plus que `ConsigneCard` (bleue, consigne + « Longueur attendue : X à Y mots ») +
+`WritingZone` (textarea avec compteur de mots, barre de progression et statut intégrés dans son
+en-tête). Les ex-cartes `MotsCard` / `CriteresCard` / `PreparationCard` ont été **supprimées** du
+flow (le compteur de `WritingZone` rend `MotsCard` redondant ; les critères réapparaissent dans le
+feedback). Brouillon auto-save 3 s dans `SharedPreferences` via `EeDraftService`.
 - Textarea avec `FocusNode` partagé entre le screen state et `WritingZone` → quand le clavier ouvre,
-  `ConsigneCard`/`TipsCard`/`CriteresCard` se replient et les 2 boutons du bas (Valider / Brouillon)
-  disparaissent → le textarea grandit (`minLines: 12`). `keyboardDismissBehavior: onDrag` sur la
-  ListView. **Important** : ne pas conditionner les enfants de la ListView sur le focus avec
-  `if (!isWriting) ...[ConsigneCard, ...]` — ça change les indices et Flutter recrée le State de
-  `WritingZone` → focus perdu, clavier se ferme immédiatement. Garder tous les enfants présents +
-  ValueKey stable sur chacun.
+  les 2 boutons du bas (Valider / Brouillon) disparaissent → le textarea grandit (`minLines: 12`).
+  `keyboardDismissBehavior: onDrag` sur la ListView. **Important** : ne pas conditionner les enfants
+  de la ListView sur le focus avec `if (!isWriting) ...[ConsigneCard, ...]` — ça change les indices
+  et Flutter recrée le State de `WritingZone` → focus perdu, clavier se ferme immédiatement. Garder
+  tous les enfants présents + ValueKey stable sur chacun.
 - `TextField.onTapOutside: (_) => focusNode.unfocus()` pour dismiss le clavier au tap hors champ (API
   officielle Flutter 3.10+). **Ne pas** wrapper le body dans un `GestureDetector(onTap: unfocus)` : ça
   rentre en compétition avec le tap de focus du TextField → "il faut 2 taps pour ouvrir le clavier".

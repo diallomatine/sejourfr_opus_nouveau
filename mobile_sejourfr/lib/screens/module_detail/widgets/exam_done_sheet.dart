@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -47,28 +48,28 @@ class ExamDoneSheet extends StatelessWidget {
               ),
               Text(
                 title,
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                     size: 18, weight: FontWeight.w800, color: AppColors.ink),
               ),
               if (subtitle != null) ...[
                 const SizedBox(height: 4),
                 Text(
                   subtitle!,
-                  style: AppFonts.jakarta(size: 12.5, color: AppColors.muted),
+                  style: AppFonts.ui(size: 12.5, color: AppColors.muted),
                 ),
               ],
               const SizedBox(height: 18),
               _ExamSheetButton(
                 label: 'Voir le détail',
-                icon: Icons.description_outlined,
+                icon: LucideIcons.fileText,
                 background: accent.withValues(alpha: 0.10),
                 foreground: accent,
                 onPressed: onViewDetail,
               ),
               const SizedBox(height: 10),
               _ExamSheetButton(
-                label: 'Reprendre',
-                icon: Icons.refresh_rounded,
+                label: 'Refaire',
+                icon: LucideIcons.refreshCw,
                 background: AppColors.red,
                 foreground: AppColors.white,
                 onPressed: onResume,
@@ -115,7 +116,7 @@ class _ExamSheetButton extends StatelessWidget {
                 Icon(icon, size: 18, color: foreground),
                 const SizedBox(width: 8),
                 Text(label,
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                         size: 14, weight: FontWeight.w800, color: foreground)),
               ],
             ),

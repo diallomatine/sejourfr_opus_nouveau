@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../theme/app_theme.dart';
 
@@ -63,7 +64,7 @@ class AppCheckbox extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: value
-          ? const Icon(Icons.check_rounded, size: 15, color: AppColors.white)
+          ? const Icon(LucideIcons.check, size: 15, color: AppColors.white)
           : null,
     );
   }

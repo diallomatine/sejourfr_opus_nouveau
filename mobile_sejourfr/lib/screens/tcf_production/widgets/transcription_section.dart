@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -25,7 +26,7 @@ class TranscriptionSection extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.blue),
+              const Icon(LucideIcons.info, size: 18, color: AppColors.blue),
               const SizedBox(width: 10),
               Expanded(
                 child: RichText(
@@ -33,7 +34,7 @@ class TranscriptionSection extends StatelessWidget {
                     children: [
                       TextSpan(
                         text: 'Transcription generee par IA\n',
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 13,
                           weight: FontWeight.w700,
                           color: AppColors.blue,
@@ -41,7 +42,7 @@ class TranscriptionSection extends StatelessWidget {
                       ),
                       TextSpan(
                         text: 'Des erreurs peuvent subsister.',
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 12.5,
                           color: AppColors.ink,
                           height: 1.45,
@@ -63,7 +64,7 @@ class TranscriptionSection extends StatelessWidget {
           ),
           child: Text(
             transcription,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 14,
               color: AppColors.ink,
               height: 1.65,

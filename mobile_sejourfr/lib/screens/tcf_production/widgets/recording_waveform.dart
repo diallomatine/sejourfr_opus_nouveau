@@ -8,11 +8,19 @@ import '../../../core/theme/app_theme.dart';
 /// Combine l'amplitude reelle du micro avec une variation sinusoidale pour
 /// rester visuellement vivant meme quand le signal est faible.
 class RecordingWaveform extends StatefulWidget {
-  const RecordingWaveform({super.key, this.amplitude, this.barCount = 33});
+  const RecordingWaveform({
+    super.key,
+    this.amplitude,
+    this.barCount = 33,
+    this.color = AppColors.blue,
+  });
 
   /// Amplitude normalisee 0..1. Si null, juste un mouvement decoratif.
   final double? amplitude;
   final int barCount;
+
+  /// Couleur des barres (rouge pour l'EO, bleu par défaut).
+  final Color color;
 
   @override
   State<RecordingWaveform> createState() => _RecordingWaveformState();
@@ -60,7 +68,7 @@ class _RecordingWaveformState extends State<RecordingWaveform>
                   width: 3,
                   height: h,
                   decoration: BoxDecoration(
-                    color: AppColors.blue,
+                    color: widget.color,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),

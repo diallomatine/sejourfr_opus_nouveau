@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -24,12 +25,12 @@ class ConfidentialNote extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(top: 1, right: 10),
-            child: Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.muted2),
+            child: Icon(LucideIcons.lock, size: 14, color: AppColors.muted2),
           ),
           Expanded(
             child: Text(
               text,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 12,
                 color: AppColors.muted,
                 height: 1.4,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -79,7 +80,7 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
         behavior: SnackBarBehavior.floating,
         content: Text(
           message,
-          style: AppFonts.jakarta(color: AppColors.white, size: 13.5),
+          style: AppFonts.ui(color: AppColors.white, size: 13.5),
         ),
         duration: const Duration(seconds: 3),
       ),
@@ -104,12 +105,12 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
         elevation: 0,
         foregroundColor: AppColors.ink,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          icon: const Icon(LucideIcons.arrowLeft, size: 18),
           onPressed: () => context.pop(),
         ),
         title: Text(
           'Mes informations',
-          style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
+          style: AppFonts.ui(size: 16, weight: FontWeight.w700),
         ),
       ),
       body: SafeArea(
@@ -142,7 +143,7 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
                     const SizedBox(height: 10),
                     Text(
                       _identityError!,
-                      style: AppFonts.jakarta(size: 12, color: AppColors.red),
+                      style: AppFonts.ui(size: 12, color: AppColors.red),
                     ),
                   ],
                   const SizedBox(height: 14),
@@ -160,7 +161,7 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
             _SectionLabel('Adresse email'),
             const SizedBox(height: 10),
             _ReadOnlyTile(
-              icon: Icons.mail_outline_rounded,
+              icon: LucideIcons.mail,
               accent: AppColors.blue,
               title: user.email,
               subtitle: isLocal
@@ -181,7 +182,7 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
             _SectionLabel('Mot de passe'),
             const SizedBox(height: 10),
             _ReadOnlyTile(
-              icon: Icons.lock_outline_rounded,
+              icon: LucideIcons.lock,
               accent: AppColors.red,
               title: '••••••••••',
               subtitle: isLocal
@@ -203,7 +204,7 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
   InputDecoration _input(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: AppFonts.jakarta(size: 13.5, color: AppColors.muted2),
+      hintStyle: AppFonts.ui(size: 13.5, color: AppColors.muted2),
       filled: true,
       fillColor: AppColors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -312,7 +313,7 @@ class _ChangeEmailSheetState extends ConsumerState<_ChangeEmailSheet> {
           behavior: SnackBarBehavior.floating,
           content: Text(
             'Mail de vérification envoyé à $newEmail. Clique sur le lien pour confirmer.',
-            style: AppFonts.jakarta(color: AppColors.white, size: 13),
+            style: AppFonts.ui(color: AppColors.white, size: 13),
           ),
           duration: const Duration(seconds: 5),
         ),
@@ -349,7 +350,7 @@ class _ChangeEmailSheetState extends ConsumerState<_ChangeEmailSheet> {
         ),
         if (_error != null) ...[
           const SizedBox(height: 10),
-          Text(_error!, style: AppFonts.jakarta(size: 12, color: AppColors.red)),
+          Text(_error!, style: AppFonts.ui(size: 12, color: AppColors.red)),
         ],
         const SizedBox(height: 16),
         _PrimaryButton(
@@ -418,7 +419,7 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
           behavior: SnackBarBehavior.floating,
           content: Text(
             'Mot de passe modifié.',
-            style: AppFonts.jakarta(color: AppColors.white, size: 13.5),
+            style: AppFonts.ui(color: AppColors.white, size: 13.5),
           ),
           duration: const Duration(seconds: 2),
         ),
@@ -463,7 +464,7 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
         ),
         if (_error != null) ...[
           const SizedBox(height: 10),
-          Text(_error!, style: AppFonts.jakarta(size: 12, color: AppColors.red)),
+          Text(_error!, style: AppFonts.ui(size: 12, color: AppColors.red)),
         ],
         const SizedBox(height: 16),
         _PrimaryButton(
@@ -483,7 +484,7 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
 InputDecoration _input(String hint) {
   return InputDecoration(
     hintText: hint,
-    hintStyle: AppFonts.jakarta(size: 13.5, color: AppColors.muted2),
+    hintStyle: AppFonts.ui(size: 13.5, color: AppColors.muted2),
     filled: true,
     fillColor: AppColors.white,
     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -599,7 +600,7 @@ class _ReadOnlyTile extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 14,
                     weight: FontWeight.w700,
                     color: AppColors.ink,
@@ -610,7 +611,7 @@ class _ReadOnlyTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 12,
                     color: AppColors.muted,
                     height: 1.4,
@@ -666,7 +667,7 @@ class _PrimaryButton extends StatelessWidget {
               )
             : Text(
                 label,
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 14,
                   weight: FontWeight.w800,
                   color: AppColors.white,
@@ -698,7 +699,7 @@ class _GhostButton extends StatelessWidget {
           ),
           child: Text(
             label,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 12,
               weight: FontWeight.w700,
               color: AppColors.blue,
@@ -750,7 +751,7 @@ class _SheetCard extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 title,
-                style: AppFonts.fraunces(
+                style: AppFonts.display(
                   size: 22,
                   weight: FontWeight.w600,
                   color: AppColors.ink,
@@ -759,7 +760,7 @@ class _SheetCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 subtitle,
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 12.5,
                   color: AppColors.muted,
                   height: 1.45,

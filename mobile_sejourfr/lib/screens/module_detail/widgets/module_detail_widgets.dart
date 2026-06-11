@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/mastery_status.dart';
@@ -39,7 +40,7 @@ class ModuleDetailTopBar extends StatelessWidget {
               ),
               alignment: Alignment.center,
               child: const Icon(
-                Icons.chevron_left_rounded,
+                LucideIcons.chevronLeft,
                 size: 22,
                 color: AppColors.ink,
               ),
@@ -90,7 +91,7 @@ class ModuleDetailTitle extends StatelessWidget {
         const SizedBox(height: 10),
         Text(
           title,
-          style: AppFonts.jakarta(
+          style: AppFonts.ui(
             size: 30,
             weight: FontWeight.w800,
             color: AppColors.ink,
@@ -153,7 +154,7 @@ class ModuleDetailHero extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             headline,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 22,
               weight: FontWeight.w800,
               color: AppColors.white,
@@ -163,7 +164,7 @@ class ModuleDetailHero extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             description,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13.5,
               color: AppColors.white.withValues(alpha: 0.9),
               height: 1.45,
@@ -214,7 +215,7 @@ class _StatCell extends StatelessWidget {
         children: [
           Text(
             item.value,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 17,
               weight: FontWeight.w800,
               color: AppColors.ink,
@@ -313,7 +314,7 @@ class ModuleDetailScoreCard extends StatelessWidget {
                         children: [
                           TextSpan(
                             text: neverPlayed ? '0' : '$correct',
-                            style: AppFonts.jakarta(
+                            style: AppFonts.ui(
                               size: 22,
                               weight: FontWeight.w800,
                               color: AppColors.ink,
@@ -321,7 +322,7 @@ class ModuleDetailScoreCard extends StatelessWidget {
                           ),
                           TextSpan(
                             text: ' / $total',
-                            style: AppFonts.jakarta(
+                            style: AppFonts.ui(
                               size: 18,
                               weight: FontWeight.w600,
                               color: AppColors.muted2,
@@ -329,7 +330,7 @@ class ModuleDetailScoreCard extends StatelessWidget {
                           ),
                           TextSpan(
                             text: ' réussies',
-                            style: AppFonts.jakarta(
+                            style: AppFonts.ui(
                               size: 13,
                               weight: FontWeight.w500,
                               color: AppColors.muted,
@@ -349,7 +350,7 @@ class ModuleDetailScoreCard extends StatelessWidget {
                 ),
                 child: Text(
                   badgeLabel,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 11.5,
                     weight: FontWeight.w800,
                     color: badgeColor,
@@ -408,7 +409,7 @@ class ModuleDetailScoreCard extends StatelessWidget {
                   neverPlayed
                       ? 'Lance ta première session pour voir ta progression.'
                       : '$answered questions vues — continue pour gagner en maîtrise.',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 12,
                     color: AppColors.muted,
                   ),
@@ -481,7 +482,7 @@ class ModuleDetailTabs extends StatelessWidget {
                     children: [
                       Text(
                         labels[i],
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 12.5,
                           weight: FontWeight.w800,
                           color: i == activeIndex ? accent : AppColors.muted,
@@ -490,7 +491,7 @@ class ModuleDetailTabs extends StatelessWidget {
                       if (lockedIndices.contains(i)) ...[
                         const SizedBox(width: 5),
                         Icon(
-                          Icons.lock_outline_rounded,
+                          LucideIcons.lock,
                           size: 12,
                           color: i == activeIndex ? accent : AppColors.muted,
                         ),
@@ -584,7 +585,7 @@ class ModuleDetailSeriesCard extends StatelessWidget {
                     ),
                     child: Text(
                       '$index',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 16,
                         weight: FontWeight.w800,
                         color: accent,
@@ -599,7 +600,7 @@ class ModuleDetailSeriesCard extends StatelessWidget {
                       children: [
                         Text(
                           title,
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                             size: 14.5,
                             weight: FontWeight.w800,
                             color: AppColors.ink,
@@ -608,7 +609,7 @@ class ModuleDetailSeriesCard extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           description,
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                             size: 12,
                             color: AppColors.muted,
                             height: 1.35,
@@ -628,7 +629,7 @@ class ModuleDetailSeriesCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(
-                        Icons.lock_outline_rounded,
+                        LucideIcons.lock,
                         size: 15,
                         color: AppColors.muted,
                       ),
@@ -642,7 +643,7 @@ class ModuleDetailSeriesCard extends StatelessWidget {
                       ),
                       child: Text(
                         scoreBadge!,
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 12.5,
                           weight: FontWeight.w800,
                           color: AppColors.white,
@@ -651,7 +652,7 @@ class ModuleDetailSeriesCard extends StatelessWidget {
                     )
                   else
                     const Icon(
-                      Icons.chevron_right_rounded,
+                      LucideIcons.chevronRight,
                       size: 22,
                       color: AppColors.muted2,
                     ),
@@ -702,7 +703,7 @@ class ModuleDetailTabPlaceholder extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             title,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 15,
               weight: FontWeight.w800,
               color: AppColors.ink,
@@ -713,7 +714,7 @@ class ModuleDetailTabPlaceholder extends StatelessWidget {
           Text(
             description,
             textAlign: TextAlign.center,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 12.5,
               color: AppColors.muted,
               height: 1.45,
@@ -773,7 +774,7 @@ class ModuleDetailStartingOverlay extends StatelessWidget {
               const SizedBox(height: 14),
               Text(
                 'Préparation de la session…',
-                style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+                style: AppFonts.ui(size: 13, color: AppColors.muted),
               ),
             ],
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/models/attempt_summary.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -33,7 +34,7 @@ class QcmHistorySection extends StatelessWidget {
           ),
           child: Text(
             'Aucun examen passé. Lance un examen blanc ou entraîne-toi par niveau.',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 12.5,
               color: AppColors.muted,
               height: 1.4,
@@ -53,19 +54,15 @@ class QcmHistorySection extends StatelessWidget {
           child: Row(
             children: [
               Text(
-                'Historique',
-                style: AppFonts.jakarta(
-                  size: 13,
-                  weight: FontWeight.w700,
-                  color: AppColors.muted,
-                ),
+                'Historique des examens',
+                style: AppFonts.display(size: 17),
               ),
               const Spacer(),
               GestureDetector(
                 onTap: onSeeAll,
                 child: Text(
                   'Tout voir',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 12,
                     weight: FontWeight.w700,
                     color: AppColors.blue,
@@ -125,7 +122,7 @@ class _HistoryRow extends StatelessWidget {
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
-                    Icons.assignment_turned_in_rounded,
+                    LucideIcons.clipboardCheck,
                     size: 18,
                     color: AppColors.blue,
                   ),
@@ -138,7 +135,7 @@ class _HistoryRow extends StatelessWidget {
                     children: [
                       Text(
                         'Examen complet',
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 13.5,
                           weight: FontWeight.w700,
                           color: AppColors.ink,
@@ -147,7 +144,7 @@ class _HistoryRow extends StatelessWidget {
                       const SizedBox(height: 1),
                       Text(
                         formatLongDate(attempt.finishedAt ?? attempt.startedAt),
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 11,
                           color: AppColors.muted,
                         ),
@@ -167,7 +164,7 @@ class _HistoryRow extends StatelessWidget {
                       level != null
                           ? '$calibrated · ${level.displayName}'
                           : '$calibrated / 499',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 11,
                         weight: FontWeight.w800,
                         color: scoreColor,
@@ -176,9 +173,9 @@ class _HistoryRow extends StatelessWidget {
                   ),
                 const SizedBox(width: 6),
                 const Icon(
-                  Icons.chevron_right_rounded,
+                  LucideIcons.chevronRight,
                   color: AppColors.muted2,
-                  size: 20,
+                  size: 17,
                 ),
               ],
             ),

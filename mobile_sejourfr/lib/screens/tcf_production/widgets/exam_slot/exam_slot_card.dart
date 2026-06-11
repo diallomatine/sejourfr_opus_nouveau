@@ -59,11 +59,12 @@ class ExamSlotCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadii.lg),
           border: Border.all(
             color: highlighted ? accent : AppColors.line,
             width: highlighted ? 1.2 : 1,
           ),
+          boxShadow: AppShadows.card,
         ),
         clipBehavior: Clip.antiAlias,
         child: Material(
@@ -89,9 +90,9 @@ class ExamSlotCard extends StatelessWidget {
                       children: [
                         Text(
                           title,
-                          style: AppFonts.jakarta(
-                            size: 14,
-                            weight: FontWeight.w700,
+                          style: AppFonts.ui(
+                            size: 15,
+                            weight: FontWeight.w600,
                             color: AppColors.ink,
                           ),
                         ),

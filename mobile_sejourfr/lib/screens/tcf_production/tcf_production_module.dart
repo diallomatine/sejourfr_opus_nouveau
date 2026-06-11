@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/models/enums.dart';
 
@@ -17,7 +18,7 @@ enum TcfProductionModule {
     headline: 'Correction IA détaillée',
     description:
         'Rédige tes réponses puis reçois un niveau CECRL, des corrections et des conseils personnalisés.',
-    icon: Icons.edit_note_rounded,
+    icon: LucideIcons.penLine,
     durationLabel: '30',
     historyTabLabel: 'Corrections',
   ),
@@ -28,7 +29,7 @@ enum TcfProductionModule {
     title: 'Expression orale',
     headline: 'Parle comme au vrai examen',
     description: 'Enregistre tes réponses et reçois une analyse IA avec transcription et niveau CECRL.',
-    icon: Icons.mic_rounded,
+    icon: LucideIcons.mic,
     durationLabel: '10',
     historyTabLabel: 'Analyses',
   );

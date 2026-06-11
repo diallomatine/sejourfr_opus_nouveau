@@ -27,7 +27,7 @@ class ExamPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: AppFonts.jakarta(size: 10, weight: FontWeight.w700, color: fg),
+        style: AppFonts.ui(size: 10, weight: FontWeight.w700, color: fg),
       ),
     );
   }

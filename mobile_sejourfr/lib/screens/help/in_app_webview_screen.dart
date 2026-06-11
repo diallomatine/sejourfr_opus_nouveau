@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -92,12 +93,12 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen> {
         elevation: 0,
         foregroundColor: AppColors.ink,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          icon: const Icon(LucideIcons.arrowLeft, size: 18),
           onPressed: () => context.pop(),
         ),
         title: Text(
           widget.title,
-          style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
+          style: AppFonts.ui(size: 16, weight: FontWeight.w700),
         ),
       ),
       body: Stack(
@@ -132,26 +133,26 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_outlined, size: 40, color: AppColors.red),
+            const Icon(LucideIcons.cloudOff, size: 40, color: AppColors.red),
             const SizedBox(height: 14),
             Text(
               'Impossible de charger cette page',
               textAlign: TextAlign.center,
-              style: AppFonts.jakarta(size: 15, weight: FontWeight.w700),
+              style: AppFonts.ui(size: 15, weight: FontWeight.w700),
             ),
             const SizedBox(height: 6),
             Text(
               message ?? 'Vérifie ta connexion et réessaie.',
               textAlign: TextAlign.center,
-              style: AppFonts.jakarta(size: 12.5, color: AppColors.muted),
+              style: AppFonts.ui(size: 12.5, color: AppColors.muted),
             ),
             const SizedBox(height: 20),
             TextButton.icon(
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded, size: 18),
+              icon: const Icon(LucideIcons.refreshCw, size: 18),
               label: Text(
                 'Réessayer',
-                style: AppFonts.jakarta(size: 13.5, weight: FontWeight.w700),
+                style: AppFonts.ui(size: 13.5, weight: FontWeight.w700),
               ),
             ),
           ],

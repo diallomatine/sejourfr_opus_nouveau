@@ -78,7 +78,7 @@ class TaskProgressItem extends StatelessWidget {
             ),
             child: Text(
               '$number',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13,
                 weight: FontWeight.w700,
                 color: _isDone ? AppColors.white : AppColors.muted2,
@@ -92,7 +92,7 @@ class TaskProgressItem extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 14,
                     weight: FontWeight.w600,
                     color: AppColors.ink,
@@ -102,7 +102,7 @@ class TaskProgressItem extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     'Score',
-                    style: AppFonts.jakarta(size: 12, color: AppColors.muted),
+                    style: AppFonts.ui(size: 12, color: AppColors.muted),
                   ),
                 ],
               ],
@@ -118,7 +118,7 @@ class TaskProgressItem extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: _formatScore(score!),
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 14,
                       weight: FontWeight.w700,
                       color: AppColors.ink,
@@ -126,7 +126,7 @@ class TaskProgressItem extends StatelessWidget {
                   ),
                   TextSpan(
                     text: '/20',
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 13,
                       weight: FontWeight.w500,
                       color: AppColors.muted2,
@@ -138,7 +138,7 @@ class TaskProgressItem extends StatelessWidget {
           else
             Text(
               status == TaskProgressStatus.current ? 'En cours' : 'A faire',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 12,
                 weight: FontWeight.w600,
                 color: AppColors.muted2,

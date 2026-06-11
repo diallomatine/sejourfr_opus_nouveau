@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -145,7 +146,7 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
     } else {
       ref.read(eeSessionProvider.notifier).reset();
     }
-    context.go(AppRoutes.tcf);
+    context.go(AppRoutes.reviser);
   }
 
   @override
@@ -337,7 +338,7 @@ class _Body extends StatelessWidget {
                 allEvaluated
                     ? 'Touche une tâche pour revoir l\'évaluation détaillée.'
                     : 'Touche une tâche évaluée pour ouvrir son évaluation détaillée.',
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 12.5,
                   color: AppColors.muted,
                   height: 1.4,
@@ -374,7 +375,7 @@ class _Body extends StatelessWidget {
             top: false,
             child: AppButton(
               label: liveMode ? 'Terminer la session' : 'Retour à l\'historique',
-              icon: liveMode ? Icons.check_rounded : Icons.arrow_back_rounded,
+              icon: liveMode ? LucideIcons.check : LucideIcons.arrowLeft,
               onPressed: liveMode
                   ? onFinishLive
                   : () {
@@ -457,7 +458,7 @@ class _EvaluatingBanner extends StatelessWidget {
       child: Row(
         children: [
           if (exhausted)
-            Icon(Icons.schedule_rounded, color: fg, size: 20)
+            Icon(LucideIcons.clock, color: fg, size: 20)
           else
             SizedBox(
               width: 18,
@@ -471,7 +472,7 @@ class _EvaluatingBanner extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 12.5,
                 color: AppColors.ink,
                 height: 1.4,
@@ -490,7 +491,7 @@ class _EvaluatingBanner extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   child: Text(
                     'Actualiser',
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 12,
                       weight: FontWeight.w800,
                       color: AppColors.white,
@@ -519,19 +520,19 @@ class _ErrorBox extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline_rounded, size: 32, color: AppColors.red),
+          const Icon(LucideIcons.circleAlert, size: 32, color: AppColors.red),
           const SizedBox(height: 10),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+            style: AppFonts.ui(size: 13, color: AppColors.muted),
           ),
           if (onRetry != null) ...[
             const SizedBox(height: 14),
             AppButton(
               label: 'Réessayer',
               onPressed: onRetry,
-              icon: Icons.refresh_rounded,
+              icon: LucideIcons.refreshCw,
             ),
           ],
         ],

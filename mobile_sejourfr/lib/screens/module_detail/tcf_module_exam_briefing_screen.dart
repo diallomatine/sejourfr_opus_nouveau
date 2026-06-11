@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -158,7 +159,7 @@ class _ModuleExamBriefingSheetState
                   const SizedBox(height: 22),
                   AppButton(
                     label: 'Commencer maintenant',
-                    icon: Icons.play_arrow_rounded,
+                    icon: LucideIcons.play,
                     isLoading: _starting,
                     onPressed: _starting ? null : _start,
                   ),
@@ -234,7 +235,7 @@ class _BriefingCopy {
       case QuestionType.co:
         return const _BriefingCopy(
           durationLabel: '20 min',
-          heroIcon: Icons.headphones_rounded,
+          heroIcon: LucideIcons.headphones,
           heroTitle: 'Prêt à écouter ?',
           heroDescription:
               'Tu vas répondre à 25 questions audio. Chaque document peut être écouté une seule fois, comme en condition d\'examen.',
@@ -250,7 +251,7 @@ class _BriefingCopy {
       case QuestionType.ce:
         return const _BriefingCopy(
           durationLabel: '35 min',
-          heroIcon: Icons.menu_book_rounded,
+          heroIcon: LucideIcons.bookOpen,
           heroTitle: 'Prêt à lire ?',
           heroDescription:
               'Tu vas répondre à 25 questions sur textes courts. Lis attentivement avant de choisir, comme en condition d\'examen.',
@@ -266,7 +267,7 @@ class _BriefingCopy {
       case QuestionType.structure:
         return const _BriefingCopy(
           durationLabel: '20 min',
-          heroIcon: Icons.spellcheck_rounded,
+          heroIcon: LucideIcons.spellCheck,
           heroTitle: 'Prêt à analyser ?',
           heroDescription:
               'Tu vas répondre à 25 questions de grammaire et de lexique : conjugaison, accords, prépositions, connecteurs.',
@@ -289,7 +290,7 @@ class _BriefingCopy {
         // l'exhaustivité du switch.
         return const _BriefingCopy(
           durationLabel: '20 min',
-          heroIcon: Icons.quiz_outlined,
+          heroIcon: LucideIcons.circleHelp,
           heroTitle: 'Prêt à commencer ?',
           heroDescription: '25 questions à enchaîner sans retour en arrière.',
           consignes: [
@@ -331,7 +332,7 @@ class _NoticeCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
-              Icons.info_outline_rounded,
+              LucideIcons.info,
               color: AppColors.blue,
               size: 18,
             ),
@@ -340,7 +341,7 @@ class _NoticeCard extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 12.5,
                 color: AppColors.ink2,
                 height: 1.45,
@@ -399,7 +400,7 @@ class _BriefingHero extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             title,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 22,
               weight: FontWeight.w800,
               color: AppColors.white,
@@ -409,7 +410,7 @@ class _BriefingHero extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             description,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13.5,
               color: AppColors.white.withValues(alpha: 0.92),
               height: 1.45,
@@ -437,11 +438,11 @@ class _DurationBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.timer_outlined, size: 13, color: AppColors.blue),
+          const Icon(LucideIcons.timer, size: 13, color: AppColors.blue),
           const SizedBox(width: 5),
           Text(
             label,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 12,
               weight: FontWeight.w800,
               color: AppColors.blue,
@@ -508,7 +509,7 @@ class _ConsigneRow extends StatelessWidget {
           Expanded(
             child: Text(
               line.label,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13.5,
                 color: AppColors.ink2,
                 weight: FontWeight.w600,
@@ -518,7 +519,7 @@ class _ConsigneRow extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             line.icon,
-            style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
+            style: AppFonts.ui(size: 16, weight: FontWeight.w700),
           ),
         ],
       ),
@@ -548,7 +549,7 @@ class _ConseilCard extends StatelessWidget {
           Row(
             children: [
               const Icon(
-                Icons.lightbulb_outline,
+                LucideIcons.lightbulb,
                 size: 14,
                 color: AppColors.red,
               ),
@@ -567,7 +568,7 @@ class _ConseilCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             text,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13,
               color: AppColors.ink2,
               height: 1.5,

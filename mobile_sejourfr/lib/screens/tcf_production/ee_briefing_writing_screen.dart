@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -15,9 +16,6 @@ import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'draft_service.dart';
 import 'ee_session_controller.dart';
 import 'widgets/consigne_card.dart';
-import 'widgets/criteres_card.dart';
-import 'widgets/mots_card.dart';
-import 'widgets/preparation_points.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
 import 'widgets/writing_zone.dart';
@@ -45,14 +43,6 @@ class _EeBriefingWritingScreenState
   bool _draftLoaded = false;
   String? _loadedForTaskId;
   bool _wasFocused = false;
-
-  static const _criteresEE = [
-    'Pertinence et développement du contenu',
-    'Organisation et cohérence du texte',
-    'Richesse et précision du vocabulaire',
-    'Correction grammaticale',
-    'Orthographe et ponctuation',
-  ];
 
   String _niveauForUser() {
     final auth = ref.read(authControllerProvider);
@@ -349,7 +339,6 @@ class _EeBriefingWritingScreenState
             controller: _controller,
             focusNode: _writingFocusNode,
             scrollController: _scrollController,
-            isWriting: _writingFocusNode.hasFocus,
             wordCount: _countWords(_controller.text),
             onChanged: (v) => _onTextChanged(v, task),
             onSubmit: () => _submit(task),
@@ -357,7 +346,6 @@ class _EeBriefingWritingScreenState
             onClear: () => _clearText(task),
             submitError: _submitError,
             submitting: _submitting,
-            criteres: _criteresEE,
           );
         },
       ),
@@ -373,13 +361,11 @@ class _Content extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.scrollController,
-    required this.isWriting,
     required this.onChanged,
     required this.onSubmit,
     required this.onSaveDraftAndQuit,
     required this.onClear,
     required this.wordCount,
-    required this.criteres,
     required this.submitting,
     this.submitError,
   });
@@ -390,13 +376,11 @@ class _Content extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final ScrollController scrollController;
-  final bool isWriting;
   final ValueChanged<String> onChanged;
   final VoidCallback onSubmit;
   final VoidCallback onSaveDraftAndQuit;
   final VoidCallback onClear;
   final int wordCount;
-  final List<String> criteres;
   final bool submitting;
   final String? submitError;
 
@@ -429,17 +413,6 @@ class _Content extends StatelessWidget {
                 subtitle:
                     'Longueur attendue : ${task.motsMin ?? 0} à ${task.motsMax ?? 0} mots',
               ),
-              PreparationCard(
-                key: const ValueKey('ee-prep'),
-                isEo: false,
-                tache: task.tacheNumero,
-              ),
-              MotsCard(
-                key: const ValueKey('ee-mots'),
-                current: wordCount,
-                min: task.motsMin ?? 0,
-                max: task.motsMax ?? 0,
-              ),
               WritingZone(
                 key: const ValueKey('ee-writing-zone'),
                 controller: controller,
@@ -451,60 +424,40 @@ class _Content extends StatelessWidget {
                 onClear: wordCount > 0 ? onClear : null,
                 minLines: 12,
               ),
-              CriteresCard(
-                key: const ValueKey('ee-criteres'),
-                criteres: criteres,
-              ),
               if (submitError != null) ...[
                 const SizedBox(height: 4),
                 _InlineError(message: submitError!),
               ],
+              const SizedBox(height: 16),
+              AppButton(
+                label: 'Valider ma rédaction',
+                icon: LucideIcons.send,
+                isLoading: submitting,
+                onPressed: (_inRange && !submitting) ? onSubmit : null,
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: onSaveDraftAndQuit,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  side: const BorderSide(color: AppColors.blue),
+                  foregroundColor: AppColors.blue,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'Enregistrer le brouillon',
+                  style: AppFonts.ui(
+                    size: 15,
+                    weight: FontWeight.w700,
+                    color: AppColors.blue,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
-        if (!isWriting)
-          Container(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
-            decoration: const BoxDecoration(
-              color: AppColors.white,
-              border: Border(
-                top: BorderSide(color: AppColors.line2, width: 1),
-              ),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                children: [
-                  AppButton(
-                    label: 'Valider ma rédaction',
-                    icon: Icons.send_rounded,
-                    isLoading: submitting,
-                    onPressed: (_inRange && !submitting) ? onSubmit : null,
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: onSaveDraftAndQuit,
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                      side: const BorderSide(color: AppColors.blue),
-                      foregroundColor: AppColors.blue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      'Enregistrer le brouillon',
-                      style: AppFonts.jakarta(
-                        size: 15,
-                        weight: FontWeight.w700,
-                        color: AppColors.blue,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -528,14 +481,14 @@ class _InlineError extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline_rounded,
+          const Icon(LucideIcons.circleAlert,
               size: 18, color: AppColors.red),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
               style:
-                  AppFonts.jakarta(size: 13, color: AppColors.red, height: 1.4),
+                  AppFonts.ui(size: 13, color: AppColors.red, height: 1.4),
             ),
           ),
         ],
@@ -557,12 +510,12 @@ class _ErrorBox extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline_rounded,
+          const Icon(LucideIcons.circleAlert,
               size: 32, color: AppColors.red),
           const SizedBox(height: 8),
           Text(
             'Impossible de démarrer la session.',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 14,
               weight: FontWeight.w700,
               color: AppColors.ink,
@@ -572,13 +525,13 @@ class _ErrorBox extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: AppFonts.jakarta(size: 12, color: AppColors.muted),
+            style: AppFonts.ui(size: 12, color: AppColors.muted),
           ),
           const SizedBox(height: 12),
           AppButton(
             label: 'Réessayer',
             onPressed: onRetry,
-            icon: Icons.refresh_rounded,
+            icon: LucideIcons.refreshCw,
           ),
         ],
       ),
@@ -621,7 +574,7 @@ class _ConfidentialitySheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
-                    Icons.lock_outline_rounded,
+                    LucideIcons.lock,
                     size: 18,
                     color: AppColors.blue,
                   ),
@@ -630,7 +583,7 @@ class _ConfidentialitySheet extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Confidentialité de votre rédaction',
-                    style: AppFonts.fraunces(
+                    style: AppFonts.display(
                       size: 18,
                       weight: FontWeight.w600,
                       color: AppColors.ink,
@@ -645,7 +598,7 @@ class _ConfidentialitySheet extends StatelessWidget {
               "pour vous fournir un feedback détaillé. Le contenu n'est pas "
               "partagé avec des tiers, n'est pas utilisé pour entraîner nos "
               "modèles, et reste accessible uniquement depuis votre compte.",
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13.5,
                 color: AppColors.muted,
                 height: 1.55,

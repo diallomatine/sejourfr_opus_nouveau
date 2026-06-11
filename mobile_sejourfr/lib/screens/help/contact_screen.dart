@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -69,7 +70,7 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
           behavior: SnackBarBehavior.floating,
           content: Text(
             'Message envoyé. Réponse sous 24 h ouvrées.',
-            style: AppFonts.jakarta(color: AppColors.white, size: 13.5),
+            style: AppFonts.ui(color: AppColors.white, size: 13.5),
           ),
           duration: const Duration(seconds: 3),
         ),
@@ -84,7 +85,7 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
           behavior: SnackBarBehavior.floating,
           content: Text(
             msg,
-            style: AppFonts.jakarta(color: AppColors.white, size: 13.5),
+            style: AppFonts.ui(color: AppColors.white, size: 13.5),
           ),
           duration: const Duration(seconds: 4),
         ),
@@ -103,12 +104,12 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
         elevation: 0,
         foregroundColor: AppColors.ink,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          icon: const Icon(LucideIcons.arrowLeft, size: 18),
           onPressed: () => context.pop(),
         ),
         title: Text(
           'Nous contacter',
-          style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
+          style: AppFonts.ui(size: 16, weight: FontWeight.w700),
         ),
       ),
       body: SafeArea(
@@ -178,7 +179,7 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
   InputDecoration _inputDecoration({required String hint}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: AppFonts.jakarta(size: 13.5, color: AppColors.muted2),
+      hintStyle: AppFonts.ui(size: 13.5, color: AppColors.muted2),
       filled: true,
       fillColor: AppColors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -229,7 +230,7 @@ class _Pitch extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.chat_bubble_outline_rounded,
+          const Icon(LucideIcons.messageCircle,
               color: AppColors.blue, size: 20),
           const SizedBox(width: 12),
           Expanded(
@@ -238,7 +239,7 @@ class _Pitch extends StatelessWidget {
               children: [
                 Text(
                   'Décris ton problème en quelques lignes',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 13.5,
                     weight: FontWeight.w700,
                     color: AppColors.ink,
@@ -247,7 +248,7 @@ class _Pitch extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   'Nous te répondons par email sous 24 h ouvrées.',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 12,
                     color: AppColors.muted,
                     height: 1.4,
@@ -311,7 +312,7 @@ class _SubmitButton extends StatelessWidget {
               )
             : Text(
                 'Envoyer le message',
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 14.5,
                   weight: FontWeight.w800,
                   color: AppColors.white,

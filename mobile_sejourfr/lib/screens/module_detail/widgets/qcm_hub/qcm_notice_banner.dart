@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/app_theme.dart';
 
@@ -29,8 +30,7 @@ class QcmNoticeBanner extends StatelessWidget {
               color: AppColors.blueLight,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.info_outline_rounded,
-                color: AppColors.blue, size: 18),
+            child: const Icon(LucideIcons.info, color: AppColors.blue, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -40,17 +40,12 @@ class QcmNoticeBanner extends StatelessWidget {
               children: [
                 Text(
                   'À SAVOIR',
-                  style: AppFonts.mono(
-                    size: 9.5,
-                    color: AppColors.blue,
-                    letterSpacing: 1.8,
-                    weight: FontWeight.w700,
-                  ),
+                  style: AppFonts.label(size: 10.5, color: AppColors.blue),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   message,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 12.5,
                     color: AppColors.ink2,
                     height: 1.45,

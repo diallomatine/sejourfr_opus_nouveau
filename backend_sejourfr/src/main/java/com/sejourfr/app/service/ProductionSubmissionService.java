@@ -164,7 +164,7 @@ public class ProductionSubmissionService {
         long used = submissionManager.countTrainingByUserAndEpreuve(userId, epreuve);
         if (used >= FREE_TRAINING_PER_EPREUVE) {
             throw new AccessDeniedException(
-                    "Quota gratuit atteint pour " + epreuve + " (" + FREE_TRAINING_PER_EPREUVE
+                    "Quota gratuit atteint pour " + epreuve.getLabel() + " (" + FREE_TRAINING_PER_EPREUVE
                             + " essai a vie). Passez Premium pour continuer."
             );
         }

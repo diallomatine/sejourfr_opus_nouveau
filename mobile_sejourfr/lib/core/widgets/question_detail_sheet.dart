@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../api/api_config.dart';
 import '../models/question_models.dart';
@@ -112,7 +113,7 @@ class QuestionDetailSheet extends StatelessWidget {
                 const SizedBox(height: 14),
                 Text(
                   question.statement,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 16,
                     weight: FontWeight.w700,
                     color: AppColors.ink,
@@ -154,7 +155,7 @@ class QuestionDetailSheet extends StatelessWidget {
                         const SizedBox(height: 8),
                         Text(
                           question.explanation!,
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                             size: 13,
                             color: AppColors.ink2,
                             height: 1.5,
@@ -248,7 +249,7 @@ class QuestionPassageBlock extends StatelessWidget {
           Row(
             children: [
               const Icon(
-                Icons.menu_book_rounded,
+                LucideIcons.bookOpen,
                 size: 14,
                 color: AppColors.muted,
               ),
@@ -267,7 +268,7 @@ class QuestionPassageBlock extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             text,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13.5,
               color: AppColors.ink2,
               height: 1.55,
@@ -308,7 +309,7 @@ class QuestionChoiceRow extends StatelessWidget {
       bg = AppColors.green.withValues(alpha: 0.08);
       border = AppColors.green;
       borderWidth = 1.5;
-      icon = Icons.check_rounded;
+      icon = LucideIcons.check;
       iconBg = AppColors.green;
       iconFg = AppColors.white;
       labelWeight = FontWeight.w700;
@@ -317,7 +318,7 @@ class QuestionChoiceRow extends StatelessWidget {
       bg = AppColors.red.withValues(alpha: 0.08);
       border = AppColors.red;
       borderWidth = 1.5;
-      icon = Icons.close_rounded;
+      icon = LucideIcons.x;
       iconBg = AppColors.red;
       iconFg = AppColors.white;
       labelWeight = FontWeight.w600;
@@ -326,7 +327,7 @@ class QuestionChoiceRow extends StatelessWidget {
       bg = AppColors.white;
       border = AppColors.line;
       borderWidth = 1;
-      icon = Icons.circle_outlined;
+      icon = LucideIcons.circle;
       iconBg = AppColors.line2;
       iconFg = AppColors.muted2;
       labelWeight = FontWeight.w500;
@@ -358,7 +359,7 @@ class QuestionChoiceRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 14,
                 weight: labelWeight,
                 color: labelColor,

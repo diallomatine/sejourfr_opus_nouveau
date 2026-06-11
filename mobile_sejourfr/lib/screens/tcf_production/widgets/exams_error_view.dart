@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -24,26 +25,26 @@ class ExamsErrorView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline_rounded, size: 32, color: AppColors.red),
+          const Icon(LucideIcons.circleAlert, size: 32, color: AppColors.red),
           const SizedBox(height: 8),
           Text(
             'Impossible de charger les examens',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
                 size: 14, weight: FontWeight.w700, color: AppColors.ink),
           ),
           const SizedBox(height: 6),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: AppFonts.jakarta(size: 12, color: AppColors.muted),
+            style: AppFonts.ui(size: 12, color: AppColors.muted),
           ),
           const SizedBox(height: 14),
           TextButton.icon(
             onPressed: onRetry,
-            icon: Icon(Icons.refresh_rounded, color: accent),
+            icon: Icon(LucideIcons.refreshCw, color: accent),
             label: Text(
               'Réessayer',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                   size: 13, weight: FontWeight.w700, color: accent),
             ),
           ),

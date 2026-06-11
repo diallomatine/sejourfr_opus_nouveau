@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -114,7 +115,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       appBar: AppBar(
         leading: IconButton(
           onPressed: () => context.pop(),
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          icon: const Icon(LucideIcons.arrowLeft, size: 18),
         ),
       ),
       body: GestureDetector(
@@ -134,7 +135,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Inscrivez-vous',
-                    style: AppFonts.fraunces(
+                    style: AppFonts.display(
                       size: 30,
                       weight: FontWeight.w600,
                     ),
@@ -142,7 +143,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   const SizedBox(height: 6),
                   Text(
                     'Quelques infos suffisent pour démarrer.',
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 14,
                       color: AppColors.muted,
                     ),
@@ -151,14 +152,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   AuthFormField.field(
                     label: 'Prénom',
                     controller: _firstName,
-                    prefixIcon: Icons.person_outline,
+                    prefixIcon: LucideIcons.userRound,
                     validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requis' : null,
                   ),
                   const SizedBox(height: 14),
                   AuthFormField.field(
                     label: 'Nom',
                     controller: _lastName,
-                    prefixIcon: Icons.badge_outlined,
+                    prefixIcon: LucideIcons.idCard,
                     validator: (v) => (v?.trim().isEmpty ?? true) ? 'Requis' : null,
                   ),
                   const SizedBox(height: 14),
@@ -167,7 +168,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.email],
-                    prefixIcon: Icons.mail_outline,
+                    prefixIcon: LucideIcons.mail,
                     validator: (v) {
                       final s = v?.trim() ?? '';
                       if (s.isEmpty) return 'Email requis';
@@ -181,11 +182,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     controller: _password,
                     obscureText: _obscure,
                     autofillHints: const [AutofillHints.newPassword],
-                    prefixIcon: Icons.lock_outline,
+                    prefixIcon: LucideIcons.lock,
                     suffixIcon: IconButton(
                       onPressed: () => setState(() => _obscure = !_obscure),
                       icon: Icon(
-                        _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                        _obscure ? LucideIcons.eye : LucideIcons.eyeOff,
                         color: AppColors.muted,
                       ),
                     ),
@@ -199,7 +200,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     label: 'Confirmer le mot de passe',
                     controller: _passwordConfirm,
                     obscureText: _obscure,
-                    prefixIcon: Icons.lock_outline,
+                    prefixIcon: LucideIcons.lock,
                     validator: (v) => (v?.isEmpty ?? true) ? 'Confirmation requise' : null,
                   ),
                   const SizedBox(height: 18),
@@ -212,7 +213,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     }),
                     label: Text.rich(
                       TextSpan(
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 12.5,
                           color: AppColors.muted,
                           height: 1.5,
@@ -221,7 +222,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           const TextSpan(text: 'J\'ai lu et j\'accepte les '),
                           TextSpan(
                             text: 'Conditions d\'utilisation',
-                            style: AppFonts.jakarta(
+                            style: AppFonts.ui(
                               size: 12.5,
                               color: AppColors.blue,
                               weight: FontWeight.w700,
@@ -232,7 +233,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           const TextSpan(text: ' et la '),
                           TextSpan(
                             text: 'Politique de confidentialité',
-                            style: AppFonts.jakarta(
+                            style: AppFonts.ui(
                               size: 12.5,
                               color: AppColors.blue,
                               weight: FontWeight.w700,
@@ -265,7 +266,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     children: [
                       Text(
                         'Déjà un compte ? ',
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 14,
                           color: AppColors.muted,
                         ),
@@ -274,7 +275,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         onTap: () => context.pop(),
                         child: Text(
                           'Se connecter',
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                             size: 14,
                             color: AppColors.blue,
                             weight: FontWeight.w700,

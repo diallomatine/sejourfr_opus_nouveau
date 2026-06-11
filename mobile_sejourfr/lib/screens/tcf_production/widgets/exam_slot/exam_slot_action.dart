@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/app_theme.dart';
 
-/// Bouton d'action à droite d'un slot d'examen. 3 états mutuellement
-/// exclusifs : locked (chip Premium), done (Refaire en ghost), next (Démarrer
-/// en filled), available (Démarrer en outline). [accent] = couleur du module
-/// (bleu QCM, bleu sur EE/EO car le CTA principal est aligné même côté EE/EO).
+/// Action à droite d'un slot d'examen (cf. maquette). 4 états mutuellement
+/// exclusifs : locked (chip Premium), done (pill « Fait » teinté accent —
+/// le tap rouvre le sheet Refaire / Rapport), next (Démarrer en filled),
+/// available (Démarrer en outline). [accent] = couleur du parcours.
 class ExamSlotAction extends StatelessWidget {
   const ExamSlotAction({
     super.key,
@@ -28,44 +29,54 @@ class ExamSlotAction extends StatelessWidget {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.workspace_premium_outlined,
-              size: 14, color: AppColors.muted2),
+          const Icon(LucideIcons.lock, size: 13, color: AppColors.muted2),
           const SizedBox(width: 4),
           Text(
             'Premium',
-            style: AppFonts.jakarta(
-                size: 11, weight: FontWeight.w700, color: AppColors.muted2),
+            style: AppFonts.ui(
+                size: 11.5, weight: FontWeight.w700, color: AppColors.muted2),
           ),
         ],
       );
     }
     if (done) {
-      return _ActionButton(
-        label: 'Refaire',
-        onPressed: onPressed,
-        filled: false,
-        outlineColor: AppColors.line,
-        fillColor: AppColors.white,
-        textColor: AppColors.muted,
-      );
-    }
-    if (next) {
-      return _ActionButton(
-        label: 'Démarrer',
-        onPressed: onPressed,
-        filled: true,
-        outlineColor: accent,
-        fillColor: accent,
-        textColor: AppColors.white,
+      return Material(
+        color: Color.alphaBlend(
+          accent.withValues(alpha: 0.12),
+          AppColors.white,
+        ),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(AppRadii.pill),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(LucideIcons.check, size: 13, color: accent),
+                const SizedBox(width: 5),
+                Text(
+                  'Fait',
+                  style: AppFonts.ui(
+                    size: 12,
+                    weight: FontWeight.w600,
+                    color: accent,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
     return _ActionButton(
       label: 'Démarrer',
       onPressed: onPressed,
-      filled: false,
-      outlineColor: accent,
-      fillColor: AppColors.white,
-      textColor: accent,
+      filled: next,
+      outlineColor: next ? accent : AppColors.line,
+      fillColor: next ? accent : AppColors.white,
+      textColor: next ? AppColors.white : accent,
     );
   }
 }
@@ -91,22 +102,23 @@ class _ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: filled ? fillColor : Colors.transparent,
-      borderRadius: BorderRadius.circular(9),
+      borderRadius: BorderRadius.circular(AppRadii.pill),
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(9),
-            border: filled ? null : Border.all(color: outlineColor, width: 1),
+            borderRadius: BorderRadius.circular(AppRadii.pill),
+            border: filled ? null : Border.all(color: outlineColor),
           ),
           child: Text(
             label,
-            style: AppFonts.jakarta(
-              size: 12,
-              weight: FontWeight.w700,
+            style: AppFonts.ui(
+              size: 12.5,
+              weight: FontWeight.w600,
               color: textColor,
+              height: 1.0,
             ),
           ),
         ),

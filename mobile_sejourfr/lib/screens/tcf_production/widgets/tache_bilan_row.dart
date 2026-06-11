@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/enums.dart';
 import '../../../core/theme/app_theme.dart';
@@ -56,7 +57,7 @@ class TacheBilanRow extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 14,
                     weight: FontWeight.w700,
                     color: AppColors.ink,
@@ -88,7 +89,7 @@ class TacheBilanRow extends StatelessWidget {
             )
           else if (isEvaluated)
             const Icon(
-              Icons.chevron_right_rounded,
+              LucideIcons.chevronRight,
               size: 22,
               color: AppColors.muted2,
             )
@@ -96,7 +97,7 @@ class TacheBilanRow extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 4),
               child: Icon(
-                Icons.remove_circle_outline_rounded,
+                LucideIcons.circleMinus,
                 size: 18,
                 color: AppColors.muted2,
               ),
@@ -126,7 +127,7 @@ class _Subtitle extends StatelessWidget {
     };
     return Text(
       text,
-      style: AppFonts.jakarta(
+      style: AppFonts.ui(
         size: 12,
         weight: pending ? FontWeight.w600 : FontWeight.w500,
         color: color,

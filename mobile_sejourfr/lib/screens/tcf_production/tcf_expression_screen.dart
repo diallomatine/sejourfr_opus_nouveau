@@ -2,21 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/format_date.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/app_button.dart';
+import '../../core/widgets/app_tag.dart';
+import '../../core/widgets/fixed_action_bar.dart';
 import '../../core/widgets/paywall_sheet.dart';
+import '../../core/widgets/screen_header.dart';
+import '../../core/widgets/segmented_tabs.dart';
 import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
 import 'expression_hub_data.dart';
 import 'tcf_production_module.dart';
-import 'widgets/module_screen_header.dart';
+import 'widgets/exam_filter_chips.dart';
 import 'widgets/preparation_points.dart';
 import 'widgets/task_palette.dart';
 
@@ -82,40 +88,60 @@ class _TcfExpressionScreenState extends ConsumerState<TcfExpressionScreen> {
       backgroundColor: AppColors.bg,
       body: SafeArea(
         bottom: false,
-        child: Stack(
+        child: Column(
           children: [
-            ListView(
-              padding: const EdgeInsets.only(bottom: 28),
-              children: [
-                ModuleScreenHeader(
-                  title: mod.title,
-                  subtitle: 'TCF IRN · ${mod.isEo ? "Oral" : "Écrit"}',
-                  onBack: () => _back(context),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: _ExamenHero(module: mod, onStart: _openExamBriefing),
-                ),
-                const _SectionLabel('S\'entraîner par tâche'),
-                for (int n = 1; n <= 3; n++)
-                  _TaskRow(
-                    module: mod,
-                    tache: n,
-                    count: async.valueOrNull?.countByTache[n],
-                    onTap: () => _openTask(n),
+            ScreenHeader(
+              title: mod.title,
+              sub: mod.isEo
+                  ? '3 tâches · la 1re est la présentation'
+                  : "Les 3 tâches de l'épreuve",
+              onBack: () => _back(context),
+            ),
+            Expanded(
+              child: Stack(
+                children: [
+                  ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                    children: [
+                      for (int n = 1; n <= 3; n++) ...[
+                        _TaskCard(
+                          module: mod,
+                          tache: n,
+                          count: async.valueOrNull?.countByTache[n],
+                          onTap: () => _openTask(n),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      const SizedBox(height: 4),
+                      async.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
+                        data: (data) => _History(
+                          data: data,
+                          onSeeAll: _openHistory,
+                          onExam: _openExamSession,
+                          onSingle: _openReport,
+                        ),
+                      ),
+                    ],
                   ),
-                const SizedBox(height: 8),
-                async.when(
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
-                  data: (data) => _History(
-                    data: data,
-                    onSeeAll: _openHistory,
-                    onExam: _openExamSession,
-                    onSingle: _openReport,
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: FixedActionBar(
+                      child: AppButton(
+                        label: 'Examens blancs',
+                        icon: LucideIcons.target,
+                        variant: mod.isEo
+                            ? AppButtonVariant.accent
+                            : AppButtonVariant.primary,
+                        onPressed: _openExamBriefing,
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -127,107 +153,16 @@ class _TcfExpressionScreenState extends ConsumerState<TcfExpressionScreen> {
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go('/');
+      context.go('/reviser');
     }
   }
 }
 
-/// Carte « Lancer un examen blanc » — fond teinté, CTA rouge.
-class _ExamenHero extends StatelessWidget {
-  const _ExamenHero({required this.module, required this.onStart});
-
-  final TcfProductionModule module;
-  final VoidCallback onStart;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.red, AppColors.redDark],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.redDark.withValues(alpha: 0.32),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(module.isEo ? Icons.mic_rounded : Icons.edit_note_rounded,
-                  size: 14, color: AppColors.white),
-              const SizedBox(width: 6),
-              Text(
-                'EXAMEN COMPLET · ${module.durationLabel} MIN',
-                style: AppFonts.mono(
-                    size: 10,
-                    color: AppColors.white.withValues(alpha: 0.9),
-                    letterSpacing: 1.2,
-                    weight: FontWeight.w700),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Lancer un examen blanc',
-            style: AppFonts.jakarta(
-                size: 19, weight: FontWeight.w800, color: AppColors.white)
-              .copyWith(letterSpacing: -0.3),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            module.isEo
-                ? 'Les 3 tâches enchaînées comme le jour J, avec enregistrement.'
-                : 'Les 3 tâches enchaînées comme le jour J, à rédiger.',
-            style: AppFonts.jakarta(
-                size: 13,
-                color: AppColors.white.withValues(alpha: 0.85),
-                height: 1.45),
-          ),
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: onStart,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-              decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(12)),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.play_arrow_rounded,
-                      size: 16, color: AppColors.redDark),
-                  const SizedBox(width: 5),
-                  Text(
-                    'Commencer',
-                    style: AppFonts.jakarta(
-                        size: 13,
-                        weight: FontWeight.w800,
-                        color: AppColors.redDark),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Ligne d'une tâche dans le hub : pastille colorée + titre + sous-titre +
-/// nombre de sujets + chevron. Tap → écran d'entraînement de la tâche.
-class _TaskRow extends StatelessWidget {
-  const _TaskRow(
+/// Carte d'une tâche (cf. `MTasks` maquette) : chip numéro 50 px coloré
+/// (T1 EO = rouge « présentation imposée », sinon accent du module),
+/// titre + badge, description, nombre de sujets.
+class _TaskCard extends StatelessWidget {
+  const _TaskCard(
       {required this.module,
       required this.tache,
       required this.count,
@@ -241,12 +176,22 @@ class _TaskRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final meta = _taskMeta(module, tache);
-    final (bg, fg) = _taskColors(tache);
+    final fixed = module.isEo && tache == 1;
+    final accent = fixed
+        ? AppColors.red
+        : module.isEo
+            ? AppColors.red
+            : AppColors.blue;
+    final soft = fixed
+        ? AppColors.redLight
+        : module.isEo
+            ? AppColors.redLight
+            : AppColors.blueLight;
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
         border: Border.all(color: AppColors.line),
         boxShadow: AppShadows.card,
       ),
@@ -256,44 +201,70 @@ class _TaskRow extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+            padding: const EdgeInsets.all(16),
             child: Row(
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 50,
+                  height: 50,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: soft,
+                    borderRadius: BorderRadius.circular(AppRadii.md),
+                  ),
                   child: Text('$tache',
-                      style: AppFonts.jakarta(
-                          size: 13, weight: FontWeight.w800, color: fg)),
+                      style: AppFonts.display(size: 22, color: accent)),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(meta.title,
-                          style: AppFonts.jakarta(
-                              size: 14,
-                              weight: FontWeight.w700,
-                              color: AppColors.ink)),
-                      const SizedBox(height: 1),
-                      Text(meta.subtitle,
-                          style: AppFonts.jakarta(
-                              size: 12, color: AppColors.muted)),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              meta.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppFonts.ui(
+                                  size: 15, weight: FontWeight.w700),
+                            ),
+                          ),
+                          if (fixed) ...[
+                            const SizedBox(width: 7),
+                            const AppTag(
+                              label: 'Présentation',
+                              tone: TagTone.red,
+                              icon: LucideIcons.mapPin,
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        meta.subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppFonts.ui(
+                            size: 12.5, color: AppColors.inkSoft, height: 1.4),
+                      ),
+                      if (count != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '$count sujets',
+                          style: AppFonts.ui(
+                              size: 12,
+                              weight: FontWeight.w600,
+                              color: AppColors.inkFaint),
+                        ),
+                      ],
                     ],
                   ),
                 ),
-                if (count != null) ...[
-                  Text('$count exercices',
-                      style:
-                          AppFonts.jakarta(size: 11, color: AppColors.muted2)),
-                  const SizedBox(width: 6),
-                ],
-                const Icon(Icons.chevron_right_rounded,
-                    color: AppColors.muted2, size: 20),
+                const SizedBox(width: 8),
+                const Icon(LucideIcons.chevronRight,
+                    size: 18, color: AppColors.inkFaint),
               ],
             ),
           ),
@@ -355,11 +326,11 @@ class _History extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
+          padding: const EdgeInsets.all(8),
           child: Row(
             children: [
               Text('Historique',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                       size: 13,
                       weight: FontWeight.w700,
                       color: AppColors.muted)),
@@ -367,7 +338,7 @@ class _History extends StatelessWidget {
               GestureDetector(
                 onTap: onSeeAll,
                 child: Text('Tout voir',
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                         size: 12,
                         weight: FontWeight.w700,
                         color: AppColors.red)),
@@ -376,7 +347,7 @@ class _History extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+          padding: const EdgeInsets.all(8),
           child: Row(
             children: [
               Expanded(
@@ -398,7 +369,7 @@ class _History extends StatelessWidget {
         // décroissante. Le reste est accessible via « Tout voir ».
         for (final entry in _recentMerged(data, 3))
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            padding: const EdgeInsets.all(8),
             child: switch (entry) {
               ExamSession e =>
                 _LastExamCard(session: e, onTap: () => onExam(e)),
@@ -430,11 +401,10 @@ class _HubStat extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: AppFonts.jakarta(size: 11, color: AppColors.muted)),
+          Text(label, style: AppFonts.ui(size: 11, color: AppColors.muted)),
           const SizedBox(height: 2),
           Text(value,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                   size: 18,
                   weight: FontWeight.w800,
                   color: valueColor ?? AppColors.ink)),
@@ -482,7 +452,7 @@ class _LastExamCard extends StatelessWidget {
                       alignment: Alignment.center,
                       decoration: const BoxDecoration(
                           color: AppColors.blueLight, shape: BoxShape.circle),
-                      child: const Icon(Icons.assignment_turned_in_rounded,
+                      child: const Icon(LucideIcons.clipboardCheck,
                           size: 18, color: AppColors.blue),
                     ),
                     const SizedBox(width: 12),
@@ -491,13 +461,13 @@ class _LastExamCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Examen blanc complet',
-                              style: AppFonts.jakarta(
+                              style: AppFonts.ui(
                                   size: 13.5,
                                   weight: FontWeight.w700,
                                   color: AppColors.ink)),
                           const SizedBox(height: 1),
                           Text(formatLongDate(session.lastSubmittedAt),
-                              style: AppFonts.jakarta(
+                              style: AppFonts.ui(
                                   size: 11, color: AppColors.muted)),
                         ],
                       ),
@@ -509,7 +479,7 @@ class _LastExamCard extends StatelessWidget {
                           color: color.withValues(alpha: 0.14),
                           borderRadius: BorderRadius.circular(8)),
                       child: Text(niveau?.displayName ?? '…',
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                               size: 11, weight: FontWeight.w800, color: color)),
                     ),
                   ],
@@ -547,7 +517,7 @@ class _MiniScore extends StatelessWidget {
           color: AppColors.bg, borderRadius: BorderRadius.circular(6)),
       child: Text(
         note != null ? 'T$tache · ${_formatNote(note!)}/20' : 'T$tache · —',
-        style: AppFonts.jakarta(
+        style: AppFonts.ui(
             size: 11, color: AppColors.muted, weight: FontWeight.w600),
       ),
     );
@@ -584,9 +554,10 @@ class _RecentSingleRow extends StatelessWidget {
                   width: 36,
                   height: 36,
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(color: badgeBg, shape: BoxShape.circle),
+                  decoration:
+                      BoxDecoration(color: badgeBg, shape: BoxShape.circle),
                   child: Text('$tache',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                           size: 13, weight: FontWeight.w800, color: badgeFg)),
                 ),
                 const SizedBox(width: 12),
@@ -595,14 +566,13 @@ class _RecentSingleRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Tâche $tache · entraînement libre',
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                               size: 13,
                               weight: FontWeight.w700,
                               color: AppColors.ink)),
                       const SizedBox(height: 1),
                       Text(formatLongDate(submission.submittedAt),
-                          style: AppFonts.jakarta(
-                              size: 11, color: AppColors.muted)),
+                          style: AppFonts.ui(size: 11, color: AppColors.muted)),
                     ],
                   ),
                 ),
@@ -614,12 +584,12 @@ class _RecentSingleRow extends StatelessWidget {
                         color: color.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(8)),
                     child: Text(niveau.displayName,
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                             size: 11, weight: FontWeight.w800, color: color)),
                   ),
                   const SizedBox(width: 6),
                 ],
-                const Icon(Icons.chevron_right_rounded,
+                const Icon(LucideIcons.chevronRight,
                     color: AppColors.muted2, size: 20),
               ],
             ),
@@ -699,8 +669,17 @@ class TcfTaskTrainingScreen extends ConsumerStatefulWidget {
 class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
   bool _starting = false;
   int _tab = 0; // 0 = Exercices (sujets), 1 = Exemples
-  int _filter = 0; // 0 = Tous, 1 = À faire, 2 = Faits
+  int _filter = 0; // 0 = Tout, 1 = À faire, 2 = Fait
   bool _showAll = false;
+
+  /// EE/EO sont des épreuves TCF → accès gouverné par l'abonnement Intégral
+  /// (`hasTcf`). Non-abonné : seuls le 1er sujet + le 1er exemple sont ouverts,
+  /// le reste est cadenassé (parité avec les séries CO/CE/Structure).
+  bool _isPremium() {
+    final auth = ref.read(authControllerProvider);
+    return auth is AuthAuthenticated &&
+        auth.user.canAccessModule(AppModule.tcf);
+  }
 
   void _openExample(ProductionExampleDto example) {
     showModalBottomSheet<void>(
@@ -723,6 +702,11 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
         await ref.read(eeSessionProvider.notifier).startSingle(task: task);
       }
       if (!mounted) return;
+      // On retire le scrim AVANT le push : sinon l'écran sortant le garde
+      // pendant l'animation de slide → flash d'un écran sombre avant le
+      // briefing. La session single-task est déjà prête (await ci-dessus),
+      // donc le briefing s'affiche directement, sans loader intermédiaire.
+      setState(() => _starting = false);
       context.push(widget.module.isEo
           ? '/tcf/expression-orale/t/0'
           : '/tcf/expression-ecrite/t/0');
@@ -739,14 +723,6 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
     } finally {
       if (mounted) setState(() => _starting = false);
     }
-  }
-
-  void _startRandom(List<ProductionTaskDto> subjects,
-      Map<String, ProductionSubmissionDto> done) {
-    final todo = subjects.where((t) => !done.containsKey(t.id)).toList();
-    final pool = todo.isNotEmpty ? todo : subjects;
-    pool.shuffle();
-    _practice(pool.first);
   }
 
   void _openPlan() {
@@ -787,19 +763,19 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
                 const _SheetHandle(),
                 Text(
                   task.displayTitle,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                       size: 16, weight: FontWeight.w800, color: AppColors.ink),
                 ),
                 if (note != null) ...[
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.check_circle_rounded,
+                      const Icon(LucideIcons.circleCheck,
                           size: 13, color: AppColors.green),
                       const SizedBox(width: 5),
                       Text(
                         'Dernière note : ${_formatNote(note)}/20',
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                             size: 12.5,
                             color: AppColors.green,
                             weight: FontWeight.w700),
@@ -810,7 +786,7 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
                 const SizedBox(height: 16),
                 AppButton(
                   label: 'Voir le détail',
-                  icon: Icons.description_outlined,
+                  icon: LucideIcons.fileText,
                   variant: AppButtonVariant.ghost,
                   height: 46,
                   onPressed: () {
@@ -820,8 +796,8 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
                 ),
                 const SizedBox(height: 8),
                 AppButton(
-                  label: 'Reprendre',
-                  icon: Icons.refresh_rounded,
+                  label: 'Refaire',
+                  icon: LucideIcons.refreshCw,
                   variant: AppButtonVariant.danger,
                   height: 46,
                   onPressed: () {
@@ -852,9 +828,9 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
           children: [
             Column(
               children: [
-                ModuleScreenHeader(
+                ScreenHeader(
                   title: meta.title,
-                  subtitle: 'Tâche ${widget.tache} · ${meta.subtitle}',
+                  sub: 'Tâche ${widget.tache} · ${meta.subtitle}',
                   onBack: () => _back(context),
                 ),
                 Expanded(
@@ -867,7 +843,7 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
                       final subjects = data.subjects;
                       if (subjects.isEmpty) {
                         return _Placeholder(
-                          icon: Icons.hourglass_empty_rounded,
+                          icon: LucideIcons.hourglass,
                           title: 'Bientôt disponible',
                           description:
                               'Les sujets de cette tâche ne sont pas encore prêts. Reviens vite !',
@@ -876,8 +852,12 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
                       return ListView(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
                         children: [
-                          _TaskTabs(
-                            active: _tab,
+                          SegmentedTabs<int>(
+                            tabs: const [
+                              SegmentTab(value: 0, label: 'Sujets'),
+                              SegmentTab(value: 1, label: 'Exemples'),
+                            ],
+                            value: _tab,
                             onChanged: (i) => setState(() => _tab = i),
                           ),
                           const SizedBox(height: 14),
@@ -902,45 +882,63 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
   List<Widget> _buildExercices(TcfProductionModule mod, _TaskData data) {
     final subjects = data.subjects;
     final done = data.lastByTaskId;
-    final doneCount = subjects.where((t) => done.containsKey(t.id)).length;
-    final List<ProductionTaskDto> filtered = switch (_filter) {
-      1 => subjects.where((t) => !done.containsKey(t.id)).toList(),
-      2 => subjects.where((t) => done.containsKey(t.id)).toList(),
-      _ => subjects,
-    };
+    final premium = _isPremium();
+
+    // Index d'origine conservé : c'est lui qui pilote le verrou freemium
+    // (1er sujet offert, suivants premium), indépendamment du filtre courant.
+    final indexed = [for (int i = 0; i < subjects.length; i++) (i, subjects[i])];
+    final doneCount = indexed.where((e) => done[e.$2.id] != null).length;
+    final todoCount = indexed.length - doneCount;
+    final filtered = indexed.where((e) {
+      final isDone = done[e.$2.id] != null;
+      if (_filter == 1) return !isDone;
+      if (_filter == 2) return isDone;
+      return true;
+    }).toList();
+
     final visible = _showAll ? filtered : filtered.take(6).toList();
     final remaining = filtered.length - visible.length;
+
     return [
-      _IntroCard(text: _introFor(mod, widget.tache)),
-      const SizedBox(height: 12),
-      _FilterChips(
+      ExamFilterChips(
         active: _filter,
-        total: subjects.length,
-        todo: subjects.length - doneCount,
-        done: doneCount,
+        labels: [
+          'Tout · ${indexed.length}',
+          'À faire · $todoCount',
+          'Fait · $doneCount',
+        ],
         onChanged: (i) => setState(() {
           _filter = i;
           _showAll = false;
         }),
       ),
       const SizedBox(height: 12),
-      _RandomCard(onStart: () => _startRandom(subjects, done)),
-      const SizedBox(height: 12),
-      for (int i = 0; i < visible.length; i++)
-        _ExerciseRow(
-          index: i + 1,
-          task: visible[i],
-          last: done[visible[i].id],
-          onTap: () {
-            final last = done[visible[i].id];
-            if (last != null) {
-              _openDoneSheet(visible[i], last);
-            } else {
-              _practice(visible[i]);
-            }
-          },
-        ),
-      if (filtered.isEmpty) _MutedHint(text: 'Aucun sujet dans ce filtre.'),
+      if (filtered.isEmpty)
+        _MutedHint(
+          text: _filter == 2
+              ? 'Aucun sujet terminé pour l\'instant.'
+              : 'Tous les sujets sont terminés. Bravo !',
+        )
+      else
+        for (final (origIndex, task) in visible)
+          _ExerciseRow(
+            module: mod,
+            task: task,
+            last: done[task.id],
+            locked: !premium && origIndex > 0,
+            onTap: () {
+              if (!premium && origIndex > 0) {
+                showPaywallSheet(context);
+                return;
+              }
+              final last = done[task.id];
+              if (last != null) {
+                _openDoneSheet(task, last);
+              } else {
+                _practice(task);
+              }
+            },
+          ),
       if (remaining > 0)
         _ShowMoreButton(
           label: 'Voir les $remaining autres',
@@ -951,6 +949,7 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
 
   List<Widget> _buildExemples(
       TcfProductionModule mod, List<ProductionExampleDto> examples) {
+    final premium = _isPremium();
     return [
       if (examples.isEmpty)
         _MutedHint(
@@ -963,36 +962,21 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
           padding: const EdgeInsets.only(left: 4, bottom: 10),
           child: Text(
             'Modèles corrigés, avec stratégie et formules-clés.',
-            style:
-                AppFonts.jakarta(size: 12, color: AppColors.muted, height: 1.4),
+            style: AppFonts.ui(size: 12, color: AppColors.muted, height: 1.4),
           ),
         ),
-        for (final ex in examples)
-          _FeaturedExampleCard(example: ex, onOpen: () => _openExample(ex)),
+        for (int i = 0; i < examples.length; i++)
+          _FeaturedExampleCard(
+            example: examples[i],
+            locked: !premium && i > 0,
+            onOpen: (!premium && i > 0)
+                ? () => showPaywallSheet(context)
+                : () => _openExample(examples[i]),
+          ),
       ],
       const SizedBox(height: 4),
       _StrategyCard(onTap: _openPlan),
     ];
-  }
-
-  String _introFor(TcfProductionModule mod, int tache) {
-    if (mod.isEo) {
-      return switch (tache) {
-        1 =>
-          'Présentez-vous clairement : identité, parcours, loisirs et projets. Parlez 2 à 3 minutes.',
-        2 =>
-          'Obtenez une information en posant des questions à l\'examinateur. Pensez à varier les formules.',
-        _ =>
-          'Donnez votre opinion et défendez-la avec deux arguments illustrés d\'exemples.',
-      };
-    }
-    return switch (tache) {
-      1 => 'Répondez au message reçu : soyez clair et complet en 60-120 mots.',
-      2 =>
-        'Racontez une expérience au passé : contexte, déroulement, puis bilan.',
-      _ =>
-        'Donnez un avis argumenté : thèse, deux arguments illustrés, et une objection.',
-    };
   }
 
   void _back(BuildContext context) {
@@ -1007,22 +991,6 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
 // ============================================================================
 // Widgets partagés
 // ============================================================================
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 4, 18, 10),
-      child: Text(text,
-          style: AppFonts.jakarta(
-              size: 13, weight: FontWeight.w700, color: AppColors.muted)),
-    );
-  }
-}
 
 class _PlanRow extends StatelessWidget {
   const _PlanRow({required this.text});
@@ -1043,13 +1011,13 @@ class _PlanRow extends StatelessWidget {
             decoration: BoxDecoration(
                 color: AppColors.green.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(999)),
-            child: const Icon(Icons.check_rounded,
-                size: 13, color: AppColors.green),
+            child:
+                const Icon(LucideIcons.check, size: 13, color: AppColors.green),
           ),
           const SizedBox(width: 10),
           Expanded(
               child: Text(text,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                       size: 13, color: AppColors.ink2, height: 1.4))),
         ],
       ),
@@ -1079,8 +1047,15 @@ class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
       _player.setUrl(url).then((_) {
         if (mounted) setState(() => _ready = true);
       }).catchError((_) {});
-      _player.playerStateStream.listen((_) {
-        if (mounted) setState(() {});
+      _player.playerStateStream.listen((state) {
+        if (!mounted) return;
+        // Fin de lecture : repasse le bouton sur « Écouter » au lieu de rester
+        // bloqué sur « Pause » (just_audio garde `playing` à true en completed).
+        if (state.processingState == ProcessingState.completed) {
+          _player.pause();
+          _player.seek(Duration.zero);
+        }
+        setState(() {});
       });
     }
   }
@@ -1124,14 +1099,14 @@ class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
                 padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
                 children: [
                   Text(ex.titre,
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                           size: 19,
                           weight: FontWeight.w800,
                           color: AppColors.ink)),
                   if (ex.resume != null) ...[
                     const SizedBox(height: 6),
                     Text(ex.resume!,
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                             size: 13, color: AppColors.muted, height: 1.4)),
                   ],
                   if (ex.hasAudio) ...[
@@ -1146,15 +1121,11 @@ class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
                             borderRadius: BorderRadius.circular(16)),
                         child: Row(
                           children: [
-                            Icon(
-                                playing
-                                    ? Icons.pause_rounded
-                                    : Icons.play_arrow_rounded,
-                                color: AppColors.white,
-                                size: 24),
+                            Icon(playing ? LucideIcons.pause : LucideIcons.play,
+                                color: AppColors.white, size: 24),
                             const SizedBox(width: 10),
                             Text(playing ? 'Pause' : 'Écouter le modèle',
-                                style: AppFonts.jakarta(
+                                style: AppFonts.ui(
                                     size: 14,
                                     weight: FontWeight.w800,
                                     color: AppColors.white)),
@@ -1193,7 +1164,7 @@ class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
                             left: BorderSide(color: AppColors.red, width: 4)),
                       ),
                       child: Text(ex.contenu,
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                               size: 14, color: AppColors.ink2, height: 1.6)),
                     ),
                   ],
@@ -1208,12 +1179,12 @@ class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.lightbulb_outline_rounded,
+                          const Icon(LucideIcons.lightbulb,
                               size: 18, color: AppColors.red),
                           const SizedBox(width: 10),
                           Expanded(
                               child: Text(ex.explications!,
-                                  style: AppFonts.jakarta(
+                                  style: AppFonts.ui(
                                       size: 13,
                                       color: AppColors.ink2,
                                       height: 1.5))),
@@ -1224,7 +1195,7 @@ class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
                   if (ex.planPoints.isNotEmpty) ...[
                     const SizedBox(height: 18),
                     Text('Plan rapide',
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                             size: 15,
                             weight: FontWeight.w800,
                             color: AppColors.ink)),
@@ -1285,8 +1256,7 @@ class _MutedHint extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.line)),
       child: Text(text,
-          style: AppFonts.jakarta(
-              size: 12.5, color: AppColors.muted, height: 1.4)),
+          style: AppFonts.ui(size: 12.5, color: AppColors.muted, height: 1.4)),
     );
   }
 }
@@ -1319,13 +1289,13 @@ class _Placeholder extends StatelessWidget {
             const SizedBox(height: 16),
             Text(title,
                 textAlign: TextAlign.center,
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                     size: 16, weight: FontWeight.w800, color: AppColors.ink)),
             const SizedBox(height: 8),
             Text(description,
                 textAlign: TextAlign.center,
-                style: AppFonts.jakarta(
-                    size: 13, color: AppColors.muted, height: 1.5)),
+                style:
+                    AppFonts.ui(size: 13, color: AppColors.muted, height: 1.5)),
           ],
         ),
       ),
@@ -1347,7 +1317,7 @@ class _ErrorBox extends StatelessWidget {
         decoration: BoxDecoration(
             color: AppColors.redLight, borderRadius: BorderRadius.circular(12)),
         child: Text(message,
-            style: AppFonts.jakarta(size: 12.5, color: AppColors.redDark)),
+            style: AppFonts.ui(size: 12.5, color: AppColors.redDark)),
       ),
     );
   }
@@ -1380,247 +1350,57 @@ String _formatNote(double n) => n.toStringAsFixed(1).replaceAll('.', ',');
 // ============================================================================
 
 /// Onglets « Exercices / Exemples » (segment blanc actif, façon iOS).
-class _TaskTabs extends StatelessWidget {
-  const _TaskTabs({required this.active, required this.onChanged});
-
-  final int active;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-          color: AppColors.line2, borderRadius: BorderRadius.circular(12)),
-      child: Row(
-        children: [
-          Expanded(child: _tab(0, Icons.list_rounded, 'Exercices')),
-          Expanded(child: _tab(1, Icons.menu_book_rounded, 'Exemples')),
-        ],
-      ),
-    );
-  }
-
-  Widget _tab(int i, IconData icon, String label) {
-    final on = active == i;
-    return GestureDetector(
-      onTap: () => onChanged(i),
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(vertical: 9),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: on ? AppColors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(9),
-          boxShadow: on
-              ? [
-                  BoxShadow(
-                      color: AppColors.ink.withValues(alpha: 0.06),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1))
-                ]
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 15, color: on ? AppColors.red : AppColors.muted),
-            const SizedBox(width: 6),
-            Text(label,
-                style: AppFonts.jakarta(
-                    size: 12.5,
-                    weight: FontWeight.w700,
-                    color: on ? AppColors.ink : AppColors.muted)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Encart « Comment ça marche » (fond teinté rouge léger).
-class _IntroCard extends StatelessWidget {
-  const _IntroCard({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-          color: AppColors.redLight, borderRadius: BorderRadius.circular(16)),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.info_outline_rounded,
-              size: 18, color: AppColors.redDark),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Comment ça marche',
-                    style: AppFonts.jakarta(
-                        size: 12,
-                        weight: FontWeight.w800,
-                        color: AppColors.redDark)),
-                const SizedBox(height: 3),
-                Text(text,
-                    style: AppFonts.jakarta(
-                        size: 12, color: AppColors.ink2, height: 1.5)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Chips de filtre Tous / À faire / Faits.
-class _FilterChips extends StatelessWidget {
-  const _FilterChips({
-    required this.active,
-    required this.total,
-    required this.todo,
-    required this.done,
-    required this.onChanged,
-  });
-
-  final int active;
-  final int total;
-  final int todo;
-  final int done;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final labels = ['Tous · $total', 'À faire · $todo', 'Faits · $done'];
-    return SizedBox(
-      height: 32,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.zero,
-        itemCount: labels.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, i) {
-          final on = active == i;
-          return GestureDetector(
-            onTap: () => onChanged(i),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 13),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: on ? AppColors.red : AppColors.white,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: on ? AppColors.red : AppColors.line),
-              ),
-              child: Text(
-                labels[i],
-                style: AppFonts.jakarta(
-                    size: 12,
-                    weight: FontWeight.w700,
-                    color: on ? AppColors.white : AppColors.muted),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// Carte « Sujet aléatoire » (bord pointillé).
-class _RandomCard extends StatelessWidget {
-  const _RandomCard({required this.onStart});
-
-  final VoidCallback onStart;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.line),
-        boxShadow: AppShadows.card,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-                color: AppColors.redLight, shape: BoxShape.circle),
-            child: const Icon(Icons.casino_rounded,
-                size: 20, color: AppColors.red),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Sujet aléatoire',
-                    style: AppFonts.jakarta(
-                        size: 14,
-                        weight: FontWeight.w700,
-                        color: AppColors.ink)),
-                const SizedBox(height: 1),
-                Text('Comme à l\'examen, sans le voir',
-                    style: AppFonts.jakarta(size: 12, color: AppColors.muted)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: onStart,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-              decoration: BoxDecoration(
-                  color: AppColors.red,
-                  borderRadius: BorderRadius.circular(10)),
-              child: Text('Démarrer',
-                  style: AppFonts.jakarta(
-                      size: 12.5,
-                      weight: FontWeight.w800,
-                      color: AppColors.white)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Ligne d'exercice (sujet) : numéro + niveau + statut + énoncé.
+/// Bannière de consigne de la tâche (cf. `MPractice` maquette) : fond
+/// teinté + liseré accent à gauche — rouge EO, bleu EE.
+/// Carte d'un sujet (cf. `MTask` maquette) : icône mic/pen en pastille,
+/// énoncé, pill niveau + note si déjà fait, icône play / refaire. Tap →
+/// l'entraînement démarre directement sur ce sujet.
 class _ExerciseRow extends StatelessWidget {
   const _ExerciseRow(
-      {required this.index,
+      {required this.module,
       required this.task,
       required this.last,
+      required this.locked,
       required this.onTap});
 
-  final int index;
+  final TcfProductionModule module;
   final ProductionTaskDto task;
   final ProductionSubmissionDto? last;
+  final bool locked;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final done = last != null;
     final note = last?.evaluation?.noteSurVingt;
-    final (nbg, nfg) = _niveauColors(task.niveauCible);
+    final accent = module.isEo ? AppColors.red : AppColors.blue;
+
+    // La carte reste neutre (blanche) ; seul le badge d'état porte une couleur.
+    // Fait : icône ✓ rouge si note <= 12, verte sinon (verte par défaut tant
+    // que la note n'est pas encore évaluée). À faire : pastille accent module.
+    final scoreColor =
+        (note != null && note <= 12) ? AppColors.red : AppColors.green;
+    final pastilleBg = locked
+        ? AppColors.surface2
+        : done
+            ? scoreColor.withValues(alpha: 0.12)
+            : accent.withValues(alpha: 0.10);
+    final pastilleFg = locked
+        ? AppColors.inkFaint
+        : done
+            ? scoreColor
+            : accent;
+    final pastilleIcon = locked
+        ? LucideIcons.lock
+        : done
+            ? LucideIcons.check
+            : (module.isEo ? LucideIcons.mic : LucideIcons.penLine);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
         border: Border.all(color: AppColors.line),
         boxShadow: AppShadows.card,
       ),
@@ -1630,60 +1410,90 @@ class _ExerciseRow extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
-            child: Column(
+            padding: const EdgeInsets.all(14),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(index.toString().padLeft(2, '0'),
-                        style: AppFonts.mono(
-                            size: 11,
-                            color: AppColors.muted2,
-                            weight: FontWeight.w700)),
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                          color: nbg, borderRadius: BorderRadius.circular(999)),
-                      child: Text(task.niveauCible,
-                          style: AppFonts.jakarta(
-                              size: 10, weight: FontWeight.w800, color: nfg)),
+                Container(
+                  width: 36,
+                  height: 36,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: pastilleBg,
+                    borderRadius: BorderRadius.circular(AppRadii.md),
+                  ),
+                  child: Icon(pastilleIcon, size: 19, color: pastilleFg),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        task.consigne,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppFonts.ui(
+                            size: 14.5,
+                            weight: FontWeight.w500,
+                            height: 1.45,
+                            color: AppColors.ink),
+                      ),
+                      const SizedBox(height: 8),
+                      if (done)
+                        AppTag(
+                          label: note != null
+                              ? '${_formatNote(note)}/20'
+                              : 'Terminé',
+                          tone: (note != null && note <= 12)
+                              ? TagTone.red
+                              : TagTone.success,
+                          icon: LucideIcons.check,
+                        )
+                      else if (locked)
+                        const AppTag(
+                          label: 'Abonnement',
+                          tone: TagTone.neutral,
+                          icon: LucideIcons.lock,
+                        )
+                      else
+                        AppTag(
+                          label: 'À faire',
+                          tone: module.isEo ? TagTone.red : TagTone.blue,
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                if (locked)
+                  const Icon(LucideIcons.lock,
+                      size: 19, color: AppColors.inkFaint)
+                else if (done)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(LucideIcons.refreshCw,
+                          size: 15, color: AppColors.muted),
+                      const SizedBox(width: 5),
+                      Text('Refaire',
+                          style: AppFonts.ui(
+                              size: 12.5,
+                              weight: FontWeight.w600,
+                              color: AppColors.muted)),
+                    ],
+                  )
+                else
+                  Container(
+                    width: 34,
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: accent,
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(width: 8),
-                    if (done)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.check_circle_rounded,
-                              size: 13, color: AppColors.green),
-                          const SizedBox(width: 3),
-                          Text(
-                              note != null ? '${_formatNote(note)}/20' : 'Fait',
-                              style: AppFonts.jakarta(
-                                  size: 10.5,
-                                  weight: FontWeight.w700,
-                                  color: AppColors.green)),
-                        ],
-                      )
-                    else
-                      Text('Nouveau',
-                          style: AppFonts.jakarta(
-                              size: 10.5, color: AppColors.muted2)),
-                    const Spacer(),
-                    const Icon(Icons.chevron_right_rounded,
-                        size: 18, color: AppColors.muted2),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  task.consigne,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppFonts.jakarta(
-                      size: 13, color: AppColors.ink, height: 1.45),
-                ),
+                    child: const Icon(LucideIcons.play,
+                        size: 16, color: AppColors.white),
+                  ),
               ],
             ),
           ),
@@ -1705,25 +1515,95 @@ class _ShowMoreButton extends StatelessWidget {
       child: TextButton.icon(
         onPressed: onTap,
         icon: Text(label,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
                 size: 13, weight: FontWeight.w700, color: AppColors.red)),
-        label: const Icon(Icons.keyboard_arrow_down_rounded,
-            size: 18, color: AppColors.red),
+        label:
+            const Icon(LucideIcons.chevronDown, size: 18, color: AppColors.red),
       ),
     );
   }
 }
 
-/// Carte « exemple corrigé » mise en avant (onglet Exemples).
-class _FeaturedExampleCard extends StatelessWidget {
-  const _FeaturedExampleCard({required this.example, required this.onOpen});
+/// Carte « exemple corrigé » mise en avant (onglet Exemples). Quand l'exemple
+/// porte un audio (EO), la carte intègre un lecteur inline : bouton Écouter,
+/// barre de progression et durée totale. Sinon (EE, texte), elle ouvre le
+/// corrigé rédigé.
+class _FeaturedExampleCard extends StatefulWidget {
+  const _FeaturedExampleCard(
+      {required this.example, required this.locked, required this.onOpen});
 
   final ProductionExampleDto example;
+  final bool locked;
   final VoidCallback onOpen;
 
   @override
+  State<_FeaturedExampleCard> createState() => _FeaturedExampleCardState();
+}
+
+class _FeaturedExampleCardState extends State<_FeaturedExampleCard> {
+  AudioPlayer? _player;
+  bool _ready = false;
+  Duration _pos = Duration.zero;
+  Duration _dur = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    // Exemple cadenassé (non-abonné, au-delà du 1er) : on ne charge même pas
+    // l'audio — la carte affiche un état verrouillé qui ouvre le paywall.
+    if (widget.locked) return;
+    final url = widget.example.audioUrl;
+    if (widget.example.hasAudio && url != null && url.isNotEmpty) {
+      final player = AudioPlayer();
+      _player = player;
+      player.setUrl(url).then((d) {
+        if (!mounted) return;
+        setState(() {
+          _ready = true;
+          if (d != null) _dur = d;
+        });
+      }).catchError((_) {});
+      player.durationStream.listen((d) {
+        if (mounted && d != null) setState(() => _dur = d);
+      });
+      player.positionStream.listen((p) {
+        if (mounted) setState(() => _pos = p);
+      });
+      player.playerStateStream.listen((state) {
+        if (!mounted) return;
+        // Fin de lecture : just_audio garde `playing == true` sur l'état
+        // `completed` → on remet le lecteur au repos (bouton ▶ + barre à 0).
+        if (state.processingState == ProcessingState.completed) {
+          player.pause();
+          player.seek(Duration.zero);
+        }
+        setState(() {});
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _player?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    final player = _player;
+    if (player == null) return;
+    if (player.playing) {
+      await player.pause();
+    } else {
+      if (player.processingState == ProcessingState.completed) {
+        await player.seek(Duration.zero);
+      }
+      await player.play();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final (nbg, nfg) = _niveauColors(example.niveauIndicatif);
+    final example = widget.example;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -1738,70 +1618,113 @@ class _FeaturedExampleCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.auto_awesome_rounded,
-                  size: 14, color: AppColors.red),
+              const Icon(LucideIcons.sparkles, size: 14, color: AppColors.red),
               const SizedBox(width: 6),
               Text('EXEMPLE CORRIGÉ',
-                  style: AppFonts.mono(
+                  style: AppFonts.ui(
                       size: 9.5,
                       color: AppColors.red,
                       letterSpacing: 0.8,
                       weight: FontWeight.w700)),
-              const Spacer(),
-              if (example.niveauIndicatif != null)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                      color: nbg, borderRadius: BorderRadius.circular(999)),
-                  child: Text(example.niveauIndicatif!,
-                      style: AppFonts.jakarta(
-                          size: 10, weight: FontWeight.w800, color: nfg)),
-                ),
             ],
           ),
           const SizedBox(height: 8),
           Text(example.titre,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                   size: 13.5,
                   weight: FontWeight.w700,
                   color: AppColors.ink,
                   height: 1.4)),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(11),
-            decoration: BoxDecoration(
-                color: AppColors.bg, borderRadius: BorderRadius.circular(10)),
-            child: Text(
-              example.resume ?? example.contenu,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppFonts.jakarta(
-                  size: 12, color: AppColors.muted, height: 1.45),
+          const SizedBox(height: 10),
+          if (widget.locked)
+            _LockedExampleBar(isEo: example.hasAudio, onTap: widget.onOpen)
+          else if (example.hasAudio)
+            _buildPlayer()
+          else
+            _OutlineBtn(
+                icon: LucideIcons.fileText,
+                label: 'Voir le corrigé',
+                onTap: widget.onOpen),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlayer() {
+    final playing = _player?.playing ?? false;
+    final progress = _dur.inMilliseconds > 0
+        ? (_pos.inMilliseconds / _dur.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+          color: AppColors.bg, borderRadius: BorderRadius.circular(12)),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: _ready ? _toggle : null,
+            child: Container(
+              width: 42,
+              height: 42,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  color: _ready ? AppColors.red : AppColors.muted2,
+                  shape: BoxShape.circle),
+              child: _ready
+                  ? Icon(playing ? LucideIcons.pause : LucideIcons.play,
+                      color: AppColors.white, size: 20)
+                  : const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppColors.white)),
             ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                  child: _OutlineBtn(
-                      icon: Icons.description_outlined,
-                      label: 'Voir le corrigé',
-                      onTap: onOpen)),
-              if (example.hasAudio) ...[
-                const SizedBox(width: 6),
-                Expanded(
-                    child: _OutlineBtn(
-                        icon: Icons.headphones_rounded,
-                        label: 'Écouter',
-                        onTap: onOpen)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 5,
+                    backgroundColor: AppColors.line,
+                    valueColor:
+                        const AlwaysStoppedAnimation<Color>(AppColors.red),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(_fmtClock(_pos),
+                        style: AppFonts.ui(
+                            size: 11,
+                            color: AppColors.muted,
+                            weight: FontWeight.w600)),
+                    Text(_fmtClock(_dur),
+                        style: AppFonts.ui(
+                            size: 11,
+                            color: AppColors.muted,
+                            weight: FontWeight.w600)),
+                  ],
+                ),
               ],
-            ],
+            ),
           ),
         ],
       ),
     );
   }
+}
+
+String _fmtClock(Duration d) {
+  final m = d.inMinutes;
+  final s = d.inSeconds % 60;
+  return '$m:${s.toString().padLeft(2, '0')}';
 }
 
 class _OutlineBtn extends StatelessWidget {
@@ -1828,8 +1751,58 @@ class _OutlineBtn extends StatelessWidget {
             Icon(icon, size: 14, color: AppColors.ink),
             const SizedBox(width: 5),
             Text(label,
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                     size: 12, weight: FontWeight.w700, color: AppColors.ink)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Barre « exemple réservé » affichée à la place du lecteur / du bouton corrigé
+/// quand l'exemple est cadenassé (non-abonné, au-delà du 1er). Tap → paywall.
+class _LockedExampleBar extends StatelessWidget {
+  const _LockedExampleBar({required this.isEo, required this.onTap});
+
+  final bool isEo;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+            color: AppColors.bg, borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                  color: AppColors.surface2, shape: BoxShape.circle),
+              child: const Icon(LucideIcons.lock,
+                  size: 17, color: AppColors.inkFaint),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                isEo
+                    ? 'Écoute réservée à l\'abonnement Intégral'
+                    : 'Corrigé réservé à l\'abonnement Intégral',
+                style: AppFonts.ui(
+                    size: 12.5,
+                    weight: FontWeight.w600,
+                    color: AppColors.muted,
+                    height: 1.3),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(LucideIcons.chevronRight,
+                size: 18, color: AppColors.inkFaint),
           ],
         ),
       ),
@@ -1865,7 +1838,7 @@ class _StrategyCard extends StatelessWidget {
                   decoration: BoxDecoration(
                       color: AppColors.red.withValues(alpha: 0.15),
                       shape: BoxShape.circle),
-                  child: const Icon(Icons.lightbulb_outline_rounded,
+                  child: const Icon(LucideIcons.lightbulb,
                       size: 18, color: AppColors.redDark),
                 ),
                 const SizedBox(width: 12),
@@ -1875,18 +1848,18 @@ class _StrategyCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text('Méthode & formules-clés',
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                               size: 12.5,
                               weight: FontWeight.w800,
                               color: AppColors.redDark)),
                       const SizedBox(height: 1),
                       Text('Le plan en 3 points',
-                          style: AppFonts.jakarta(
-                              size: 11, color: AppColors.redDark)),
+                          style:
+                              AppFonts.ui(size: 11, color: AppColors.redDark)),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded,
+                const Icon(LucideIcons.chevronRight,
                     size: 18, color: AppColors.redDark),
               ],
             ),
@@ -1924,7 +1897,7 @@ class _PlanSheet extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                 children: [
                   Text('Méthode & formules-clés',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                           size: 18,
                           weight: FontWeight.w800,
                           color: AppColors.ink)),
@@ -1937,19 +1910,5 @@ class _PlanSheet extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-/// Couleurs du badge niveau (A2 vert, B1 ambre, B2 rouge).
-(Color, Color) _niveauColors(String? niveau) {
-  switch (niveau) {
-    case 'A2':
-      return (AppColors.green.withValues(alpha: 0.14), AppColors.green);
-    case 'B1':
-      return (AppColors.amber.withValues(alpha: 0.18), AppColors.amber);
-    case 'B2':
-      return (AppColors.red.withValues(alpha: 0.12), AppColors.red);
-    default:
-      return (AppColors.line2, AppColors.muted);
   }
 }

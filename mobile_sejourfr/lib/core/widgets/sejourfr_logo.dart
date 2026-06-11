@@ -45,7 +45,7 @@ class SejourFrWordmark extends StatelessWidget {
   Widget build(BuildContext context) {
     return RichText(
       text: TextSpan(
-        style: AppFonts.jakarta(
+        style: AppFonts.ui(
           size: fontSize,
           weight: FontWeight.w800,
           color: AppColors.blue,

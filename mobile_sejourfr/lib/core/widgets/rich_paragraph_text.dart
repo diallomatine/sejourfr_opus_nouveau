@@ -31,7 +31,7 @@ class RichParagraphText extends StatelessWidget {
     final paragraphs = _splitParagraphs(text);
     if (paragraphs.isEmpty) return const SizedBox.shrink();
 
-    final baseStyle = AppFonts.jakarta(
+    final baseStyle = AppFonts.ui(
       size: size,
       color: color,
       weight: weight,

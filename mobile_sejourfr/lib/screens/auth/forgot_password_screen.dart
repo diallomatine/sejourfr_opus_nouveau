@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -50,7 +51,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       appBar: AppBar(
         leading: IconButton(
           onPressed: () => context.pop(),
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          icon: const Icon(LucideIcons.arrowLeft, size: 18),
         ),
       ),
       body: GestureDetector(
@@ -69,12 +70,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 const SizedBox(height: 8),
                 Text(
                   'Réinitialiser',
-                  style: AppFonts.fraunces(size: 30, weight: FontWeight.w600),
+                  style: AppFonts.display(size: 30, weight: FontWeight.w600),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Indiquez votre email, nous vous enverrons un lien de réinitialisation.',
-                  style: AppFonts.jakarta(size: 14, color: AppColors.muted),
+                  style: AppFonts.ui(size: 14, color: AppColors.muted),
                 ),
                 const SizedBox(height: 28),
                 if (_sent)
@@ -87,7 +88,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     ),
                     child: Text(
                       'Si un compte est associé à cet email, vous recevrez un message dans quelques instants.',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 13,
                         color: AppColors.green,
                       ),
@@ -99,7 +100,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.email],
-                    prefixIcon: Icons.mail_outline,
+                    prefixIcon: LucideIcons.mail,
                     validator: (v) {
                       final s = v?.trim() ?? '';
                       if (s.isEmpty) return 'Email requis';

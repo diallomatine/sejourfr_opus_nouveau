@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
@@ -13,6 +14,7 @@ import '../../core/widgets/app_button.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'audio_recorder_service.dart';
 import 'eo_session_controller.dart';
+import 'widgets/consigne_card.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
 
@@ -66,7 +68,8 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
       }
       if (!context.mounted) return;
       final session = ref.read(eoSessionProvider).value;
-      final hasNext = session != null && widget.taskIndex + 1 < session.totalTasks;
+      final hasNext =
+          session != null && widget.taskIndex + 1 < session.totalTasks;
       if (hasNext) {
         context.pushReplacement(
           withCurrentQuery(
@@ -80,7 +83,9 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
                 parentAttemptId: fullExamId,
                 epreuveWire: 'TCF_EO',
               );
-        } catch (_) {/* hook auto backend fallback */}
+        } catch (_) {
+          /* hook auto backend fallback */
+        }
         if (!context.mounted) return;
         ref.read(eoSessionProvider.notifier).reset();
         ref.invalidate(fullTcfExamProvider(fullExamId));
@@ -102,7 +107,8 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
       if (!context.mounted) return;
       final session = ref.read(eoSessionProvider).value;
       final isExamMode = session != null && session.totalTasks > 1;
-      final hasNext = session != null && widget.taskIndex + 1 < session.totalTasks;
+      final hasNext =
+          session != null && widget.taskIndex + 1 < session.totalTasks;
       if (isExamMode) {
         // Mode session 3-tâches (onglet Examens) : pas d'évaluation visible
         // entre les tâches, comme dans le vrai TCF. On enchaîne directement
@@ -166,9 +172,8 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
 
     final goState = GoRouterState.of(context);
     final fullExamId = goState.uri.queryParameters['fullExamId'];
-    final fallbackRoute = fullExamId != null
-        ? '/tcf/examen-blanc/$fullExamId'
-        : '/tcf/eo';
+    final fallbackRoute =
+        fullExamId != null ? '/tcf/examen-blanc/$fullExamId' : '/tcf/eo';
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: ProductionAppHeader(
@@ -197,15 +202,21 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
+                padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    ConsigneCard(
+                      consigne: task.consigne,
+                      accent: AppColors.red,
+                      soft: AppColors.redLight,
+                    ),
+                    const SizedBox(height: 8),
                     const _FinishedIcon(),
                     const SizedBox(height: 16),
                     Text(
-                      'Enregistrement termine',
-                      style: AppFonts.jakarta(
+                      'Enregistrement terminé',
+                      style: AppFonts.ui(
                         size: 18,
                         weight: FontWeight.w700,
                         color: AppColors.ink,
@@ -213,13 +224,13 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      'Duree enregistree',
-                      style: AppFonts.jakarta(size: 14, color: AppColors.muted),
+                      'Durée enregistrée',
+                      style: AppFonts.ui(size: 14, color: AppColors.muted),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       _fmt(rec.elapsed),
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 30,
                         weight: FontWeight.w700,
                         color: AppColors.ink,
@@ -231,8 +242,6 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
                       const SizedBox(height: 12),
                       const _ShortRecordingHint(),
                     ],
-                    const SizedBox(height: 16),
-                    _NextInfoCard(),
                     if (_submitError != null) ...[
                       const SizedBox(height: 12),
                       _InlineError(message: _submitError!),
@@ -252,8 +261,8 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
               child: SafeArea(
                 top: false,
                 child: AppButton(
-                  label: 'Voir mon evaluation',
-                  icon: Icons.auto_awesome_rounded,
+                  label: 'Voir mon évaluation',
+                  icon: LucideIcons.sparkles,
                   isLoading: _submitting,
                   onPressed: _submitting ? null : () => _submit(context),
                 ),
@@ -282,12 +291,12 @@ class _ShortRecordingHint extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.tips_and_updates_outlined, size: 18, color: AppColors.amber),
+          const Icon(LucideIcons.lightbulb, size: 18, color: AppColors.amber),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Astuce : visez 2-3 minutes pour une meilleure note — vous pouvez tout de même envoyer.',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 13,
                 color: AppColors.ink,
                 height: 1.45,
@@ -313,50 +322,14 @@ class _FinishedIcon extends StatelessWidget {
         color: AppColors.green,
         shape: BoxShape.circle,
       ),
-      child: const Icon(Icons.check_rounded, size: 44, color: AppColors.white),
-    );
-  }
-}
-
-class _NextInfoCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.blueSoft,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            'Et maintenant ?',
-            style: AppFonts.jakarta(
-              size: 14,
-              weight: FontWeight.w700,
-              color: AppColors.blue,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            "Votre enregistrement va etre analyse par notre IA. Vous recevrez une evaluation detaillee dans quelques secondes.",
-            textAlign: TextAlign.center,
-            style: AppFonts.jakarta(
-              size: 13,
-              color: AppColors.ink,
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
+      child: const Icon(LucideIcons.check, size: 44, color: AppColors.white),
     );
   }
 }
 
 class _InlineError extends StatelessWidget {
   const _InlineError({required this.message});
+
   final String message;
 
   @override
@@ -371,12 +344,12 @@ class _InlineError extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline_rounded, size: 18, color: AppColors.red),
+          const Icon(LucideIcons.circleAlert, size: 18, color: AppColors.red),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: AppFonts.jakarta(size: 13, color: AppColors.red, height: 1.4),
+              style: AppFonts.ui(size: 13, color: AppColors.red, height: 1.4),
             ),
           ),
         ],
@@ -474,7 +447,7 @@ class _PlaybackBarState extends State<_PlaybackBar> {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                _playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                _playing ? LucideIcons.pause : LucideIcons.play,
                 color: AppColors.white,
                 size: 24,
               ),
@@ -494,7 +467,8 @@ class _PlaybackBarState extends State<_PlaybackBar> {
                             .clamp(0, 1),
                     minHeight: 5,
                     backgroundColor: AppColors.blueLight,
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.blue),
+                    valueColor:
+                        const AlwaysStoppedAnimation<Color>(AppColors.blue),
                   ),
                 ),
                 const SizedBox(height: 6),

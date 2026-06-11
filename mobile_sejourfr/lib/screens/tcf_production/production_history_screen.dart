@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -76,7 +77,7 @@ class ProductionHistoryScreen extends ConsumerWidget {
         title: _moduleTitle,
         rightAction: IconButton(
           visualDensity: VisualDensity.compact,
-          icon: const Icon(Icons.add_rounded, size: 24),
+          icon: const Icon(LucideIcons.plus, size: 24),
           color: AppColors.blue,
           tooltip: 'Nouvelle session',
           onPressed: () => _goToHub(context),
@@ -110,7 +111,7 @@ class ProductionHistoryScreen extends ConsumerWidget {
                     children: [
                       Text(
                         'Vos sessions',
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 17,
                           weight: FontWeight.w700,
                           color: AppColors.ink,
@@ -119,7 +120,7 @@ class ProductionHistoryScreen extends ConsumerWidget {
                       const SizedBox(height: 4),
                       Text(
                         '${sessions.length} session${sessions.length > 1 ? "s" : ""} · les plus recentes en premier',
-                        style: AppFonts.jakarta(size: 12.5, color: AppColors.muted),
+                        style: AppFonts.ui(size: 12.5, color: AppColors.muted),
                       ),
                       const SizedBox(height: 14),
                       for (final entry in sessions)
@@ -141,7 +142,7 @@ class ProductionHistoryScreen extends ConsumerWidget {
                   top: false,
                   child: AppButton(
                     label: 'Commencer une nouvelle session',
-                    icon: Icons.add_rounded,
+                    icon: LucideIcons.plus,
                     onPressed: () => _goToHub(context),
                   ),
                 ),
@@ -206,7 +207,7 @@ class _EmptyState extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Icon(
-                      _isAudio ? Icons.mic_rounded : Icons.edit_note_rounded,
+                      _isAudio ? LucideIcons.mic : LucideIcons.penLine,
                       size: 36,
                       color: AppColors.blue,
                     ),
@@ -216,7 +217,7 @@ class _EmptyState extends StatelessWidget {
                     _isAudio
                         ? "Aucune session orale pour l'instant"
                         : "Aucune session ecrite pour l'instant",
-                    style: AppFonts.fraunces(
+                    style: AppFonts.display(
                       size: 20,
                       weight: FontWeight.w700,
                       color: AppColors.ink,
@@ -228,7 +229,7 @@ class _EmptyState extends StatelessWidget {
                     _isAudio
                         ? "Enregistrez vous sur 3 taches pour recevoir une evaluation IA detaillee."
                         : "Redigez 3 textes pour recevoir une evaluation IA detaillee.",
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 13,
                       color: AppColors.muted,
                       height: 1.5,
@@ -250,7 +251,7 @@ class _EmptyState extends StatelessWidget {
             top: false,
             child: AppButton(
               label: 'Commencer ma premiere session',
-              icon: _isAudio ? Icons.mic_rounded : Icons.edit_note_rounded,
+              icon: _isAudio ? LucideIcons.mic : LucideIcons.penLine,
               onPressed: onStart,
             ),
           ),
@@ -273,11 +274,11 @@ class _ErrorBox extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.error_outline_rounded, size: 32, color: AppColors.red),
+          const Icon(LucideIcons.circleAlert, size: 32, color: AppColors.red),
           const SizedBox(height: 8),
           Text(
             'Impossible de charger votre historique',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 14,
               weight: FontWeight.w700,
               color: AppColors.ink,
@@ -287,13 +288,13 @@ class _ErrorBox extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: AppFonts.jakarta(size: 12, color: AppColors.muted),
+            style: AppFonts.ui(size: 12, color: AppColors.muted),
           ),
           const SizedBox(height: 12),
           AppButton(
             label: 'Reessayer',
             onPressed: onRetry,
-            icon: Icons.refresh_rounded,
+            icon: LucideIcons.refreshCw,
           ),
         ],
       ),

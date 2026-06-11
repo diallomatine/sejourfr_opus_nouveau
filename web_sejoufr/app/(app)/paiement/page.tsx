@@ -280,6 +280,9 @@ function PaiementInner() {
     return (
         <main className="pay">
             <header className="pay-hero">
+                <button type="button" className="pay-back" onClick={() => router.back()}>
+                    <ArrowLeftIcon/> Retour
+                </button>
                 <div className="breadcrumb">
                     ACCUEIL <span className="sep">/</span>{" "}
                     <Link href="/profil" className="breadcrumb-link">
@@ -798,6 +801,12 @@ const CheckIcon = () => (
         <polyline points="20 6 9 17 4 12"/>
     </I>
 );
+const ArrowLeftIcon = () => (
+    <I>
+        <line x1="19" y1="12" x2="5" y2="12"/>
+        <polyline points="12 19 5 12 12 5"/>
+    </I>
+);
 const AlertIcon = () => (
     <I>
         <circle cx="12" cy="12" r="10"/>
@@ -849,6 +858,22 @@ const styles = `
     margin-bottom: 26px;
   }
   @media (max-width: 760px) { .pay-hero { padding: 22px; } }
+  .pay-back {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 13px 7px 10px;
+    border-radius: 100px;
+    cursor: pointer;
+    margin-bottom: 16px;
+    transition: background 0.15s;
+  }
+  .pay-back:hover { background: rgba(255, 255, 255, 0.2); }
+  .pay-back svg { width: 16px; height: 16px; }
   .breadcrumb {
     font-family: var(--font-mono);
     font-size: 11px;

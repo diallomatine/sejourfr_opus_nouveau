@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -27,14 +28,14 @@ class AvertissementsCard extends StatelessWidget {
           Row(
             children: [
               const Icon(
-                Icons.warning_amber_rounded,
+                LucideIcons.triangleAlert,
                 size: 18,
                 color: AppColors.amber,
               ),
               const SizedBox(width: 8),
               Text(
                 'À noter',
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 13,
                   weight: FontWeight.w800,
                   color: AppColors.ink,
@@ -63,7 +64,7 @@ class AvertissementsCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       msg,
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 13,
                         color: AppColors.ink,
                         height: 1.45,

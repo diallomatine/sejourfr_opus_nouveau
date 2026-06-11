@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -297,7 +298,7 @@ class _CiviqueThemeExamsScreenState
                     : _filter == 2
                         ? 'Aucun examen terminé pour l\'instant.'
                         : 'Aucun examen.',
-                style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+                style: AppFonts.ui(size: 13, color: AppColors.muted),
               ),
             ),
           if (hiddenCount > 0)
@@ -307,13 +308,13 @@ class _CiviqueThemeExamsScreenState
                 onPressed: () => setState(() => _showAll = true),
                 icon: Text(
                   'Voir les examens ${visible.length + 1} à ${filtered.length}',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 13,
                     weight: FontWeight.w700,
                     color: AppColors.blue,
                   ),
                 ),
-                label: const Icon(Icons.keyboard_arrow_down_rounded,
+                label: const Icon(LucideIcons.chevronDown,
                     size: 18, color: AppColors.blue),
               ),
             ),

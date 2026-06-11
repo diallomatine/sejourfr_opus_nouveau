@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-enum AppButtonVariant { primary, secondary, ghost, danger }
+/// Variantes de la refonte 2026 (cf. `Button` maquette).
+///
+/// `secondary` est l'alias historique d'`outline` — ne plus l'utiliser dans
+/// du code neuf.
+enum AppButtonVariant { primary, accent, soft, outline, ghost, danger, secondary }
 
+/// Bouton pill de la refonte 2026 : coins pleinement arrondis, Hanken w600,
+/// icône optionnelle à gauche ([icon]) ou à droite ([iconRight]).
 class AppButton extends StatelessWidget {
   const AppButton({
     super.key,
@@ -12,6 +18,7 @@ class AppButton extends StatelessWidget {
     this.variant = AppButtonVariant.primary,
     this.isLoading = false,
     this.icon,
+    this.iconRight,
     this.height = 52,
     this.fullWidth = true,
   });
@@ -21,6 +28,7 @@ class AppButton extends StatelessWidget {
   final AppButtonVariant variant;
   final bool isLoading;
   final IconData? icon;
+  final IconData? iconRight;
   final double height;
   final bool fullWidth;
 
@@ -31,46 +39,61 @@ class AppButton extends StatelessWidget {
     final Color background;
     final Color foreground;
     final Color borderColor;
+    var shadow = true;
 
     switch (variant) {
       case AppButtonVariant.primary:
         background = AppColors.blue;
         foreground = AppColors.white;
-        borderColor = AppColors.blue;
+        borderColor = Colors.transparent;
         break;
-      case AppButtonVariant.secondary:
-        background = AppColors.white;
-        foreground = AppColors.blue;
-        borderColor = AppColors.blue;
-        break;
-      case AppButtonVariant.ghost:
-        background = Colors.transparent;
-        foreground = AppColors.muted;
-        borderColor = AppColors.line;
-        break;
+      case AppButtonVariant.accent:
       case AppButtonVariant.danger:
         background = AppColors.red;
         foreground = AppColors.white;
-        borderColor = AppColors.red;
+        borderColor = Colors.transparent;
+        break;
+      case AppButtonVariant.soft:
+        background = AppColors.blueLight;
+        foreground = AppColors.blueDark;
+        borderColor = Colors.transparent;
+        shadow = false;
+        break;
+      case AppButtonVariant.outline:
+      case AppButtonVariant.secondary:
+        background = AppColors.white;
+        foreground = AppColors.ink;
+        borderColor = AppColors.line;
+        shadow = false;
+        break;
+      case AppButtonVariant.ghost:
+        background = Colors.transparent;
+        foreground = AppColors.inkSoft;
+        borderColor = Colors.transparent;
+        shadow = false;
         break;
     }
 
-    final button = SizedBox(
+    final iconSize = height >= 50 ? 20.0 : 18.0;
+    final fontSize = height >= 50 ? 16.0 : 14.5;
+
+    return SizedBox(
       width: fullWidth ? double.infinity : null,
       height: height,
       child: Material(
-        color: isDisabled ? background.withValues(alpha: 0.45) : background,
-        borderRadius: BorderRadius.circular(12),
+        color: isDisabled ? background.withValues(alpha: 0.5) : background,
+        borderRadius: BorderRadius.circular(AppRadii.pill),
         child: InkWell(
           onTap: isDisabled ? null : onPressed,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadii.pill),
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: borderColor, width: 1),
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+              border: Border.all(color: borderColor),
+              boxShadow: shadow && !isDisabled ? AppShadows.card : null,
             ),
             alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: isLoading
                 ? SizedBox(
                     width: 20,
@@ -85,8 +108,8 @@ class AppButton extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (icon != null) ...[
-                        Icon(icon, size: 18, color: foreground),
-                        const SizedBox(width: 8),
+                        Icon(icon, size: iconSize, color: foreground),
+                        const SizedBox(width: 9),
                       ],
                       Flexible(
                         child: Text(
@@ -94,20 +117,23 @@ class AppButton extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           softWrap: false,
-                          style: AppFonts.jakarta(
-                            size: 15,
-                            weight: FontWeight.w700,
+                          style: AppFonts.ui(
+                            size: fontSize,
+                            weight: FontWeight.w600,
                             color: foreground,
+                            height: 1.0,
                           ),
                         ),
                       ),
+                      if (iconRight != null) ...[
+                        const SizedBox(width: 9),
+                        Icon(iconRight, size: iconSize, color: foreground),
+                      ],
                     ],
                   ),
           ),
         ),
       ),
     );
-
-    return button;
   }
 }

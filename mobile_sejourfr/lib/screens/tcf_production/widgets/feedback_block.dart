@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -24,19 +25,19 @@ class FeedbackBlock extends StatelessWidget {
         return (
           bg: AppColors.green.withValues(alpha: 0.08),
           accent: AppColors.green,
-          icon: Icons.check_circle_outline_rounded,
+          icon: LucideIcons.circleCheck,
         );
       case FeedbackKind.improve:
         return (
           bg: AppColors.amber.withValues(alpha: 0.10),
           accent: AppColors.amber,
-          icon: Icons.priority_high_rounded,
+          icon: LucideIcons.circleAlert,
         );
       case FeedbackKind.suggest:
         return (
           bg: const Color(0xFFF3EEFE),
           accent: const Color(0xFF6D28D9),
-          icon: Icons.lightbulb_outline_rounded,
+          icon: LucideIcons.lightbulb,
         );
     }
   }
@@ -62,7 +63,7 @@ class FeedbackBlock extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 title,
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 13,
                   weight: FontWeight.w800,
                   color: AppColors.ink,
@@ -91,7 +92,7 @@ class FeedbackBlock extends StatelessWidget {
                   Expanded(
                     child: Text(
                       e,
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 13,
                         color: AppColors.ink,
                         height: 1.45,

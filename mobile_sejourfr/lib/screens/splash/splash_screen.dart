@@ -172,7 +172,7 @@ class _SplashScreenState extends State<SplashScreen>
                     opacity: _taglineSlide.value * 0.9,
                     child: Text(
                       'Préparez votre titre de séjour ou votre naturalisation',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 12,
                         color: AppColors.muted,
                       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
@@ -12,15 +13,14 @@ import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/paywall_sheet.dart';
+import '../../core/widgets/stat_value_card.dart';
+import '../tcf_production/widgets/exam_info_chips.dart';
+import '../tcf_production/widgets/exam_slot/full_exam_slot_card.dart';
 import '../module_detail/civique_exam_briefing_sheet.dart';
 import '../module_detail/widgets/exam_done_sheet.dart';
-import '../tcf_production/widgets/exam_filter_chips.dart';
-import '../tcf_production/widgets/exam_progress_card.dart';
 import '../tcf_production/widgets/exams_error_view.dart';
 import '../tcf_production/widgets/flag_badge.dart';
 import '../tcf_production/widgets/module_screen_header.dart';
-import 'widgets/civique_full_exams/civique_full_exam_slot_builder.dart';
-import 'widgets/civique_full_exams/civique_full_exams_stats_row.dart';
 
 const int _examSlotsCount = 20;
 const int _visibleByDefault = 7;
@@ -46,17 +46,52 @@ final civiqueGlobalExamsProvider =
 /// Pendant de `TcfFullExamsScreen` côté Civique : 20 slots de 40 Q tous
 /// thèmes, 45 min, seuil 32/40. Slot 1 = examen découverte gratuit,
 /// slots 2-20 = premium. Accent bleu (convention Civique = bleu).
-class CiviqueFullExamsScreen extends ConsumerStatefulWidget {
+/// `CiviqueFullExamsView` (le corps) est réutilisé par l'onglet Examens du
+/// shell, comme `TcfFullExamsView` côté TCF.
+class CiviqueFullExamsScreen extends StatelessWidget {
   const CiviqueFullExamsScreen({super.key});
 
+  void _back(BuildContext context) {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.reviser);
+    }
+  }
+
   @override
-  ConsumerState<CiviqueFullExamsScreen> createState() =>
-      _CiviqueFullExamsScreenState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            ModuleScreenHeader(
+              title: 'Examens blancs',
+              subtitle: 'Civique · 40 Q tous thèmes',
+              onBack: () => _back(context),
+              trailing: const FlagBadge(),
+            ),
+            const Expanded(child: CiviqueFullExamsView()),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _CiviqueFullExamsScreenState
-    extends ConsumerState<CiviqueFullExamsScreen> {
-  int _filter = 0;
+/// Corps réutilisable de la page (stats + filtre + 20 slots). Embarqué tel
+/// quel par l'onglet Examens du shell.
+class CiviqueFullExamsView extends ConsumerStatefulWidget {
+  const CiviqueFullExamsView({super.key});
+
+  @override
+  ConsumerState<CiviqueFullExamsView> createState() =>
+      _CiviqueFullExamsViewState();
+}
+
+class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
   bool _showAll = false;
   bool _starting = false;
 
@@ -154,45 +189,19 @@ class _CiviqueFullExamsScreenState
     );
   }
 
-  void _back() {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go(AppRoutes.civique);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(civiqueGlobalExamsProvider);
 
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            ModuleScreenHeader(
-              title: 'Examens blancs',
-              subtitle: 'Civique · 40 Q tous thèmes',
-              onBack: _back,
-              trailing: const FlagBadge(),
-            ),
-            Expanded(
-              child: async.when(
-                loading: () => const Center(
-                    child: CircularProgressIndicator(color: AppColors.blue)),
-                error: (e, _) => ExamsErrorView(
-                  message: ApiClient.toApiException(e).message,
-                  onRetry: () => ref.invalidate(civiqueGlobalExamsProvider),
-                  accent: AppColors.blue,
-                ),
-                data: _buildContent,
-              ),
-            ),
-          ],
-        ),
+    return async.when(
+      loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.blue)),
+      error: (e, _) => ExamsErrorView(
+        message: ApiClient.toApiException(e).message,
+        onRetry: () => ref.invalidate(civiqueGlobalExamsProvider),
+        accent: AppColors.blue,
       ),
+      data: _buildContent,
     );
   }
 
@@ -206,17 +215,7 @@ class _CiviqueFullExamsScreenState
       if (!a.isFinished || a.slotNumber == null) continue;
       bySlot.putIfAbsent(a.slotNumber!, () => a);
     }
-    final nextSlot = _firstFreeSlot(bySlot);
 
-    final filtered = <int>[
-      for (int i = 0; i < _examSlotsCount; i++)
-        if (_passesFilterBySlot(slotIndex: i, bySlot: bySlot)) i,
-    ];
-    final visible =
-        _showAll ? filtered : filtered.take(_visibleByDefault).toList();
-    final hiddenCount = filtered.length - visible.length;
-
-    final doneCount = bySlot.length;
     final scores = bySlot.values
         .where((a) => a.score != null && a.totalQuestions > 0)
         .toList();
@@ -225,13 +224,16 @@ class _CiviqueFullExamsScreenState
         : scores.map((a) => a.score!).reduce((a, b) => a > b ? a : b);
     final maxPossible =
         scores.isEmpty ? _examTotalQuestions : scores.first.totalQuestions;
-    final avgScore = scores.isEmpty
-        ? null
-        : (scores.map((a) => a.score!).reduce((a, b) => a + b) / scores.length)
-            .round();
+    // Historique trié chrono DESC → le premier fini = dernier examen passé.
+    final lastScore = history
+        .where((a) => a.isFinished && a.score != null && a.totalQuestions > 0)
+        .map((a) => a.score!)
+        .firstOrNull;
+    final progressPercent =
+        (bySlot.length / _examSlotsCount * 100).round();
 
-    final todoCount =
-        _examSlotsCount - bySlot.length - _lockedTodoCountBySlot(bySlot);
+    final visibleCount = _showAll ? _examSlotsCount : _visibleByDefault;
+    final hiddenCount = _examSlotsCount - visibleCount;
 
     return RefreshIndicator(
       color: AppColors.blue,
@@ -240,62 +242,79 @@ class _CiviqueFullExamsScreenState
         await ref.read(civiqueGlobalExamsProvider.future);
       },
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
-          CiviqueFullExamsStatsRow(
-            doneCount: doneCount,
-            totalCount: _examSlotsCount,
-            bestScore: bestScore,
-            avgScore: avgScore,
-            maxPossible: maxPossible,
-          ),
-          const SizedBox(height: 12),
-          ExamProgressCard(doneCount: doneCount, total: _examSlotsCount),
-          const SizedBox(height: 12),
-          ExamFilterChips(
-            active: _filter,
-            labels: [
-              'Tous · $_examSlotsCount',
-              'À faire · $todoCount',
-              'Terminés · $doneCount',
-            ],
-            onChanged: (i) => setState(() {
-              _filter = i;
-              _showAll = false;
-            }),
-          ),
-          const SizedBox(height: 12),
-          for (final i in visible) ...[
-            _buildSlot(i, bySlot, nextSlot),
-            const SizedBox(height: 8),
-          ],
-          if (filtered.isEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
-              child: Text(
-                _filter == 1
-                    ? 'Tous les examens disponibles sont déjà faits.'
-                    : _filter == 2
-                        ? 'Aucun examen terminé pour l\'instant.'
-                        : 'Aucun examen.',
-                style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+          Row(
+            children: [
+              Expanded(
+                child: StatValueCard(
+                  value: bestScore == null ? '—' : '$bestScore/$maxPossible',
+                  label: 'Meilleur score',
+                  color: AppColors.blue,
+                  valueSize: 20,
+                ),
               ),
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: StatValueCard(
+                  value: lastScore == null ? '—' : '$lastScore/$maxPossible',
+                  label: 'Dernier examen',
+                  valueSize: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: StatValueCard(
+                  value: '$progressPercent %',
+                  label: 'Progression',
+                  color: AppColors.blue,
+                  valueSize: 20,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const ExamInfoChips(
+            accent: AppColors.blue,
+            soft: AppColors.blueLight,
+            items: [
+              (icon: LucideIcons.zap, label: 'Simulation réelle'),
+              (icon: LucideIcons.clock, label: '45 minutes'),
+              (icon: LucideIcons.target, label: 'Seuil de réussite : 32/40'),
+              (icon: LucideIcons.fileText, label: '40 questions'),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Text('Tes examens', style: AppFonts.display(size: 17)),
+              const Spacer(),
+              Text(
+                '$_examSlotsCount disponibles',
+                style: AppFonts.ui(size: 12, color: AppColors.inkFaint),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          for (int i = 0; i < visibleCount; i++) ...[
+            _buildSlot(i + 1, bySlot),
+            if (i != visibleCount - 1) const SizedBox(height: 10),
+          ],
           if (hiddenCount > 0)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
+              padding: const EdgeInsets.only(top: 6),
               child: TextButton.icon(
                 onPressed: () => setState(() => _showAll = true),
                 icon: Text(
-                  'Voir les examens ${visible.length + 1} à ${filtered.length}',
-                  style: AppFonts.jakarta(
+                  'Voir les examens ${visibleCount + 1} à $_examSlotsCount',
+                  style: AppFonts.ui(
                     size: 13,
                     weight: FontWeight.w700,
                     color: AppColors.blue,
                   ),
                 ),
-                label: const Icon(Icons.keyboard_arrow_down_rounded,
-                    size: 18, color: AppColors.blue),
+                label: const Icon(LucideIcons.chevronDown,
+                    size: 16, color: AppColors.blue),
               ),
             ),
         ],
@@ -303,58 +322,42 @@ class _CiviqueFullExamsScreenState
     );
   }
 
-  bool _passesFilterBySlot({
-    required int slotIndex,
-    required Map<int, AttemptSummary> bySlot,
-  }) {
-    final slotNumber = slotIndex + 1;
-    final isDone = bySlot.containsKey(slotNumber);
-    final isLocked = _isLocked(slotNumber);
-    return switch (_filter) {
-      1 => !isDone && !isLocked,
-      2 => isDone,
-      _ => true,
-    };
-  }
-
-  /// Premier slot vide (1..N). Sert au badge « À FAIRE ENSUITE ».
-  int _firstFreeSlot(Map<int, AttemptSummary> bySlot) {
-    for (int i = 1; i <= _examSlotsCount; i++) {
-      if (!bySlot.containsKey(i)) return i;
-    }
-    return _examSlotsCount + 1;
-  }
-
-  int _lockedTodoCountBySlot(Map<int, AttemptSummary> bySlot) {
-    if (_isPremium()) return 0;
-    var locked = 0;
-    for (int i = 1; i <= _examSlotsCount; i++) {
-      if (!bySlot.containsKey(i) && _isLocked(i)) locked++;
-    }
-    return locked;
-  }
-
-  Widget _buildSlot(
-    int slotIndex,
-    Map<int, AttemptSummary> bySlot,
-    int nextSlot,
-  ) {
-    final number = slotIndex + 1;
+  Widget _buildSlot(int number, Map<int, AttemptSummary> bySlot) {
     final attempt = bySlot[number];
-    final isLocked = _isLocked(number);
-    final isNext = number == nextSlot && number <= _examSlotsCount;
-    final action = attempt != null
-        ? () => _showExamSheet(attempt, number)
-        : _onEmptyTap(number);
-    return CiviqueFullExamSlotBuilder(
-      number: number,
-      attempt: attempt,
-      isLocked: isLocked,
-      isNext: isNext,
-      examTotalQuestions: _examTotalQuestions,
-      onTap: action,
-      onAction: action,
-    ).build();
+    final done = attempt != null;
+    final lockedEmpty = _isLocked(number) && !done;
+
+    final String subtitle;
+    if (done) {
+      subtitle = attempt.score != null && attempt.totalQuestions > 0
+          ? 'Dernier score : ${attempt.score}/${attempt.totalQuestions}'
+          : 'Terminé';
+    } else if (lockedEmpty) {
+      subtitle = 'Réservé à l\'abonnement';
+    } else if (number == 1) {
+      subtitle = 'Offert · 40 questions, 45 min';
+    } else {
+      subtitle = 'Pas encore fait';
+    }
+
+    return FullExamSlotCard(
+      slot: number,
+      filled: done,
+      accent: AppColors.blue,
+      title: 'Épreuve $number',
+      subtitle: subtitle,
+      subtitleColor: done ? AppColors.blue : AppColors.inkFaint,
+      lockedEmpty: lockedEmpty,
+      trailing: done
+          ? FullExamSlotCard.faitPill(AppColors.blue, bg: AppColors.blueLight)
+          : Icon(
+              lockedEmpty ? LucideIcons.lock : LucideIcons.chevronRight,
+              size: 18,
+              color: AppColors.inkFaint,
+            ),
+      onTap:
+          done ? () => _showExamSheet(attempt, number) : _onEmptyTap(number),
+    );
   }
 
   VoidCallback _onEmptyTap(int slotNumber) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/enums.dart';
 import '../../../core/models/production_models.dart';
@@ -24,7 +25,7 @@ class _Pastille extends StatelessWidget {
         alignment: Alignment.center,
         decoration: const BoxDecoration(
             color: AppColors.blueLight, shape: BoxShape.circle),
-        child: const Icon(Icons.assignment_turned_in_rounded,
+        child: const Icon(LucideIcons.clipboardCheck,
             size: 20, color: AppColors.blue),
       );
     }
@@ -36,7 +37,7 @@ class _Pastille extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
       child: Text('$tache',
-          style: AppFonts.jakarta(
+          style: AppFonts.ui(
               size: 14, weight: FontWeight.w800, color: fg)),
     );
   }
@@ -149,7 +150,7 @@ class HistorySessionCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               _title(),
-                              style: AppFonts.jakarta(
+                              style: AppFonts.ui(
                                 size: 14,
                                 weight: FontWeight.w700,
                                 color: AppColors.ink,
@@ -167,7 +168,7 @@ class HistorySessionCard extends StatelessWidget {
                               ),
                               child: Text(
                                 'Incomplet',
-                                style: AppFonts.jakarta(
+                                style: AppFonts.ui(
                                   size: 10.5,
                                   weight: FontWeight.w700,
                                   color: AppColors.amber,
@@ -180,7 +181,7 @@ class HistorySessionCard extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         _formatDate(date),
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 11.5,
                           color: AppColors.muted,
                         ),
@@ -191,7 +192,7 @@ class HistorySessionCard extends StatelessWidget {
                           children: [
                             TextSpan(
                               text: avg == null ? '—' : _formatScore(avg),
-                              style: AppFonts.fraunces(
+                              style: AppFonts.display(
                                 size: 24,
                                 weight: FontWeight.w700,
                                 color: AppColors.ink,
@@ -199,7 +200,7 @@ class HistorySessionCard extends StatelessWidget {
                             ),
                             TextSpan(
                               text: '/20',
-                              style: AppFonts.jakarta(
+                              style: AppFonts.ui(
                                 size: 13,
                                 weight: FontWeight.w500,
                                 color: AppColors.muted2,
@@ -208,7 +209,7 @@ class HistorySessionCard extends StatelessWidget {
                             TextSpan(
                               text: '  moyenne · $completed/$total évaluée'
                                   '${total > 1 ? "s" : ""}',
-                              style: AppFonts.jakarta(
+                              style: AppFonts.ui(
                                 size: 12,
                                 color: AppColors.muted,
                               ),
@@ -226,7 +227,7 @@ class HistorySessionCard extends StatelessWidget {
                   children: [
                     if (niveau != null) LevelPill(level: niveau),
                     const SizedBox(height: 8),
-                    const Icon(Icons.chevron_right_rounded,
+                    const Icon(LucideIcons.chevronRight,
                         size: 20, color: AppColors.muted2),
                   ],
                 ),

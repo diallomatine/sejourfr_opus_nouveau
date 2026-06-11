@@ -64,7 +64,7 @@ class DonutChartScore extends StatelessWidget {
         children: [
           Text(
             'Score global',
-            style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+            style: AppFonts.ui(size: 13, color: AppColors.muted),
           ),
           const SizedBox(height: 12),
           Row(
@@ -79,7 +79,7 @@ class DonutChartScore extends StatelessWidget {
                         children: [
                           TextSpan(
                             text: _formatNote(),
-                            style: AppFonts.jakarta(
+                            style: AppFonts.ui(
                               size: 28,
                               weight: FontWeight.w700,
                               color: AppColors.ink,
@@ -87,7 +87,7 @@ class DonutChartScore extends StatelessWidget {
                           ),
                           TextSpan(
                             text: '/20',
-                            style: AppFonts.jakarta(
+                            style: AppFonts.ui(
                               size: 14,
                               weight: FontWeight.w500,
                               color: AppColors.muted2,
@@ -99,7 +99,7 @@ class DonutChartScore extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       'Niveau estimé',
-                      style: AppFonts.jakarta(
+                      style: AppFonts.ui(
                         size: 13,
                         color: AppColors.muted,
                       ),
@@ -115,7 +115,7 @@ class DonutChartScore extends StatelessWidget {
                         ),
                         child: Text(
                           niveau!.displayName,
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                             size: 12,
                             weight: FontWeight.w700,
                             color: _violet,
@@ -145,7 +145,7 @@ class DonutChartScore extends StatelessWidget {
                       children: [
                         Text(
                           _percentLabel,
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                             size: 20,
                             weight: FontWeight.w700,
                             color: _violet,
@@ -154,7 +154,7 @@ class DonutChartScore extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           _subLabel,
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                             size: 10,
                             color: AppColors.muted,
                           ),

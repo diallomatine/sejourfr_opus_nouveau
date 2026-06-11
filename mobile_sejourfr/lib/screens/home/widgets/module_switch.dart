@@ -70,7 +70,7 @@ class _Tab extends StatelessWidget {
           ),
           child: Text(
             label,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13,
               weight: FontWeight.w700,
               color: textColor,

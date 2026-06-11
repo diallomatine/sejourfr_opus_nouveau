@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -79,7 +80,7 @@ class _ExamResultScreenState extends ConsumerState<ExamResultScreen> {
         backgroundColor: AppColors.bg,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          icon: const Icon(LucideIcons.arrowLeft, size: 18),
           onPressed: () {
             if (context.canPop()) {
               context.pop();
@@ -90,7 +91,7 @@ class _ExamResultScreenState extends ConsumerState<ExamResultScreen> {
         ),
         title: Text(
           'Résultat',
-          style: AppFonts.jakarta(size: 16, weight: FontWeight.w700),
+          style: AppFonts.ui(size: 16, weight: FontWeight.w700),
         ),
       ),
       body: state.when(
@@ -173,7 +174,7 @@ class _ResultView extends StatelessWidget {
         child: Center(
           child: Text(
             'Pas de détail disponible',
-            style: AppFonts.jakarta(color: AppColors.muted, size: 13),
+            style: AppFonts.ui(color: AppColors.muted, size: 13),
           ),
         ),
       );
@@ -293,7 +294,7 @@ class _CiviqueHero extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              passed ? Icons.emoji_events : Icons.refresh,
+              passed ? LucideIcons.trophy : LucideIcons.refreshCw,
               size: 32,
               color: passed ? AppColors.green : AppColors.red,
             ),
@@ -315,16 +316,15 @@ class _CiviqueHero extends StatelessWidget {
               children: [
                 TextSpan(
                   text: '$score',
-                  style: AppFonts.fraunces(
+                  style: AppFonts.display(
                     size: 64,
                     weight: FontWeight.w700,
                     height: 1.0,
-                    letterSpacing: -2,
                   ),
                 ),
                 TextSpan(
                   text: ' / $total',
-                  style: AppFonts.fraunces(
+                  style: AppFonts.display(
                     size: 22,
                     weight: FontWeight.w500,
                     color: AppColors.muted,
@@ -338,7 +338,7 @@ class _CiviqueHero extends StatelessWidget {
             passed
                 ? (isExam ? 'Réussite confirmée' : 'Session terminée')
                 : 'Pas encore',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 15,
               weight: FontWeight.w700,
               color: passed ? AppColors.green : AppColors.red,
@@ -351,7 +351,7 @@ class _CiviqueHero extends StatelessWidget {
                   ? 'Seuil officiel : $threshold/$total · vous êtes au-dessus de la barre'
                   : 'Seuil officiel : $threshold/$total · il manque ${(threshold ?? 0) - score} bonnes réponses',
               textAlign: TextAlign.center,
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 12,
                 color: AppColors.muted,
               ),
@@ -403,7 +403,7 @@ class _TcfHero extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: const Icon(
-              Icons.translate_rounded,
+              LucideIcons.languages,
               size: 30,
               color: AppColors.blue,
             ),
@@ -421,16 +421,15 @@ class _TcfHero extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             'Votre niveau estimé',
-            style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+            style: AppFonts.ui(size: 13, color: AppColors.muted),
           ),
           const SizedBox(height: 6),
           Text(
             levelText,
-            style: AppFonts.fraunces(
+            style: AppFonts.display(
               size: 64,
               weight: FontWeight.w700,
               height: 1.0,
-              letterSpacing: -2,
               color: AppColors.blue,
             ),
           ),
@@ -440,7 +439,7 @@ class _TcfHero extends StatelessWidget {
                 ? 'Vous n\'atteignez pas encore le seuil A2. Continuez à vous entraîner.'
                 : _messageFor(level),
             textAlign: TextAlign.center,
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13,
               color: AppColors.ink2,
               height: 1.5,
@@ -451,7 +450,7 @@ class _TcfHero extends StatelessWidget {
             attempt.calibratedScore != null
                 ? 'Score ${attempt.calibratedScore} / 499 · $score/$total bonnes réponses'
                 : '$score/$total bonnes réponses · $percent %',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 12,
               color: AppColors.muted,
             ),
@@ -547,7 +546,7 @@ class _StatTile extends StatelessWidget {
               children: [
                 TextSpan(
                   text: value,
-                  style: AppFonts.fraunces(
+                  style: AppFonts.display(
                     size: 26,
                     weight: FontWeight.w700,
                     color: color,
@@ -557,7 +556,7 @@ class _StatTile extends StatelessWidget {
                 if (suffix.isNotEmpty)
                   TextSpan(
                     text: suffix,
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 12,
                       weight: FontWeight.w700,
                       color: AppColors.muted,
@@ -611,7 +610,7 @@ class _BreakdownItem extends StatelessWidget {
               Expanded(
                 child: Text(
                   item.themeName,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 13,
                     weight: FontWeight.w700,
                   ),
@@ -676,7 +675,7 @@ class _BottomActions extends StatelessWidget {
             label: errors > 0
                 ? 'Voir le rapport détaillé ($errors erreur${errors > 1 ? 's' : ''})'
                 : 'Voir le rapport détaillé',
-            icon: Icons.description_outlined,
+            icon: LucideIcons.fileText,
             onPressed: () => context.push(
               AppRoutes.examReport.replaceFirst(':attemptId', attempt.id),
             ),
@@ -716,13 +715,13 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_outlined,
+            const Icon(LucideIcons.cloudOff,
                 color: AppColors.red, size: 40),
             const SizedBox(height: 12),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: AppFonts.jakarta(color: AppColors.muted),
+              style: AppFonts.ui(color: AppColors.muted),
             ),
             const SizedBox(height: 16),
             AppButton(

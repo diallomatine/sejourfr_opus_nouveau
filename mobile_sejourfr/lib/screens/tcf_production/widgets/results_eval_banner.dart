@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 
@@ -34,7 +35,7 @@ class ResultsEvalBanner extends StatelessWidget {
               color: AppColors.green,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.check_rounded,
+            child: const Icon(LucideIcons.check,
                 size: 20, color: AppColors.white),
           ),
           const SizedBox(width: 12),
@@ -44,7 +45,7 @@ class ResultsEvalBanner extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 14,
                     weight: FontWeight.w700,
                     color: AppColors.ink,
@@ -53,7 +54,7 @@ class ResultsEvalBanner extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: AppFonts.jakarta(size: 13, color: AppColors.muted),
+                  style: AppFonts.ui(size: 13, color: AppColors.muted),
                 ),
               ],
             ),

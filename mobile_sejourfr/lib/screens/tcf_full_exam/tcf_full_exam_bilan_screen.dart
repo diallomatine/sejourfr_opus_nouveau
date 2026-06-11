@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -192,10 +193,10 @@ class _TcfFullExamBilanScreenState extends ConsumerState<TcfFullExamBilanScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.cloud_off_outlined, size: 40, color: AppColors.red),
+                  const Icon(LucideIcons.cloudOff, size: 40, color: AppColors.red),
                   const SizedBox(height: 12),
                   Text(e.toString(),
-                      textAlign: TextAlign.center, style: AppFonts.jakarta(color: AppColors.muted)),
+                      textAlign: TextAlign.center, style: AppFonts.ui(color: AppColors.muted)),
                 ],
               ),
             ),
@@ -255,7 +256,7 @@ class _BilanView extends StatelessWidget {
         const SizedBox(height: 22),
         AppButton(
           label: 'Retour aux examens',
-          icon: Icons.arrow_back_rounded,
+          icon: LucideIcons.arrowLeft,
           onPressed: () => _backToExams(context),
         ),
       ],
@@ -263,7 +264,14 @@ class _BilanView extends StatelessWidget {
   }
 
   void _backToExams(BuildContext context) {
-    context.go(AppRoutes.tcfFullExams);
+    // Revenir à la page précédente quand on a été poussé dessus (consultation
+    // d'un examen depuis la liste). Sinon (arrivée via `go` après avoir fini un
+    // examen → pile remplacée), repli sur la liste des examens.
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.tcfFullExams);
+    }
   }
 }
 
@@ -283,12 +291,12 @@ class _PollExhaustedBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.schedule_rounded, color: AppColors.blue, size: 20),
+          const Icon(LucideIcons.clock, color: AppColors.blue, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               "L'évaluation IA prend plus longtemps que prévu. Reviens dans une minute ou actualise.",
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 12.5,
                 color: AppColors.ink,
                 height: 1.35,
@@ -306,7 +314,7 @@ class _PollExhaustedBanner extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 child: Text(
                   'Actualiser',
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 12,
                     weight: FontWeight.w800,
                     color: AppColors.white,
@@ -344,7 +352,7 @@ class _TopBar extends StatelessWidget {
                 border: Border.all(color: AppColors.line),
               ),
               alignment: Alignment.center,
-              child: const Icon(Icons.chevron_left_rounded, size: 22, color: AppColors.ink),
+              child: const Icon(LucideIcons.chevronLeft, size: 22, color: AppColors.ink),
             ),
           ),
         ),
@@ -357,7 +365,7 @@ class _TopBar extends StatelessWidget {
           ),
           child: Text(
             'BILAN',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 12,
               weight: FontWeight.w800,
               color: AppColors.red,
@@ -425,7 +433,7 @@ class _Hero extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'L\'IA évalue tes productions…',
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 17,
                       weight: FontWeight.w800,
                       color: AppColors.white,
@@ -440,7 +448,7 @@ class _Hero extends StatelessWidget {
               children: [
                 Text(
                   _shortLevel(level),
-                  style: AppFonts.jakarta(
+                  style: AppFonts.ui(
                     size: 56,
                     weight: FontWeight.w800,
                     color: AppColors.white,
@@ -452,7 +460,7 @@ class _Hero extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
                     'niveau plancher',
-                    style: AppFonts.jakarta(
+                    style: AppFonts.ui(
                       size: 13,
                       weight: FontWeight.w700,
                       color: AppColors.white.withValues(alpha: 0.9),
@@ -467,7 +475,7 @@ class _Hero extends StatelessWidget {
                 ? 'Encore quelques secondes : nous calculons ton niveau final sur la base des 4 épreuves.'
                 : 'Ton niveau IRN correspond au plus bas des 4 épreuves (règle officielle). '
                     'Continue à t\'entraîner sur l\'épreuve la plus faible pour le faire monter.',
-            style: AppFonts.jakarta(
+            style: AppFonts.ui(
               size: 13.5,
               color: AppColors.white.withValues(alpha: 0.92),
               height: 1.45,
@@ -509,7 +517,7 @@ class _DetailSection extends StatelessWidget {
       children: [
         Text(
           'Détail par épreuve',
-          style: AppFonts.jakarta(
+          style: AppFonts.ui(
             size: 16,
             weight: FontWeight.w800,
             color: AppColors.ink,
@@ -674,7 +682,7 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
                         children: [
                           Text(
                             meta.title,
-                            style: AppFonts.jakarta(
+                            style: AppFonts.ui(
                               size: 14.5,
                               weight: FontWeight.w800,
                               color: AppColors.ink,
@@ -685,7 +693,7 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
                             lockedProd
                                 ? 'Réservé à l\'abonnement Intégral'
                                 : _subtitle(sub, pending),
-                            style: AppFonts.jakarta(
+                            style: AppFonts.ui(
                               size: 12,
                               color: AppColors.muted,
                             ),
@@ -695,7 +703,7 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
                     ),
                     const SizedBox(width: 8),
                     if (lockedProd)
-                      const Icon(Icons.lock_outline_rounded,
+                      const Icon(LucideIcons.lock,
                           color: AppColors.muted2, size: 20)
                     else if (level != null)
                       Container(
@@ -706,7 +714,7 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
                         ),
                         child: Text(
                           _shortLevel(level),
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                             size: 13,
                             weight: FontWeight.w800,
                             color: _levelColor(level),
@@ -722,17 +730,17 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     else if (hasFailures)
-                      const Icon(Icons.error_outline_rounded, color: AppColors.red, size: 22)
+                      const Icon(LucideIcons.circleAlert, color: AppColors.red, size: 22)
                     else
                       Text('—',
-                          style: AppFonts.jakarta(
+                          style: AppFonts.ui(
                             size: 16,
                             weight: FontWeight.w700,
                             color: AppColors.muted2,
                           )),
                     if (tappable) ...[
                       const SizedBox(width: 6),
-                      const Icon(Icons.chevron_right_rounded, size: 20, color: AppColors.muted2),
+                      const Icon(LucideIcons.chevronRight, size: 20, color: AppColors.muted2),
                     ],
                   ],
                 ),
@@ -795,35 +803,35 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
       case EpreuveType.tcfCo:
         return _EpreuveMeta(
           title: 'Compréhension orale',
-          icon: Icons.headphones_rounded,
+          icon: LucideIcons.headphones,
           iconColor: AppColors.blue,
           iconBg: AppColors.blueLight,
         );
       case EpreuveType.tcfCe:
         return _EpreuveMeta(
           title: 'Compréhension écrite',
-          icon: Icons.menu_book_rounded,
+          icon: LucideIcons.bookOpen,
           iconColor: AppColors.amber,
           iconBg: AppColors.amber.withValues(alpha: 0.12),
         );
       case EpreuveType.tcfEe:
         return _EpreuveMeta(
           title: 'Expression écrite',
-          icon: Icons.edit_note_rounded,
+          icon: LucideIcons.penLine,
           iconColor: AppColors.green,
           iconBg: AppColors.green.withValues(alpha: 0.12),
         );
       case EpreuveType.tcfEo:
         return _EpreuveMeta(
           title: 'Expression orale',
-          icon: Icons.mic_rounded,
+          icon: LucideIcons.mic,
           iconColor: AppColors.red,
           iconBg: AppColors.redLight,
         );
       default:
         return _EpreuveMeta(
           title: '—',
-          icon: Icons.help_outline_rounded,
+          icon: LucideIcons.circleHelp,
           iconColor: AppColors.muted,
           iconBg: AppColors.bg,
         );
@@ -849,11 +857,11 @@ class _RefreshLevelButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.refresh_rounded, size: 14, color: AppColors.blue),
+              const Icon(LucideIcons.refreshCw, size: 14, color: AppColors.blue),
               const SizedBox(width: 6),
               Text(
                 'Actualiser',
-                style: AppFonts.jakarta(
+                style: AppFonts.ui(
                   size: 11.5,
                   weight: FontWeight.w800,
                   color: AppColors.blue,
@@ -906,12 +914,12 @@ class _RetryBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.refresh_rounded, size: 16, color: AppColors.red),
+          const Icon(LucideIcons.refreshCw, size: 16, color: AppColors.red),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               '$failedCount évaluation${failedCount > 1 ? "s" : ""} IA en échec',
-              style: AppFonts.jakarta(
+              style: AppFonts.ui(
                 size: 12,
                 weight: FontWeight.w700,
                 color: AppColors.red,
@@ -938,7 +946,7 @@ class _RetryBanner extends StatelessWidget {
                       )
                     : Text(
                         'Réessayer',
-                        style: AppFonts.jakarta(
+                        style: AppFonts.ui(
                           size: 12,
                           weight: FontWeight.w800,
                           color: AppColors.white,

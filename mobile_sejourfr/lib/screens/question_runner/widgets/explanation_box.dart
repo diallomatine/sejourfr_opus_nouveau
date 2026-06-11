@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
@@ -35,16 +36,16 @@ class ExplanationBox extends StatelessWidget {
           Row(
             children: [
               Icon(
-                correct ? Icons.check_circle : Icons.cancel,
+                correct ? LucideIcons.circleCheck : LucideIcons.circleX,
                 color: correct ? AppColors.green : AppColors.red,
                 size: 18,
               ),
               const SizedBox(width: 8),
               Text(
-                correct ? 'Bonne réponse' : 'Mauvaise réponse',
-                style: AppFonts.jakarta(
+                correct ? 'Bonne réponse !' : 'Mauvaise réponse',
+                style: AppFonts.ui(
                   size: 14,
-                  weight: FontWeight.w800,
+                  weight: FontWeight.w700,
                   color: correct ? AppColors.green : AppColors.red,
                 ),
               ),
