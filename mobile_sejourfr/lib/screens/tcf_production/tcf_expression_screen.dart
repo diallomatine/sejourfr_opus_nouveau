@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
@@ -669,6 +670,15 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
   int _tab = 0; // 0 = Exercices (sujets), 1 = Exemples
   bool _showAll = false;
 
+  /// EE/EO sont des épreuves TCF → accès gouverné par l'abonnement Intégral
+  /// (`hasTcf`). Non-abonné : seuls le 1er sujet + le 1er exemple sont ouverts,
+  /// le reste est cadenassé (parité avec les séries CO/CE/Structure).
+  bool _isPremium() {
+    final auth = ref.read(authControllerProvider);
+    return auth is AuthAuthenticated &&
+        auth.user.canAccessModule(AppModule.tcf);
+  }
+
   void _openExample(ProductionExampleDto example) {
     showModalBottomSheet<void>(
       context: context,
@@ -865,6 +875,7 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
   List<Widget> _buildExercices(TcfProductionModule mod, _TaskData data) {
     final subjects = data.subjects;
     final done = data.lastByTaskId;
+    final premium = _isPremium();
     final visible = _showAll ? subjects : subjects.take(6).toList();
     final remaining = subjects.length - visible.length;
     return [
@@ -873,7 +884,12 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
           module: mod,
           task: visible[i],
           last: done[visible[i].id],
+          locked: !premium && i > 0,
           onTap: () {
+            if (!premium && i > 0) {
+              showPaywallSheet(context);
+              return;
+            }
             final last = done[visible[i].id];
             if (last != null) {
               _openDoneSheet(visible[i], last);
@@ -892,6 +908,7 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
 
   List<Widget> _buildExemples(
       TcfProductionModule mod, List<ProductionExampleDto> examples) {
+    final premium = _isPremium();
     return [
       if (examples.isEmpty)
         _MutedHint(
@@ -907,8 +924,14 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
             style: AppFonts.ui(size: 12, color: AppColors.muted, height: 1.4),
           ),
         ),
-        for (final ex in examples)
-          _FeaturedExampleCard(example: ex, onOpen: () => _openExample(ex)),
+        for (int i = 0; i < examples.length; i++)
+          _FeaturedExampleCard(
+            example: examples[i],
+            locked: !premium && i > 0,
+            onOpen: (!premium && i > 0)
+                ? () => showPaywallSheet(context)
+                : () => _openExample(examples[i]),
+          ),
       ],
       const SizedBox(height: 4),
       _StrategyCard(onTap: _openPlan),
@@ -1289,11 +1312,13 @@ class _ExerciseRow extends StatelessWidget {
       {required this.module,
       required this.task,
       required this.last,
+      required this.locked,
       required this.onTap});
 
   final TcfProductionModule module;
   final ProductionTaskDto task;
   final ProductionSubmissionDto? last;
+  final bool locked;
   final VoidCallback onTap;
 
   @override
@@ -1379,9 +1404,13 @@ class _ExerciseRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Icon(
-                  done ? LucideIcons.refreshCw : LucideIcons.play,
+                  locked
+                      ? LucideIcons.lock
+                      : done
+                          ? LucideIcons.refreshCw
+                          : LucideIcons.play,
                   size: 19,
-                  color: accent,
+                  color: locked ? AppColors.inkFaint : accent,
                 ),
               ],
             ),
@@ -1418,9 +1447,11 @@ class _ShowMoreButton extends StatelessWidget {
 /// barre de progression et durée totale. Sinon (EE, texte), elle ouvre le
 /// corrigé rédigé.
 class _FeaturedExampleCard extends StatefulWidget {
-  const _FeaturedExampleCard({required this.example, required this.onOpen});
+  const _FeaturedExampleCard(
+      {required this.example, required this.locked, required this.onOpen});
 
   final ProductionExampleDto example;
+  final bool locked;
   final VoidCallback onOpen;
 
   @override
@@ -1436,6 +1467,9 @@ class _FeaturedExampleCardState extends State<_FeaturedExampleCard> {
   @override
   void initState() {
     super.initState();
+    // Exemple cadenassé (non-abonné, au-delà du 1er) : on ne charge même pas
+    // l'audio — la carte affiche un état verrouillé qui ouvre le paywall.
+    if (widget.locked) return;
     final url = widget.example.audioUrl;
     if (widget.example.hasAudio && url != null && url.isNotEmpty) {
       final player = AudioPlayer();
@@ -1525,7 +1559,9 @@ class _FeaturedExampleCardState extends State<_FeaturedExampleCard> {
                   color: AppColors.ink,
                   height: 1.4)),
           const SizedBox(height: 10),
-          if (example.hasAudio)
+          if (widget.locked)
+            _LockedExampleBar(isEo: example.hasAudio, onTap: widget.onOpen)
+          else if (example.hasAudio)
             _buildPlayer()
           else
             _OutlineBtn(
@@ -1640,6 +1676,56 @@ class _OutlineBtn extends StatelessWidget {
             Text(label,
                 style: AppFonts.ui(
                     size: 12, weight: FontWeight.w700, color: AppColors.ink)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Barre « exemple réservé » affichée à la place du lecteur / du bouton corrigé
+/// quand l'exemple est cadenassé (non-abonné, au-delà du 1er). Tap → paywall.
+class _LockedExampleBar extends StatelessWidget {
+  const _LockedExampleBar({required this.isEo, required this.onTap});
+
+  final bool isEo;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+            color: AppColors.bg, borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                  color: AppColors.surface2, shape: BoxShape.circle),
+              child: const Icon(LucideIcons.lock,
+                  size: 17, color: AppColors.inkFaint),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                isEo
+                    ? 'Écoute réservée à l\'abonnement Intégral'
+                    : 'Corrigé réservé à l\'abonnement Intégral',
+                style: AppFonts.ui(
+                    size: 12.5,
+                    weight: FontWeight.w600,
+                    color: AppColors.muted,
+                    height: 1.3),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(LucideIcons.chevronRight,
+                size: 18, color: AppColors.inkFaint),
           ],
         ),
       ),

@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Mic, PenLine, Play, Target } from "lucide-react";
+import { Lock, Mic, PenLine, Play, Target } from "lucide-react";
 import { ApiException, productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
+  canAccessModule,
   productionTaskSubtitle,
   productionTaskTitle,
   type ProductionExampleDto,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/module_detail/parts";
+import { PaywallSheet } from "@/app/_components/PaywallSheet";
 import { DetailShell } from "@/app/_components/hub/DetailParts";
 import { type ProductionConfig } from "./config";
 import detail from "@/app/_components/hub/detail.module.css";
@@ -46,6 +48,12 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
   const [loading, setLoading] = useState(true);
   const [examplesLoaded, setExamplesLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paywallOpen, setPaywallOpen] = useState(false);
+
+  // EE/EO sont des épreuves TCF → accès gouverné par l'abonnement Intégral.
+  // Non-abonné : seuls le 1er sujet + le 1er exemple sont ouverts, le reste est
+  // cadenassé (parité avec les séries CO/CE/Structure et l'app mobile).
+  const isPremium = user ? canAccessModule(user, "TCF") : false;
 
   useEffect(() => {
     if (status !== "authenticated" || !valid) return;
@@ -160,25 +168,37 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
             <p className={detail.empty}>Aucun sujet disponible pour cette tâche.</p>
           ) : (
             <div className={detail.serieGrid}>
-              {tasks.map((t, i) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={detail.serieCard}
-                  onClick={() => router.push(`${config.base}/${config.inputSegment}/${t.id}`)}
-                >
-                  <span className={`${detail.serieNum} ${NIVEAU_TONES[t.niveauCible] ?? ""}`}>
-                    {t.niveauCible}
-                  </span>
-                  <span className={detail.serieBody}>
-                    <span className={detail.serieTitle}>Sujet {i + 1}</span>
-                    <span className={detail.serieSub}>{t.consigne}</span>
-                  </span>
-                  <span className={detail.serieAction} aria-hidden>
-                    <Play size={18} />
-                  </span>
-                </button>
-              ))}
+              {tasks.map((t, i) => {
+                const locked = !isPremium && i > 0;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={detail.serieCard}
+                    onClick={() =>
+                      locked
+                        ? setPaywallOpen(true)
+                        : router.push(`${config.base}/${config.inputSegment}/${t.id}`)
+                    }
+                  >
+                    <span className={`${detail.serieNum} ${NIVEAU_TONES[t.niveauCible] ?? ""}`}>
+                      {t.niveauCible}
+                    </span>
+                    <span className={detail.serieBody}>
+                      <span className={detail.serieTitle}>Sujet {i + 1}</span>
+                      <span className={detail.serieSub}>{t.consigne}</span>
+                      {locked && (
+                        <span className={`${detail.serieBadge} ${detail.serieBadgeLock}`}>
+                          <Lock size={11} aria-hidden /> Premium
+                        </span>
+                      )}
+                    </span>
+                    <span className={detail.serieAction} aria-hidden>
+                      {locked ? <Lock size={17} /> : <Play size={18} />}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           )
         ) : !examplesLoaded ? (
@@ -189,11 +209,23 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
           </p>
         ) : (
           <div className={detail.exampleList}>
-            {examples.map((ex) => (
-              <ExampleCard key={ex.id} example={ex} hideText={config.mode === "audio"} />
+            {examples.map((ex, i) => (
+              <ExampleCard
+                key={ex.id}
+                example={ex}
+                hideText={config.mode === "audio"}
+                locked={!isPremium && i > 0}
+                onLocked={() => setPaywallOpen(true)}
+              />
             ))}
           </div>
         )}
+        <PaywallSheet
+          open={paywallOpen}
+          onClose={() => setPaywallOpen(false)}
+          module="INTEGRAL"
+          message="Le 1er sujet et le 1er exemple sont offerts pour découvrir l'épreuve. Passez à l'abonnement Intégral pour débloquer tous les sujets et exemples corrigés."
+        />
       </DetailShell>
     </DualChromeShell>
   );
@@ -202,10 +234,36 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
 function ExampleCard({
   example: ex,
   hideText,
+  locked,
+  onLocked,
 }: {
   example: ProductionExampleDto;
   hideText: boolean;
+  locked: boolean;
+  onLocked: () => void;
 }) {
+  // Exemple cadenassé (non-abonné, au-delà du 1er) : on masque audio + corrigé
+  // et on n'expose qu'une barre verrouillée qui ouvre le paywall.
+  if (locked) {
+    return (
+      <button type="button" className={prod.exampleLocked} onClick={onLocked}>
+        <span className={prod.exampleLockedIcon} aria-hidden>
+          <Lock size={16} />
+        </span>
+        <span className={prod.exampleLockedBody}>
+          <span className={prod.exampleTitle}>
+            {ex.titre}
+            {ex.niveauIndicatif && <span className={prod.rowChip}>{ex.niveauIndicatif}</span>}
+          </span>
+          <span className={prod.exampleLockedHint}>
+            {hideText
+              ? "Écoute réservée à l'abonnement Intégral"
+              : "Corrigé réservé à l'abonnement Intégral"}
+          </span>
+        </span>
+      </button>
+    );
+  }
   return (
     <div className={prod.example}>
       <h3 className={prod.exampleTitle}>
