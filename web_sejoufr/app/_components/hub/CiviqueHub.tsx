@@ -159,8 +159,8 @@ export function CiviqueHub({user}: { user: AuthenticatedUser | null }) {
             </span>
             <span className={styles.demoSub}>
               {isGuest
-                  ? " Et un examen blanc complet offert. Créez un compte gratuit pour continuer et sauvegarder vos résultats."
-                  : "Débloquez l'entraînement illimité et tous les examens blancs civiques."}
+                  ? "  Et un examen blanc complet offert. Créez un compte gratuit pour continuer et sauvegarder vos résultats."
+                  : "  Débloquez l'entraînement illimité et tous les examens blancs civiques."}
             </span>
           </span>
                     <span className={styles.demoArrow} aria-hidden>→</span>
