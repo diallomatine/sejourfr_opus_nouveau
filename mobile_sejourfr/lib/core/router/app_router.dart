@@ -29,6 +29,7 @@ import '../../screens/help/help_center_screen.dart';
 import '../../screens/help/in_app_webview_screen.dart';
 import '../../screens/profile/manage_subscription_screen.dart';
 import '../../screens/profile/mes_historiques_screen.dart';
+import '../../screens/profile/mon_entrainement_screen.dart';
 import '../../screens/profile/personal_info_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/question_runner/runner_screen.dart';
@@ -116,7 +117,9 @@ class AppRoutes {
   // Plan de révision personnalisé (catégories les plus faibles d'abord),
   // pushé depuis l'onglet Progrès.
   static const progresReco = '/progress/recommandations';
-  static const review = '/review';
+  // Pages de révision dédiées, poussées depuis le hub "Mon entraînement".
+  static const mesQuestions = '/mes-questions';
+  static const mesFavoris = '/mes-favoris';
   static const profile = '/profile';
   static const onboarding = '/onboarding';
   static const targetPath = '/target-path';
@@ -131,8 +134,12 @@ class AppRoutes {
   static const tcfExamHistory = '/historiques/tcf';
   static const examReport = '/exam-report/:attemptId';
 
-  // Hub "Mes historiques" depuis le profil : regroupe QCM + EE + EO.
+  // Hub "Mes historiques" : regroupe QCM + EE + EO. Atteint depuis le hub
+  // "Mon entraînement" du profil.
   static const historiques = '/historiques';
+
+  // Hub "Mon entraînement" depuis le profil : historique + questions + favoris.
+  static const monEntrainement = '/mon-entrainement';
 
   // Centre d'aide (hub) + contact natif + WebView générique pour FAQ/CGU/Privacy.
   static const helpCenter = '/help';
@@ -273,6 +280,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const MesHistoriquesScreen(),
       ),
       GoRoute(
+        path: AppRoutes.monEntrainement,
+        builder: (_, __) => const MonEntrainementScreen(),
+      ),
+      // Hors shell : poussées depuis le hub "Mon entraînement" (lui-même hors
+      // shell). Les garder dans le ShellRoute provoquait une collision de page
+      // key (double instanciation du shell) au push depuis un écran hors shell.
+      GoRoute(
+        path: AppRoutes.mesQuestions,
+        builder: (_, __) => const MesQuestionsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.mesFavoris,
+        builder: (_, __) => const MesFavorisScreen(),
+      ),
+      GoRoute(
         path: AppRoutes.helpCenter,
         builder: (_, __) => const HelpCenterScreen(),
       ),
@@ -339,10 +361,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.progress,
             builder: (_, __) => const ProgresScreen(),
-          ),
-          GoRoute(
-            path: AppRoutes.review,
-            builder: (_, __) => const ReviewScreen(),
           ),
           GoRoute(
             path: AppRoutes.profile,

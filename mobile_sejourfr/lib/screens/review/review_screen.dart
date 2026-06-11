@@ -27,20 +27,37 @@ final _wrongProvider = FutureProvider.autoDispose<List<QuestionDto>>((ref) {
 
 enum _Tab { errors, favorites }
 
-class ReviewScreen extends ConsumerStatefulWidget {
-  const ReviewScreen({super.key});
+/// « Mes questions » : les questions ratées. Page dédiée (cf. hub
+/// « Mon entraînement »).
+class MesQuestionsScreen extends StatelessWidget {
+  const MesQuestionsScreen({super.key});
 
   @override
-  ConsumerState<ReviewScreen> createState() => _ReviewScreenState();
+  Widget build(BuildContext context) =>
+      const _ReviewListScreen(mode: _Tab.errors);
 }
 
-class _ReviewScreenState extends ConsumerState<ReviewScreen> {
-  _Tab _tab = _Tab.errors;
+/// « Mes favoris » : les questions épinglées. Page dédiée.
+class MesFavorisScreen extends StatelessWidget {
+  const MesFavorisScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final wrong = ref.watch(_wrongProvider);
-    final favorites = ref.watch(_favoritesProvider);
+  Widget build(BuildContext context) =>
+      const _ReviewListScreen(mode: _Tab.favorites);
+}
+
+/// Corps partagé d'une page de révision (erreurs OU favoris). Chaque mode a sa
+/// propre page : plus de toggle segmenté Erreurs/Favoris (qui se superposait au
+/// sélecteur de module Civique/TCF).
+class _ReviewListScreen extends ConsumerWidget {
+  const _ReviewListScreen({required this.mode});
+
+  final _Tab mode;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isErrors = mode == _Tab.errors;
+    final provider = isErrors ? _wrongProvider : _favoritesProvider;
 
     return Scaffold(
       appBar: AppBar(
@@ -51,7 +68,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
               )
             : null,
         title: Text(
-          'Mes questions',
+          isErrors ? 'Mes questions' : 'Mes favoris',
           style: AppFonts.ui(size: 16, weight: FontWeight.w700),
         ),
       ),
@@ -66,7 +83,9 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Revoyez vos erreurs et les questions que vous avez marquées.',
+                    isErrors
+                        ? 'Revoyez les questions auxquelles vous avez mal répondu.'
+                        : 'Retrouvez les questions que vous avez marquées.',
                     style: AppFonts.ui(
                       size: 13,
                       color: AppColors.muted,
@@ -75,158 +94,14 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                   ),
                   const SizedBox(height: 14),
                   const ModuleSwitch(),
-                  const SizedBox(height: 16),
-                  _SegmentedTabs(
-                    current: _tab,
-                    errorsCount: wrong.maybeWhen(
-                      data: (q) => q.length,
-                      orElse: () => null,
-                    ),
-                    favoritesCount: favorites.maybeWhen(
-                      data: (q) => q.length,
-                      orElse: () => null,
-                    ),
-                    onChanged: (t) => setState(() => _tab = t),
-                  ),
                 ],
               ),
             ),
             const SizedBox(height: 6),
             Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                switchInCurve: Curves.easeOut,
-                child: KeyedSubtree(
-                  key: ValueKey(_tab),
-                  child: _tab == _Tab.errors
-                      ? _QuestionList(
-                          provider: _wrongProvider,
-                          mode: _Tab.errors,
-                        )
-                      : _QuestionList(
-                          provider: _favoritesProvider,
-                          mode: _Tab.favorites,
-                        ),
-                ),
-              ),
+              child: _QuestionList(provider: provider, mode: mode),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SegmentedTabs extends StatelessWidget {
-  const _SegmentedTabs({
-    required this.current,
-    required this.errorsCount,
-    required this.favoritesCount,
-    required this.onChanged,
-  });
-
-  final _Tab current;
-  final int? errorsCount;
-  final int? favoritesCount;
-  final ValueChanged<_Tab> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          _SegmentTab(
-            label: 'Erreurs',
-            count: errorsCount,
-            active: current == _Tab.errors,
-            activeColor: AppColors.red,
-            onTap: () => onChanged(_Tab.errors),
-          ),
-          _SegmentTab(
-            label: 'Favoris',
-            count: favoritesCount,
-            active: current == _Tab.favorites,
-            activeColor: AppColors.blue,
-            onTap: () => onChanged(_Tab.favorites),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SegmentTab extends StatelessWidget {
-  const _SegmentTab({
-    required this.label,
-    required this.count,
-    required this.active,
-    required this.activeColor,
-    required this.onTap,
-  });
-
-  final String label;
-  final int? count;
-  final bool active;
-  final Color activeColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(9),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            decoration: BoxDecoration(
-              color: active ? activeColor : Colors.transparent,
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  label,
-                  style: AppFonts.ui(
-                    size: 13,
-                    weight: FontWeight.w700,
-                    color: active ? AppColors.white : AppColors.muted,
-                  ),
-                ),
-                if (count != null) ...[
-                  const SizedBox(width: 7),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: active
-                          ? AppColors.white.withValues(alpha: 0.22)
-                          : AppColors.line2,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '$count',
-                      style: AppFonts.mono(
-                        size: 10,
-                        color: active ? AppColors.white : AppColors.muted,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
         ),
       ),
     );

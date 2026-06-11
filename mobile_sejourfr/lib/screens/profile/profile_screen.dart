@@ -19,11 +19,24 @@ import '../../core/widgets/list_group.dart';
 import '../../core/widgets/screen_header.dart';
 import '../../core/widgets/stat_value_card.dart';
 
-/// Statut d'abonnement pour la carte « Mon pass » du profil. autoDispose :
-/// revenir sur l'onglet refetch (un achat depuis le paywall doit se voir).
+/// Statut d'abonnement pour la carte « Mon pass » du profil.
+///
+/// L'onglet Profil vit dans le ShellRoute : pousser l'écran de gestion par
+/// dessus ne dispose PAS ce provider autoDispose (le widget reste monté sous
+/// la pile), donc un simple autoDispose ne refetch pas au retour d'un achat.
+/// On le fait donc dépendre de la signature Premium portée par
+/// `authControllerProvider` — `BillingController` la rafraîchit après chaque
+/// verify-receipt (et `AuthController` après une résiliation Stripe). Quand
+/// elle change, ce provider se réexécute et refetch le statut détaillé →
+/// la carte « Mon pass » reflète l'achat sans invalidation manuelle.
 final _subscriptionStatusProvider =
     FutureProvider.autoDispose<SubscriptionStatusResponse>((ref) {
-  return ref.read(billingRepositoryProvider).getSubscriptionStatus();
+  ref.watch(authControllerProvider.select((s) => switch (s) {
+        AuthAuthenticated(:final user) =>
+          (user.isPremium, user.hasCivique, user.hasTcf, user.premiumEndsAt),
+        _ => null,
+      }));
+  return ref.watch(billingRepositoryProvider).getSubscriptionStatus();
 });
 
 /// Onglet « Profil » de la refonte 2026 (cf. `MProfil` maquette) : carte
@@ -104,7 +117,18 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(height: 20),
                   const SectionTitle(title: 'Mon pass'),
                   const SizedBox(height: 12),
-                  _PassCard(user: user, subscription: subscription),
+                  _PassCard(
+                    user: user,
+                    subscription: subscription,
+                    onTap: () async {
+                      await context.push(AppRoutes.manageSubscription);
+                      // Filet de sécurité : si l'achat/la résiliation n'a pas
+                      // muté la signature Premium de l'auth (ex. statut
+                      // détaillé inchangé mais date d'échéance prolongée), on
+                      // refetch quand même au retour de l'écran de gestion.
+                      ref.invalidate(_subscriptionStatusProvider);
+                    },
+                  ),
                   const SizedBox(height: 20),
                   const SectionTitle(title: 'Mon objectif'),
                   const SizedBox(height: 12),
@@ -125,10 +149,10 @@ class ProfileScreen extends ConsumerWidget {
                         onTap: () => context.push(AppRoutes.personalInfo),
                       ),
                       ListRow(
-                        icon: LucideIcons.history,
-                        title: 'Mes historiques',
-                        sub: 'Examens civique, TCF + sessions IA EE/EO',
-                        onTap: () => context.push(AppRoutes.historiques),
+                        icon: LucideIcons.dumbbell,
+                        title: 'Mon entraînement',
+                        sub: 'Historique, mes questions et favoris',
+                        onTap: () => context.push(AppRoutes.monEntrainement),
                       ),
                       ListRow(
                         icon: LucideIcons.bookOpen,
@@ -375,10 +399,15 @@ class _IdentityCard extends StatelessWidget {
 /// Carte « Mon pass » : nom du pass + statut + échéance, tap → gestion.
 /// Compte gratuit : carte Découverte avec CTA vers la page d'abonnement.
 class _PassCard extends StatelessWidget {
-  const _PassCard({required this.user, required this.subscription});
+  const _PassCard({
+    required this.user,
+    required this.subscription,
+    required this.onTap,
+  });
 
   final AuthUser user;
   final AsyncValue<SubscriptionStatusResponse> subscription;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -412,7 +441,7 @@ class _PassCard extends StatelessWidget {
     }
 
     return AppCard(
-      onTap: () => context.push(AppRoutes.manageSubscription),
+      onTap: onTap,
       child: Row(
         children: [
           Container(
