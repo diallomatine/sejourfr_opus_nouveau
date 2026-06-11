@@ -428,6 +428,54 @@
   color: var(--color-blue-dark);
 }
 
+/* Note insuffisante (<= 12/20) : badge rouge (pendant du badge ✓ vert). */
+.serieBadgeFail {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
+/* ===== filtre Tout / À faire / Fait (pages sujets EE/EO) ===== */
+
+.filterRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filterChip:hover {
+  border-color: var(--color-blue);
+  color: var(--color-blue);
+}
+
+.filterChipOn,
+.filterChipOn:hover {
+  background: var(--color-blue);
+  border-color: var(--color-blue);
+  color: #fff;
+}
+
+.filterCount {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
 .serieAction {
   color: var(--color-blue);
   flex-shrink: 0;

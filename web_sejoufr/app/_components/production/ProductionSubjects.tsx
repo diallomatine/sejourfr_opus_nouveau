@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Lock, Mic, PenLine, Play, Target } from "lucide-react";
+import { Check, Lock, Mic, PenLine, Play, RotateCcw, Target } from "lucide-react";
 import { ApiException, productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -11,6 +11,7 @@ import {
   productionTaskSubtitle,
   productionTaskTitle,
   type ProductionExampleDto,
+  type ProductionSubmissionDto,
   type ProductionTaskDto,
 } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
@@ -22,13 +23,10 @@ import detail from "@/app/_components/hub/detail.module.css";
 import prod from "./production.module.css";
 
 type Tab = "sujets" | "exemples";
+type SubjectFilter = "all" | "todo" | "done";
 
-/** Tonalité par niveau cible du sujet : la difficulté monte, la couleur chauffe. */
-const NIVEAU_TONES: Record<string, string> = {
-  A2: detail.serieNumGreen,
-  B1: detail.serieNumAmber,
-  B2: detail.serieNumRed,
-};
+/** Note /20 façon mobile : toujours une décimale, virgule française. */
+const formatNote = (n: number) => n.toFixed(1).replace(".", ",");
 
 /**
  * Une tâche productive (T1/T2/T3) — maquette sejour_fr.html : onglet
@@ -43,7 +41,10 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
   const { user, status } = useAuth();
 
   const [tab, setTab] = useState<Tab>("sujets");
+  const [filter, setFilter] = useState<SubjectFilter>("all");
   const [tasks, setTasks] = useState<ProductionTaskDto[]>([]);
+  // Dernière soumission par sujet (productionTaskId) → distinction fait/à faire.
+  const [doneByTask, setDoneByTask] = useState<Record<string, ProductionSubmissionDto>>({});
   const [examples, setExamples] = useState<ProductionExampleDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [examplesLoaded, setExamplesLoaded] = useState(false);
@@ -83,6 +84,27 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
       cancelled = true;
     };
   }, [status, valid, n, config.epreuve]);
+
+  useEffect(() => {
+    if (status !== "authenticated" || !valid) return;
+    let cancelled = false;
+    productionApi
+      .listMine({ epreuve: config.epreuve })
+      .then((subs) => {
+        if (cancelled) return;
+        // On garde la soumission la plus récente par sujet (submittedAt desc).
+        const map: Record<string, ProductionSubmissionDto> = {};
+        for (const s of subs) {
+          const prev = map[s.productionTaskId];
+          if (!prev || s.submittedAt > prev.submittedAt) map[s.productionTaskId] = s;
+        }
+        setDoneByTask(map);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [status, valid, config.epreuve]);
 
   useEffect(() => {
     if (tab !== "exemples" || examplesLoaded || !valid) return;
@@ -167,39 +189,117 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
           ) : tasks.length === 0 ? (
             <p className={detail.empty}>Aucun sujet disponible pour cette tâche.</p>
           ) : (
-            <div className={detail.serieGrid}>
-              {tasks.map((t, i) => {
-                const locked = !isPremium && i > 0;
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    className={detail.serieCard}
-                    onClick={() =>
-                      locked
-                        ? setPaywallOpen(true)
-                        : router.push(`${config.base}/${config.inputSegment}/${t.id}`)
-                    }
-                  >
-                    <span className={`${detail.serieNum} ${NIVEAU_TONES[t.niveauCible] ?? ""}`}>
-                      {t.niveauCible}
-                    </span>
-                    <span className={detail.serieBody}>
-                      <span className={detail.serieTitle}>Sujet {i + 1}</span>
-                      <span className={detail.serieSub}>{t.consigne}</span>
-                      {locked && (
-                        <span className={`${detail.serieBadge} ${detail.serieBadgeLock}`}>
-                          <Lock size={11} aria-hidden /> Premium
-                        </span>
-                      )}
-                    </span>
-                    <span className={detail.serieAction} aria-hidden>
-                      {locked ? <Lock size={17} /> : <Play size={18} />}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            (() => {
+              // Index d'origine conservé pour le verrou freemium (1er sujet
+              // offert) + filtre Tout / À faire / Fait.
+              const rows = tasks.map((t, i) => ({ task: t, index: i, sub: doneByTask[t.id] }));
+              const doneCount = rows.filter((r) => r.sub).length;
+              const todoCount = rows.length - doneCount;
+              const shown = rows.filter((r) =>
+                filter === "all" ? true : filter === "done" ? !!r.sub : !r.sub,
+              );
+              const chips: [SubjectFilter, string, number][] = [
+                ["all", "Tout", rows.length],
+                ["todo", "À faire", todoCount],
+                ["done", "Fait", doneCount],
+              ];
+              return (
+                <>
+                  <div className={detail.filterRow} role="tablist">
+                    {chips.map(([key, label, count]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        role="tab"
+                        aria-selected={filter === key}
+                        className={`${detail.filterChip} ${filter === key ? detail.filterChipOn : ""}`}
+                        onClick={() => setFilter(key)}
+                      >
+                        {label} <span className={detail.filterCount}>{count}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {shown.length === 0 ? (
+                    <p className={detail.empty}>
+                      {filter === "done"
+                        ? "Aucun sujet terminé pour l'instant."
+                        : "Tous les sujets sont terminés. Bravo !"}
+                    </p>
+                  ) : (
+                    <div className={detail.serieGrid}>
+                      {shown.map(({ task: t, index: i, sub }) => {
+                        const locked = !isPremium && i > 0;
+                        const done = !!sub;
+                        const note = sub?.evaluation?.noteSurVingt ?? null;
+                        const fail = note != null && note <= 12;
+                        const accentNum =
+                          config.mode === "audio" ? detail.serieNumRed : detail.serieNumBlue;
+                        const numClass = locked
+                          ? ""
+                          : done
+                            ? fail
+                              ? detail.serieNumRed
+                              : detail.serieNumDone
+                            : accentNum;
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            className={detail.serieCard}
+                            onClick={() =>
+                              locked
+                                ? setPaywallOpen(true)
+                                : router.push(`${config.base}/${config.inputSegment}/${t.id}`)
+                            }
+                          >
+                            <span className={`${detail.serieNum} ${numClass}`}>
+                              {locked ? (
+                                <Lock size={18} aria-hidden />
+                              ) : done ? (
+                                <Check size={20} strokeWidth={2.4} aria-hidden />
+                              ) : config.mode === "audio" ? (
+                                <Mic size={18} aria-hidden />
+                              ) : (
+                                <PenLine size={18} aria-hidden />
+                              )}
+                            </span>
+                            <span className={detail.serieBody}>
+                              <span className={detail.serieTitle}>Sujet {i + 1}</span>
+                              <span className={detail.serieSub}>{t.consigne}</span>
+                              {done ? (
+                                <span
+                                  className={`${detail.serieBadge} ${fail ? detail.serieBadgeFail : detail.serieBadgeDone}`}
+                                >
+                                  <Check size={12} aria-hidden />{" "}
+                                  {note != null ? `${formatNote(note)}/20` : "Terminé"}
+                                </span>
+                              ) : locked ? (
+                                <span className={`${detail.serieBadge} ${detail.serieBadgeLock}`}>
+                                  <Lock size={11} aria-hidden /> Premium
+                                </span>
+                              ) : (
+                                <span className={`${detail.serieBadge} ${detail.serieBadgeTodo}`}>
+                                  À faire
+                                </span>
+                              )}
+                            </span>
+                            <span className={detail.serieAction} aria-hidden>
+                              {locked ? (
+                                <Lock size={17} />
+                              ) : done ? (
+                                <RotateCcw size={17} />
+                              ) : (
+                                <Play size={18} />
+                              )}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()
           )
         ) : !examplesLoaded ? (
           <div className={detail.loading}>Chargement des exemples…</div>
@@ -251,10 +351,7 @@ function ExampleCard({
           <Lock size={16} />
         </span>
         <span className={prod.exampleLockedBody}>
-          <span className={prod.exampleTitle}>
-            {ex.titre}
-            {ex.niveauIndicatif && <span className={prod.rowChip}>{ex.niveauIndicatif}</span>}
-          </span>
+          <span className={prod.exampleTitle}>{ex.titre}</span>
           <span className={prod.exampleLockedHint}>
             {hideText
               ? "Écoute réservée à l'abonnement Intégral"
@@ -266,10 +363,7 @@ function ExampleCard({
   }
   return (
     <div className={prod.example}>
-      <h3 className={prod.exampleTitle}>
-        {ex.titre}
-        {ex.niveauIndicatif && <span className={prod.rowChip}>{ex.niveauIndicatif}</span>}
-      </h3>
+      <h3 className={prod.exampleTitle}>{ex.titre}</h3>
       {ex.resume && <p className={prod.exampleResume}>{ex.resume}</p>}
       {ex.audioUrl && (
         <div className={prod.player} style={{ maxWidth: "none", marginBottom: 12 }}>

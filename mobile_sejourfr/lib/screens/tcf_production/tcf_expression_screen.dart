@@ -22,6 +22,7 @@ import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
 import 'expression_hub_data.dart';
 import 'tcf_production_module.dart';
+import 'widgets/exam_filter_chips.dart';
 import 'widgets/preparation_points.dart';
 import 'widgets/task_palette.dart';
 
@@ -325,7 +326,7 @@ class _History extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
+          padding: const EdgeInsets.all(8),
           child: Row(
             children: [
               Text('Historique',
@@ -346,7 +347,7 @@ class _History extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+          padding: const EdgeInsets.all(8),
           child: Row(
             children: [
               Expanded(
@@ -368,7 +369,7 @@ class _History extends StatelessWidget {
         // décroissante. Le reste est accessible via « Tout voir ».
         for (final entry in _recentMerged(data, 3))
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            padding: const EdgeInsets.all(8),
             child: switch (entry) {
               ExamSession e =>
                 _LastExamCard(session: e, onTap: () => onExam(e)),
@@ -668,6 +669,7 @@ class TcfTaskTrainingScreen extends ConsumerStatefulWidget {
 class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
   bool _starting = false;
   int _tab = 0; // 0 = Exercices (sujets), 1 = Exemples
+  int _filter = 0; // 0 = Tout, 1 = À faire, 2 = Fait
   bool _showAll = false;
 
   /// EE/EO sont des épreuves TCF → accès gouverné par l'abonnement Intégral
@@ -881,28 +883,62 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
     final subjects = data.subjects;
     final done = data.lastByTaskId;
     final premium = _isPremium();
-    final visible = _showAll ? subjects : subjects.take(6).toList();
-    final remaining = subjects.length - visible.length;
+
+    // Index d'origine conservé : c'est lui qui pilote le verrou freemium
+    // (1er sujet offert, suivants premium), indépendamment du filtre courant.
+    final indexed = [for (int i = 0; i < subjects.length; i++) (i, subjects[i])];
+    final doneCount = indexed.where((e) => done[e.$2.id] != null).length;
+    final todoCount = indexed.length - doneCount;
+    final filtered = indexed.where((e) {
+      final isDone = done[e.$2.id] != null;
+      if (_filter == 1) return !isDone;
+      if (_filter == 2) return isDone;
+      return true;
+    }).toList();
+
+    final visible = _showAll ? filtered : filtered.take(6).toList();
+    final remaining = filtered.length - visible.length;
+
     return [
-      for (int i = 0; i < visible.length; i++)
-        _ExerciseRow(
-          module: mod,
-          task: visible[i],
-          last: done[visible[i].id],
-          locked: !premium && i > 0,
-          onTap: () {
-            if (!premium && i > 0) {
-              showPaywallSheet(context);
-              return;
-            }
-            final last = done[visible[i].id];
-            if (last != null) {
-              _openDoneSheet(visible[i], last);
-            } else {
-              _practice(visible[i]);
-            }
-          },
-        ),
+      ExamFilterChips(
+        active: _filter,
+        labels: [
+          'Tout · ${indexed.length}',
+          'À faire · $todoCount',
+          'Fait · $doneCount',
+        ],
+        onChanged: (i) => setState(() {
+          _filter = i;
+          _showAll = false;
+        }),
+      ),
+      const SizedBox(height: 12),
+      if (filtered.isEmpty)
+        _MutedHint(
+          text: _filter == 2
+              ? 'Aucun sujet terminé pour l\'instant.'
+              : 'Tous les sujets sont terminés. Bravo !',
+        )
+      else
+        for (final (origIndex, task) in visible)
+          _ExerciseRow(
+            module: mod,
+            task: task,
+            last: done[task.id],
+            locked: !premium && origIndex > 0,
+            onTap: () {
+              if (!premium && origIndex > 0) {
+                showPaywallSheet(context);
+                return;
+              }
+              final last = done[task.id];
+              if (last != null) {
+                _openDoneSheet(task, last);
+              } else {
+                _practice(task);
+              }
+            },
+          ),
       if (remaining > 0)
         _ShowMoreButton(
           label: 'Voir les $remaining autres',
@@ -1331,7 +1367,27 @@ class _ExerciseRow extends StatelessWidget {
     final done = last != null;
     final note = last?.evaluation?.noteSurVingt;
     final accent = module.isEo ? AppColors.red : AppColors.blue;
-    final (nbg, nfg) = _niveauColors(task.niveauCible);
+
+    // La carte reste neutre (blanche) ; seul le badge d'état porte une couleur.
+    // Fait : icône ✓ rouge si note <= 12, verte sinon (verte par défaut tant
+    // que la note n'est pas encore évaluée). À faire : pastille accent module.
+    final scoreColor =
+        (note != null && note <= 12) ? AppColors.red : AppColors.green;
+    final pastilleBg = locked
+        ? AppColors.surface2
+        : done
+            ? scoreColor.withValues(alpha: 0.12)
+            : accent.withValues(alpha: 0.10);
+    final pastilleFg = locked
+        ? AppColors.inkFaint
+        : done
+            ? scoreColor
+            : accent;
+    final pastilleIcon = locked
+        ? LucideIcons.lock
+        : done
+            ? LucideIcons.check
+            : (module.isEo ? LucideIcons.mic : LucideIcons.penLine);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -1356,14 +1412,10 @@ class _ExerciseRow extends StatelessWidget {
                   height: 36,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: AppColors.surface2,
+                    color: pastilleBg,
                     borderRadius: BorderRadius.circular(AppRadii.md),
                   ),
-                  child: Icon(
-                    module.isEo ? LucideIcons.mic : LucideIcons.penLine,
-                    size: 19,
-                    color: accent,
-                  ),
+                  child: Icon(pastilleIcon, size: 19, color: pastilleFg),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1375,48 +1427,66 @@ class _ExerciseRow extends StatelessWidget {
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                         style: AppFonts.ui(
-                            size: 14.5, weight: FontWeight.w500, height: 1.45),
+                            size: 14.5,
+                            weight: FontWeight.w500,
+                            height: 1.45,
+                            color: AppColors.ink),
                       ),
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 9, vertical: 3),
-                            decoration: BoxDecoration(
-                                color: nbg,
-                                borderRadius:
-                                    BorderRadius.circular(AppRadii.pill)),
-                            child: Text(task.niveauCible,
-                                style: AppFonts.ui(
-                                    size: 11,
-                                    weight: FontWeight.w700,
-                                    color: nfg)),
-                          ),
-                          const SizedBox(width: 8),
-                          if (done)
-                            AppTag(
-                              label: note != null
-                                  ? '${_formatNote(note)}/20'
-                                  : 'Fait',
-                              tone: TagTone.success,
-                              icon: LucideIcons.check,
-                            ),
-                        ],
-                      ),
+                      if (done)
+                        AppTag(
+                          label: note != null
+                              ? '${_formatNote(note)}/20'
+                              : 'Terminé',
+                          tone: (note != null && note <= 12)
+                              ? TagTone.red
+                              : TagTone.success,
+                          icon: LucideIcons.check,
+                        )
+                      else if (locked)
+                        const AppTag(
+                          label: 'Abonnement',
+                          tone: TagTone.neutral,
+                          icon: LucideIcons.lock,
+                        )
+                      else
+                        AppTag(
+                          label: 'À faire',
+                          tone: module.isEo ? TagTone.red : TagTone.blue,
+                        ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 10),
-                Icon(
-                  locked
-                      ? LucideIcons.lock
-                      : done
-                          ? LucideIcons.refreshCw
-                          : LucideIcons.play,
-                  size: 19,
-                  color: locked ? AppColors.inkFaint : accent,
-                ),
+                if (locked)
+                  const Icon(LucideIcons.lock,
+                      size: 19, color: AppColors.inkFaint)
+                else if (done)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(LucideIcons.refreshCw,
+                          size: 15, color: AppColors.muted),
+                      const SizedBox(width: 5),
+                      Text('Refaire',
+                          style: AppFonts.ui(
+                              size: 12.5,
+                              weight: FontWeight.w600,
+                              color: AppColors.muted)),
+                    ],
+                  )
+                else
+                  Container(
+                    width: 34,
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: accent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(LucideIcons.play,
+                        size: 16, color: AppColors.white),
+                  ),
               ],
             ),
           ),
@@ -1520,7 +1590,6 @@ class _FeaturedExampleCardState extends State<_FeaturedExampleCard> {
   @override
   Widget build(BuildContext context) {
     final example = widget.example;
-    final (nbg, nfg) = _niveauColors(example.niveauIndicatif);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
@@ -1543,17 +1612,6 @@ class _FeaturedExampleCardState extends State<_FeaturedExampleCard> {
                       color: AppColors.red,
                       letterSpacing: 0.8,
                       weight: FontWeight.w700)),
-              const Spacer(),
-              if (example.niveauIndicatif != null)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                      color: nbg, borderRadius: BorderRadius.circular(999)),
-                  child: Text(example.niveauIndicatif!,
-                      style: AppFonts.ui(
-                          size: 10, weight: FontWeight.w800, color: nfg)),
-                ),
             ],
           ),
           const SizedBox(height: 8),
@@ -1838,19 +1896,5 @@ class _PlanSheet extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-/// Couleurs du badge niveau (A2 vert, B1 ambre, B2 rouge).
-(Color, Color) _niveauColors(String? niveau) {
-  switch (niveau) {
-    case 'A2':
-      return (AppColors.green.withValues(alpha: 0.14), AppColors.green);
-    case 'B1':
-      return (AppColors.amber.withValues(alpha: 0.18), AppColors.amber);
-    case 'B2':
-      return (AppColors.red.withValues(alpha: 0.12), AppColors.red);
-    default:
-      return (AppColors.line2, AppColors.muted);
   }
 }
