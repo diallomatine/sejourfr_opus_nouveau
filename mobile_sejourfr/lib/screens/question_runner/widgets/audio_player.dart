@@ -40,11 +40,29 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
   int _playCount = 0;
   bool _started = false;
   Timer? _autoStartTimer;
+  StreamSubscription<PlayerState>? _stateSub;
 
   @override
   void initState() {
     super.initState();
+    // just_audio garde `playing == true` quand le document est fini
+    // (`completed`) : le bouton resterait sur ⏸ (et désactivé en examen) et la
+    // barre pleine. On remet le lecteur au repos dès la fin de lecture.
+    _stateSub = _player.playerStateStream.listen((state) {
+      if (!mounted) return;
+      if (state.processingState == ProcessingState.completed) {
+        _onPlaybackComplete();
+      }
+    });
     _load();
+  }
+
+  Future<void> _onPlaybackComplete() async {
+    await _player.pause();
+    await _player.seek(Duration.zero);
+    if (!mounted) return;
+    // Prochaine écoute recomptée (dans la limite de `maxPlays`).
+    setState(() => _started = false);
   }
 
   @override
@@ -107,6 +125,7 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
   @override
   void dispose() {
     _autoStartTimer?.cancel();
+    _stateSub?.cancel();
     _player.dispose();
     super.dispose();
   }

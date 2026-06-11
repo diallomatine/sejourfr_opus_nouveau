@@ -1047,8 +1047,15 @@ class _ExampleDetailSheetState extends State<_ExampleDetailSheet> {
       _player.setUrl(url).then((_) {
         if (mounted) setState(() => _ready = true);
       }).catchError((_) {});
-      _player.playerStateStream.listen((_) {
-        if (mounted) setState(() {});
+      _player.playerStateStream.listen((state) {
+        if (!mounted) return;
+        // Fin de lecture : repasse le bouton sur « Écouter » au lieu de rester
+        // bloqué sur « Pause » (just_audio garde `playing` à true en completed).
+        if (state.processingState == ProcessingState.completed) {
+          _player.pause();
+          _player.seek(Duration.zero);
+        }
+        setState(() {});
       });
     }
   }
@@ -1562,8 +1569,15 @@ class _FeaturedExampleCardState extends State<_FeaturedExampleCard> {
       player.positionStream.listen((p) {
         if (mounted) setState(() => _pos = p);
       });
-      player.playerStateStream.listen((_) {
-        if (mounted) setState(() {});
+      player.playerStateStream.listen((state) {
+        if (!mounted) return;
+        // Fin de lecture : just_audio garde `playing == true` sur l'état
+        // `completed` → on remet le lecteur au repos (bouton ▶ + barre à 0).
+        if (state.processingState == ProcessingState.completed) {
+          player.pause();
+          player.seek(Duration.zero);
+        }
+        setState(() {});
       });
     }
   }
