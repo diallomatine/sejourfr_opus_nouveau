@@ -4,23 +4,32 @@ import Link from "next/link";
 import {useRouter} from "next/navigation";
 import {useEffect, useState} from "react";
 import {useAuth} from "@/lib/auth-context";
-import {accountApi} from "@/lib/api";
-import type {TargetProcedure} from "@/lib/types";
-
-const EXAM_DATE_KEY = "sejourfr.examDate";
+import {accountApi, ApiException, billingApi, dashboardApi} from "@/lib/api";
+import {niveauCecrlLabel} from "@/lib/types";
+import type {
+    DashboardSummaryResponse,
+    SubscriptionStatusResponse,
+    TargetProcedure,
+} from "@/lib/types";
 
 /**
- * Page profil au format "profil-page" du template : hero sombre + carte compte,
- * 2 colonnes (infos perso + abonnement), paramètres du compte (cartes), 2 colonnes
- * (activité + conseil). Branchée sur la vraie data, sans inventer d'activité chiffrée.
- *  - Parcours (CSP/CR/NAT) → /parcours · Mot de passe → /mot-de-passe-oublie
- *  - Suppression compte = DELETE /api/account (anonymisation backend) + logout + redirect
- *  - Édition nom/email = modale "bientôt" (endpoint à venir)
- *  - Date d'examen en localStorage (synchro dashboard)
+ * Page profil web — parité avec l'onglet Profil mobile (`profile_screen.dart`),
+ * en design web (hero éditorial + cartes tokens). Sections :
+ *   - identité (avatar, nom, email, parcours) + bouton « Modifier »
+ *   - 3 stat cards (maîtrise / série / niveau estimé) issues de /api/me/dashboard
+ *   - « Mon pass » (statut Premium agrégé) → /profil/abonnement ou /paiement
+ *   - « Mon objectif » (CSP/CR/NAT) → /parcours
+ *   - « Mes informations » → modale d'édition (identité + email + mot de passe)
+ *   - zone danger : suppression de compte (DELETE /api/account) + déconnexion
+ *
+ * Volontairement SANS date d'examen, plan de révision, centre d'aide ni
+ * réinitialisation de progression (décision produit).
  */
 export default function ProfilPage() {
     const router = useRouter();
-    const {user, status, logout} = useAuth();
+    const {user, status, logout, refreshUser} = useAuth();
+
+    const [showEdit, setShowEdit] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -28,24 +37,33 @@ export default function ProfilPage() {
     // Message d'action manuelle (résiliation Apple/Google) affiché après
     // suppression, avant la redirection finale.
     const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
-    const [showEditNameSoon, setShowEditNameSoon] = useState(false);
-    const [examDate, setExamDate] = useState<string | null>(null);
+
+    const [dashboard, setDashboard] = useState<DashboardSummaryResponse | null>(null);
+    const [subscription, setSubscription] = useState<SubscriptionStatusResponse | null>(null);
 
     useEffect(() => {
-        if (typeof window === "undefined") return;
-        const v = window.localStorage.getItem(EXAM_DATE_KEY);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        if (v) setExamDate(v);
-    }, []);
+        if (status !== "authenticated") return;
+        let cancelled = false;
+        void dashboardApi.summaryCached().then((d) => {
+            if (!cancelled) setDashboard(d);
+        }).catch(() => {});
+        void billingApi.getSubscriptionStatus().then((s) => {
+            if (!cancelled) setSubscription(s);
+        }).catch(() => {});
+        return () => {
+            cancelled = true;
+        };
+    }, [status]);
 
+    const anyModalOpen = showEdit || showLogoutConfirm || showDeleteConfirm || !!deleteNotice;
     useEffect(() => {
-        if (!showLogoutConfirm && !showDeleteConfirm && !deleteNotice && !showEditNameSoon) return;
+        if (!anyModalOpen) return;
         const prev = document.body.style.overflow;
         document.body.style.overflow = "hidden";
         return () => {
             document.body.style.overflow = prev;
         };
-    }, [showLogoutConfirm, showDeleteConfirm, deleteNotice, showEditNameSoon]);
+    }, [anyModalOpen]);
 
     function handleLogout() {
         logout();
@@ -58,8 +76,6 @@ export default function ProfilPage() {
         try {
             const result = await accountApi.deleteAccount();
             setShowDeleteConfirm(false);
-            // Abonnement Apple/Google à résilier à la main → on affiche le
-            // message avant de fermer la session. Sinon on sort directement.
             if (result.hasActiveSubscription && result.manualActionMessage) {
                 setDeleteNotice(result.manualActionMessage);
             } else {
@@ -91,240 +107,163 @@ export default function ProfilPage() {
     }
 
     const fullName =
-        [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || "—";
+        [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || user.email;
     const initials =
         (user.firstName?.[0] ?? user.email[0] ?? "?").toUpperCase() +
         (user.lastName?.[0]?.toUpperCase() ?? "");
     const proc = user.targetProcedure ? PROCEDURE_INFO[user.targetProcedure] : null;
-    const tcfLevel = proc?.tcfLevel ?? "—";
 
-    const planLabel = user.isPremium
-        ? user.hasTcf
-            ? "Intégral · Civique + TCF"
-            : "Premium Civique"
-        : "Découverte";
-    const planSub = user.isPremium
-        ? user.premiumEndsAt
-            ? `Valide jusqu'au ${formatDate(user.premiumEndsAt)}`
-            : "Abonnement actif"
-        : "20 questions et 1 examen blanc gratuits par module";
+    // ── 3 stats (parité mobile) ───────────────────────────────────────────
+    const masteryValue =
+        dashboard?.globalSuccessPercent != null
+            ? `${dashboard.globalSuccessPercent} %`
+            : "—";
+    const streakValue = dashboard ? `${dashboard.currentStreakDays} j` : "—";
+    const levelValue =
+        dashboard?.estimatedTcfLevel == null
+            ? "—"
+            : dashboard.estimatedTcfLevel === "A1_NON_ATTEINT"
+                ? "<A1"
+                : niveauCecrlLabel(dashboard.estimatedTcfLevel);
+
+    // ── Mon pass ──────────────────────────────────────────────────────────
+    const premium = subscription?.isPremium ?? user.isPremium ?? false;
+    const access = subscription?.moduleAccess;
+    const passName = !premium
+        ? "Découverte"
+        : access === "INTEGRAL"
+            ? "Pass Intégral"
+            : access === "TCF"
+                ? "Pass TCF"
+                : "Pass Civique";
+    const passAccent = !premium ? "neutral" : access === "INTEGRAL" ? "red" : "blue";
+    const expiresAt = subscription?.expiresAt ?? user.premiumEndsAt ?? null;
+    const passSub = !premium
+        ? "Accès limité — débloquez tout SejourFR"
+        : expiresAt
+            ? `Valable jusqu'au ${formatDate(expiresAt)}`
+            : "Accès actif";
+    const passHref = premium ? "/profil/abonnement" : "/paiement";
 
     return (
         <main className="pr">
-            {/* ---- Hero ---- */}
+            {/* ---- Hero + identité ---- */}
             <section className="pr-hero">
                 <div className="pr-hero-main">
                     <div className="breadcrumb">
                         ACCUEIL <span className="sep">/</span> PROFIL
                     </div>
                     <h1>Mon <em>profil</em></h1>
+                    <p>Gère ton compte, ton objectif d&apos;examen et ton abonnement.</p>
+                </div>
+
+                <div className="pr-id">
+                    <span className="pr-avatar">{initials}</span>
+                    <div className="pr-id-body">
+                        <div className="pr-id-name">{fullName}</div>
+                        <div className="pr-id-email">{user.email}</div>
+                        {proc && (
+                            <span className="pr-id-tag">
+                                <span aria-hidden>📍</span> {proc.short}
+                            </span>
+                        )}
+                    </div>
+                    <button type="button" className="pr-id-edit" onClick={() => setShowEdit(true)}>
+                        Modifier
+                    </button>
+                </div>
+            </section>
+
+            {/* ---- 3 stats ---- */}
+            <section className="pr-stats">
+                <StatCard label="Maîtrise" value={masteryValue} accent="blue"/>
+                <StatCard label="Série" value={streakValue} accent="red"/>
+                <StatCard label="Niveau estimé" value={levelValue} accent="blue"/>
+            </section>
+
+            {/* ---- Mon pass ---- */}
+            <div className="pr-section-title"><h2>Mon pass</h2></div>
+            <Link href={passHref} className={`pr-line-card pr-pass accent-${passAccent}`}>
+                <span className="pr-line-icon" aria-hidden>🎓</span>
+                <div className="pr-line-body">
+                    <div className="pr-line-head">
+                        <h3>{passName}</h3>
+                        <span className={`pr-pill ${premium ? "pill-active" : "pill-free"}`}>
+                            {premium ? "Actif" : "Gratuit"}
+                        </span>
+                    </div>
+                    <p>{passSub}</p>
+                </div>
+                <span className="pr-chevron" aria-hidden>›</span>
+            </Link>
+
+            {/* ---- Mon objectif ---- */}
+            <div className="pr-section-title"><h2>Mon objectif</h2></div>
+            <Link href="/parcours?from=/profil" className="pr-line-card pr-objectif">
+                <span className="pr-line-icon tone-objectif" aria-hidden>🎯</span>
+                <div className="pr-line-body">
+                    <div className="pr-line-head">
+                        <h3>{proc ? proc.title : "Choisir mon parcours"}</h3>
+                    </div>
                     <p>
-                        Gère ton compte, ton objectif d&apos;examen, ton abonnement et tes
-                        paramètres de sécurité.
+                        {proc
+                            ? `Niveau de français visé : ${proc.tcfLevel} — toucher pour modifier`
+                            : "Définissez votre objectif administratif"}
                     </p>
-                    <div className="pr-hero-actions">
-                        <button
-                            type="button"
-                            className="pr-hero-btn"
-                            onClick={() => setShowEditNameSoon(true)}
-                        >
-                            Modifier mon profil
-                        </button>
-                        <Link
-                            href={user.isPremium ? "/profil/abonnement" : "/paiement"}
-                            className="pr-hero-btn pr-hero-btn-ghost"
-                        >
-                            {user.isPremium ? "Gérer mon abonnement" : "Passer Premium"}
-                        </Link>
-                    </div>
                 </div>
+                <span className="pr-chevron" aria-hidden>›</span>
+            </Link>
 
-                <div className="pr-score">
-                    <div className="pr-score-head">
-                        <span className="pr-avatar">{initials}</span>
-                        <div>
-                            <div className="pr-score-name">{user.firstName ?? fullName}</div>
-                            <div className="pr-score-plan">{planLabel}</div>
-                        </div>
-                    </div>
-                    <div className="pr-score-meta">
-                        Objectif&nbsp;: {proc ? proc.title : "à définir"}
-                    </div>
-                    <div className="pr-score-meta">Niveau de français visé&nbsp;: {tcfLevel}</div>
-                </div>
-            </section>
-
-            {/* ---- Infos perso + abonnement ---- */}
-            <div className="pr-cols">
-                <section className="pr-panel">
-                    <div className="pr-panel-head">
-                        <h2>Informations personnelles</h2>
-                        <button type="button" className="pr-link-btn" onClick={() => setShowEditNameSoon(true)}>
-                            Modifier
-                        </button>
-                    </div>
-                    <div className="pr-info">
-                        <div className="pr-stat">
-                            <span>Nom complet</span>
-                            <strong>{fullName}</strong>
-                        </div>
-                        <div className="pr-stat">
-                            <span>Adresse e-mail</span>
-                            <strong className="pr-mono">{user.email}</strong>
-                        </div>
-                        <div className="pr-stat">
-                            <span>Objectif</span>
-                            <strong>{proc ? proc.title : "Pas encore défini"}</strong>
-                        </div>
-                        <div className="pr-stat">
-                            <span>Niveau visé</span>
-                            <strong>{tcfLevel}</strong>
-                        </div>
-                    </div>
-                </section>
-
-                <aside className="pr-panel">
-                    <h2 className="pr-panel-title">Abonnement</h2>
-                    <div className="pr-tips">
-                        <div className="pr-tip">
-                            <span className="pr-tip-emoji" aria-hidden>⭐</span>
-                            <p><strong>Offre actuelle :</strong> {planLabel}.</p>
-                        </div>
-                        <div className="pr-tip">
-                            <span className="pr-tip-emoji" aria-hidden>🤖</span>
-                            <p>{planSub}.</p>
-                        </div>
-                        <div className="pr-tip">
-                            <span className="pr-tip-emoji" aria-hidden>🔐</span>
-                            <p><strong>Gestion :</strong> paiement et accès gérés en ligne en toute sécurité.</p>
-                        </div>
-                    </div>
-                    <Link
-                        href={user.isPremium ? "/profil/abonnement" : "/paiement"}
-                        className="pr-panel-cta"
-                    >
-                        {user.isPremium ? "Gérer mon abonnement" : "Passer Premium"}
-                    </Link>
-                </aside>
-            </div>
-
-            {/* ---- Paramètres du compte ---- */}
-            <div className="pr-section-title">
-                <h2>Paramètres du compte</h2>
-            </div>
-            <section className="pr-cards">
-                <Link href="/parcours?from=/profil" className="pr-card">
-                    <div className="pr-card-head">
-                        <span className="pr-card-icon tone-amber" aria-hidden>🎯</span>
-                        <span className="pr-card-badge">{tcfLevel}</span>
-                    </div>
-                    <h3>Objectif d&apos;examen</h3>
-                    <p>CSP, CR ou naturalisation — et le niveau de français correspondant.</p>
-                    <span className="pr-card-cta">Modifier</span>
-                </Link>
-
-                <Link href="/dashboard" className="pr-card">
-                    <div className="pr-card-head">
-                        <span className="pr-card-icon tone-blue" aria-hidden>📅</span>
-                        <span className="pr-card-badge">{examDate ? "Définie" : "À définir"}</span>
-                    </div>
-                    <h3>Date d&apos;examen</h3>
-                    <p>{examDate ? `Prévue le ${formatDate(examDate)}.` : "Fixe ta date pour suivre ton compte à rebours."}</p>
-                    <span className="pr-card-cta">{examDate ? "Modifier" : "Définir"}</span>
-                </Link>
-
-                <Link href="/mot-de-passe-oublie" className="pr-card">
-                    <div className="pr-card-head">
-                        <span className="pr-card-icon tone-green" aria-hidden>🔒</span>
-                        <span className="pr-card-badge">Sécurité</span>
-                    </div>
-                    <h3>Connexion</h3>
-                    <p>Réinitialise ton mot de passe. Connexion Google/Apple gérée à part.</p>
-                    <span className="pr-card-cta">Gérer</span>
-                </Link>
-
-                <button type="button" className="pr-card pr-card-danger" onClick={() => {
-                    setDeleteError(null);
-                    setShowDeleteConfirm(true);
-                }}>
-                    <div className="pr-card-head">
-                        <span className="pr-card-icon tone-red" aria-hidden>🗑️</span>
-                        <span className="pr-card-badge">RGPD</span>
-                    </div>
-                    <h3>Supprimer mon compte</h3>
-                    <p>Effacer mes données et fermer définitivement mon compte, conformément au RGPD.</p>
-                    <span className="pr-card-cta">Ouvrir</span>
+            {/* ---- Mon compte ---- */}
+            <div className="pr-section-title"><h2>Mon compte</h2></div>
+            <div className="pr-group">
+                <button type="button" className="pr-row" onClick={() => setShowEdit(true)}>
+                    <span className="pr-row-icon" aria-hidden>✎</span>
+                    <span className="pr-row-body">
+                        <span className="pr-row-title">Mes informations</span>
+                        <span className="pr-row-sub">{user.email}</span>
+                    </span>
+                    <span className="pr-chevron" aria-hidden>›</span>
                 </button>
-            </section>
-
-            {/* ---- Activité + conseil ---- */}
-            <div className="pr-cols">
-                <section className="pr-panel">
-                    <div className="pr-panel-head">
-                        <h2>Mon activité</h2>
-                        <Link href="/historique" className="pr-link-btn">Historique complet →</Link>
-                    </div>
-                    <Link href="/historique" className="pr-mock-row">
-                        <span className="pr-card-icon tone-blue" aria-hidden>📝</span>
-                        <div className="pr-mock-body">
-                            <h3>Mes examens blancs</h3>
-                            <p>Scores et progression de tous tes examens passés.</p>
-                        </div>
-                        <span className="pr-mock-btn">Voir</span>
-                    </Link>
-                    <Link href="/statistiques" className="pr-mock-row">
-                        <span className="pr-card-icon tone-green" aria-hidden>📈</span>
-                        <div className="pr-mock-body">
-                            <h3>Ma progression</h3>
-                            <p>Maîtrise par thème et points à renforcer.</p>
-                        </div>
-                        <span className="pr-mock-btn">Détails</span>
-                    </Link>
-                    <Link href="/revision" className="pr-mock-row">
-                        <span className="pr-card-icon tone-amber" aria-hidden>🔁</span>
-                        <div className="pr-mock-body">
-                            <h3>Mes erreurs</h3>
-                            <p>Revois les questions ratées et tes favoris.</p>
-                        </div>
-                        <span className="pr-mock-btn">Revoir</span>
-                    </Link>
-                </section>
-
-                <aside className="pr-panel">
-                    <h2 className="pr-panel-title">Conseil personnalisé</h2>
-                    <div className="pr-tips">
-                        <div className="pr-tip">
-                            <span className="pr-tip-emoji" aria-hidden>🎯</span>
-                            <p>Ton objectif&nbsp;: {proc ? proc.title : "à définir"}. Vise le niveau {tcfLevel}.</p>
-                        </div>
-                        <div className="pr-tip">
-                            <span className="pr-tip-emoji" aria-hidden>📅</span>
-                            <p>Garde un rythme simple&nbsp;: 15 à 20 minutes par jour suffisent pour progresser.</p>
-                        </div>
-                        <div className="pr-tip">
-                            <span className="pr-tip-emoji" aria-hidden>🚀</span>
-                            <p>Alterne civique et TCF pour ne pas perdre le fil de ta préparation.</p>
-                        </div>
-                    </div>
-                </aside>
             </div>
 
-            {/* ---- Déconnexion ---- */}
-            <div className="pr-footnote">
-                <button type="button" className="pr-logout" onClick={() => setShowLogoutConfirm(true)}>
-                    Se déconnecter
+            {/* ---- Danger ---- */}
+            <div className="pr-group">
+                <button
+                    type="button"
+                    className="pr-row pr-row-danger"
+                    onClick={() => {
+                        setDeleteError(null);
+                        setShowDeleteConfirm(true);
+                    }}
+                >
+                    <span className="pr-row-icon tone-danger" aria-hidden>✕</span>
+                    <span className="pr-row-body">
+                        <span className="pr-row-title">Supprimer mon compte</span>
+                    </span>
                 </button>
-                <span>
-          Besoin d&apos;aide ? <Link href="/faq">Consultez la FAQ</Link> ou écrivez à{" "}
-                    <a href="mailto:support@sejourfr.fr">support@sejourfr.fr</a>.
-        </span>
+                <button type="button" className="pr-row" onClick={() => setShowLogoutConfirm(true)}>
+                    <span className="pr-row-icon tone-muted" aria-hidden>⤺</span>
+                    <span className="pr-row-body">
+                        <span className="pr-row-title">Se déconnecter</span>
+                    </span>
+                </button>
             </div>
 
-            {/* MODALS */}
+            <div className="pr-version">SejourFR · v0.1.0</div>
+
+            {/* ---- MODALS ---- */}
+            {showEdit && (
+                <InfoEditModal
+                    user={user}
+                    onClose={() => setShowEdit(false)}
+                    onIdentitySaved={refreshUser}
+                />
+            )}
             {showLogoutConfirm && (
                 <ConfirmModal
                     title="Se déconnecter ?"
-                    body="Vos données restent en sécurité côté serveur. Vous pourrez vous reconnecter à tout moment avec votre email."
+                    body="Vous devrez vous reconnecter pour reprendre votre préparation. Vos données restent en sécurité côté serveur."
                     confirmLabel="Me déconnecter"
                     confirmTone="danger"
                     onConfirm={handleLogout}
@@ -362,20 +301,335 @@ export default function ProfilPage() {
                     singleAction
                 />
             )}
-            {showEditNameSoon && (
-                <ConfirmModal
-                    title="Édition à venir"
-                    body="L'édition du nom et de l'email arrive bientôt. En attendant, écrivez à support@sejourfr.fr en précisant votre demande."
-                    confirmLabel="OK"
-                    confirmTone="neutral"
-                    onConfirm={() => setShowEditNameSoon(false)}
-                    onCancel={() => setShowEditNameSoon(false)}
-                    singleAction
-                />
-            )}
 
             <style>{styles}</style>
         </main>
+    );
+}
+
+// ============================================================================
+// STAT CARD
+// ============================================================================
+function StatCard({label, value, accent}: {label: string; value: string; accent: "blue" | "red"}) {
+    return (
+        <div className={`pr-stat-card accent-${accent}`}>
+            <div className="pr-stat-value">{value}</div>
+            <div className="pr-stat-label">{label}</div>
+        </div>
+    );
+}
+
+// ============================================================================
+// INFO EDIT MODAL (identité + email + mot de passe)
+// ============================================================================
+type EditUser = {
+    email: string;
+    firstName: string;
+    lastName: string;
+    authProvider?: "LOCAL" | "GOOGLE" | "APPLE";
+};
+
+function InfoEditModal({
+                           user,
+                           onClose,
+                           onIdentitySaved,
+                       }: {
+    user: EditUser;
+    onClose: () => void;
+    onIdentitySaved: () => Promise<void>;
+}) {
+    const isLocal = !user.authProvider || user.authProvider === "LOCAL";
+    const providerLabel = user.authProvider === "GOOGLE" ? "Google" : user.authProvider === "APPLE" ? "Apple" : "email";
+
+    const [firstName, setFirstName] = useState(user.firstName ?? "");
+    const [lastName, setLastName] = useState(user.lastName ?? "");
+    const [savingIdentity, setSavingIdentity] = useState(false);
+    const [identityError, setIdentityError] = useState<string | null>(null);
+    const [identityOk, setIdentityOk] = useState(false);
+
+    const [emailOpen, setEmailOpen] = useState(false);
+    const [pwdOpen, setPwdOpen] = useState(false);
+
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose();
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [onClose]);
+
+    async function saveIdentity() {
+        const fn = firstName.trim();
+        const ln = lastName.trim();
+        if (!fn || !ln) {
+            setIdentityError("Prénom et nom requis");
+            return;
+        }
+        setSavingIdentity(true);
+        setIdentityError(null);
+        setIdentityOk(false);
+        try {
+            await accountApi.updateProfile(fn, ln);
+            await onIdentitySaved();
+            setIdentityOk(true);
+        } catch (e) {
+            setIdentityError(e instanceof ApiException ? e.message : "Échec de la mise à jour.");
+        } finally {
+            setSavingIdentity(false);
+        }
+    }
+
+    return (
+        <div className="cm" role="dialog" aria-modal="true" onClick={onClose}>
+            <div className="cm-backdrop"/>
+            <div className="cm-sheet cm-sheet-wide" onClick={(e) => e.stopPropagation()}>
+                <div className="cm-head">
+                    <h2 className="cm-title">Mes informations</h2>
+                    <button type="button" className="cm-close" onClick={onClose} aria-label="Fermer">✕</button>
+                </div>
+
+                {/* Identité */}
+                <div className="ed-label">Identité</div>
+                <div className="ed-block">
+                    <div className="ed-grid">
+                        <div className="ed-field">
+                            <label htmlFor="ed-fn">Prénom</label>
+                            <input
+                                id="ed-fn"
+                                className="ed-input"
+                                value={firstName}
+                                onChange={(e) => setFirstName(e.target.value)}
+                                autoComplete="given-name"
+                            />
+                        </div>
+                        <div className="ed-field">
+                            <label htmlFor="ed-ln">Nom</label>
+                            <input
+                                id="ed-ln"
+                                className="ed-input"
+                                value={lastName}
+                                onChange={(e) => setLastName(e.target.value)}
+                                autoComplete="family-name"
+                            />
+                        </div>
+                    </div>
+                    {identityError && <p className="ed-error">{identityError}</p>}
+                    {identityOk && <p className="ed-ok">Identité mise à jour.</p>}
+                    <button type="button" className="ed-btn" disabled={savingIdentity} onClick={saveIdentity}>
+                        {savingIdentity ? "Enregistrement…" : "Enregistrer"}
+                    </button>
+                </div>
+
+                {/* Email */}
+                <div className="ed-label">Adresse e-mail</div>
+                <div className="ed-block">
+                    <div className="ed-readline">
+                        <span className="ed-readval">{user.email}</span>
+                        {isLocal && !emailOpen && (
+                            <button type="button" className="ed-ghost" onClick={() => setEmailOpen(true)}>
+                                Changer
+                            </button>
+                        )}
+                    </div>
+                    {!isLocal && (
+                        <p className="ed-note">
+                            Connexion via {providerLabel} — l&apos;e-mail se gère côté {providerLabel}.
+                        </p>
+                    )}
+                    {isLocal && emailOpen && (
+                        <ChangeEmailForm currentEmail={user.email} onClose={() => setEmailOpen(false)}/>
+                    )}
+                </div>
+
+                {/* Mot de passe */}
+                <div className="ed-label">Mot de passe</div>
+                <div className="ed-block">
+                    <div className="ed-readline">
+                        <span className="ed-readval">••••••••••</span>
+                        {isLocal && !pwdOpen && (
+                            <button type="button" className="ed-ghost" onClick={() => setPwdOpen(true)}>
+                                Modifier
+                            </button>
+                        )}
+                    </div>
+                    {!isLocal && (
+                        <p className="ed-note">
+                            Connexion via {providerLabel} — pas de mot de passe SejourFR.
+                        </p>
+                    )}
+                    {isLocal && pwdOpen && <ChangePasswordForm onClose={() => setPwdOpen(false)}/>}
+                </div>
+
+                <style>{modalStyles}</style>
+                <style>{editStyles}</style>
+            </div>
+        </div>
+    );
+}
+
+function ChangeEmailForm({currentEmail, onClose}: {currentEmail: string; onClose: () => void}) {
+    const [newEmail, setNewEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [done, setDone] = useState(false);
+
+    async function submit() {
+        const email = newEmail.trim();
+        if (!email.includes("@")) {
+            setError("E-mail invalide");
+            return;
+        }
+        if (!password) {
+            setError("Votre mot de passe actuel est requis");
+            return;
+        }
+        setSubmitting(true);
+        setError(null);
+        try {
+            await accountApi.requestEmailChange(email, password);
+            setDone(true);
+        } catch (e) {
+            setError(e instanceof ApiException ? e.message : "Échec de la demande.");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    if (done) {
+        return (
+            <div className="ed-sub">
+                <p className="ed-ok">
+                    Lien de vérification envoyé à {newEmail}. Cliquez dessus pour confirmer. Votre compte
+                    reste accessible avec {currentEmail} en attendant.
+                </p>
+                <button type="button" className="ed-ghost" onClick={onClose}>Fermer</button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="ed-sub">
+            <div className="ed-field">
+                <label htmlFor="ed-newmail">Nouvel e-mail</label>
+                <input
+                    id="ed-newmail"
+                    className="ed-input"
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="nouvel@email.fr"
+                    autoComplete="email"
+                />
+            </div>
+            <div className="ed-field">
+                <label htmlFor="ed-mailpwd">Mot de passe actuel</label>
+                <input
+                    id="ed-mailpwd"
+                    className="ed-input"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                />
+            </div>
+            {error && <p className="ed-error">{error}</p>}
+            <div className="ed-actions">
+                <button type="button" className="ed-ghost" onClick={onClose}>Annuler</button>
+                <button type="button" className="ed-btn" disabled={submitting} onClick={submit}>
+                    {submitting ? "Envoi…" : "Envoyer le lien"}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function ChangePasswordForm({onClose}: {onClose: () => void}) {
+    const [current, setCurrent] = useState("");
+    const [next, setNext] = useState("");
+    const [confirm, setConfirm] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [done, setDone] = useState(false);
+
+    async function submit() {
+        if (!current) {
+            setError("Mot de passe actuel requis");
+            return;
+        }
+        if (next.length < 8) {
+            setError("Le nouveau mot de passe doit faire au moins 8 caractères");
+            return;
+        }
+        if (next !== confirm) {
+            setError("La confirmation ne correspond pas");
+            return;
+        }
+        setSubmitting(true);
+        setError(null);
+        try {
+            await accountApi.changePassword(current, next);
+            setDone(true);
+        } catch (e) {
+            setError(e instanceof ApiException ? e.message : "Échec de la modification.");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    if (done) {
+        return (
+            <div className="ed-sub">
+                <p className="ed-ok">Mot de passe modifié.</p>
+                <button type="button" className="ed-ghost" onClick={onClose}>Fermer</button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="ed-sub">
+            <div className="ed-field">
+                <label htmlFor="ed-curpwd">Mot de passe actuel</label>
+                <input
+                    id="ed-curpwd"
+                    className="ed-input"
+                    type="password"
+                    value={current}
+                    onChange={(e) => setCurrent(e.target.value)}
+                    autoComplete="current-password"
+                />
+            </div>
+            <div className="ed-field">
+                <label htmlFor="ed-newpwd">Nouveau mot de passe</label>
+                <input
+                    id="ed-newpwd"
+                    className="ed-input"
+                    type="password"
+                    value={next}
+                    onChange={(e) => setNext(e.target.value)}
+                    placeholder="Au moins 8 caractères"
+                    autoComplete="new-password"
+                />
+            </div>
+            <div className="ed-field">
+                <label htmlFor="ed-confpwd">Confirmer le nouveau</label>
+                <input
+                    id="ed-confpwd"
+                    className="ed-input"
+                    type="password"
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                    autoComplete="new-password"
+                />
+            </div>
+            {error && <p className="ed-error">{error}</p>}
+            <div className="ed-actions">
+                <button type="button" className="ed-ghost" onClick={onClose}>Annuler</button>
+                <button type="button" className="ed-btn" disabled={submitting} onClick={submit}>
+                    {submitting ? "Mise à jour…" : "Mettre à jour"}
+                </button>
+            </div>
+        </div>
     );
 }
 
@@ -438,32 +692,16 @@ function ConfirmModal({
 // ============================================================================
 const PROCEDURE_INFO: Record<
     TargetProcedure,
-    { title: string; desc: string; tcfLevel: string }
+    {title: string; short: string; tcfLevel: string}
 > = {
-    CSP: {
-        title: "Carte de séjour pluriannuelle",
-        desc: "Premier renouvellement après le visa long séjour.",
-        tcfLevel: "A2",
-    },
-    CR: {
-        title: "Carte de résident (10 ans)",
-        desc: "Stabilité longue durée, démarches allégées.",
-        tcfLevel: "B1",
-    },
-    NAT: {
-        title: "Naturalisation française",
-        desc: "Nationalité française. Niveau d'exigence le plus élevé.",
-        tcfLevel: "B2",
-    },
+    CSP: {title: "Carte de séjour pluriannuelle", short: "CSP", tcfLevel: "A2"},
+    CR: {title: "Carte de résident (10 ans)", short: "CR", tcfLevel: "B1"},
+    NAT: {title: "Naturalisation française", short: "NAT", tcfLevel: "B2"},
 };
 
 function formatDate(iso: string): string {
     const d = new Date(iso);
-    return d.toLocaleDateString("fr-FR", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-    });
+    return d.toLocaleDateString("fr-FR", {day: "2-digit", month: "long", year: "numeric"});
 }
 
 function ProfilSkeleton() {
@@ -478,9 +716,7 @@ const gateStyles = `
   .pr-gate {
     min-height: 60vh;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 14px;
-    color: var(--color-muted);
-    padding: 36px;
+    gap: 14px; color: var(--color-muted); padding: 36px;
   }
   .pr-gate-cta { color: var(--color-blue); font-weight: 700; text-decoration: none; }
 `;
@@ -489,14 +725,14 @@ const gateStyles = `
 // STYLES
 // ============================================================================
 const styles = `
-  .pr { padding: 24px 36px 64px; max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 26px; }
-  @media (max-width: 760px) { .pr { padding: 20px 16px 56px; gap: 22px; } }
+  .pr { padding: 24px 36px 64px; max-width: 920px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  @media (max-width: 760px) { .pr { padding: 20px 16px 56px; } }
 
   /* ---- Hero ---- */
   .pr-hero {
-    display: grid; grid-template-columns: 1fr; gap: 22px;
+    display: grid; grid-template-columns: 1fr; gap: 20px;
     background: linear-gradient(135deg, var(--color-blue) 0%, #3355B5 100%);
-    color: #fff; border-radius: 20px; padding: 24px;
+    color: #fff; border-radius: 20px; padding: 24px; margin-bottom: 6px;
   }
   .pr-hero .breadcrumb {
     font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em;
@@ -509,225 +745,202 @@ const styles = `
   }
   .pr-hero-main h1 em { font-style: italic; font-weight: 500; opacity: 0.92; }
   .pr-hero-main p { color: rgba(255,255,255,0.82); font-size: 14.5px; line-height: 1.6; margin: 10px 0 0; max-width: 520px; }
-  .pr-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
-  .pr-hero-btn {
-    display: inline-flex; align-items: center; justify-content: center;
-    padding: 11px 20px; border-radius: 10px;
-    font-family: var(--font-sans); font-size: 14px; font-weight: 700;
-    background: #fff; color: var(--color-ink); text-decoration: none;
-    border: 1px solid transparent; cursor: pointer; transition: transform 0.15s, background 0.15s;
-  }
-  .pr-hero-btn:hover { transform: translateY(-1px); background: #F1F5F9; }
-  .pr-hero-btn-ghost { background: transparent; color: #fff; border-color: rgba(255,255,255,0.4); }
-  .pr-hero-btn-ghost:hover { background: rgba(255,255,255,0.12); }
 
-  .pr-score {
+  .pr-id {
     background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
-    border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 10px;
-    justify-content: center;
+    border-radius: 16px; padding: 16px; display: flex; align-items: center; gap: 14px;
   }
-  .pr-score-head { display: flex; align-items: center; gap: 14px; }
   .pr-avatar {
-    width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0;
+    width: 54px; height: 54px; border-radius: 14px; flex-shrink: 0;
     background: #fff; color: var(--color-ink);
     display: inline-flex; align-items: center; justify-content: center;
-    font-family: var(--font-display); font-weight: 600; font-size: 22px;
+    font-family: var(--font-display); font-weight: 600; font-size: 21px;
   }
-  .pr-score-name { font-family: var(--font-display); font-weight: 600; font-size: 20px; color: #fff; }
-  .pr-score-plan { font-size: 13px; color: rgba(255,255,255,0.8); margin-top: 2px; }
-  .pr-score-meta { font-size: 13px; color: rgba(255,255,255,0.82); }
+  .pr-id-body { flex: 1; min-width: 0; }
+  .pr-id-name { font-family: var(--font-display); font-weight: 600; font-size: 18px; color: #fff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pr-id-email { font-size: 13px; color: rgba(255,255,255,0.8); margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pr-id-tag {
+    display: inline-flex; align-items: center; gap: 5px; margin-top: 8px;
+    background: rgba(255,255,255,0.16); color: #fff; border-radius: 999px;
+    padding: 3px 10px; font-size: 11.5px; font-weight: 700; font-family: var(--font-mono);
+    letter-spacing: 0.03em;
+  }
+  .pr-id-edit {
+    flex-shrink: 0; align-self: flex-start;
+    background: #fff; color: var(--color-blue); border: none; cursor: pointer;
+    padding: 9px 16px; border-radius: 10px; font-family: var(--font-sans);
+    font-size: 13px; font-weight: 700; transition: transform 0.15s, background 0.15s;
+  }
+  .pr-id-edit:hover { transform: translateY(-1px); background: #F1F5F9; }
 
-  /* ---- Colonnes ---- */
-  .pr-cols { display: grid; grid-template-columns: 1fr; gap: 16px; }
-  .pr-panel { background: #fff; border: 1px solid var(--color-line); border-radius: 16px; padding: 20px; }
-  .pr-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-  .pr-panel-head h2, .pr-panel-title {
-    font-family: var(--font-display); font-weight: 600; font-size: 18px;
-    letter-spacing: -0.015em; color: var(--color-ink); margin: 0;
+  /* ---- Stats ---- */
+  .pr-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 8px; }
+  .pr-stat-card {
+    background: #fff; border: 1px solid var(--color-line); border-radius: 16px;
+    padding: 16px 14px; text-align: center; min-width: 0;
   }
-  .pr-panel-title { margin-bottom: 14px; }
-  .pr-link-btn {
-    background: none; border: none; cursor: pointer; padding: 0;
-    font-family: var(--font-sans); font-size: 13px; font-weight: 600;
-    color: var(--color-blue); text-decoration: none;
+  .pr-stat-value { font-family: var(--font-display); font-weight: 600; font-size: 22px; letter-spacing: -0.01em; line-height: 1.1; }
+  .pr-stat-card.accent-blue .pr-stat-value { color: var(--color-blue); }
+  .pr-stat-card.accent-red .pr-stat-value { color: var(--color-red); }
+  .pr-stat-label {
+    margin-top: 6px; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--color-muted);
   }
-  .pr-link-btn:hover { text-decoration: underline; }
 
-  .pr-info { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .pr-stat {
-    background: var(--color-paper); border: 1px solid var(--color-line-2); border-radius: 12px;
-    padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  /* ---- Section titles ---- */
+  .pr-section-title { margin-top: 12px; }
+  .pr-section-title h2 {
+    font-family: var(--font-display); font-weight: 600; font-size: 17px;
+    letter-spacing: -0.015em; color: var(--color-ink); margin: 0 0 4px;
   }
-  .pr-stat span { font-size: 11px; color: var(--color-muted); font-family: var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; }
-  .pr-stat strong { font-size: 14.5px; font-weight: 700; color: var(--color-ink); word-break: break-word; }
-  .pr-stat .pr-mono { font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
 
-  .pr-tips { display: flex; flex-direction: column; gap: 14px; }
-  .pr-tip { display: flex; gap: 12px; align-items: flex-start; }
-  .pr-tip-emoji {
-    flex-shrink: 0; width: 34px; height: 34px; border-radius: 10px;
-    display: inline-flex; align-items: center; justify-content: center; font-size: 16px;
+  /* ---- Line cards (pass / objectif) ---- */
+  .pr-line-card {
+    display: flex; align-items: center; gap: 14px; text-decoration: none;
+    background: #fff; border: 1px solid var(--color-line); border-radius: 16px; padding: 16px;
+    transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+  }
+  .pr-line-card:hover { transform: translateY(-2px); border-color: var(--color-blue);
+    box-shadow: 0 16px 38px -24px rgba(30,58,140,0.3); }
+  .pr-objectif { background: var(--color-paper); }
+  .pr-line-icon {
+    width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 20px;
     background: var(--color-blue-soft);
   }
-  .pr-tip p { font-size: 13px; color: var(--color-ink-2); line-height: 1.5; margin: 0; }
-  .pr-tip strong { color: var(--color-ink); font-weight: 700; }
-  .pr-panel-cta {
-    display: block; width: 100%; margin-top: 18px; text-align: center;
-    padding: 11px; border-radius: 10px; background: var(--color-blue); color: #fff;
-    font-family: var(--font-sans); font-weight: 700; font-size: 13.5px; text-decoration: none;
-    transition: background 0.15s;
+  .pr-pass.accent-blue .pr-line-icon { background: var(--color-blue); }
+  .pr-pass.accent-red .pr-line-icon { background: var(--color-red); }
+  .pr-pass.accent-neutral .pr-line-icon { background: var(--color-paper-2); }
+  .pr-line-icon.tone-objectif { background: #fff; border: 1px solid var(--color-line); }
+  .pr-line-body { flex: 1; min-width: 0; }
+  .pr-line-head { display: flex; align-items: center; gap: 8px; }
+  .pr-line-head h3 { font-family: var(--font-sans); font-weight: 700; font-size: 15.5px; color: var(--color-ink); margin: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pr-line-body p { font-size: 12.5px; color: var(--color-muted); margin: 2px 0 0; line-height: 1.45;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pr-pill {
+    flex-shrink: 0; font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 8px; border-radius: 7px;
   }
-  .pr-panel-cta:hover { background: var(--color-blue-dark); }
+  .pill-active { background: rgba(22,143,91,0.14); color: var(--color-green); }
+  .pill-free { background: var(--color-paper-2); color: var(--color-muted); }
+  .pr-chevron { flex-shrink: 0; font-size: 22px; line-height: 1; color: var(--color-muted-2); font-weight: 400; }
 
-  /* ---- Titre de section ---- */
-  .pr-section-title h2 {
-    font-family: var(--font-display); font-weight: 600; font-size: 19px;
-    letter-spacing: -0.015em; color: var(--color-ink); margin: 0;
+  /* ---- Row groups ---- */
+  .pr-group { background: #fff; border: 1px solid var(--color-line); border-radius: 16px; overflow: hidden; }
+  .pr-row {
+    width: 100%; display: flex; align-items: center; gap: 14px; text-align: left;
+    background: none; border: none; cursor: pointer; padding: 14px 16px; font-family: inherit;
+    border-bottom: 1px solid var(--color-line-2); transition: background 0.15s;
   }
+  .pr-group .pr-row:last-child { border-bottom: none; }
+  .pr-row:hover { background: var(--color-blue-soft); }
+  .pr-row-icon {
+    width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 16px;
+    background: var(--color-blue-soft); color: var(--color-blue);
+  }
+  .pr-row-icon.tone-danger { background: var(--color-red-light); color: var(--color-red); }
+  .pr-row-icon.tone-muted { background: var(--color-paper-2); color: var(--color-muted); }
+  .pr-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .pr-row-title { font-family: var(--font-sans); font-weight: 700; font-size: 14.5px; color: var(--color-ink); }
+  .pr-row-danger .pr-row-title { color: var(--color-red); }
+  .pr-row-sub { font-size: 12px; color: var(--color-muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pr-row-danger:hover { background: var(--color-red-light); }
 
-  /* ---- Cartes paramètres ---- */
-  .pr-cards { display: grid; grid-template-columns: 1fr; gap: 14px; }
-  .pr-card {
-    text-align: left; background: #fff; border: 1px solid var(--color-line);
-    border-radius: 16px; padding: 18px; cursor: pointer; text-decoration: none;
-    font-family: inherit; display: flex; flex-direction: column;
-    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
-  }
-  .pr-card:hover { transform: translateY(-3px); border-color: var(--color-blue); box-shadow: 0 16px 38px -22px rgba(30,58,140,0.28); }
-  .pr-card-danger:hover { border-color: var(--color-red); box-shadow: 0 16px 38px -22px rgba(225,55,47,0.28); }
-  .pr-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .pr-card-icon {
-    width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
-    display: inline-flex; align-items: center; justify-content: center; font-size: 18px;
-  }
-  .pr-card-badge {
-    font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
-    text-transform: uppercase; color: var(--color-muted); background: var(--color-paper-2);
-    padding: 4px 9px; border-radius: 8px;
-  }
-  .pr-card h3 { font-family: var(--font-sans); font-weight: 700; font-size: 15px; color: var(--color-ink); margin: 0 0 4px; }
-  .pr-card p { font-size: 12.5px; color: var(--color-muted); line-height: 1.5; margin: 0 0 12px; flex: 1; }
-  .pr-card-cta { font-size: 13px; font-weight: 700; color: var(--color-blue); }
-  .pr-card-danger .pr-card-cta { color: var(--color-red); }
+  .pr-version { text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--color-muted-2); margin-top: 12px; }
 
-  .tone-blue { background: var(--color-blue-light); }
-  .tone-green { background: rgba(22,143,91,0.12); }
-  .tone-amber { background: rgba(232,163,23,0.16); }
-  .tone-red { background: var(--color-red-light); }
-
-  /* ---- Activité (mock-rows) ---- */
-  .pr-mock-row {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 0; border-bottom: 1px solid var(--color-line-2); text-decoration: none;
+  @media (min-width: 760px) {
+    .pr-hero { grid-template-columns: 1.4fr 1fr; align-items: center; padding: 30px; }
   }
-  .pr-mock-row:last-child { border-bottom: none; }
-  .pr-mock-body { flex: 1; min-width: 0; }
-  .pr-mock-body h3 { font-family: var(--font-sans); font-weight: 700; font-size: 14px; color: var(--color-ink); margin: 0 0 2px; }
-  .pr-mock-body p { font-size: 12.5px; color: var(--color-muted); line-height: 1.45; margin: 0; }
-  .pr-mock-btn {
-    flex-shrink: 0; padding: 8px 14px; border-radius: 9px; background: var(--color-blue); color: #fff;
-    font-family: var(--font-sans); font-weight: 700; font-size: 12.5px; transition: background 0.15s;
-  }
-  .pr-mock-row:hover .pr-mock-btn { background: var(--color-blue-dark); }
-
-  /* ---- Footnote / logout ---- */
-  .pr-footnote {
-    display: flex; flex-direction: column; gap: 12px; align-items: flex-start;
-    font-size: 13px; color: var(--color-muted); line-height: 1.5;
-  }
-  .pr-footnote a { color: var(--color-blue); font-weight: 600; text-decoration: none; }
-  .pr-footnote a:hover { text-decoration: underline; }
-  .pr-logout {
-    padding: 10px 18px; border-radius: 10px; border: 1px solid var(--color-line);
-    background: #fff; color: var(--color-red); font-family: var(--font-sans);
-    font-size: 13.5px; font-weight: 700; cursor: pointer; transition: all 0.15s;
-  }
-  .pr-logout:hover { border-color: var(--color-red); background: var(--color-red-light); }
-
-  @media (min-width: 560px) {
-    .pr-cards { grid-template-columns: 1fr 1fr; }
-  }
-  @media (min-width: 900px) {
-    .pr-hero { grid-template-columns: 1.5fr 1fr; align-items: stretch; padding: 30px; }
-    .pr-cols { grid-template-columns: 1.6fr 1fr; }
-    .pr-cards { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 420px) {
+    .pr-stats { gap: 8px; }
+    .pr-stat-value { font-size: 19px; }
+    .pr-id { flex-wrap: wrap; }
+    .pr-id-edit { width: 100%; text-align: center; }
   }
 `;
 
+const editStyles = `
+  .cm-sheet-wide { max-width: 520px; }
+  .cm-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .cm-head .cm-title { margin: 0; }
+  .cm-close {
+    background: none; border: none; cursor: pointer; font-size: 16px; color: var(--color-muted);
+    width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+  }
+  .cm-close:hover { background: var(--color-paper-2); color: var(--color-ink); }
+
+  .ed-label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--color-muted); margin: 18px 0 8px;
+  }
+  .ed-label:first-of-type { margin-top: 0; }
+  .ed-block {
+    background: var(--color-paper); border: 1px solid var(--color-line-2); border-radius: 14px; padding: 14px;
+  }
+  .ed-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 460px) { .ed-grid { grid-template-columns: 1fr; } }
+  .ed-field { display: flex; flex-direction: column; gap: 6px; }
+  .ed-field label {
+    font-family: var(--font-mono); font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--color-muted);
+  }
+  .ed-input {
+    font-family: var(--font-sans); font-size: 16px; color: var(--color-ink);
+    background: #fff; border: 1px solid var(--color-line); border-radius: 10px;
+    padding: 10px 12px; width: 100%; transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .ed-input:focus { outline: none; border-color: var(--color-blue); box-shadow: 0 0 0 3px var(--color-blue-soft); }
+  .ed-error { color: var(--color-red); font-size: 12.5px; margin: 10px 0 0; }
+  .ed-ok { color: var(--color-green); font-size: 12.5px; margin: 10px 0 0; line-height: 1.45; }
+  .ed-note { color: var(--color-muted); font-size: 12.5px; margin: 8px 0 0; line-height: 1.45; }
+  .ed-btn {
+    margin-top: 12px; background: var(--color-blue); color: #fff; border: none; cursor: pointer;
+    padding: 11px 18px; border-radius: 10px; font-family: var(--font-sans); font-weight: 700; font-size: 13.5px;
+    transition: background 0.15s;
+  }
+  .ed-btn:hover { background: var(--color-blue-dark); }
+  .ed-btn:disabled { opacity: 0.6; cursor: default; }
+  .ed-readline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .ed-readval { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--color-ink);
+    word-break: break-all; }
+  .ed-ghost {
+    background: #fff; border: 1px solid var(--color-line); cursor: pointer; flex-shrink: 0;
+    padding: 8px 14px; border-radius: 9px; font-family: var(--font-sans); font-weight: 700;
+    font-size: 12.5px; color: var(--color-blue); transition: border-color 0.15s;
+  }
+  .ed-ghost:hover { border-color: var(--color-blue); }
+  .ed-sub { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-line-2);
+    display: flex; flex-direction: column; gap: 12px; }
+  .ed-actions { display: flex; gap: 10px; justify-content: flex-end; }
+`;
+
 const modalStyles = `
-  .cm {
-    position: fixed; inset: 0;
-    z-index: 100;
-    display: flex; align-items: flex-end; justify-content: center;
-  }
-  .cm-backdrop {
-    position: absolute; inset: 0;
-    background: rgba(15, 24, 57, 0.55);
-    backdrop-filter: blur(4px);
-    animation: cm-fade 0.18s ease-out;
-  }
+  .cm { position: fixed; inset: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: center; }
+  .cm-backdrop { position: absolute; inset: 0; background: rgba(15, 24, 57, 0.55); backdrop-filter: blur(4px); animation: cm-fade 0.18s ease-out; }
   @keyframes cm-fade { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes cm-slide {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-  }
+  @keyframes cm-slide { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   .cm-sheet {
-    position: relative;
-    background: #fff;
-    border-radius: 22px 22px 0 0;
-    padding: 28px 28px 22px;
-    width: 100%;
-    max-width: 460px;
-    animation: cm-slide 0.22s ease-out;
+    position: relative; background: #fff; border-radius: 22px 22px 0 0; padding: 28px 28px 22px;
+    width: 100%; max-width: 460px; animation: cm-slide 0.22s ease-out;
     box-shadow: 0 -10px 50px -10px rgba(15, 24, 57, 0.25);
+    max-height: 92vh; overflow-y: auto;
   }
-  @media (min-width: 640px) {
-    .cm { align-items: center; }
-    .cm-sheet { border-radius: 18px; }
-  }
-  .cm-title {
-    font-family: var(--font-display); font-weight: 600;
-    font-size: 22px; letter-spacing: -0.02em;
-    color: var(--color-ink);
-    margin: 0 0 8px;
-  }
-  .cm-body {
-    font-size: 14px; line-height: 1.55;
-    color: var(--color-muted);
-    margin: 0 0 22px;
-  }
-  .cm-actions {
-    display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;
-  }
-  .cm-btn {
-    padding: 10px 16px;
-    border-radius: 10px;
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    border: 1px solid transparent;
-    transition: all 0.15s;
-  }
-  .cm-btn-ghost {
-    background: #fff;
-    border-color: var(--color-line);
-    color: var(--color-ink);
-  }
+  @media (min-width: 640px) { .cm { align-items: center; } .cm-sheet { border-radius: 18px; } }
+  .cm-title { font-family: var(--font-display); font-weight: 600; font-size: 22px; letter-spacing: -0.02em; color: var(--color-ink); margin: 0 0 8px; }
+  .cm-body { font-size: 14px; line-height: 1.55; color: var(--color-muted); margin: 0 0 22px; white-space: pre-line; }
+  .cm-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+  .cm-btn { padding: 10px 16px; border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; }
+  .cm-btn-ghost { background: #fff; border-color: var(--color-line); color: var(--color-ink); }
   .cm-btn-ghost:hover { border-color: var(--color-ink); }
-  .cm-btn-primary {
-    background: var(--color-blue);
-    color: #fff;
-  }
+  .cm-btn-primary { background: var(--color-blue); color: #fff; }
   .cm-btn-primary:hover { background: var(--color-blue-dark); }
-  .cm-btn-danger {
-    background: var(--color-red);
-    color: #fff;
-  }
+  .cm-btn-danger { background: var(--color-red); color: #fff; }
   .cm-btn-danger:hover { background: var(--color-red-dark); }
-  .cm-btn-neutral {
-    background: var(--color-ink);
-    color: #fff;
-  }
+  .cm-btn-neutral { background: var(--color-ink); color: #fff; }
   .cm-btn-neutral:hover { background: var(--color-ink-2); }
 `;

@@ -300,6 +300,35 @@ export const accountApi = {
             auth: true,
         });
     },
+
+    /** Met à jour l'identité (prénom / nom). `PATCH /api/me/profile`. */
+    updateProfile(firstName: string, lastName: string): Promise<void> {
+        return apiFetch<void>("/api/me/profile", {
+            method: "PATCH",
+            json: {firstName, lastName},
+            auth: true,
+        });
+    },
+
+    /** Change le mot de passe (compte LOCAL). `POST /api/me/change-password`. */
+    changePassword(currentPassword: string, newPassword: string): Promise<void> {
+        return apiFetch<void>("/api/me/change-password", {
+            method: "POST",
+            json: {currentPassword, newPassword},
+            auth: true,
+        });
+    },
+
+    /** Demande un changement d'email : un lien de vérification est envoyé au
+     *  nouvel email, l'ancien reste actif tant qu'il n'est pas confirmé.
+     *  `POST /api/me/change-email-request`. */
+    requestEmailChange(newEmail: string, currentPassword: string): Promise<void> {
+        return apiFetch<void>("/api/me/change-email-request", {
+            method: "POST",
+            json: {newEmail, currentPassword},
+            auth: true,
+        });
+    },
 };
 
 // ============================================================================
