@@ -149,8 +149,8 @@ class _PremiumView extends StatelessWidget {
       children: [
         _PassHeroCard(
           name: _isIntegral ? 'Pass Intégral' : 'Pass Civique',
-          accent: _isIntegral ? AppColors.red : AppColors.blue,
-          accentDeep: _isIntegral ? AppColors.redDark : AppColors.blueDark,
+          accent: AppColors.blue,
+          accentDeep: AppColors.blueDark,
           planLabel: plan?.name,
           ends: ends,
           remaining: remaining,
@@ -161,7 +161,6 @@ class _PremiumView extends StatelessWidget {
           AppButton(
             label: 'Prolonger mon pass',
             icon: LucideIcons.refreshCw,
-            variant: AppButtonVariant.accent,
             onPressed: onExtend,
           )
         else ...[
@@ -217,8 +216,8 @@ class _PremiumView extends StatelessWidget {
                     Container(
                       width: 22,
                       height: 22,
-                      decoration: BoxDecoration(
-                        color: _isIntegral ? AppColors.red : AppColors.blue,
+                      decoration: const BoxDecoration(
+                        color: AppColors.blue,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(LucideIcons.check,
