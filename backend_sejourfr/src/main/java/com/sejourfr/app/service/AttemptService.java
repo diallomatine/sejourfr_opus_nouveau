@@ -17,6 +17,7 @@ import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptType;
+import com.sejourfr.app.enums.AttemptStatus;
 import com.sejourfr.app.enums.Difficulty;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
@@ -71,6 +72,9 @@ public class AttemptService {
 
     private static final int TCF_EXAM_SIZE = 60;
     private static final int TCF_EXAM_TIME = 90 * 60;
+
+    /** Chrono global de l'épreuve EE en examen blanc (30 min, comme le vrai TCF IRN). */
+    private static final int PRODUCTION_EE_EXAM_SECONDS = 30 * 60;
 
     // Seuil de reussite par strate pour le calcul du niveau CECRL en TCF.
     // L'utilisateur "atteint" un niveau si son taux de bonnes reponses sur les
@@ -276,14 +280,33 @@ public class AttemptService {
         attempt.setEpreuve(req.epreuve());
         attempt.setParentAttempt(parent);
         attempt.setStartedAt(Instant.now());
-        // Session d'examen blanc production : marquée via slotNumber (examen 1).
-        // Les soumissions de cette session passent outre le quota d'entraînement.
+        // Session d'examen blanc production : marquée via slotNumber (slot de
+        // la grille 1-10, pilote la composition déterministe des sujets). Les
+        // soumissions de cette session passent outre le quota d'entraînement.
         if (isExamSession) {
-            attempt.setSlotNumber(1);
+            attempt.setSlotNumber(validateProductionExamSlot(req.slotNumber()));
         }
-        // Pas de QCM -> totalQuestions / timeLimit / threshold restent null.
+        // Session d'examen module EE : chrono global 30 min comme au vrai TCF
+        // IRN (enforcé backend — startedAt = vrai début de session). PAS posé
+        // sur les sous-attempts d'un examen complet : leur startedAt date de
+        // la création de l'examen (avant CO/CE), le décompte EE y est géré
+        // front-side dans l'enveloppe des 90 min du parent. L'EO n'a pas de
+        // chrono d'épreuve — temps de parole borné par tâche (duree_max_sec).
+        if (req.epreuve() == EpreuveType.TCF_EE && isExamSession) {
+            attempt.setTimeLimitSeconds(PRODUCTION_EE_EXAM_SECONDS);
+        }
+        // Pas de QCM -> totalQuestions / threshold restent null.
         attempt = attemptManager.save(attempt);
         return mapper.toResponse(attempt, List.of(), false);
+    }
+
+    private static int validateProductionExamSlot(Integer slot) {
+        if (slot == null) return 1;
+        if (slot < 1 || slot > ProductionExamCompositionService.EXAM_SLOTS_PER_EPREUVE) {
+            throw new BusinessException("slotNumber doit être entre 1 et "
+                    + ProductionExamCompositionService.EXAM_SLOTS_PER_EPREUVE + ".");
+        }
+        return slot;
     }
 
     /**
@@ -1035,6 +1058,20 @@ public class AttemptService {
 
     private AttemptResponse doFinish(Attempt attempt) {
         UUID attemptId = attempt.getId();
+
+        // Attempts production (EE/EO) : pas de questions ni de score QCM — on
+        // pose juste finishedAt + TERMINE. Appelé par les fronts à la fin
+        // d'une session d'examen production (ou à l'expiration du chrono EE) ;
+        // le bilan comptera les tâches non rendues à 0 (ProductionBilanService).
+        if (attempt.getEpreuve() == EpreuveType.TCF_EE || attempt.getEpreuve() == EpreuveType.TCF_EO) {
+            if (attempt.getFinishedAt() == null) {
+                attempt.setFinishedAt(Instant.now());
+                attempt.setStatus(AttemptStatus.TERMINE);
+                attemptManager.save(attempt);
+            }
+            return mapper.toResponse(attempt, List.of(), true);
+        }
+
         List<AttemptQuestion> aqs = attemptQuestionManager.findByAttemptOrderedByPosition(attemptId);
 
         if (attempt.getFinishedAt() != null) {

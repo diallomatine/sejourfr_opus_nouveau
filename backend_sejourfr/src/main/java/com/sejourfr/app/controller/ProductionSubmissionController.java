@@ -1,6 +1,8 @@
 package com.sejourfr.app.controller;
 
+import com.sejourfr.app.dto.ProductionBilanResponse;
 import com.sejourfr.app.dto.ProductionSubmissionDto;
+import com.sejourfr.app.dto.ProductionTaskDto;
 import com.sejourfr.app.dto.SubmitProductionTextRequest;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.service.ProductionSubmissionService;
@@ -55,6 +57,26 @@ public class ProductionSubmissionController {
     @GetMapping("/api/production-submissions/{id}")
     public ProductionSubmissionDto detail(@PathVariable UUID id) {
         return productionSubmissionService.getOwnDetail(id);
+    }
+
+    /**
+     * Bilan serveur d'une session production EE/EO. Le niveau CECRL d'epreuve
+     * n'est rempli que pour une session d'examen blanc entierement evaluee
+     * (ou terminee : taches manquantes comptees 0).
+     */
+    @GetMapping("/api/attempts/{attemptId}/production-bilan")
+    public ProductionBilanResponse bilan(@PathVariable UUID attemptId) {
+        return productionSubmissionService.bilan(attemptId);
+    }
+
+    /**
+     * Composition deterministe d'une session d'examen blanc production : les
+     * 3 sujets (T1, T2, T3) de l'attempt — module (bandes A2/B1/B2 par slot)
+     * ou sous-epreuve d'un examen TCF complet (niveau cible du user).
+     */
+    @GetMapping("/api/attempts/{attemptId}/production-exam-tasks")
+    public List<ProductionTaskDto> examTasks(@PathVariable UUID attemptId) {
+        return productionSubmissionService.examTasks(attemptId);
     }
 
     /** Historique de l'utilisateur, optionnellement filtre par epreuve. */

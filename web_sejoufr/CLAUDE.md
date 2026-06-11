@@ -97,8 +97,13 @@ app/
 │   │                              #   (statement, choix résolus, explanation, toggle favori)
 │   ├── historique/page.tsx       # ★ liste examens MOCK_EXAM passés, header résumé (taux moyen),
 │   │                              #   graphique custom SVG (barres + ligne seuil), clic → /sessions/<id>
-│   ├── profil/page.tsx           # ★ vue compte : identité, parcours (tile cliquable), abonnement,
-│   │                              #   sécurité (mdp via /mot-de-passe-oublie, suppr compte stub), logout
+│   ├── profil/page.tsx           # ★ profil (parité onglet Profil mobile, design web) : hero
+│   │                              #   éditorial + identité, 3 stat cards (maîtrise/série/niveau via
+│   │                              #   /api/me/dashboard), « Mon pass » (subscription-status →
+│   │                              #   /profil/abonnement|/paiement), « Mon objectif » → /parcours,
+│   │                              #   « Mes informations » = modale d'édition (identité PATCH + email
+│   │                              #   change-request + mot de passe change), suppr compte, logout.
+│   │                              #   Sans date d'examen / plan de révision / centre d'aide / reset
 │   ├── parcours/page.tsx         # ★ édition target path (CSP/CR/NAT) avec cards radio + niveau TCF
 │   │                              #   dérivé. Sert d'onboarding si user.targetProcedure manquant.
 │   │                              #   Support ?from=<route> pour retour.
@@ -313,25 +318,26 @@ Intégral × mensuel / trimestriel / annuel.
 **Backend** : géré dans le lot 4 (cf. `CLAUDE.md` racine — Stripe Subscription
 mode, `customer.subscription.*` webhooks, `plans.stripe_price_id` en DB).
 
-## Résiliation d'abonnement
+## « Mon pass » (détail de l'accès — lot 5, achat unique)
 
-Page `app/(app)/profil/abonnement/page.tsx` (route `/profil/abonnement`)
-accessible depuis le CTA « Gérer mon abonnement » du `/profil` quand
-`user.isPremium`. La page fetch `billingApi.getSubscriptionStatus()` au
-montage et affiche plan + source + date + CTA **Résilier mon abonnement**
-en rouge avec confirmation modal locale.
+Page `app/(app)/profil/abonnement/page.tsx` (route `/profil/abonnement`),
+parité avec l'écran mobile `manage_subscription_screen.dart`. Accessible
+depuis la carte « Mon pass » du `/profil` quand `user.isPremium`. La page
+fetch `billingApi.getSubscriptionStatus()` + `billingApi.listPlans()` au
+montage et affiche :
 
-Routing décidé côté backend selon la source :
+- **carte pass gradient** (« PASS ACTIF », nom du pass, formule, barre de
+  jours restants = `daysUntil(expiresAt) / plan.durationDays`, date d'expiration) ;
+- **détails** (Formule / Périmètre / Géré par / Expire le) ;
+- **inclusions** (liste Civique ou Intégral) ;
+- **prolongation / upgrade** via `/paiement?module=CIVIQUE|INTEGRAL`.
 
-- **Stripe** → `action=DONE`. On appelle `useAuth().refreshUser()` puis
-  re-fetch le status pour refléter `status=CANCELED` immédiatement.
-- **Apple/Google** → `action=REDIRECT`. On ouvre `redirectUrl` dans un
-  nouvel onglet (`window.open(..., '_blank', 'noopener,noreferrer')`).
-  Le statut local ne bascule qu'à réception du webhook du store.
-
-Helpers ajoutés à `billingApi` (`lib/api.ts`) : `getSubscriptionStatus()`
-et `cancel()`. Types miroirs `SubscriptionStatusResponse` et
-`CancelSubscriptionResponse` dans `lib/types.ts`.
+**Aucune résiliation** : un pass est payé une fois, sans renouvellement
+automatique — il n'y a rien à annuler (les durées se cumulent à chaque
+rachat). `billingApi.cancel()` et `CancelSubscriptionResponse` restent
+définis (mode abonnement dormant, cf. réversibilité racine) mais ne sont
+plus consommés par cette page. Le plan courant est retrouvé via
+`status.productId` (Stripe = `Plan.code`, mobile = apple/googleProductId).
 
 ## Stratégie produit — parité fonctionnelle avec le mobile
 
@@ -636,7 +642,7 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
       **S'exercer + Examens** (comme CO/CE). `ProductionHub` = « Choisissez
       votre tâche » (3 cards T1/T2/T3 façon LevelChoiceCard, donut = dernière
       note ×5, + carte historique) — l'examen blanc n'y figure plus.
-      `ProductionExams` = grille de **20 examens** (3 stat cards : passés /
+      `ProductionExams` = grille de **10 examens** (3 stat cards : passés /
       meilleure note moyenne / niveau CECRL plancher du meilleur essai ;
       Rapport → `{base}/session/{attemptId}` via `ExamsGrid.reportPath`,
       Refaire = nouvelle session, premium-only via `freeSlots=0`).
@@ -644,6 +650,32 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
       (cards niveau cible). `ExamsGrid` accepte `ExamSlotData` minimal ;
       `LevelChoiceCard.footLabel` ; HubParts réduit à SectionLabel +
       HubDetailHeader (ExamBlancHero/SectionCounter/SectionLink supprimés).
+
+    - **Examen blanc production EE/EO (composition déterministe + chrono)** :
+      la session (`ProductionSession`) ne compose plus les 3 tâches via
+      `listTasks` + premier sujet (les 10 examens étaient identiques). Elle
+      lit l'**attempt** (`attemptApi.get` → `startedAt` + `timeLimitSeconds`)
+      et `productionApi.getExamTasks(attemptId)`
+      (`GET /api/attempts/{id}/production-exam-tasks` → exactement 3
+      `ProductionTaskDto` T1/T2/T3 ordonnés, composition backend par slot).
+      `ProductionExams` passe `slotNumber` (1..10) au start
+      (`startAttempt({exam:true, slotNumber})`) ; la grille est **indexée par
+      slot** via `bilan.slotNumber` (anciennes sessions sans slot → slot 1).
+      Difficulté progressive par slot (1-3 A2 / 4-6 B1 / 7-10 B2), légende
+      `bandLegend`. **Chrono EE 30:00** ancré sur
+      `startedAt + timeLimitSeconds` backend (survit au refresh ; repli
+      30 min front pour les sous-épreuves EE d'examen complet où
+      `timeLimitSeconds` est null) ; alerte rouge sous 5 min ; à 0:00
+      auto-soumission du texte courant si recevable
+      (mots ∈ [`motsMin`, `motsMax`×1.2]) puis `attemptApi.finish` puis bilan.
+      **EO en examen** (`EoRecordingForm examMode`) : décompte par tâche
+      (`dureeMaxSec`), auto-stop à 0, soumission immédiate au stop (pas de
+      réécoute). Fin normale (T3) et abandon (navigation sortante) →
+      `attemptApi.finish`. `ProductionBilanResponse` gagne `slotNumber` +
+      `finished` : en `finished` avec < 3 tâches évaluées, le bilan affiche
+      « Non rendue » (pas de polling infini) et le niveau global dès qu'il
+      arrive. Examen TCF complet : même endpoint `getExamTasks`, EE à 0:00 →
+      `fullTcfExamApi.markSubDone(TCF_EE)` + retour au hub.
     - **`/historique` refondu** : « Mes résultats » — 3 stat cards (examens
       passés ce mois-ci, score moyen, meilleur score), filtres Tous / TCF
       IRN / Examen civique, lignes d'examens blancs finis (icône catégorie,
@@ -760,12 +792,16 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
 Côté Spring, ces endpoints n'existent pas encore et leur absence est gérée par
 des stubs/fallbacks côté web :
 
-- `PATCH /api/me/profile` (firstName/lastName) — non utilisé pour l'instant,
-  les champs sont en lecture seule sur `/profil`.
-- `POST /api/me/change-password` — workaround actuel : la page profil envoie
-  vers `/mot-de-passe-oublie` qui utilise le flow par email.
 - `POST /api/auth/logout` (révocation serveur du refresh token) — actuellement
   on clear juste le storage côté client.
+
+**Édition du profil (branchée)** : `/profil` édite l'identité, l'email et le
+mot de passe via la modale « Mes informations » (`accountApi.updateProfile` →
+`PATCH /api/me/profile`, `accountApi.requestEmailChange` →
+`POST /api/me/change-email-request` avec vérif par lien mail,
+`accountApi.changePassword` → `POST /api/me/change-password`). Comptes
+Google/Apple : email + mot de passe en lecture seule (gérés côté provider).
+Parité avec l'écran mobile `personal_info_screen.dart`.
 
 **Suppression de compte (branchée)** : `DELETE /api/account` (anonymisation
 backend) est appelé depuis la carte « Supprimer mon compte » du `/profil` via

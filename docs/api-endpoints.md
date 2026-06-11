@@ -72,6 +72,17 @@ Cf. `exams-tcf.md`.
 - `GET /api/users/me/production-submissions/last-per-task?epreuve=...&niveau=...`
   → dernière submission de l'utilisateur par numéro de tâche (0 à 3 lignes), utilisé par le hub
   mobile.
+- `GET /api/attempts/{attemptId}/production-bilan` → bilan serveur d'une session EE/EO
+  (`ProductionBilanResponse`, avec `slotNumber` + `finished`) ; `niveauGlobal` rempli pour
+  une session d'examen blanc entièrement évaluée, ou terminée (tâches manquantes comptées
+  0) — jamais de niveau CECRL en entraînement.
+- `GET /api/attempts/{attemptId}/production-exam-tasks` → les 3 sujets (T1-T3) composés
+  déterministiquement pour une session d'examen production (module ou sous-épreuve d'un
+  examen complet). 400 sur un entraînement libre.
+- `POST /api/attempts/production` accepte `slotNumber` (1-10) avec `exam=true` ; l'attempt
+  EE d'examen module porte `timeLimitSeconds=1800` (chrono 30 min enforcé à la soumission).
+- `POST /api/attempts/{id}/finish` fonctionne sur les attempts production (pose
+  `finishedAt` ; les soumissions suivantes sont refusées).
 
 Cf. `pipeline-evaluation-eo-ee.md`.
 

@@ -7,11 +7,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
-import '../../core/auth/auth_controller.dart';
 import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/query_propagation.dart';
 import '../../core/widgets/app_button.dart';
+import '../question_runner/widgets/exam_timer.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'draft_service.dart';
 import 'ee_session_controller.dart';
@@ -19,6 +19,11 @@ import 'widgets/consigne_card.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
 import 'widgets/writing_zone.dart';
+
+/// Durée de l'examen EE complet (30 min), comme côté backend pour le module.
+/// Utilisée côté front pour le sous-attempt EE d'un examen TCF complet, qui
+/// n'expose pas de `timeLimitSeconds`.
+const int _eeExamDurationSeconds = 1800;
 
 /// Briefing + zone d'ecriture combines (un seul long scroll), aligne sur
 /// le mockup `EE · 01` de sejourfr_mobile_v3.html.
@@ -44,39 +49,22 @@ class _EeBriefingWritingScreenState
   String? _loadedForTaskId;
   bool _wasFocused = false;
 
-  String _niveauForUser() {
-    final auth = ref.read(authControllerProvider);
-    if (auth is AuthAuthenticated) {
-      final tp = auth.user.targetProcedure;
-      if (tp != null) return tp.tcfLevel;
-    }
-    return 'B1';
-  }
-
   @override
   void initState() {
     super.initState();
     _writingFocusNode.addListener(_onFocusChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Contexte examen blanc complet : sous-attempt EE déjà créé par le
-      // backend, on le reprend au lieu d'en créer un nouveau. Sinon flow
-      // standard 3-tâches autonome.
+      // backend, on le reprend au lieu d'en créer un nouveau. Sinon la session
+      // (examen module via `startExam`, ou sujet unique via `startSingle`) est
+      // déjà démarrée par l'écran appelant — on la respecte, pas de fallback.
       final goState = GoRouterState.of(context);
       final fullExamId = goState.uri.queryParameters['fullExamId'];
       final subAttemptId = goState.uri.queryParameters['subAttemptId'];
       if (fullExamId != null && subAttemptId != null) {
-        ref.read(eeSessionProvider.notifier).startInFullExam(
-              subAttemptId: subAttemptId,
-              niveau: _niveauForUser(),
-            );
-      } else {
-        // Une session déjà en cours (ex: sujet unique lancé via startSingle
-        // depuis la fiche) est respectée — on ne la remplace pas par un
-        // examen 3-tâches. On ne démarre que s'il n'y a rien (deep-link).
-        final current = ref.read(eeSessionProvider).value;
-        if (current == null || !current.isStarted || current.isCompleted) {
-          ref.read(eeSessionProvider.notifier).start(niveau: _niveauForUser());
-        }
+        ref
+            .read(eeSessionProvider.notifier)
+            .startInFullExam(subAttemptId: subAttemptId);
       }
     });
   }
@@ -221,10 +209,9 @@ class _EeBriefingWritingScreenState
       if (isExamMode) {
         // Mode session 3-tâches (onglet Examens) : pas d'évaluation visible
         // entre T1/T2/T3, fidèle au vrai TCF. On enchaîne directement le
-        // briefing suivant ; après T3 on push le bilan détaillé
-        // (`HistorySessionScreen` en mode `live=1`) qui pollera les
-        // évaluations IA Claude et permettra de tapoter chaque tâche pour
-        // voir son rapport complet.
+        // briefing suivant ; après T3 on FINALISE l'attempt (`/finish`) avant
+        // de push le bilan détaillé (`HistorySessionScreen` en mode `live=1`)
+        // qui pollera les évaluations IA Claude.
         if (hasNext) {
           context.pushReplacement(
             withCurrentQuery(
@@ -234,6 +221,8 @@ class _EeBriefingWritingScreenState
           );
         } else {
           final attemptId = session.attempt!.id;
+          await ref.read(eeSessionProvider.notifier).finishAttemptIfExam();
+          if (!mounted) return;
           context.pushReplacement(
             '/tcf/expression-ecrite/sessions/$attemptId?live=1',
           );
@@ -253,6 +242,111 @@ class _EeBriefingWritingScreenState
         _submitError = ApiClient.toApiException(e).message;
       });
     }
+  }
+
+  /// Chrono d'examen écoulé (30:00). On auto-soumet le texte courant **s'il est
+  /// recevable** (mots dans [motsMin, motsMax×1.2]), sinon on ne soumet rien ;
+  /// puis on finalise (module → `/finish`, full exam → `markSubDone`) et on
+  /// navigue vers le bilan. Idempotent contre un double-déclenchement.
+  bool _timedOut = false;
+  Future<void> _handleTimeout(ProductionTaskDto task) async {
+    if (_timedOut || !mounted) return;
+    _timedOut = true;
+    final wordCount = _countWords(_controller.text);
+    final recevable = task.motsMin != null &&
+        task.motsMax != null &&
+        wordCount >= task.motsMin! &&
+        wordCount <= (task.motsMax! * 1.2).floor();
+
+    final goState = GoRouterState.of(context);
+    final fullExamId = goState.uri.queryParameters['fullExamId'];
+
+    if (recevable) {
+      try {
+        await ref.read(eeSessionProvider.notifier).submitTask(
+              taskIndex: widget.taskIndex,
+              texte: _controller.text,
+            );
+        await ref.read(eeDraftServiceProvider).clear(task.id);
+      } catch (_) {
+        /* soumission best-effort à l'expiration */
+      }
+    }
+    if (!mounted) return;
+
+    if (fullExamId != null) {
+      try {
+        await ref.read(fullTcfExamRepositoryProvider).markSubDone(
+              parentAttemptId: fullExamId,
+              epreuveWire: 'TCF_EE',
+            );
+      } catch (_) {/* hook auto backend fallback */}
+      if (!mounted) return;
+      final id = ref.read(eeSessionProvider).value?.attempt?.id;
+      ref.read(eeSessionProvider.notifier).reset();
+      if (id != null) ref.invalidate(fullTcfExamProvider(fullExamId));
+      context.go('/tcf/examen-blanc/$fullExamId');
+      return;
+    }
+
+    final attemptId = ref.read(eeSessionProvider).value?.attempt?.id;
+    await ref.read(eeSessionProvider.notifier).finishAttemptIfExam();
+    if (!mounted || attemptId == null) return;
+    context.pushReplacement(
+      '/tcf/expression-ecrite/sessions/$attemptId?live=1',
+    );
+  }
+
+  /// Abandon confirmé en cours d'examen → finalise (la copie ramassée comptera
+  /// les tâches manquantes à 0) puis sort. En entraînement libre, on garde le
+  /// flux brouillon (pas de finish).
+  Future<bool> _confirmQuitExam() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Quitter l\'examen ?'),
+        content: const Text(
+          'Votre examen sera terminé. Les tâches non rendues seront comptées comme non faites.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Continuer'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Quitter',
+              style: AppFonts.ui(weight: FontWeight.w700, color: AppColors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
+  }
+
+  Future<void> _quitExam(String fallbackRoute) async {
+    if (!await _confirmQuitExam()) return;
+    if (!mounted) return;
+    final goState = GoRouterState.of(context);
+    final fullExamId = goState.uri.queryParameters['fullExamId'];
+    if (fullExamId != null) {
+      try {
+        await ref.read(fullTcfExamRepositoryProvider).markSubDone(
+              parentAttemptId: fullExamId,
+              epreuveWire: 'TCF_EE',
+            );
+      } catch (_) {/* hook auto backend fallback */}
+    } else {
+      await ref.read(eeSessionProvider.notifier).finishAttemptIfExam();
+    }
+    ref.read(eeSessionProvider.notifier).reset();
+    if (!mounted) return;
+    if (fullExamId != null) {
+      ref.invalidate(fullTcfExamProvider(fullExamId));
+    }
+    context.go(fallbackRoute);
   }
 
   Future<void> _saveDraftAndQuit(
@@ -296,58 +390,78 @@ class _EeBriefingWritingScreenState
     final fullExamId = goState.uri.queryParameters['fullExamId'];
     final fallbackRoute =
         fullExamId != null ? '/tcf/examen-blanc/$fullExamId' : '/tcf/ee';
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      resizeToAvoidBottomInset: true,
-      appBar: ProductionAppHeader(
-        title: 'Expression écrite',
-        fallbackRoute: fallbackRoute,
-        rightAction: ProductionAppHeaderInfo(
-          onPressed: () => _showConfidentialitySheet(context),
+    final session = sessionAsync.value;
+    final isExam = session?.isExam ?? false;
+    return PopScope(
+      // En examen, on intercepte le retour pour confirmer l'abandon + finaliser
+      // (copie ramassée). En entraînement libre, le flux brouillon est conservé
+      // (pas de PopScope bloquant).
+      canPop: !isExam,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop || !isExam) return;
+        await _quitExam(fallbackRoute);
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.white,
+        resizeToAvoidBottomInset: true,
+        appBar: ProductionAppHeader(
+          title: 'Expression écrite',
+          fallbackRoute: fallbackRoute,
+          onBack: isExam ? () => _quitExam(fallbackRoute) : null,
+          rightAction: ProductionAppHeaderInfo(
+            onPressed: () => _showConfidentialitySheet(context),
+          ),
         ),
-      ),
-      body: sessionAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => _ErrorBox(
-          message: ApiClient.toApiException(e).message,
-          onRetry: () {
-            final goState = GoRouterState.of(context);
-            final fullExamId = goState.uri.queryParameters['fullExamId'];
-            final subAttemptId = goState.uri.queryParameters['subAttemptId'];
-            if (fullExamId != null && subAttemptId != null) {
-              ref.read(eeSessionProvider.notifier).startInFullExam(
-                    subAttemptId: subAttemptId,
-                    niveau: _niveauForUser(),
-                  );
-            } else {
-              ref
-                  .read(eeSessionProvider.notifier)
-                  .start(niveau: _niveauForUser());
+        body: sessionAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => _ErrorBox(
+            message: ApiClient.toApiException(e).message,
+            onRetry: () {
+              final goState = GoRouterState.of(context);
+              final fullExamId = goState.uri.queryParameters['fullExamId'];
+              final subAttemptId = goState.uri.queryParameters['subAttemptId'];
+              if (fullExamId != null && subAttemptId != null) {
+                ref
+                    .read(eeSessionProvider.notifier)
+                    .startInFullExam(subAttemptId: subAttemptId);
+              }
+            },
+          ),
+          data: (session) {
+            final task = session.taskAt(widget.taskIndex);
+            if (!session.isStarted || task == null) {
+              return const Center(child: CircularProgressIndicator());
             }
+            _loadDraftIfNeeded(task);
+            // Chrono EE 30:00 : module → ancre backend (`attempt.startedAt` +
+            // `timeLimitSeconds`) ; examen complet → ancre front
+            // (`attempt.startedAt` posé à `startInFullExam`), durée 1800 s.
+            final examTimer = session.isExam
+                ? ExamTimer(
+                    durationSeconds: session.attempt!.timeLimitSeconds ??
+                        _eeExamDurationSeconds,
+                    startedAt: session.attempt!.startedAt,
+                    onElapsed: () => _handleTimeout(task),
+                  )
+                : null;
+            return _Content(
+              task: task,
+              session: session,
+              taskIndex: widget.taskIndex,
+              controller: _controller,
+              focusNode: _writingFocusNode,
+              scrollController: _scrollController,
+              wordCount: _countWords(_controller.text),
+              onChanged: (v) => _onTextChanged(v, task),
+              onSubmit: () => _submit(task),
+              onSaveDraftAndQuit: () => _saveDraftAndQuit(context, task),
+              onClear: () => _clearText(task),
+              submitError: _submitError,
+              submitting: _submitting,
+              examTimer: examTimer,
+            );
           },
         ),
-        data: (session) {
-          final task = session.taskAt(widget.taskIndex);
-          if (!session.isStarted || task == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          _loadDraftIfNeeded(task);
-          return _Content(
-            task: task,
-            session: session,
-            taskIndex: widget.taskIndex,
-            controller: _controller,
-            focusNode: _writingFocusNode,
-            scrollController: _scrollController,
-            wordCount: _countWords(_controller.text),
-            onChanged: (v) => _onTextChanged(v, task),
-            onSubmit: () => _submit(task),
-            onSaveDraftAndQuit: () => _saveDraftAndQuit(context, task),
-            onClear: () => _clearText(task),
-            submitError: _submitError,
-            submitting: _submitting,
-          );
-        },
       ),
     );
   }
@@ -368,6 +482,7 @@ class _Content extends StatelessWidget {
     required this.wordCount,
     required this.submitting,
     this.submitError,
+    this.examTimer,
   });
 
   final ProductionTaskDto task;
@@ -384,6 +499,9 @@ class _Content extends StatelessWidget {
   final bool submitting;
   final String? submitError;
 
+  /// Chrono décompte d'examen (non-null en session d'examen blanc EE).
+  final Widget? examTimer;
+
   bool get _inRange =>
       task.motsMin != null &&
       task.motsMax != null &&
@@ -399,6 +517,7 @@ class _Content extends StatelessWidget {
           total: session.totalTasks,
           niveau: task.niveauCible,
           subtitle: task.displayTitle,
+          trailing: examTimer,
         ),
         Expanded(
           child: ListView(
@@ -435,26 +554,30 @@ class _Content extends StatelessWidget {
                 isLoading: submitting,
                 onPressed: (_inRange && !submitting) ? onSubmit : null,
               ),
-              const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: onSaveDraftAndQuit,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                  side: const BorderSide(color: AppColors.blue),
-                  foregroundColor: AppColors.blue,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              // Le brouillon n'existe qu'en entraînement libre : en examen
+              // chronométré, pas de "mise de côté".
+              if (!session.isExam) ...[
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: onSaveDraftAndQuit,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                    side: const BorderSide(color: AppColors.blue),
+                    foregroundColor: AppColors.blue,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    'Enregistrer le brouillon',
+                    style: AppFonts.ui(
+                      size: 15,
+                      weight: FontWeight.w700,
+                      color: AppColors.blue,
+                    ),
                   ),
                 ),
-                child: Text(
-                  'Enregistrer le brouillon',
-                  style: AppFonts.ui(
-                    size: 15,
-                    weight: FontWeight.w700,
-                    color: AppColors.blue,
-                  ),
-                ),
-              ),
+              ],
             ],
           ),
         ),

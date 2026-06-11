@@ -557,6 +557,12 @@ public class ProductionEvaluationProperties {
         private double seuilB1 = 12.0;
         /** competence >= seuilA2 -> A2 ; < seuilA2 (mais > 0) -> A1 ; hors-sujet -> A1_NON_ATTEINT. */
         private double seuilA2 = 7.0;
+        /**
+         * Poids des taches dans le bilan d'epreuve en examen (index = tacheNumero - 1).
+         * Croissants comme la ponderation officielle TCF : la tache courte (T1) pese
+         * moins que l'argumentation (T3). Cf. {@code ProductionBilanService}.
+         */
+        private java.util.List<Double> poidsTaches = java.util.List.of(1.0, 2.0, 3.0);
 
         public java.util.List<String> getSourceCriteres() {
             return sourceCriteres;
@@ -588,6 +594,14 @@ public class ProductionEvaluationProperties {
 
         public void setSeuilA2(double seuilA2) {
             this.seuilA2 = seuilA2;
+        }
+
+        public java.util.List<Double> getPoidsTaches() {
+            return poidsTaches;
+        }
+
+        public void setPoidsTaches(java.util.List<Double> poidsTaches) {
+            this.poidsTaches = poidsTaches;
         }
     }
 }

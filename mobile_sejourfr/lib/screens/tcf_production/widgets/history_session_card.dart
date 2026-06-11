@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../../core/models/enums.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
-import 'level_pill.dart';
 import 'task_palette.dart';
 
 /// Pastille circulaire en tête de carte d'historique : numéro de tâche (T1
@@ -66,19 +64,6 @@ class HistorySessionCard extends StatelessWidget {
     return notes.reduce((a, b) => a + b) / notes.length;
   }
 
-  NiveauCecrl? _modeNiveau() {
-    final counts = <NiveauCecrl, int>{};
-    for (final s in submissions) {
-      final n = s.evaluation?.niveauCecrl;
-      if (n != null) counts[n] = (counts[n] ?? 0) + 1;
-    }
-    if (counts.isEmpty) return null;
-    final max = counts.values.reduce((a, b) => a > b ? a : b);
-    final tops = counts.entries.where((e) => e.value == max).toList()
-      ..sort((a, b) => a.key.scaleIndex.compareTo(b.key.scaleIndex));
-    return tops.last.key;
-  }
-
   DateTime _lastSubmittedAt() {
     return submissions
         .map((s) => s.submittedAt)
@@ -108,7 +93,6 @@ class HistorySessionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final avg = _avgScore();
-    final niveau = _modeNiveau();
     final date = _lastSubmittedAt();
     final completed = submissions.where((s) => s.evaluation != null).length;
     final total = submissions.length;
@@ -221,16 +205,8 @@ class HistorySessionCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (niveau != null) LevelPill(level: niveau),
-                    const SizedBox(height: 8),
-                    const Icon(LucideIcons.chevronRight,
-                        size: 20, color: AppColors.muted2),
-                  ],
-                ),
+                const Icon(LucideIcons.chevronRight,
+                    size: 20, color: AppColors.muted2),
               ],
             ),
           ),

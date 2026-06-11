@@ -65,12 +65,16 @@ export function EoRecordingForm({
   submitting,
   error,
   submitLabel = "Soumettre à l'évaluation",
+  examMode = false,
   onSubmit,
 }: {
   task: ProductionTaskDto;
   submitting: boolean;
   error?: string | null;
   submitLabel?: string;
+  /** En examen blanc : décompte par tâche (dureeMaxSec), auto-stop à 0 et
+   *  soumission immédiate au stop (manuel ou auto) — pas d'étape de réécoute. */
+  examMode?: boolean;
   onSubmit: (audio: Blob, durationSec: number) => void;
 }) {
   const [phase, setPhase] = useState<"idle" | "recording" | "recorded">("idle");
@@ -88,6 +92,10 @@ export function EoRecordingForm({
   const chunksRef = useRef<Blob[]>([]);
   const blobRef = useRef<Blob | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // En examen, on soumet directement au stop : ce ref retient la durée réelle
+  // au moment de l'arrêt (l'`onstop` du MediaRecorder est asynchrone).
+  const submitOnStopRef = useRef(false);
+  const stopElapsedRef = useRef(0);
 
   // Nettoyage : stoppe le flux micro + révoque l'URL à la destruction.
   useEffect(() => {
@@ -167,19 +175,37 @@ export function EoRecordingForm({
       rec.onstop = () => {
         const blob = new Blob(chunksRef.current, {type: rec.mimeType || "audio/webm"});
         blobRef.current = blob;
+        streamRef.current?.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        if (submitOnStopRef.current) {
+          // Examen : soumission immédiate (manuel ou auto-stop), pas de réécoute.
+          submitOnStopRef.current = false;
+          setPhase("recorded");
+          onSubmit(blob, stopElapsedRef.current);
+          return;
+        }
         setAudioUrl((prev) => {
           if (prev) URL.revokeObjectURL(prev);
           return URL.createObjectURL(blob);
         });
         setPhase("recorded");
-        streamRef.current?.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
       };
       recorderRef.current = rec;
       rec.start();
       setElapsed(0);
       setPhase("recording");
-      timerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000);
+      timerRef.current = setInterval(
+        () =>
+          setElapsed((e) => {
+            const next = e + 1;
+            // Examen : auto-stop quand la durée max est atteinte.
+            if (examMode && task.dureeMaxSec != null && next >= task.dureeMaxSec) {
+              stopExam(next);
+            }
+            return next;
+          }),
+        1000,
+      );
     } catch (e) {
       const name = typeof e === "object" && e && "name" in e ? String((e as {name?: unknown}).name) : "";
       const message =
@@ -193,6 +219,19 @@ export function EoRecordingForm({
 
   function stop() {
     if (timerRef.current) clearInterval(timerRef.current);
+    if (examMode) {
+      stopExam(elapsed);
+      return;
+    }
+    recorderRef.current?.stop();
+  }
+
+  /** Arrête l'enregistrement en mode examen → soumission immédiate dans `onstop`. */
+  function stopExam(durationSec: number) {
+    if (submitOnStopRef.current) return;
+    if (timerRef.current) clearInterval(timerRef.current);
+    submitOnStopRef.current = true;
+    stopElapsedRef.current = durationSec;
     recorderRef.current?.stop();
   }
 
@@ -209,8 +248,22 @@ export function EoRecordingForm({
   const min = task.dureeMinSec;
   const max = task.dureeMaxSec;
   const inRange = (min == null || elapsed >= min) && (max == null || elapsed <= max);
-  const timerClass =
-    phase === "idle" ? "" : inRange ? styles.timerOk : styles.timerWarn;
+  // En examen, le chrono décompte la durée restante (auto-stop à 0) ; sinon il
+  // chronomètre simplement le temps écoulé.
+  const examCountdown = examMode && max != null;
+  const shownSec = examCountdown ? Math.max(0, max - elapsed) : elapsed;
+  const examUrgent = examCountdown && phase === "recording" && shownSec <= 15;
+  const timerClass = examCountdown
+    ? phase === "recording"
+      ? examUrgent
+        ? styles.timerWarn
+        : styles.timerOk
+      : ""
+    : phase === "idle"
+      ? ""
+      : inRange
+        ? styles.timerOk
+        : styles.timerWarn;
   const rangeLabel =
     min != null && max != null
       ? `${formatDurationSec(min)} – ${formatDurationSec(max)}`
@@ -266,7 +319,7 @@ export function EoRecordingForm({
       <EoTranscriptNotice />
 
       <div className={styles.recorder}>
-        <div className={`${styles.timerBig} ${timerClass}`}>{fmtTimer(elapsed)}</div>
+        <div className={`${styles.timerBig} ${timerClass}`}>{fmtTimer(shownSec)}</div>
 
         {phase === "recording" ? (
           <button type="button" className={`${styles.recordCircle} ${styles.recordCircleRec}`} onClick={stop}>
@@ -277,7 +330,7 @@ export function EoRecordingForm({
             type="button"
             className={styles.recordCircle}
             onClick={start}
-            disabled={submitting || blocked}
+            disabled={submitting || blocked || (examMode && phase === "recorded")}
             aria-label={phase === "recorded" ? "Réenregistrer" : "Démarrer l'enregistrement"}
           >
             <Mic size={32} strokeWidth={2} />
@@ -286,15 +339,21 @@ export function EoRecordingForm({
 
         <p className={styles.recordHint}>
           {phase === "recording"
-            ? "Enregistrement en cours… appuyez sur le carré pour arrêter."
+            ? examCountdown
+              ? "Enregistrement en cours… arrêt automatique à 0:00, ou appuyez sur le carré pour soumettre."
+              : "Enregistrement en cours… appuyez sur le carré pour arrêter."
             : phase === "recorded"
-              ? "Réécoutez votre réponse, refaites-la ou envoyez-la à l'évaluation."
-              : `Appuyez sur le micro pour autoriser et enregistrer${
-                  rangeLabel ? ` (durée conseillée ${rangeLabel})` : ""
-                }. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`}
+              ? examMode
+                ? "Réponse envoyée à l'évaluation…"
+                : "Réécoutez votre réponse, refaites-la ou envoyez-la à l'évaluation."
+              : examCountdown
+                ? `Appuyez sur le micro : vous avez ${rangeLabel || formatDurationSec(max ?? 0)} et votre réponse est soumise dès l'arrêt. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`
+                : `Appuyez sur le micro pour autoriser et enregistrer${
+                    rangeLabel ? ` (durée conseillée ${rangeLabel})` : ""
+                  }. La 1ʳᵉ fois, votre navigateur vous demandera l'accès au micro.`}
         </p>
 
-        {phase === "recorded" && audioUrl && (
+        {!examMode && phase === "recorded" && audioUrl && (
           <div className={styles.player}>
             <audio src={audioUrl} controls preload="metadata" />
           </div>
@@ -305,7 +364,7 @@ export function EoRecordingForm({
         <div className={styles.error}>{blockMsg ?? permError ?? error}</div>
       )}
 
-      {phase === "recorded" && (
+      {!examMode && phase === "recorded" && (
         <div className={styles.submitRow}>
           <button
             type="button"

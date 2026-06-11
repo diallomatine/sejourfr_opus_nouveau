@@ -319,8 +319,11 @@ class _History extends StatelessWidget {
                 'Aucun passage pour l\'instant. Lance un examen blanc ou entraîne-toi par tâche.'),
       );
     }
-    final niveau =
-        data.exams.isNotEmpty ? data.exams.first.niveauPlancher : null;
+    final examAvgs =
+        data.exams.map((e) => e.avgScore).whereType<double>().toList();
+    final moyenneExamens = examAvgs.isEmpty
+        ? null
+        : examAvgs.reduce((a, b) => a + b) / examAvgs.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,10 +359,10 @@ class _History extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _HubStat(
-                  label: 'Niveau estimé',
-                  value: niveau?.displayName ?? '—',
-                  valueColor:
-                      niveau != null ? _colorForLevel(niveau) : AppColors.ink,
+                  label: 'Score moyen',
+                  value: moyenneExamens == null
+                      ? '—'
+                      : '${_formatNote(moyenneExamens)}/20',
                 ),
               ),
             ],
@@ -384,11 +387,10 @@ class _History extends StatelessWidget {
 }
 
 class _HubStat extends StatelessWidget {
-  const _HubStat({required this.label, required this.value, this.valueColor});
+  const _HubStat({required this.label, required this.value});
 
   final String label;
   final String value;
-  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
@@ -405,9 +407,7 @@ class _HubStat extends StatelessWidget {
           const SizedBox(height: 2),
           Text(value,
               style: AppFonts.ui(
-                  size: 18,
-                  weight: FontWeight.w800,
-                  color: valueColor ?? AppColors.ink)),
+                  size: 18, weight: FontWeight.w800, color: AppColors.ink)),
         ],
       ),
     );
@@ -422,13 +422,12 @@ class _LastExamCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final niveau = session.niveauPlancher;
-    final color = niveau != null ? _colorForLevel(niveau) : AppColors.muted;
     final notes = <int, double>{};
     for (final s in session.submissions) {
       final n = s.evaluation?.noteSurVingt;
       if (s.tacheNumero != null && n != null) notes[s.tacheNumero!] = n;
     }
+    final avg = session.avgScore;
 
     return Container(
       decoration: BoxDecoration(
@@ -476,11 +475,13 @@ class _LastExamCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.14),
+                          color: AppColors.blueLight,
                           borderRadius: BorderRadius.circular(8)),
-                      child: Text(niveau?.displayName ?? '…',
+                      child: Text(avg != null ? '${_formatNote(avg)}/20' : '…',
                           style: AppFonts.ui(
-                              size: 11, weight: FontWeight.w800, color: color)),
+                              size: 11,
+                              weight: FontWeight.w800,
+                              color: AppColors.blue)),
                     ),
                   ],
                 ),
@@ -533,8 +534,7 @@ class _RecentSingleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tache = submission.tacheNumero ?? 1;
-    final niveau = submission.evaluation?.niveauCecrl;
-    final color = niveau != null ? _colorForLevel(niveau) : AppColors.muted;
+    final note = submission.evaluation?.noteSurVingt;
     final (badgeBg, badgeFg) = _taskColors(tache);
     return Container(
       decoration: BoxDecoration(
@@ -576,16 +576,16 @@ class _RecentSingleRow extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (niveau != null) ...[
+                if (note != null) ...[
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.14),
+                        color: badgeBg,
                         borderRadius: BorderRadius.circular(8)),
-                    child: Text(niveau.displayName,
+                    child: Text('${_formatNote(note)}/20',
                         style: AppFonts.ui(
-                            size: 11, weight: FontWeight.w800, color: color)),
+                            size: 11, weight: FontWeight.w800, color: badgeFg)),
                   ),
                   const SizedBox(width: 6),
                 ],
@@ -1340,8 +1340,6 @@ class _ErrorBox extends StatelessWidget {
 }
 
 (Color, Color) _taskColors(int tache) => taskPalette(tache);
-
-Color _colorForLevel(NiveauCecrl level) => level.color;
 
 String _formatNote(double n) => n.toStringAsFixed(1).replaceAll('.', ',');
 

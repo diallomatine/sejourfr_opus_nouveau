@@ -138,12 +138,60 @@ niveau absolu sur texte court (observé : lexique 16 + morpho 16 → bande B2, m
 
 Plafond **B2** (cible naturalisation ; C1/C2 non fiables sur T1). Si un critère source manque :
 WARN + fallback sur `note_globale` (moyenne pondérée déjà calculée) — jamais de crash. Le niveau
-calculé **écrase** `feedback.niveau_cecrl` (lu par le mobile) ; le niveau brut du LLM est conservé en
+calculé **écrase** `feedback.niveau_cecrl` (persisté) ; le niveau brut du LLM est conservé en
 base dans **`ai_evaluations.niveau_cecrl_ia`** (V429, interne, **jamais exposé**) pour mesurer
 l'écart. Une divergence ≥ 1 cran IA vs calcul est loggée (sens sous/sur-estimation) et agrégée par
 `AdminCalibrationService.niveauStats()` → `GET /api/admin/calibration/stats/niveau`. Seuils
-ajustables sans redéploiement. `EvaluationResultDto.niveauCecrl` = niveau **calculé** →
-**aucun changement Flutter**.
+ajustables sans redéploiement. La math (computeNiveau/competence/seuils) vit dans
+`ProductionBilanService` ; `AiEvaluationService` la délègue.
+
+### Niveau CECRL : jamais par tâche, seulement au bilan d'épreuve en examen blanc
+
+Décision produit (2026-06-11) : l'IA note mal une production courte isolée (EE T1 = 30-60
+mots), donc **aucun niveau CECRL n'est exposé tâche par tâche**, ni en entraînement ni en
+examen — le niveau par soumission reste calculé et persisté (`ai_evaluations.niveau_cecrl`)
+pour la calibration admin, mais :
+
+- `EvaluationResultDto` ne porte plus que `noteSurVingt` + `feedback` (les champs
+  `niveauCecrl`/`justificationNiveau` ont été supprimés) ; `ProductionSubmissionMapper`
+  expurge `niveau_cecrl` et `justification_niveau` du feedback avant envoi.
+- **Entraînement libre** : note /20 + feedback critères, point final.
+- **Examen blanc** (session module EE/EO `slot_number` ou sous-attempt d'un TCF complet) :
+  le niveau apparaît au **bilan d'épreuve**, calculé par `ProductionBilanService.bilanEpreuve` =
+  moyenne **pondérée** des compétences des 3 tâches (poids croissants `poids-taches`,
+  défaut 1/2/3 comme la pondération officielle TCF) → mêmes seuils → plafond B2. Remplace
+  l'ancien plancher `min()` des 3 niveaux (une seule éval basse plafonnait l'épreuve).
+  Hors-sujet (note 0) = compétence 0 : pénalise sans annuler.
+- Exposition : `GET /api/attempts/{attemptId}/production-bilan` → `ProductionBilanResponse
+  {attemptId, epreuve, exam, slotNumber, finished, evaluatedCount, expectedCount,
+  moyenneSur20, niveauGlobal}` (`niveauGlobal` null hors examen ou tant que les 3 tâches ne
+  sont pas évaluées), et `FullTcfExamResponse.SubAttempt.cecrlLevel` (même calcul via
+  `FullTcfExamService`). Les fronts ne calculent **plus aucun plancher local**.
+- **Examen terminé incomplet** (chrono écoulé, abandon) : dès que plus rien n'est dans le
+  pipeline IA (ni FAILED à retenter), `bilanEpreuveTerminee` compte chaque tâche jamais
+  rendue **compétence 0** dans la moyenne pondérée (« le reste noté 0 ») — zéro soumission
+  → A1_NON_ATTEINT. S'applique au bilan module et aux sous-épreuves d'un examen complet.
+
+## Examens blancs production (sessions module EE/EO)
+
+- **10 examens par épreuve** (grille des fronts), composition **déterministe backend**
+  (`ProductionExamCompositionService`) : un examen = 3 sujets (un par tâche), bandes de
+  difficulté **slots 1-3 → sujets A2, 4-6 → B1, 7-10 → B2**, sujet = n-ième du pool de la
+  bande (ordre stable created_at puis id, modulo). EO T1 (3 variantes « se présenter », une
+  par niveau) suit le même algorithme. Sous-épreuves d'un **examen TCF complet** : niveau =
+  `users.target_level` (fallback B1), sujet = (slot du parent − 1) modulo le pool.
+- `POST /api/attempts/production {exam:true, slotNumber}` persiste le slot ;
+  `GET /api/attempts/{id}/production-exam-tasks` renvoie la composition. Les fronts ne
+  composent **plus rien** via `/api/production-tasks` en examen.
+- **Chrono** : EE examen module = `time_limit_seconds=1800` (30 min globales, comme l'IRN),
+  enforcé à la soumission (+ 60 s de grâce) ; à 0:00 les fronts auto-soumettent le texte
+  courant s'il est recevable (bornes de mots) puis appellent `POST /api/attempts/{id}/finish`.
+  EE d'un examen complet : décompte 30 min **front-side** (le `started_at` du sous-attempt
+  date de la création de l'examen, pas de l'entrée dans l'épreuve). EO : pas de chrono
+  d'épreuve — temps de parole borné par tâche (`duree_max_sec` 180/210 s, auto-stop), en
+  examen le stop déclenche la soumission immédiate (pas de réécoute).
+- `POST /api/attempts/{id}/finish` (production) pose `finishedAt`/TERMINE sans logique QCM ;
+  toute soumission vers un attempt fini est refusée.
 
 ### Historique des versions
 

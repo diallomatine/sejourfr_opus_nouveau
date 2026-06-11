@@ -1,24 +1,22 @@
 package com.sejourfr.app.dto;
 
-import com.sejourfr.app.enums.NiveauCecrl;
-
 import java.math.BigDecimal;
 import java.util.Map;
 
 /**
  * Vue front d'une {@link com.sejourfr.app.entity.AiEvaluation}. Le bloc
- * {@code feedback} est passe en l'etat depuis le JSONB persiste (structure
- * documentee dans la spec section 3.2).
+ * {@code feedback} est passe depuis le JSONB persiste (structure documentee
+ * dans la spec section 3.2), expurge des champs de niveau.
  *
- * <p>{@code justificationNiveau} est extrait de {@code feedback.justification_niveau}
- * et expose explicitement pour faciliter l'affichage cote mobile/web. Nullable
- * pour rester retro-compatible avec les evaluations en prompt-version v1.0
- * qui n'avaient pas ce champ.
+ * <p><b>Pas de niveau CECRL par tache</b> : le niveau (et sa justification)
+ * reste calcule et persiste en base pour la calibration admin, mais n'est
+ * jamais expose tache par tache — l'IA n'est pas fiable sur une production
+ * courte isolee. Le niveau n'apparait qu'au <b>bilan d'epreuve en examen
+ * blanc</b> (cf. {@code ProductionBilanResponse} et
+ * {@code FullTcfExamResponse.SubAttempt.cecrlLevel}).
  */
 public record EvaluationResultDto(
         BigDecimal noteSurVingt,
-        NiveauCecrl niveauCecrl,
-        String justificationNiveau,
         Map<String, Object> feedback
 ) {
 }

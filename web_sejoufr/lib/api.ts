@@ -20,6 +20,7 @@ import type {
   Module as ModuleEnum,
   PlanPublicResponse,
   ProductionAttemptStartRequest,
+  ProductionBilanResponse,
   ProductionExampleDto,
   ProductionSubmissionDto,
   ProductionTaskDto,
@@ -296,6 +297,35 @@ export const accountApi = {
     async deleteAccount(): Promise<import("./types").AccountDeletionResponse> {
         return apiFetch<import("./types").AccountDeletionResponse>("/api/account", {
             method: "DELETE",
+            auth: true,
+        });
+    },
+
+    /** Met à jour l'identité (prénom / nom). `PATCH /api/me/profile`. */
+    updateProfile(firstName: string, lastName: string): Promise<void> {
+        return apiFetch<void>("/api/me/profile", {
+            method: "PATCH",
+            json: {firstName, lastName},
+            auth: true,
+        });
+    },
+
+    /** Change le mot de passe (compte LOCAL). `POST /api/me/change-password`. */
+    changePassword(currentPassword: string, newPassword: string): Promise<void> {
+        return apiFetch<void>("/api/me/change-password", {
+            method: "POST",
+            json: {currentPassword, newPassword},
+            auth: true,
+        });
+    },
+
+    /** Demande un changement d'email : un lien de vérification est envoyé au
+     *  nouvel email, l'ancien reste actif tant qu'il n'est pas confirmé.
+     *  `POST /api/me/change-email-request`. */
+    requestEmailChange(newEmail: string, currentPassword: string): Promise<void> {
+        return apiFetch<void>("/api/me/change-email-request", {
+            method: "POST",
+            json: {newEmail, currentPassword},
             auth: true,
         });
     },
@@ -739,6 +769,17 @@ export const productionApi = {
         return apiFetch<ProductionTaskDto>(`/api/production-tasks/${id}`, {auth: true});
     },
 
+    /** Composition déterministe d'un examen blanc production : exactement 3
+     *  tâches ordonnées T1, T2, T3 pour le slot de l'attempt. 400 sur un
+     *  entraînement libre. Couvre aussi les sous-attempts EE/EO d'un examen
+     *  TCF complet. */
+    getExamTasks(attemptId: string): Promise<ProductionTaskDto[]> {
+        return apiFetch<ProductionTaskDto[]>(
+            `/api/attempts/${attemptId}/production-exam-tasks`,
+            {auth: true},
+        );
+    },
+
     /** Réponses-modèles d'une (épreuve, tâche) — onglet « Exemples ». */
     listExamples(epreuve: EpreuveType, tacheNumero: number): Promise<ProductionExampleDto[]> {
         return apiFetch<ProductionExampleDto[]>(
@@ -805,6 +846,14 @@ export const productionApi = {
     lastPerTask(epreuve: EpreuveType, niveau: string): Promise<ProductionSubmissionDto[]> {
         return apiFetch<ProductionSubmissionDto[]>(
             `/api/users/me/production-submissions/last-per-task?epreuve=${epreuve}&niveau=${niveau}`,
+            {auth: true},
+        );
+    },
+
+    /** Bilan d'épreuve (moyenne /20 + niveau global en examen blanc seulement). */
+    getBilan(attemptId: string): Promise<ProductionBilanResponse> {
+        return apiFetch<ProductionBilanResponse>(
+            `/api/attempts/${attemptId}/production-bilan`,
             {auth: true},
         );
     },

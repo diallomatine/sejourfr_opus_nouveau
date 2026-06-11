@@ -23,8 +23,12 @@ public record ProductionAttemptStartRequest(
         @NotNull EpreuveType epreuve,
         UUID parentAttemptId,
         // True pour une session d'examen blanc production (3 tâches). Marque
-        // l'attempt (slotNumber=1) : les soumissions de cette session passent
-        // outre le quota d'entraînement, et les sessions d'examen comptent
-        // dans le budget gratuit (cf. règles freemium ProductionSubmissionService).
-        Boolean exam
+        // l'attempt (slot_number posé) : les soumissions de cette session
+        // passent outre le quota d'entraînement, et les sessions d'examen
+        // comptent dans le budget gratuit (cf. ProductionSubmissionService).
+        Boolean exam,
+        // Slot de la grille d'examens blancs (1-10) quand exam=true. Pilote la
+        // composition déterministe des 3 sujets (bandes A2/B1/B2, cf.
+        // ProductionExamCompositionService). Null/absent → slot 1.
+        Integer slotNumber
 ) {}

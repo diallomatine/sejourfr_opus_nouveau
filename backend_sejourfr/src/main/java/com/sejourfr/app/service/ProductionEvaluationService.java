@@ -43,6 +43,9 @@ import java.util.UUID;
 @Slf4j
 public class ProductionEvaluationService {
 
+    /** Grâce après expiration du chrono d'épreuve (latence de l'auto-soumission front). */
+    private static final int SUBMIT_GRACE_SECONDS = 60;
+
     private final ProductionTaskManager taskManager;
     private final ProductionSubmissionManager submissionManager;
     private final AttemptManager attemptManager;
@@ -78,6 +81,19 @@ public class ProductionEvaluationService {
         // calculé sur les productions de l'attaquant).
         if (attempt.getUser() == null || !attempt.getUser().getId().equals(userId)) {
             throw new AccessDeniedException("Cette session ne vous appartient pas");
+        }
+
+        // Épreuve déjà finalisée (fin de session, expiration du chrono, ou
+        // sous-attempt auto-fini d'un examen complet) : plus aucune soumission.
+        if (attempt.getFinishedAt() != null) {
+            throw new BusinessException("Cette épreuve est terminée — soumission refusée.");
+        }
+        // Chrono d'épreuve (EE en examen : 30 min). Grâce de 60 s pour couvrir
+        // la latence réseau de l'auto-soumission front à 0:00.
+        if (attempt.getTimeLimitSeconds() != null && attempt.getStartedAt() != null
+                && Instant.now().isAfter(attempt.getStartedAt()
+                        .plusSeconds(attempt.getTimeLimitSeconds() + SUBMIT_GRACE_SECONDS))) {
+            throw new BusinessException("Le temps de l'épreuve est écoulé — soumission refusée.");
         }
 
         if (!task.isActive()) {

@@ -732,14 +732,40 @@ feedback). Brouillon auto-save 3 s dans `SharedPreferences` via `EeDraftService`
   confidentialité (cf. `_ConfidentialitySheet` privé dans le screen).
 
 **Sessions** : `EeSessionController` / `EoSessionController` (StateNotifier **non-autoDispose**) portent
-les tasks (1 en single-task, 3 en session examens) + l'attempt parent + la map des submissions. Trois
-points d'entrée :
-- `start(niveau:...)` → mode 3-tâches (session examens depuis l'onglet Examens du détail).
-- `startSingle(task:...)` → mode entraînement libre (1 tâche pickée par le hub).
-- `startInFullExam(subAttemptId:..., niveau:...)` → reprend le sous-attempt EE/EO créé par le
-  backend dans un examen blanc TCF complet.
+les tasks (1 en single-task, 3 en session examens) + l'attempt parent + la map des submissions + un
+flag `isExam` + le `slotNumber`. Points d'entrée :
+- `startExam(slotNumber:N)` → **session d'examen blanc module** : `POST /api/attempts/production
+  {exam:true, slotNumber:N}` (l'AttemptResponse porte `timeLimitSeconds` = **1800** pour l'EE, null
+  pour l'EO, + `startedAt`) puis `GET /api/attempts/{id}/production-exam-tasks` → **3 tâches
+  déterministes** (slots 1-3 = A2, 4-6 = B1, 7-10 = B2). **Plus de paramètre `niveau`** : le niveau
+  user ne pilote plus la composition. 10 examens par épreuve.
+- `startSingle(task:...)` → mode entraînement libre (1 tâche pickée par le hub), `isExam=false`.
+- `startInFullExam(subAttemptId:...)` → reprend le sous-attempt EE/EO d'un examen TCF complet et charge
+  ses 3 tâches via `getExamTasks` (composition gérée backend selon le slot du parent + niveau cible).
+- `finishAttemptIfExam()` → `POST /finish` sur l'attempt courant (no-op hors examen module). Appelé
+  après la 3e soumission acquittée, à l'expiration du chrono et à l'abandon confirmé.
 - `refreshSubmission(taskIndex)` permet au bilan d'aller chercher la dernière version d'une
   submission (utilisé par le polling mode `live=1` de `HistorySessionScreen`).
+
+`production_repository.dart` : `startProductionAttempt` gagne `exam`/`slotNumber` ; nouvelle méthode
+`getExamTasks(attemptId)` (3 tâches) ; `finishAttempt(attemptId)`. `ProductionBilan` (models) gagne
+`slotNumber` (mapping session → slot dans la grille) + `finished` (l'examen a `finishedAt` posé).
+
+**Chrono d'examen EE (30:00)** : `ee_briefing_writing_screen` affiche un `ExamTimer`
+(`screens/question_runner/widgets/exam_timer.dart`, réutilisé) dans le `trailing` du
+`ProductionProgressStrip`, ancré sur `attempt.startedAt` + `timeLimitSeconds` (module ; survit à un
+kill/reprise) ou 1800 s côté front (examen complet, pas de `timeLimitSeconds` backend). À 0:00 :
+auto-soumission du texte courant **s'il est recevable** (mots ∈ [motsMin, motsMax×1.2]), sinon rien ;
+puis `finish` (module) / `markSubDone` (complet) ; puis bilan. L'EO n'a pas de chrono global : pendant
+l'enregistrement, `_TimerBig` passe en **décompte** (`countdown:true`, `dureeMaxSec` → 0) en mode
+examen au lieu du chrono croissant.
+
+**EO en examen** : au stop (manuel OU auto-stop), pas d'écran `eo_finished_screen` entre les tâches —
+le briefing soumet immédiatement (`_submitExamAndAdvance`) et enchaîne la tâche suivante (ou le bilan
+après T3). L'entraînement libre garde le flux réécoute + soumission manuelle.
+
+**Abandon en examen** (PopScope/back EE+EO) → confirmation → `finish`/`markSubDone` (copie ramassée :
+tâches manquantes comptées 0) puis sortie. **Fin normale** (3 tâches) → `finish` AVANT le bilan.
 
 Reset manuel après "Retour aux tâches" / "Terminer la session" / abandon.
 
@@ -785,9 +811,10 @@ niveau ni check vert ni lien). Miroir `locked` dans `core/models/full_tcf_exam.d
     détecte la query (`runner_screen.dart::_navigateToResult`) et redirige vers ce hub au finish au lieu
     du dialog d'examen.
   - **EE/EO** → briefing existant `/tcf/expression-X/t/0?fullExamId=$parentId&subAttemptId=$subId`. Le
-    briefing détecte la query et appelle `EeSessionController.startInFullExam(...)` /
-    `EoSessionController.startInFullExam(...)` au lieu de `start(niveau)` — ces variantes REPRENNENT
-    l'attempt existant côté backend au lieu d'en créer un nouveau.
+    briefing détecte la query et appelle `EeSessionController.startInFullExam(subAttemptId:)` /
+    `EoSessionController.startInFullExam(subAttemptId:)` — ces variantes REPRENNENT l'attempt existant
+    côté backend (sans `niveau`) et chargent ses 3 tâches via `getExamTasks`. L'EE complet a un chrono
+    30:00 front-side ; l'EO complet enchaîne tâche par tâche comme le module.
 - **`TcfFullExamBilanScreen`** (route `/tcf/examen-blanc/:parentId/bilan`) — bilan agrégé. À l'init,
   appelle `POST /api/full-tcf-exams/{id}/finish` (idempotent) puis poll toutes les 4 s jusqu'à
   `status == COMPLETED`. Affiche le niveau CECRL plancher en gros + 4 cards par épreuve avec leur niveau
@@ -803,9 +830,9 @@ sur les sous-attempts EE/EO. Le backend pose `finishedAt` automatiquement quand 
 arrive (`ProductionEvaluationService.finishSubAttemptIfFullExam`). Les sous-attempts CO/CE sont
 finalisés normalement par le runner via `/finish`.
 
-**Niveau CECRL** : le mobile lit l'utilisateur dans `auth.user.targetProcedure.tcfLevel` (A2/B1/B2)
-pour choisir le niveau des tâches EE/EO du full exam — fallback `B1` si absent. Les pools de tâches
-côté backend ne sont pas mixés par niveau ; tout le full exam utilise donc un seul niveau cible.
+**Niveau CECRL** : le mobile ne choisit plus le niveau des tâches EE/EO — la composition des 3 tâches
+du sous-attempt est **déterministe côté backend** (selon le slot du parent + niveau cible du user),
+récupérée telle quelle via `getExamTasks(subAttemptId)`. Le bilan agrégé reste en CECRL plancher.
 
 **Flow utilisateur typique** :
 1. Hub TCF → onglet "Examens" (`TcfFullExamsView`, 20 slots)

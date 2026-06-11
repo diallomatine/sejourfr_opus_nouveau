@@ -5,9 +5,8 @@ import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
 
 /// Session d'examen blanc TCF EE/EO : un attempt avec ses 3 (ou plus)
-/// soumissions. Niveau plancher = niveau CECRL le plus bas atteint, à l'image
-/// des règles officielles TCF où c'est la performance la plus basse qui
-/// fixe le niveau global.
+/// soumissions. Le niveau global d'une session n'est plus dérivé ici par tâche
+/// — il est calculé côté backend et exposé via `production-bilan`.
 class ExamSession {
   ExamSession({required this.attemptId, required this.submissions});
 
@@ -18,19 +17,9 @@ class ExamSession {
       .map((s) => s.submittedAt)
       .reduce((a, b) => a.isAfter(b) ? a : b);
 
-  NiveauCecrl? get niveauPlancher {
-    NiveauCecrl? floor;
-    for (final s in submissions) {
-      final n = s.evaluation?.niveauCecrl;
-      if (n == null) continue;
-      if (floor == null || n.scaleIndex < floor.scaleIndex) floor = n;
-    }
-    return floor;
-  }
-
   /// Toutes les soumissions ont une evaluation IA non nulle.
   bool get isFullyEvaluated =>
-      submissions.every((s) => s.evaluation?.niveauCecrl != null);
+      submissions.every((s) => s.evaluation != null);
 
   /// Moyenne des notes sur 20 (null si aucune évaluation disponible).
   double? get avgScore {

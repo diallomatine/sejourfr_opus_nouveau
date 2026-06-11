@@ -2,21 +2,19 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../core/models/enums.dart';
 import '../../../core/theme/app_theme.dart';
 
 /// Carte de score "EE" : donut violet a droite (CustomPainter), texte score
-/// + niveau pill violet a gauche. Calque sur `.donut-section` du HTML.
+/// /20 a gauche. Calque sur `.donut-section` du HTML. Aucun niveau CECRL ici :
+/// le niveau n'est attribue qu'au bilan d'epreuve (examen blanc).
 class DonutChartScore extends StatelessWidget {
   const DonutChartScore({
     super.key,
     required this.noteSur20,
-    required this.niveau,
   });
 
   /// Note 0..20 ; null si pas evaluable.
   final double? noteSur20;
-  final NiveauCecrl? niveau;
 
   static const _violet = Color(0xFF7C3AED);
   static const _violetLight = Color(0xFFF3EEFE);
@@ -36,7 +34,7 @@ class DonutChartScore extends StatelessWidget {
     final p = _percent;
     if (p == 0) return 'Non evaluable';
     if (p < 40) return 'A retravailler';
-    if (p < 60) return 'En progres';
+    if (p < 60) return 'En progrès';
     if (p < 80) return 'Bon niveau';
     return 'Tres bon niveau';
   }
@@ -98,30 +96,12 @@ class DonutChartScore extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Niveau estimé',
+                      _subLabel,
                       style: AppFonts.ui(
                         size: 13,
                         color: AppColors.muted,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    if (niveau != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _violetLight,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          niveau!.displayName,
-                          style: AppFonts.ui(
-                            size: 12,
-                            weight: FontWeight.w700,
-                            color: _violet,
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),

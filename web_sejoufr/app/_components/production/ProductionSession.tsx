@@ -3,18 +3,18 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, ChevronRight, Lightbulb, Mic, PenLine } from "lucide-react";
-import { ApiException, fullTcfExamApi, productionApi } from "@/lib/api";
+import { Check, ChevronRight, Lightbulb, Mic, PenLine, Timer } from "lucide-react";
+import { ApiException, attemptApi, fullTcfExamApi, productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
   cecrlIndex,
   isSubmissionPending,
   niveauCecrlLabel,
   type NiveauCecrl,
+  type ProductionBilanResponse,
   productionTaskTitle,
   type ProductionSubmissionDto,
   type ProductionTaskDto,
-  resolveTcfLevel,
 } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
@@ -29,11 +29,26 @@ import prod from "./production.module.css";
 const TACHES = [1, 2, 3] as const;
 const POLL_MS = 3000;
 const MAX_POLLS = 40;
+/** Durée de l'examen EE quand le backend ne porte pas de `timeLimitSeconds`
+ *  (sous-attempt EE d'un examen TCF complet) : 30 min côté front. */
+const EE_FALLBACK_LIMIT_SEC = 1800;
+
+function fmtChrono(sec: number): string {
+  const s = Math.max(0, Math.round(sec));
+  const m = Math.floor(s / 60);
+  const ss = s % 60;
+  return `${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+}
 
 /**
- * Session d'examen blanc d'une épreuve productive : 3 tâches enchaînées
- * partageant un même attempt, puis bilan avec niveau CECRL plancher. La phase
- * (saisie vs bilan) est dérivée des soumissions existantes (resume naturel).
+ * Session d'examen blanc d'une épreuve productive : exactement 3 tâches
+ * (composition déterministe backend via `production-exam-tasks`) enchaînées sur
+ * un même attempt, chronométrées, puis bilan avec niveau CECRL plancher. La
+ * phase (saisie vs bilan) est dérivée des soumissions existantes (resume).
+ *
+ * EE : chrono 30:00 global ancré sur `attempt.startedAt + timeLimitSeconds`
+ * (survit au refresh) ; à 0:00 auto-soumission recevable + finish + bilan.
+ * EO : chrono par tâche dans le recorder (auto-stop + soumission immédiate).
  */
 export function ProductionSession({ config }: { config: ProductionConfig }) {
   const params = useParams<{ attemptId: string }>();
@@ -47,30 +62,32 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
    *  l'examen complet) — distinct de fullExamId qui pilote une épreuve ACTIVE. */
   const backTo = searchParams.get("backTo");
   const { user, status } = useAuth();
-  const level = resolveTcfLevel(user);
 
   const [tasks, setTasks] = useState<ProductionTaskDto[]>([]);
   const [subsByTache, setSubsByTache] = useState<Map<number, ProductionSubmissionDto>>(new Map());
+  const [bilan, setBilan] = useState<ProductionBilanResponse | null>(null);
   const [phase, setPhase] = useState<"loading" | "writing" | "bilan">("loading");
   const [currentTache, setCurrentTache] = useState<number>(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
 
+  /** Deadline absolue du chrono EE (ms epoch). Null = pas de chrono (EO, ou
+   *  attempt pas encore chargé). */
+  const [deadline, setDeadline] = useState<number | null>(null);
+  const [remaining, setRemaining] = useState<number | null>(null);
+  /** Signal d'auto-soumission EE envoyé à `EeWritingForm` quand le chrono tombe
+   *  à 0. Incrémenter déclenche la lecture du texte courant. */
+  const [autoSubmitSignal, setAutoSubmitSignal] = useState(0);
+
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollsRef = useRef(0);
   const cancelledRef = useRef(false);
-
-  const pickTasks = useCallback((all: ProductionTaskDto[]): ProductionTaskDto[] => {
-    const out: ProductionTaskDto[] = [];
-    for (const n of TACHES) {
-      const candidates = all
-        .filter((t) => t.tacheNumero === n)
-        .sort((a, b) => a.id.localeCompare(b.id));
-      if (candidates[0]) out.push(candidates[0]);
-    }
-    return out;
-  }, []);
+  const timedOutRef = useRef(false);
+  /** Garde l'abandon (finish au démontage en cours d'examen) idempotent. */
+  const finishedRef = useRef(false);
+  /** Timeout d'abandon programmé au démontage (annulé par un remount StrictMode). */
+  const abandonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchSubs = useCallback(async (): Promise<Map<number, ProductionSubmissionDto>> => {
     const list = await productionApi.listMine({ epreuve: config.epreuve, limit: 100 });
@@ -85,13 +102,22 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     pollsRef.current = 0;
     const tick = async () => {
       try {
-        const subs = await fetchSubs();
+        const [subs, bil] = await Promise.all([
+          fetchSubs(),
+          productionApi.getBilan(attemptId).catch(() => null),
+        ]);
         if (cancelledRef.current) return;
         setSubsByTache(subs);
-        const allDone = TACHES.every((n) => {
+        if (bil) setBilan(bil);
+        // On arrête quand tout est évalué OU quand l'attempt est finalisé et
+        // qu'aucune soumission n'est plus en attente (tâches manquantes = 0).
+        const noPending = TACHES.every((n) => {
           const s = subs.get(n);
-          return s && !isSubmissionPending(s);
+          return !s || !isSubmissionPending(s);
         });
+        const allDone = bil
+          ? bil.evaluatedCount >= bil.expectedCount || (bil.finished && noPending)
+          : noPending;
         if (!allDone && pollsRef.current < MAX_POLLS) {
           pollsRef.current += 1;
           timerRef.current = setTimeout(tick, POLL_MS);
@@ -101,28 +127,55 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       }
     };
     void tick();
-  }, [fetchSubs]);
+  }, [fetchSubs, attemptId]);
 
   useEffect(() => {
     if (status !== "authenticated" || !attemptId) return;
     cancelledRef.current = false;
     (async () => {
       try {
-        const [allTasks, subs] = await Promise.all([
-          productionApi.listTasks({ epreuve: config.epreuve, niveau: level }),
+        const [examTasks, subs, attempt] = await Promise.all([
+          productionApi.getExamTasks(attemptId),
           fetchSubs(),
+          attemptApi.get(attemptId).catch(() => null),
         ]);
         if (cancelledRef.current) return;
-        setTasks(pickTasks(allTasks));
+        const ordered = [...examTasks].sort((a, b) => a.tacheNumero - b.tacheNumero);
+        setTasks(ordered);
         setSubsByTache(subs);
+
+        // Chrono EE :
+        // - Examen module : ancré sur `startedAt + timeLimitSeconds` backend
+        //   (survit au refresh, source de vérité).
+        // - Sous-épreuve EE d'examen complet : le backend ne pose pas
+        //   `timeLimitSeconds` et ne réaligne pas `startedAt` à l'entrée EE → on
+        //   démarre un décompte 30 min côté front à l'arrivée dans l'épreuve.
+        if (config.mode === "text" && attempt && !attempt.finishedAt) {
+          if (attempt.timeLimitSeconds != null) {
+            const start = new Date(attempt.startedAt).getTime();
+            setDeadline(start + attempt.timeLimitSeconds * 1000);
+          } else {
+            setDeadline(Date.now() + EE_FALLBACK_LIMIT_SEC * 1000);
+          }
+        }
+
         const nextTodo = TACHES.find((n) => !subs.has(n));
-        if (nextTodo === undefined) {
-          // Reprise d'une épreuve d'examen complet déjà soumise : pas de bilan
-          // individuel, on renvoie au hub (la sous-épreuve y est déjà terminée).
-          if (fullExamId) {
+        const allSubmitted = nextTodo === undefined;
+        // Un attempt déjà finalisé (examen blanc terminé ou abandonné, même
+        // avec 0 tâche rendue) ne doit JAMAIS rouvrir l'écriture : on affiche
+        // le bilan. Les tâches non rendues apparaissent « Non rendue » et le
+        // niveau plancher (A1_NON_ATTEINT) vient du backend (tâches = 0).
+        const attemptFinished = attempt?.finishedAt != null;
+        if (allSubmitted || attemptFinished) {
+          // Flux ACTIF d'un examen complet (l'épreuve vient d'être terminée)
+          // → retour au hub de progression. En CONSULTATION depuis le bilan de
+          // l'examen complet on a `backTo` (et pas `fullExamId`) → on reste sur
+          // le bilan de l'épreuve.
+          if (fullExamId && allSubmitted) {
             router.replace(`/examens-blancs/tcf/${fullExamId}`);
             return;
           }
+          finishedRef.current = true;
           setPhase("bilan");
           startBilanPolling();
         } else {
@@ -140,9 +193,59 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, attemptId, level, config.epreuve]);
+  }, [status, attemptId, config.epreuve, config.mode]);
+
+  // Tick du chrono EE (1 s). On dérive la valeur affichée de la deadline pour
+  // survivre à un refresh ; à 0 on déclenche l'auto-soumission une seule fois.
+  useEffect(() => {
+    if (deadline == null || phase !== "writing") return;
+    const tick = () => {
+      const left = Math.max(0, (deadline - Date.now()) / 1000);
+      setRemaining(left);
+      if (left <= 0 && !timedOutRef.current) {
+        timedOutRef.current = true;
+        setAutoSubmitSignal((s) => s + 1);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [deadline, phase]);
+
+  // Abandon : si on quitte la page en cours d'examen, on finalise l'attempt
+  // (copie ramassée par le backend). Pas pour un examen complet (le hub gère
+  // l'abandon globalement) ni quand tout est déjà fini. On programme le finish
+  // en `setTimeout(0)` au démontage et on l'annule au (re)montage : en dev le
+  // double-montage StrictMode remonte aussitôt → le finish programmé est annulé
+  // avant de partir (faux-positif évité), alors qu'un vrai départ de page laisse
+  // le timeout s'exécuter.
+  useEffect(() => {
+    if (abandonTimerRef.current) {
+      clearTimeout(abandonTimerRef.current);
+      abandonTimerRef.current = null;
+    }
+    return () => {
+      if (finishedRef.current || fullExamId) return;
+      abandonTimerRef.current = setTimeout(() => {
+        if (finishedRef.current) return;
+        finishedRef.current = true;
+        void attemptApi.finish(attemptId).catch(() => undefined);
+      }, 0);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attemptId]);
 
   const currentTask = tasks.find((t) => t.tacheNumero === currentTache) ?? null;
+
+  /** Bascule en bilan après la 3ᵉ tâche (ou auto-finish), avec finish préalable. */
+  const goToBilan = useCallback(async () => {
+    finishedRef.current = true;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    await attemptApi.finish(attemptId).catch(() => undefined);
+    if (cancelledRef.current) return;
+    setPhase("bilan");
+    startBilanPolling();
+  }, [attemptId, startBilanPolling]);
 
   async function send(go: (attemptId: string) => Promise<ProductionSubmissionDto>) {
     if (submitting || !currentTask) return;
@@ -150,8 +253,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     setSubmitting(true);
     try {
       // Attend uniquement la persistance backend (~500 ms, retourne SUBMITTED).
-      // L'évaluation IA tourne en arrière-plan — on n'attend pas EVALUATED ici,
-      // exactement comme le mobile : T1/T2 enchaînent sans latence d'éval.
+      // L'évaluation IA tourne en arrière-plan — on n'attend pas EVALUATED ici.
       const sub = await go(attemptId);
       if (config.mode === "text") clearEeDraft(currentTask.id);
       const next = new Map(subsByTache);
@@ -161,8 +263,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       if (nextTodo === undefined) {
         // T3 soumise : dernière tâche de l'épreuve.
         if (fullExamId) {
-          // Examen complet : signaler la sous-épreuve terminée (sans attendre
-          // l'IA) puis revenir au hub, qui débloque l'épreuve suivante.
+          finishedRef.current = true;
           try {
             await fullTcfExamApi.markSubDone(fullExamId, config.epreuve);
           } catch {
@@ -171,8 +272,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           }
           router.push(`/examens-blancs/tcf/${fullExamId}`);
         } else {
-          setPhase("bilan");
-          startBilanPolling();
+          await goToBilan();
         }
       } else {
         setCurrentTache(nextTodo);
@@ -185,6 +285,45 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     }
   }
 
+  /** Chrono EE à 0:00 (examen entier) : auto-soumet le texte de la tâche
+   *  courante s'il est recevable, puis finalise l'épreuve — quelle que soit la
+   *  tâche en cours (les tâches non rendues sont comptées 0). */
+  const finalizeExam = useCallback(async () => {
+    finishedRef.current = true;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (fullExamId) {
+      await fullTcfExamApi.markSubDone(fullExamId, config.epreuve).catch(() => undefined);
+      if (!cancelledRef.current) router.push(`/examens-blancs/tcf/${fullExamId}`);
+    } else {
+      await attemptApi.finish(attemptId).catch(() => undefined);
+      if (cancelledRef.current) return;
+      setPhase("bilan");
+      startBilanPolling();
+    }
+  }, [attemptId, fullExamId, config.epreuve, router, startBilanPolling]);
+
+  const onEeTimeout = useCallback(
+    async (texte: string, recevable: boolean) => {
+      if (recevable && texte && currentTask && !submitting) {
+        setSubmitting(true);
+        try {
+          await productionApi.submitText({
+            productionTaskId: currentTask.id,
+            attemptId,
+            texte,
+          });
+          clearEeDraft(currentTask.id);
+        } catch {
+          // best-effort : la copie courante est ramassée par le finish backend
+        } finally {
+          setSubmitting(false);
+        }
+      }
+      await finalizeExam();
+    },
+    [submitting, currentTask, attemptId, finalizeExam],
+  );
+
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`${config.base}/session/${attemptId}`} />;
 
@@ -194,6 +333,10 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       : fullExamId
         ? "Valider et passer à l'épreuve suivante"
         : "Valider et terminer";
+
+  const chronoActive = config.mode === "text" && deadline != null && phase === "writing";
+  const chronoSec = remaining ?? 0;
+  const chronoUrgent = chronoActive && chronoSec <= 300;
 
   return (
     <DualChromeShell>
@@ -213,31 +356,44 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         title={phase === "bilan" ? "Bilan de la session" : "Examen blanc"}
         subtitle={
           phase === "bilan"
-            ? `Niveau ${level} · le niveau retenu est le plancher de vos 3 tâches (règle TCF IRN).`
-            : `3 tâches enchaînées, niveau ${level} — évaluation IA à la fin.`
+            ? "Le niveau global est calculé sur vos 3 tâches une fois évaluées."
+            : config.mode === "text"
+              ? "3 tâches enchaînées en 30 minutes — évaluation IA à la fin."
+              : "3 tâches enchaînées, chronométrées par tâche — évaluation IA à la fin."
         }
       >
+        {/* Chrono EE permanent (examen 30:00) */}
+        {chronoActive && (
+          <div className={`${prod.examChrono} ${chronoUrgent ? prod.examChronoUrgent : ""}`}>
+            <span className={prod.examChronoLabel}>
+              <Timer size={15} strokeWidth={2} aria-hidden />
+              Temps restant
+            </span>
+            <span className={prod.examChronoTime}>{fmtChrono(chronoSec)}</span>
+          </div>
+        )}
+
         {/* Stepper T1 → T2 → T3 (pendant la saisie uniquement) */}
         {phase !== "bilan" && (
-        <ol className={prod.stepper} aria-label="Progression des tâches">
-          {TACHES.map((n) => {
-            const done = subsByTache.has(n);
-            const current = phase === "writing" && n === currentTache;
-            return (
-              <li
-                key={n}
-                className={`${prod.stepperItem} ${
-                  done ? prod.stepperDone : current ? prod.stepperCurrent : ""
-                }`}
-              >
-                <span className={prod.stepperDot} aria-hidden>
-                  {done ? <Check size={13} strokeWidth={3} /> : n}
-                </span>
-                <span className={prod.stepperLabel}>Tâche {n}</span>
-              </li>
-            );
-          })}
-        </ol>
+          <ol className={prod.stepper} aria-label="Progression des tâches">
+            {TACHES.map((n) => {
+              const done = subsByTache.has(n);
+              const current = phase === "writing" && n === currentTache;
+              return (
+                <li
+                  key={n}
+                  className={`${prod.stepperItem} ${
+                    done ? prod.stepperDone : current ? prod.stepperCurrent : ""
+                  }`}
+                >
+                  <span className={prod.stepperDot} aria-hidden>
+                    {done ? <Check size={13} strokeWidth={3} /> : n}
+                  </span>
+                  <span className={prod.stepperLabel}>Tâche {n}</span>
+                </li>
+              );
+            })}
+          </ol>
         )}
 
         {error && <div className={detail.error}>{error}</div>}
@@ -252,6 +408,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                 task={currentTask}
                 submitting={submitting}
                 submitLabel={submitLabel}
+                examMode
                 onSubmit={(audio) =>
                   send((aid) => productionApi.submitAudio(currentTask.id, aid, audio))
                 }
@@ -262,6 +419,8 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                 task={currentTask}
                 submitting={submitting}
                 submitLabel={submitLabel}
+                autoSubmitSignal={autoSubmitSignal}
+                onAutoSubmit={onEeTimeout}
                 onSubmit={(texte) =>
                   send((aid) =>
                     productionApi.submitText({ productionTaskId: currentTask.id, attemptId: aid, texte }),
@@ -270,16 +429,22 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
               />
             )
           ) : (
-            <p className={detail.empty}>
-              Sujets indisponibles pour le niveau {level} pour l&apos;instant.
-            </p>
+            <p className={detail.empty}>Sujets indisponibles pour l&apos;instant.</p>
           )
         ) : (
           <BilanView
             config={config}
             subsByTache={subsByTache}
+            bilan={bilan}
             backTo={backTo}
-            onOpenResult={(id) => router.push(`${config.base}/resultats/${id}`)}
+            onOpenResult={(id) => {
+              // `back` = ce bilan (URL courante) pour que le bouton retour du
+              // rapport de tâche revienne ici, pas au hub de l'épreuve.
+              const back = encodeURIComponent(
+                `${window.location.pathname}${window.location.search}`,
+              );
+              router.push(`${config.base}/resultats/${id}?back=${back}`);
+            }}
           />
         )}
 
@@ -318,48 +483,43 @@ function nextStepsMessage(level: NiveauCecrl | null): string {
 }
 
 /**
- * Bilan d'une session de production (3 tâches), calqué sur le mobile
- * (HistorySessionScreen) : hero bleu (note moyenne + niveau plancher + échelle
- * CECRL), détail par tâche cliquable, conseil « prochaines étapes ». `backTo`
- * = retour au bilan de l'examen complet quand on y arrive depuis celui-ci.
+ * Bilan d'une session de production (3 tâches), calqué sur le mobile : hero bleu
+ * (note moyenne + niveau global du backend + échelle CECRL), détail par tâche
+ * cliquable, conseil « prochaines étapes » dérivé du niveau global. Quand
+ * l'attempt est `finished` mais < 3 tâches évaluées, les tâches jamais rendues
+ * s'affichent « Non rendue » (pas de polling infini) et le niveau global
+ * s'affiche dès que le backend le renvoie (manquantes comptées 0).
  */
 function BilanView({
   config,
   subsByTache,
+  bilan,
   backTo,
   onOpenResult,
 }: {
   config: ProductionConfig;
   subsByTache: Map<number, ProductionSubmissionDto>;
+  bilan: ProductionBilanResponse | null;
   backTo: string | null;
   onOpenResult: (submissionId: string) => void;
 }) {
-  const evaluated = TACHES.map((n) => subsByTache.get(n)).filter(
-    (s): s is ProductionSubmissionDto => !!s && s.statut === "EVALUATED",
-  );
-  const anyPending = TACHES.some((n) => {
-    const s = subsByTache.get(n);
-    return s && isSubmissionPending(s);
-  });
-  const allEvaluated = evaluated.length === TACHES.length;
+  const finished = bilan?.finished ?? false;
+  // Tant que l'attempt n'est pas finalisé, une tâche soumise non évaluée reste
+  // « en cours ». Une fois finalisé, plus aucune attente (les manquantes = 0).
+  const anyPending =
+    !finished &&
+    TACHES.some((n) => {
+      const s = subsByTache.get(n);
+      return s && isSubmissionPending(s);
+    });
 
-  let plancher: NiveauCecrl | null = null;
-  for (const s of evaluated) {
-    const niv = s.evaluation?.niveauCecrl ?? null;
-    if (!niv) continue;
-    if (plancher === null || cecrlIndex(niv) < cecrlIndex(plancher)) plancher = niv;
-  }
-  const notes = evaluated
-    .map((s) => s.evaluation?.noteSurVingt)
-    .filter((v): v is number => v != null);
-  const avgNote = notes.length
-    ? Math.round((notes.reduce((sum, v) => sum + v, 0) / notes.length) * 10) / 10
-    : null;
-  const targetIdx = allEvaluated ? cecrlIndex(plancher) : -1;
+  const avgNote = bilan?.moyenneSur20 ?? null;
+  const niveauGlobal = bilan?.niveauGlobal ?? null;
+  const targetIdx = niveauGlobal != null ? cecrlIndex(niveauGlobal) : -1;
 
   return (
     <>
-      {/* Hero bleu : note moyenne + niveau plancher + échelle CECRL */}
+      {/* Hero bleu : note moyenne + niveau global (examen blanc) + échelle CECRL */}
       <div className={prod.sessHero}>
         <div className={prod.sessHeroEyebrow}>BILAN DE LA SESSION</div>
         <div className={prod.sessHeroRow}>
@@ -371,33 +531,37 @@ function BilanView({
             </div>
           </div>
           <div className={prod.sessHeroSide}>
-            <div className={prod.sessHeroSideLabel}>Niveau plancher</div>
-            {allEvaluated && plancher != null ? (
-              <span className={prod.sessHeroBadge}>{niveauCecrlLabel(plancher)}</span>
+            <div className={prod.sessHeroSideLabel}>Niveau global</div>
+            {niveauGlobal != null ? (
+              <span className={prod.sessHeroBadge}>{niveauCecrlLabel(niveauGlobal)}</span>
             ) : (
               <span className={prod.sessHeroBadgePending}>Évaluation en cours…</span>
             )}
           </div>
         </div>
-        <div className={prod.sessScale} aria-hidden>
-          {CECRL_SCALE.map((lvl, i) => (
-            <span
-              key={lvl}
-              className={`${prod.sessSeg} ${
-                targetIdx >= 0 && i === targetIdx
-                  ? prod.sessSegTarget
-                  : targetIdx >= 0 && i < targetIdx
-                    ? prod.sessSegOn
-                    : ""
-              }`}
-            />
-          ))}
-        </div>
-        <div className={prod.sessScaleLabels} aria-hidden>
-          {CECRL_SCALE.map((lvl) => (
-            <span key={lvl}>{lvl}</span>
-          ))}
-        </div>
+        {niveauGlobal != null && (
+          <>
+            <div className={prod.sessScale} aria-hidden>
+              {CECRL_SCALE.map((lvl, i) => (
+                <span
+                  key={lvl}
+                  className={`${prod.sessSeg} ${
+                    i === targetIdx
+                      ? prod.sessSegTarget
+                      : i < targetIdx
+                        ? prod.sessSegOn
+                        : ""
+                  }`}
+                />
+              ))}
+            </div>
+            <div className={prod.sessScaleLabels} aria-hidden>
+              {CECRL_SCALE.map((lvl) => (
+                <span key={lvl}>{lvl}</span>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {anyPending && (
@@ -419,7 +583,6 @@ function BilanView({
           const evaluatedOk = s?.statut === "EVALUATED";
           const failed = s?.statut === "FAILED";
           const note = s?.evaluation?.noteSurVingt;
-          const niv = s?.evaluation?.niveauCecrl;
           return (
             <button
               key={n}
@@ -441,7 +604,9 @@ function BilanView({
                   }`}
                 >
                   {!s
-                    ? "Non soumise"
+                    ? finished
+                      ? "Non rendue"
+                      : "Non soumise"
                     : failed
                       ? "Évaluation échouée — à relancer"
                       : pending
@@ -451,8 +616,8 @@ function BilanView({
                           : "Évaluée"}
                 </span>
               </span>
-              {evaluatedOk && niv && (
-                <span className={prod.sessTachePill}>{niveauCecrlLabel(niv)}</span>
+              {evaluatedOk && note != null && (
+                <span className={prod.sessTachePill}>{formatNote(note)}/20</span>
               )}
               {s && !pending && (
                 <ChevronRight size={18} className={prod.sessTacheChevron} aria-hidden />
@@ -462,12 +627,14 @@ function BilanView({
         })}
       </div>
 
-      <div className={prod.sessNext}>
-        <p className={prod.sessNextTitle}>
-          <Lightbulb size={16} aria-hidden /> Tes prochaines étapes
-        </p>
-        <p className={prod.sessNextBody}>{nextStepsMessage(allEvaluated ? plancher : null)}</p>
-      </div>
+      {niveauGlobal != null && (
+        <div className={prod.sessNext}>
+          <p className={prod.sessNextTitle}>
+            <Lightbulb size={16} aria-hidden /> Tes prochaines étapes
+          </p>
+          <p className={prod.sessNextBody}>{nextStepsMessage(niveauGlobal)}</p>
+        </div>
+      )}
 
       <div className={prod.bilanFoot}>
         {backTo ? (

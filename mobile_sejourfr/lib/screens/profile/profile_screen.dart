@@ -32,8 +32,12 @@ import '../../core/widgets/stat_value_card.dart';
 final _subscriptionStatusProvider =
     FutureProvider.autoDispose<SubscriptionStatusResponse>((ref) {
   ref.watch(authControllerProvider.select((s) => switch (s) {
-        AuthAuthenticated(:final user) =>
-          (user.isPremium, user.hasCivique, user.hasTcf, user.premiumEndsAt),
+        AuthAuthenticated(:final user) => (
+            user.isPremium,
+            user.hasCivique,
+            user.hasTcf,
+            user.premiumEndsAt
+          ),
         _ => null,
       }));
   return ref.watch(billingRepositoryProvider).getSubscriptionStatus();
@@ -134,8 +138,8 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
                   _ObjectifCard(
                     user: user,
-                    onTap: () => context
-                        .push('${AppRoutes.targetPath}?from=$fromHere'),
+                    onTap: () =>
+                        context.push('${AppRoutes.targetPath}?from=$fromHere'),
                   ),
                   const SizedBox(height: 20),
                   const SectionTitle(title: 'Mon compte'),
@@ -172,19 +176,19 @@ class ProfileScreen extends ConsumerWidget {
                   ListGroup(
                     children: [
                       ListRow(
-                        icon: LucideIcons.arrowLeft,
-                        iconBg: AppColors.surface2,
-                        iconColor: AppColors.inkSoft,
-                        title: 'Se déconnecter',
-                        onTap: () => _confirmLogout(context, ref),
-                        right: const SizedBox.shrink(),
-                      ),
-                      ListRow(
                         icon: LucideIcons.x,
                         iconBg: AppColors.redLight,
                         iconColor: AppColors.red,
                         title: 'Supprimer mon compte',
                         onTap: () => _confirmDeleteAccount(context, ref),
+                        right: const SizedBox.shrink(),
+                      ),
+                      ListRow(
+                        icon: LucideIcons.arrowLeft,
+                        iconBg: AppColors.surface2,
+                        iconColor: AppColors.inkSoft,
+                        title: 'Se déconnecter',
+                        onTap: () => _confirmLogout(context, ref),
                         right: const SizedBox.shrink(),
                       ),
                     ],
@@ -193,8 +197,7 @@ class ProfileScreen extends ConsumerWidget {
                   Center(
                     child: Text(
                       'SejourFR · v0.1.0',
-                      style:
-                          AppFonts.ui(size: 12, color: AppColors.inkFaint),
+                      style: AppFonts.ui(size: 12, color: AppColors.inkFaint),
                     ),
                   ),
                 ],
@@ -254,8 +257,8 @@ class ProfileScreen extends ConsumerWidget {
           ),
           child: Text(
             message,
-            style: AppFonts.ui(
-                size: 13, color: AppColors.inkSoft, height: 1.55),
+            style:
+                AppFonts.ui(size: 13, color: AppColors.inkSoft, height: 1.55),
           ),
         ),
         AppButton(
@@ -469,8 +472,7 @@ class _PassCard extends StatelessWidget {
                         name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style:
-                            AppFonts.ui(size: 16, weight: FontWeight.w700),
+                        style: AppFonts.ui(size: 16, weight: FontWeight.w700),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -503,8 +505,18 @@ class _PassCard extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     const months = [
-      'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-      'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+      'janvier',
+      'février',
+      'mars',
+      'avril',
+      'mai',
+      'juin',
+      'juillet',
+      'août',
+      'septembre',
+      'octobre',
+      'novembre',
+      'décembre',
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }

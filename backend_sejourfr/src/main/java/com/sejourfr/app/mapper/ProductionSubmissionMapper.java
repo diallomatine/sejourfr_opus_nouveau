@@ -10,6 +10,9 @@ import com.sejourfr.app.service.ProductionAudioStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 @Component
 @RequiredArgsConstructor
 public class ProductionSubmissionMapper {
@@ -69,16 +72,20 @@ public class ProductionSubmissionMapper {
         );
     }
 
+    /**
+     * Le niveau CECRL par tache n'est jamais expose (calibration interne
+     * seulement) : on expurge {@code niveau_cecrl} et
+     * {@code justification_niveau} du feedback avant envoi. Le niveau
+     * n'apparait qu'au bilan d'epreuve en examen blanc.
+     */
     private EvaluationResultDto toEvaluationDto(AiEvaluation e) {
-        Object justifRaw = e.getFeedbackJson() != null
-            ? e.getFeedbackJson().get("justification_niveau")
-            : null;
-        String justification = justifRaw == null ? null : justifRaw.toString();
-        return new EvaluationResultDto(
-            e.getNoteSur20(),
-            e.getNiveauCecrl(),
-            justification,
-            e.getFeedbackJson()
-        );
+        Map<String, Object> feedback = e.getFeedbackJson();
+        if (feedback != null) {
+            Map<String, Object> sanitized = new LinkedHashMap<>(feedback);
+            sanitized.remove("niveau_cecrl");
+            sanitized.remove("justification_niveau");
+            feedback = sanitized;
+        }
+        return new EvaluationResultDto(e.getNoteSur20(), feedback);
     }
 }

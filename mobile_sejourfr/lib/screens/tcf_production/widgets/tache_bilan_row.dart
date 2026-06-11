@@ -1,33 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../../core/models/enums.dart';
 import '../../../core/theme/app_theme.dart';
-import 'level_pill.dart';
 
 /// Ligne récap d'une tâche dans le bilan d'une session EE/EO.
 ///
 /// Layout : titre de la tâche en haut, sous-titre récap en bas ("Note 14/20",
-/// "Évaluation en cours…" ou "Non évaluée"). À droite : badge niveau CECRL
-/// obtenu (quand l'éval est arrivée) + chevron qui signale qu'on peut
-/// tapoter pour ouvrir l'évaluation détaillée. Le chevron disparaît quand
-/// la ligne n'est pas tappable (pending ou absence d'éval).
+/// "Évaluation en cours…" ou "Non évaluée"). À droite : un chevron qui signale
+/// qu'on peut tapoter pour ouvrir l'évaluation détaillée. Le chevron disparaît
+/// quand la ligne n'est pas tappable (pending ou absence d'éval). Aucun niveau
+/// CECRL par tâche : il n'apparaît qu'au bilan d'épreuve (examen blanc).
 class TacheBilanRow extends StatelessWidget {
   const TacheBilanRow({
     super.key,
     required this.name,
     this.score,
-    this.niveauObtenu,
     this.pending = false,
+    this.notRendered = false,
   });
 
   final String name;
   final double? score;
-  final NiveauCecrl? niveauObtenu;
 
   /// Quand `true`, l'évaluation IA tourne encore : on affiche un mini-spinner
   /// et le texte "Évaluation en cours" au lieu du score.
   final bool pending;
+
+  /// Quand `true`, la tâche n'a jamais été rendue (examen terminé / abandonné) :
+  /// elle est comptée 0 au bilan et affichée « Non rendue ».
+  final bool notRendered;
 
   String _formatScore(double s) {
     if (s == s.truncateToDouble()) return s.toInt().toString();
@@ -37,8 +38,7 @@ class TacheBilanRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasScore = score != null;
-    final hasLevel = niveauObtenu != null;
-    final isEvaluated = hasScore || hasLevel;
+    final isEvaluated = hasScore;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
@@ -68,16 +68,13 @@ class TacheBilanRow extends StatelessWidget {
                 const SizedBox(height: 4),
                 _Subtitle(
                   pending: pending,
+                  notRendered: notRendered,
                   score: hasScore ? _formatScore(score!) : null,
                 ),
               ],
             ),
           ),
           const SizedBox(width: 10),
-          if (hasLevel) ...[
-            LevelPill(level: niveauObtenu!, small: true),
-            const SizedBox(width: 4),
-          ],
           if (pending)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 6),
@@ -113,18 +110,26 @@ class TacheBilanRow extends StatelessWidget {
 /// - Évaluation en cours → "Évaluation IA en cours…"
 /// - Aucune éval → "Non évaluée"
 class _Subtitle extends StatelessWidget {
-  const _Subtitle({required this.pending, required this.score});
+  const _Subtitle({
+    required this.pending,
+    required this.score,
+    this.notRendered = false,
+  });
 
   final bool pending;
+  final bool notRendered;
   final String? score;
 
   @override
   Widget build(BuildContext context) {
-    final (text, color) = switch ((pending, score)) {
-      (true, _) => ('Évaluation IA en cours…', AppColors.blue),
-      (false, final String s) when s.isNotEmpty => ('Note $s / 20', AppColors.ink2),
-      _ => ('Non évaluée', AppColors.muted),
-    };
+    final (text, color) = notRendered
+        ? ('Non rendue', AppColors.muted)
+        : switch ((pending, score)) {
+            (true, _) => ('Évaluation IA en cours…', AppColors.blue),
+            (false, final String s) when s.isNotEmpty =>
+              ('Note $s / 20', AppColors.ink2),
+            _ => ('Non évaluée', AppColors.muted),
+          };
     return Text(
       text,
       style: AppFonts.ui(

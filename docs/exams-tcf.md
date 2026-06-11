@@ -94,8 +94,11 @@ pour EE/EO (déjà capable de gérer `parentAttemptId` avec validation `TCF_COMP
 
 - CO/CE : ratio = weightedScore/maxWeightedScore → ≥80% B2 · ≥60% B1 · ≥40% A2 · ≥20% A1 ·
   sinon A1_NON_ATTEINT
-- EE/EO : plancher des `niveauCecrl` des 3 `AiEvaluation` liées aux 3 submissions
-- Final = min ordinal des 4 (A1_NON_ATTEINT(0) < A1 < A2 < B1 < B2 < C1 < C2)
+- EE/EO : **moyenne pondérée des compétences des 3 tâches** (poids 1/2/3, cf.
+  `ProductionBilanService.bilanEpreuve`) → seuils → niveau d'épreuve, plafonné B2.
+  (Avant : plancher `min()` des 3 niveaux — abandonné, une seule éval IA basse
+  sur une tâche courte plafonnait l'épreuve.)
+- Final = min ordinal des 4 épreuves (A1_NON_ATTEINT(0) < A1 < A2 < B1 < B2 < C1 < C2)
 
 ### Endpoints
 

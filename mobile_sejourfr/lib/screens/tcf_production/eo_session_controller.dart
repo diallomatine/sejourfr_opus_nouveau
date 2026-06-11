@@ -12,22 +12,30 @@ import '../../core/models/production_models.dart';
 /// Similaire a EeSessionController mais pour l'oral.
 class EoSessionState {
   const EoSessionState({
-    required this.niveau,
     required this.attempt,
     required this.tasks,
     required this.submissions,
+    required this.isExam,
+    this.slotNumber,
   });
 
   const EoSessionState.empty()
-      : niveau = null,
-        attempt = null,
+      : attempt = null,
         tasks = const [],
-        submissions = const {};
+        submissions = const {},
+        isExam = false,
+        slotNumber = null;
 
-  final String? niveau;
   final Attempt? attempt;
   final List<ProductionTaskDto> tasks;
   final Map<int, ProductionSubmissionDto> submissions;
+
+  /// True pour une session d'examen blanc (3 tâches enchaînées, décompte par
+  /// tâche, soumission immédiate au stop). False pour l'entraînement libre.
+  final bool isExam;
+
+  /// Slot d'examen blanc module (1-10) — null en full exam et en single-task.
+  final int? slotNumber;
 
   bool get isStarted => attempt != null && tasks.isNotEmpty;
   int get totalTasks => tasks.length;
@@ -37,16 +45,18 @@ class EoSessionState {
       (index >= 0 && index < tasks.length) ? tasks[index] : null;
 
   EoSessionState copyWith({
-    String? niveau,
     Attempt? attempt,
     List<ProductionTaskDto>? tasks,
     Map<int, ProductionSubmissionDto>? submissions,
+    bool? isExam,
+    int? slotNumber,
   }) =>
       EoSessionState(
-        niveau: niveau ?? this.niveau,
         attempt: attempt ?? this.attempt,
         tasks: tasks ?? this.tasks,
         submissions: submissions ?? this.submissions,
+        isExam: isExam ?? this.isExam,
+        slotNumber: slotNumber ?? this.slotNumber,
       );
 }
 
@@ -55,26 +65,36 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
 
   final ProductionRepository _repo;
 
-  Future<void> start({required String niveau}) async {
+  /// (Re)demarre une **session d'examen blanc module EO** sur le slot donné :
+  /// crée un attempt d'examen (`exam:true, slotNumber:N`) puis charge les 3
+  /// tâches déterministes du slot. L'EO n'a pas de `timeLimitSeconds` backend
+  /// (le décompte est par tâche, basé sur `dureeMaxSec`).
+  Future<void> startExam({required int slotNumber}) async {
     final current = state.value;
     if (current != null &&
         current.isStarted &&
-        current.niveau == niveau &&
+        current.isExam &&
+        current.slotNumber == slotNumber &&
         !current.isCompleted) {
       return;
     }
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final tasks = await _repo.listTasks(epreuve: EpreuveType.tcfEo, niveau: niveau);
+      final attempt = await _repo.startProductionAttempt(
+        epreuve: EpreuveType.tcfEo,
+        exam: true,
+        slotNumber: slotNumber,
+      );
+      final tasks = await _repo.getExamTasks(attempt.id);
       if (tasks.isEmpty) {
-        throw StateError("Aucune tache EO disponible pour le niveau $niveau.");
+        throw StateError('Aucune tâche EO pour cet examen.');
       }
-      final attempt = await _repo.startProductionAttempt(epreuve: EpreuveType.tcfEo);
       return EoSessionState(
-        niveau: niveau,
         attempt: attempt,
         tasks: tasks,
         submissions: const {},
+        isExam: true,
+        slotNumber: slotNumber,
       );
     });
   }
@@ -89,21 +109,19 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
     state = await AsyncValue.guard(() async {
       final attempt = await _repo.startProductionAttempt(epreuve: EpreuveType.tcfEo);
       return EoSessionState(
-        niveau: task.niveauCible,
         attempt: attempt,
         tasks: [task],
         submissions: const {},
+        isExam: false,
       );
     });
   }
 
   /// Démarre une session EO 3-tâches **dans le cadre d'un examen blanc TCF
   /// complet** : on reprend le sous-attempt `TCF_EO` déjà créé par
-  /// `FullTcfExamService.start` au lieu de POST un nouvel attempt.
-  Future<void> startInFullExam({
-    required String subAttemptId,
-    required String niveau,
-  }) async {
+  /// `FullTcfExamService.start` au lieu de POST un nouvel attempt, et on charge
+  /// les 3 tâches déterministes via `getExamTasks`.
+  Future<void> startInFullExam({required String subAttemptId}) async {
     final current = state.value;
     if (current != null &&
         current.attempt?.id == subAttemptId &&
@@ -113,10 +131,9 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
     }
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      final tasks =
-          await _repo.listTasks(epreuve: EpreuveType.tcfEo, niveau: niveau);
+      final tasks = await _repo.getExamTasks(subAttemptId);
       if (tasks.isEmpty) {
-        throw StateError('Aucune tâche EO disponible pour le niveau $niveau.');
+        throw StateError('Aucune tâche EO pour cet examen.');
       }
       final attempt = Attempt(
         id: subAttemptId,
@@ -127,10 +144,10 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
         questions: const [],
       );
       return EoSessionState(
-        niveau: niveau,
         attempt: attempt,
         tasks: tasks,
         submissions: const {},
+        isExam: true,
       );
     });
   }
@@ -172,6 +189,20 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
     final fresh = await _repo.getSubmission(existing.id);
     final updated = {...current.submissions, taskIndex: fresh};
     state = AsyncData(current.copyWith(submissions: updated));
+  }
+
+  /// Finalise l'attempt d'examen courant (`POST /finish`). À appeler après la
+  /// dernière soumission acquittée ou à l'abandon confirmé. Best-effort. No-op
+  /// hors examen module (full exam : finalisation via `markSubDone`).
+  Future<void> finishAttemptIfExam() async {
+    final current = state.value;
+    final attemptId = current?.attempt?.id;
+    if (current == null || !current.isExam || attemptId == null) return;
+    try {
+      await _repo.finishAttempt(attemptId);
+    } catch (_) {
+      /* déjà fini / réseau : le bilan lira l'état réel */
+    }
   }
 
   void reset() {

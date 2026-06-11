@@ -214,7 +214,6 @@ class _Body extends ConsumerWidget {
               ),
               DonutChartScore(
                 noteSur20: eval.noteSurVingt?.toDouble(),
-                niveau: eval.niveauCecrl,
               ),
               AvertissementsCard(
                 avertissements: eval.feedback.avertissements,
