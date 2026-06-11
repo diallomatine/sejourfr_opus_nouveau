@@ -8,12 +8,31 @@ import '../api/api_client.dart';
 import '../api/billing_repository.dart';
 import '../api/repositories.dart';
 import '../auth/auth_controller.dart';
+import '../models/auth_models.dart';
 import '../models/billing_models.dart';
 import 'iap_service.dart';
 
 // ============================================================================
 // État
 // ============================================================================
+
+/// Issue d'une vérification d'achat réussie, déduite en comparant l'état
+/// Premium du user AVANT le refresh avec le statut renvoyé par le backend.
+/// Pilote le message de confirmation du paywall (bienvenue vs prolongation
+/// vs changement d'offre vs simple restauration).
+enum PurchaseOutcome {
+  /// N'était pas Premium → premier accès ouvert.
+  activated,
+
+  /// Était sur Civique seul → passe en Intégral.
+  upgraded,
+
+  /// Même module, date de fin repoussée (rachat d'un pass = durées cumulées).
+  extended,
+
+  /// Rien n'a changé : restauration multi-appareil ou transaction rejouée.
+  alreadyActive,
+}
 
 @immutable
 class BillingState {
@@ -22,6 +41,7 @@ class BillingState {
     this.error,
     this.products = const [],
     this.lastVerification,
+    this.lastVerificationOutcome,
     this.purchaseInProgress = false,
     this.purchasingSku,
     this.actionBlocked = false,
@@ -41,6 +61,10 @@ class BillingState {
   /// Dernier statut Premium reçu après vérif backend. Sert à l'UI à
   /// afficher un message de confirmation et à fermer le paywall.
   final SubscriptionStatusResponse? lastVerification;
+
+  /// Issue de la dernière vérification (toujours posée avec
+  /// [lastVerification]) — cf. [PurchaseOutcome].
+  final PurchaseOutcome? lastVerificationOutcome;
 
   /// True pendant que l'UI native d'achat est ouverte ou que le backend
   /// valide un reçu. Permet de désactiver les boutons.
@@ -62,6 +86,7 @@ class BillingState {
     String? error,
     List<IapProduct>? products,
     SubscriptionStatusResponse? lastVerification,
+    PurchaseOutcome? lastVerificationOutcome,
     bool? purchaseInProgress,
     String? purchasingSku,
     bool? actionBlocked,
@@ -73,6 +98,8 @@ class BillingState {
       error: clearError ? null : (error ?? this.error),
       products: products ?? this.products,
       lastVerification: lastVerification ?? this.lastVerification,
+      lastVerificationOutcome:
+          lastVerificationOutcome ?? this.lastVerificationOutcome,
       purchaseInProgress: purchaseInProgress ?? this.purchaseInProgress,
       purchasingSku:
           clearPurchasingSku ? null : (purchasingSku ?? this.purchasingSku),
@@ -402,9 +429,7 @@ class BillingController extends StateNotifier<BillingState> {
             error: 'L\'achat n\'a pas pu aboutir côté store. Aucun montant '
                 'n\'a été débité. Réessayez.',
           );
-          if (purchase.pendingCompletePurchase) {
-            await _iap.completePurchase(purchase);
-          }
+          await _iap.completePurchase(purchase);
           break;
 
         case PurchaseStatus.canceled:
@@ -413,9 +438,7 @@ class BillingController extends StateNotifier<BillingState> {
             clearError: true,
             clearPurchasingSku: true,
           );
-          if (purchase.pendingCompletePurchase) {
-            await _iap.completePurchase(purchase);
-          }
+          await _iap.completePurchase(purchase);
           break;
 
         case PurchaseStatus.purchased:
@@ -430,11 +453,19 @@ class BillingController extends StateNotifier<BillingState> {
     try {
       final source = IapService.currentSource;
       final receipt = IapService.receiptFor(purchase);
+
+      // Snapshot de l'état Premium AVANT le refresh : c'est la comparaison
+      // avant/après qui permet de qualifier l'issue (bienvenue, prolongation,
+      // passage en Intégral, ou simple restauration sans changement).
+      final authState = _ref.read(authControllerProvider);
+      final prevUser = authState is AuthAuthenticated ? authState.user : null;
+
       final status = await _repo.verifyReceipt(VerifyReceiptRequest(
         source: source,
         receipt: receipt,
         productId: purchase.productID,
       ));
+      final outcome = _outcomeFor(prevUser, status);
 
       // Rafraîchit l'utilisateur authentifié — hasCivique / hasTcf /
       // premiumEndsAt doivent refléter le nouvel état immédiatement.
@@ -443,14 +474,15 @@ class BillingController extends StateNotifier<BillingState> {
           .refreshSubscriptionStatus(status);
 
       // Acquittement côté store : OBLIGATOIRE après validation serveur, sinon
-      // le store retentera de livrer l'achat indéfiniment.
-      if (purchase.pendingCompletePurchase) {
-        await _iap.completePurchase(purchase);
-      }
+      // le store retentera de livrer l'achat indéfiniment. Le service force
+      // l'acquittement sur iOS même si pendingCompletePurchase est false
+      // (bug StoreKit 2, cf. IapService.completePurchase).
+      await _iap.completePurchase(purchase);
 
       state = state.copyWith(
         purchaseInProgress: false,
         lastVerification: status,
+        lastVerificationOutcome: outcome,
         clearError: true,
         clearPurchasingSku: true,
       );
@@ -466,9 +498,7 @@ class BillingController extends StateNotifier<BillingState> {
       // le purge SILENCIEUSEMENT de la file (sinon le store le re-livre en
       // boucle à chaque lancement) sans afficher d'erreur bloquante.
       if (api.statusCode == 409) {
-        if (purchase.pendingCompletePurchase) {
-          await _iap.completePurchase(purchase);
-        }
+        await _iap.completePurchase(purchase);
         // Hors d'un achat actif (boot / restauration), on évite juste de
         // laisser le spinner global coincé. Pendant un achat actif
         // (purchasingSku != null), on ne touche à rien : c'est l'event de
@@ -499,7 +529,7 @@ class BillingController extends StateNotifier<BillingState> {
       // (transaction « empoisonnée ») : l'erreur revient en boucle et grise
       // les boutons, l'utilisateur ne peut plus rien acheter. On ne laisse en
       // suspens QUE les échecs transitoires, pour lesquels rejouer a un sens.
-      if (blocking && purchase.pendingCompletePurchase) {
+      if (blocking) {
         await _iap.completePurchase(purchase);
       }
 
@@ -510,6 +540,24 @@ class BillingController extends StateNotifier<BillingState> {
         actionBlocked: blocking,
       );
     }
+  }
+
+  /// Compare l'état Premium d'avant l'achat avec le statut fraîchement
+  /// vérifié. `hasCivique`/`hasTcf` sont tous deux true pour un Intégral
+  /// (cf. SubscriptionStatusResponse.hasCivique).
+  PurchaseOutcome _outcomeFor(AuthUser? prev, SubscriptionStatusResponse next) {
+    final prevHadCivique = prev?.hasCivique ?? false;
+    final prevHadTcf = prev?.hasTcf ?? false;
+    if (!prevHadCivique && !prevHadTcf) return PurchaseOutcome.activated;
+    if (next.moduleAccess == ModuleAccess.integral && !prevHadTcf) {
+      return PurchaseOutcome.upgraded;
+    }
+    final prevEnd = prev?.premiumEndsAt;
+    final nextEnd = next.expiresAt;
+    if (nextEnd != null && (prevEnd == null || nextEnd.isAfter(prevEnd))) {
+      return PurchaseOutcome.extended;
+    }
+    return PurchaseOutcome.alreadyActive;
   }
 
   @override

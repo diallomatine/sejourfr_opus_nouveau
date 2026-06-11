@@ -8,6 +8,7 @@ import '../../core/billing/billing_controller.dart';
 import '../../core/billing/iap_service.dart';
 import '../../core/models/billing_models.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/format_date.dart';
 import '../../core/widgets/app_button.dart';
 
 /// Écran paywall plein écran. Affiche un toggle mensuel/trimestriel/annuel et
@@ -61,7 +62,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
             backgroundColor: AppColors.ink,
             behavior: SnackBarBehavior.floating,
             content: Text(
-              _welcomeMessage(verified),
+              _welcomeMessage(verified, next.lastVerificationOutcome),
               style: AppFonts.ui(color: AppColors.white, size: 13),
             ),
           ),
@@ -109,18 +110,37 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     );
   }
 
-  /// Message de confirmation post-achat, adapté au module débloqué et à la
-  /// nature (pass one-time vs abonnement).
-  String _welcomeMessage(SubscriptionStatusResponse status) {
+  /// Message de confirmation post-achat, adapté au module débloqué, à la
+  /// nature (pass one-time vs abonnement) et à l'issue : premier accès,
+  /// prolongation (durées cumulées), passage en Intégral, ou restauration
+  /// sans changement.
+  String _welcomeMessage(
+    SubscriptionStatusResponse status,
+    PurchaseOutcome? outcome,
+  ) {
     final module = switch (status.moduleAccess) {
       ModuleAccess.integral => 'Intégral',
       ModuleAccess.civique => 'Civique',
       _ => null,
     };
-    final prefix = status.oneTime ? 'Accès activé' : 'Abonnement activé';
-    return module != null
-        ? '$prefix · Bienvenue dans $module !'
-        : '$prefix. Bienvenue !';
+    final until = status.expiresAt != null
+        ? ' jusqu\'au ${formatLongDate(status.expiresAt!.toLocal())}'
+        : '';
+    if (module == null) {
+      return status.oneTime ? 'Accès activé. Bienvenue !' : 'Abonnement activé. Bienvenue !';
+    }
+    return switch (outcome ?? PurchaseOutcome.activated) {
+      PurchaseOutcome.activated => status.oneTime
+          ? 'Accès activé · Bienvenue dans $module !'
+          : 'Abonnement activé · Bienvenue dans $module !',
+      PurchaseOutcome.upgraded =>
+        'Vous passez en Intégral · accès ouvert$until.',
+      PurchaseOutcome.extended => status.oneTime
+          ? 'Pass prolongé · $module ouvert$until.'
+          : 'Abonnement mis à jour · $module$until.',
+      PurchaseOutcome.alreadyActive =>
+        'Votre accès $module est déjà actif$until.',
+    };
   }
 
   Widget _buildContent(BuildContext context, BillingState state) {

@@ -80,8 +80,25 @@ class IapService {
 
   /// Acquitte la transaction côté store. À appeler APRÈS que le backend a
   /// validé le reçu. Sans ça, le store retentera de livrer l'achat.
-  Future<void> completePurchase(PurchaseDetails purchase) {
-    return _iap.completePurchase(purchase);
+  ///
+  /// iOS / StoreKit 2 : `pendingCompletePurchase` revient faussement `false`
+  /// sur certaines transactions livrées (consommables surtout —
+  /// flutter/flutter#182739). S'y fier laisse la transaction unfinished, et
+  /// elle est re-livrée en `restored` à chaque abonnement au purchaseStream
+  /// (symptôme : le paywall se referme sur « Bienvenue… » à chaque ouverture).
+  /// On acquitte donc SANS condition les transactions livrées côté Apple.
+  /// Et comme le `finish()` natif ne répond jamais quand la transaction est
+  /// déjà finie (flutter/flutter#160148), l'attente est bornée.
+  Future<void> completePurchase(PurchaseDetails purchase) async {
+    final delivered = purchase.status == PurchaseStatus.purchased ||
+        purchase.status == PurchaseStatus.restored;
+    final forceApple = delivered && (Platform.isIOS || Platform.isMacOS);
+    if (!purchase.pendingCompletePurchase && !forceApple) return;
+    try {
+      await _iap.completePurchase(purchase).timeout(const Duration(seconds: 8));
+    } on TimeoutException {
+      // Transaction déjà finie côté store : rien à acquitter.
+    }
   }
 
   /// Récupère la chaîne à envoyer au backend dans [VerifyReceiptRequest.receipt]
