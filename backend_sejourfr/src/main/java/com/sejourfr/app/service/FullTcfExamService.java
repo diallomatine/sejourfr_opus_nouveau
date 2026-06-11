@@ -109,9 +109,9 @@ public class FullTcfExamService {
         // EE + EO : attempts vides — les 3 tâches seront soumises via
         // /api/production-submissions avec attemptId du sous-attempt + parent.
         attemptService.startProductionAttempt(userId, new ProductionAttemptStartRequest(
-                Module.TCF, EpreuveType.TCF_EE, parent.getId(), null));
+                Module.TCF, EpreuveType.TCF_EE, parent.getId(), null, null));
         attemptService.startProductionAttempt(userId, new ProductionAttemptStartRequest(
-                Module.TCF, EpreuveType.TCF_EO, parent.getId(), null));
+                Module.TCF, EpreuveType.TCF_EO, parent.getId(), null, null));
 
         // Compte gratuit ayant déjà consommé son EE/EO offerte : on pré-termine
         // les sous-attempts EE/EO (aucune soumission possible — le garde
@@ -406,24 +406,27 @@ public class FullTcfExamService {
         // (pas de tolérance silencieuse — l'utilisateur voit le problème).
         List<ProductionSubmission> submissions = productionSubmissionManager.findByAttemptId(sub.getId());
         List<UUID> failedIds = new ArrayList<>();
+        boolean inFlight = false;
         for (ProductionSubmission s : submissions) {
             if (s.getStatut() == SubmissionStatut.FAILED) {
                 failedIds.add(s.getId());
+            } else if (s.getStatut() != SubmissionStatut.EVALUATED) {
+                inFlight = true; // SUBMITTED / TRANSCRIBING / EVALUATING
             }
         }
         Map<Integer, AiEvaluation> evalsByTache = productionBilanService.latestEvalsByTache(submissions);
         int evaluatedCount = evalsByTache.size();
         // Niveau d'épreuve = moyenne pondérée des compétences des 3 tâches
         // (cf. ProductionBilanService), plafonné B2. La note brute reste
-        // stockée intacte. Cas d'abandon : épreuve terminée sans aucune
-        // soumission → comptée comme non atteinte (le « reste noté 0 » d'un
-        // examen abandonné), pour ne pas laisser le bilan croire qu'une
-        // évaluation IA est en cours.
+        // stockée intacte. Épreuve TERMINÉE incomplète (chrono écoulé, abandon)
+        // sans pipeline IA en cours ni FAILED à retenter : les tâches non
+        // rendues comptent 0 (« le reste noté 0 ») — y compris zéro soumission
+        // → A1_NON_ATTEINT.
         NiveauCecrl level;
         if (evaluatedCount == EXPECTED_PRODUCTION_SUBMISSIONS) {
             level = levelEstimator.capB2(productionBilanService.bilanEpreuve(evalsByTache));
-        } else if (sub.getFinishedAt() != null && submissions.isEmpty()) {
-            level = NiveauCecrl.A1_NON_ATTEINT;
+        } else if (sub.getFinishedAt() != null && !inFlight && failedIds.isEmpty()) {
+            level = levelEstimator.capB2(productionBilanService.bilanEpreuveTerminee(evalsByTache));
         } else {
             level = null;
         }

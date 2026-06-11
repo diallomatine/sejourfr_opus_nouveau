@@ -39,7 +39,10 @@ import java.util.UUID;
 public class AiEvaluationService {
 
     private static final BigDecimal NOTE_MAX = new BigDecimal("20");
-
+    /**
+     * Au-dela de cet ecart |note_LLM − note_calculee|, on log pour calibration.
+     */
+    private static final BigDecimal SEUIL_ECART_CALIBRATION = new BigDecimal("3");
     private final ProductionSubmissionManager submissionManager;
     private final TranscriptionManager transcriptionManager;
     private final AiEvaluationManager aiEvaluationManager;
@@ -73,6 +76,61 @@ public class AiEvaluationService {
             log.warn("niveau_cecrl inconnu : {}", raw);
             return null;
         }
+    }
+
+    /**
+     * {@code round(Σ note_sur_20[code] × poids[code])}, arrondi a l'entier le plus
+     * proche (HALF_UP), borne a [0,20]. Retourne null si les criteres/poids ou les
+     * scores sont inexploitables (le hors-sujet — tous les criteres a 0 — rend
+     * coherent 0, puisque Σ(0×poids)=0). Package-private pour le test unitaire.
+     */
+    static BigDecimal weightedNote(Object criteres, Object scoresCriteres) {
+        if (!(criteres instanceof List<?> critList) || !(scoresCriteres instanceof List<?> scores)) {
+            return null;
+        }
+        Map<String, BigDecimal> poidsByCode = new HashMap<>();
+        for (Object c : critList) {
+            if (c instanceof Map<?, ?> m && m.get("code") != null && m.get("poids") instanceof Number n) {
+                poidsByCode.put(m.get("code").toString(), new BigDecimal(n.toString()));
+            }
+        }
+        if (poidsByCode.isEmpty()) return null;
+
+        BigDecimal sum = BigDecimal.ZERO;
+        boolean any = false;
+        for (Object s : scores) {
+            if (!(s instanceof Map<?, ?> m)) continue;
+            Object code = m.get("code");
+            Object note = m.get("note_sur_20");
+            if (code == null || !(note instanceof Number noteNum)) continue;
+            BigDecimal poids = poidsByCode.get(code.toString());
+            if (poids == null) continue;
+            sum = sum.add(new BigDecimal(noteNum.toString()).multiply(poids));
+            any = true;
+        }
+        if (!any) return null;
+        BigDecimal rounded = sum.setScale(0, RoundingMode.HALF_UP);
+        if (rounded.compareTo(BigDecimal.ZERO) < 0) return BigDecimal.ZERO;
+        if (rounded.compareTo(NOTE_MAX) > 0) return NOTE_MAX;
+        return rounded;
+    }
+
+    private static boolean sourceCriteriaPresent(Object scoresCriteres, List<String> sourceCodes) {
+        if (!(scoresCriteres instanceof List<?> scores)) return false;
+        java.util.Set<String> present = new java.util.HashSet<>();
+        for (Object s : scores) {
+            if (s instanceof Map<?, ?> m && m.get("code") != null && m.get("note_sur_20") instanceof Number) {
+                present.add(m.get("code").toString());
+            }
+        }
+        return present.containsAll(sourceCodes);
+    }
+
+    private static String formatMinutes(int sec) {
+        int m = sec / 60;
+        int s = sec % 60;
+        if (m == 0) return s + " s";
+        return s == 0 ? m + " min" : m + " min " + s + " s";
     }
 
     @Transactional
@@ -150,7 +208,7 @@ public class AiEvaluationService {
             Integer max = task.getMotsMax();
             if (mots != null && max != null && mots > max) {
                 out.add("Votre texte depasse legerement la limite (" + mots
-                    + " mots pour un maximum de " + max + "). A l'examen, restez dans les bornes.");
+                        + " mots pour un maximum de " + max + "). A l'examen, restez dans les bornes.");
             }
             return out;
         }
@@ -161,13 +219,13 @@ public class AiEvaluationService {
         if (duree != null && cible != null && duree < cible) {
             if (min != null && duree < min) {
                 out.add("Votre enregistrement est court (" + duree + " s, soit environ "
-                    + formatMinutes(duree) + "). Le minimum recommande est de 2 minutes et l'objectif "
-                    + cible + " s (~" + formatMinutes(cible) + "). Une production trop courte limite la "
-                    + "demonstration de vos competences : votre note en tient compte. Rapprochez-vous "
-                    + "de 3 minutes la prochaine fois.");
+                        + formatMinutes(duree) + "). Le minimum recommandé est de 2 minutes et l'objectif "
+                        + cible + " s (~" + formatMinutes(cible) + "). Une production trop courte limite la "
+                        + "démonstration de vos competences : votre note en tient compte. Rapprochez-vous "
+                        + "de 3 minutes la prochaine fois.");
             } else {
                 out.add("Vous avez parle " + duree + " s ; l'objectif est " + cible + " s (~"
-                    + formatMinutes(cible) + "). Developpez davantage pour viser le niveau superieur.");
+                        + formatMinutes(cible) + "). Developpez davantage pour viser le niveau superieur.");
             }
         }
         return out;
@@ -208,9 +266,6 @@ public class AiEvaluationService {
         }
     }
 
-    /** Au-dela de cet ecart |note_LLM − note_calculee|, on log pour calibration. */
-    private static final BigDecimal SEUIL_ECART_CALIBRATION = new BigDecimal("3");
-
     /**
      * Recalcule {@code note_globale} cote serveur = {@code round(Σ note_sur_20 × poids)}
      * a partir des {@code scores_criteres} et des poids de la rubrique, puis
@@ -224,52 +279,15 @@ public class AiEvaluationService {
         BigDecimal computed = weightedNote(criteres, feedback.get("scores_criteres"));
         if (computed == null) {
             log.warn("note_globale non recalculee serveur (submission={} : rubrique/scores manquants) — "
-                + "note LLM conservee.", submissionId);
+                    + "note LLM conservee.", submissionId);
             return;
         }
         BigDecimal llmNote = extractNote(feedback);
         if (llmNote != null && llmNote.subtract(computed).abs().compareTo(SEUIL_ECART_CALIBRATION) > 0) {
             log.warn("Ecart de notation submission={} : LLM={} vs serveur={} (>{}) — a calibrer.",
-                submissionId, llmNote, computed, SEUIL_ECART_CALIBRATION);
+                    submissionId, llmNote, computed, SEUIL_ECART_CALIBRATION);
         }
         feedback.put("note_globale", computed);
-    }
-
-    /**
-     * {@code round(Σ note_sur_20[code] × poids[code])}, arrondi a l'entier le plus
-     * proche (HALF_UP), borne a [0,20]. Retourne null si les criteres/poids ou les
-     * scores sont inexploitables (le hors-sujet — tous les criteres a 0 — rend
-     * coherent 0, puisque Σ(0×poids)=0). Package-private pour le test unitaire.
-     */
-    static BigDecimal weightedNote(Object criteres, Object scoresCriteres) {
-        if (!(criteres instanceof List<?> critList) || !(scoresCriteres instanceof List<?> scores)) {
-            return null;
-        }
-        Map<String, BigDecimal> poidsByCode = new HashMap<>();
-        for (Object c : critList) {
-            if (c instanceof Map<?, ?> m && m.get("code") != null && m.get("poids") instanceof Number n) {
-                poidsByCode.put(m.get("code").toString(), new BigDecimal(n.toString()));
-            }
-        }
-        if (poidsByCode.isEmpty()) return null;
-
-        BigDecimal sum = BigDecimal.ZERO;
-        boolean any = false;
-        for (Object s : scores) {
-            if (!(s instanceof Map<?, ?> m)) continue;
-            Object code = m.get("code");
-            Object note = m.get("note_sur_20");
-            if (code == null || !(note instanceof Number noteNum)) continue;
-            BigDecimal poids = poidsByCode.get(code.toString());
-            if (poids == null) continue;
-            sum = sum.add(new BigDecimal(noteNum.toString()).multiply(poids));
-            any = true;
-        }
-        if (!any) return null;
-        BigDecimal rounded = sum.setScale(0, RoundingMode.HALF_UP);
-        if (rounded.compareTo(BigDecimal.ZERO) < 0) return BigDecimal.ZERO;
-        if (rounded.compareTo(NOTE_MAX) > 0) return NOTE_MAX;
-        return rounded;
     }
 
     /**
@@ -287,7 +305,7 @@ public class AiEvaluationService {
         Object scores = feedback.get("scores_criteres");
         if (!sourceCriteriaPresent(scores, sourceCodes)) {
             log.warn("niveau_cecrl : critere(s) porteur(s) {} manquant(s) dans scores_criteres "
-                + "(submission={}) — fallback sur la moyenne ponderee.", sourceCodes, submissionId);
+                    + "(submission={}) — fallback sur la moyenne ponderee.", sourceCodes, submissionId);
         }
         NiveauCecrl calcule = ProductionBilanService.computeNiveau(
                 scores, sourceCodes, noteGlobale, props.getNiveauCecrl());
@@ -298,28 +316,10 @@ public class AiEvaluationService {
         if (niveauIa != null && niveauIa != calcule) {
             String sens = niveauIa.ordinal() < calcule.ordinal() ? "sous-estimation LLM" : "sur-estimation LLM";
             log.info("Divergence niveau submission={} : LLM={} vs calcule={} ({}) — calibration.",
-                submissionId, niveauIa, calcule, sens);
+                    submissionId, niveauIa, calcule, sens);
         }
         feedback.put("niveau_cecrl", calcule.name());
         return calcule;
-    }
-
-    private static boolean sourceCriteriaPresent(Object scoresCriteres, List<String> sourceCodes) {
-        if (!(scoresCriteres instanceof List<?> scores)) return false;
-        java.util.Set<String> present = new java.util.HashSet<>();
-        for (Object s : scores) {
-            if (s instanceof Map<?, ?> m && m.get("code") != null && m.get("note_sur_20") instanceof Number) {
-                present.add(m.get("code").toString());
-            }
-        }
-        return present.containsAll(sourceCodes);
-    }
-
-    private static String formatMinutes(int sec) {
-        int m = sec / 60;
-        int s = sec % 60;
-        if (m == 0) return s + " s";
-        return s == 0 ? m + " min" : m + " min " + s + " s";
     }
 
     private ProductionInput loadInput(ProductionSubmission sub, ProductionTask task) {

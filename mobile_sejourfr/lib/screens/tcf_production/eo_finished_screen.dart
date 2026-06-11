@@ -106,16 +106,15 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
           );
       if (!context.mounted) return;
       final session = ref.read(eoSessionProvider).value;
-      final isExamMode = session != null && session.totalTasks > 1;
+      final isExamMode = session != null && session.isExam;
       final hasNext =
           session != null && widget.taskIndex + 1 < session.totalTasks;
       if (isExamMode) {
-        // Mode session 3-tâches (onglet Examens) : pas d'évaluation visible
-        // entre les tâches, comme dans le vrai TCF. On enchaîne directement
-        // le briefing suivant ; après T3 on push le bilan détaillé
-        // (`HistorySessionScreen` en mode `live=1`) qui pollera les
-        // évaluations IA des 3 submissions et permettra de drill-down sur
-        // chaque tâche.
+        // Mode examen module atteint ici uniquement en repli (échec réseau de
+        // la soumission immédiate côté briefing). Pas d'évaluation visible
+        // entre les tâches. On enchaîne le briefing suivant ; après T3 on
+        // FINALISE l'attempt (`/finish`) avant de push le bilan détaillé
+        // (`HistorySessionScreen` `?live=1`).
         if (hasNext) {
           context.pushReplacement(
             withCurrentQuery(
@@ -125,6 +124,8 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
           );
         } else {
           final attemptId = session.attempt!.id;
+          await ref.read(eoSessionProvider.notifier).finishAttemptIfExam();
+          if (!context.mounted) return;
           context.pushReplacement(
             '/tcf/expression-orale/sessions/$attemptId?live=1',
           );

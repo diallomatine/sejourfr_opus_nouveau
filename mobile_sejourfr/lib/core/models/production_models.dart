@@ -306,8 +306,10 @@ class ProductionBilan {
     required this.exam,
     required this.evaluatedCount,
     required this.expectedCount,
+    required this.finished,
     this.moyenneSur20,
     this.niveauGlobal,
+    this.slotNumber,
   });
 
   final String attemptId;
@@ -319,6 +321,16 @@ class ProductionBilan {
 
   final int evaluatedCount;
   final int expectedCount;
+
+  /// True quand l'attempt a `finishedAt` posé (3 tâches soumises, chrono écoulé
+  /// ou abandon). Quand `finished && evaluatedCount < 3`, les tâches manquantes
+  /// sont comptées 0 et `niveauGlobal` est calculé dès que le pipeline IA est
+  /// vide — les tâches jamais rendues s'affichent « Non rendue ».
+  final bool finished;
+
+  /// Slot d'examen blanc (1-10) sur lequel mapper la session dans la grille.
+  /// Null hors examen module.
+  final int? slotNumber;
 
   /// Moyenne ponderee /20 ; null si aucune evaluation.
   final double? moyenneSur20;
@@ -334,6 +346,8 @@ class ProductionBilan {
         exam: json['exam'] as bool? ?? false,
         evaluatedCount: (json['evaluatedCount'] as num?)?.toInt() ?? 0,
         expectedCount: (json['expectedCount'] as num?)?.toInt() ?? 0,
+        finished: json['finished'] as bool? ?? false,
+        slotNumber: (json['slotNumber'] as num?)?.toInt(),
         moyenneSur20: (json['moyenneSur20'] as num?)?.toDouble(),
         niveauGlobal: NiveauCecrl.fromWireNullable(json['niveauGlobal'] as String?),
       );

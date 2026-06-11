@@ -12,7 +12,6 @@ import {
   type NiveauCecrl,
   niveauCecrlLabel,
   type ProductionSubmissionDto,
-  resolveTcfLevel,
 } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
@@ -27,15 +26,25 @@ import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
 import { ExamIntroSheet } from "@/app/_components/hub/ExamIntroSheet";
 import { type ProductionConfig } from "./config";
 import detail from "@/app/_components/hub/detail.module.css";
+import prod from "./production.module.css";
 
-const SLOTS = 20;
+const SLOTS = 10;
 
-/** Session d'examen blanc production : note moyenne /20. Le niveau CECRL n'est
- *  plus dérivé localement — il vient du bilan d'épreuve backend. */
+/** Bande de difficulté par slot (composition déterministe backend) :
+ *  1-3 = A2 facile, 4-6 = B1 moyen, 7-10 = B2 difficile. */
+function slotBand(slot: number): { label: string; tone: "green" | "amber" | "red" } {
+  if (slot <= 3) return { label: "Facile · A2", tone: "green" };
+  if (slot <= 6) return { label: "Moyen · B1", tone: "amber" };
+  return { label: "Difficile · B2", tone: "red" };
+}
+
+/** Session d'examen blanc production : note moyenne /20 + slot UI (depuis le
+ *  bilan backend). Le niveau CECRL n'est plus dérivé localement. */
 interface PastSession {
   attemptId: string;
   date: string;
   avgNote: number | null;
+  slotNumber: number | null;
 }
 
 /**
@@ -50,7 +59,6 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
   const router = useRouter();
   const { user, status } = useAuth();
   const isPremium = user ? canAccessModule(user, "TCF") : false;
-  const level = resolveTcfLevel(user);
 
   const [past, setPast] = useState<PastSession[]>([]);
   const [bestLevel, setBestLevel] = useState<NiveauCecrl | null>(null);
@@ -75,7 +83,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
           arr.push(s);
           byAttempt.set(s.attemptId, arr);
         }
-        const sessions: PastSession[] = [];
+        const drafts: { attemptId: string; date: string; avgNote: number | null }[] = [];
         for (const [attemptId, items] of byAttempt) {
           if (items.length < 2) continue;
           const date = items
@@ -84,7 +92,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
           const notes = items
             .map((i) => i.evaluation?.noteSurVingt)
             .filter((v): v is number => v != null);
-          sessions.push({
+          drafts.push({
             attemptId,
             date,
             avgNote: notes.length
@@ -92,16 +100,21 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
               : null,
           });
         }
-        sessions.sort((a, b) => a.date.localeCompare(b.date));
-        if (cancelled) return;
-        setPast(sessions);
 
-        // Niveau estimé = plus haut `niveauGlobal` (calculé backend) parmi les
-        // sessions d'examen complètes. Fetch en parallèle des bilans d'épreuve.
+        // Le slot UI + le niveau global viennent du bilan backend (déjà fetché
+        // ici pour la stat « niveau estimé »). On range chaque session sur son
+        // vrai slot ; un slot null (anciennes sessions) retombe sur le slot 1.
         const bilans = await Promise.all(
-          sessions.map((s) => productionApi.getBilan(s.attemptId).catch(() => null)),
+          drafts.map((d) => productionApi.getBilan(d.attemptId).catch(() => null)),
         );
         if (cancelled) return;
+        const sessions: PastSession[] = drafts.map((d, i) => ({
+          ...d,
+          slotNumber: bilans[i]?.slotNumber ?? null,
+        }));
+        sessions.sort((a, b) => a.date.localeCompare(b.date));
+        setPast(sessions);
+
         let top: NiveauCecrl | null = null;
         for (const b of bilans) {
           const niv = b?.niveauGlobal ?? null;
@@ -116,9 +129,13 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
     };
   }, [status, config.epreuve]);
 
-  function requestStart() {
+  /** Slot ciblé par le lancement en cours (composition déterministe backend). */
+  const [pendingSlot, setPendingSlot] = useState(1);
+
+  function requestStart(slot: number) {
     if (starting) return;
     setError(null);
+    setPendingSlot(slot);
     setIntroOpen(true);
   }
 
@@ -145,6 +162,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
         module: "TCF",
         epreuve: config.epreuve,
         exam: true,
+        slotNumber: pendingSlot,
       });
       router.push(`${config.base}/session/${attempt.id}`);
     } catch (e) {
@@ -154,17 +172,25 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
     }
   }
 
-  const slotData: ExamSlotData[] = useMemo(
-    () =>
-      past.map((s) => ({
-        id: s.attemptId,
-        score: s.avgNote,
-        totalQuestions: s.avgNote != null ? 20 : null,
-      })),
-    [past],
-  );
+  // Grille indexée par slot : case i = examen du slot i+1. On range chaque
+  // session sur son `slotNumber` (null → slot 1, anciennes sessions), en gardant
+  // la plus récente par slot. Refaire l'examen N met à jour la case N.
+  const slotData: (ExamSlotData | null)[] = useMemo(() => {
+    const bySlot = new Map<number, PastSession>();
+    for (const s of past) {
+      const slot = s.slotNumber != null && s.slotNumber >= 1 && s.slotNumber <= SLOTS ? s.slotNumber : 1;
+      const prev = bySlot.get(slot);
+      if (!prev || s.date.localeCompare(prev.date) > 0) bySlot.set(slot, s);
+    }
+    return Array.from({ length: SLOTS }, (_, i) => {
+      const s = bySlot.get(i + 1);
+      return s
+        ? { id: s.attemptId, score: s.avgNote, totalQuestions: s.avgNote != null ? 20 : null }
+        : null;
+    });
+  }, [past]);
 
-  const done = Math.min(past.length, SLOTS);
+  const done = slotData.filter(Boolean).length;
   const bestNote = useMemo(() => {
     let best: number | null = null;
     for (const s of past) {
@@ -185,7 +211,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
         eyebrowIcon={<Target size={18} strokeWidth={2} />}
         eyebrow={config.label}
         title="Examens blancs"
-        subtitle={`${SLOTS} examens blancs de 3 tâches (${config.examMinutes}, niveau ${level}), évalués par l'IA avec une note /20 et un niveau CECRL plancher. Choisissez-en un et retrouvez votre dernier score.`}
+        subtitle={`${SLOTS} examens blancs de 3 tâches (${config.examMinutes}), à difficulté progressive : 1-3 niveau A2, 4-6 niveau B1, 7-10 niveau B2. Chacun est évalué par l'IA avec une note /20 et un niveau CECRL plancher.`}
         action={
           <Link href={config.base} className={detail.headBtn}>
             <LayoutGrid size={17} strokeWidth={1.7} aria-hidden />
@@ -219,6 +245,17 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
 
         {error && <div className={detail.error}>{error}</div>}
 
+        <div className={prod.bandLegend} aria-hidden>
+          {([1, 4, 7] as const).map((firstSlot) => {
+            const band = slotBand(firstSlot);
+            return (
+              <span key={firstSlot} className={prod.bandChip} data-tone={band.tone}>
+                {band.label}
+              </span>
+            );
+          })}
+        </div>
+
         <ExamsGrid
           count={SLOTS}
           exams={slotData}
@@ -233,12 +270,12 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
 
         <ExamIntroSheet
           open={introOpen}
-          eyebrow={`Examen blanc · ${config.label}`}
+          eyebrow={`Examen blanc ${pendingSlot} · ${config.label}`}
           title={`${config.label} en conditions réelles`}
           subtitle="Avant de commencer, voici comment se déroule l'examen."
           facts={[
             { label: "tâches enchaînées", value: "3" },
-            { label: `niveau ${level}`, value: config.examMinutes },
+            { label: slotBand(pendingSlot).label, value: config.examMinutes },
             { label: "note + niveau CECRL", value: "/20" },
           ]}
           tips={[

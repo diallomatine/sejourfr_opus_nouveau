@@ -2,6 +2,7 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.ProductionBilanResponse;
 import com.sejourfr.app.dto.ProductionSubmissionDto;
+import com.sejourfr.app.dto.ProductionTaskDto;
 import com.sejourfr.app.dto.SubmitProductionTextRequest;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.Attempt;
@@ -9,12 +10,14 @@ import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.mapper.ProductionSubmissionMapper;
+import com.sejourfr.app.mapper.ProductionTaskMapper;
 import com.sejourfr.app.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -58,9 +61,11 @@ public class ProductionSubmissionService {
     private final AttemptManager attemptManager;
     private final ProductionTaskManager taskManager;
     private final ProductionSubmissionMapper mapper;
+    private final ProductionTaskMapper taskMapper;
     private final CurrentUser currentUser;
     private final SubscriptionService subscriptionService;
     private final ProductionBilanService bilanService;
+    private final ProductionExamCompositionService compositionService;
 
     public ProductionSubmissionDto submitAudio(UUID productionTaskId, UUID attemptId, MultipartFile audio) {
         UUID userId = currentUser.getId();
@@ -133,6 +138,60 @@ public class ProductionSubmissionService {
      */
     @Transactional(readOnly = true)
     public ProductionBilanResponse bilan(UUID attemptId) {
+        Attempt attempt = loadOwnProductionAttempt(attemptId);
+        EpreuveType epreuve = attempt.getEpreuve();
+        boolean exam = attempt.getSlotNumber() != null || attempt.getParentAttempt() != null;
+        boolean finished = attempt.getFinishedAt() != null;
+
+        List<ProductionSubmission> submissions = submissionManager.findByAttemptId(attemptId);
+        boolean inFlight = false;
+        boolean anyFailed = false;
+        for (ProductionSubmission s : submissions) {
+            if (s.getStatut() == SubmissionStatut.FAILED) {
+                anyFailed = true;
+            } else if (s.getStatut() != SubmissionStatut.EVALUATED) {
+                inFlight = true;
+            }
+        }
+        Map<Integer, AiEvaluation> evalsByTache = bilanService.latestEvalsByTache(submissions);
+        int evaluatedCount = evalsByTache.size();
+
+        // Niveau d'épreuve : examen complet → moyenne pondérée des 3 tâches ;
+        // examen terminé incomplet (chrono écoulé, abandon) sans pipeline IA
+        // en cours ni FAILED à retenter → tâches manquantes comptées 0.
+        NiveauCecrl niveauGlobal = null;
+        if (exam && evaluatedCount >= ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE) {
+            niveauGlobal = bilanService.bilanEpreuve(evalsByTache);
+        } else if (exam && finished && !inFlight && !anyFailed) {
+            niveauGlobal = bilanService.bilanEpreuveTerminee(evalsByTache);
+        }
+        return new ProductionBilanResponse(
+                attemptId,
+                epreuve,
+                exam,
+                attempt.getSlotNumber(),
+                finished,
+                evaluatedCount,
+                ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE,
+                bilanService.moyenneNotes(evalsByTache),
+                niveauGlobal);
+    }
+
+    /**
+     * Les 3 sujets (T1, T2, T3) composés pour une session d'examen blanc
+     * production — composition déterministe backend (cf.
+     * {@link ProductionExamCompositionService}). 400 sur un attempt
+     * d'entraînement libre (le candidat y choisit son sujet).
+     */
+    @Transactional(readOnly = true)
+    public List<ProductionTaskDto> examTasks(UUID attemptId) {
+        Attempt attempt = loadOwnProductionAttempt(attemptId);
+        return compositionService.composeFor(attempt).stream()
+                .map(taskMapper::toDto)
+                .toList();
+    }
+
+    private Attempt loadOwnProductionAttempt(UUID attemptId) {
         UUID userId = currentUser.getId();
         Attempt attempt = attemptManager.findById(attemptId)
                 .orElseThrow(() -> new NotFoundException("Attempt introuvable : " + attemptId));
@@ -142,26 +201,9 @@ public class ProductionSubmissionService {
         }
         EpreuveType epreuve = attempt.getEpreuve();
         if (epreuve != EpreuveType.TCF_EE && epreuve != EpreuveType.TCF_EO) {
-            throw new BusinessException("Le bilan production attend un attempt TCF_EE ou TCF_EO.");
+            throw new BusinessException("Cet endpoint attend un attempt TCF_EE ou TCF_EO.");
         }
-        boolean exam = attempt.getSlotNumber() != null || attempt.getParentAttempt() != null;
-
-        List<ProductionSubmission> submissions = submissionManager.findByAttemptId(attemptId);
-        Map<Integer, AiEvaluation> evalsByTache = bilanService.latestEvalsByTache(submissions);
-        int evaluatedCount = evalsByTache.size();
-
-        NiveauCecrl niveauGlobal = null;
-        if (exam && evaluatedCount >= ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE) {
-            niveauGlobal = bilanService.bilanEpreuve(evalsByTache);
-        }
-        return new ProductionBilanResponse(
-                attemptId,
-                epreuve,
-                exam,
-                evaluatedCount,
-                ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE,
-                bilanService.moyenneNotes(evalsByTache),
-                niveauGlobal);
+        return attempt;
     }
 
     private ProductionTask loadActiveTask(UUID taskId) {

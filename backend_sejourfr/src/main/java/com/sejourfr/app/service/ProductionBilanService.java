@@ -87,12 +87,31 @@ public class ProductionBilanService {
      * @param evalsByTache dernière évaluation par {@code tacheNumero}
      */
     public NiveauCecrl bilanEpreuve(Map<Integer, AiEvaluation> evalsByTache) {
+        return compute(evalsByTache, false);
+    }
+
+    /**
+     * Variante pour une épreuve d'examen <b>terminée</b> (fin de session,
+     * chrono écoulé, abandon) : les tâches jamais rendues parmi
+     * 1..{@value #EXPECTED_TASKS_PER_EPREUVE} comptent compétence 0 dans la
+     * moyenne pondérée — le « reste noté 0 » d'un examen écourté. Aucune tâche
+     * rendue → A1_NON_ATTEINT.
+     */
+    public NiveauCecrl bilanEpreuveTerminee(Map<Integer, AiEvaluation> evalsByTache) {
+        return compute(evalsByTache, true);
+    }
+
+    private NiveauCecrl compute(Map<Integer, AiEvaluation> evalsByTache, boolean manquantesAZero) {
+        java.util.Set<Integer> taches = new java.util.TreeSet<>(evalsByTache.keySet());
+        if (manquantesAZero) {
+            for (int t = 1; t <= EXPECTED_TASKS_PER_EPREUVE; t++) taches.add(t);
+        }
         BigDecimal acc = BigDecimal.ZERO;
         BigDecimal sumPoids = BigDecimal.ZERO;
         NiveauCecrl floorFallback = null;
-        for (Map.Entry<Integer, AiEvaluation> e : evalsByTache.entrySet()) {
-            AiEvaluation eval = e.getValue();
-            BigDecimal comp = competenceOf(eval);
+        for (Integer tache : taches) {
+            AiEvaluation eval = evalsByTache.get(tache);
+            BigDecimal comp = eval == null ? BigDecimal.ZERO : competenceOf(eval);
             if (comp == null) {
                 // Éval inexploitable (scores absents et note nulle) : elle ne
                 // pèse pas dans la moyenne, mais son niveau persisté reste un
@@ -100,7 +119,7 @@ public class ProductionBilanService {
                 floorFallback = levelEstimator.min(floorFallback, eval.getNiveauCecrl());
                 continue;
             }
-            BigDecimal poids = poidsTache(e.getKey());
+            BigDecimal poids = poidsTache(tache);
             acc = acc.add(comp.multiply(poids));
             sumPoids = sumPoids.add(poids);
         }

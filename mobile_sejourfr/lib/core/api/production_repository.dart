@@ -21,9 +21,15 @@ class ProductionRepository {
 
   /// Cree un attempt vide pour une epreuve productive (TCF_EO / TCF_EE / TCF_COMPLET).
   /// Le retour reutilise le DTO Attempt existant (la liste des questions est vide).
+  ///
+  /// En session d'examen blanc module, passer `exam: true` + `slotNumber` (1-10)
+  /// pour que le backend compose les 3 sujets déterministes du slot et expose
+  /// `timeLimitSeconds` (= 1800 pour l'EE module ; null pour l'EO).
   Future<Attempt> startProductionAttempt({
     required EpreuveType epreuve,
     String? parentAttemptId,
+    bool exam = false,
+    int? slotNumber,
   }) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
       '/api/attempts/production',
@@ -31,7 +37,33 @@ class ProductionRepository {
         'module': 'TCF',
         'epreuve': epreuve.wire,
         if (parentAttemptId != null) 'parentAttemptId': parentAttemptId,
+        if (exam) 'exam': true,
+        if (slotNumber != null) 'slotNumber': slotNumber,
       },
+    );
+    return Attempt.fromJson(res.data!);
+  }
+
+  /// Les **3 tâches déterministes** (T1, T2, T3) composant une session d'examen
+  /// blanc EE/EO. Fonctionne pour un attempt d'examen module ET pour un
+  /// sous-attempt EE/EO d'un examen TCF complet. 400 sur un attempt
+  /// d'entraînement libre.
+  ///   GET /api/attempts/{attemptId}/production-exam-tasks
+  Future<List<ProductionTaskDto>> getExamTasks(String attemptId) async {
+    final res = await _client.dio.get<List<dynamic>>(
+      '/api/attempts/$attemptId/production-exam-tasks',
+    );
+    return (res.data ?? [])
+        .map((e) => ProductionTaskDto.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Finalise un attempt de production (pose `finishedAt`). Après finish, toute
+  /// soumission vers cet attempt est rejetée 400.
+  ///   POST /api/attempts/{id}/finish
+  Future<Attempt> finishAttempt(String attemptId) async {
+    final res = await _client.dio.post<Map<String, dynamic>>(
+      '/api/attempts/$attemptId/finish',
     );
     return Attempt.fromJson(res.data!);
   }

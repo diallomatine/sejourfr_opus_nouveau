@@ -7,6 +7,7 @@ import '../../core/api/api_client.dart';
 import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/enums.dart';
+import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
 import '../../core/widgets/paywall_sheet.dart';
@@ -24,19 +25,24 @@ import 'widgets/module_screen_header.dart';
 import 'widgets/production_exam_done_result.dart';
 import 'widgets/production_exams_stats_row.dart';
 
-/// Niveau estimé d'une épreuve = le plus élevé des `niveauGlobal` des bilans
-/// d'examen blanc complets. Fetch en parallèle les `production-bilan` des
-/// sessions terminées (≥ 3 tâches) de l'historique. Renvoie null si aucun
-/// bilan exposé de niveau (entraînements libres / examens incomplets).
-final _niveauEstimeProvider =
-    FutureProvider.autoDispose.family<NiveauCecrl?, EpreuveType>((ref, epreuve) async {
+/// Bilans des sessions d'examen blanc (≥ 3 tâches) d'une épreuve, fetchés en
+/// parallèle. Sert à la fois au niveau estimé (le meilleur `niveauGlobal`) et
+/// au mapping session → slot réel (`bilan.slotNumber`).
+final _examBilansProvider =
+    FutureProvider.autoDispose.family<List<ProductionBilan>, EpreuveType>((ref, epreuve) async {
   final repo = ref.watch(productionRepositoryProvider);
   final data = await ref.watch(expressionHubProvider(epreuve).future);
-  final completed = data.exams.where((e) => e.isFullyEvaluated).toList();
-  if (completed.isEmpty) return null;
-  final bilans = await Future.wait(
-    completed.map((e) => repo.getProductionBilan(e.attemptId)),
+  if (data.exams.isEmpty) return const [];
+  return Future.wait(
+    data.exams.map((e) => repo.getProductionBilan(e.attemptId)),
   );
+});
+
+/// Niveau estimé d'une épreuve = le plus élevé des `niveauGlobal` des bilans
+/// d'examen blanc. Renvoie null si aucun bilan exposé de niveau.
+final _niveauEstimeProvider =
+    FutureProvider.autoDispose.family<NiveauCecrl?, EpreuveType>((ref, epreuve) async {
+  final bilans = await ref.watch(_examBilansProvider(epreuve).future);
   NiveauCecrl? best;
   for (final b in bilans) {
     final n = b.niveauGlobal;
@@ -44,6 +50,28 @@ final _niveauEstimeProvider =
     if (best == null || n.scaleIndex > best.scaleIndex) best = n;
   }
   return best;
+});
+
+/// Map `slotNumber (1-10) → ExamSession`. On lit le slot réel depuis le bilan
+/// (`bilan.slotNumber`) au lieu d'un mapping chronologique. Les anciennes
+/// sessions sans slot (toutes slot 1) tombent sur le slot 1 — accepté. En cas
+/// de collision (plusieurs sessions sur le même slot), la plus récente gagne.
+final _sessionsBySlotProvider = FutureProvider.autoDispose
+    .family<Map<int, ExamSession>, EpreuveType>((ref, epreuve) async {
+  final data = await ref.watch(expressionHubProvider(epreuve).future);
+  final bilans = await ref.watch(_examBilansProvider(epreuve).future);
+  final slotByAttempt = <String, int>{
+    for (final b in bilans)
+      if (b.slotNumber != null) b.attemptId: b.slotNumber!,
+  };
+  final bySlot = <int, ExamSession>{};
+  // `data.exams` est trié du plus récent au plus ancien → on insère d'abord
+  // les récents, et un `putIfAbsent` laisse le récent gagner sur le slot.
+  for (final exam in data.exams) {
+    final slot = slotByAttempt[exam.attemptId] ?? 1;
+    bySlot.putIfAbsent(slot, () => exam);
+  }
+  return bySlot;
 });
 
 /// Nombre de slots d'examens blancs proposés pour une épreuve EE/EO.
@@ -126,7 +154,7 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
       showPaywallSheet(context);
       return;
     }
-    _openBriefing();
+    _openBriefing(slot);
   }
 
   void _onSlotAction({required int slot, required ExamSession? exam}) {
@@ -134,10 +162,10 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
       showPaywallSheet(context);
       return;
     }
-    _openBriefing();
+    _openBriefing(slot);
   }
 
-  void _openBriefing() {
+  void _openBriefing(int slot) {
     if (!_isPremium()) {
       showPaywallSheet(context);
       return;
@@ -146,25 +174,21 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
       context,
       module: widget.module,
       starting: _starting,
-      onStart: _startFullExam,
+      onStart: () => _startExam(slot),
     );
   }
 
-  Future<void> _startFullExam() async {
+  Future<void> _startExam(int slotNumber) async {
     if (_starting) return;
-    final auth = ref.read(authControllerProvider);
-    final niveau = auth is AuthAuthenticated
-        ? (auth.user.targetProcedure?.tcfLevel ?? 'B1')
-        : 'B1';
     setState(() => _starting = true);
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
     try {
       if (widget.module.isEo) {
-        await ref.read(eoSessionProvider.notifier).start(niveau: niveau);
+        await ref.read(eoSessionProvider.notifier).startExam(slotNumber: slotNumber);
         if (!mounted) return;
         context.push('/tcf/expression-orale/t/0');
       } else {
-        await ref.read(eeSessionProvider.notifier).start(niveau: niveau);
+        await ref.read(eeSessionProvider.notifier).startExam(slotNumber: slotNumber);
         if (!mounted) return;
         context.push('/tcf/expression-ecrite/t/0');
       }
@@ -220,7 +244,7 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
                       .invalidate(expressionHubProvider(widget.module.epreuve)),
                   accent: AppColors.red,
                 ),
-                data: (data) => _buildContent(data.exams),
+                data: (_) => _buildContent(),
               ),
             ),
           ],
@@ -229,22 +253,26 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
     );
   }
 
-  Widget _buildContent(List<ExamSession> exams) {
-    // Plus ancien en slot 1.
-    final ordered = exams.reversed.toList();
-    final nextSlot = ordered.length + 1;
+  Widget _buildContent() {
+    // Mapping session → slot réel (via `bilan.slotNumber`). Tant que les bilans
+    // ne sont pas chargés, on retombe sur une map vide → tous les slots libres.
+    final bySlot =
+        ref.watch(_sessionsBySlotProvider(widget.module.epreuve)).valueOrNull ??
+            const <int, ExamSession>{};
+    final nextSlot = _firstFreeSlot(bySlot);
 
     final filteredIndices = <int>[
       for (int i = 0; i < _examSlotsCount; i++)
-        if (_passesFilter(slotIndex: i, ordered: ordered)) i,
+        if (_passesFilter(slotIndex: i, bySlot: bySlot)) i,
     ];
 
     final visibleIndices =
         _showAll ? filteredIndices : filteredIndices.take(_visibleByDefault).toList();
     final hiddenCount = filteredIndices.length - visibleIndices.length;
 
-    final doneCount = exams.length;
-    final completed = exams.where((e) => e.isFullyEvaluated).toList();
+    final doneCount = bySlot.length;
+    final completed =
+        bySlot.values.where((e) => e.isFullyEvaluated).toList();
     final avg = completed.isEmpty
         ? null
         : completed.map((e) => e.avgScore ?? 0).reduce((a, b) => a + b) /
@@ -261,6 +289,7 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
       color: AppColors.red,
       onRefresh: () async {
         ref.invalidate(expressionHubProvider(widget.module.epreuve));
+        ref.invalidate(_examBilansProvider(widget.module.epreuve));
         await ref.read(expressionHubProvider(widget.module.epreuve).future);
       },
       child: ListView(
@@ -289,7 +318,7 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
           ),
           const SizedBox(height: 12),
           for (final i in visibleIndices) ...[
-            _buildSlot(i, ordered, nextSlot),
+            _buildSlot(i, bySlot, nextSlot),
             const SizedBox(height: 8),
           ],
           if (filteredIndices.isEmpty)
@@ -323,10 +352,19 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
     );
   }
 
+  /// Premier slot 1-based sans session jouée (1 si tout est libre, sinon le
+  /// plus petit numéro non présent dans la map).
+  int _firstFreeSlot(Map<int, ExamSession> bySlot) {
+    for (int n = 1; n <= _examSlotsCount; n++) {
+      if (!bySlot.containsKey(n)) return n;
+    }
+    return _examSlotsCount + 1;
+  }
+
   bool _passesFilter(
-      {required int slotIndex, required List<ExamSession> ordered}) {
+      {required int slotIndex, required Map<int, ExamSession> bySlot}) {
     final slotNumber = slotIndex + 1;
-    final isDone = slotIndex < ordered.length;
+    final isDone = bySlot.containsKey(slotNumber);
     final isLocked = _isLocked(slotNumber);
     return switch (_filter) {
       1 => !isDone && !isLocked,
@@ -335,9 +373,9 @@ class _ProductionExamsScreenState extends ConsumerState<ProductionExamsScreen> {
     };
   }
 
-  Widget _buildSlot(int slotIndex, List<ExamSession> ordered, int nextSlot) {
+  Widget _buildSlot(int slotIndex, Map<int, ExamSession> bySlot, int nextSlot) {
     final number = slotIndex + 1;
-    final exam = slotIndex < ordered.length ? ordered[slotIndex] : null;
+    final exam = bySlot[number];
     final done = exam != null;
     final isLocked = _isLocked(number);
     final isNext = number == nextSlot && number <= _examSlotsCount;

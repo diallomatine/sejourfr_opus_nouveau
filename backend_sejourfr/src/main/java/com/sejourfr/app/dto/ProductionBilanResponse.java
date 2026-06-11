@@ -19,6 +19,13 @@ public record ProductionBilanResponse(
         UUID attemptId,
         EpreuveType epreuve,
         boolean exam,
+        // Slot de la grille d'examens blancs (1-10) joué par cette session ;
+        // null pour un entraînement libre ou un sous-attempt d'examen complet.
+        Integer slotNumber,
+        // Épreuve finalisée (fin de session, chrono écoulé, abandon). Une
+        // épreuve terminée incomplète a son niveau calculé avec les tâches
+        // manquantes comptées 0.
+        boolean finished,
         int evaluatedCount,
         int expectedCount,
         BigDecimal moyenneSur20,

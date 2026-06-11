@@ -16,6 +16,7 @@ class TacheBilanRow extends StatelessWidget {
     required this.name,
     this.score,
     this.pending = false,
+    this.notRendered = false,
   });
 
   final String name;
@@ -24,6 +25,10 @@ class TacheBilanRow extends StatelessWidget {
   /// Quand `true`, l'évaluation IA tourne encore : on affiche un mini-spinner
   /// et le texte "Évaluation en cours" au lieu du score.
   final bool pending;
+
+  /// Quand `true`, la tâche n'a jamais été rendue (examen terminé / abandonné) :
+  /// elle est comptée 0 au bilan et affichée « Non rendue ».
+  final bool notRendered;
 
   String _formatScore(double s) {
     if (s == s.truncateToDouble()) return s.toInt().toString();
@@ -63,6 +68,7 @@ class TacheBilanRow extends StatelessWidget {
                 const SizedBox(height: 4),
                 _Subtitle(
                   pending: pending,
+                  notRendered: notRendered,
                   score: hasScore ? _formatScore(score!) : null,
                 ),
               ],
@@ -104,18 +110,26 @@ class TacheBilanRow extends StatelessWidget {
 /// - Évaluation en cours → "Évaluation IA en cours…"
 /// - Aucune éval → "Non évaluée"
 class _Subtitle extends StatelessWidget {
-  const _Subtitle({required this.pending, required this.score});
+  const _Subtitle({
+    required this.pending,
+    required this.score,
+    this.notRendered = false,
+  });
 
   final bool pending;
+  final bool notRendered;
   final String? score;
 
   @override
   Widget build(BuildContext context) {
-    final (text, color) = switch ((pending, score)) {
-      (true, _) => ('Évaluation IA en cours…', AppColors.blue),
-      (false, final String s) when s.isNotEmpty => ('Note $s / 20', AppColors.ink2),
-      _ => ('Non évaluée', AppColors.muted),
-    };
+    final (text, color) = notRendered
+        ? ('Non rendue', AppColors.muted)
+        : switch ((pending, score)) {
+            (true, _) => ('Évaluation IA en cours…', AppColors.blue),
+            (false, final String s) when s.isNotEmpty =>
+              ('Note $s / 20', AppColors.ink2),
+            _ => ('Non évaluée', AppColors.muted),
+          };
     return Text(
       text,
       style: AppFonts.ui(

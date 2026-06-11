@@ -4,10 +4,26 @@
     "1": {
       "titre": "Entretien dirigé (présentation de soi)",
       "criteres": [
-        {"code": "pertinence", "label": "Pertinence et richesse du contenu", "poids": 0.30},
-        {"code": "coherence", "label": "Organisation et cohérence du discours", "poids": 0.20},
-        {"code": "lexique", "label": "Richesse et précision du vocabulaire", "poids": 0.25},
-        {"code": "grammaire", "label": "Correction grammaticale", "poids": 0.25}
+        {
+          "code": "pertinence",
+          "label": "Pertinence et richesse du contenu",
+          "poids": 0.30
+        },
+        {
+          "code": "coherence",
+          "label": "Organisation et cohérence du discours",
+          "poids": 0.20
+        },
+        {
+          "code": "lexique",
+          "label": "Richesse et précision du vocabulaire",
+          "poids": 0.25
+        },
+        {
+          "code": "grammaire",
+          "label": "Correction grammaticale",
+          "poids": 0.25
+        }
       ],
       "bareme_note": "0-6 : hors-sujet ou incompréhensible · 7-9 : tâche partiellement remplie, langue minimale · 10-13 : tâche remplie, langue fonctionnelle · 14-16 : tâche bien remplie, bonne maîtrise · 17-20 : présentation riche, fluide et précise.",
       "descripteurs": {
@@ -19,12 +35,28 @@
       "consignes_correcteur": "Tâche descriptive : ne plafonne PAS à B1 sous prétexte que le sujet (se présenter) est simple. Si le candidat mobilise spontanément des structures clivées, de la nominalisation, des thèmes abstraits ou de la prise de recul, c'est du B2 — même sans imparfait ni argumentation. Évalue la richesse RÉELLE de la langue produite."
     },
     "2": {
-      "titre": "Expression d'un point de vue",
+      "titre": "Expression d'un point de vue ",
       "criteres": [
-        {"code": "pertinence", "label": "Pertinence et développement de l'argumentation", "poids": 0.35},
-        {"code": "coherence", "label": "Structure et cohérence du raisonnement", "poids": 0.25},
-        {"code": "lexique", "label": "Richesse et précision du vocabulaire", "poids": 0.20},
-        {"code": "grammaire", "label": "Correction grammaticale", "poids": 0.20}
+        {
+          "code": "pertinence",
+          "label": "Pertinence et développement de l'argumentation",
+          "poids": 0.35
+        },
+        {
+          "code": "coherence",
+          "label": "Structure et cohérence du raisonnement",
+          "poids": 0.25
+        },
+        {
+          "code": "lexique",
+          "label": "Richesse et précision du vocabulaire",
+          "poids": 0.20
+        },
+        {
+          "code": "grammaire",
+          "label": "Correction grammaticale",
+          "poids": 0.20
+        }
       ],
       "bareme_note": "0-6 : hors-sujet · 7-9 : opinion énoncée sans justification · 10-13 : opinion avec arguments simples · 14-16 : argumentation structurée · 17-20 : démonstration nuancée et convaincante.",
       "descripteurs": {
@@ -38,10 +70,26 @@
     "3": {
       "titre": "Interaction / jeu de rôle",
       "criteres": [
-        {"code": "pertinence", "label": "Adéquation à la situation et gestion de l'échange", "poids": 0.30},
-        {"code": "coherence", "label": "Cohérence et fluidité de l'interaction", "poids": 0.25},
-        {"code": "lexique", "label": "Richesse et précision du vocabulaire", "poids": 0.20},
-        {"code": "grammaire", "label": "Correction grammaticale", "poids": 0.25}
+        {
+          "code": "pertinence",
+          "label": "Adéquation à la situation et gestion de l'échange",
+          "poids": 0.30
+        },
+        {
+          "code": "coherence",
+          "label": "Cohérence et fluidité de l'interaction",
+          "poids": 0.25
+        },
+        {
+          "code": "lexique",
+          "label": "Richesse et précision du vocabulaire",
+          "poids": 0.20
+        },
+        {
+          "code": "grammaire",
+          "label": "Correction grammaticale",
+          "poids": 0.25
+        }
       ],
       "bareme_note": "0-6 : hors-sujet · 7-9 : échange minimal · 10-13 : échange fonctionnel · 14-16 : échange mené avec aisance · 17-20 : interaction riche et stratégique.",
       "descripteurs": {
@@ -57,10 +105,26 @@
     "1": {
       "titre": "Message court",
       "criteres": [
-        {"code": "pertinence", "label": "Pertinence et adéquation à la situation", "poids": 0.30},
-        {"code": "coherence", "label": "Organisation et registre", "poids": 0.20},
-        {"code": "lexique", "label": "Richesse et précision du vocabulaire", "poids": 0.20},
-        {"code": "grammaire", "label": "Correction grammaticale et orthographe", "poids": 0.30}
+        {
+          "code": "pertinence",
+          "label": "Pertinence et adéquation à la situation",
+          "poids": 0.30
+        },
+        {
+          "code": "coherence",
+          "label": "Organisation et registre",
+          "poids": 0.20
+        },
+        {
+          "code": "lexique",
+          "label": "Richesse et précision du vocabulaire",
+          "poids": 0.20
+        },
+        {
+          "code": "grammaire",
+          "label": "Correction grammaticale et orthographe",
+          "poids": 0.30
+        }
       ],
       "bareme_note": "0-6 : hors-sujet ou incompréhensible · 7-9 : message minimal · 10-13 : message clair et adéquat · 14-16 : message efficace et bien formulé · 17-20 : message précis, naturel, registre maîtrisé.",
       "descripteurs": {
@@ -74,10 +138,26 @@
     "2": {
       "titre": "Récit / échange",
       "criteres": [
-        {"code": "pertinence", "label": "Pertinence et richesse du contenu", "poids": 0.30},
-        {"code": "coherence", "label": "Cohérence temporelle et organisation", "poids": 0.25},
-        {"code": "lexique", "label": "Richesse et précision du vocabulaire", "poids": 0.20},
-        {"code": "grammaire", "label": "Correction grammaticale et orthographe", "poids": 0.25}
+        {
+          "code": "pertinence",
+          "label": "Pertinence et richesse du contenu",
+          "poids": 0.30
+        },
+        {
+          "code": "coherence",
+          "label": "Cohérence temporelle et organisation",
+          "poids": 0.25
+        },
+        {
+          "code": "lexique",
+          "label": "Richesse et précision du vocabulaire",
+          "poids": 0.20
+        },
+        {
+          "code": "grammaire",
+          "label": "Correction grammaticale et orthographe",
+          "poids": 0.25
+        }
       ],
       "bareme_note": "0-6 : hors-sujet · 7-9 : récit minimal · 10-13 : récit clair et suivi · 14-16 : récit structuré et détaillé · 17-20 : récit vivant, nuancé et maîtrisé.",
       "descripteurs": {
@@ -91,10 +171,26 @@
     "3": {
       "titre": "Prise de position argumentée",
       "criteres": [
-        {"code": "pertinence", "label": "Pertinence et développement de l'argumentation", "poids": 0.35},
-        {"code": "coherence", "label": "Structure et cohérence du texte", "poids": 0.25},
-        {"code": "lexique", "label": "Richesse et précision du vocabulaire", "poids": 0.20},
-        {"code": "grammaire", "label": "Correction grammaticale et orthographe", "poids": 0.20}
+        {
+          "code": "pertinence",
+          "label": "Pertinence et développement de l'argumentation",
+          "poids": 0.35
+        },
+        {
+          "code": "coherence",
+          "label": "Structure et cohérence du texte",
+          "poids": 0.25
+        },
+        {
+          "code": "lexique",
+          "label": "Richesse et précision du vocabulaire",
+          "poids": 0.20
+        },
+        {
+          "code": "grammaire",
+          "label": "Correction grammaticale et orthographe",
+          "poids": 0.20
+        }
       ],
       "bareme_note": "0-6 : hors-sujet · 7-9 : opinion sans développement · 10-13 : position avec arguments simples · 14-16 : argumentation structurée · 17-20 : démonstration aboutie et nuancée.",
       "descripteurs": {

@@ -740,6 +740,17 @@ export const productionApi = {
         return apiFetch<ProductionTaskDto>(`/api/production-tasks/${id}`, {auth: true});
     },
 
+    /** Composition déterministe d'un examen blanc production : exactement 3
+     *  tâches ordonnées T1, T2, T3 pour le slot de l'attempt. 400 sur un
+     *  entraînement libre. Couvre aussi les sous-attempts EE/EO d'un examen
+     *  TCF complet. */
+    getExamTasks(attemptId: string): Promise<ProductionTaskDto[]> {
+        return apiFetch<ProductionTaskDto[]>(
+            `/api/attempts/${attemptId}/production-exam-tasks`,
+            {auth: true},
+        );
+    },
+
     /** Réponses-modèles d'une (épreuve, tâche) — onglet « Exemples ». */
     listExamples(epreuve: EpreuveType, tacheNumero: number): Promise<ProductionExampleDto[]> {
         return apiFetch<ProductionExampleDto[]>(

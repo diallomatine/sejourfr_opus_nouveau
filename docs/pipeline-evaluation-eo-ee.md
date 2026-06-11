@@ -163,10 +163,35 @@ pour la calibration admin, mais :
   l'ancien plancher `min()` des 3 niveaux (une seule éval basse plafonnait l'épreuve).
   Hors-sujet (note 0) = compétence 0 : pénalise sans annuler.
 - Exposition : `GET /api/attempts/{attemptId}/production-bilan` → `ProductionBilanResponse
-  {attemptId, epreuve, exam, evaluatedCount, expectedCount, moyenneSur20, niveauGlobal}`
-  (`niveauGlobal` null hors examen ou tant que les 3 tâches ne sont pas évaluées), et
-  `FullTcfExamResponse.SubAttempt.cecrlLevel` (même calcul via `FullTcfExamService`).
-  Les fronts ne calculent **plus aucun plancher local**.
+  {attemptId, epreuve, exam, slotNumber, finished, evaluatedCount, expectedCount,
+  moyenneSur20, niveauGlobal}` (`niveauGlobal` null hors examen ou tant que les 3 tâches ne
+  sont pas évaluées), et `FullTcfExamResponse.SubAttempt.cecrlLevel` (même calcul via
+  `FullTcfExamService`). Les fronts ne calculent **plus aucun plancher local**.
+- **Examen terminé incomplet** (chrono écoulé, abandon) : dès que plus rien n'est dans le
+  pipeline IA (ni FAILED à retenter), `bilanEpreuveTerminee` compte chaque tâche jamais
+  rendue **compétence 0** dans la moyenne pondérée (« le reste noté 0 ») — zéro soumission
+  → A1_NON_ATTEINT. S'applique au bilan module et aux sous-épreuves d'un examen complet.
+
+## Examens blancs production (sessions module EE/EO)
+
+- **10 examens par épreuve** (grille des fronts), composition **déterministe backend**
+  (`ProductionExamCompositionService`) : un examen = 3 sujets (un par tâche), bandes de
+  difficulté **slots 1-3 → sujets A2, 4-6 → B1, 7-10 → B2**, sujet = n-ième du pool de la
+  bande (ordre stable created_at puis id, modulo). EO T1 (3 variantes « se présenter », une
+  par niveau) suit le même algorithme. Sous-épreuves d'un **examen TCF complet** : niveau =
+  `users.target_level` (fallback B1), sujet = (slot du parent − 1) modulo le pool.
+- `POST /api/attempts/production {exam:true, slotNumber}` persiste le slot ;
+  `GET /api/attempts/{id}/production-exam-tasks` renvoie la composition. Les fronts ne
+  composent **plus rien** via `/api/production-tasks` en examen.
+- **Chrono** : EE examen module = `time_limit_seconds=1800` (30 min globales, comme l'IRN),
+  enforcé à la soumission (+ 60 s de grâce) ; à 0:00 les fronts auto-soumettent le texte
+  courant s'il est recevable (bornes de mots) puis appellent `POST /api/attempts/{id}/finish`.
+  EE d'un examen complet : décompte 30 min **front-side** (le `started_at` du sous-attempt
+  date de la création de l'examen, pas de l'entrée dans l'épreuve). EO : pas de chrono
+  d'épreuve — temps de parole borné par tâche (`duree_max_sec` 180/210 s, auto-stop), en
+  examen le stop déclenche la soumission immédiate (pas de réécoute).
+- `POST /api/attempts/{id}/finish` (production) pose `finishedAt`/TERMINE sans logique QCM ;
+  toute soumission vers un attempt fini est refusée.
 
 ### Historique des versions
 

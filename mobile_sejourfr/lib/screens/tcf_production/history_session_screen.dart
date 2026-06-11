@@ -113,10 +113,18 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
     ref.invalidate(_bilanProvider(widget.attemptId));
     try {
       final all = await ref.read(_historyForBilanProvider(widget.epreuve).future);
+      final bilan = await ref.read(_bilanProvider(widget.attemptId).future);
       if (!mounted) return;
       final session = all.where((s) => s.attemptId == widget.attemptId).toList();
-      if (session.isNotEmpty && session.every((s) => s.statut.isFinal)) {
-        return; // toutes les évals sont arrivées : on s'arrête.
+      // On s'arrête quand toutes les submissions présentes sont évaluées ET
+      // que le backend a posé `niveauGlobal` (signal que le pipeline IA est
+      // vide) — y compris quand l'examen est `finished` avec < 3 tâches : les
+      // manquantes sont comptées 0, le niveau est calculable et figé.
+      final submissionsSettled =
+          session.isNotEmpty && session.every((s) => s.statut.isFinal);
+      final levelSettled = bilan.finished && bilan.niveauGlobal != null;
+      if (submissionsSettled && (levelSettled || !bilan.exam)) {
+        return; // plus rien à attendre.
       }
     } catch (_) {
       // Ignore : on retentera au prochain tick.
@@ -196,22 +204,46 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
             ),
             data: (tasks) {
               final tasksById = {for (final t in tasks) t.id: t};
-              session.sort((a, b) {
-                final ta = tasksById[a.productionTaskId]?.tacheNumero ?? 99;
-                final tb = tasksById[b.productionTaskId]?.tacheNumero ?? 99;
-                return ta.compareTo(tb);
-              });
+              int tacheNumOf(ProductionSubmissionDto s) =>
+                  s.tacheNumero ??
+                  tasksById[s.productionTaskId]?.tacheNumero ??
+                  99;
+              session.sort(
+                  (a, b) => tacheNumOf(a).compareTo(tacheNumOf(b)));
+
+              // Slots affichés : en examen terminé, on rend les 3 tâches
+              // attendues (T1/T2/T3) — les manquantes apparaissent « Non
+              // rendue ». Sinon, on liste simplement les submissions présentes.
+              final expected =
+                  (bilan?.exam ?? false) ? (bilan?.expectedCount ?? 3) : 0;
+              final showAllSlots =
+                  (bilan?.finished ?? false) && expected > 0;
+              final slots = <_TaskSlot>[];
+              if (showAllSlots) {
+                final byNum = <int, ProductionSubmissionDto>{
+                  for (final s in session) tacheNumOf(s): s,
+                };
+                for (var n = 1; n <= expected; n++) {
+                  slots.add(_TaskSlot(tacheNumero: n, submission: byNum[n]));
+                }
+              } else {
+                for (final s in session) {
+                  slots.add(
+                      _TaskSlot(tacheNumero: tacheNumOf(s), submission: s));
+                }
+              }
+
               final liveMode = _liveModeOrFalse();
               return _Body(
                 epreuve: widget.epreuve,
-                submissions: session,
+                slots: slots,
                 tasksById: tasksById,
                 bilan: bilan,
                 liveMode: liveMode,
                 pollExhausted: _pollExhausted,
                 onTapTache: (i) {
-                  final s = session[i];
-                  if (!s.statut.isFinal) return;
+                  final s = slots[i].submission;
+                  if (s == null || !s.statut.isFinal) return;
                   context.push(_resultsRoute(s.id, i));
                 },
                 onManualRefresh: _onManualRefresh,
@@ -236,10 +268,19 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
   }
 }
 
+/// Slot affiché dans le détail par tâche. `submission` null = tâche jamais
+/// rendue (examen terminé/abandonné) → affichée « Non rendue ».
+class _TaskSlot {
+  const _TaskSlot({required this.tacheNumero, this.submission});
+
+  final int tacheNumero;
+  final ProductionSubmissionDto? submission;
+}
+
 class _Body extends StatelessWidget {
   const _Body({
     required this.epreuve,
-    required this.submissions,
+    required this.slots,
     required this.tasksById,
     required this.bilan,
     required this.liveMode,
@@ -250,7 +291,7 @@ class _Body extends StatelessWidget {
   });
 
   final EpreuveType epreuve;
-  final List<ProductionSubmissionDto> submissions;
+  final List<_TaskSlot> slots;
   final Map<String, ProductionTaskDto> tasksById;
 
   /// Bilan d'epreuve backend (null tant que non charge / en erreur). Source du
@@ -262,14 +303,19 @@ class _Body extends StatelessWidget {
   final Future<void> Function() onManualRefresh;
   final VoidCallback onFinishLive;
 
-  int get _pendingCount => submissions.where((s) => !s.statut.isFinal).length;
+  Iterable<ProductionSubmissionDto> get _submissions =>
+      slots.map((s) => s.submission).whereType<ProductionSubmissionDto>();
 
-  int get _evaluatedCount => submissions.where((s) => s.evaluation != null).length;
+  int get _pendingCount => _submissions.where((s) => !s.statut.isFinal).length;
+
+  int get _evaluatedCount =>
+      _submissions.where((s) => s.evaluation != null).length;
 
   /// Moyenne locale de secours quand le backend n'a pas (encore) renvoyé de
   /// `moyenneSur20` dans le bilan.
   double? get _moyenneLocale {
-    final notes = submissions.map((s) => s.evaluation?.noteSurVingt).whereType<double>().toList();
+    final notes =
+        _submissions.map((s) => s.evaluation?.noteSurVingt).whereType<double>().toList();
     if (notes.isEmpty) return null;
     return notes.reduce((a, b) => a + b) / notes.length;
   }
@@ -311,7 +357,7 @@ class _Body extends StatelessWidget {
     final pending = _pendingCount;
     final hasPending = pending > 0;
     final evaluated = _evaluatedCount;
-    final total = submissions.length;
+    final total = _submissions.length;
     final allEvaluated = evaluated == total && total > 0;
 
     return Column(
@@ -355,14 +401,16 @@ class _Body extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              for (int i = 0; i < submissions.length; i++)
+              for (int i = 0; i < slots.length; i++)
                 _TacheRowTap(
-                  enabled: submissions[i].statut.isFinal,
+                  enabled: slots[i].submission?.statut.isFinal ?? false,
                   onTap: () => onTapTache(i),
                   child: TacheBilanRow(
                     name: _taskName(i),
-                    score: submissions[i].evaluation?.noteSurVingt,
-                    pending: !submissions[i].statut.isFinal,
+                    score: slots[i].submission?.evaluation?.noteSurVingt,
+                    pending: slots[i].submission != null &&
+                        !slots[i].submission!.statut.isFinal,
+                    notRendered: slots[i].submission == null,
                   ),
                 ),
               const SizedBox(height: 16),
@@ -400,9 +448,10 @@ class _Body extends StatelessWidget {
   }
 
   String _taskName(int i) {
-    final s = submissions[i];
-    final t = tasksById[s.productionTaskId];
-    if (t == null) return 'Tâche ${i + 1}';
+    final slot = slots[i];
+    final s = slot.submission;
+    final t = s == null ? null : tasksById[s.productionTaskId];
+    if (t == null) return 'Tâche ${slot.tacheNumero}';
     return 'Tâche ${t.tacheNumero} — ${t.displayTitle}';
   }
 }

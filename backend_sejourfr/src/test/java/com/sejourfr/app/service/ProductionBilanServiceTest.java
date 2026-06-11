@@ -179,6 +179,22 @@ class ProductionBilanServiceTest {
     }
 
     @Test
+    void bilan_termine_tache_manquante_compte_zero() {
+        // T1 absente (jamais rendue, examen terminé), T2/T3 a 15.
+        // (0×1 + 15×2 + 15×3)/6 = 12.5 -> B1 (au lieu de null en cours d'examen).
+        Map<Integer, AiEvaluation> evals = Map.of(
+            2, eval(15, 15, "15"),
+            3, eval(15, 15, "15"));
+        assertThat(service.bilanEpreuveTerminee(evals)).isEqualTo(NiveauCecrl.B1);
+        assertThat(service.bilanEpreuve(evals)).isNotEqualTo(NiveauCecrl.B1); // partiel ≠ terminé
+    }
+
+    @Test
+    void bilan_termine_sans_aucune_tache_donne_A1_NON_ATTEINT() {
+        assertThat(service.bilanEpreuveTerminee(Map.of())).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
+    }
+
+    @Test
     void moyenneNotes_arrondit_a_une_decimale() {
         Map<Integer, AiEvaluation> evals = Map.of(
             1, eval(10, 10, "10"),
