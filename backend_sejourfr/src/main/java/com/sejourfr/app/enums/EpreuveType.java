@@ -13,11 +13,22 @@ package com.sejourfr.app.enums;
  * les 4 epreuves CO / CE / EO / EE.
  */
 public enum EpreuveType {
-    CIVIQUE,
-    TCF_CO,
-    TCF_CE,
-    TCF_STRUCTURE,
-    TCF_EO,
-    TCF_EE,
-    TCF_COMPLET
+    CIVIQUE("Examen civique"),
+    TCF_CO("Compréhension orale"),
+    TCF_CE("Compréhension écrite"),
+    TCF_STRUCTURE("Structure de la langue"),
+    TCF_EO("Expression orale"),
+    TCF_EE("Expression écrite"),
+    TCF_COMPLET("Examen blanc TCF complet");
+
+    private final String label;
+
+    EpreuveType(String label) {
+        this.label = label;
+    }
+
+    /** Libellé lisible côté utilisateur (messages d'erreur, UI). */
+    public String getLabel() {
+        return label;
+    }
 }

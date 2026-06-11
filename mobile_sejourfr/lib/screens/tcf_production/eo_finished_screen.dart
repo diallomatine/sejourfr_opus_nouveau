@@ -14,6 +14,7 @@ import '../../core/widgets/app_button.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'audio_recorder_service.dart';
 import 'eo_session_controller.dart';
+import 'widgets/consigne_card.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
 
@@ -201,14 +202,20 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
+                padding: const EdgeInsets.fromLTRB(18, 0, 18, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
+                    ConsigneCard(
+                      consigne: task.consigne,
+                      accent: AppColors.red,
+                      soft: AppColors.redLight,
+                    ),
+                    const SizedBox(height: 8),
                     const _FinishedIcon(),
                     const SizedBox(height: 16),
                     Text(
-                      'Enregistrement termine',
+                      'Enregistrement terminé',
                       style: AppFonts.ui(
                         size: 18,
                         weight: FontWeight.w700,
@@ -217,7 +224,7 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      'Duree enregistree',
+                      'Durée enregistrée',
                       style: AppFonts.ui(size: 14, color: AppColors.muted),
                     ),
                     const SizedBox(height: 4),
@@ -235,8 +242,6 @@ class _EoFinishedScreenState extends ConsumerState<EoFinishedScreen> {
                       const SizedBox(height: 12),
                       const _ShortRecordingHint(),
                     ],
-                    const SizedBox(height: 16),
-                    _NextInfoCard(),
                     if (_submitError != null) ...[
                       const SizedBox(height: 12),
                       _InlineError(message: _submitError!),
@@ -318,43 +323,6 @@ class _FinishedIcon extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       child: const Icon(LucideIcons.check, size: 44, color: AppColors.white),
-    );
-  }
-}
-
-class _NextInfoCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.blueSoft,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            'Et maintenant ?',
-            style: AppFonts.ui(
-              size: 14,
-              weight: FontWeight.w700,
-              color: AppColors.blue,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            "Votre enregistrement va être analysé par notre IA. Vous recevrez une evaluation détaillée dans quelques secondes.",
-            textAlign: TextAlign.center,
-            style: AppFonts.ui(
-              size: 13,
-              color: AppColors.ink,
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

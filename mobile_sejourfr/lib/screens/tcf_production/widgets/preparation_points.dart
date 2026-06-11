@@ -112,32 +112,6 @@ class PreparationPoints extends StatelessWidget {
   }
 }
 
-/// Variante encadrée (carte blanche) pour le briefing, sous la consigne.
-class PreparationCard extends StatelessWidget {
-  const PreparationCard({super.key, required this.isEo, required this.tache});
-
-  final bool isEo;
-  final int tache;
-
-  @override
-  Widget build(BuildContext context) {
-    if (productionPreparationPoints(isEo: isEo, tache: tache).isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: PreparationPoints(isEo: isEo, tache: tache),
-    );
-  }
-}
-
 class _PreparationPoint extends StatelessWidget {
   const _PreparationPoint({
     required this.index,

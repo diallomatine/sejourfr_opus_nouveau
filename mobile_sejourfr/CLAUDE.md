@@ -114,12 +114,12 @@ lib/
     │   ├── ee_session_controller.dart   Session EE (1 ou 3 tâches, attempt parent partagé)
     │   ├── eo_session_controller.dart   Session EO (idem)
     │   ├── ee_briefing_writing_screen.dart  Briefing + zone d'écriture combinés
-    │   ├── eo_briefing_screen.dart      + recording + finished + results screens
+    │   ├── eo_briefing_screen.dart      briefing + enregistrement fusionnés (+ finished + results)
     │   ├── history_session_screen.dart  Bilan détaillé d'une session (live ou historique) :
     │   │                                hero CECRL + détail par tâche tappable, polling
     │   │                                automatique sur les évals IA quand `?live=1`
     │   └── widgets/                     production_app_header, donut_chart_score,
-    │                                    mots_card, writing_zone, criterion_row,
+    │                                    consigne_card, writing_zone, criterion_row,
     │                                    feedback_block, transcription_section, etc.
     ├── review/                    Favoris + erreurs récentes (tabs)
     └── profile/                   Compte + paramètres + logout + suppression de compte
@@ -646,8 +646,8 @@ entre T1/T2/T3** ; après T3 → bilan détaillé (`HistorySessionScreen` `?live
   `HistorySessionScreen`. En mode `live=1` (juste après T3) il poll les évaluations IA. Sinon
   (depuis historique) il lit la donnée déjà figée. Chaque ligne de tâche est tappable → push
   l'écran `resultats/:submissionId` du detail complet.
-- `/tcf/expression-orale/t/:idx` → briefing T(idx+1)
-- `/tcf/expression-orale/t/:idx/enregistrement` → capture audio (EO uniquement)
+- `/tcf/expression-orale/t/:idx` → briefing **+ capture audio sur place** T(idx+1) (EO uniquement ;
+  l'ancienne sous-route `/enregistrement` a été supprimée, cf. flow EO plus bas)
 - `/tcf/expression-orale/t/:idx/termine` → écoute + soumission (EO uniquement)
 - `/tcf/expression-orale/resultats/:id?taskIndex=N&history=1` → résultats détaillés d'une
   submission (correction IA complète) — push en single-task après soumission, ou depuis le
@@ -680,15 +680,30 @@ réutilise le flux briefing → enregistrement (EO) / `ee_briefing_writing_scree
   `GET /api/production-tasks/{id}` (détail sujet), `GET /api/production-examples?epreuve=…&tacheNumero=…` (modèles).
 - La correction IA réutilise le pipeline existant (Whisper + Claude).
 
-**Flow EO (3 écrans + résultats)** — inchangé en single-task, le SessionController a juste 1 tâche :
-1. **Briefing** (`eo_briefing_screen.dart`) : consigne + conseils + CTA "Commencer" qui demande la permission
-   micro via `_recorder.hasPermission()` du package `record` directement (✋ **ne pas utiliser
-   `permission_handler` seul** : il court-circuite l'auth iOS dans certains cas et ne déclenche pas le dialog).
-2. **Recording** (`eo_recording_screen.dart`) : timer big + waveform animée (33 barres calées sur
-   l'amplitude réelle + sinusoïde) + bouton stop rond rouge. Auto-stop à `dureeMaxSec`.
-3. **Finished** (`eo_finished_screen.dart`) : check vert + mini-player just_audio sur le fichier local +
-   CTA "Voir mon évaluation" → swap vers `EvaluationLoadingView(includeTranscription: true)` pendant
-   l'upload R2 + Whisper + Claude (~15 s), puis push résultats.
+**Flow EO (2 écrans + résultats)** — single-task : le SessionController a juste 1 tâche. Les écrans
+suivent le « studio » du template `SejourFR_Mobile_Autonome.html` : **consigne épinglée en haut,
+action en bas, UI épurée** (cf. `clicktcf-web/src/features/speaking`). ⚠️ **Briefing et
+enregistrement sont fusionnés sur un seul écran** (`eo_briefing_screen.dart`) : on n'ouvre plus de
+page intermédiaire pour capturer — le tap sur le micro lance la capture sur place. La route
+`/t/:idx/enregistrement` et l'ancien `eo_recording_screen.dart` ont été **supprimés**.
+1. **Briefing + enregistrement** (`eo_briefing_screen.dart`, écran unique à 2 phases pilotées par
+   `recordingControllerProvider.phase`) :
+   - **idle** : `ConsigneCard` rouge (consigne complète) en haut + panneau bas `_MicStartButton`
+     (gros micro rond style « idle » du template + invite à parler). Tap → permission micro via
+     `recorder.requestPermission()` (le package `record` — ✋ **ne pas utiliser `permission_handler`
+     seul** : il court-circuite l'auth iOS dans certains cas et ne déclenche pas le dialog) →
+     `recorder.start(maxDuration: dureeMaxSec)` **sans navigation**.
+   - **recording** (`_RecordingView`) : `ConsigneCard` rouge compacte (`maxLines: 3`) en haut, puis
+     bloc centré REC pill + timer big + waveform animée rouge (33 barres calées sur l'amplitude
+     réelle + sinusoïde, param `color`) + bouton stop rond rouge. Stop manuel ou auto-stop à
+     `dureeMaxSec` → le service passe en `finished` → un `ref.listen` pousse `…/t/:idx/termine`
+     (garde `_navigated` anti-double-push). `initState` appelle `recorder.cancel()` pour repartir
+     d'un état au repos (sinon un `finished` résiduel d'une tâche précédente naviguerait aussitôt).
+     `PopScope`/flèche retour passent par une confirmation d'abandon pendant la capture.
+2. **Finished** (`eo_finished_screen.dart`) : `ConsigneCard` rouge compacte (`maxLines: 2`) +
+   check vert + mini-player just_audio sur le fichier local + CTA "Voir mon évaluation" → swap vers
+   `EvaluationLoadingView(includeTranscription: true)` pendant l'upload R2 + Whisper + Claude
+   (~15 s), puis push résultats.
 4. **Résultats** (`eo_results_screen.dart`) : score donut violet + critères + feedback + **transcription
    Whisper**. Atteint en single-task après soumission, ou depuis le bilan en tap d'une ligne, ou
    depuis l'historique des sessions passées (mode `isHistory`). En 3-tâches, `eo_finished_screen`
@@ -696,15 +711,19 @@ réutilise le flux briefing → enregistrement (EO) / `ee_briefing_writing_scree
    bilan détaillé. CTAs : "Retour aux sujets" (single-task) ou "Continuer l'examen blanc" (full
    TCF exam) ou "Retour" (history).
 
-**Flow EE** : 1 seul écran combiné `ee_briefing_writing_screen.dart` (briefing + textarea + compteur live +
-`MotsCard` ambre + brouillon auto-save 3 s dans `SharedPreferences` via `EeDraftService`).
+**Flow EE** : 1 seul écran combiné `ee_briefing_writing_screen.dart`, épuré sur le modèle du
+template (`clicktcf-web/src/features/writing`) : **consigne en haut, saisie en bas**. La ListView
+ne contient plus que `ConsigneCard` (bleue, consigne + « Longueur attendue : X à Y mots ») +
+`WritingZone` (textarea avec compteur de mots, barre de progression et statut intégrés dans son
+en-tête). Les ex-cartes `MotsCard` / `CriteresCard` / `PreparationCard` ont été **supprimées** du
+flow (le compteur de `WritingZone` rend `MotsCard` redondant ; les critères réapparaissent dans le
+feedback). Brouillon auto-save 3 s dans `SharedPreferences` via `EeDraftService`.
 - Textarea avec `FocusNode` partagé entre le screen state et `WritingZone` → quand le clavier ouvre,
-  `ConsigneCard`/`TipsCard`/`CriteresCard` se replient et les 2 boutons du bas (Valider / Brouillon)
-  disparaissent → le textarea grandit (`minLines: 12`). `keyboardDismissBehavior: onDrag` sur la
-  ListView. **Important** : ne pas conditionner les enfants de la ListView sur le focus avec
-  `if (!isWriting) ...[ConsigneCard, ...]` — ça change les indices et Flutter recrée le State de
-  `WritingZone` → focus perdu, clavier se ferme immédiatement. Garder tous les enfants présents +
-  ValueKey stable sur chacun.
+  les 2 boutons du bas (Valider / Brouillon) disparaissent → le textarea grandit (`minLines: 12`).
+  `keyboardDismissBehavior: onDrag` sur la ListView. **Important** : ne pas conditionner les enfants
+  de la ListView sur le focus avec `if (!isWriting) ...[ConsigneCard, ...]` — ça change les indices
+  et Flutter recrée le State de `WritingZone` → focus perdu, clavier se ferme immédiatement. Garder
+  tous les enfants présents + ValueKey stable sur chacun.
 - `TextField.onTapOutside: (_) => focusNode.unfocus()` pour dismiss le clavier au tap hors champ (API
   officielle Flutter 3.10+). **Ne pas** wrapper le body dans un `GestureDetector(onTap: unfocus)` : ça
   rentre en compétition avec le tap de focus du TextField → "il faut 2 taps pour ouvrir le clavier".

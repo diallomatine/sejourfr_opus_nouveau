@@ -15,6 +15,7 @@ class ConsigneCard extends StatelessWidget {
     this.subTitleHero,
     this.accent = AppColors.blue,
     this.soft = AppColors.blueLight,
+    this.maxLines,
   });
 
   final String consigne;
@@ -27,6 +28,11 @@ class ConsigneCard extends StatelessWidget {
 
   final Color accent;
   final Color soft;
+
+  /// Si non-null, le corps de la consigne est tronqué à `maxLines` lignes
+  /// (variante compacte épinglée sur les écrans enregistrement/terminé, où la
+  /// consigne complète a déjà été lue au briefing).
+  final int? maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +70,8 @@ class ConsigneCard extends StatelessWidget {
           ],
           Text(
             consigne,
+            maxLines: maxLines,
+            overflow: maxLines == null ? null : TextOverflow.ellipsis,
             style: AppFonts.ui(
               size: 14.5,
               weight: FontWeight.w500,

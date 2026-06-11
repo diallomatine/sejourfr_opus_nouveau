@@ -45,7 +45,6 @@ import '../../screens/tcf_production/ee_briefing_writing_screen.dart';
 import '../../screens/tcf_production/ee_results_screen.dart';
 import '../../screens/tcf_production/eo_briefing_screen.dart';
 import '../../screens/tcf_production/eo_finished_screen.dart';
-import '../../screens/tcf_production/eo_recording_screen.dart';
 import '../../screens/tcf_production/eo_results_screen.dart';
 import '../../screens/tcf_production/history_session_screen.dart';
 import '../../screens/tcf_production/production_exams_screen.dart';
@@ -527,8 +526,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       //   /tcf/expression-orale/historique               -> historique des sessions passees
       //   /tcf/expression-orale/sessions/:attemptId      -> bilan détaillé d'une session
       //                                                    (mode `?live=1` après T3 = polling actif)
-      //   /tcf/expression-orale/t/:idx                   -> briefing T(idx+1)
-      //   /tcf/expression-orale/t/:idx/enregistrement    -> capture audio
+      //   /tcf/expression-orale/t/:idx                   -> briefing + enregistrement (sur place)
       //   /tcf/expression-orale/t/:idx/termine           -> ecoute + soumission
       //   /tcf/expression-orale/resultats/:id?taskIndex=N&history=1  -> resultats (live ou history)
       //
@@ -570,13 +568,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               return EoBriefingScreen(taskIndex: idx);
             },
             routes: [
-              GoRoute(
-                path: 'enregistrement',
-                builder: (_, state) {
-                  final idx = int.tryParse(state.pathParameters['taskIndex'] ?? '0') ?? 0;
-                  return EoRecordingScreen(taskIndex: idx);
-                },
-              ),
               GoRoute(
                 path: 'termine',
                 builder: (_, state) {

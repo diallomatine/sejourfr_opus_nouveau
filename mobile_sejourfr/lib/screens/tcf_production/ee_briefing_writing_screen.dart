@@ -16,9 +16,6 @@ import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'draft_service.dart';
 import 'ee_session_controller.dart';
 import 'widgets/consigne_card.dart';
-import 'widgets/criteres_card.dart';
-import 'widgets/mots_card.dart';
-import 'widgets/preparation_points.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
 import 'widgets/writing_zone.dart';
@@ -46,14 +43,6 @@ class _EeBriefingWritingScreenState
   bool _draftLoaded = false;
   String? _loadedForTaskId;
   bool _wasFocused = false;
-
-  static const _criteresEE = [
-    'Pertinence et développement du contenu',
-    'Organisation et cohérence du texte',
-    'Richesse et précision du vocabulaire',
-    'Correction grammaticale',
-    'Orthographe et ponctuation',
-  ];
 
   String _niveauForUser() {
     final auth = ref.read(authControllerProvider);
@@ -350,7 +339,6 @@ class _EeBriefingWritingScreenState
             controller: _controller,
             focusNode: _writingFocusNode,
             scrollController: _scrollController,
-            isWriting: _writingFocusNode.hasFocus,
             wordCount: _countWords(_controller.text),
             onChanged: (v) => _onTextChanged(v, task),
             onSubmit: () => _submit(task),
@@ -358,7 +346,6 @@ class _EeBriefingWritingScreenState
             onClear: () => _clearText(task),
             submitError: _submitError,
             submitting: _submitting,
-            criteres: _criteresEE,
           );
         },
       ),
@@ -374,13 +361,11 @@ class _Content extends StatelessWidget {
     required this.controller,
     required this.focusNode,
     required this.scrollController,
-    required this.isWriting,
     required this.onChanged,
     required this.onSubmit,
     required this.onSaveDraftAndQuit,
     required this.onClear,
     required this.wordCount,
-    required this.criteres,
     required this.submitting,
     this.submitError,
   });
@@ -391,13 +376,11 @@ class _Content extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final ScrollController scrollController;
-  final bool isWriting;
   final ValueChanged<String> onChanged;
   final VoidCallback onSubmit;
   final VoidCallback onSaveDraftAndQuit;
   final VoidCallback onClear;
   final int wordCount;
-  final List<String> criteres;
   final bool submitting;
   final String? submitError;
 
@@ -430,17 +413,6 @@ class _Content extends StatelessWidget {
                 subtitle:
                     'Longueur attendue : ${task.motsMin ?? 0} à ${task.motsMax ?? 0} mots',
               ),
-              PreparationCard(
-                key: const ValueKey('ee-prep'),
-                isEo: false,
-                tache: task.tacheNumero,
-              ),
-              MotsCard(
-                key: const ValueKey('ee-mots'),
-                current: wordCount,
-                min: task.motsMin ?? 0,
-                max: task.motsMax ?? 0,
-              ),
               WritingZone(
                 key: const ValueKey('ee-writing-zone'),
                 controller: controller,
@@ -452,60 +424,40 @@ class _Content extends StatelessWidget {
                 onClear: wordCount > 0 ? onClear : null,
                 minLines: 12,
               ),
-              CriteresCard(
-                key: const ValueKey('ee-criteres'),
-                criteres: criteres,
-              ),
               if (submitError != null) ...[
                 const SizedBox(height: 4),
                 _InlineError(message: submitError!),
               ],
+              const SizedBox(height: 16),
+              AppButton(
+                label: 'Valider ma rédaction',
+                icon: LucideIcons.send,
+                isLoading: submitting,
+                onPressed: (_inRange && !submitting) ? onSubmit : null,
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: onSaveDraftAndQuit,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  side: const BorderSide(color: AppColors.blue),
+                  foregroundColor: AppColors.blue,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'Enregistrer le brouillon',
+                  style: AppFonts.ui(
+                    size: 15,
+                    weight: FontWeight.w700,
+                    color: AppColors.blue,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
-        if (!isWriting)
-          Container(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
-            decoration: const BoxDecoration(
-              color: AppColors.white,
-              border: Border(
-                top: BorderSide(color: AppColors.line2, width: 1),
-              ),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                children: [
-                  AppButton(
-                    label: 'Valider ma rédaction',
-                    icon: LucideIcons.send,
-                    isLoading: submitting,
-                    onPressed: (_inRange && !submitting) ? onSubmit : null,
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: onSaveDraftAndQuit,
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                      side: const BorderSide(color: AppColors.blue),
-                      foregroundColor: AppColors.blue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      'Enregistrer le brouillon',
-                      style: AppFonts.ui(
-                        size: 15,
-                        weight: FontWeight.w700,
-                        color: AppColors.blue,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
       ],
     );
   }
