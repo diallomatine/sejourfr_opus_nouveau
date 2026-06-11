@@ -427,7 +427,14 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             subsByTache={subsByTache}
             bilan={bilan}
             backTo={backTo}
-            onOpenResult={(id) => router.push(`${config.base}/resultats/${id}`)}
+            onOpenResult={(id) => {
+              // `back` = ce bilan (URL courante) pour que le bouton retour du
+              // rapport de tâche revienne ici, pas au hub de l'épreuve.
+              const back = encodeURIComponent(
+                `${window.location.pathname}${window.location.search}`,
+              );
+              router.push(`${config.base}/resultats/${id}?back=${back}`);
+            }}
           />
         )}
 

@@ -34,7 +34,7 @@ class DonutChartScore extends StatelessWidget {
     final p = _percent;
     if (p == 0) return 'Non evaluable';
     if (p < 40) return 'A retravailler';
-    if (p < 60) return 'En progres';
+    if (p < 60) return 'En progrès';
     if (p < 80) return 'Bon niveau';
     return 'Tres bon niveau';
   }

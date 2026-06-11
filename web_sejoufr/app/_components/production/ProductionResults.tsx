@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {useParams} from "next/navigation";
+import {useParams, useSearchParams} from "next/navigation";
 import {useEffect, useState} from "react";
 import {ApiException, productionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
@@ -30,7 +30,14 @@ const MAX_POLLS = 40; // ~2 min
 export function ProductionResults({config}: {config: ProductionConfig}) {
   const params = useParams<{submissionId: string}>();
   const id = params?.submissionId ?? "";
+  const searchParams = useSearchParams();
   const {user, status} = useAuth();
+
+  // Écran d'origine (bilan d'examen `…/session/{id}`, historique…) passé en
+  // `?back=` par l'appelant — sans lui, retour au hub de l'épreuve. On
+  // n'accepte qu'un chemin interne (pas d'open redirect).
+  const backParam = searchParams?.get("back");
+  const backHref = backParam && backParam.startsWith("/") ? backParam : config.base;
 
   const [submission, setSubmission] = useState<ProductionSubmissionDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +97,7 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
     <DualChromeShell>
       <main className={hub.hub}>
         <HubDetailHeader
-          backHref={config.base}
+          backHref={backHref}
           title="Résultat"
           subtitle={
             submission
@@ -119,7 +126,7 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
                   {retrying ? "Relance…" : "Réessayer"}
                 </button>
               )}
-              <Link href={config.base} className="btn btn-ghost">
+              <Link href={backHref} className="btn btn-ghost">
                 Retour
               </Link>
             </div>
@@ -161,8 +168,8 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
               </details>
             )}
             <div className={prod.actions}>
-              <Link href={config.base} className="btn btn-blue">
-                Retour aux tâches
+              <Link href={backHref} className="btn btn-blue">
+                {backParam ? "Retour" : "Retour aux tâches"}
               </Link>
             </div>
           </>

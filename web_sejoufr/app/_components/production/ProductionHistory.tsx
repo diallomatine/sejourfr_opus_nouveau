@@ -128,7 +128,13 @@ export function ProductionHistory({config}: {config: ProductionConfig}) {
                       key={s.id}
                       submission={s}
                       epreuve={config.epreuve}
-                      onClick={() => router.push(`${config.base}/resultats/${s.id}`)}
+                      onClick={() =>
+                        router.push(
+                          `${config.base}/resultats/${s.id}?back=${encodeURIComponent(
+                            `${config.base}/historique`,
+                          )}`,
+                        )
+                      }
                     />
                   ))}
                 </div>
