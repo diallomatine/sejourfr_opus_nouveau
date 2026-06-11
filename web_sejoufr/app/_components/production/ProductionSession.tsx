@@ -160,8 +160,18 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         }
 
         const nextTodo = TACHES.find((n) => !subs.has(n));
-        if (nextTodo === undefined) {
-          if (fullExamId) {
+        const allSubmitted = nextTodo === undefined;
+        // Un attempt déjà finalisé (examen blanc terminé ou abandonné, même
+        // avec 0 tâche rendue) ne doit JAMAIS rouvrir l'écriture : on affiche
+        // le bilan. Les tâches non rendues apparaissent « Non rendue » et le
+        // niveau plancher (A1_NON_ATTEINT) vient du backend (tâches = 0).
+        const attemptFinished = attempt?.finishedAt != null;
+        if (allSubmitted || attemptFinished) {
+          // Flux ACTIF d'un examen complet (l'épreuve vient d'être terminée)
+          // → retour au hub de progression. En CONSULTATION depuis le bilan de
+          // l'examen complet on a `backTo` (et pas `fullExamId`) → on reste sur
+          // le bilan de l'épreuve.
+          if (fullExamId && allSubmitted) {
             router.replace(`/examens-blancs/tcf/${fullExamId}`);
             return;
           }

@@ -171,7 +171,8 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
   Widget build(BuildContext context) {
     final history = ref.watch(_historyForBilanProvider(widget.epreuve));
     final allTasks = ref.watch(_allTasksProvider(widget.epreuve));
-    final bilan = ref.watch(_bilanProvider(widget.attemptId)).valueOrNull;
+    final bilanAsync = ref.watch(_bilanProvider(widget.attemptId));
+    final bilan = bilanAsync.valueOrNull;
 
     final fallbackRoute =
         widget.epreuve == EpreuveType.tcfEo ? '/tcf/eo' : '/tcf/ee';
@@ -191,10 +192,22 @@ class _HistorySessionScreenState extends ConsumerState<HistorySessionScreen> {
         data: (allSubs) {
           final session = allSubs.where((s) => s.attemptId == widget.attemptId).toList();
           if (session.isEmpty) {
-            return const _ErrorBox(
-              message: 'Cette session est introuvable.',
-              onRetry: null,
-            );
+            // Aucune submission pour cet attempt. Deux cas distincts :
+            //  - examen blanc terminé sans aucune production rendue (abandon
+            //    après CO/CE) → on rend le bilan « non évalué » : 3 tâches
+            //    « Non rendue » + niveau plancher A1_NON_ATTEINT renvoyé par le
+            //    backend. On continue le rendu normal (les slots seront vides).
+            //  - attemptId réellement inconnu → erreur.
+            if (bilanAsync.isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final b = bilan;
+            if (b == null || !b.exam || !b.finished) {
+              return const _ErrorBox(
+                message: 'Cette session est introuvable.',
+                onRetry: null,
+              );
+            }
           }
           return allTasks.when(
             loading: () => const Center(child: CircularProgressIndicator()),
