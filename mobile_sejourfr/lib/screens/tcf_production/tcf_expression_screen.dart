@@ -700,6 +700,11 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
         await ref.read(eeSessionProvider.notifier).startSingle(task: task);
       }
       if (!mounted) return;
+      // On retire le scrim AVANT le push : sinon l'écran sortant le garde
+      // pendant l'animation de slide → flash d'un écran sombre avant le
+      // briefing. La session single-task est déjà prête (await ci-dessus),
+      // donc le briefing s'affiche directement, sans loader intermédiaire.
+      setState(() => _starting = false);
       context.push(widget.module.isEo
           ? '/tcf/expression-orale/t/0'
           : '/tcf/expression-ecrite/t/0');
