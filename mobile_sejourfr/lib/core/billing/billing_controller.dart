@@ -362,16 +362,61 @@ class BillingController extends StateNotifier<BillingState> {
       clearError: true,
       clearPurchasingSku: true,
     );
-    _restoreInFlight = true;
     try {
-      await _iap.restorePurchases();
-      // Les achats restaurés arrivent via purchaseStream → _onPurchasesUpdated
-      // qui les renvoie au backend pour rattachement. On ne reset pas
-      // purchaseInProgress ici, c'est le handler stream qui le fera. Mais si le
-      // store n'a RIEN à restaurer, aucun event n'arrive : on arme un timeout
-      // qui débloque l'UI avec un message clair.
-      _restoreTimeout?.cancel();
-      _restoreTimeout = Timer(_restoreTimeoutDuration, _onRestoreTimeout);
+      // L'accès Premium vit côté BACKEND (user_subscriptions), pas dans le
+      // store : pour un pass one-time, la durée est posée par le backend, le
+      // consommable est « brûlé » à l'achat. Le vrai « restore » d'un compte
+      // qui a déjà payé (réinstallation, nouvel appareil, pass en cours) est
+      // donc une RELECTURE du statut serveur — on la fait toujours.
+      final authState = _ref.read(authControllerProvider);
+      final prevUser = authState is AuthAuthenticated ? authState.user : null;
+
+      final status = await _repo.getSubscriptionStatus();
+      await _ref
+          .read(authControllerProvider.notifier)
+          .refreshSubscriptionStatus(status);
+
+      // Mode passes one-time (catalogue 100 % consommable) : on NE déclenche
+      // PAS de sync StoreKit. Apple ne « restaure » jamais un consommable, et
+      // StoreKit 2 re-livre des transactions consommables périmées en boucle
+      // en `restored` (flutter/flutter#180046) → c'est exactement ce qui
+      // faisait remonter « Achat validé côté store, mais… » à la restauration.
+      // Le statut backend ci-dessus suffit. En mode abonnement (dormant), on a
+      // en revanche besoin de re-livrer les transactions du store.
+      final oneTimeMode = state.products.isNotEmpty &&
+          state.products.every((p) => p.isOneTime);
+
+      if (!oneTimeMode) {
+        _restoreInFlight = true;
+        await _iap.restorePurchases();
+        // Les achats restaurés arrivent via purchaseStream →
+        // _onPurchasesUpdated qui les renvoie au backend. On ne reset pas
+        // purchaseInProgress ici, c'est le handler stream qui le fera. Si le
+        // store n'a RIEN à restaurer, aucun event n'arrive : on arme un timeout
+        // qui débloque l'UI avec un message clair.
+        _restoreTimeout?.cancel();
+        _restoreTimeout = Timer(_restoreTimeoutDuration, _onRestoreTimeout);
+        return;
+      }
+
+      // One-time : terminé sans passer par le store. On réutilise le chemin
+      // d'affichage de l'achat (snackbar d'issue + fermeture si Premium).
+      if (status.isPremium) {
+        state = state.copyWith(
+          purchaseInProgress: false,
+          lastVerification: status,
+          lastVerificationOutcome: _outcomeFor(prevUser, status),
+          clearError: true,
+          clearPurchasingSku: true,
+        );
+      } else {
+        // Jamais payé sur ce compte → rien à restaurer, message non bloquant.
+        state = state.copyWith(
+          purchaseInProgress: false,
+          clearPurchasingSku: true,
+          error: 'Aucun achat à restaurer pour ce compte.',
+        );
+      }
     } catch (e) {
       _endRestore();
       final d = _describeError(e,
@@ -503,6 +548,21 @@ class BillingController extends StateNotifier<BillingState> {
         // laisser le spinner global coincé. Pendant un achat actif
         // (purchasingSku != null), on ne touche à rien : c'est l'event de
         // succès du vrai achat qui réinitialisera l'état.
+        if (state.purchasingSku == null) {
+          state = state.copyWith(purchaseInProgress: false);
+        }
+        return;
+      }
+
+      // Transaction RESTAURÉE qui échoue à la vérif : ne JAMAIS afficher
+      // d'erreur bloquante. L'utilisateur ne l'a pas déclenchée — c'est presque
+      // toujours un consommable périmé re-livré par StoreKit 2 en `restored`
+      // (flutter/flutter#180046) au boot / à l'ouverture du paywall. Son accès
+      // réel vit côté backend (un pass consommable n'est pas « restauré » par
+      // le store). On l'acquitte donc silencieusement pour le purger de la file
+      // et on débloque l'UI, sans bannière d'erreur.
+      if (purchase.status == PurchaseStatus.restored) {
+        await _iap.completePurchase(purchase);
         if (state.purchasingSku == null) {
           state = state.copyWith(purchaseInProgress: false);
         }

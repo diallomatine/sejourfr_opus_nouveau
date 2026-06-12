@@ -906,14 +906,32 @@ vend du contenu digital). L'ancien `openSubscriptionWeb()` est supprimé.
   re-livre l'achat → retry automatique. Le user n'a pas payé deux fois.
 
 **Restore purchases** : bouton **« Restaurer mes achats »** (variante secondary,
-sous les cartes du paywall — plus visible que l'ancienne action discrète de
-l'AppBar, supprimée) → `IapService.restorePurchases()` → les achats existants
-reviennent via `purchaseStream` avec `PurchaseStatus.restored` → même flow que
-`purchased` (verify-receipt + refresh user). **Garde-fou anti-spinner-infini** :
-si le store n'a rien à restaurer, il n'émet aucun event → `BillingController`
-arme un `Timer` (`_restoreTimeout`, 8 s) qui débloque l'UI avec « Aucun achat à
-restaurer pour ce compte. ». Le timeout est désarmé (`_endRestore`) dès qu'un
-event arrive (restauration réelle).
+sous les cartes du paywall).
+
+⚠ **Un consommable ne se restaure PAS.** En mode passes one-time (catalogue
+100 % consommable, cf. `state.products.every(isOneTime)`), `restorePurchases()`
+**ne déclenche AUCUN sync StoreKit** : l'accès vit côté backend
+(`user_subscriptions`, durée posée par `plan.durationDays`), pas dans le store.
+Le bouton relit donc `GET /api/billing/subscription-status` + refresh
+`AuthUser`, puis réutilise le chemin d'affichage de l'achat (snackbar d'issue
+via `_outcomeFor`, fermeture si Premium ; sinon « Aucun achat à restaurer pour
+ce compte. »). C'est LE vrai restore pour un compte qui a déjà payé
+(réinstallation, nouvel appareil, pass en cours).
+**Pourquoi** : Apple ne restaure jamais un consommable, et StoreKit 2 (plugin
+`in_app_purchase`) **re-livre des transactions consommables périmées en boucle
+en `PurchaseStatus.restored`** (flutter/flutter#180046, #85529) — passer
+`restorePurchases()` sur un catalogue de passes faisait remonter « Achat validé
+côté store, mais nous n'avons pas pu activer votre accès » à chaque restauration.
+En **mode abonnement** (dormant), on garde le vrai sync StoreKit + le
+**garde-fou anti-spinner-infini** : `_restoreInFlight` + `Timer`
+(`_restoreTimeout`, 8 s) qui débloque l'UI si le store n'émet aucun event,
+désarmé (`_endRestore`) dès qu'un event arrive.
+
+**Défense en profondeur** : toute transaction `PurchaseStatus.restored` qui
+échoue à `verify-receipt` est **acquittée en silence** (jamais de bannière
+d'erreur) — l'utilisateur ne l'a pas déclenchée, c'est un consommable périmé
+re-livré par StoreKit au boot / à l'ouverture du paywall. Cf.
+`_verifyAndAcknowledge` (branche `restored` après le 409).
 
 **SKUs** : le mobile lit les Product IDs store **directement depuis le backend**
 (`PlanPublicResponse.appleProductId` / `googleProductId`, exposés par
