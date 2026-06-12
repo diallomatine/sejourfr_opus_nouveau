@@ -22,6 +22,7 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -49,6 +50,7 @@ public class UserProfileService {
     private final EmailChangeTokenManager emailChangeTokenManager;
     private final PasswordEncoder passwordEncoder;
     private final MailService mailService;
+    private final MailTemplateRenderer templateRenderer;
     private final SessionService sessionService;
     private final SecureRandom random = new SecureRandom();
 
@@ -210,6 +212,26 @@ public class UserProfileService {
         sessionService.revokeAllForUser(user.getId());
 
         return user.getEmail();
+    }
+
+    /**
+     * Rend la page HTML de confirmation servie au navigateur après le clic sur
+     * le lien de changement d'email (le user n'est pas forcément connecté sur
+     * ce device, donc on renvoie une page autonome plutôt que du JSON). Comme
+     * les emails, le HTML vit dans un template ({@code mail/email-change-confirmed.html})
+     * rendu via {@link MailTemplateRenderer} — pas de markup en dur dans le
+     * controller. Le {@code message} est échappé par le renderer.
+     *
+     * @param ok      true = succès (lien valide), false = lien invalide/expiré.
+     * @param message texte à afficher à l'utilisateur.
+     */
+    public String renderEmailChangeConfirmationPage(boolean ok, String message) {
+        return templateRenderer.render("email-change-confirmed.html", Map.of(
+                "title", ok ? "Email confirmé" : "Lien invalide",
+                "accent", ok ? "#168F5B" : "#E1372F",
+                "emoji", ok ? "✅" : "⚠️",
+                "message", message
+        ));
     }
 
     // ------------------------------------------------------------------------

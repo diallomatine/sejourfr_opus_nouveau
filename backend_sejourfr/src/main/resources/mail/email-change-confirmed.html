@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{title}} — SejourFR</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+           background: #FAFAF7; color: #0F1839; margin: 0;
+           min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+    .card { background: white; border: 1px solid #E4E7F2; border-radius: 16px;
+            padding: 32px 28px; max-width: 420px; text-align: center;
+            box-shadow: 0 8px 24px rgba(15, 24, 57, 0.06); }
+    .emoji { font-size: 48px; margin-bottom: 12px; }
+    h1 { font-size: 22px; margin: 0 0 8px; color: {{accent}}; }
+    p { font-size: 14px; line-height: 1.5; color: #6B7299; margin: 0 0 18px; }
+    .hint { font-size: 12px; color: #9CA2BD; margin-top: 24px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="emoji">{{emoji}}</div>
+    <h1>{{title}}</h1>
+    <p>{{message}}</p>
+    <p class="hint">Tu peux fermer cette page et revenir dans l'app SejourFR.</p>
+  </div>
+</body>
+</html>
