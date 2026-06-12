@@ -1,28 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import {useEffect, useMemo, useState} from "react";
 import {
-  ArrowRight,
-  ChevronRight,
-  Flame,
-  GraduationCap,
-  LayoutGrid,
-  Lightbulb,
-  Target,
-  Trophy,
-  Waves,
-  Zap,
+    ArrowRight,
+    ChevronRight,
+    Flame,
+    GraduationCap,
+    LayoutGrid,
+    Lightbulb,
+    Target,
+    Trophy,
+    Waves,
+    Zap,
 } from "lucide-react";
-import { CategoryBarLine, ReinforceRow } from "@/app/_components/ReinforceRow";
-import { attemptApi, dashboardApi } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
-import { masteryHint, moduleAverage } from "@/lib/dashboard";
+import {CategoryBarLine, ReinforceRow} from "@/app/_components/ReinforceRow";
+import {attemptApi, dashboardApi} from "@/lib/api";
+import {useAuth} from "@/lib/auth-context";
+import {masteryHint, moduleAverage} from "@/lib/dashboard";
 import {
-  type AttemptSummaryResponse,
-  type DashboardCategoryStat,
-  type DashboardSummaryResponse,
-  isProductionAttempt,
+    type AttemptSummaryResponse,
+    type DashboardCategoryStat,
+    type DashboardSummaryResponse,
+    isProductionAttempt,
 } from "@/lib/types";
 
 /**
@@ -34,287 +34,274 @@ import {
 
 /** Niveau CECRL compact pour la stat card ("A1 non atteint" → "<A1"). */
 function shortLevel(level: DashboardSummaryResponse["estimatedTcfLevel"]): string {
-  if (!level) return "—";
-  return level === "A1_NON_ATTEINT" ? "<A1" : level;
+    if (!level) return "—";
+    return level === "A1_NON_ATTEINT" ? "<A1" : level;
 }
 
 export default function DashboardPage() {
-  const { user, status } = useAuth();
+    const {user, status} = useAuth();
 
-  const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
-  const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
-  const [loading, setLoading] = useState(true);
+    const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
+    const [attempts, setAttempts] = useState<AttemptSummaryResponse[]>([]);
+    const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (status !== "authenticated" || !user) return;
-    let cancelled = false;
-    (async () => {
-      const [sum, atts] = await Promise.all([
-        dashboardApi.summaryCached().catch((): DashboardSummaryResponse | null => null),
-        attemptApi.listMine({ limit: 10 }).catch((): AttemptSummaryResponse[] => []),
-      ]);
-      if (cancelled) return;
-      setSummary(sum);
-      setAttempts(atts);
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [status, user]);
+    useEffect(() => {
+        if (status !== "authenticated" || !user) return;
+        let cancelled = false;
+        (async () => {
+            const [sum, atts] = await Promise.all([
+                dashboardApi.summaryCached().catch((): DashboardSummaryResponse | null => null),
+                attemptApi.listMine({limit: 10}).catch((): AttemptSummaryResponse[] => []),
+            ]);
+            if (cancelled) return;
+            setSummary(sum);
+            setAttempts(atts);
+            setLoading(false);
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [status, user]);
 
-  // Entraînement (série) non terminé à reprendre. On exclut les examens blancs
-  // (MOCK_EXAM) — un examen se passe en une fois, on ne propose pas de le
-  // reprendre — et les productions EE/EO (flux propre).
-  const inProgressAttempt = useMemo(
-    () =>
-      attempts.find(
-        (a) => !a.finishedAt && a.type !== "MOCK_EXAM" && !isProductionAttempt(a),
-      ) ?? null,
-    [attempts],
-  );
-
-  // Top 3 des catégories travaillées les plus faibles, tous modules confondus.
-  const weakest = useMemo(() => {
-    if (!summary) return [];
-    return [...summary.civique, ...summary.tcf]
-      .filter((c) => c.percent !== null)
-      .sort((a, b) => (a.percent ?? 0) - (b.percent ?? 0))
-      .slice(0, 3);
-  }, [summary]);
-
-  if (status === "loading" || (loading && status === "authenticated")) {
-    return <DashSkeleton />;
-  }
-  if (!user) {
-    return (
-      <div className="dash-empty">
-        <p>
-          Session expirée.{" "}
-          <Link href="/connexion" className="dash-empty-link">
-            Se reconnecter
-          </Link>
-        </p>
-        <style>{emptyStyle}</style>
-      </div>
+    // Entraînement (série) non terminé à reprendre. On exclut les examens blancs
+    // (MOCK_EXAM) — un examen se passe en une fois, on ne propose pas de le
+    // reprendre — et les productions EE/EO (flux propre).
+    const inProgressAttempt = useMemo(
+        () =>
+            attempts.find(
+                (a) => !a.finishedAt && a.type !== "MOCK_EXAM" && !isProductionAttempt(a),
+            ) ?? null,
+        [attempts],
     );
-  }
 
-  const trainingHref =
-    user.hasTcf !== false ? "/entrainement?module=TCF" : "/entrainement?module=CIVIQUE";
+    // Top 3 des catégories travaillées les plus faibles, tous modules confondus.
+    const weakest = useMemo(() => {
+        if (!summary) return [];
+        return [...summary.civique, ...summary.tcf]
+            .filter((c) => c.percent !== null)
+            .sort((a, b) => (a.percent ?? 0) - (b.percent ?? 0))
+            .slice(0, 3);
+    }, [summary]);
 
-  return (
-    <main className="dash">
-      {!user.targetProcedure && (
-        <Link href="/parcours?from=/dashboard" className="dash-banner">
+    if (status === "loading" || (loading && status === "authenticated")) {
+        return <DashSkeleton/>;
+    }
+    if (!user) {
+        return (
+            <div className="dash-empty">
+                <p>
+                    Session expirée.{" "}
+                    <Link href="/connexion" className="dash-empty-link">
+                        Se reconnecter
+                    </Link>
+                </p>
+                <style>{emptyStyle}</style>
+            </div>
+        );
+    }
+
+    const trainingHref =
+        user.hasTcf !== false ? "/entrainement?module=TCF" : "/entrainement?module=CIVIQUE";
+
+    return (
+        <main className="dash">
+            {!user.targetProcedure && (
+                <Link href="/parcours?from=/dashboard" className="dash-banner">
           <span>
             <strong>Choisissez votre parcours</strong> (CSP, carte de résident ou
             naturalisation) pour personnaliser votre préparation.
           </span>
-          <ArrowRight size={16} aria-hidden />
-        </Link>
-      )}
+                    <ArrowRight size={16} aria-hidden/>
+                </Link>
+            )}
 
-      {inProgressAttempt && (
-        <Link
-          href={`/sessions/${inProgressAttempt.id}`}
-          className="dash-banner dash-banner-resume"
-        >
-          <span>
-            <strong>Entraînement en cours</strong> — reprenez là où vous vous
-            êtes arrêté.
-          </span>
-          <ArrowRight size={16} aria-hidden />
-        </Link>
-      )}
-
-      <header className="dash-head">
-        <div className="dash-head-text">
+            <header className="dash-head">
+                <div className="dash-head-text">
           <span className="dash-eyebrow">
-            <LayoutGrid size={14} aria-hidden />
+            <LayoutGrid size={14} aria-hidden/>
             Tableau de bord
           </span>
-          <h1>
-            Bonjour {user.firstName ?? "à vous"} <span aria-hidden>👋</span>
-          </h1>
-          <p>
-            Voici où vous en êtes dans votre préparation. Continuez sur votre
-            lancée.
-          </p>
-        </div>
-        <Link href={trainingHref} className="dash-cta">
-          <Zap size={16} aria-hidden />
-          Entraînement du jour
-        </Link>
-      </header>
+                    <h1>
+                        Bonjour {user.firstName ?? "à vous"} <span aria-hidden>👋</span>
+                    </h1>
+                    <p>
+                        Voici où vous en êtes dans votre préparation. Continuez sur votre
+                        lancée.
+                    </p>
+                </div>
+                <Link href={trainingHref} className="dash-cta">
+                    <Zap size={16} aria-hidden/>
+                    Entraînement du jour
+                </Link>
+            </header>
 
-      <section className="stat-grid" aria-label="Vos indicateurs">
-        <article className="stat-card">
+            <section className="stat-grid" aria-label="Vos indicateurs">
+                <article className="stat-card">
           <span className="stat-icon stat-icon-blue" aria-hidden>
-            <Target size={20} />
+            <Target size={20}/>
           </span>
-          <div className="stat-body">
+                    <div className="stat-body">
             <span className="stat-value">
               {summary?.globalSuccessPercent !== null &&
               summary?.globalSuccessPercent !== undefined
-                ? `${summary.globalSuccessPercent}%`
-                : "—"}
+                  ? `${summary.globalSuccessPercent}%`
+                  : "—"}
             </span>
-            <span className="stat-label">Maîtrise globale</span>
-            <span className="stat-sub">
+                        <span className="stat-label">Maîtrise globale</span>
+                        <span className="stat-sub">
               {masteryHint(summary?.globalSuccessPercent ?? null)}
             </span>
-          </div>
-        </article>
+                    </div>
+                </article>
 
-        <article className="stat-card">
+                <article className="stat-card">
           <span className="stat-icon stat-icon-green" aria-hidden>
-            <Trophy size={20} />
+            <Trophy size={20}/>
           </span>
-          <div className="stat-body">
-            <span className="stat-value">{summary?.mockExamsTotal ?? 0}</span>
-            <span className="stat-label">Examens blancs</span>
-            <span className="stat-sub">passés au total</span>
-          </div>
-        </article>
+                    <div className="stat-body">
+                        <span className="stat-value">{summary?.mockExamsTotal ?? 0}</span>
+                        <span className="stat-label">Examens blancs</span>
+                        <span className="stat-sub">passés au total</span>
+                    </div>
+                </article>
 
-        <article className="stat-card">
+                <article className="stat-card">
           <span className="stat-icon stat-icon-red" aria-hidden>
-            <Flame size={20} />
+            <Flame size={20}/>
           </span>
-          <div className="stat-body">
-            <span className="stat-value">{summary?.currentStreakDays ?? 0} j</span>
-            <span className="stat-label">Série en cours</span>
-            <span className="stat-sub">
+                    <div className="stat-body">
+                        <span className="stat-value">{summary?.currentStreakDays ?? 0} j</span>
+                        <span className="stat-label">Série en cours</span>
+                        <span className="stat-sub">
               {summary && summary.recordStreakDays > 0
-                ? `record : ${summary.recordStreakDays} jours`
-                : "lancez votre série !"}
+                  ? `record : ${summary.recordStreakDays} jours`
+                  : "lancez votre série !"}
             </span>
-          </div>
-        </article>
+                    </div>
+                </article>
 
-        <article className="stat-card">
+                <article className="stat-card">
           <span className="stat-icon stat-icon-blue" aria-hidden>
-            <GraduationCap size={20} />
+            <GraduationCap size={20}/>
           </span>
-          <div className="stat-body">
+                    <div className="stat-body">
             <span className="stat-value">
               {shortLevel(summary?.estimatedTcfLevel ?? null)}
             </span>
-            <span className="stat-label">Niveau TCF estimé</span>
-            <span className="stat-sub">équivalence CECRL</span>
-          </div>
-        </article>
-      </section>
+                        <span className="stat-label">Niveau TCF estimé</span>
+                        <span className="stat-sub">équivalence CECRL</span>
+                    </div>
+                </article>
+            </section>
 
-      <section className="modules-grid" aria-label="Progression par parcours">
-        <ModuleCard
-          accent="red"
-          icon={<Waves size={20} />}
-          title="TCF IRN"
-          href="/entrainement?module=TCF"
-          categories={summary?.tcf ?? []}
-        />
-        <ModuleCard
-          accent="blue"
-          icon={<Lightbulb size={20} />}
-          title="Examen civique"
-          href="/entrainement?module=CIVIQUE"
-          categories={summary?.civique ?? []}
-        />
-      </section>
+            <section className="modules-grid" aria-label="Progression par parcours">
+                <ModuleCard
+                    accent="red"
+                    icon={<Waves size={20}/>}
+                    title="TCF IRN"
+                    href="/entrainement?module=TCF"
+                    categories={summary?.tcf ?? []}
+                />
+                <ModuleCard
+                    accent="blue"
+                    icon={<Lightbulb size={20}/>}
+                    title="Examen civique"
+                    href="/entrainement?module=CIVIQUE"
+                    categories={summary?.civique ?? []}
+                />
+            </section>
 
-      <section className="reinforce-card" aria-label="À renforcer en priorité">
-        <header className="reinforce-head">
-          <h2>À renforcer en priorité</h2>
-          <Link href="/recommandations" className="reinforce-all">
-            Tout voir <ChevronRight size={15} aria-hidden />
-          </Link>
-        </header>
+            <section className="reinforce-card" aria-label="À renforcer en priorité">
+                <header className="reinforce-head">
+                    <h2>À renforcer en priorité</h2>
+                    <Link href="/recommandations" className="reinforce-all">
+                        Tout voir <ChevronRight size={15} aria-hidden/>
+                    </Link>
+                </header>
 
-        {weakest.length === 0 ? (
-          <div className="reinforce-empty">
-            <p>
-              Entraînez-vous pour obtenir des recommandations personnalisées.
-            </p>
-            <Link href={trainingHref} className="dash-cta dash-cta-sm">
-              <Zap size={15} aria-hidden />
-              Commencer
-            </Link>
-          </div>
-        ) : (
-          <ul className="reinforce-list">
-            {weakest.map((cat) => (
-              <ReinforceRow key={cat.code} cat={cat} />
-            ))}
-          </ul>
-        )}
-      </section>
+                {weakest.length === 0 ? (
+                    <div className="reinforce-empty">
+                        <p>
+                            Entraînez-vous pour obtenir des recommandations personnalisées.
+                        </p>
+                        <Link href={trainingHref} className="dash-cta dash-cta-sm">
+                            <Zap size={15} aria-hidden/>
+                            Commencer
+                        </Link>
+                    </div>
+                ) : (
+                    <ul className="reinforce-list">
+                        {weakest.map((cat) => (
+                            <ReinforceRow key={cat.code} cat={cat}/>
+                        ))}
+                    </ul>
+                )}
+            </section>
 
-      <style>{dashStyles}</style>
-    </main>
-  );
+            <style>{dashStyles}</style>
+        </main>
+    );
 }
 
 function ModuleCard({
-  accent,
-  icon,
-  title,
-  href,
-  categories,
-}: {
-  accent: "blue" | "red";
-  icon: React.ReactNode;
-  title: string;
-  href: string;
-  categories: DashboardCategoryStat[];
+                        accent,
+                        icon,
+                        title,
+                        href,
+                        categories,
+                    }: {
+    accent: "blue" | "red";
+    icon: React.ReactNode;
+    title: string;
+    href: string;
+    categories: DashboardCategoryStat[];
 }) {
-  const average = moduleAverage(categories);
-  return (
-    <article className={`module-card module-card-${accent}`}>
-      <header className="module-head">
-        <Link href={href} className="module-id">
+    const average = moduleAverage(categories);
+    return (
+        <article className={`module-card module-card-${accent}`}>
+            <header className="module-head">
+                <Link href={href} className="module-id">
           <span className={`module-icon module-icon-${accent}`} aria-hidden>
             {icon}
           </span>
-          <span className="module-titles">
+                    <span className="module-titles">
             <span className="module-title">{title}</span>
             <span className="module-sub">{categories.length} catégories</span>
           </span>
-        </Link>
-        <span className={`module-pct module-pct-${accent}`}>
+                </Link>
+                <span className={`module-pct module-pct-${accent}`}>
           {average !== null ? `${average}%` : "—"}
         </span>
-      </header>
+            </header>
 
-      <ul className="module-rows">
-        {categories.map((cat) => (
-          <li key={cat.code} className="module-row">
-            <span className="module-row-label">{cat.label}</span>
-            <CategoryBarLine percent={cat.percent} fallback={cat.level ?? "—"} />
-          </li>
-        ))}
-      </ul>
-    </article>
-  );
+            <ul className="module-rows">
+                {categories.map((cat) => (
+                    <li key={cat.code} className="module-row">
+                        <span className="module-row-label">{cat.label}</span>
+                        <CategoryBarLine percent={cat.percent} fallback={cat.level ?? "—"}/>
+                    </li>
+                ))}
+            </ul>
+        </article>
+    );
 }
 
 function DashSkeleton() {
-  return (
-    <div className="dash dash-skeleton" aria-busy>
-      <div className="sk sk-head" />
-      <div className="sk-grid">
-        <div className="sk sk-card" />
-        <div className="sk sk-card" />
-        <div className="sk sk-card" />
-        <div className="sk sk-card" />
-      </div>
-      <div className="sk-grid sk-grid-2">
-        <div className="sk sk-module" />
-        <div className="sk sk-module" />
-      </div>
-      <style>{dashStyles}</style>
-      <style>{`
+    return (
+        <div className="dash dash-skeleton" aria-busy>
+            <div className="sk sk-head"/>
+            <div className="sk-grid">
+                <div className="sk sk-card"/>
+                <div className="sk sk-card"/>
+                <div className="sk sk-card"/>
+                <div className="sk sk-card"/>
+            </div>
+            <div className="sk-grid sk-grid-2">
+                <div className="sk sk-module"/>
+                <div className="sk sk-module"/>
+            </div>
+            <style>{dashStyles}</style>
+            <style>{`
         .sk {
           background: linear-gradient(90deg, #EDEFF7 25%, #F5F6FB 50%, #EDEFF7 75%);
           background-size: 200% 100%;
@@ -342,8 +329,8 @@ function DashSkeleton() {
           .sk-grid { grid-template-columns: 1fr; }
         }
       `}</style>
-    </div>
-  );
+        </div>
+    );
 }
 
 const emptyStyle = `
