@@ -2,6 +2,7 @@ package com.sejourfr.app.service.billing;
 
 import com.apple.itunes.storekit.client.AppStoreServerAPIClient;
 import com.apple.itunes.storekit.client.APIException;
+import com.apple.itunes.storekit.model.Environment;
 import com.apple.itunes.storekit.model.JWSRenewalInfoDecodedPayload;
 import com.apple.itunes.storekit.model.JWSTransactionDecodedPayload;
 import com.apple.itunes.storekit.model.ResponseBodyV2DecodedPayload;
@@ -59,6 +60,15 @@ public class AppleStoreClient {
     private final ResourcePatternResolver resourceResolver = new PathMatchingResourcePatternResolver();
 
     private SignedDataVerifier verifier;
+    /**
+     * Verifier de l'environnement <b>opposé</b> à {@code properties.environment},
+     * utilisé en repli. En prod (env=PRODUCTION), c'est un verifier SANDBOX : il
+     * permet d'accepter les JWS sandbox que l'on reçoit forcément lors de la
+     * review Apple d'une mise à jour et via TestFlight (le reviewer teste le
+     * build de prod avec un compte sandbox). Best-effort : null si non
+     * constructible (ex. fallback PRODUCTION en dev sans {@code appAppleId}).
+     */
+    private SignedDataVerifier fallbackVerifier;
     private AppStoreServerAPIClient apiClient;
 
     @PostConstruct
@@ -85,6 +95,7 @@ public class AppleStoreClient {
                     properties.getEnvironment(),
                     properties.isEnableOnlineChecks()
             );
+            this.fallbackVerifier = buildFallbackVerifier();
             this.apiClient = new AppStoreServerAPIClient(
                     resolvePrivateKey(),
                     properties.getKeyId(),
@@ -93,8 +104,9 @@ public class AppleStoreClient {
                     properties.getEnvironment()
             );
             log.info(
-                    "Apple App Store prêt — env={} bundle={} roots={}",
+                    "Apple App Store prêt — env={} fallback={} bundle={} roots={}",
                     properties.getEnvironment(),
+                    fallbackVerifier != null ? oppositeEnv(properties.getEnvironment()) : "aucun",
                     properties.getBundleId(),
                     rootCAs.size()
             );
@@ -148,8 +160,7 @@ public class AppleStoreClient {
      */
     public JWSTransactionDecodedPayload verifyTransaction(String signedTransactionInfo)
             throws VerificationException {
-        ensureReady();
-        return verifier.verifyAndDecodeTransaction(signedTransactionInfo);
+        return verifyWithFallback(v -> v.verifyAndDecodeTransaction(signedTransactionInfo));
     }
 
     /**
@@ -157,8 +168,7 @@ public class AppleStoreClient {
      */
     public ResponseBodyV2DecodedPayload verifyNotification(String signedPayload)
             throws VerificationException {
-        ensureReady();
-        return verifier.verifyAndDecodeNotification(signedPayload);
+        return verifyWithFallback(v -> v.verifyAndDecodeNotification(signedPayload));
     }
 
     /**
@@ -167,8 +177,43 @@ public class AppleStoreClient {
      */
     public JWSRenewalInfoDecodedPayload verifyRenewalInfo(String signedRenewalInfo)
             throws VerificationException {
+        return verifyWithFallback(v -> v.verifyAndDecodeRenewalInfo(signedRenewalInfo));
+    }
+
+    /** Une opération de vérif JWS portée par un {@link SignedDataVerifier}. */
+    @FunctionalInterface
+    private interface VerifyOp<T> {
+        T verify(SignedDataVerifier verifier) throws VerificationException;
+    }
+
+    /**
+     * Exécute une vérif JWS sur le verifier de l'environnement configuré, et
+     * retombe sur le {@link #fallbackVerifier} (env opposé) si la première
+     * échoue. Indispensable en prod : pendant la review d'une mise à jour et
+     * via TestFlight, Apple émet des JWS <b>sandbox</b> qu'un verifier
+     * PRODUCTION rejette avec {@code INVALID_ENVIRONMENT}. Si les deux env
+     * rejettent, on remonte l'erreur du verifier <b>primaire</b> (cause la plus
+     * probable, on ne masque pas le vrai motif).
+     */
+    private <T> T verifyWithFallback(VerifyOp<T> op) throws VerificationException {
         ensureReady();
-        return verifier.verifyAndDecodeRenewalInfo(signedRenewalInfo);
+        try {
+            return op.verify(verifier);
+        } catch (VerificationException primaryEx) {
+            if (fallbackVerifier == null) {
+                throw primaryEx;
+            }
+            try {
+                T result = op.verify(fallbackVerifier);
+                log.info(
+                        "JWS Apple vérifié via le fallback {} (rejeté par {}).",
+                        oppositeEnv(properties.getEnvironment()), properties.getEnvironment()
+                );
+                return result;
+            } catch (VerificationException fallbackEx) {
+                throw primaryEx;
+            }
+        }
     }
 
     /**
@@ -208,5 +253,39 @@ public class AppleStoreClient {
             streams.add(c.getInputStream());
         }
         return streams;
+    }
+
+    /**
+     * Construit le verifier de l'environnement opposé (best-effort). Recharge
+     * des {@code InputStream} frais : la lib Apple consomme ceux passés au
+     * verifier primaire. Renvoie null si la construction échoue — typiquement le
+     * fallback PRODUCTION en dev, où {@code appAppleId} est absent (la lib
+     * l'exige pour PRODUCTION). Un fallback null désactive simplement le repli.
+     */
+    private SignedDataVerifier buildFallbackVerifier() {
+        Environment opposite = oppositeEnv(properties.getEnvironment());
+        try {
+            Set<InputStream> rootCAs = loadRootCerts();
+            if (rootCAs.isEmpty()) {
+                return null;
+            }
+            return new SignedDataVerifier(
+                    rootCAs,
+                    properties.getBundleId(),
+                    properties.getAppAppleId(),
+                    opposite,
+                    properties.isEnableOnlineChecks()
+            );
+        } catch (IOException | RuntimeException e) {
+            log.info(
+                    "Verifier fallback Apple ({}) non construit ({}) — pas de repli {} (normal en dev).",
+                    opposite, e.getMessage(), opposite
+            );
+            return null;
+        }
+    }
+
+    private static Environment oppositeEnv(Environment env) {
+        return env == Environment.PRODUCTION ? Environment.SANDBOX : Environment.PRODUCTION;
     }
 }
