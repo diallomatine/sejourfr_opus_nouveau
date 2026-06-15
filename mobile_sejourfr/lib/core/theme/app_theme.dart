@@ -192,8 +192,24 @@ class AppFonts {
 
 /// Configuration du Material Theme.
 ThemeData buildAppTheme() {
+  // Transition unifiée sur toutes les plateformes : fondu + léger glissement
+  // horizontal (spec Material 3 récente), sans le zoom Android par défaut.
+  const fadeForwards = FadeForwardsPageTransitionsBuilder(
+    backgroundColor: AppColors.bg,
+  );
+  const pageTransitions = PageTransitionsTheme(
+    builders: {
+      TargetPlatform.android: fadeForwards,
+      TargetPlatform.iOS: fadeForwards,
+      TargetPlatform.macOS: fadeForwards,
+      TargetPlatform.windows: fadeForwards,
+      TargetPlatform.linux: fadeForwards,
+    },
+  );
+
   return ThemeData(
     useMaterial3: true,
+    pageTransitionsTheme: pageTransitions,
     scaffoldBackgroundColor: AppColors.bg,
     colorScheme: ColorScheme.fromSeed(
       seedColor: AppColors.blue,
