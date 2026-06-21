@@ -764,6 +764,15 @@ examen au lieu du chrono croissant.
 le briefing soumet immédiatement (`_submitExamAndAdvance`) et enchaîne la tâche suivante (ou le bilan
 après T3). L'entraînement libre garde le flux réécoute + soumission manuelle.
 
+**Auto-soumission de fin de temps (EO examen)** : l'arrêt à `dureeMaxSec` est garanti par un
+`Timer` **possédé par l'écran** (`_examAutoStop` dans `eo_briefing_screen`, armé à
+`_startRecording`) qui appelle `_forceExamSubmit` → stop + `_onCaptureFinished`. On ne se fie plus
+au seul ticker interne de `AudioRecorderService` relayé par `ref.listen` (éphémère, lié au build) :
+ça ratait l'auto-soumission de la 3e tâche EO en examen complet. Le ticker du service auto-stoppe
+toujours en parallèle (entraînement libre + redondance) ; les deux chemins convergent sur
+`_onCaptureFinished`, idempotent via `_navigated`. Le service expose désormais le vrai
+`maxDuration` dans le flux d'amplitude (avant : 3 min codé en dur → « temps restant » qui oscillait).
+
 **Abandon en examen** (PopScope/back EE+EO) → confirmation → `finish`/`markSubDone` (copie ramassée :
 tâches manquantes comptées 0) puis sortie. **Fin normale** (3 tâches) → `finish` AVANT le bilan.
 

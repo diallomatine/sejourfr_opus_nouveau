@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -38,6 +39,12 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
   bool _navigated = false;
   bool _submittingExam = false;
 
+  /// Examen : timer déterministe possédé par l'écran qui force l'arrêt + la
+  /// soumission quand le temps imparti à la tâche est écoulé — indépendant du
+  /// ticker interne du `AudioRecorderService` et du `ref.listen` (constaté : à
+  /// la 3e tâche EO, l'auto-stop du service ne déclenchait pas la soumission).
+  Timer? _examAutoStop;
+
   @override
   void initState() {
     super.initState();
@@ -64,6 +71,12 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _examAutoStop?.cancel();
+    super.dispose();
+  }
+
   /// Demande la permission micro puis démarre la capture sur place.
   Future<void> _startRecording() async {
     final recorder = ref.read(recordingControllerProvider.notifier);
@@ -78,14 +91,40 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
       _showPermissionDeniedSheet(context, status);
       return;
     }
-    final task = ref.read(eoSessionProvider).value?.taskAt(widget.taskIndex);
+    final session = ref.read(eoSessionProvider).value;
+    final task = session?.taskAt(widget.taskIndex);
     final maxSec = task?.dureeMaxSec ?? 180;
     await recorder.start(maxDuration: Duration(seconds: maxSec));
+    if (!mounted) return;
+    // Examen : filet déterministe. Le service auto-stoppe aussi via son ticker,
+    // mais on ne s'y fie pas — ce timer garantit l'auto-soumission « dès que le
+    // temps d'enregistrement finit ». Idempotent (one-shot + garde `_navigated`).
+    _examAutoStop?.cancel();
+    if (session?.isExam ?? false) {
+      _examAutoStop = Timer(Duration(seconds: maxSec), () {
+        if (mounted) _forceExamSubmit();
+      });
+    }
   }
 
   Future<void> _stop() async {
+    _examAutoStop?.cancel();
     // L'arrêt fait passer le service en `finished` → le listener navigue.
     await ref.read(recordingControllerProvider.notifier).stop();
+  }
+
+  /// Fin du temps imparti en examen : stoppe la capture si le service ne l'a pas
+  /// déjà fait, puis déclenche la soumission via [_onCaptureFinished]. Bypasse
+  /// le `ref.listen` (qui dépend du cycle de build) pour être robuste.
+  Future<void> _forceExamSubmit() async {
+    if (_navigated || !mounted) return;
+    final rec = ref.read(recordingControllerProvider);
+    if (rec.phase == RecordingPhase.recording ||
+        rec.phase == RecordingPhase.paused) {
+      await ref.read(recordingControllerProvider.notifier).stop();
+      if (!mounted) return;
+    }
+    _onCaptureFinished();
   }
 
   /// Capture terminée (stop manuel ou auto-stop à `dureeMaxSec`).
@@ -95,6 +134,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
   ///   immédiatement et on passe à la tâche suivante (fidèle au vrai TCF).
   void _onCaptureFinished() {
     if (_navigated || !mounted) return;
+    _examAutoStop?.cancel();
     final session = ref.read(eoSessionProvider).value;
     if (session != null && session.isExam) {
       _navigated = true;
@@ -217,6 +257,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
 
   Future<void> _quitRecording(BuildContext context) async {
     if (!await _confirmQuit(context)) return;
+    _examAutoStop?.cancel();
     await ref.read(recordingControllerProvider.notifier).cancel();
     if (!context.mounted) return;
     if (context.canPop()) {
@@ -255,6 +296,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     if (ok != true || !context.mounted) return;
     final fullExamId =
         GoRouterState.of(context).uri.queryParameters['fullExamId'];
+    _examAutoStop?.cancel();
     await ref.read(recordingControllerProvider.notifier).cancel();
     if (fullExamId != null) {
       try {

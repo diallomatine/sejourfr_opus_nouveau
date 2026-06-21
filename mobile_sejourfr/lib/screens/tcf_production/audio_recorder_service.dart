@@ -73,6 +73,7 @@ class AudioRecorderService {
   StreamSubscription<Amplitude>? _ampSub;
   Timer? _ticker;
   Duration _elapsed = Duration.zero;
+  Duration _maxDuration = const Duration(minutes: 3);
   String? _currentPath;
   String? _currentMime;
 
@@ -148,6 +149,7 @@ class AudioRecorderService {
     // jusqu'a la prochaine version de record_ios.
     _currentMime = 'audio/wav';
     _elapsed = Duration.zero;
+    _maxDuration = maxDuration;
     await _recorder.start(
       const RecordConfig(
         encoder: AudioEncoder.wav,
@@ -194,7 +196,7 @@ class AudioRecorderService {
       _stateController.add(RecordingState(
         phase: RecordingPhase.recording,
         elapsed: _elapsed,
-        maxDuration: const Duration(minutes: 3),
+        maxDuration: _maxDuration,
         filePath: _currentPath,
         fileMime: _currentMime,
         lastAmplitude: norm,
@@ -237,6 +239,7 @@ class AudioRecorderService {
     _stateController.add(RecordingState(
       phase: RecordingPhase.finished,
       elapsed: _elapsed,
+      maxDuration: _maxDuration,
       filePath: _currentPath,
       fileMime: _currentMime,
     ));
