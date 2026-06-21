@@ -666,11 +666,17 @@ function BackScreen() {
 // Store badges
 // ============================================================================
 
+const APP_STORE_URL = "https://apps.apple.com/fr/app/sejourfr/id6771509569";
+const PLAY_STORE_URL =
+  "https://play.google.com/store/apps/details?id=com.sejourfr.app&hl=fr";
+
 export function StoreBadge({ variant }: { variant: "ios" | "android" }) {
   const isIos = variant === "ios";
   return (
     <a
-      href="#"
+      href={isIos ? APP_STORE_URL : PLAY_STORE_URL}
+      target="_blank"
+      rel="noopener noreferrer"
       className="sb"
       aria-label={isIos ? "Télécharger sur l'App Store" : "Disponible sur Google Play"}
     >
