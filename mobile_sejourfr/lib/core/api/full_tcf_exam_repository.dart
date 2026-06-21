@@ -35,6 +35,23 @@ class FullTcfExamRepository {
     return FullTcfExamResponse.fromJson(res.data!);
   }
 
+  /// Démarre le chrono d'une épreuve (CO/CE) au moment où le candidat la
+  /// lance, AVANT d'ouvrir le runner. Le backend pose l'ancre globale 90 min
+  /// au premier appel et recale le `startedAt` de l'épreuve sur l'instant réel
+  /// pour que son chrono propre (CO 20 min / CE 30 min) reparte à neuf — sinon
+  /// la CE héritait du temps écoulé sur la CO. Idempotent : une reprise ne
+  /// remet pas le compteur à zéro.
+  Future<FullTcfExamResponse> beginEpreuve({
+    required String parentAttemptId,
+    required String epreuveWire,
+  }) async {
+    final res = await _client.dio.post<Map<String, dynamic>>(
+      '/api/full-tcf-exams/$parentAttemptId/begin',
+      queryParameters: {'epreuve': epreuveWire},
+    );
+    return FullTcfExamResponse.fromJson(res.data!);
+  }
+
   /// Marque l'examen comme terminé. Le CECRL plancher est persisté à condition
   /// que toutes les évaluations IA EE/EO soient EVALUATED ; sinon il sera
   /// posé au prochain `get` une fois les évals prêtes.

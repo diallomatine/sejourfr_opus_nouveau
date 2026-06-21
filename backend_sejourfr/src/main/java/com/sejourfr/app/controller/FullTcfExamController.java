@@ -45,12 +45,16 @@ public class FullTcfExamController {
     }
 
     /**
-     * Démarre le chrono global (90 min) au premier lancement de la
-     * Compréhension orale. Idempotent : sans effet si déjà démarré.
+     * Démarre le chrono d'une épreuve au lancement de « Commencer · … » :
+     * pose l'ancre globale (90 min) au tout premier appel et recale le chrono
+     * propre de l'épreuve lancée (CO/CE) sur l'instant réel. Idempotent par
+     * ancre — une reprise ne remet pas les compteurs à zéro.
      */
     @PostMapping("/api/full-tcf-exams/{id}/begin")
-    public FullTcfExamResponse begin(@PathVariable UUID id) {
-        return fullTcfExamService.beginTimer(currentUser.getId(), id);
+    public FullTcfExamResponse begin(
+            @PathVariable UUID id,
+            @RequestParam EpreuveType epreuve) {
+        return fullTcfExamService.beginEpreuve(currentUser.getId(), id, epreuve);
     }
 
     /**

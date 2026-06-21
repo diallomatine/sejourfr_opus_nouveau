@@ -204,11 +204,15 @@ function ProgressInner() {
               onClick={async () => {
                 if (starting) return;
                 const href = subAttemptHref(current, examId);
-                // Le chrono 90 min ne démarre qu'ici (1re épreuve lancée).
-                if (!exam.timerStartedAt) {
+                // Recale le chrono propre de l'épreuve (CO/CE) sur le lancement
+                // réel AVANT d'ouvrir le runner — sinon la CE, créée avec la CO,
+                // hérite du temps déjà écoulé (bug « la CE n'avait que 10 min »).
+                // Le 1er appel pose aussi l'ancre du chrono global 90 min.
+                // Idempotent côté backend : une reprise ne remet rien à zéro.
+                if (current.epreuve === "TCF_CO" || current.epreuve === "TCF_CE") {
                   setStarting(true);
                   try {
-                    await fullTcfExamApi.begin(examId);
+                    await fullTcfExamApi.begin(examId, current.epreuve);
                   } catch {
                     // best-effort : on lance quand même l'épreuve
                   }

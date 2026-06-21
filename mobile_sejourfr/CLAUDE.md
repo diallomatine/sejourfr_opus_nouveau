@@ -1014,10 +1014,15 @@ Backend : anonymisation (cf. CLAUDE.md racine + `docs/api-endpoints.md`).
 
 ## Roadmap (ce qui n'est pas encore fait)
 
-- **Chrono global examen blanc** : `time_limit_seconds = 5400` (90 min) est posé sur le parent backend
-  mais le mobile ne l'affiche pas encore. Idéalement chrono visible en haut du progress screen + chaque
-  étape consomme du quota. Pour l'instant, chaque sous-attempt a son propre chrono (CO 20 min, CE 30 min
-  via les `time_limit_seconds` des sous-attempts).
+- ~~**Chrono global examen blanc**~~ ✅ fait. Le chrono global 90 min est affiché en haut du
+  progress screen (`_GlobalTimer`), ancré sur `FullTcfExamResponse.timerStartedAt` (lancement réel de
+  la CO), pas sur `startedAt` (création) — figé à 90:00 tant qu'aucune épreuve n'a démarré. Chaque
+  épreuve garde **en plus** son chrono propre (CO 20 / CE 30 via `time_limit_seconds` du sous-attempt) :
+  `_startStep` appelle `POST /api/full-tcf-exams/{id}/begin?epreuve=…` (`beginEpreuve`) AVANT d'ouvrir le
+  runner, ce qui recale `started_at` du sous-attempt sur le lancement réel. Sans ce recalage, la CE —
+  créée en même temps que la CO — héritait du temps déjà écoulé et démarrait amputée (bug « la CE
+  n'avait que 10 min »). Les deux chronos coexistent : le premier à 0 force la suite (auto-finish
+  sous-attempt côté runner / auto-finalisation de l'examen côté hub).
 - **Offline-first** : pas de SQLite/Drift pour l'instant, tout passe par le réseau. À ajouter dans
   `core/storage/` quand on aura besoin (questions civiques stables, peuvent être cachées).
 - **Notifications push** (rappels d'entraînement) : à ajouter via `firebase_messaging` ou OneSignal.

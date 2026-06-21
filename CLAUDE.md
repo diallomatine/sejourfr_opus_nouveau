@@ -212,6 +212,18 @@ lisible — pas de patch rapide qui s'accumule.
   foulée. Pas de cohabitation "au cas où".
 - Respecter la convention de couches du backend Java et les conventions par sous-projet
   documentées dans chaque `CLAUDE.md` local. Pas d'exception "juste pour cette fois".
+- **Parité mobile ⇄ web (non négociable)** : les 3 fronts consomment le **même backend** et
+  le mobile et le web implémentent **les mêmes parcours** (examen blanc TCF complet, runner,
+  productions EE/EO, paywall, freemium…). Toute modif d'une surface partagée — **endpoint**
+  (chemin, **query params**, méthode, params devenus requis), **DTO**, **règle métier**,
+  **enum** — doit être propagée et **vérifiée des deux (trois) côtés** dans la même passe.
+  Avant de fermer une tâche, se demander explicitement : *« est-ce que ce changement casse
+  l'autre front ? »* et le corriger s'il le faut. Exemple vécu : rendre `?epreuve=` requis
+  sur `POST /api/full-tcf-exams/{id}/begin` côté backend aurait silencieusement figé le
+  chrono web (appel best-effort avalé en 400) si le web n'avait pas été mis à jour en même
+  temps. Quand un comportement est corrigé d'un côté (ex. ancrage de chrono), vérifier que le
+  bug n'existe pas, ou n'a pas été réintroduit, de l'autre. Les miroirs DTO à tenir à jour :
+  `admin_sejourfr/src/types/api.ts`, `web_sejoufr/lib/types.ts`, `mobile_sejourfr/lib/core/models/*.dart`.
 
 ### Maintenir les `CLAUDE.md` à jour
 

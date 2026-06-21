@@ -236,33 +236,47 @@ public class FullTcfExamService {
     }
 
     /**
-     * Démarre le chrono global de l'examen : appelé au premier
-     * « Commencer · Compréhension orale ». Pose {@code timer_started_at = now}
-     * sur le parent (ancre des 90 min) et réaligne le {@code started_at} de la
-     * sous-épreuve CO sur cet instant pour que son chrono propre (20 min) parte
-     * aussi du lancement réel, pas de la création de l'examen.
+     * Démarre le chrono d'une épreuve au moment où le candidat la lance
+     * (« Commencer · … »). Deux ancres, chacune posée une seule fois :
+     * <ul>
+     *   <li>{@code parent.timer_started_at} — ancre du chrono global 90 min,
+     *       posée au tout premier lancement (la CO).</li>
+     *   <li>{@code sub.timer_started_at} + {@code sub.started_at} — ancre du
+     *       chrono PROPRE de l'épreuve (CO 20 min / CE 30 min). On recale
+     *       {@code started_at} sur le lancement réel pour que le runner (qui
+     *       décompte depuis {@code started_at}) reparte à neuf. Sans ça, la CE
+     *       — créée en même temps que la CO au lancement de l'examen — héritait
+     *       du temps déjà écoulé et démarrait amputée de la durée passée sur la
+     *       CO (bug « la CE n'avait que 10 min »).</li>
+     * </ul>
      *
-     * <p>Idempotent : si le chrono a déjà démarré ({@code timer_started_at}
-     * non NULL), l'appel ne change rien (pas de remise à zéro). Le candidat
-     * peut donc revenir au hub sans relancer le compteur.
+     * <p>Idempotent par ancre : revenir au hub puis reprendre la même épreuve
+     * ne remet pas son chrono à zéro (un {@code timer_started_at} déjà posé
+     * n'est jamais retouché).
      */
     @Transactional
-    public FullTcfExamResponse beginTimer(UUID userId, UUID parentAttemptId) {
+    public FullTcfExamResponse beginEpreuve(UUID userId, UUID parentAttemptId, EpreuveType epreuve) {
         Attempt parent = loadParentAndCheck(userId, parentAttemptId);
-        if (parent.getTimerStartedAt() == null && parent.getFinishedAt() == null) {
-            Instant now = Instant.now();
+        if (parent.getFinishedAt() != null) {
+            return buildResponse(parent);
+        }
+        Instant now = Instant.now();
+        if (parent.getTimerStartedAt() == null) {
             parent.setTimerStartedAt(now);
             attemptManager.save(parent);
-            attemptManager.findSubAttempts(parent.getId()).stream()
-                    .filter(sub -> sub.getEpreuve() == EpreuveType.TCF_CO
-                            && sub.getFinishedAt() == null)
-                    .findFirst()
-                    .ifPresent(co -> {
-                        co.setStartedAt(now);
-                        attemptManager.save(co);
-                    });
-            log.info("Full TCF exam timer started: parentId={} user={}", parent.getId(), userId);
         }
+        attemptManager.findSubAttempts(parent.getId()).stream()
+                .filter(sub -> sub.getEpreuve() == epreuve
+                        && sub.getTimerStartedAt() == null
+                        && sub.getFinishedAt() == null)
+                .findFirst()
+                .ifPresent(sub -> {
+                    sub.setTimerStartedAt(now);
+                    sub.setStartedAt(now);
+                    attemptManager.save(sub);
+                });
+        log.info("Full TCF exam épreuve begun: parentId={} epreuve={} user={}",
+                parent.getId(), epreuve, userId);
         return buildResponse(parent);
     }
 

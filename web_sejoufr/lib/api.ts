@@ -890,13 +890,18 @@ export const fullTcfExamApi = {
         );
     },
 
-    /** Démarre le chrono global (90 min) au 1er « Commencer · CO ».
-     *  Idempotent : sans effet si déjà démarré. */
-    begin(id: string): Promise<FullTcfExamResponse> {
-        return apiFetch<FullTcfExamResponse>(`/api/full-tcf-exams/${id}/begin`, {
-            method: "POST",
-            auth: true,
-        });
+    /** Démarre le chrono d'une épreuve (CO/CE) au moment où le candidat la
+     *  lance, AVANT d'ouvrir le runner. Pose l'ancre globale 90 min au 1er
+     *  appel et recale le `started_at` de l'épreuve sur l'instant réel (sinon
+     *  la CE héritait du temps écoulé sur la CO). Idempotent par ancre. */
+    begin(id: string, epreuve: string): Promise<FullTcfExamResponse> {
+        return apiFetch<FullTcfExamResponse>(
+            `/api/full-tcf-exams/${id}/begin?epreuve=${encodeURIComponent(epreuve)}`,
+            {
+                method: "POST",
+                auth: true,
+            },
+        );
     },
 
     /** Finalise l'examen (idempotent ; exige les 4 sous-attempts terminés). */

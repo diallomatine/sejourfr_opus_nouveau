@@ -436,15 +436,22 @@ Chantier découpé en vagues :
       (la liste, c'est `/examens-blancs`). `tcf/[id]/page.tsx` (hub de progression :
       4 StepCards, chrono 90 min auto-finish à 0 → bilan ; **le chrono ne démarre
       qu'au 1er « Commencer · Compréhension orale »** — pas à la création de
-      l'examen. Le bouton appelle `fullTcfExamApi.begin(id)` qui pose
-      `timer_started_at` sur le parent (ancre du décompte, exposé en
-      `FullTcfExamResponse.timerStartedAt`) et réaligne le `started_at` de la
-      sous-épreuve CO. Tant que `timerStartedAt` est null, le badge affiche 90:00
-      sans décompter. Backend : `FullTcfExamService.beginTimer` idempotent +
-      endpoint `POST /api/full-tcf-exams/{id}/begin` + migration V013
+      l'examen. Le bouton appelle `fullTcfExamApi.begin(id, epreuve)` AVANT
+      d'ouvrir le runner CO/CE : le backend pose `timer_started_at` sur le parent
+      au 1er appel (ancre du décompte global, exposé en
+      `FullTcfExamResponse.timerStartedAt`) **et recale le `started_at` de la
+      sous-épreuve lancée** (CO **et** CE) sur l'instant réel — sinon la CE,
+      créée en même temps que la CO, héritait du temps déjà écoulé et démarrait
+      amputée (bug « la CE n'avait que 10 min »). Le runner décompte depuis ce
+      `started_at` réaligné (re-fetché à l'ouverture de `/sessions/[id]`). Tant
+      que `timerStartedAt` est null, le badge affiche 90:00 sans décompter.
+      Backend : `FullTcfExamService.beginEpreuve(userId, parentId, epreuve)`
+      idempotent par ancre (`sub.timer_started_at` = garde) + endpoint
+      `POST /api/full-tcf-exams/{id}/begin?epreuve=TCF_CO|TCF_CE` + migration V013
       `attempts.timer_started_at`. `startedAt` (création) reste l'ancre de tri /
-      dédup par slot des grilles. ⚠️ Mobile encore sur `startedAt` : parité à
-      faire),
+      dédup par slot des grilles. Parité mobile faite (`beginEpreuve` côté
+      `tcf_full_exam_progress_screen`). EE/EO inchangés (chrono front 30 min /
+      par-tâche).),
       `tcf/[id]/bilan/page.tsx` (CECRL plancher + polling 3 s rapide 30 s puis 8 s,
       max 5 min, sur `status === COMPLETED`), `tcf/TcfFullExamBriefingSheet.tsx`
       (lancement + 403 → paywall, ouvert **inline** depuis la carte TCF).

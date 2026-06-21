@@ -120,7 +120,13 @@ class _TcfFullExamProgressScreenState
   }
 
   Duration _remaining(FullTcfExamResponse exam) {
-    final ends = exam.startedAt.add(_fullExamTotal);
+    // Le chrono global est ancré sur `timerStartedAt` (lancement réel de la
+    // CO), pas sur `startedAt` (création de l'examen) : tant que le candidat
+    // n'a rien lancé, il reste figé à 90:00 et ne décompte que dès la 1re
+    // épreuve démarrée.
+    final anchor = exam.timerStartedAt;
+    if (anchor == null) return _fullExamTotal;
+    final ends = anchor.add(_fullExamTotal);
     final diff = ends.difference(DateTime.now());
     return diff.isNegative ? Duration.zero : diff;
   }
@@ -274,12 +280,12 @@ class _ProgressView extends ConsumerWidget {
     return 'Commencer · ${_StepMeta.of(ep).title}';
   }
 
-  void _startStep(
+  Future<void> _startStep(
     BuildContext context,
     WidgetRef ref,
     FullTcfExamResponse exam,
     int stepIdx,
-  ) {
+  ) async {
     const order = [
       EpreuveType.tcfCo,
       EpreuveType.tcfCe,
@@ -293,6 +299,18 @@ class _ProgressView extends ConsumerWidget {
     switch (ep) {
       case EpreuveType.tcfCo:
       case EpreuveType.tcfCe:
+        // Démarre/recale le chrono propre de l'épreuve côté backend AVANT
+        // d'ouvrir le runner : il décompte depuis `startedAt`, qu'on vient de
+        // recaler sur le lancement réel (sinon la CE héritait du temps écoulé
+        // sur la CO). Best-effort — si l'appel réseau échoue on ouvre quand
+        // même le runner (chrono ancré sur la dernière valeur serveur).
+        try {
+          await ref.read(fullTcfExamRepositoryProvider).beginEpreuve(
+                parentAttemptId: exam.id,
+                epreuveWire: ep.wire,
+              );
+        } catch (_) {}
+        if (!context.mounted) return;
         context.push(
           '${AppRoutes.runner.replaceFirst(':attemptId', sub.attemptId)}'
           '?from=fullTcf&fullExamId=${exam.id}',

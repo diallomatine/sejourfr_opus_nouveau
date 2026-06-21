@@ -81,6 +81,7 @@ class FullTcfExamResponse {
   const FullTcfExamResponse({
     required this.id,
     required this.startedAt,
+    required this.timerStartedAt,
     required this.finishedAt,
     required this.finalCecrlLevel,
     required this.status,
@@ -89,6 +90,12 @@ class FullTcfExamResponse {
 
   final String id;
   final DateTime startedAt;
+
+  /// Lancement réel de la 1re épreuve (CO) — ancre du chrono global 90 min.
+  /// NULL tant que le candidat n'a pas démarré (hub de progression figé à
+  /// 90:00). Distinct de [startedAt] = instant de CRÉATION de l'examen.
+  final DateTime? timerStartedAt;
+
   final DateTime? finishedAt;
   final NiveauCecrl? finalCecrlLevel;
   final FullTcfExamStatus status;
@@ -123,6 +130,9 @@ class FullTcfExamResponse {
     return FullTcfExamResponse(
       id: json['id'] as String,
       startedAt: DateTime.parse(json['startedAt'] as String).toLocal(),
+      timerStartedAt: json['timerStartedAt'] != null
+          ? DateTime.parse(json['timerStartedAt'] as String).toLocal()
+          : null,
       finishedAt: json['finishedAt'] != null
           ? DateTime.parse(json['finishedAt'] as String).toLocal()
           : null,
