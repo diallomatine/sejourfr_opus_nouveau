@@ -145,7 +145,10 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
           </div>
         ) : submission.evaluation ? (
           <>
-            <ProductionFeedbackView evaluation={submission.evaluation} />
+            <ProductionFeedbackView
+              evaluation={submission.evaluation}
+              isOral={config.mode === "audio"}
+            />
             {config.mode === "audio" && <EoTranscriptNotice />}
             {config.mode === "audio" && submission.transcription && (
               <details className={prod.card}>

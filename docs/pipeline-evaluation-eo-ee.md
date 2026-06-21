@@ -253,6 +253,23 @@ par `AiEvaluationService.buildAvertissements(sub, task)` AVANT persistance dans
 feedback et remonte au mobile via `EvaluationResultDto.feedback` (Map). Le mobile la lit
 sur `EvaluationFeedback.avertissements` et l'affiche dans `AvertissementsCard`.
 
+**EO — `exemples_corriges` = reformulations de clarté, jamais d'orthographe** : à l'oral, la
+production est une **transcription Whisper** ; un « mot mal écrit » est un artefact de
+transcription, pas une erreur du candidat. Deux garde-fous (EE intact) :
+1. **Prompt** (`production-rubrics-v3.json`, section « Production orale ») : à l'oral,
+   `exemples_corriges` ne contient QUE des reformulations de **phrase** (clarté / enchaînement /
+   grammaire perceptible), jamais d'orthographe/accent/ponctuation/casse ni de correction d'un
+   **mot isolé** ; sinon `exemples_corriges: []`. Interdit aussi de mentionner l'orthographe dans
+   `points_a_ameliorer`, `suggestions`, commentaires.
+2. **Filtre serveur** déterministe (`AiEvaluationService.stripOrthographicCorrections`, appliqué
+   si `epreuve == TCF_EO` avant persistance) : retire les items dont `original`/`corrigé` ne
+   diffèrent qu'à la normalisation (accents/casse/ponctuation) **ou** qui tiennent en un seul mot
+   de chaque côté.
+
+Fronts : la section est relabellisée **« Reformulations pour plus de clarté »** pour l'EO
+(`eo_results_screen` mobile ; `ProductionFeedbackView isOral` web via `config.mode === "audio"`).
+L'EE garde « Corrections » / « Exemples et corrections » (l'orthographe compte à l'écrit).
+
 **Libellés des critères** — l'IA ne renvoie que le `code` (`pertinence`, `coherence`, …)
 dans `scores_criteres`. `AiEvaluationService.enrichScoresWithLabels` joint le `label` de la
 grille à chaque item avant persistance. Source du label = **uniquement** la rubrique de la tâche

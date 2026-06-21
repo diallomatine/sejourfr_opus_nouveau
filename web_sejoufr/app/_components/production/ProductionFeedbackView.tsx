@@ -13,7 +13,16 @@ import styles from "./production.module.css";
  * (le feedback IA a la même structure). Le niveau CECRL n'est plus affiché par
  * tâche — il ne vit qu'au bilan d'épreuve en examen blanc.
  */
-export function ProductionFeedbackView({evaluation}: {evaluation: EvaluationResultDto}) {
+export function ProductionFeedbackView({
+  evaluation,
+  isOral = false,
+}: {
+  evaluation: EvaluationResultDto;
+  /** EO : `exemples_corriges` sont des reformulations de clarte (jamais de
+   *  l'orthographe, filtree serveur) — on relabellise la section en
+   *  consequence. EE : corrections classiques. */
+  isOral?: boolean;
+}) {
   const fb = parseEeFeedback(evaluation);
 
   return (
@@ -92,8 +101,12 @@ export function ProductionFeedbackView({evaluation}: {evaluation: EvaluationResu
       {fb.exemplesCorriges.length > 0 && (
         <div className={styles.card}>
           <p className={styles.fbTitle}>
-            <AlertTriangle size={16} strokeWidth={2.2} color="var(--color-red)" />
-            Corrections
+            {isOral ? (
+              <Lightbulb size={16} strokeWidth={2.2} color="var(--color-blue)" />
+            ) : (
+              <AlertTriangle size={16} strokeWidth={2.2} color="var(--color-red)" />
+            )}
+            {isOral ? "Reformulations pour plus de clarté" : "Corrections"}
           </p>
           {fb.exemplesCorriges.map((e, i) => (
             <div key={i} className={styles.correction}>

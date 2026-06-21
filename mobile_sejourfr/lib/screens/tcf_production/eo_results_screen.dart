@@ -378,7 +378,7 @@ class _CorrectionsCard extends StatelessWidget {
                   size: 18, color: AppColors.amber),
               const SizedBox(width: 8),
               Text(
-                'Exemples et corrections',
+                'Reformulations pour plus de clarté',
                 style: AppFonts.ui(
                   size: 15,
                   weight: FontWeight.w700,

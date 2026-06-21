@@ -156,6 +156,15 @@ public class AiEvaluationService {
         if (!avertissements.isEmpty()) {
             feedback.put("avertissements", avertissements);
         }
+        // EO : `exemples_corriges` ne doit garder que des reformulations de
+        // clarte (niveau phrase). On retire les corrections purement
+        // orthographiques (accents/casse/ponctuation) et les corrections de mot
+        // isole : a l'oral ce sont des artefacts de la transcription Whisper,
+        // pas des erreurs du candidat. Filet deterministe en plus de la consigne
+        // de prompt. EE : intact (l'orthographe compte a l'ecrit).
+        if (task.getEpreuve() == EpreuveType.TCF_EO) {
+            stripOrthographicCorrections(feedback);
+        }
         // Joint le `label` des criteres a chaque score (le LLM ne renvoie que le
         // `code`). Source = la rubrique de la tache (fallback DB) : evite au mobile
         // de maintenir une table parallele code→libelle qui derive.
@@ -192,6 +201,63 @@ public class AiEvaluationService {
         log.info("AiEvaluation persistee submission={} note={} niveau={} (LLM={}) model={}",
                 submissionId, noteSur20, niveauCalcule, niveauIa, llmClient.getModelName());
         return eval;
+    }
+
+    /**
+     * EO : ne conserve dans {@code exemples_corriges} que les vraies
+     * reformulations de clarte (niveau phrase). Jette les entrees dont la
+     * difference original/corrige est purement orthographique (accents, casse,
+     * ponctuation -> normalisation identique) ou qui portent sur un MOT isole
+     * (les deux cotes tiennent en un seul mot) : a l'oral, ce sont des artefacts
+     * de transcription, pas des erreurs du candidat.
+     */
+    @SuppressWarnings("unchecked")
+    private void stripOrthographicCorrections(Map<String, Object> feedback) {
+        Object raw = feedback.get("exemples_corriges");
+        if (!(raw instanceof List<?> list)) {
+            return;
+        }
+        List<Object> kept = new ArrayList<>();
+        for (Object item : list) {
+            if (!(item instanceof Map<?, ?> m)) {
+                kept.add(item);
+                continue;
+            }
+            String original = stringOrEmpty(m.get("original"));
+            String corrige = stringOrEmpty(m.get("corrige"));
+            String normOriginal = normalizeForOrthoCompare(original);
+            String normCorrige = normalizeForOrthoCompare(corrige);
+            boolean orthoOnly = normOriginal.equals(normCorrige);
+            boolean motIsole = isSingleWord(normOriginal) && isSingleWord(normCorrige);
+            if (!orthoOnly && !motIsole) {
+                kept.add(item);
+            }
+        }
+        feedback.put("exemples_corriges", kept);
+    }
+
+    private static String stringOrEmpty(Object o) {
+        return o == null ? "" : o.toString();
+    }
+
+    private static boolean isSingleWord(String normalized) {
+        return !normalized.isEmpty() && !normalized.contains(" ");
+    }
+
+    /**
+     * Minuscules, accents retires, tout ce qui n'est pas lettre/chiffre reduit a
+     * un espace, espaces normalises. Deux chaines egales apres ce traitement ne
+     * different que par l'orthographe/casse/ponctuation.
+     */
+    private static String normalizeForOrthoCompare(String s) {
+        String sansAccents = java.text.Normalizer
+                .normalize(s, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "");
+        return sansAccents
+                .toLowerCase(java.util.Locale.FRENCH)
+                .replaceAll("[^a-z0-9]+", " ")
+                .trim()
+                .replaceAll("\\s+", " ");
     }
 
     /**
