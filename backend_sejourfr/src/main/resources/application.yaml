@@ -196,8 +196,14 @@ sejourfr:
     # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
     # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
     # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).
+    # source-criteres : marqueurs de langue/discours porteurs du niveau. La
+    # coherence (organisation du discours) y est incluse — vraie dimension CECRL,
+    # surtout a l'oral. La pertinence reste EXCLUE (completion de tache : un
+    # debutant qui reussit une tache simple ne doit pas etre classe haut). Les
+    # seuils restent cales (la coherence suit lexique/morpho dans les ancres
+    # few-shot, decalage ~0,2 pt) ; recalibrer via le dashboard si besoin.
     niveau-cecrl:
-      source-criteres: [ lexique, morphosyntaxe ]
+      source-criteres: [ lexique, morphosyntaxe, coherence ]
       seuil-b2: 15.0
       seuil-b1: 12.0
       seuil-a2: 7.0

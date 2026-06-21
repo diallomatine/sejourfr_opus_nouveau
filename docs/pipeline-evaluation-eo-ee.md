@@ -121,9 +121,19 @@ aucun changement mobile.**
 ### `niveau_cecrl` calculé serveur (le niveau LLM est advisory, jamais affiché)
 
 Comme pour la note, le `niveau_cecrl` **affiché** n'est plus celui du LLM : `AiEvaluationService`
-le calcule à partir des **critères porteurs du niveau** (`lexique` + `morphosyntaxe`, configurables
-via `niveau-cecrl.source-criteres`). Motivation : le LLM est fiable par critère mais sous-estime le
-niveau absolu sur texte court (observé : lexique 16 + morpho 16 → bande B2, mais le LLM renvoie B1).
+le calcule à partir des **critères porteurs du niveau** (`lexique` + `morphosyntaxe` + `coherence`,
+configurables via `niveau-cecrl.source-criteres`). Motivation : le LLM est fiable par critère mais
+sous-estime le niveau absolu sur texte court (observé : lexique 16 + morpho 16 → bande B2, mais le
+LLM renvoie B1).
+
+**Pourquoi ces trois critères (et pas la pertinence)** : le CECRL/TCF juge une compétence
+**communicative** — la `coherence` (organisation du discours, connecteurs) est une vraie dimension
+de niveau, surtout à l'oral, donc elle entre dans le calcul. La `pertinence` reste **exclue** : elle
+mesure la *complétion de la tâche* (« la consigne est-elle traitée »), pas le niveau de langue — un
+débutant qui réussit une tâche simple a une pertinence haute sans être d'un niveau élevé ; l'inclure
+gonflerait le niveau. Les seuils restent calés (dans les ancres few-shot la coherence suit
+lexique/morpho, décalage ~0,2 pt) ; recalibrer via le dashboard si la distribution dérive. Le
+scoring du modèle est inchangé — seule la **dérivation serveur** du niveau intègre la coherence.
 
 `competence = moyenne(notes des source-critères)` → bande via les seuils config
 (`seuil-b2=15`, `seuil-b1=12`, `seuil-a2=7`) :

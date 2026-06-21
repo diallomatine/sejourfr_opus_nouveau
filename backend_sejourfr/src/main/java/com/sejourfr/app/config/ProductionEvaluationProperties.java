@@ -544,13 +544,15 @@ public class ProductionEvaluationProperties {
      * Seuils du niveau CECRL CALCULE serveur (cf. {@code AiEvaluationService}).
      * Le niveau affiche n'est plus celui du LLM : il est derive des criteres
      * porteurs du niveau ({@code source-criteres}, par defaut lexique +
-     * morphosyntaxe), via {@code competence = moyenne(source)} comparee aux
-     * seuils. Plafond B2 (cible naturalisation ; C1/C2 non fiables sur T1).
-     * Ajustables sans redeploiement (recalibration apres analyse du dashboard).
+     * morphosyntaxe + coherence), via {@code competence = moyenne(source)}
+     * comparee aux seuils. La pertinence reste EXCLUE (completion de tache, pas
+     * un marqueur de niveau de langue). Plafond B2 (cible naturalisation ;
+     * C1/C2 non fiables sur T1). Ajustables sans redeploiement (recalibration
+     * apres analyse du dashboard).
      */
     public static class NiveauCecrl {
         /** Codes de criteres porteurs du niveau (moyennes pour {@code competence}). */
-        private java.util.List<String> sourceCriteres = java.util.List.of("lexique", "morphosyntaxe");
+        private java.util.List<String> sourceCriteres = java.util.List.of("lexique", "morphosyntaxe", "coherence");
         /** competence >= seuilB2 -> B2. */
         private double seuilB2 = 15.0;
         /** competence >= seuilB1 -> B1. */
