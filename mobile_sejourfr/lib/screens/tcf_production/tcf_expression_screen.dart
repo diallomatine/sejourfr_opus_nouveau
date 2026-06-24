@@ -707,9 +707,17 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
       // briefing. La session single-task est déjà prête (await ci-dessus),
       // donc le briefing s'affiche directement, sans loader intermédiaire.
       setState(() => _starting = false);
-      context.push(widget.module.isEo
+      // On `await` le push : la liste des sujets reste montée sous le flux
+      // (briefing → enregistrement/rédaction → résultats), donc son provider
+      // `autoDispose` n'est jamais recyclé. Sans invalidation au retour
+      // (back/swipe), le sujet qu'on vient de traiter resterait affiché « non
+      // fait », sans sa note, jusqu'à un re-montage complet de l'écran.
+      await context.push(widget.module.isEo
           ? '/tcf/expression-orale/t/0'
           : '/tcf/expression-ecrite/t/0');
+      if (!mounted) return;
+      ref.invalidate(_taskProvider(_EntrainementKey(
+          epreuve: widget.module.epreuve, tacheNumero: widget.tache)));
     } catch (e) {
       if (!mounted) return;
       final err = ApiClient.toApiException(e);
