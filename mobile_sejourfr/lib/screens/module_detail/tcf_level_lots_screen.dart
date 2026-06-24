@@ -13,9 +13,7 @@ import '../../core/providers/lots_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
-import '../../core/widgets/app_button.dart';
 import '../../core/widgets/app_card.dart';
-import '../../core/widgets/fixed_action_bar.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/screen_header.dart';
 import 'tcf_qcm_detail_screen.dart' show TcfQcmModule;
@@ -40,8 +38,7 @@ const _levelMetas = <Difficulty, _LevelMeta>{
 /// Écran « Séries » d'un (module TCF QCM, niveau) — cf. `MSeries` maquette.
 /// Une carte par lot : numéro en chip, badge meilleur score ou « Pas encore
 /// commencé », cadenas paywall sur les séries 2+. Tap → POST attempts avec
-/// `lotNumero` → runner en mode batch fixe. Bouton « Examens blancs » fixe
-/// en bas.
+/// `lotNumero` → runner en mode batch fixe.
 class TcfLevelLotsScreen extends ConsumerStatefulWidget {
   const TcfLevelLotsScreen({
     super.key,
@@ -202,7 +199,7 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
               child: Stack(
                 children: [
                   ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                     children: [
                       lotsAsync.when(
                         loading: () => Padding(
@@ -241,19 +238,6 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
                         },
                       ),
                     ],
-                  ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: FixedActionBar(
-                      child: AppButton(
-                        label: 'Examens blancs',
-                        icon: LucideIcons.target,
-                        onPressed: () =>
-                            context.push('/tcf/${mod.routeKey}/examens'),
-                      ),
-                    ),
                   ),
                   if (_starting)
                     Positioned.fill(
