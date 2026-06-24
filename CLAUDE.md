@@ -93,6 +93,30 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
   complets 2-20 → premium. `start` n'exige plus `hasTcf` ; soumettre vers une
   épreuve déjà terminée est refusé (`enforceQuota`).
 
+### ⏳ À gérer plus tard — garde-fou attempts guest (`user IS NULL`)
+
+Aujourd'hui la table `attempts` croît normalement (1 ligne / série ou examen,
+×5 pour un TCF complet ; tables filles `attempt_questions`/`answers` ~10-25×).
+**Ce n'est pas une fuite et Postgres encaisse sans souci** — rien à faire tant
+que le trafic est faible. Le **seul** vecteur réellement non borné, c'est la
+démo guest : quota supprimé le 2026-05-17 (`PublicAttemptService`), démo
+illimitée, aucune dédup, `client_ip` posée mais inexploitée. Un bot qui martèle
+l'endpoint démo gonfle la table avec de l'analytics jetable. À faire **avant
+l'ouverture publique / montée en trafic**, pas avant :
+
+1. **Rate-limit** sur `POST /api/public/attempts/demo` (et le lot guest) par IP
+   — bucket simple en mémoire ou Bucket4j. But : couper l'inflation par bot,
+   pas brider un vrai visiteur.
+2. **Job de purge** `@Scheduled` (quotidien) supprimant les attempts anonymes
+   anciens : `DELETE FROM attempts WHERE user_id IS NULL AND started_at <
+   now() - interval '30 to 90 days'`. Les tables filles partent en cascade DB
+   (déjà en place). L'index partiel `idx_attempts_demo_quota` (V006, laissé en
+   base) couvre déjà ce filtre. Ne touche **jamais** aux attempts d'un user
+   connecté — historique, source de vérité freemium.
+
+Plus tard encore (vrai volume) : rétention via **partitionnement par date** ou
+archivage des `TERMINE` anciens — surtout pas de suppression d'historique user.
+
 ## Identité visuelle (résumé)
 
 - Bleu France `#1E3A8C` + Rouge France `#E1372F` (CTAs critiques seulement).
