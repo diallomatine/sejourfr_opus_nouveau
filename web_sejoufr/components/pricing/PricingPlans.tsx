@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Check, Sparkles } from "lucide-react";
+import { CalendarOff, Check, Sparkles } from "lucide-react";
 import { periodicityFromCycle, type PlanModuleTarget, type PlanPeriodicity } from "@/lib/api";
 import type { PlanPublicResponse } from "@/lib/types";
 
@@ -87,6 +87,22 @@ function monthlyEquivalent(price: number, periodicity: PlanPeriodicity): number 
   if (periodicity === "quarterly") return price / 3;
   if (periodicity === "yearly") return price / 12;
   return null;
+}
+
+/**
+ * Équivalent mensuel d'un pass one-time, dérivé de sa durée (1 an → /12,
+ * 3 mois → /3, 6 semaines → /1,5 en comptant un mois = 4 semaines). Null pour
+ * un pass ≤ 1 mois (le prix affiché est déjà mensuel).
+ */
+function passMonthlyEquivalent(price: number, days: number): number | null {
+  const months =
+    days <= 0 ? 0
+      : days % 365 === 0 ? (days / 365) * 12
+        : days % 30 === 0 ? days / 30
+          : days % 7 === 0 ? (days / 7) / 4
+            : days / 30;
+  if (months <= 1) return null;
+  return price / months;
 }
 
 /** Libellé de durée d'un pass one-time (« 6 semaines », « 3 mois », « 1 an »). */
@@ -237,7 +253,13 @@ function PricingCard({
   durationNote?: string;
 }) {
   const isFree = price === null || price === 0;
+  // On met en avant le prix /mois ; le total réellement débité passe en
+  // sous-texte. Le barré suit la même unité que le gros prix.
   const monthly = !isFree && price !== null ? monthlyEquivalent(price, periodicity) : null;
+  const mainPrice = monthly ?? (price ?? 0);
+  const oldMain = monthly !== null
+    ? (originalPrice !== null ? monthlyEquivalent(originalPrice, periodicity) : null)
+    : originalPrice;
   const ctaClass =
     preset.cta.variant === "ghost"
       ? "btn btn-ghost pp-cta"
@@ -261,17 +283,17 @@ function PricingCard({
 
       <div className="pp-price">
         <div className="pp-price-row">
-          {!isFree && originalPrice !== null && price !== null && originalPrice > price && (
-            <span className="pp-price-old">{formatPrice(originalPrice)} €</span>
+          {!isFree && oldMain !== null && oldMain > mainPrice && (
+            <span className="pp-price-old">{formatPrice(Number(oldMain.toFixed(2)))} €</span>
           )}
           <span className="pp-price-num">
-            {isFree ? "0 €" : `${formatPrice(price ?? 0)} €`}
+            {isFree ? "0 €" : `${formatPrice(Number(mainPrice.toFixed(2)))} €`}
           </span>
-          {!isFree && <span className="pp-price-per">{PERIOD_SUFFIX[periodicity]}</span>}
+          {!isFree && <span className="pp-price-per">/ mois</span>}
         </div>
         {monthly !== null && (
           <p className="pp-price-month">
-            soit ≈ {formatPrice(Number(monthly.toFixed(2)))} € / mois
+            soit {formatPrice(price ?? 0)} € {PERIOD_SUFFIX[periodicity]}
           </p>
         )}
         {durationNote && isFree && <p className="pp-price-month">{durationNote}</p>}
@@ -326,6 +348,7 @@ function PassModuleCard({
       <div className="pp-passes">
         {passes.map((p) => {
           const popular = p.code === POPULAR_PASS_CODE;
+          const monthly = passMonthlyEquivalent(p.price, p.durationDays);
           return (
             <div key={p.code} className={`pp-pass ${popular ? "is-popular" : ""}`}>
               {popular && (
@@ -335,11 +358,27 @@ function PassModuleCard({
                 </span>
               )}
               <span className="pp-pass-dur">{passDurationLabel(p.durationDays)}</span>
-              <span className="pp-pass-price">{formatPrice(p.price)} €</span>
+              <span className="pp-pass-prices">
+                {monthly !== null ? (
+                  <>
+                    <span className="pp-pass-month">
+                      {formatPrice(Number(monthly.toFixed(2)))} €
+                      <span className="pp-pass-per">/mois</span>
+                    </span>
+                    <span className="pp-pass-total">soit {formatPrice(p.price)} €</span>
+                  </>
+                ) : (
+                  <span className="pp-pass-month">{formatPrice(p.price)} €</span>
+                )}
+              </span>
             </div>
           );
         })}
       </div>
+      <p className="pp-norenew">
+        <CalendarOff className="pp-norenew-icon" />
+        Paiement unique — aucun renouvellement automatique.
+      </p>
       <ul className="pp-feats">
         {preset.features.map((f) => (
           <li key={f.label}>
@@ -363,12 +402,12 @@ const styles = `
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-bottom: 22px;
+    margin-bottom: 10px;
   }
   .pp-pass {
     position: relative;
     display: flex;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: 12px;
     padding: 10px 14px;
@@ -402,12 +441,49 @@ const styles = `
     font-size: 14px;
     color: var(--color-ink);
   }
-  .pp-pass-price {
+  .pp-pass-prices {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+    min-width: 0;
+  }
+  .pp-pass-month {
     font-family: var(--font-display);
     font-size: 20px;
     font-weight: 700;
     color: var(--color-ink);
+    line-height: 1.05;
+    white-space: nowrap;
   }
+  .pp-pass-per {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--color-muted);
+    margin-left: 2px;
+  }
+  .pp-pass-total {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    color: var(--color-muted);
+    white-space: nowrap;
+  }
+  .pp-norenew {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 0 0 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-green);
+    line-height: 1.4;
+    text-align: center;
+  }
+  .pp-norenew-icon { width: 14px; height: 14px; flex: 0 0 auto; }
   .pp-toggle {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
