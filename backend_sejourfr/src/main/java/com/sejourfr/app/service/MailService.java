@@ -93,6 +93,24 @@ public class MailService {
     // Authentification — mot de passe & email
     // ------------------------------------------------------------------------
 
+    /**
+     * Email de bienvenue envoyé une fois, juste après la création d'un compte
+     * (inscription locale ou premier sign-in social). Best-effort / {@code @Async} :
+     * un envoi raté ne doit jamais faire échouer l'inscription.
+     */
+    @Async
+    public void sendWelcomeEmail(String to, String displayName) {
+        String body = templateRenderer.render("welcome.html", Map.of(
+                "greeting", displayNameOrFallback(displayName),
+                "ctaUrl", appBaseUrl
+        ));
+        String html = renderLayout(
+                "Bienvenue sur SejourFR",
+                "Votre compte est créé — commencez votre entraînement civique et TCF.",
+                body);
+        sendHtmlWithLogo(to, "SejourFR — Bienvenue 👋", html);
+    }
+
     public void sendPasswordResetEmail(String to, String token) {
         String link = appBaseUrl + "/reinitialiser-mot-de-passe?token=" + token;
         String body = templateRenderer.render("password-reset.html", Map.of("ctaUrl", link));

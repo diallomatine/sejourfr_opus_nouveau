@@ -58,6 +58,7 @@ public class SocialAuthService {
     private final SubscriptionService subscriptionService;
     private final GoogleTokenVerifier googleVerifier;
     private final AppleTokenVerifier appleVerifier;
+    private final MailService mailService;
 
     public TokenResponse loginWithGoogle(GoogleSignInRequest req, String userAgent, String ipAddress) {
         SocialIdentity identity = googleVerifier.verify(req.idToken());
@@ -121,7 +122,9 @@ public class SocialAuthService {
         user.setProviderUserId(identity.providerUserId());
         user.setLastLoginAt(Instant.now());
         log.info("Creation compte via {} : email={}", identity.provider(), identity.email());
-        return userManager.save(user);
+        User saved = userManager.save(user);
+        mailService.sendWelcomeEmail(saved.getEmail(), saved.getFirstName());
+        return saved;
     }
 
     private TokenResponse buildTokenResponse(User u, String userAgent, String ipAddress) {

@@ -118,6 +118,8 @@ public class AuthService {
         user.setCreatedAt(Instant.now());
         userManager.save(user);
 
+        mailService.sendWelcomeEmail(user.getEmail(), user.getFirstName());
+
         return login(new LoginRequest(email, req.password()), userAgent, ipAddress);
     }
 
