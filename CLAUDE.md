@@ -77,7 +77,14 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
   le quota d'entraînement. Refaire l'examen 1 = toléré une fois mais consomme
   les essais d'entraînement restants ; une session ne compte que si ≥ 1 tâche
   soumise. Règles dans `ProductionSubmissionService` /
-  `AttemptService.startProductionAttempt`. QCM : série 1 gratuite, 2+ premium.
+  `AttemptService.startProductionAttempt`. QCM entraînement : série 1
+  gratuite, 2+ premium. **Examens blancs module QCM** (CO / CE / STRUCTURE,
+  `MOCK_EXAM` + `moduleExamQuestionType`) : **slot 1 offert ET rejouable à
+  volonté** pour tout compte inscrit, slots 2+ premium. Verrou côté backend
+  (`AttemptService.startModuleExam`) basé sur le `slotNumber` (≠ EE/EO qui ont
+  un freebie consommable), miroir des 3 fronts (web `ExamsGrid freeSlots=1`,
+  mobile briefing + page examens). Le `slotNumber` ne pilote pas la
+  composition (questions tirées du même pool).
 - **Compte gratuit, examen blanc TCF complet** (`/api/full-tcf-exams`,
   orchestré CO→CE→EE→EO) : **examen 1 offert** (slot 1, même grille que les
   abonnés) avec **EE + EO évaluées une seule fois à vie**. Au-delà, l'examen 1
@@ -248,6 +255,17 @@ lisible — pas de patch rapide qui s'accumule.
   temps. Quand un comportement est corrigé d'un côté (ex. ancrage de chrono), vérifier que le
   bug n'existe pas, ou n'a pas été réintroduit, de l'autre. Les miroirs DTO à tenir à jour :
   `admin_sejourfr/src/types/api.ts`, `web_sejoufr/lib/types.ts`, `mobile_sejourfr/lib/core/models/*.dart`.
+- **Tout bugfix sur une surface partagée se synchronise sur l'autre front (impératif)** :
+  dès qu'on corrige un bug côté **mobile** OU **web** sur un parcours commun (freemium,
+  paywall, runner, examens, productions EE/EO, chrono…), il faut **systématiquement**
+  vérifier le même comportement de l'autre côté et l'aligner dans la **même passe** —
+  soit le bug y existe aussi (le corriger), soit il y était déjà correct (s'en servir de
+  référence et ne rien casser). Les deux fronts doivent rester **synchronisés en
+  permanence** : aucun fix ne se ferme sans s'être posé la question « web et mobile font-ils
+  exactement pareil maintenant, sans régression ? ». Exemple vécu : le slot 1 des examens
+  blancs module TCF (CO/CE/STRUCTURE) était bloqué par le paywall sur mobile alors que le
+  web l'autorisait déjà (rejouable à volonté) — le fix a aligné mobile + backend sur le
+  comportement web, pas l'inverse.
 
 ### Maintenir les `CLAUDE.md` à jour
 

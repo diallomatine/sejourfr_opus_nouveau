@@ -215,17 +215,14 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
   }
 
   /// « Reprendre » un examen de l'historique : on relance le briefing de CE
-  /// slot précis (puis nouvel attempt), comme la page Examens. Refaire un
-  /// examen est réservé au premium (le 1er passage gratuit est consommé).
+  /// slot précis (puis nouvel attempt), comme la page Examens. Le slot 1 est
+  /// offert et rejouable à volonté pour tout compte inscrit ; seuls les slots
+  /// 2+ sont réservés au premium (même règle que le backend).
   void _resumeExam(AttemptSummary attempt) {
-    if (!_isPremium()) {
-      final history =
-          ref.read(qcmExamsHistoryProvider(widget.module.questionType)).valueOrNull ??
-              const [];
-      if (history.any((a) => a.isFinished)) {
-        showPaywallSheet(context);
-        return;
-      }
+    final isSlot1 = (attempt.slotNumber ?? 1) == 1;
+    if (!_isPremium() && !isSlot1) {
+      showPaywallSheet(context);
+      return;
     }
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
     showModuleExamBriefingSheet(context, widget.module,

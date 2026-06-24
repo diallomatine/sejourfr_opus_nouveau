@@ -52,15 +52,11 @@ class _TcfQcmExamsScreenState extends ConsumerState<TcfQcmExamsScreen> {
   bool _isLocked(int slot) => !_isPremium() && slot > 1;
 
   void _openBriefing({required int slotNumber}) {
-    if (!_isPremium()) {
-      final history = ref
-              .read(qcmExamsHistoryProvider(widget.module.questionType))
-              .valueOrNull ??
-          const [];
-      if (history.any((a) => a.isFinished)) {
-        showPaywallSheet(context);
-        return;
-      }
+    // Slot 1 = examen offert, rejouable à volonté pour tout compte inscrit ;
+    // seuls les slots 2+ déclenchent le paywall (cf. backend startModuleExam).
+    if (_isLocked(slotNumber)) {
+      showPaywallSheet(context);
+      return;
     }
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
     showModuleExamBriefingSheet(context, widget.module, slotNumber: slotNumber);

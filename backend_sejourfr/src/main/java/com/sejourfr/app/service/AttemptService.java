@@ -636,28 +636,18 @@ public class AttemptService {
         if (qType != QuestionType.CO && qType != QuestionType.CE && qType != QuestionType.STRUCTURE) {
             throw new BusinessException("moduleExamQuestionType doit etre CO, CE ou STRUCTURE.");
         }
-        // Verrou freemium par sous-module TCF QCM : le 1er examen blanc est
-        // gratuit pour chaque épreuve (CO / CE / STRUCTURE). Une fois qu'un
-        // examen est terminé sur cette épreuve, les relances sont réservées
-        // aux abonnés TCF. Le front (`TcfQcmDetailScreen._openExamBriefing`)
-        // applique déjà ce verrou en UI ; on le double ici par sécurité.
+        // Verrou freemium par sous-module TCF QCM : le 1er examen blanc (slot 1)
+        // est gratuit ET rejouable à volonté pour chaque épreuve (CO / CE /
+        // STRUCTURE) par tout compte inscrit ; seuls les slots 2+ sont réservés
+        // aux abonnés TCF. EE/EO ont leur propre quota (cf.
+        // ProductionSubmissionService). Le front applique déjà ce verrou en UI ;
+        // on le double ici par sécurité. Le slotNumber ne pilote pas la
+        // composition (cf. composeModuleExam) — c'est un repère de grille (V110).
         if (!subscriptionService.hasTcf(user.getId())) {
-            final List<Attempt> previous = attemptManager.findByUserFiltered(
-                    user.getId(),
-                    AttemptType.MOCK_EXAM,
-                    Module.TCF,
-                    qType,
-                    null,
-                    50);
-            // On ignore les sous-attempts d'un examen blanc TCF complet
-            // (parent non null) : le freebie de l'examen module CO/CE standalone
-            // est indépendant de celui de l'examen complet (les surfaces ne se
-            // mélangent pas), comme pour les quotas EE/EO.
-            final boolean alreadyTaken = previous.stream()
-                    .anyMatch(a -> a.getFinishedAt() != null && a.getParentAttempt() == null);
-            if (alreadyTaken) {
+            final int slot = req.slotNumber() != null ? req.slotNumber() : 1;
+            if (slot > 1) {
                 throw new AccessDeniedException(
-                        "L'examen blanc " + qType + " a déjà été passé ; les relances sont réservées aux abonnés TCF.");
+                        "Les examens blancs " + qType + " au-delà du premier sont réservés aux abonnés TCF.");
             }
         }
 

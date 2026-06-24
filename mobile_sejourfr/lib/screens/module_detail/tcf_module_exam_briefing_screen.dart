@@ -50,7 +50,10 @@ class _ModuleExamBriefingSheetState
     final auth = ref.read(authControllerProvider);
     final isPremium =
         auth is AuthAuthenticated && auth.user.canAccessModule(AppModule.tcf);
-    if (!isPremium) {
+    // Slot 1 = examen offert (rejouable à volonté) pour tout compte inscrit ;
+    // slots 2+ réservés aux abonnés TCF. Le backend applique la même règle.
+    final isSlot1 = (widget.slotNumber ?? 1) == 1;
+    if (!isPremium && !isSlot1) {
       // On ferme le briefing avant de montrer le paywall pour éviter
       // l'empilement de deux sheets.
       Navigator.of(context).pop();
