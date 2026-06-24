@@ -551,6 +551,26 @@ class _OneTimeModuleCard extends StatelessWidget {
                 onTap: () => onPurchase(pass),
               ),
             ),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(LucideIcons.calendarOff,
+                  size: 14, color: AppColors.green),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  'Paiement unique — aucun renouvellement automatique.',
+                  style: AppFonts.ui(
+                    size: 12,
+                    weight: FontWeight.w600,
+                    color: AppColors.green,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -581,6 +601,39 @@ class _PassRow extends StatelessWidget {
     final popular = pass.plan.code == _popularPassCode;
     // Le pass populaire est mis en avant en rouge (CTA/urgence assumé ici).
     final c = popular ? AppColors.red : accent;
+    // On affiche le prix ramené au mois (« 6,66 € /mois ») et on garde le
+    // total réellement débité en sous-texte — pas de gros montant brut.
+    final monthly = pass.monthlyEquivalentLabel;
+    final priceWidget = monthly == null
+        ? Text(
+            pass.localizedPrice,
+            style: AppFonts.display(size: 20, weight: FontWeight.w700, color: c),
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    monthly,
+                    style: AppFonts.display(
+                        size: 20, weight: FontWeight.w700, color: c),
+                  ),
+                  const SizedBox(width: 2),
+                  Text('/mois',
+                      style: AppFonts.mono(size: 10, color: AppColors.muted)),
+                ],
+              ),
+              Text(
+                'soit ${pass.localizedPrice}',
+                style: AppFonts.mono(size: 10.5, color: AppColors.muted),
+              ),
+            ],
+          );
     return Material(
       color: c.withValues(alpha: 0.06),
       borderRadius: BorderRadius.circular(12),
@@ -632,11 +685,7 @@ class _PassRow extends StatelessWidget {
                   ],
                 ),
               ),
-              Text(
-                pass.localizedPrice,
-                style: AppFonts.display(
-                    size: 20, weight: FontWeight.w700, color: c),
-              ),
+              priceWidget,
               const SizedBox(width: 10),
               loading
                   ? SizedBox(
@@ -670,20 +719,53 @@ class _PriceBlock extends StatelessWidget {
         style: AppFonts.ui(size: 13, color: AppColors.muted),
       );
     }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Text(
-          product!.localizedPrice,
-          style: AppFonts.display(size: 32, weight: FontWeight.w700),
-        ),
-        const SizedBox(width: 6),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Text(
-            periodicity.suffix,
-            style: AppFonts.mono(size: 11, color: AppColors.muted),
+    // Prix mis en avant au mois ; le total facturé (trimestre/année) passe en
+    // sous-texte. En mensuel, le prix store EST déjà mensuel → pas de réduction.
+    final monthly = product!.monthlyEquivalentLabel;
+    if (monthly == null) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            product!.localizedPrice,
+            style: AppFonts.display(size: 32, weight: FontWeight.w700),
           ),
+          const SizedBox(width: 6),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              periodicity.suffix,
+              style: AppFonts.mono(size: 11, color: AppColors.muted),
+            ),
+          ),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              monthly,
+              style: AppFonts.display(size: 32, weight: FontWeight.w700),
+            ),
+            const SizedBox(width: 6),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                '/ mois',
+                style: AppFonts.mono(size: 11, color: AppColors.muted),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'soit ${product!.localizedPrice} ${periodicity.suffix}',
+          style: AppFonts.mono(size: 11, color: AppColors.muted),
         ),
       ],
     );

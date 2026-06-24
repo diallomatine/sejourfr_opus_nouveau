@@ -152,4 +152,36 @@ class IapProduct {
   /// "$9.99"). On l'affiche tel quel — Apple et Google calculent eux-mêmes
   /// la devise et le format selon la région de l'utilisateur.
   String get localizedPrice => productDetails.price;
+
+  /// Nombre de mois « équivalents » servant à ramener le prix au mois :
+  /// pour un pass, dérivé de la durée (1 an → 12, 3 mois → 3, 6 sem → 1,5 en
+  /// comptant un mois = 4 semaines) ; pour un abonnement, depuis la périodicité.
+  double get _equivalentMonths {
+    if (isOneTime) {
+      final d = plan.durationDays;
+      if (d <= 0) return 1;
+      if (d % 365 == 0) return (d ~/ 365) * 12;
+      if (d % 30 == 0) return d / 30;
+      if (d % 7 == 0) return (d ~/ 7) / 4;
+      return d / 30;
+    }
+    return switch (periodicity) {
+      PlanPeriodicity.monthly => 1,
+      PlanPeriodicity.quarterly => 3,
+      PlanPeriodicity.yearly => 12,
+      null => 1,
+    };
+  }
+
+  /// Prix mensuel équivalent, formaté dans la devise du store (ex: "6,66 €").
+  /// On le met en avant pour réduire la friction perçue, tout en gardant le
+  /// total réellement débité ([localizedPrice]) en sous-texte. Null quand la
+  /// durée est ≤ 1 mois (le prix affiché est déjà mensuel).
+  String? get monthlyEquivalentLabel {
+    final months = _equivalentMonths;
+    if (months <= 1) return null;
+    final monthly = productDetails.rawPrice / months;
+    final amount = monthly.toStringAsFixed(2).replaceAll('.', ',');
+    return '$amount ${productDetails.currencySymbol}';
+  }
 }

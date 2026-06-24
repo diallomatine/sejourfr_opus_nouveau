@@ -131,6 +131,23 @@ function monthlyEquivalent(price: number, cycle: BillingCycle): number | null {
 }
 
 /**
+ * Équivalent mensuel d'un pass one-time, dérivé de sa durée (1 an → /12,
+ * 3 mois → /3, 6 semaines → /1,5 en comptant un mois = 4 semaines). Null pour
+ * un pass ≤ 1 mois (le prix affiché est déjà mensuel). On met en avant ce
+ * « X €/mois » et on garde le total réellement débité en sous-texte.
+ */
+function passMonthlyEquivalent(price: number, days: number): number | null {
+    const months =
+        days <= 0 ? 0
+            : days % 365 === 0 ? (days / 365) * 12
+                : days % 30 === 0 ? days / 30
+                    : days % 7 === 0 ? (days / 7) / 4
+                        : days / 30;
+    if (months <= 1) return null;
+    return price / months;
+}
+
+/**
  * Indexe les plans payants par (module, periodicity). Renvoie undefined si
  * la combinaison n'existe pas en DB ou si la périodicité n'est pas reconnue.
  */
@@ -425,6 +442,7 @@ function OneTimePasses({
                         <div className="otp-passes">
                             {passes.map((p) => {
                                 const popular = p.code === POPULAR_PASS_CODE;
+                                const monthly = passMonthlyEquivalent(p.price, p.durationDays);
                                 return (
                                     <button
                                         key={p.code}
@@ -435,7 +453,21 @@ function OneTimePasses({
                                     >
                                         {popular && <span className="otp-pop">Le plus populaire</span>}
                                         <span className="otp-pass-dur">{durationLabel(p.durationDays)}</span>
-                                        <span className="otp-pass-price">{formatPrice(p.price)} €</span>
+                                        <span className="otp-pass-prices">
+                                            {monthly !== null ? (
+                                                <>
+                                                    <span className="otp-pass-permonth">
+                                                        {formatPrice(Number(monthly.toFixed(2)))} €
+                                                        <span className="otp-pass-per">/mois</span>
+                                                    </span>
+                                                    <span className="otp-pass-total">
+                                                        soit {formatPrice(p.price)} €
+                                                    </span>
+                                                </>
+                                            ) : (
+                                                <span className="otp-pass-permonth">{formatPrice(p.price)} €</span>
+                                            )}
+                                        </span>
                                         <span className="otp-pass-cta">
                                             {loadingCode === p.code ? "…" : "Choisir →"}
                                         </span>
@@ -443,6 +475,9 @@ function OneTimePasses({
                                 );
                             })}
                         </div>
+                        <p className="otp-norenew">
+                            <CalendarIcon/> Paiement unique — aucun renouvellement automatique.
+                        </p>
                     </article>
                 );
             })}
@@ -469,8 +504,13 @@ const otpStyles = `
 .otp-pass.is-popular { border-color:var(--color-red); background:var(--color-red-light); }
 .otp-pop { position:absolute; top:-9px; left:14px; background:var(--color-red); color:#fff; font-family:var(--font-mono); font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:2px 8px; border-radius:100px; }
 .otp-pass-dur { font-weight:700; font-size:15px; color:var(--color-ink); flex:1; min-width:0; }
-.otp-pass-price { font-family:var(--font-display); font-size:20px; font-weight:700; color:var(--color-ink); }
+.otp-pass-prices { display:flex; flex-direction:column; align-items:flex-end; gap:1px; min-width:0; }
+.otp-pass-permonth { font-family:var(--font-display); font-size:21px; font-weight:700; color:var(--color-ink); line-height:1.05; white-space:nowrap; }
+.otp-pass-per { font-family:var(--font-mono); font-size:10px; font-weight:700; letter-spacing:.06em; color:var(--color-muted); margin-left:2px; }
+.otp-pass-total { font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em; color:var(--color-muted); white-space:nowrap; }
 .otp-pass-cta { font-family:var(--font-mono); font-size:11px; font-weight:700; color:var(--color-blue); white-space:nowrap; }
+.otp-norenew { display:flex; align-items:center; justify-content:center; gap:6px; margin:14px 0 0; font-size:12px; font-weight:600; color:var(--color-green); line-height:1.4; text-align:center; }
+.otp-norenew svg { width:14px; height:14px; flex:0 0 auto; }
 `;
 
 // ============================================================================
@@ -647,7 +687,13 @@ function PlanCard({
     else if (intent === "upgrade") ribbon = {label: "RECOMMANDÉ", tone: "upgrade"};
     else if (module === "INTEGRAL") ribbon = {label: "LE PLUS COMPLET", tone: "featured"};
 
+    // On met en avant le prix /mois ; le total réellement débité (trimestre /
+    // année) passe en sous-texte. Le barré suit la même unité que le gros prix.
     const monthly = monthlyEquivalent(plan.price, plan.billingCycle);
+    const mainPrice = monthly ?? plan.price;
+    const oldMain = monthly !== null
+        ? (plan.originalPrice !== null ? monthlyEquivalent(plan.originalPrice, plan.billingCycle) : null)
+        : plan.originalPrice;
 
     return (
         <article className={`plan-card plan-card-${tone}`}>
@@ -661,15 +707,15 @@ function PlanCard({
             <p className="plan-pitch">{preset.pitch}</p>
 
             <div className="plan-price">
-                {plan.originalPrice !== null && plan.originalPrice > plan.price && (
-                    <span className="plan-price-old">{formatPrice(plan.originalPrice)}€</span>
+                {oldMain !== null && oldMain > mainPrice && (
+                    <span className="plan-price-old">{formatPrice(Number(oldMain.toFixed(2)))}€</span>
                 )}
-                <span className="plan-price-now">{formatPrice(plan.price)}€</span>
-                <span className="plan-price-period">{PERIOD_SUFFIX[periodicity]}</span>
+                <span className="plan-price-now">{formatPrice(Number(mainPrice.toFixed(2)))}€</span>
+                <span className="plan-price-period">/ mois</span>
             </div>
             {monthly !== null && (
                 <div className="plan-equivalence">
-                    soit {formatPrice(Number(monthly.toFixed(2)))}€/mois
+                    soit {formatPrice(plan.price)}€ {PERIOD_SUFFIX[periodicity]}
                 </div>
             )}
 
