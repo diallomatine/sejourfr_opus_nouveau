@@ -242,6 +242,17 @@ change un DTO, mettre à jour le model Dart correspondant.
 - Les routes sont centralisées dans `AppRoutes` (`core/router/app_router.dart`).
 - Le router redirige automatiquement vers `/login` quand non authentifié, et vers `/` quand authentifié. **Pas
   besoin de gérer la redirection dans les écrans.**
+- **Rafraîchir une liste au retour d'un flux poussé** : `core/router/route_observer.dart`
+  expose `appRouteObserver` (branché sur `GoRouter.observers`). Un écran qui doit se
+  ré-hydrater quand on **revient** dessus (un flux poussé au-dessus a modifié les données)
+  mixe `RouteAware` : `appRouteObserver.subscribe(this, ModalRoute.of(context)!)` en
+  `didChangeDependencies`, `unsubscribe` en `dispose`, et invalide son provider dans
+  `didPopNext()`. ⚠ Ne pas se fier au `Future` d'un `context.push` pour ça : un flux qui fait
+  des `pushReplacement` (briefing → résultats EE/EO) résout le push d'origine trop tôt, avant
+  que la donnée (note d'évaluation) existe. L'observer est typé `PageRoute` → fermer un bottom
+  sheet ne déclenche pas de refetch. Pattern utilisé par `TcfTaskTrainingScreen` (liste des
+  sujets EE/EO). Combiner avec `async.when(skipLoadingOnReload: true)` pour éviter un spinner
+  plein écran au retour.
 
 **UI**
 

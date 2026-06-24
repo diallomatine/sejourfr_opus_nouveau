@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sejourfr_mobile/core/router/route_observer.dart';
 import 'package:sejourfr_mobile/screens/exam/exam_report_screen.dart';
 import 'package:sejourfr_mobile/screens/exam/exam_result_screen.dart';
 import 'package:sejourfr_mobile/screens/history/history_screen.dart';
@@ -180,6 +181,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   router = GoRouter(
     initialLocation: AppRoutes.splash,
     refreshListenable: notifier,
+    observers: [appRouteObserver],
     debugLogDiagnostics: false,
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);

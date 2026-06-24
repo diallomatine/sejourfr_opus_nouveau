@@ -9,6 +9,7 @@ import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/production_models.dart';
+import '../../core/router/route_observer.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/format_date.dart';
 import '../../core/utils/selected_module.dart';
@@ -666,11 +667,37 @@ class TcfTaskTrainingScreen extends ConsumerStatefulWidget {
       _TcfTaskTrainingScreenState();
 }
 
-class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
+class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
+    with RouteAware {
   bool _starting = false;
   int _tab = 0; // 0 = Exercices (sujets), 1 = Exemples
   int _filter = 0; // 0 = Tout, 1 = À faire, 2 = Fait
   bool _showAll = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      appRouteObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    appRouteObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  /// Retour sur la liste des sujets après un flux poussé au-dessus (entraînement
+  /// d'un sujet → rapport). Le provider `autoDispose` est resté en cache : on
+  /// l'invalide pour que le sujet qu'on vient de traiter s'affiche « fait » avec
+  /// sa note, sans avoir à quitter/revenir sur l'écran.
+  @override
+  void didPopNext() {
+    ref.invalidate(_taskProvider(_EntrainementKey(
+        epreuve: widget.module.epreuve, tacheNumero: widget.tache)));
+  }
 
   /// EE/EO sont des épreuves TCF → accès gouverné par l'abonnement Intégral
   /// (`hasTcf`). Non-abonné : seuls le 1er sujet + le 1er exemple sont ouverts,
@@ -707,17 +734,15 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
       // briefing. La session single-task est déjà prête (await ci-dessus),
       // donc le briefing s'affiche directement, sans loader intermédiaire.
       setState(() => _starting = false);
-      // On `await` le push : la liste des sujets reste montée sous le flux
-      // (briefing → enregistrement/rédaction → résultats), donc son provider
-      // `autoDispose` n'est jamais recyclé. Sans invalidation au retour
-      // (back/swipe), le sujet qu'on vient de traiter resterait affiché « non
-      // fait », sans sa note, jusqu'à un re-montage complet de l'écran.
-      await context.push(widget.module.isEo
+      // Le rafraîchissement de la liste au retour est géré par `didPopNext`
+      // (RouteAware) : la liste reste montée sous le flux (briefing →
+      // enregistrement/rédaction → résultats), son provider `autoDispose`
+      // n'est donc jamais recyclé. On ne peut pas se fier au `Future` du push
+      // ici car le flux fait des `pushReplacement` (le push d'origine se
+      // résout dès la soumission, avant que l'évaluation/la note existe).
+      context.push(widget.module.isEo
           ? '/tcf/expression-orale/t/0'
           : '/tcf/expression-ecrite/t/0');
-      if (!mounted) return;
-      ref.invalidate(_taskProvider(_EntrainementKey(
-          epreuve: widget.module.epreuve, tacheNumero: widget.tache)));
     } catch (e) {
       if (!mounted) return;
       final err = ApiClient.toApiException(e);
@@ -843,6 +868,11 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen> {
                 ),
                 Expanded(
                   child: async.when(
+                    // Au retour d'un entraînement (didPopNext → invalidate), on
+                    // garde la liste affichée pendant le refetch au lieu de
+                    // flasher un spinner plein écran ; elle se met à jour avec la
+                    // nouvelle note dès que les données arrivent.
+                    skipLoadingOnReload: true,
                     loading: () => const Center(
                         child: CircularProgressIndicator(color: AppColors.red)),
                     error: (e, _) =>
