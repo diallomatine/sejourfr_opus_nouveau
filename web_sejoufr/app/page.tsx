@@ -4,6 +4,7 @@ import {
   FinalCta,
   Hero,
   Niveau,
+  Parcours,
   Simulation,
   Tarifs,
   Temoignages,
@@ -31,6 +32,7 @@ export default async function HomePage() {
   return (
     <main>
       <Hero />
+      <Parcours />
       <Examens />
       <Competences />
       <Simulation />

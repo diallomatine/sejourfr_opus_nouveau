@@ -6,6 +6,8 @@ import {
   Brain,
   Building2,
   Check,
+  CheckCircle2,
+  ClipboardCheck,
   Clock,
   FileText,
   GraduationCap,
@@ -15,11 +17,12 @@ import {
   PenLine,
   Quote,
   Smartphone,
+  Sparkles,
   Star,
 } from "lucide-react";
 import { PricingPlans } from "@/components/pricing/PricingPlans";
 import type { PlanPublicResponse } from "@/lib/types";
-import { PhoneMock, StoreBadge } from "../MobileAppPromo";
+import { StoreBadge } from "../MobileAppPromo";
 import styles from "./landing.module.css";
 
 /* ---------------------------------------------------------------------------
@@ -58,91 +61,251 @@ function SectionHead({
 }
 
 /* ---------------------------------------------------------------------------
-   Hero
+   Hero — copy à gauche, aperçu « examen blanc » + carte IA à droite.
    ------------------------------------------------------------------------- */
-const HERO_BADGES = [
-  "Conditions réelles d'examen",
-  "Correction par IA",
-  "Niveau estimé A2 · B1 · B2",
+const HERO_PILLARS = [
+  { Icon: Clock, label: "Examens blancs chronométrés — format & seuil officiels" },
+  { Icon: Sparkles, label: "Correction IA de l'oral & de l'écrit (EO · EE)" },
+  { Icon: BarChart3, label: "Estimation de niveau · A2 · B1 · B2" },
+];
+
+const HERO_TRUST = [
+  "100 % gratuit pour démarrer",
+  "Sans carte bancaire",
+  "Web & mobile",
 ];
 
 export function Hero() {
   return (
     <section className={styles.hero}>
       <div className={styles.heroBg} aria-hidden />
-      <div className={`container-x ${styles.heroInner}`}>
-        <div className={styles.heroText}>
-          <span className={styles.heroBrand}>
-            <span className="cocarde lg" aria-hidden />
-            <span className={styles.heroWordmark}>
-              Sejour<em>FR</em>
-            </span>
+      <div className={`container-x ${styles.heroGrid}`}>
+        <div className={styles.heroCopy}>
+          <span className={styles.heroPill}>
+            <span aria-hidden>🇫🇷</span> Obligatoire depuis janvier 2026
           </span>
-
-          <span className={styles.heroEyebrow}>Obligatoire depuis janvier 2026</span>
 
           <h1 className={styles.heroTitle}>
             Réussissez votre <em>TCF IRN</em> et votre examen civique
           </h1>
 
-          <p className={styles.heroSub}>
-            Entraînez-vous dans des conditions réelles d&apos;examen.
-            Compréhension et expression écrite et orale, structure de la langue —
-            tout est analysé par IA pour vous situer précisément.
+          <p className={styles.heroDefine}>
+            <strong>TCF IRN</strong> — le test de français pour l&apos;Intégration,
+            la Résidence et la Nationalité.
           </p>
 
-          <div className={styles.heroCtas}>
-            <Link href="/inscription" className="btn btn-lg">
-              Commencer gratuitement
-              <ArrowRight size={18} className="arrow" aria-hidden />
-            </Link>
-            <a href="#examens" className="btn btn-ghost btn-lg">
-              Découvrir les examens
-            </a>
-          </div>
+          <p className={styles.heroSub}>
+            Entraînez-vous dans les conditions du <strong>jour J</strong>. Examens
+            blancs chronométrés, correction IA de vos expressions et estimation de
+            votre niveau — à l&apos;écrit comme à l&apos;oral.
+          </p>
 
-          <ul className={styles.heroBadges}>
-            {HERO_BADGES.map((b) => (
-              <li key={b} className={styles.heroBadge}>
-                <Check size={16} className={styles.badgeCheck} aria-hidden />
-                {b}
+          <ul className={styles.heroPillars}>
+            {HERO_PILLARS.map(({ Icon, label }) => (
+              <li key={label} className={styles.heroPillar}>
+                <span className={styles.heroPillarIco} aria-hidden>
+                  <Icon size={19} strokeWidth={2} />
+                </span>
+                {label}
               </li>
             ))}
           </ul>
-        </div>
 
-        {/* Visuel (desktop) : épreuve en cours dans l'app + cartes flottantes */}
-        <div className={styles.heroVisual}>
-          <div className={styles.heroPhoneWrap} aria-hidden>
-            <div className={styles.heroPhone}>
-              <PhoneMock variant="front" />
-            </div>
-
-            <div className={`${styles.heroFloat} ${styles.heroFloatTop}`}>
-              <span className={styles.heroFloatIco}>
-                <Brain size={16} strokeWidth={2} />
-              </span>
-              <span className={styles.heroFloatBody}>
-                <span className={styles.heroFloatLabel}>Niveau estimé</span>
-                <span className={styles.heroFloatValue}>B1 atteint</span>
-              </span>
-            </div>
-
-            <div className={`${styles.heroFloat} ${styles.heroFloatBottom}`}>
-              <span className={`${styles.heroFloatIco} ${styles.heroFloatIcoGreen}`}>
-                <Check size={16} strokeWidth={2.4} />
-              </span>
-              <span className={styles.heroFloatBody}>
-                <span className={styles.heroFloatLabel}>Expression écrite</span>
-                <span className={styles.heroFloatValue}>Corrigée par IA</span>
-              </span>
-            </div>
+          <div className={styles.heroCtas}>
+            <Link href="/entrainement?module=TCF" className="btn btn-lg">
+              Commencer gratuitement
+              <ArrowRight size={18} className="arrow" aria-hidden />
+            </Link>
+            <Link href="/examens-blancs" className="btn btn-ghost btn-lg">
+              Passer un examen blanc
+            </Link>
           </div>
+
+          <ul className={styles.heroTrust}>
+            {HERO_TRUST.map((t) => (
+              <li key={t} className={styles.heroTrustItem}>
+                <Check size={16} className={styles.badgeCheck} aria-hidden />
+                {t}
+              </li>
+            ))}
+          </ul>
 
           <div className={styles.heroStores}>
-            <StoreBadge variant="ios" />
-            <StoreBadge variant="android" />
+            <span className={styles.heroStoresLabel}>↳ Aussi sur l&apos;app</span>
+            <div className={styles.heroStoresBadges}>
+              <StoreBadge variant="ios" />
+              <StoreBadge variant="android" />
+            </div>
           </div>
+        </div>
+
+        <div className={styles.heroVisual}>
+          <HeroExamPreview />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* Aperçu « examen blanc en cours » + carte de correction IA flottante. */
+function HeroExamPreview() {
+  const choices = [
+    { label: "Liberté, Fraternité, Solidarité", ok: false },
+    { label: "Liberté, Égalité, Fraternité", ok: true },
+    { label: "Unité, Travail, Patrie", ok: false },
+    { label: "Liberté, Justice, Paix", ok: false },
+  ];
+  return (
+    <div className={styles.heroPreview} aria-hidden>
+      <div className={styles.exam}>
+        <div className={styles.examHead}>
+          <span className={styles.examTag}>↳ Examen blanc · Civique</span>
+          <span className={styles.examTimer}>
+            <span className={styles.examTimerDot} />
+            42:18
+          </span>
+        </div>
+        <div className={styles.examBar}>
+          <span className={styles.examBarFill} />
+        </div>
+        <span className={styles.examQcount}>Question 12 / 40</span>
+        <p className={styles.examQ}>
+          Quelle est la devise de la République française ?
+        </p>
+        <div className={styles.examChoices}>
+          {choices.map((c) => (
+            <div
+              key={c.label}
+              className={`${styles.examChoice} ${c.ok ? styles.examChoiceOk : ""}`}
+            >
+              <span className={styles.examRing}>
+                {c.ok && <Check size={12} strokeWidth={3} />}
+              </span>
+              {c.label}
+            </div>
+          ))}
+        </div>
+        <div className={styles.examExplain}>
+          <CheckCircle2 size={17} className={styles.examExplainIco} aria-hidden />
+          <p>
+            <strong>Bonne réponse.</strong> La devise figure à l&apos;article 2 de
+            la Constitution.
+          </p>
+        </div>
+      </div>
+
+      <div className={styles.examAi}>
+        <span className={styles.examAiTag}>
+          <Sparkles size={13} aria-hidden />
+          Correction IA
+        </span>
+        <span className={styles.examAiLab}>Niveau estimé</span>
+        <div className={styles.examAiLevels}>
+          {["A2", "B1", "B2"].map((lv) => (
+            <span
+              key={lv}
+              className={`${styles.examAiLevel} ${lv === "B1" ? styles.examAiLevelOn : ""}`}
+            >
+              {lv}
+            </span>
+          ))}
+        </div>
+        <div className={styles.examAiScore}>
+          <span>Expression écrite</span>
+          <strong>15 / 20</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   Parcours — « Par où commencer ? » : 3 cartes-CTA vers les parcours réels.
+   ------------------------------------------------------------------------- */
+type PathCard = {
+  Icon: typeof GraduationCap;
+  tag: string;
+  title: string;
+  desc: string;
+  points: string[];
+  cta: string;
+  href: string;
+  red?: boolean;
+};
+
+const PATHS: PathCard[] = [
+  {
+    Icon: GraduationCap,
+    tag: "Gratuit",
+    title: "S'entraîner au TCF IRN",
+    desc: "Compréhension et expression, à l'écrit comme à l'oral, au format officiel.",
+    points: ["Compréhension orale & écrite", "Coach IA pour l'oral & l'écrit"],
+    cta: "Commencer le TCF",
+    href: "/entrainement?module=TCF",
+  },
+  {
+    Icon: Building2,
+    tag: "Gratuit",
+    title: "S'entraîner au civique",
+    desc: "Valeurs de la République, institutions, droits et devoirs, histoire et vie en France.",
+    points: ["5 thèmes officiels", "Séries corrigées immédiatement"],
+    cta: "Commencer le civique",
+    href: "/entrainement?module=CIVIQUE",
+  },
+  {
+    Icon: ClipboardCheck,
+    tag: "Conditions réelles",
+    title: "Tester votre niveau",
+    desc: "Passez un examen blanc chronométré et obtenez votre niveau estimé.",
+    points: ["Chronomètre & format officiel", "Niveau estimé A2 · B1 · B2"],
+    cta: "Passer un examen blanc",
+    href: "/examens-blancs",
+    red: true,
+  },
+];
+
+export function Parcours() {
+  return (
+    <section id="parcours" className={styles.paths}>
+      <div className="container-x">
+        <p className={styles.pathsEyebrow}>↳ Par où commencer ?</p>
+        <h2 className={styles.pathsTitle}>
+          Choisissez votre <em>parcours</em>
+        </h2>
+
+        <div className={styles.pathsGrid}>
+          {PATHS.map(({ Icon, tag, title, desc, points, cta, href, red }) => (
+            <article
+              key={title}
+              className={`${styles.pcard} ${red ? styles.pcardAccent : ""}`}
+            >
+              <div className={styles.pcTop}>
+                <span className={styles.pcIco} aria-hidden>
+                  <Icon size={22} strokeWidth={1.8} />
+                </span>
+                <span className={`${styles.pcTag} ${red ? styles.pcTagReal : styles.pcTagFree}`}>
+                  {tag}
+                </span>
+              </div>
+              <h3 className={styles.pcTitle}>{title}</h3>
+              <p className={styles.pcDesc}>{desc}</p>
+              <ul className={styles.pcList}>
+                {points.map((p) => (
+                  <li key={p}>
+                    <Check size={15} strokeWidth={2.6} aria-hidden />
+                    {p}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href={href}
+                className={`btn ${red ? "btn-red" : ""} ${styles.pcCta}`}
+              >
+                {cta}
+                <ArrowRight size={17} className="arrow" aria-hidden />
+              </Link>
+            </article>
+          ))}
         </div>
       </div>
     </section>
