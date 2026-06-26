@@ -43,7 +43,7 @@
 .hero {
   position: relative;
   overflow: hidden;
-  padding: 48px 0 36px;
+  padding: 14px 0 28px;
   background: var(--color-paper);
 }
 .heroBg {
@@ -59,7 +59,7 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 44px;
-  align-items: center;
+  align-items: start;
 }
 .heroCopy {
   display: flex;
@@ -412,7 +412,7 @@
 }
 
 @media (min-width: 900px) {
-  .hero { padding: 64px 0 40px; }
+  .hero { padding: 18px 0 32px; }
   .heroGrid {
     grid-template-columns: 1.05fr 0.95fr;
     gap: 64px;
@@ -440,7 +440,7 @@
 
 /* ---- Parcours (« Choisissez votre parcours ») ----------------------------- */
 .paths {
-  padding: 56px 0 8px;
+  padding: 24px 0 8px;
 }
 .pathsEyebrow {
   font-family: var(--font-mono);
