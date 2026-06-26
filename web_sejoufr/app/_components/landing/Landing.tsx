@@ -71,7 +71,7 @@ const HERO_PILLARS = [
 
 const HERO_TRUST = [
   "100 % gratuit pour démarrer",
-  "Sans carte bancaire",
+  "Sans abonnement",
   "Web & mobile",
 ];
 
