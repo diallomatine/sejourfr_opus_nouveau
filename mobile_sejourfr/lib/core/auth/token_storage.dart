@@ -24,7 +24,14 @@ class TokenStorage {
   /// resterait figée sur le splash (état AuthLoading jamais résolu).
   Future<String?> _read(String key) async {
     try {
-      return await _storage.read(key: key);
+      // Timeout indispensable : sur certains appareils (Keystore matériel /
+      // ROM OEM, observé Android 15 en build release) le premier `read()` ne
+      // revient JAMAIS — le canal natif se bloque sans lever. Un await gelé ici
+      // laissait l'app figée sur le splash. On dégrade alors en « pas de
+      // valeur » au bout de 5 s plutôt que de bloquer le boot indéfiniment.
+      return await _storage
+          .read(key: key)
+          .timeout(const Duration(seconds: 5));
     } catch (_) {
       return null;
     }

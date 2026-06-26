@@ -72,46 +72,56 @@ class AuthController extends StateNotifier<AuthState> {
   /// bootstrap est très rapide (typiquement quand il n'y a pas de token).
   static const _minSplashDuration = Duration(milliseconds: 900);
 
+  /// Watchdog : durée maximale avant de quitter le splash coûte que coûte. Si
+  /// la résolution de l'état (lecture storage, appel /me…) ne rend pas la main
+  /// — canal natif gelé, réseau qui ne répond jamais — on bascule en
+  /// déconnecté plutôt que de tourner indéfiniment sur le splash.
+  static const _maxBootstrap = Duration(seconds: 10);
+
   Future<void> _bootstrap() async {
     final startedAt = DateTime.now();
-    // Défaut sûr : si quoi que ce soit échoue ci-dessous, on quitte le splash
-    // vers l'écran de connexion plutôt que de rester bloqué en AuthLoading.
-    AuthState next = const AuthUnauthenticated();
-    try {
-      final access = await _storage.readAccess();
-      if (access != null) {
-        // Token présent : on tente /me. Si le token est expiré, l'intercepteur
-        // de Dio refresh automatiquement. Si tout échoue, on tombe en logout.
-        try {
-          AuthUser user = await _repo.me();
-          // Sync best-effort de l'état Premium depuis /subscription-status.
-          // Source de vérité unique côté backend (Stripe + Apple + Google
-          // agrégés). En cas d'échec réseau, on garde l'état renvoyé par /me.
-          try {
-            final status = await _billing.getSubscriptionStatus();
-            user = _applyStatus(user, status);
-          } catch (_) {/* tolérant */}
-          next = AuthAuthenticated(user);
-        } catch (_) {
-          await _storage.clear();
-          next = const AuthUnauthenticated();
-        }
-      }
-    } catch (_) {
-      // Filet de sécurité : un secure storage illisible (données chiffrées
-      // d'une ancienne version, clé Keystore invalidée…) ne doit jamais figer
-      // le boot. On repart d'un état propre. Sans ce catch, l'exception
-      // laissait l'app coincée sur le splash (bug de mise à jour Android).
-      try {
-        await _storage.clear();
-      } catch (_) {/* best-effort */}
-      next = const AuthUnauthenticated();
-    }
+    final next = await _resolveBootState().timeout(
+      _maxBootstrap,
+      onTimeout: () => const AuthUnauthenticated(),
+    );
     final elapsed = DateTime.now().difference(startedAt);
     if (elapsed < _minSplashDuration) {
       await Future.delayed(_minSplashDuration - elapsed);
     }
     state = next;
+  }
+
+  /// Détermine l'état d'auth initial. Ne lève jamais : tout chemin d'erreur
+  /// retombe sur [AuthUnauthenticated] (storage nettoyé) pour garantir un état
+  /// terminal — le splash ne doit jamais rester bloqué.
+  Future<AuthState> _resolveBootState() async {
+    try {
+      final access = await _storage.readAccess();
+      if (access == null) return const AuthUnauthenticated();
+      // Token présent : on tente /me. Si le token est expiré, l'intercepteur
+      // de Dio refresh automatiquement. Si tout échoue, on tombe en logout.
+      try {
+        AuthUser user = await _repo.me();
+        // Sync best-effort de l'état Premium depuis /subscription-status.
+        // Source de vérité unique côté backend (Stripe + Apple + Google
+        // agrégés). En cas d'échec réseau, on garde l'état renvoyé par /me.
+        try {
+          final status = await _billing.getSubscriptionStatus();
+          user = _applyStatus(user, status);
+        } catch (_) {/* tolérant */}
+        return AuthAuthenticated(user);
+      } catch (_) {
+        await _storage.clear();
+        return const AuthUnauthenticated();
+      }
+    } catch (_) {
+      // Secure storage illisible (données chiffrées d'une ancienne version,
+      // clé Keystore invalidée…). On repart propre.
+      try {
+        await _storage.clear();
+      } catch (_) {/* best-effort */}
+      return const AuthUnauthenticated();
+    }
   }
 
   /// Met à jour le user authentifié avec un statut Premium fraîchement obtenu
