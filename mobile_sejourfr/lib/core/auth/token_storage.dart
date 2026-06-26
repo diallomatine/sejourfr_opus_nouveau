@@ -16,11 +16,25 @@ class TokenStorage {
   static const _kSavedEmail = 'sejourfr.savedEmail';
   static const _kSavedPassword = 'sejourfr.savedPassword';
 
-  Future<String?> readAccess() => _storage.read(key: _kAccess);
-  Future<String?> readRefresh() => _storage.read(key: _kRefresh);
+  /// Lecture défensive du secure storage. Une valeur chiffrée par une ancienne
+  /// version (clé Android Keystore invalidée par la mise à jour, format de
+  /// chiffrement changé entre deux versions du plugin, backup/restore…) fait
+  /// lever `read()` au lieu de renvoyer null. On dégrade alors en « pas de
+  /// valeur » : sans ça, l'exception remonterait jusqu'au bootstrap et l'app
+  /// resterait figée sur le splash (état AuthLoading jamais résolu).
+  Future<String?> _read(String key) async {
+    try {
+      return await _storage.read(key: key);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> readAccess() => _read(_kAccess);
+  Future<String?> readRefresh() => _read(_kRefresh);
 
   Future<AuthUser?> readUser() async {
-    final raw = await _storage.read(key: _kUser);
+    final raw = await _read(_kUser);
     if (raw == null) return null;
     try {
       return AuthUser.fromJson(json.decode(raw) as Map<String, dynamic>);
@@ -63,8 +77,8 @@ class TokenStorage {
   }
 
   Future<({String email, String password})?> readCredentials() async {
-    final email = await _storage.read(key: _kSavedEmail);
-    final password = await _storage.read(key: _kSavedPassword);
+    final email = await _read(_kSavedEmail);
+    final password = await _read(_kSavedPassword);
     if (email == null || password == null) return null;
     return (email: email, password: password);
   }

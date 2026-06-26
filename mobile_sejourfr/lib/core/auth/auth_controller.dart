@@ -74,27 +74,38 @@ class AuthController extends StateNotifier<AuthState> {
 
   Future<void> _bootstrap() async {
     final startedAt = DateTime.now();
-    AuthState next;
-    final access = await _storage.readAccess();
-    if (access == null) {
-      next = const AuthUnauthenticated();
-    } else {
-      // Token présent : on tente /me. Si le token est expiré, l'intercepteur
-      // de Dio refresh automatiquement. Si tout échoue, on tombe en logout.
-      try {
-        AuthUser user = await _repo.me();
-        // Sync best-effort de l'état Premium depuis /subscription-status.
-        // Source de vérité unique côté backend (Stripe + Apple + Google
-        // agrégés). En cas d'échec réseau, on garde l'état renvoyé par /me.
+    // Défaut sûr : si quoi que ce soit échoue ci-dessous, on quitte le splash
+    // vers l'écran de connexion plutôt que de rester bloqué en AuthLoading.
+    AuthState next = const AuthUnauthenticated();
+    try {
+      final access = await _storage.readAccess();
+      if (access != null) {
+        // Token présent : on tente /me. Si le token est expiré, l'intercepteur
+        // de Dio refresh automatiquement. Si tout échoue, on tombe en logout.
         try {
-          final status = await _billing.getSubscriptionStatus();
-          user = _applyStatus(user, status);
-        } catch (_) {/* tolérant */}
-        next = AuthAuthenticated(user);
-      } catch (_) {
-        await _storage.clear();
-        next = const AuthUnauthenticated();
+          AuthUser user = await _repo.me();
+          // Sync best-effort de l'état Premium depuis /subscription-status.
+          // Source de vérité unique côté backend (Stripe + Apple + Google
+          // agrégés). En cas d'échec réseau, on garde l'état renvoyé par /me.
+          try {
+            final status = await _billing.getSubscriptionStatus();
+            user = _applyStatus(user, status);
+          } catch (_) {/* tolérant */}
+          next = AuthAuthenticated(user);
+        } catch (_) {
+          await _storage.clear();
+          next = const AuthUnauthenticated();
+        }
       }
+    } catch (_) {
+      // Filet de sécurité : un secure storage illisible (données chiffrées
+      // d'une ancienne version, clé Keystore invalidée…) ne doit jamais figer
+      // le boot. On repart d'un état propre. Sans ce catch, l'exception
+      // laissait l'app coincée sur le splash (bug de mise à jour Android).
+      try {
+        await _storage.clear();
+      } catch (_) {/* best-effort */}
+      next = const AuthUnauthenticated();
     }
     final elapsed = DateTime.now().difference(startedAt);
     if (elapsed < _minSplashDuration) {
