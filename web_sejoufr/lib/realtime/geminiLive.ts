@@ -16,7 +16,7 @@
 
 import type {RealtimeSessionDescriptor} from "../types";
 
-export type GeminiLiveState = "connecting" | "live" | "closed" | "error";
+export type GeminiLiveState = "connecting" | "welcoming" | "live" | "closed" | "error";
 
 export interface GeminiLiveCallbacks {
     /** Transcription d'un fragment dit par le CANDIDAT (micro). */
@@ -105,6 +105,11 @@ export class GeminiLiveSession {
     private playHead = 0;
     private speaking = false;
     private closed = false;
+    // Tant que l'examinateur n'a pas prononcé sa première phrase (accueil), on
+    // coupe le micro du candidat. Libéré au 1er audio examinateur, ou par
+    // garde-fou si rien n'arrive.
+    private awaitingFirstExaminer = true;
+    private welcomeTimer: ReturnType<typeof setTimeout> | null = null;
 
     constructor(descriptor: RealtimeSessionDescriptor, cb: GeminiLiveCallbacks) {
         this.descriptor = descriptor;
@@ -185,7 +190,11 @@ export class GeminiLiveSession {
             return;
         }
         if (msg.setupComplete) {
-            this.cb.onStateChange?.("live");
+            // Phase d'accueil : micro coupé, on attend la 1re phrase de l'examinateur.
+            this.cb.onStateChange?.("welcoming");
+            // Garde-fou : si rien sous ~8 s, on libère le micro et on passe en
+            // conversation (un greeting audio manquant ne doit pas bloquer le candidat).
+            this.welcomeTimer = setTimeout(() => this.beginConversation(), 8000);
             return;
         }
         const sc = msg.serverContent;
@@ -258,7 +267,7 @@ export class GeminiLiveSession {
         // Half-duplex : on n'émet PAS le micro pendant que l'examinateur parle —
         // évite la boucle d'écho (sa voix transcrite comme parole candidat).
         // Conséquence assumée : pas de barge-in (le candidat attend la question).
-        if (this.speaking) return;
+        if (this.awaitingFirstExaminer || this.speaking) return;
         const pcm = ctxRate === this.inputRate ? frame : downsample(frame, ctxRate, this.inputRate);
         const b64 = arrayBufferToBase64(floatToPcm16(pcm));
         this.ws.send(JSON.stringify({
@@ -284,6 +293,8 @@ export class GeminiLiveSession {
 
     private enqueueAudio(b64: string): void {
         if (this.closed) return;
+        // Premier audio de l'examinateur : fin de l'accueil, on ouvre le micro.
+        this.beginConversation();
         const ctx = this.ensurePlayback();
         const pcm = base64ToInt16(b64);
         const buf = ctx.createBuffer(1, pcm.length, this.outputRate);
@@ -306,6 +317,17 @@ export class GeminiLiveSession {
                 this.cb.onSpeakingChange?.(false);
             }
         };
+    }
+
+    /** Fin de l'accueil : ouvre le micro et passe en conversation. */
+    private beginConversation(): void {
+        if (!this.awaitingFirstExaminer) return;
+        this.awaitingFirstExaminer = false;
+        if (this.welcomeTimer != null) {
+            clearTimeout(this.welcomeTimer);
+            this.welcomeTimer = null;
+        }
+        if (!this.closed) this.cb.onStateChange?.("live");
     }
 
     private flushPlayback(): void {
@@ -343,6 +365,10 @@ export class GeminiLiveSession {
     /** Coupe tout : micro, WebSocket, lecture. */
     stop(): void {
         this.closed = true;
+        if (this.welcomeTimer != null) {
+            clearTimeout(this.welcomeTimer);
+            this.welcomeTimer = null;
+        }
         try {
             this.workletNode?.disconnect();
             this.scriptNode?.disconnect();

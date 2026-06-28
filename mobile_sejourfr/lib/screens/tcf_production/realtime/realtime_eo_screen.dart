@@ -144,7 +144,8 @@ class _LiveStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final live = state.phase == RealtimePhase.live ||
+    final live = state.phase == RealtimePhase.welcoming ||
+        state.phase == RealtimePhase.live ||
         state.phase == RealtimePhase.finishing;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -246,12 +247,18 @@ class _MicStage extends StatelessWidget {
 
     final examiner = state.examinerSpeaking;
     final yourTurn = state.phase == RealtimePhase.live && !examiner;
-    final connecting = state.phase == RealtimePhase.connecting;
+    // Accueil + connexion : on attend (micro coupé), on montre un état neutre.
+    final waiting = state.phase == RealtimePhase.connecting ||
+        state.phase == RealtimePhase.welcoming;
 
     final (String label, String hint) = switch (state.phase) {
       RealtimePhase.connecting => (
           'Connexion à l\'examinateur…',
           'Préparez-vous à parler.'
+        ),
+      RealtimePhase.welcoming => (
+          'L\'examinateur vous accueille…',
+          'Un instant — votre micro s\'activera après son accueil.'
         ),
       RealtimePhase.live => examiner
           ? ('L\'examinateur parle…', 'Écoutez sa question.')
@@ -305,7 +312,7 @@ class _MicStage extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: connecting
+                      child: waiting
                           ? const Center(
                               child: SizedBox(
                                 width: 30,

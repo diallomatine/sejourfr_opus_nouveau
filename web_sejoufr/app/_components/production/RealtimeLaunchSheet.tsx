@@ -1,14 +1,13 @@
 "use client";
 
-import {useEffect} from "react";
-import {Mic, Radio} from "lucide-react";
+import {useEffect, useState} from "react";
+import {Check, Mic, Radio, X} from "lucide-react";
 
 /**
- * Modal de lancement d'une Tâche 1 / 2 d'expression orale (§2.3). Propose le
- * mode TEMPS RÉEL (examinateur IA) ou le mode CLASSIQUE (enregistrement), et
- * affiche le nombre de sessions temps réel restantes. Quota épuisé / non
- * éligible → option temps réel désactivée, message clair, le candidat fait
- * l'épreuve en enregistrement (jamais bloqué).
+ * Modal de lancement d'une Tâche 1 / 2 d'expression orale (§2.3). On SÉLECTIONNE
+ * un mode — TEMPS RÉEL (examinateur IA) ou CLASSIQUE (enregistrement) — puis on
+ * confirme avec « Valider ». ✕ en haut ferme sans rien lancer. Quota épuisé /
+ * non éligible → option temps réel désactivée (le candidat n'est jamais bloqué).
  */
 export function RealtimeLaunchSheet({
     open,
@@ -35,6 +34,15 @@ export function RealtimeLaunchSheet({
     onPickClassic: () => void;
     onClose: () => void;
 }) {
+    const [selected, setSelected] = useState<"realtime" | "classic">(
+        realtimeAvailable ? "realtime" : "classic",
+    );
+
+    // Pré-sélection à l'ouverture : temps réel si dispo, sinon classique.
+    useEffect(() => {
+        if (open) setSelected(realtimeAvailable ? "realtime" : "classic");
+    }, [open, realtimeAvailable]);
+
     useEffect(() => {
         if (!open) return;
         const onKey = (e: KeyboardEvent) => {
@@ -53,9 +61,18 @@ export function RealtimeLaunchSheet({
               ? `−1 session · il vous en reste ${sessionsRemaining} sur votre pass`
               : "Plus de session temps réel sur votre pass";
 
+    const onValidate = () => {
+        if (starting) return;
+        if (selected === "realtime" && realtimeAvailable) onPickRealtime();
+        else onPickClassic();
+    };
+
     return (
         <div className="rls-overlay" onClick={() => !starting && onClose()} role="presentation">
             <div className="rls-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+                <button type="button" className="rls-close" onClick={onClose} disabled={starting} aria-label="Fermer">
+                    <X size={18} strokeWidth={2.4} />
+                </button>
                 <div className="rls-handle" aria-hidden />
                 <div className="rls-eyebrow">Tâche {tacheNumero}</div>
                 <h2 className="rls-title">{taskTitle}</h2>
@@ -63,9 +80,10 @@ export function RealtimeLaunchSheet({
 
                 <button
                     type="button"
-                    className="rls-option rls-rt"
-                    onClick={onPickRealtime}
+                    className={`rls-option rls-rt${selected === "realtime" ? " is-selected" : ""}`}
+                    onClick={() => !starting && realtimeAvailable && setSelected("realtime")}
                     disabled={starting || !realtimeAvailable}
+                    aria-pressed={selected === "realtime"}
                 >
                     <span className="rls-opt-ico"><Radio size={20} strokeWidth={2} /></span>
                     <span className="rls-opt-body">
@@ -77,6 +95,7 @@ export function RealtimeLaunchSheet({
                             {"Une intelligence artificielle joue l'examinateur : elle vous parle et vous répond en direct, comme à un vrai oral. Votre échange est noté à la fin."}
                         </span>
                     </span>
+                    <span className="rls-radio" aria-hidden>{selected === "realtime" && <Check size={13} strokeWidth={3} />}</span>
                 </button>
 
                 {remainingLabel && (
@@ -85,22 +104,24 @@ export function RealtimeLaunchSheet({
 
                 <button
                     type="button"
-                    className="rls-option rls-classic"
-                    onClick={onPickClassic}
+                    className={`rls-option rls-classic${selected === "classic" ? " is-selected" : ""}`}
+                    onClick={() => !starting && setSelected("classic")}
                     disabled={starting}
+                    aria-pressed={selected === "classic"}
                 >
                     <span className="rls-opt-ico"><Mic size={20} strokeWidth={2} /></span>
                     <span className="rls-opt-body">
                         <span className="rls-opt-title">Tout(e) seul(e) (enregistrement)</span>
                         <span className="rls-opt-desc">{"Vous parlez seul, sans interlocuteur ; votre enregistrement est ensuite évalué par l'IA."}</span>
                     </span>
+                    <span className="rls-radio" aria-hidden>{selected === "classic" && <Check size={13} strokeWidth={3} />}</span>
                 </button>
 
                 {error && <div className="rls-error">{error}</div>}
                 {starting && <p className="rls-starting">{"Connexion à l'examinateur…"}</p>}
 
-                <button type="button" className="rls-cancel" onClick={onClose} disabled={starting}>
-                    Annuler
+                <button type="button" className="rls-valider" onClick={onValidate} disabled={starting}>
+                    Valider
                 </button>
 
                 <style>{`
@@ -111,12 +132,21 @@ export function RealtimeLaunchSheet({
                         animation: rls-fade 0.15s ease;
                     }
                     .rls-sheet {
+                        position: relative;
                         width: 100%; max-width: 480px; background: #fff;
                         border-radius: 22px 22px 0 0;
                         padding: 10px 22px calc(22px + env(safe-area-inset-bottom));
                         box-shadow: 0 -20px 50px -20px rgba(15, 24, 57, 0.3);
                         animation: rls-up 0.2s ease; max-height: 92vh; overflow-y: auto;
                     }
+                    .rls-close {
+                        position: absolute; top: 12px; right: 12px; z-index: 1;
+                        width: 32px; height: 32px; border-radius: 50%;
+                        display: flex; align-items: center; justify-content: center;
+                        border: none; background: var(--color-paper-2); color: var(--color-ink-2);
+                        cursor: pointer;
+                    }
+                    .rls-close:disabled { opacity: 0.5; cursor: default; }
                     .rls-handle {
                         width: 36px; height: 4px; border-radius: 2px;
                         background: var(--color-line-2); margin: 6px auto 14px;
@@ -135,14 +165,15 @@ export function RealtimeLaunchSheet({
                         text-align: center; margin: 7px 0 16px;
                     }
                     .rls-option {
-                        width: 100%; display: flex; align-items: flex-start; gap: 12px;
-                        text-align: left; border: 1px solid var(--color-line);
-                        border-radius: 14px; padding: 14px; background: #fff;
+                        position: relative; width: 100%; display: flex; align-items: flex-start; gap: 12px;
+                        text-align: left; border: 1.5px solid var(--color-line);
+                        border-radius: 14px; padding: 14px 38px 14px 14px; background: #fff;
                         cursor: pointer; margin-bottom: 10px;
                     }
                     .rls-option:disabled { opacity: 0.5; cursor: default; }
-                    .rls-rt { border-color: var(--color-red); background: var(--color-red-light, #FDECEB); }
                     .rls-rt:disabled { border-color: var(--color-line); background: var(--color-paper-2); }
+                    .rls-option.is-selected.rls-rt { border-color: var(--color-red); background: var(--color-red-light, #FDECEB); }
+                    .rls-option.is-selected.rls-classic { border-color: var(--color-blue); background: var(--color-blue-light, #E8ECF8); }
                     .rls-opt-ico {
                         flex-shrink: 0; width: 40px; height: 40px; border-radius: 11px;
                         display: flex; align-items: center; justify-content: center;
@@ -163,6 +194,14 @@ export function RealtimeLaunchSheet({
                         border-radius: 5px; padding: 1px 5px; line-height: 1.4;
                     }
                     .rls-opt-desc { font-size: 12.5px; line-height: 1.45; color: var(--color-muted); }
+                    .rls-radio {
+                        position: absolute; top: 50%; right: 14px; transform: translateY(-50%);
+                        width: 20px; height: 20px; border-radius: 50%;
+                        display: flex; align-items: center; justify-content: center;
+                        border: 1.5px solid var(--color-line-2); background: #fff; color: #fff;
+                    }
+                    .rls-option.is-selected.rls-rt .rls-radio { background: var(--color-red); border-color: var(--color-red); }
+                    .rls-option.is-selected.rls-classic .rls-radio { background: var(--color-blue); border-color: var(--color-blue); }
                     .rls-remaining {
                         display: inline-flex; align-self: center; gap: 6px;
                         font-family: var(--font-mono); font-size: 11px; font-weight: 700;
@@ -180,12 +219,12 @@ export function RealtimeLaunchSheet({
                     .rls-starting {
                         margin-top: 4px; font-size: 12.5px; color: var(--color-muted); text-align: center;
                     }
-                    .rls-cancel {
-                        width: 100%; margin-top: 10px; border: none; border-radius: 12px; padding: 13px;
-                        background: var(--color-paper-2); color: var(--color-ink-2);
-                        font-family: var(--font-sans); font-weight: 800; font-size: 14px; cursor: pointer;
+                    .rls-valider {
+                        width: 100%; margin-top: 12px; border: none; border-radius: 12px; padding: 14px;
+                        background: var(--color-red); color: #fff;
+                        font-family: var(--font-sans); font-weight: 800; font-size: 15px; cursor: pointer;
                     }
-                    .rls-cancel:disabled { opacity: 0.6; cursor: default; }
+                    .rls-valider:disabled { opacity: 0.6; cursor: default; }
                     @media (min-width: 560px) {
                         .rls-overlay { align-items: center; }
                         .rls-sheet { border-radius: 20px; }

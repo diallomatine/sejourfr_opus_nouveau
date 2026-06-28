@@ -107,7 +107,9 @@ export function RealtimeEoRunner({
     // Minuteur : la cible fait foi. À échéance, on signale au modèle puis on
     // clôture après une courte grâce (phrase de fin de l'examinateur).
     useEffect(() => {
-        if (state !== "live") return;
+        // Le chrono court dès l'accueil (welcoming) : sinon il ne démarrerait
+        // jamais si l'on restait bloqué en accueil.
+        if (state !== "live" && state !== "welcoming") return;
         const id = setInterval(() => {
             elapsedRef.current += 1;
             setElapsed(elapsedRef.current);
@@ -127,16 +129,20 @@ export function RealtimeEoRunner({
         ? "Préparation de votre évaluation…"
         : state === "connecting"
           ? "Connexion à l'examinateur…"
-          : timeUp
-            ? "Temps écoulé — l'examinateur conclut."
-            : examinerSpeaking
-              ? "L'examinateur parle…"
-              : "À vous de parler.";
+          : state === "welcoming"
+            ? "L'examinateur vous accueille…"
+            : timeUp
+              ? "Temps écoulé — l'examinateur conclut."
+              : examinerSpeaking
+                ? "L'examinateur parle…"
+                : "À vous de parler.";
     const hint = finishing || state === "connecting" || timeUp
         ? taskTitle
-        : examinerSpeaking
-          ? "Écoutez sa question, puis répondez à voix haute."
-          : "Parlez naturellement, comme à un vrai oral.";
+        : state === "welcoming"
+          ? "Un instant — votre micro s'activera après son accueil."
+          : examinerSpeaking
+            ? "Écoutez sa question, puis répondez à voix haute."
+            : "Parlez naturellement, comme à un vrai oral.";
 
     return (
         <div className="rte">
@@ -149,7 +155,7 @@ export function RealtimeEoRunner({
                     {state !== "connecting" && (
                         <span className="rte-live"><span className="rte-dot" />EN DIRECT</span>
                     )}
-                    {(state === "live" || timeUp) && (
+                    {(state === "live" || state === "welcoming" || timeUp) && (
                         <span className={`rte-timer${remaining <= 15 && !timeUp ? " is-urgent" : ""}`}>
                             {timeUp ? "0:00" : fmt(remaining)}
                         </span>

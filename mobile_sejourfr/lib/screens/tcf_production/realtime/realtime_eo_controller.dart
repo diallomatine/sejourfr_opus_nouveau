@@ -37,7 +37,7 @@ class RealtimeRunnerArgs {
   int get hashCode => sessionId.hashCode;
 }
 
-enum RealtimePhase { connecting, live, finishing, done, failed }
+enum RealtimePhase { connecting, welcoming, live, finishing, done, failed }
 
 class RealtimeEoState {
   const RealtimeEoState({
@@ -112,17 +112,28 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
       onSpeakingChange: (speaking) {
         if (mounted) state = state.copyWith(examinerSpeaking: speaking);
       },
+      // L'examinateur a commencé (1er audio) ou garde-fou 8 s : fin de l'accueil,
+      // le micro du candidat s'ouvre → on passe en conversation.
+      onListeningStart: () {
+        if (mounted && state.phase == RealtimePhase.welcoming) {
+          state = state.copyWith(phase: RealtimePhase.live);
+        }
+      },
       onError: (msg) => _fail(msg),
       onClosed: () {
         // Fermeture côté serveur (token expiré, fin de session) : on clôture.
-        if (state.phase == RealtimePhase.live) finish();
+        if (state.phase == RealtimePhase.live ||
+            state.phase == RealtimePhase.welcoming) {
+          finish();
+        }
       },
     );
     _client = client;
     try {
       await client.start();
       if (!mounted) return;
-      state = state.copyWith(phase: RealtimePhase.live);
+      // Phase d'accueil : micro coupé tant que l'examinateur n'a pas parlé.
+      state = state.copyWith(phase: RealtimePhase.welcoming);
       _ticker = Timer.periodic(const Duration(seconds: 1), _onTick);
       _flushTimer =
           Timer.periodic(const Duration(milliseconds: 1500), (_) => _flush());
@@ -135,7 +146,9 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
     if (!mounted) return;
     final next = state.elapsedSec + 1;
     state = state.copyWith(elapsedSec: next);
-    if (next >= state.targetSec && state.phase == RealtimePhase.live) {
+    if (next >= state.targetSec &&
+        (state.phase == RealtimePhase.live ||
+            state.phase == RealtimePhase.welcoming)) {
       state = state.copyWith(phase: RealtimePhase.finishing);
       _client?.notifyTimeUp();
       _graceTimer =

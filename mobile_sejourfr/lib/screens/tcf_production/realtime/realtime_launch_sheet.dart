@@ -2,20 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_button.dart';
 
 /// Choix de l'utilisateur au lancement d'une T1/T2 EO.
 enum RealtimeLaunchChoice { realtime, classic }
 
-/// Modal §2.3 : deux formats pour passer la tâche — TEMPS RÉEL avec un
-/// examinateur (une IA) ou CLASSIQUE (enregistrement solo). Cartes à texte
-/// complet (jamais tronqué), badge « IA », et mention explicite que lancer une
-/// session temps réel décompte 1 unité du quota du pass. Quota 0 → carte temps
-/// réel désactivée ; le candidat n'est jamais bloqué (mode classique dispo).
+/// Modal §2.3 : on SÉLECTIONNE un format — TEMPS RÉEL avec un examinateur (une
+/// IA) ou CLASSIQUE (enregistrement solo) — puis on confirme avec « Valider ».
+/// ✕ en haut ferme sans rien lancer (retourne `null`). Cartes à texte complet
+/// (jamais tronqué), badge « IA », mention du décompte sur le pass. Quota 0 →
+/// carte temps réel désactivée ; le candidat n'est jamais bloqué.
 Future<RealtimeLaunchChoice?> showRealtimeLaunchSheet(
   BuildContext context, {
   required int remaining,
 }) {
-  final hasQuota = remaining > 0;
   return showModalBottomSheet<RealtimeLaunchChoice>(
     context: context,
     backgroundColor: AppColors.white,
@@ -24,22 +24,59 @@ Future<RealtimeLaunchChoice?> showRealtimeLaunchSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadii.xl)),
     ),
-    builder: (ctx) => SafeArea(
+    builder: (ctx) => _LaunchSheetBody(remaining: remaining),
+  );
+}
+
+class _LaunchSheetBody extends StatefulWidget {
+  const _LaunchSheetBody({required this.remaining});
+
+  final int remaining;
+
+  @override
+  State<_LaunchSheetBody> createState() => _LaunchSheetBodyState();
+}
+
+class _LaunchSheetBodyState extends State<_LaunchSheetBody> {
+  late RealtimeLaunchChoice _selected;
+
+  bool get _hasQuota => widget.remaining > 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pré-sélection : temps réel si quota dispo, sinon classique.
+    _selected =
+        _hasQuota ? RealtimeLaunchChoice.realtime : RealtimeLaunchChoice.classic;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
       top: false,
       child: ConstrainedBox(
         constraints:
-            BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.9),
+            BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 10, 18, 24),
+          padding: const EdgeInsets.fromLTRB(18, 6, 18, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(LucideIcons.x,
+                      size: 20, color: AppColors.muted),
+                ),
+              ),
               Center(
                 child: Container(
                   width: 40,
                   height: 5,
-                  margin: const EdgeInsets.only(bottom: 18),
+                  margin: const EdgeInsets.only(bottom: 14),
                   decoration: BoxDecoration(
                     color: AppColors.line,
                     borderRadius: BorderRadius.circular(AppRadii.pill),
@@ -49,7 +86,7 @@ Future<RealtimeLaunchChoice?> showRealtimeLaunchSheet(
               Text('Comment passer cette tâche ?',
                   textAlign: TextAlign.center, style: AppFonts.display(size: 19)),
               const SizedBox(height: 4),
-              Text('Choisissez votre format pour cet oral.',
+              Text('Choisissez votre format, puis validez.',
                   textAlign: TextAlign.center,
                   style: AppFonts.ui(size: 13, color: AppColors.muted)),
               const SizedBox(height: 18),
@@ -63,12 +100,14 @@ Future<RealtimeLaunchChoice?> showRealtimeLaunchSheet(
                     'Votre échange est noté à la fin.',
                 accent: AppColors.red,
                 accentBg: AppColors.redLight,
-                enabled: hasQuota,
-                footer: hasQuota
-                    ? _QuotaChip(remaining: remaining)
+                enabled: _hasQuota,
+                selected: _selected == RealtimeLaunchChoice.realtime,
+                footer: _hasQuota
+                    ? _QuotaChip(remaining: widget.remaining)
                     : const _LockedChip(),
-                onTap: hasQuota
-                    ? () => Navigator.of(ctx).pop(RealtimeLaunchChoice.realtime)
+                onTap: _hasQuota
+                    ? () => setState(
+                        () => _selected = RealtimeLaunchChoice.realtime)
                     : null,
               ),
               const SizedBox(height: 12),
@@ -82,15 +121,22 @@ Future<RealtimeLaunchChoice?> showRealtimeLaunchSheet(
                 accent: AppColors.blue,
                 accentBg: AppColors.blueLight,
                 enabled: true,
+                selected: _selected == RealtimeLaunchChoice.classic,
                 onTap: () =>
-                    Navigator.of(ctx).pop(RealtimeLaunchChoice.classic),
+                    setState(() => _selected = RealtimeLaunchChoice.classic),
+              ),
+              const SizedBox(height: 18),
+              AppButton(
+                label: 'Valider',
+                variant: AppButtonVariant.primary,
+                onPressed: () => Navigator.of(context).pop(_selected),
               ),
             ],
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _OptionCard extends StatelessWidget {
@@ -102,6 +148,7 @@ class _OptionCard extends StatelessWidget {
     required this.accent,
     required this.accentBg,
     required this.enabled,
+    required this.selected,
     required this.onTap,
     this.footer,
   });
@@ -113,6 +160,7 @@ class _OptionCard extends StatelessWidget {
   final Color accent;
   final Color accentBg;
   final bool enabled;
+  final bool selected;
   final VoidCallback? onTap;
   final Widget? footer;
 
@@ -121,7 +169,7 @@ class _OptionCard extends StatelessWidget {
     return Opacity(
       opacity: enabled ? 1 : 0.6,
       child: Material(
-        color: AppColors.white,
+        color: selected ? accentBg.withValues(alpha: 0.4) : AppColors.white,
         borderRadius: BorderRadius.circular(AppRadii.lg),
         child: InkWell(
           onTap: onTap,
@@ -131,8 +179,8 @@ class _OptionCard extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadii.lg),
               border: Border.all(
-                color: enabled ? accent : AppColors.line,
-                width: enabled ? 1.5 : 1,
+                color: selected ? accent : AppColors.line,
+                width: selected ? 2 : 1,
               ),
             ),
             child: Column(
@@ -167,6 +215,8 @@ class _OptionCard extends StatelessWidget {
                                 AppFonts.label(color: AppColors.redDark, size: 11)),
                       ),
                     ],
+                    const SizedBox(width: 8),
+                    _RadioDot(accent: accent, selected: selected),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -181,6 +231,32 @@ class _OptionCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _RadioDot extends StatelessWidget {
+  const _RadioDot({required this.accent, required this.selected});
+
+  final Color accent;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: selected ? accent : AppColors.white,
+        border: Border.all(
+          color: selected ? accent : AppColors.line,
+          width: 1.5,
+        ),
+      ),
+      child: selected
+          ? const Icon(LucideIcons.check, size: 13, color: AppColors.white)
+          : null,
     );
   }
 }

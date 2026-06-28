@@ -29,6 +29,7 @@ class GeminiLiveClient {
     this.onCandidateTranscript,
     this.onExaminerTranscript,
     this.onSpeakingChange,
+    this.onListeningStart,
     this.onError,
     this.onClosed,
   });
@@ -44,6 +45,10 @@ class GeminiLiveClient {
   /// true quand l'examinateur est en train de parler (audio en cours).
   final void Function(bool speaking)? onSpeakingChange;
 
+  /// Fin de la phase d'accueil : l'examinateur a commencé (1er audio) ou le
+  /// garde-fou a expiré → le micro du candidat s'ouvre.
+  final void Function()? onListeningStart;
+
   final void Function(String message)? onError;
   final void Function()? onClosed;
 
@@ -57,6 +62,10 @@ class GeminiLiveClient {
   bool _started = false;
   bool _closed = false;
   bool _speaking = false;
+  // Phase d'accueil : tant que l'examinateur n'a pas parlé, on coupe le micro
+  // du candidat. Libéré au 1er audio examinateur, ou par garde-fou ~8 s.
+  bool _awaitingFirstExaminer = true;
+  Timer? _welcomeTimer;
 
   int get _outRate => descriptor.outputSampleRate ?? 24000;
   String get _inMime => descriptor.inputAudioMimeType ?? 'audio/pcm;rate=16000';
@@ -95,6 +104,19 @@ class GeminiLiveClient {
     });
 
     await _startMic();
+
+    // Garde-fou : si l'examinateur ne dit rien sous ~8 s, on ouvre le micro
+    // quand même (un greeting audio manquant ne doit pas bloquer le candidat).
+    _welcomeTimer = Timer(const Duration(seconds: 8), _beginConversation);
+  }
+
+  /// Fin de la phase d'accueil : ouvre le micro et notifie le contrôleur.
+  void _beginConversation() {
+    if (_closed || !_awaitingFirstExaminer) return;
+    _awaitingFirstExaminer = false;
+    _welcomeTimer?.cancel();
+    _welcomeTimer = null;
+    onListeningStart?.call();
   }
 
   /// Signale au modèle que le temps est écoulé pour qu'il prononce sa clôture.
@@ -117,6 +139,8 @@ class GeminiLiveClient {
   Future<void> dispose() async {
     if (_closed) return;
     _closed = true;
+    _welcomeTimer?.cancel();
+    _welcomeTimer = null;
     await _micSub?.cancel();
     _micSub = null;
     try {
@@ -168,6 +192,8 @@ class GeminiLiveClient {
 
   void _enqueueAudio(Uint8List bytes) {
     if (_closed || !_pcmReady) return;
+    // 1er audio de l'examinateur : fin de l'accueil, on ouvre le micro.
+    _beginConversation();
     final samples = bytes.buffer.asByteData();
     final count = bytes.lengthInBytes ~/ 2;
     for (var i = 0; i < count; i++) {
@@ -208,9 +234,10 @@ class GeminiLiveClient {
     );
     _micSub = stream.listen(
       (chunk) {
-        // Half-duplex : on n'émet pas le micro pendant que l'examinateur parle
-        // (anti-écho ; le candidat attend la fin de la question — pas de barge-in).
-        if (_closed || _speaking) return;
+        // Accueil : micro coupé tant que l'examinateur n'a pas parlé. Puis
+        // half-duplex : on n'émet pas pendant qu'il parle (anti-écho ; le
+        // candidat attend la fin de la question — pas de barge-in).
+        if (_closed || _awaitingFirstExaminer || _speaking) return;
         _send({
           'realtimeInput': {
             'audio': {'mimeType': _inMime, 'data': base64Encode(chunk)}
