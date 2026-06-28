@@ -353,20 +353,10 @@ export function QuestionRunner({
     }));
   }, [state.currentIndex, state.questions.length, state.noMoreQuestions, state.extending, infinite, extendBatch, finishCurrentAttempt]);
 
-  // Retour arrière en examen (conditions réelles) :
-  //  - Civique : interdit sur tout l'examen (une réponse validée est définitive).
-  //  - TCF : interdit dès que la question précédente est une compréhension orale
-  //    (audio à écoute unique) ; les autres épreuves restent navigables.
-  // En entraînement, navigation toujours libre.
-  const prevQuestion =
-    state.currentIndex > 0 ? state.questions[state.currentIndex - 1] : undefined;
-  const examBackBlocked =
-    mode === "exam" &&
-    (state.activeAttempt.module === "CIVIQUE" ||
-      (prevQuestion !== undefined &&
-        (prevQuestion.question.questionType === "CO" ||
-          prevQuestion.question.questionType === "CO_IMAGE")));
-  const canGoPrevious = state.currentIndex > 0 && !examBackBlocked;
+  // Retour arrière INTERDIT sur tout examen (conditions réelles, toutes épreuves
+  // confondues : une réponse validée est définitive — parité mobile
+  // runner_screen.dart). En entraînement, navigation toujours libre.
+  const canGoPrevious = mode !== "exam" && state.currentIndex > 0;
 
   const goPrevious = useCallback(() => {
     if (!canGoPrevious) return;
