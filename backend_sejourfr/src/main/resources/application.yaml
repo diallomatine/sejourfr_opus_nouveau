@@ -278,8 +278,8 @@ sejourfr:
       ws-endpoint: wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained
       # ⚠️ Gamme native-audio en évolution : alias GA stable par défaut (le
       # preview ...-09-2025 est déprécié le 2026-03-19). À revérifier au build.
-      model: ${GEMINI_REALTIME_MODEL:gemini-live-2.5-flash-native-audio}
-      voice: ${GEMINI_REALTIME_VOICE:Aoede}
+      model: ${REALTIME_GEMINI_MODEL:gemini-live-2.5-flash-native-audio}
+      voice: ${REALTIME_GEMINI_VOICE:Aoede}
       temperature: 0.7
       token-uses: 1
       new-session-expire-seconds: 120
@@ -290,12 +290,6 @@ sejourfr:
       input-sample-rate: 16000
       input-mime-type: audio/pcm;rate=16000
       output-sample-rate: 24000
-    # Quota de sessions temps réel par pass (cap keyé par Plan.code). Valeurs
-    # PROVISOIRES — ajustables sans redéploiement. Seuls les pass TCF (INTEGRAL)
-    # sont éligibles ; un code absent retombe sur default-sessions.
-    quota:
-      default-sessions: ${REALTIME_DEFAULT_SESSIONS:0}
-      by-plan-code:
-        INTEGRAL_PASS_SPRINT: ${REALTIME_SESSIONS_SPRINT:25}
-        INTEGRAL_PASS_3M: ${REALTIME_SESSIONS_TRIMESTRE:60}
-        INTEGRAL_PASS_1Y: ${REALTIME_SESSIONS_ANNUEL:120}
+    # Le QUOTA de sessions par pass vit désormais en base (colonne
+    # plans.realtime_eo_sessions, migrations V018/V113) — éditable côté admin,
+    # « adapté selon le pass ». Plus de mapping en config ici.

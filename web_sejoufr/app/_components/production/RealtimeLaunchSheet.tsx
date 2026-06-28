@@ -49,9 +49,9 @@ export function RealtimeLaunchSheet({
     const remainingLabel =
         sessionsRemaining == null
             ? null
-            : sessionsRemaining > 0
-              ? `${sessionsRemaining} session${sessionsRemaining > 1 ? "s" : ""} en temps réel restante${sessionsRemaining > 1 ? "s" : ""}`
-              : "Plus de session en temps réel ce mois-ci";
+            : realtimeAvailable && sessionsRemaining > 0
+              ? `−1 session · il vous en reste ${sessionsRemaining} sur votre pass`
+              : "Plus de session temps réel sur votre pass";
 
     return (
         <div className="rls-overlay" onClick={() => !starting && onClose()} role="presentation">
@@ -69,9 +69,12 @@ export function RealtimeLaunchSheet({
                 >
                     <span className="rls-opt-ico"><Radio size={20} strokeWidth={2} /></span>
                     <span className="rls-opt-body">
-                        <span className="rls-opt-title">Passer en temps réel avec un examinateur</span>
+                        <span className="rls-opt-titrow">
+                            <span className="rls-opt-title">Avec un examinateur</span>
+                            <span className="rls-ia">IA</span>
+                        </span>
                         <span className="rls-opt-desc">
-                            {"Un examinateur vocal mène l'échange, comme le jour de l'examen."}
+                            {"Une intelligence artificielle joue l'examinateur : elle vous parle et vous répond en direct, comme à un vrai oral. Votre échange est noté à la fin."}
                         </span>
                     </span>
                 </button>
@@ -88,8 +91,8 @@ export function RealtimeLaunchSheet({
                 >
                     <span className="rls-opt-ico"><Mic size={20} strokeWidth={2} /></span>
                     <span className="rls-opt-body">
-                        <span className="rls-opt-title">Le faire en mode classique</span>
-                        <span className="rls-opt-desc">{"Vous enregistrez votre réponse, l'IA l'évalue ensuite."}</span>
+                        <span className="rls-opt-title">Tout(e) seul(e) (enregistrement)</span>
+                        <span className="rls-opt-desc">{"Vous parlez seul, sans interlocuteur ; votre enregistrement est ensuite évalué par l'IA."}</span>
                     </span>
                 </button>
 
@@ -148,17 +151,29 @@ export function RealtimeLaunchSheet({
                     }
                     .rls-classic .rls-opt-ico { color: var(--color-blue); }
                     .rls-opt-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+                    .rls-opt-titrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
                     .rls-opt-title {
                         font-family: var(--font-sans); font-weight: 800; font-size: 14px;
                         color: var(--color-ink);
                     }
-                    .rls-opt-desc { font-size: 12.5px; line-height: 1.4; color: var(--color-muted); }
-                    .rls-remaining {
-                        font-family: var(--font-mono); font-size: 11px; font-weight: 700;
-                        letter-spacing: 0.04em; text-transform: uppercase;
-                        color: var(--color-red); text-align: center; margin: -2px 0 12px;
+                    .rls-ia {
+                        font-family: var(--font-mono); font-weight: 700; font-size: 10px;
+                        letter-spacing: 0.06em; color: var(--color-red-dark, #B5251E);
+                        background: #fff; border: 1px solid var(--color-red);
+                        border-radius: 5px; padding: 1px 5px; line-height: 1.4;
                     }
-                    .rls-remaining.is-empty { color: var(--color-muted); }
+                    .rls-opt-desc { font-size: 12.5px; line-height: 1.45; color: var(--color-muted); }
+                    .rls-remaining {
+                        display: inline-flex; align-self: center; gap: 6px;
+                        font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+                        letter-spacing: 0.02em;
+                        color: var(--color-red-dark, #B5251E);
+                        background: var(--color-red-light, #FDECEB);
+                        border-radius: 8px; padding: 6px 10px; margin: -2px 0 12px;
+                    }
+                    .rls-remaining.is-empty {
+                        color: var(--color-muted); background: var(--color-paper-2);
+                    }
                     .rls-error {
                         margin-top: 4px; font-size: 12.5px; color: var(--color-red); text-align: center;
                     }

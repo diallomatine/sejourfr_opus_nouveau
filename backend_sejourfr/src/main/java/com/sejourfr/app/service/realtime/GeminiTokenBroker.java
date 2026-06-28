@@ -1,7 +1,5 @@
 package com.sejourfr.app.service.realtime;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sejourfr.app.config.RealtimeProperties;
 import com.sejourfr.app.exception.BusinessException;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +8,8 @@ import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -69,7 +69,7 @@ public class GeminiTokenBroker implements RealtimeTokenBroker {
                     .retrieve()
                     .body(String.class);
             JsonNode root = objectMapper.readTree(json);
-            String name = root.path("name").asText(null);
+            String name = root.hasNonNull("name") ? root.get("name").asString() : null;
             if (name == null || name.isBlank()) {
                 throw new BusinessException("Reponse Gemini auth_tokens sans champ name.");
             }
@@ -85,29 +85,32 @@ public class GeminiTokenBroker implements RealtimeTokenBroker {
     }
 
     private Map<String, Object> buildRequestBody(RealtimeProperties.Gemini g, String systemInstruction, Instant now) {
-        Map<String, Object> config = new LinkedHashMap<>();
-        config.put("responseModalities", List.of("AUDIO"));
-        config.put("systemInstruction", Map.of("parts", List.of(Map.of("text", systemInstruction))));
-        // Transcription des deux cotes : c'est ce qui permet de capturer le
-        // dialogue (candidat + examinateur) cote serveur pour la notation.
-        config.put("inputAudioTranscription", Map.of());
-        config.put("outputAudioTranscription", Map.of());
-        config.put("temperature", g.getTemperature());
+        // Sous-message generationConfig : modalite de sortie + voix + temperature.
+        Map<String, Object> generationConfig = new LinkedHashMap<>();
+        generationConfig.put("responseModalities", List.of("AUDIO"));
+        generationConfig.put("temperature", g.getTemperature());
         if (g.getVoice() != null && !g.getVoice().isBlank()) {
-            config.put("speechConfig", Map.of(
+            generationConfig.put("speechConfig", Map.of(
                     "voiceConfig", Map.of(
                             "prebuiltVoiceConfig", Map.of("voiceName", g.getVoice()))));
         }
 
-        Map<String, Object> constraints = new LinkedHashMap<>();
-        constraints.put("model", normalizedModel(g.getModel()));
-        constraints.put("config", config);
+        // BidiGenerateContentSetup : la config verrouillee dans le token. Le
+        // modele, la persona (systemInstruction) et la transcription in/out y
+        // vivent cote serveur ; la transcription des deux cotes est ce qui
+        // permet de capturer le dialogue (candidat + examinateur) pour la notation.
+        Map<String, Object> setup = new LinkedHashMap<>();
+        setup.put("model", normalizedModel(g.getModel()));
+        setup.put("generationConfig", generationConfig);
+        setup.put("systemInstruction", Map.of("parts", List.of(Map.of("text", systemInstruction))));
+        setup.put("inputAudioTranscription", Map.of());
+        setup.put("outputAudioTranscription", Map.of());
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("uses", g.getTokenUses());
         body.put("expireTime", now.plusSeconds(g.getSessionExpireSeconds()).toString());
         body.put("newSessionExpireTime", now.plusSeconds(g.getNewSessionExpireSeconds()).toString());
-        body.put("liveConnectConstraints", constraints);
+        body.put("bidiGenerateContentSetup", setup);
         return body;
     }
 

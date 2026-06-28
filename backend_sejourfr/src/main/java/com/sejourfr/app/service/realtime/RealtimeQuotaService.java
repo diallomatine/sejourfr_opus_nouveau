@@ -15,13 +15,13 @@ import java.util.UUID;
 
 /**
  * Calcule le quota de sessions temps reel d'un utilisateur. Le cap est ATTACHE
- * AU PASS (souscription couvrante) et configurable par {@code Plan.code}
- * (cf. {@link RealtimeProperties.Quota}) — jamais en dur. La consommation est
- * derivee par comptage de lignes {@code realtime_sessions} sur ce pass, comme
- * tout le freemium existant.
+ * AU PASS : c'est la colonne {@code plans.realtime_eo_sessions} de la
+ * souscription couvrante (editable par l'admin, « adapte selon le pass »). La
+ * consommation est derivee par comptage de lignes {@code realtime_sessions} sur
+ * ce pass, comme tout le freemium existant.
  *
- * <p>Le temps reel n'est ouvert qu'aux pass TCF (module INTEGRAL). Hors pass
- * eligible, le cap est 0 → le candidat fait l'epreuve en async (jamais bloque).
+ * <p>Un plan sans acces TCF (Civique, Free) porte 0 → le candidat fait l'epreuve
+ * en async (jamais bloque).
  */
 @Service
 @Transactional(readOnly = true)
@@ -68,10 +68,6 @@ public class RealtimeQuotaService {
 
     private int capFor(UserSubscription subscription) {
         Plan plan = subscription.getPlan();
-        if (plan == null || !plan.getModuleAccess().hasTcf()) {
-            return 0;
-        }
-        return props.getQuota().getByPlanCode()
-                .getOrDefault(plan.getCode(), props.getQuota().getDefaultSessions());
+        return plan != null ? Math.max(0, plan.getRealtimeEoSessions()) : 0;
     }
 }

@@ -125,6 +125,9 @@ export class GeminiLiveSession {
             this.fail(micErrorMessage(name, msg));
             return;
         }
+        // StrictMode (double-montage dev) : si stop() a été appelé pendant
+        // l'ouverture async du micro, ne pas ouvrir un socket orphelin.
+        if (this.closed) return;
         this.openSocket();
     }
 
@@ -163,6 +166,10 @@ export class GeminiLiveSession {
     }
 
     private async onMessage(ev: MessageEvent): Promise<void> {
+        // Après stop(), des messages déjà en file peuvent encore arriver : on les
+        // ignore, sinon enqueueAudio rouvrirait un AudioContext et l'examinateur
+        // « repartirait » après la clôture (et même après le rapport).
+        if (this.closed) return;
         let text: string;
         if (ev.data instanceof ArrayBuffer) {
             text = new TextDecoder().decode(ev.data);
@@ -205,17 +212,29 @@ export class GeminiLiveSession {
         if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
             throw Object.assign(new Error("unsupported"), {name: "NotSupportedError"});
         }
-        const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+        // Echo cancellation + suppression du bruit : sinon le micro capte le
+        // haut-parleur (l'examinateur) et le renvoie à Gemini, qui le transcrit
+        // comme une intervention candidat.
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {echoCancellation: true, noiseSuppression: true, autoGainControl: true},
+        });
+        // StrictMode : stop() pendant l'await -> on coupe le flux et on sort.
+        if (this.closed) {
+            stream.getTracks().forEach((t) => t.stop());
+            return;
+        }
         this.micStream = stream;
         const Ctor = window.AudioContext ?? (window as unknown as {webkitAudioContext: typeof AudioContext}).webkitAudioContext;
         const ctx = new Ctor({sampleRate: this.inputRate});
         this.captureCtx = ctx;
+        if (ctx.state === "suspended") await ctx.resume();
         const source = ctx.createMediaStreamSource(stream);
 
         if (ctx.audioWorklet) {
             try {
                 const blobUrl = URL.createObjectURL(new Blob([WORKLET_SRC], {type: "application/javascript"}));
                 await ctx.audioWorklet.addModule(blobUrl);
+                if (this.closed) return;
                 URL.revokeObjectURL(blobUrl);
                 const node = new AudioWorkletNode(ctx, "pcm-capture");
                 node.port.onmessage = (e) => this.sendFrame(e.data as Float32Array, ctx.sampleRate);
@@ -236,6 +255,10 @@ export class GeminiLiveSession {
 
     private sendFrame(frame: Float32Array, ctxRate: number): void {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+        // Half-duplex : on n'émet PAS le micro pendant que l'examinateur parle —
+        // évite la boucle d'écho (sa voix transcrite comme parole candidat).
+        // Conséquence assumée : pas de barge-in (le candidat attend la question).
+        if (this.speaking) return;
         const pcm = ctxRate === this.inputRate ? frame : downsample(frame, ctxRate, this.inputRate);
         const b64 = arrayBufferToBase64(floatToPcm16(pcm));
         this.ws.send(JSON.stringify({
@@ -251,10 +274,16 @@ export class GeminiLiveSession {
             this.playbackCtx = new Ctor({sampleRate: this.outputRate});
             this.playHead = 0;
         }
+        // Politique autoplay : le contexte peut naître `suspended` -> aucun son.
+        // On le réveille (la session part d'un clic utilisateur, donc autorisé).
+        if (this.playbackCtx.state === "suspended") {
+            this.playbackCtx.resume().catch(() => undefined);
+        }
         return this.playbackCtx;
     }
 
     private enqueueAudio(b64: string): void {
+        if (this.closed) return;
         const ctx = this.ensurePlayback();
         const pcm = base64ToInt16(b64);
         const buf = ctx.createBuffer(1, pcm.length, this.outputRate);
@@ -291,11 +320,22 @@ export class GeminiLiveSession {
         }
     }
 
-    /** Signale au modèle que le temps de la tâche est écoulé (déclenche la clôture). */
+    /**
+     * Signale au modèle que le temps de la tâche est écoulé : un vrai tour
+     * utilisateur ({@code clientContent} + {@code turnComplete}) — c'est ce qui
+     * déclenche la phrase de clôture de la persona. Un {@code realtimeInput.text}
+     * n'est PAS un tour de dialogue et serait ignoré.
+     */
     notifyTimeUp(): void {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({
-                realtimeInput: {text: "[Le temps de cette partie est écoulé.]"},
+                clientContent: {
+                    turns: [{
+                        role: "user",
+                        parts: [{text: "[Le temps de cette partie est écoulé. Remerciez brièvement le candidat et concluez maintenant.]"}],
+                    }],
+                    turnComplete: true,
+                },
             }));
         }
     }

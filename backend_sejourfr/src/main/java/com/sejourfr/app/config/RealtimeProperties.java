@@ -2,9 +2,6 @@ package com.sejourfr.app.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 /**
  * Configuration du mode "expression orale temps reel" (examinateur vocal IA,
  * Taches 1 & 2). Lu via {@code sejourfr.realtime.*}.
@@ -32,7 +29,6 @@ public class RealtimeProperties {
 
     private Gemini gemini = new Gemini();
     private Audio audio = new Audio();
-    private Quota quota = new Quota();
 
     /**
      * Fenetre (secondes) pendant laquelle une session PENDING "reserve" un slot
@@ -53,9 +49,6 @@ public class RealtimeProperties {
 
     public Audio getAudio() { return audio; }
     public void setAudio(Audio audio) { this.audio = audio; }
-
-    public Quota getQuota() { return quota; }
-    public void setQuota(Quota quota) { this.quota = quota; }
 
     public int getReservationWindowSeconds() { return reservationWindowSeconds; }
     public void setReservationWindowSeconds(int v) { this.reservationWindowSeconds = v; }
@@ -142,23 +135,5 @@ public class RealtimeProperties {
 
         public int getOutputSampleRate() { return outputSampleRate; }
         public void setOutputSampleRate(int v) { this.outputSampleRate = v; }
-    }
-
-    /**
-     * Quota de sessions temps reel par pass. {@code byPlanCode} mappe un
-     * {@code Plan.code} vers son nombre de sessions (valeurs provisoires :
-     * Sprint ~25, Trimestre ~60, Annuel ~120). {@code defaultSessions} sert de
-     * repli si le code n'est pas liste. Le quota n'est ouvert qu'aux pass TCF
-     * (module INTEGRAL) — un plan non liste retombe sur {@code defaultSessions}.
-     */
-    public static class Quota {
-        private int defaultSessions = 0;
-        private Map<String, Integer> byPlanCode = new LinkedHashMap<>();
-
-        public int getDefaultSessions() { return defaultSessions; }
-        public void setDefaultSessions(int defaultSessions) { this.defaultSessions = defaultSessions; }
-
-        public Map<String, Integer> getByPlanCode() { return byPlanCode; }
-        public void setByPlanCode(Map<String, Integer> byPlanCode) { this.byPlanCode = byPlanCode; }
     }
 }

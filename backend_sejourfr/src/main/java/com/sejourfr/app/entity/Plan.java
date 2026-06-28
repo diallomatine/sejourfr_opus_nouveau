@@ -55,6 +55,14 @@ public class Plan {
     private boolean active = true;
 
     /**
+     * Nombre de sessions d'expression orale en TEMPS RÉEL (examinateur IA, T1/T2)
+     * ouvertes par ce pass. 0 = non éligible (Civique / Free). Cap du quota ;
+     * la consommation est dérivée de la table {@code realtime_sessions}.
+     */
+    @Column(name = "realtime_eo_sessions", nullable = false)
+    private int realtimeEoSessions = 0;
+
+    /**
      * SKU Apple App Store correspondant à ce Plan (ex: "integral.monthly").
      * NULL tant que le produit n'a pas été créé côté App Store Connect. Sert
      * au backend à retrouver le Plan à partir du {@code productId} remonté
@@ -108,6 +116,9 @@ public class Plan {
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+
+    public int getRealtimeEoSessions() { return realtimeEoSessions; }
+    public void setRealtimeEoSessions(int realtimeEoSessions) { this.realtimeEoSessions = realtimeEoSessions; }
 
     public String getAppleProductId() { return appleProductId; }
     public void setAppleProductId(String appleProductId) { this.appleProductId = appleProductId; }

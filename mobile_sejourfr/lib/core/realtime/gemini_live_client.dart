@@ -167,7 +167,7 @@ class GeminiLiveClient {
   }
 
   void _enqueueAudio(Uint8List bytes) {
-    if (!_pcmReady) return;
+    if (_closed || !_pcmReady) return;
     final samples = bytes.buffer.asByteData();
     final count = bytes.lengthInBytes ~/ 2;
     for (var i = 0; i < count; i++) {
@@ -199,11 +199,18 @@ class GeminiLiveClient {
         encoder: AudioEncoder.pcm16bits,
         sampleRate: _inRate,
         numChannels: 1,
+        // Annule l'écho du haut-parleur (la voix de l'examinateur) capté par le
+        // micro et renvoyé à Gemini comme parole candidat.
+        echoCancel: true,
+        noiseSuppress: true,
+        autoGain: true,
       ),
     );
     _micSub = stream.listen(
       (chunk) {
-        if (_closed) return;
+        // Half-duplex : on n'émet pas le micro pendant que l'examinateur parle
+        // (anti-écho ; le candidat attend la fin de la question — pas de barge-in).
+        if (_closed || _speaking) return;
         _send({
           'realtimeInput': {
             'audio': {'mimeType': _inMime, 'data': base64Encode(chunk)}
@@ -219,6 +226,9 @@ class GeminiLiveClient {
   // ---------------------------------------------------------------------------
 
   void _onWsMessage(dynamic raw) {
+    // Après dispose(), des messages déjà en file peuvent encore arriver : on les
+    // ignore, sinon l'examinateur « repartirait » (audio rejoué) après la clôture.
+    if (_closed) return;
     Map<String, dynamic>? msg;
     try {
       if (raw is String) {

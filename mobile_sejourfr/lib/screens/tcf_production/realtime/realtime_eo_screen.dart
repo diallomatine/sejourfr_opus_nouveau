@@ -8,10 +8,12 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/screen_header.dart';
 import 'realtime_eo_controller.dart';
 
-/// Écran d'une session EO en temps réel (examinateur vocal IA). Pilote
-/// [RealtimeEoController] : affiche la consigne, l'état de l'échange et un
-/// minuteur. À la clôture, navigue vers le bilan EXISTANT (qui poll la
-/// submission créée par le backend).
+/// Écran d'une session EO en temps réel (examinateur vocal IA). Volontairement
+/// DISTINCT de l'enregistrement solo : marqueur « IA · En direct », minuteur, et
+/// un GROS MICRO central avec un libellé d'état (« À vous de parler » /
+/// « L'examinateur parle… »). Pas d'affichage du dialogue. Pilote
+/// [RealtimeEoController] ; à la clôture, navigue vers le bilan EXISTANT (qui
+/// poll la submission créée par le backend).
 class RealtimeEoScreen extends ConsumerStatefulWidget {
   const RealtimeEoScreen({super.key, required this.args});
 
@@ -31,7 +33,7 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     super.initState();
     _pulse = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1100),
+      duration: const Duration(milliseconds: 1300),
     )..repeat(reverse: true);
   }
 
@@ -45,8 +47,6 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     if (_navigated) return;
     _navigated = true;
     if (widget.args.popOnDone) {
-      // Parcours d'examen : on rend la main au briefing qui enchaîne la tâche
-      // suivante (la submission a été créée côté backend à la clôture).
       context.pop(true);
     } else {
       context.pushReplacement(
@@ -55,9 +55,6 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     }
   }
 
-  /// Sortie sur échec de connexion : en examen on rend la main avec `false`
-  /// (le briefing bascule alors sur l'enregistrement classique pour la tâche) ;
-  /// en entraînement isolé on revient simplement en arrière.
   void _exitFailed() {
     if (widget.args.popOnDone) {
       context.pop(false);
@@ -74,7 +71,7 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
       builder: (ctx) => AlertDialog(
         title: Text('Terminer la session ?', style: AppFonts.display(size: 18)),
         content: Text(
-          'Votre échange sera évalué en l\'état.',
+          'Votre échange avec l\'examinateur sera évalué en l\'état.',
           style: AppFonts.ui(size: 14, color: AppColors.muted),
         ),
         actions: [
@@ -103,8 +100,6 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     final task = args.task;
 
     return PopScope(
-      // `done` est auto-navigué ; `failed` autorise une sortie directe (vers le
-      // mode classique en examen). Les autres phases passent par la confirmation.
       canPop: state.phase == RealtimePhase.done ||
           state.phase == RealtimePhase.failed,
       onPopInvokedWithResult: (didPop, _) {
@@ -117,28 +112,18 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
           child: Column(
             children: [
               ScreenHeader(
-                title: task.displayTitle,
-                sub: 'Examen oral · temps réel',
+                title: 'Oral avec un examinateur',
+                sub: task.displayTitle,
                 onBack: _confirmLeave,
               ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _ConsigneCard(consigne: task.consigne, contexte: task.contexte),
-                      const SizedBox(height: 28),
-                      _StatusOrb(pulse: _pulse, state: state),
-                      const SizedBox(height: 24),
-                      _StatusText(state: state),
-                    ],
-                  ),
-                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: _LiveStrip(state: state),
               ),
+              Expanded(child: _MicStage(pulse: _pulse, state: state)),
               _BottomBar(
                 state: state,
-                onFinish: () => _confirmLeave(),
+                onFinish: _confirmLeave,
                 onExit: _exitFailed,
               ),
             ],
@@ -149,32 +134,205 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
   }
 }
 
-class _ConsigneCard extends StatelessWidget {
-  const _ConsigneCard({required this.consigne, this.contexte});
+/// Bandeau persistant : identité « Examinateur IA » + badge « ● En direct » +
+/// minuteur. C'est ce qui distingue l'écran du recorder solo (qui n'a aucun de
+/// ces marqueurs).
+class _LiveStrip extends StatelessWidget {
+  const _LiveStrip({required this.state});
 
-  final String consigne;
-  final String? contexte;
+  final RealtimeEoState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final live = state.phase == RealtimePhase.live ||
+        state.phase == RealtimePhase.finishing;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text('Examinateur IA',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppFonts.display(size: 15)),
+                ),
+                const SizedBox(width: 6),
+                const _IaBadge(),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (live) ...[
+            const _LiveDot(),
+            const SizedBox(width: 12),
+            Text(_fmt(state.remainingSec),
+                style: AppFonts.display(size: 18, color: AppColors.red)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _fmt(int sec) {
+    final m = sec ~/ 60;
+    final s = sec % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+}
+
+class _IaBadge extends StatelessWidget {
+  const _IaBadge();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: AppColors.redLight,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
-        border: const Border(left: BorderSide(color: AppColors.red, width: 3)),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
       ),
+      child:
+          Text('IA', style: AppFonts.label(color: AppColors.redDark, size: 10)),
+    );
+  }
+}
+
+class _LiveDot extends StatelessWidget {
+  const _LiveDot();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 7,
+          height: 7,
+          decoration: const BoxDecoration(
+              shape: BoxShape.circle, color: AppColors.red),
+        ),
+        const SizedBox(width: 5),
+        Text('EN DIRECT', style: AppFonts.label(color: AppColors.red, size: 10)),
+      ],
+    );
+  }
+}
+
+/// Le gros micro central + le libellé d'état. Le halo pulse quand c'est au
+/// candidat de parler ; bascule en bleu (haut-parleur) quand l'examinateur parle.
+class _MicStage extends StatelessWidget {
+  const _MicStage({required this.pulse, required this.state});
+
+  final AnimationController pulse;
+  final RealtimeEoState state;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.phase == RealtimePhase.failed) {
+      return _Centered(
+        icon: LucideIcons.wifiOff,
+        title: 'Connexion impossible',
+        sub: state.error ?? 'Réessayez en mode enregistrement.',
+      );
+    }
+
+    final examiner = state.examinerSpeaking;
+    final yourTurn = state.phase == RealtimePhase.live && !examiner;
+    final connecting = state.phase == RealtimePhase.connecting;
+
+    final (String label, String hint) = switch (state.phase) {
+      RealtimePhase.connecting => (
+          'Connexion à l\'examinateur…',
+          'Préparez-vous à parler.'
+        ),
+      RealtimePhase.live => examiner
+          ? ('L\'examinateur parle…', 'Écoutez sa question.')
+          : ('À vous de parler', 'Parlez naturellement, comme à un vrai oral.'),
+      RealtimePhase.finishing => examiner
+          ? ('Temps écoulé — l\'examinateur conclut.', '')
+          : ('Préparation de votre évaluation…', ''),
+      RealtimePhase.done => ('Échange terminé', ''),
+      RealtimePhase.failed => ('', ''),
+    };
+
+    final accent = examiner ? AppColors.blue : AppColors.red;
+    final accentSoft =
+        examiner ? AppColors.blue.withValues(alpha: 0.12) : AppColors.redLight;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('CONSIGNE',
-              style: AppFonts.label(color: AppColors.redDark, size: 11)),
-          const SizedBox(height: 6),
-          Text(consigne, style: AppFonts.ui(size: 14, color: AppColors.ink)),
-          if (contexte != null && contexte!.isNotEmpty) ...[
+          AnimatedBuilder(
+            animation: pulse,
+            builder: (context, _) {
+              final t = yourTurn ? pulse.value : 0.0;
+              return SizedBox(
+                width: 220,
+                height: 220,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      width: 150 + t * 40,
+                      height: 150 + t * 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: accentSoft.withValues(
+                            alpha: examiner ? 0.18 : (0.5 - t * 0.25)),
+                      ),
+                    ),
+                    Container(
+                      width: 116,
+                      height: 116,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: accent,
+                        boxShadow: [
+                          BoxShadow(
+                            color: accent.withValues(alpha: 0.30),
+                            blurRadius: 26,
+                            offset: const Offset(0, 12),
+                          ),
+                        ],
+                      ),
+                      child: connecting
+                          ? const Center(
+                              child: SizedBox(
+                                width: 30,
+                                height: 30,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 3, color: AppColors.white),
+                              ),
+                            )
+                          : Icon(
+                              examiner ? LucideIcons.volume2 : LucideIcons.mic,
+                              size: 48,
+                              color: AppColors.white,
+                            ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 28),
+          Text(label,
+              textAlign: TextAlign.center, style: AppFonts.display(size: 22)),
+          if (hint.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(contexte!,
-                style: AppFonts.ui(size: 13, color: AppColors.muted)),
+            Text(hint,
+                textAlign: TextAlign.center,
+                style: AppFonts.ui(size: 13.5, color: AppColors.muted)),
           ],
         ],
       ),
@@ -182,96 +340,33 @@ class _ConsigneCard extends StatelessWidget {
   }
 }
 
-class _StatusOrb extends StatelessWidget {
-  const _StatusOrb({required this.pulse, required this.state});
+class _Centered extends StatelessWidget {
+  const _Centered({required this.icon, required this.title, required this.sub});
 
-  final AnimationController pulse;
-  final RealtimeEoState state;
+  final IconData icon;
+  final String title;
+  final String sub;
 
   @override
   Widget build(BuildContext context) {
-    final active = state.examinerSpeaking;
     return Center(
-      child: AnimatedBuilder(
-        animation: pulse,
-        builder: (context, _) {
-          final t = active ? pulse.value : 0.0;
-          final size = 132.0 + t * 20;
-          return Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.red.withValues(alpha: active ? 0.14 : 0.07),
-            ),
-            child: Center(
-              child: Container(
-                width: 86,
-                height: 86,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.red,
-                ),
-                child: Icon(
-                  active ? LucideIcons.volume2 : LucideIcons.ear,
-                  color: AppColors.white,
-                  size: 34,
-                ),
-              ),
-            ),
-          );
-        },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 34, color: AppColors.muted2),
+            const SizedBox(height: 16),
+            Text(title,
+                textAlign: TextAlign.center, style: AppFonts.display(size: 18)),
+            const SizedBox(height: 6),
+            Text(sub,
+                textAlign: TextAlign.center,
+                style: AppFonts.ui(size: 13, color: AppColors.muted)),
+          ],
+        ),
       ),
     );
-  }
-}
-
-class _StatusText extends StatelessWidget {
-  const _StatusText({required this.state});
-
-  final RealtimeEoState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final (title, sub) = switch (state.phase) {
-      RealtimePhase.connecting => ('Connexion à l\'examinateur…', null),
-      RealtimePhase.live => (
-          state.examinerSpeaking ? 'L\'examinateur parle…' : 'À vous de parler',
-          'Parlez naturellement, comme à un vrai examen.'
-        ),
-      RealtimePhase.finishing => ('Fin de l\'échange…', null),
-      RealtimePhase.done => ('Échange terminé', null),
-      RealtimePhase.failed => (
-          'Connexion impossible',
-          state.error ?? 'Réessayez en mode enregistrement.'
-        ),
-    };
-    return Column(
-      children: [
-        Text(title,
-            textAlign: TextAlign.center, style: AppFonts.display(size: 20)),
-        if (sub != null) ...[
-          const SizedBox(height: 6),
-          Text(sub,
-              textAlign: TextAlign.center,
-              style: AppFonts.ui(size: 13, color: AppColors.muted)),
-        ],
-        if (state.phase == RealtimePhase.live ||
-            state.phase == RealtimePhase.finishing) ...[
-          const SizedBox(height: 18),
-          Text(
-            _fmt(state.remainingSec),
-            style: AppFonts.display(size: 30, color: AppColors.red),
-          ),
-        ],
-      ],
-    );
-  }
-
-  String _fmt(int sec) {
-    final m = sec ~/ 60;
-    final s = sec % 60;
-    return '$m:${s.toString().padLeft(2, '0')}';
   }
 }
 
@@ -294,7 +389,7 @@ class _BottomBar extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
         child: AppButton(
-          label: isFailed ? 'Retour' : 'Terminer',
+          label: isFailed ? 'Retour' : 'Terminer l\'oral',
           variant:
               isFailed ? AppButtonVariant.outline : AppButtonVariant.primary,
           isLoading: state.phase == RealtimePhase.finishing,
