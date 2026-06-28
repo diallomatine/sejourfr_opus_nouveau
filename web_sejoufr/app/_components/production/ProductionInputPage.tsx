@@ -2,7 +2,7 @@
 
 import {useParams, useRouter} from "next/navigation";
 import {useEffect, useState} from "react";
-import {ApiException, productionApi, realtimeApi} from "@/lib/api";
+import {ApiException, productionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {productionTaskTitle, type ProductionTaskDto, type RealtimeSessionDescriptor} from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
@@ -13,6 +13,7 @@ import {EeWritingForm, clearEeDraft} from "./EeWritingForm";
 import {EoRecordingForm} from "./EoRecordingForm";
 import {RealtimeLaunchSheet} from "./RealtimeLaunchSheet";
 import {RealtimeEoRunner} from "./RealtimeEoRunner";
+import {useRealtimeEo} from "./useRealtimeEo";
 import {type ProductionConfig} from "./config";
 import hub from "@/app/_components/hub/hub.module.css";
 import prod from "./production.module.css";
@@ -41,9 +42,9 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
 
-  // Mode temps réel (EO T1/T2 uniquement).
+  // Mode temps réel (EO T1/T2 uniquement) — logique de lancement partagée.
+  const rt = useRealtimeEo(status === "authenticated" && config.mode === "audio");
   const [uiMode, setUiMode] = useState<UiMode>("loading");
-  const [rtRemaining, setRtRemaining] = useState<number | null>(null);
   const [rtStarting, setRtStarting] = useState(false);
   const [rtError, setRtError] = useState<string | null>(null);
   const [rtDescriptor, setRtDescriptor] = useState<RealtimeSessionDescriptor | null>(null);
@@ -74,21 +75,6 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
     };
   }, [status, taskId, config.mode]);
 
-  // Compteur de sessions temps réel (pour le modal EO T1/T2).
-  useEffect(() => {
-    if (status !== "authenticated" || config.mode !== "audio") return;
-    let cancelled = false;
-    realtimeApi
-      .getQuota()
-      .then((q) => {
-        if (!cancelled) setRtRemaining(q.remaining);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [status, config.mode]);
-
   async function finalize(send: (attemptId: string) => Promise<{id: string}>) {
     if (submitting || !task) return;
     setSubmitError(null);
@@ -114,27 +100,22 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
     setRtStarting(true);
     try {
       const attempt = await productionApi.startAttempt({module: "TCF", epreuve: config.epreuve});
-      const descriptor = await realtimeApi.startSession({
-        productionTaskId: task.id,
-        attemptId: attempt.id,
-      });
-      if (descriptor.mode === "REALTIME" && descriptor.sessionId) {
+      const res = await rt.start(task.id, attempt.id);
+      if (res.kind === "realtime") {
         setRtAttemptId(attempt.id);
-        setRtDescriptor(descriptor);
+        setRtDescriptor(res.descriptor);
         setUiMode("realtime");
+      } else if (res.kind === "paywall") {
+        setPaywallOpen(true);
+        setUiMode("classic");
+      } else if (res.kind === "error") {
+        setRtError(res.message);
       } else {
         // Quota épuisé / non éligible : bascule silencieuse en classique.
         setUiMode("classic");
       }
     } catch (e) {
-      if (e instanceof ApiException && e.status === 403) {
-        setPaywallOpen(true);
-        setUiMode("classic");
-      } else {
-        setRtError(
-          e instanceof ApiException ? e.message : "Connexion à l'examinateur impossible.",
-        );
-      }
+      setRtError(e instanceof ApiException ? e.message : "Connexion à l'examinateur impossible.");
     } finally {
       setRtStarting(false);
     }
@@ -216,8 +197,8 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
             open={uiMode === "choosing"}
             tacheNumero={task.tacheNumero}
             taskTitle={taskTitle}
-            sessionsRemaining={rtRemaining}
-            realtimeAvailable={rtRemaining == null ? true : rtRemaining > 0}
+            sessionsRemaining={rt.remaining}
+            realtimeAvailable={rt.remaining == null ? true : rt.remaining > 0}
             starting={rtStarting}
             error={rtError}
             onPickRealtime={startRealtime}

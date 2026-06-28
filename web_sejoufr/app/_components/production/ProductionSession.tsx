@@ -15,6 +15,7 @@ import {
   productionTaskTitle,
   type ProductionSubmissionDto,
   type ProductionTaskDto,
+  type RealtimeSessionDescriptor,
 } from "@/lib/types";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
@@ -22,6 +23,9 @@ import { ModuleDetailGate, moduleDetailStyles as ds } from "@/app/_components/mo
 import { DetailShell } from "@/app/_components/hub/DetailParts";
 import { EeWritingForm, clearEeDraft } from "./EeWritingForm";
 import { EoRecordingForm } from "./EoRecordingForm";
+import { RealtimeLaunchSheet } from "./RealtimeLaunchSheet";
+import { RealtimeEoRunner } from "./RealtimeEoRunner";
+import { isRealtimeEligible, useRealtimeEo } from "./useRealtimeEo";
 import { type ProductionConfig } from "./config";
 import detail from "@/app/_components/hub/detail.module.css";
 import prod from "./production.module.css";
@@ -71,6 +75,26 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
+
+  // Temps réel (EO Tâches 1 & 2). `taskMode` pilote l'UI de la tâche courante :
+  // "choosing" = modal de choix, "classic" = enregistrement, "realtime" = runner.
+  const rt = useRealtimeEo(status === "authenticated" && config.mode === "audio");
+  const [taskMode, setTaskMode] = useState<"choosing" | "classic" | "realtime">("classic");
+  const [activeDescriptor, setActiveDescriptor] = useState<RealtimeSessionDescriptor | null>(null);
+  const [rtStarting, setRtStarting] = useState(false);
+  const [rtError, setRtError] = useState<string | null>(null);
+
+  /** Entre dans la tâche `n` : ouvre le modal de choix si elle est éligible au
+   *  temps réel (EO T1/T2), sinon mode classique direct. */
+  const enterTask = useCallback(
+    (n: number) => {
+      setCurrentTache(n);
+      setActiveDescriptor(null);
+      setRtError(null);
+      setTaskMode(isRealtimeEligible(config.mode, n) ? "choosing" : "classic");
+    },
+    [config.mode],
+  );
 
   /** Deadline absolue du chrono EE (ms epoch). Null = pas de chrono (EO, ou
    *  attempt pas encore chargé). */
@@ -179,7 +203,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           setPhase("bilan");
           startBilanPolling();
         } else {
-          setCurrentTache(nextTodo);
+          enterTask(nextTodo);
           setPhase("writing");
         }
       } catch (e) {
@@ -275,13 +299,64 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
           await goToBilan();
         }
       } else {
-        setCurrentTache(nextTodo);
+        enterTask(nextTodo);
       }
     } catch (e) {
       if (e instanceof ApiException && e.status === 403) setPaywallOpen(true);
       else setError(e instanceof ApiException ? e.message : "Impossible d'envoyer votre réponse.");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  /** Lance la session temps réel pour la tâche courante. */
+  async function startRealtimeTask() {
+    if (!currentTask || rtStarting) return;
+    setRtError(null);
+    setRtStarting(true);
+    try {
+      const res = await rt.start(currentTask.id, attemptId);
+      if (res.kind === "realtime") {
+        setActiveDescriptor(res.descriptor);
+        setTaskMode("realtime");
+      } else if (res.kind === "paywall") {
+        setPaywallOpen(true);
+        setTaskMode("classic");
+      } else if (res.kind === "error") {
+        setRtError(res.message);
+      } else {
+        // Quota épuisé / non éligible : bascule silencieuse en classique.
+        setTaskMode("classic");
+      }
+    } finally {
+      setRtStarting(false);
+    }
+  }
+
+  /** Après une session temps réel, le backend a créé la submission : on la
+   *  détecte (poll court) puis on avance le stepper, comme `send()` en async. */
+  async function advanceAfterRealtime() {
+    let subs = subsByTache;
+    for (let i = 0; i < 5; i++) {
+      const fresh = await fetchSubs().catch(() => null);
+      if (fresh && fresh.has(currentTache)) {
+        subs = fresh;
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 700));
+    }
+    setSubsByTache(subs);
+    const nextTodo = TACHES.find((n) => !subs.has(n));
+    if (nextTodo === undefined) {
+      if (fullExamId) {
+        finishedRef.current = true;
+        await fullTcfExamApi.markSubDone(fullExamId, config.epreuve).catch(() => undefined);
+        router.push(`/examens-blancs/tcf/${fullExamId}`);
+      } else {
+        await goToBilan();
+      }
+    } else {
+      enterTask(nextTodo);
     }
   }
 
@@ -403,16 +478,29 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         ) : phase === "writing" ? (
           currentTask ? (
             config.mode === "audio" ? (
-              <EoRecordingForm
-                key={currentTask.id}
-                task={currentTask}
-                submitting={submitting}
-                submitLabel={submitLabel}
-                examMode
-                onSubmit={(audio) =>
-                  send((aid) => productionApi.submitAudio(currentTask.id, aid, audio))
-                }
-              />
+              taskMode === "realtime" && activeDescriptor ? (
+                <RealtimeEoRunner
+                  descriptor={activeDescriptor}
+                  taskTitle={productionTaskTitle(config.epreuve, currentTask.tacheNumero)}
+                  onFinished={advanceAfterRealtime}
+                  onFatalError={(m) => {
+                    setRtError(m);
+                    setTaskMode("classic");
+                  }}
+                />
+              ) : (
+                <EoRecordingForm
+                  key={currentTask.id}
+                  task={currentTask}
+                  submitting={submitting}
+                  error={rtError}
+                  submitLabel={submitLabel}
+                  examMode
+                  onSubmit={(audio) =>
+                    send((aid) => productionApi.submitAudio(currentTask.id, aid, audio))
+                  }
+                />
+              )
             ) : (
               <EeWritingForm
                 key={currentTask.id}
@@ -445,6 +533,21 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
               );
               router.push(`${config.base}/resultats/${id}?back=${back}`);
             }}
+          />
+        )}
+
+        {phase === "writing" && currentTask && config.mode === "audio" && (
+          <RealtimeLaunchSheet
+            open={taskMode === "choosing"}
+            tacheNumero={currentTask.tacheNumero}
+            taskTitle={productionTaskTitle(config.epreuve, currentTask.tacheNumero)}
+            sessionsRemaining={rt.remaining}
+            realtimeAvailable={rt.remaining == null ? true : rt.remaining > 0}
+            starting={rtStarting}
+            error={rtError}
+            onPickRealtime={startRealtimeTask}
+            onPickClassic={() => setTaskMode("classic")}
+            onClose={() => setTaskMode("classic")}
           />
         )}
 

@@ -44,9 +44,26 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
   void _goToResult() {
     if (_navigated) return;
     _navigated = true;
-    context.pushReplacement(
-      '/tcf/expression-orale/sessions/${widget.args.attemptId}?live=1',
-    );
+    if (widget.args.popOnDone) {
+      // Parcours d'examen : on rend la main au briefing qui enchaîne la tâche
+      // suivante (la submission a été créée côté backend à la clôture).
+      context.pop(true);
+    } else {
+      context.pushReplacement(
+        '/tcf/expression-orale/sessions/${widget.args.attemptId}?live=1',
+      );
+    }
+  }
+
+  /// Sortie sur échec de connexion : en examen on rend la main avec `false`
+  /// (le briefing bascule alors sur l'enregistrement classique pour la tâche) ;
+  /// en entraînement isolé on revient simplement en arrière.
+  void _exitFailed() {
+    if (widget.args.popOnDone) {
+      context.pop(false);
+    } else {
+      Navigator.of(context).maybePop();
+    }
   }
 
   Future<void> _confirmLeave() async {
@@ -86,7 +103,10 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     final task = args.task;
 
     return PopScope(
-      canPop: state.phase == RealtimePhase.done,
+      // `done` est auto-navigué ; `failed` autorise une sortie directe (vers le
+      // mode classique en examen). Les autres phases passent par la confirmation.
+      canPop: state.phase == RealtimePhase.done ||
+          state.phase == RealtimePhase.failed,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) _confirmLeave();
       },
@@ -116,7 +136,11 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
                   ),
                 ),
               ),
-              _BottomBar(state: state, onFinish: () => _confirmLeave()),
+              _BottomBar(
+                state: state,
+                onFinish: () => _confirmLeave(),
+                onExit: _exitFailed,
+              ),
             ],
           ),
         ),
@@ -252,10 +276,15 @@ class _StatusText extends StatelessWidget {
 }
 
 class _BottomBar extends StatelessWidget {
-  const _BottomBar({required this.state, required this.onFinish});
+  const _BottomBar({
+    required this.state,
+    required this.onFinish,
+    required this.onExit,
+  });
 
   final RealtimeEoState state;
   final VoidCallback onFinish;
+  final VoidCallback onExit;
 
   @override
   Widget build(BuildContext context) {
@@ -270,7 +299,7 @@ class _BottomBar extends StatelessWidget {
               isFailed ? AppButtonVariant.outline : AppButtonVariant.primary,
           isLoading: state.phase == RealtimePhase.finishing,
           icon: isFailed ? null : LucideIcons.check,
-          onPressed: isFailed ? () => Navigator.of(context).maybePop() : onFinish,
+          onPressed: isFailed ? onExit : onFinish,
         ),
       ),
     );

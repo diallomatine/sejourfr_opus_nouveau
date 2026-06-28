@@ -15,11 +15,17 @@ class RealtimeRunnerArgs {
     required this.descriptor,
     required this.task,
     required this.attemptId,
+    this.popOnDone = false,
   });
 
   final RealtimeSessionDescriptor descriptor;
   final ProductionTaskDto task;
   final String attemptId;
+
+  /// True dans le parcours d'examen 3 tâches : à la clôture, l'écran REND la
+  /// main (pop avec `true`) pour que le briefing enchaîne la tâche suivante, au
+  /// lieu de naviguer vers le bilan standalone (cas entraînement isolé).
+  final bool popOnDone;
 
   String get sessionId => descriptor.sessionId ?? '';
 

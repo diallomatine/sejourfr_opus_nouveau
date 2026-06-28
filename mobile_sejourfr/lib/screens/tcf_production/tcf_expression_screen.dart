@@ -19,12 +19,11 @@ import '../../core/widgets/fixed_action_bar.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/screen_header.dart';
 import '../../core/widgets/segmented_tabs.dart';
-import '../../core/models/realtime_models.dart';
 import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
 import 'expression_hub_data.dart';
 import 'realtime/realtime_eo_controller.dart';
-import 'realtime/realtime_launch_sheet.dart';
+import 'realtime/realtime_launch.dart';
 import 'tcf_production_module.dart';
 import 'widgets/exam_filter_chips.dart';
 import 'widgets/preparation_points.dart';
@@ -773,42 +772,37 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
   /// `true` si le flux a été pris en charge (navigation realtime lancée ou modal
   /// annulé) ; `false` pour retomber sur l'enregistrement classique.
   Future<bool> _maybeStartRealtime(ProductionTaskDto task) async {
-    final realtimeRepo = ref.read(realtimeRepositoryProvider);
-    RealtimeQuota quota;
-    try {
-      quota = await realtimeRepo.getQuota();
-    } catch (_) {
-      return false; // quota indisponible -> classique, silencieux
-    }
-    if (quota.remaining <= 0 || !mounted) return false;
-
-    final choice = await showRealtimeLaunchSheet(context, remaining: quota.remaining);
-    if (choice == null) {
-      // Modal fermé sans choix : on annule le démarrage.
-      if (mounted) setState(() => _starting = false);
-      return true;
-    }
-    if (choice == RealtimeLaunchChoice.classic) return false;
-
-    final attempt = await ref
-        .read(productionRepositoryProvider)
-        .startProductionAttempt(epreuve: EpreuveType.tcfEo);
-    final descriptor = await realtimeRepo.startSession(
+    final negotiation = await negotiateRealtimeSession(
+      context,
+      ref,
       productionTaskId: task.id,
-      attemptId: attempt.id,
+      // L'entraînement isolé crée un attempt dédié (seulement si « temps réel »).
+      resolveAttemptId: () async {
+        final attempt = await ref
+            .read(productionRepositoryProvider)
+            .startProductionAttempt(epreuve: EpreuveType.tcfEo);
+        return attempt.id;
+      },
     );
-    if (!descriptor.isRealtime) return false; // fallback async -> classique
     if (!mounted) return true;
-    setState(() => _starting = false);
-    context.push(
-      '/tcf/expression-orale/realtime',
-      extra: RealtimeRunnerArgs(
-        descriptor: descriptor,
-        task: task,
-        attemptId: attempt.id,
-      ),
-    );
-    return true;
+    switch (negotiation.decision) {
+      case RealtimeDecision.cancelled:
+        setState(() => _starting = false);
+        return true;
+      case RealtimeDecision.classic:
+        return false;
+      case RealtimeDecision.realtime:
+        setState(() => _starting = false);
+        context.push(
+          '/tcf/expression-orale/realtime',
+          extra: RealtimeRunnerArgs(
+            descriptor: negotiation.descriptor!,
+            task: task,
+            attemptId: negotiation.attemptId!,
+          ),
+        );
+        return true;
+    }
   }
 
   void _openPlan() {

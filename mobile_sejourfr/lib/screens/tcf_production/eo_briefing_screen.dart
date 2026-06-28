@@ -16,6 +16,8 @@ import '../../core/widgets/app_button.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'audio_recorder_service.dart';
 import 'eo_session_controller.dart';
+import 'realtime/realtime_eo_controller.dart';
+import 'realtime/realtime_launch.dart';
 import 'widgets/consigne_card.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/production_progress_strip.dart';
@@ -38,6 +40,12 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
   bool _requestingPerm = false;
   bool _navigated = false;
   bool _submittingExam = false;
+
+  /// Garde : l'offre « temps réel vs classique » n'est proposée qu'une fois par
+  /// tâche (par instance d'écran). `_negotiating` couvre la phase d'attente
+  /// (quota + modal + démarrage de session) par un loader plein écran.
+  bool _realtimeHandled = false;
+  bool _negotiating = false;
 
   /// Examen : timer déterministe possédé par l'écran qui force l'arrêt + la
   /// soumission quand le temps imparti à la tâche est écoulé — indépendant du
@@ -68,6 +76,10 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
       // `startSingle`) est déjà démarrée par l'écran appelant ; on la respecte.
       // Aucun fallback `start()` ici — un deep-link nu sur cette route sans
       // session active affiche l'erreur "session introuvable".
+
+      // Examen : propose le mode examinateur temps réel pour T1/T2. Module exam
+      // → session déjà prête ici ; full exam → via le listener au chargement.
+      _ensureRealtimeOffer();
     });
   }
 
@@ -150,6 +162,62 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     );
   }
 
+  /// Propose le mode examinateur temps réel pour une tâche T1/T2 d'examen, une
+  /// seule fois par écran. No-op hors examen / hors T1-T2 / si déjà proposé.
+  void _ensureRealtimeOffer() {
+    if (_realtimeHandled || !mounted) return;
+    final session = ref.read(eoSessionProvider).value;
+    if (session == null || !session.isStarted || !session.isExam) return;
+    final task = session.taskAt(widget.taskIndex);
+    if (task == null) return;
+    final t = task.tacheNumero;
+    if (t != 1 && t != 2) return;
+    _realtimeHandled = true;
+    _offerRealtime(session, task);
+  }
+
+  /// Négocie le mode (modal §2.3). En « temps réel », lance la session sur
+  /// l'attempt de l'examen ; à la clôture (le backend a créé la submission), on
+  /// avance comme après une soumission audio. Classique / annulé / échec →
+  /// l'écran affiche l'enregistrement habituel pour cette tâche.
+  Future<void> _offerRealtime(
+      EoSessionState session, ProductionTaskDto task) async {
+    final attemptId = session.attempt?.id;
+    if (attemptId == null) return;
+    setState(() => _negotiating = true);
+    final negotiation = await negotiateRealtimeSession(
+      context,
+      ref,
+      productionTaskId: task.id,
+      // Examen : on réutilise l'attempt de la session (pas de création).
+      resolveAttemptId: () async => attemptId,
+    );
+    if (!mounted) return;
+    if (negotiation.decision != RealtimeDecision.realtime ||
+        negotiation.descriptor == null) {
+      setState(() => _negotiating = false);
+      return;
+    }
+    final done = await context.push<bool>(
+      '/tcf/expression-orale/realtime',
+      extra: RealtimeRunnerArgs(
+        descriptor: negotiation.descriptor!,
+        task: task,
+        attemptId: attemptId,
+        popOnDone: true,
+      ),
+    );
+    if (!mounted) return;
+    if (done == true) {
+      _navigated = true;
+      setState(() => _submittingExam = true);
+      await _advanceExamFlow();
+    } else {
+      // Temps réel échoué/abandonné → enregistrement classique pour la tâche.
+      setState(() => _negotiating = false);
+    }
+  }
+
   /// Soumission immédiate de l'audio courant en mode examen + passage direct à
   /// la tâche suivante (ou bilan après T3). Pas d'écran de réécoute.
   Future<void> _submitExamAndAdvance() async {
@@ -157,9 +225,6 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     final path = rec.filePath;
     if (path == null || !mounted) return;
     setState(() => _submittingExam = true);
-
-    final goState = GoRouterState.of(context);
-    final fullExamId = goState.uri.queryParameters['fullExamId'];
 
     try {
       await ref.read(eoSessionProvider.notifier).submitTask(
@@ -188,6 +253,15 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
       return;
     }
     if (!mounted) return;
+    await _advanceExamFlow();
+  }
+
+  /// Enchaîne après qu'une tâche d'examen a été rendue — soit par soumission
+  /// audio, soit par clôture d'une session temps réel (la submission est alors
+  /// déjà créée côté backend). Passe à la tâche suivante, ou finalise après T3.
+  Future<void> _advanceExamFlow() async {
+    final goState = GoRouterState.of(context);
+    final fullExamId = goState.uri.queryParameters['fullExamId'];
     final session = ref.read(eoSessionProvider).value;
     final hasNext =
         session != null && widget.taskIndex + 1 < session.totalTasks;
@@ -368,6 +442,12 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
       }
     });
 
+    // Full exam : la session EO se charge en async (`startInFullExam`) → on
+    // (re)tente l'offre temps réel dès qu'elle est prête (guard interne).
+    ref.listen(eoSessionProvider, (prev, next) {
+      if (next.hasValue) _ensureRealtimeOffer();
+    });
+
     final isExam = sessionAsync.value?.isExam ?? false;
     final fallbackRoute = _fallbackRouteFor(context);
 
@@ -415,10 +495,10 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
             if (!session.isStarted || task == null) {
               return const Center(child: CircularProgressIndicator());
             }
-            // Pendant la soumission examen (après stop), on garde l'écran avec
-            // un loader plein écran : le push de la tâche suivante / bilan
-            // arrive juste après.
-            if (_submittingExam) {
+            // Loader plein écran pendant la soumission examen (après stop) OU
+            // la négociation temps réel (quota + modal + démarrage de session) :
+            // la navigation (tâche suivante / bilan / écran realtime) suit.
+            if (_submittingExam || _negotiating) {
               return const Center(
                 child: CircularProgressIndicator(color: AppColors.red),
               );
