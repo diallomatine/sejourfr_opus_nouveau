@@ -2,23 +2,31 @@
 
 import {useParams, useRouter} from "next/navigation";
 import {useEffect, useState} from "react";
-import {ApiException, productionApi} from "@/lib/api";
+import {ApiException, productionApi, realtimeApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
-import {productionTaskTitle, type ProductionTaskDto} from "@/lib/types";
+import {productionTaskTitle, type ProductionTaskDto, type RealtimeSessionDescriptor} from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {PaywallSheet} from "@/app/_components/PaywallSheet";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
 import {HubDetailHeader} from "@/app/_components/hub/HubParts";
 import {EeWritingForm, clearEeDraft} from "./EeWritingForm";
 import {EoRecordingForm} from "./EoRecordingForm";
+import {RealtimeLaunchSheet} from "./RealtimeLaunchSheet";
+import {RealtimeEoRunner} from "./RealtimeEoRunner";
 import {type ProductionConfig} from "./config";
 import hub from "@/app/_components/hub/hub.module.css";
 import prod from "./production.module.css";
+
+type UiMode = "loading" | "choosing" | "classic" | "realtime";
 
 /**
  * Écran de saisie d'un sujet (entraînement libre) : crée un attempt à la volée,
  * soumet (texte EE ou audio EO), puis redirige vers le feedback IA. Le paywall
  * Intégral s'ouvre quand le backend renvoie 403 (essai gratuit déjà utilisé).
+ *
+ * EO Tâches 1 & 2 : un modal de lancement (§2.3) propose le mode TEMPS RÉEL
+ * (examinateur IA) ou CLASSIQUE (enregistrement). Quota épuisé / non éligible /
+ * échec → bascule silencieuse en classique (le candidat n'est jamais bloqué).
  */
 export function ProductionInputPage({config}: {config: ProductionConfig}) {
   const params = useParams<{taskId: string}>();
@@ -33,6 +41,14 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
 
+  // Mode temps réel (EO T1/T2 uniquement).
+  const [uiMode, setUiMode] = useState<UiMode>("loading");
+  const [rtRemaining, setRtRemaining] = useState<number | null>(null);
+  const [rtStarting, setRtStarting] = useState(false);
+  const [rtError, setRtError] = useState<string | null>(null);
+  const [rtDescriptor, setRtDescriptor] = useState<RealtimeSessionDescriptor | null>(null);
+  const [rtAttemptId, setRtAttemptId] = useState<string | null>(null);
+
   useEffect(() => {
     if (status !== "authenticated" || !taskId) return;
     let cancelled = false;
@@ -41,7 +57,10 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
     productionApi
       .getTask(taskId)
       .then((t) => {
-        if (!cancelled) setTask(t);
+        if (cancelled) return;
+        setTask(t);
+        const eligible = config.mode === "audio" && (t.tacheNumero === 1 || t.tacheNumero === 2);
+        setUiMode(eligible ? "choosing" : "classic");
       })
       .catch((e) => {
         if (!cancelled)
@@ -53,7 +72,22 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
     return () => {
       cancelled = true;
     };
-  }, [status, taskId]);
+  }, [status, taskId, config.mode]);
+
+  // Compteur de sessions temps réel (pour le modal EO T1/T2).
+  useEffect(() => {
+    if (status !== "authenticated" || config.mode !== "audio") return;
+    let cancelled = false;
+    realtimeApi
+      .getQuota()
+      .then((q) => {
+        if (!cancelled) setRtRemaining(q.remaining);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [status, config.mode]);
 
   async function finalize(send: (attemptId: string) => Promise<{id: string}>) {
     if (submitting || !task) return;
@@ -74,8 +108,62 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
     }
   }
 
+  async function startRealtime() {
+    if (!task || rtStarting) return;
+    setRtError(null);
+    setRtStarting(true);
+    try {
+      const attempt = await productionApi.startAttempt({module: "TCF", epreuve: config.epreuve});
+      const descriptor = await realtimeApi.startSession({
+        productionTaskId: task.id,
+        attemptId: attempt.id,
+      });
+      if (descriptor.mode === "REALTIME" && descriptor.sessionId) {
+        setRtAttemptId(attempt.id);
+        setRtDescriptor(descriptor);
+        setUiMode("realtime");
+      } else {
+        // Quota épuisé / non éligible : bascule silencieuse en classique.
+        setUiMode("classic");
+      }
+    } catch (e) {
+      if (e instanceof ApiException && e.status === 403) {
+        setPaywallOpen(true);
+        setUiMode("classic");
+      } else {
+        setRtError(
+          e instanceof ApiException ? e.message : "Connexion à l'examinateur impossible.",
+        );
+      }
+    } finally {
+      setRtStarting(false);
+    }
+  }
+
+  /** Après une session temps réel, le backend a créé la submission : on la
+   *  retrouve par attempt puis on navigue vers le résultat (poll de l'éval). */
+  async function goToRealtimeResult(attemptId: string) {
+    for (let i = 0; i < 4; i++) {
+      try {
+        const subs = await productionApi.listMine({epreuve: config.epreuve, limit: 10});
+        const sub = subs.find((s) => s.attemptId === attemptId);
+        if (sub) {
+          router.push(`${config.base}/resultats/${sub.id}`);
+          return;
+        }
+      } catch {
+        // retry
+      }
+      await new Promise((r) => setTimeout(r, 700));
+    }
+    // À défaut : retour au hub (la session est notée en arrière-plan, visible dans l'historique).
+    router.push(config.base);
+  }
+
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`${config.base}/${config.inputSegment}/${taskId}`} />;
+
+  const taskTitle = task ? productionTaskTitle(config.epreuve, task.tacheNumero) : config.label;
 
   return (
     <DualChromeShell>
@@ -83,19 +171,27 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
         <HubDetailHeader
           backHref={config.base}
           title={config.label}
-          subtitle={
-            task ? `Tâche ${task.tacheNumero} · ${productionTaskTitle(config.epreuve, task.tacheNumero)}` : config.label
-          }
+          subtitle={task ? `Tâche ${task.tacheNumero} · ${taskTitle}` : config.label}
         />
         {loading ? (
           <p className={prod.loading}>Chargement du sujet…</p>
         ) : loadError || !task ? (
           <p className={prod.empty}>{loadError ?? "Sujet introuvable."}</p>
+        ) : uiMode === "realtime" && rtDescriptor && rtAttemptId ? (
+          <RealtimeEoRunner
+            descriptor={rtDescriptor}
+            taskTitle={taskTitle}
+            onFinished={() => goToRealtimeResult(rtAttemptId)}
+            onFatalError={(m) => {
+              setRtError(m);
+              setUiMode("classic");
+            }}
+          />
         ) : config.mode === "audio" ? (
           <EoRecordingForm
             task={task}
             submitting={submitting}
-            error={submitError}
+            error={submitError ?? rtError}
             submitLabel="Soumettre à l'évaluation"
             onSubmit={(audio) =>
               finalize((attemptId) => productionApi.submitAudio(task.id, attemptId, audio))
@@ -114,6 +210,22 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
             }
           />
         )}
+
+        {task && (
+          <RealtimeLaunchSheet
+            open={uiMode === "choosing"}
+            tacheNumero={task.tacheNumero}
+            taskTitle={taskTitle}
+            sessionsRemaining={rtRemaining}
+            realtimeAvailable={rtRemaining == null ? true : rtRemaining > 0}
+            starting={rtStarting}
+            error={rtError}
+            onPickRealtime={startRealtime}
+            onPickClassic={() => setUiMode("classic")}
+            onClose={() => setUiMode("classic")}
+          />
+        )}
+
         <PaywallSheet
           open={paywallOpen}
           onClose={() => setPaywallOpen(false)}

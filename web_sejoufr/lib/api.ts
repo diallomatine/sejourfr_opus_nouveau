@@ -860,6 +860,57 @@ export const productionApi = {
 };
 
 // ============================================================================
+// Expression orale TEMPS RÉEL (examinateur IA, T1/T2 — schéma A : token éphémère)
+// ============================================================================
+// Le backend émet un token éphémère (persona verrouillée serveur), le client
+// ouvre lui-même le WebSocket vers Gemini (cf. lib/realtime/geminiLive.ts) et
+// relaie les fragments de transcript ici. La notation réutilise le pipeline EO
+// existant (submission créée à la clôture). Quota épuisé / non éligible →
+// `mode: "ASYNC_FALLBACK"` : on bascule en enregistrement classique.
+
+export const realtimeApi = {
+    /** Sessions temps réel restantes (compteur du modal de lancement). */
+    getQuota(): Promise<import("./types").RealtimeQuotaResponse> {
+        return apiFetch<import("./types").RealtimeQuotaResponse>(
+            "/api/realtime/eo/quota",
+            {auth: true},
+        );
+    },
+
+    /** Démarre une session : descripteur REALTIME (token + WS) ou ASYNC_FALLBACK. */
+    startSession(
+        body: import("./types").StartRealtimeSessionRequest,
+    ): Promise<import("./types").RealtimeSessionDescriptor> {
+        return apiFetch<import("./types").RealtimeSessionDescriptor>(
+            "/api/realtime/eo/sessions",
+            {method: "POST", json: body, auth: true},
+        );
+    },
+
+    /** Relaie un fragment de transcript (candidat ou examinateur). 204. */
+    appendTranscript(
+        sessionId: string,
+        speaker: import("./types").RealtimeSpeaker,
+        text: string,
+    ): Promise<void> {
+        return apiFetch<void>(
+            `/api/realtime/eo/sessions/${sessionId}/transcript`,
+            {method: "POST", json: {speaker, text}, auth: true},
+        );
+    },
+
+    /** Clôture la session : crée la submission + lance la notation côté backend. */
+    finishSession(
+        sessionId: string,
+    ): Promise<import("./types").RealtimeSessionStateResponse> {
+        return apiFetch<import("./types").RealtimeSessionStateResponse>(
+            `/api/realtime/eo/sessions/${sessionId}/finish`,
+            {method: "POST", auth: true},
+        );
+    },
+};
+
+// ============================================================================
 // Endpoints Examen blanc TCF complet (TCF_COMPLET — CO → CE → EE → EO)
 // ============================================================================
 // Le backend crée le parent + 4 sous-attempts en une transaction (start) et

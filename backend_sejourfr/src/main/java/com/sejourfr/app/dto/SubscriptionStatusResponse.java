@@ -34,11 +34,16 @@ public record SubscriptionStatusResponse(
         // True si l'accès courant vient d'un pass one-time (lot 5) : les fronts
         // affichent « Mon accès » (date de fin + prolonger) sans option de
         // résiliation. False pour un abonnement récurrent.
-        boolean oneTime
+        boolean oneTime,
+        // Sessions d'expression orale TEMPS RÉEL restantes sur le pass courant
+        // (examinateur IA, T1/T2). NULL si non concerné (compte gratuit, ou pass
+        // sans accès TCF) — les fronts affichent alors le compteur uniquement
+        // quand la valeur est présente. Quota configurable côté backend.
+        Integer realtimeSessionsRemaining
 ) {
     public static SubscriptionStatusResponse notPremium() {
         return new SubscriptionStatusResponse(
-                false, null, null, null, null, ModuleAccess.NONE, false, false);
+                false, null, null, null, null, ModuleAccess.NONE, false, false, null);
     }
 
     public static SubscriptionStatusResponse from(UserSubscription sub) {
@@ -52,7 +57,15 @@ public record SubscriptionStatusResponse(
                 sub.getStatus(),
                 sub.getPlan().getModuleAccess(),
                 sub.isAutoRenew(),
-                oneTime
+                oneTime,
+                null
         );
+    }
+
+    /** Copie en fixant le compteur de sessions temps réel restantes. */
+    public SubscriptionStatusResponse withRealtimeSessionsRemaining(Integer remaining) {
+        return new SubscriptionStatusResponse(
+                isPremium, source, productId, expiresAt, status, moduleAccess,
+                autoRenew, oneTime, remaining);
     }
 }

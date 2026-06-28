@@ -4,14 +4,17 @@ import com.sejourfr.app.config.ProductionEvaluationProperties;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
+import com.sejourfr.app.entity.Transcription;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.ProductionSubmissionSource;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
+import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.manager.UserManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +51,7 @@ public class ProductionEvaluationService {
 
     private final ProductionTaskManager taskManager;
     private final ProductionSubmissionManager submissionManager;
+    private final TranscriptionManager transcriptionManager;
     private final AttemptManager attemptManager;
     private final UserManager userManager;
     private final ProductionAudioStorageService audioStorage;
@@ -147,6 +151,69 @@ public class ProductionEvaluationService {
         // pose la submission en FAILED, l'utilisateur peut relancer via
         // /retry. Cf. ProductionPipelineAsyncRunner.
         pipelineRunner.runPipelineAsync(submission.getId(), estOral);
+        return submission;
+    }
+
+    /**
+     * Notation d'une session d'expression orale TEMPS RÉEL (examinateur IA). La
+     * production n'est pas un fichier audio mais le TRANSCRIPT DIALOGUÉ (tours
+     * examinateur + candidat) déjà capturé côté serveur pendant la session. On
+     * crée une submission {@code REALTIME} (sans média) + une {@link Transcription}
+     * pré-remplie, puis on lance le MÊME pipeline d'évaluation : comme une
+     * transcription existe déjà, le runner SAUTE Whisper et note directement.
+     * La consigne « interaction » des rubriques fait noter le candidat à partir
+     * de l'échange complet (le pipeline n'est pas réécrit).
+     *
+     * <p>Pas de {@code @Transactional} (idem {@link #submitAndEvaluate}) : la
+     * submission + la transcription sont commitées avant que le pipeline async
+     * ne les lise.
+     *
+     * @param dialogueTranscript le dialogue complet (« Examinateur : … » /
+     *                           « Candidat : … »).
+     * @param durationSec        durée approximative de l'échange (warnings), ou null.
+     */
+    public ProductionSubmission evaluateRealtimeTranscript(
+            UUID userId, UUID taskId, UUID attemptId, String dialogueTranscript, Integer durationSec) {
+
+        User user = userManager.findById(userId)
+            .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
+        ProductionTask task = taskManager.findById(taskId)
+            .orElseThrow(() -> new NotFoundException("ProductionTask introuvable : " + taskId));
+        Attempt attempt = attemptManager.findById(attemptId)
+            .orElseThrow(() -> new NotFoundException("Attempt introuvable : " + attemptId));
+
+        if (attempt.getUser() == null || !attempt.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("Cette session ne vous appartient pas");
+        }
+        if (task.getEpreuve() != EpreuveType.TCF_EO) {
+            throw new BusinessException("La notation temps réel ne concerne que l'expression orale (TCF_EO).");
+        }
+        if (dialogueTranscript == null || dialogueTranscript.isBlank()) {
+            throw new BusinessException("Transcript vide — rien à noter.");
+        }
+
+        ProductionSubmission submission = new ProductionSubmission();
+        submission.setUser(user);
+        submission.setAttempt(attempt);
+        submission.setProductionTask(task);
+        submission.setSource(ProductionSubmissionSource.REALTIME);
+        submission.setMediaDurationSec(durationSec);
+        submission.setStatut(SubmissionStatut.SUBMITTED);
+        submission = submissionManager.save(submission);
+
+        // La production : le dialogue complet. Pré-rempli -> Whisper sauté.
+        Transcription t = new Transcription();
+        t.setSubmission(submission);
+        t.setTexte(dialogueTranscript.strip());
+        t.setLangueDetectee("fr");
+        t.setModeleUtilise("realtime");
+        t.setAudioDurationSec(durationSec);
+        transcriptionManager.save(t);
+
+        // Examen complet : auto-finalise le sous-attempt EO à 3 productions.
+        finishSubAttemptIfFullExam(attempt.getId());
+
+        pipelineRunner.runPipelineAsync(submission.getId(), true);
         return submission;
     }
 

@@ -516,6 +516,57 @@ export interface SubmitProductionTextRequest {
     texte: string;
 }
 
+// ============================================================================
+// Expression orale TEMPS RÉEL (examinateur IA, Tâches 1 & 2). Le mode s'ajoute
+// au pipeline async : la notation réutilise le même flux (submission + bilan).
+// Schéma de connexion (A) : le backend émet un token éphémère, le client ouvre
+// lui-même le WebSocket vers le fournisseur (persona verrouillée côté serveur).
+// ============================================================================
+
+/** Locuteur d'un fragment de transcript relayé au backend. */
+export type RealtimeSpeaker = "CANDIDATE" | "EXAMINER";
+
+/** Mode renvoyé au démarrage : temps réel possible, ou repli enregistrement. */
+export type RealtimeMode = "REALTIME" | "ASYNC_FALLBACK";
+
+/** Body de POST /api/realtime/eo/sessions. */
+export interface StartRealtimeSessionRequest {
+    productionTaskId: string;
+    attemptId?: string | null;
+}
+
+/** Réponse de POST /api/realtime/eo/sessions. En `ASYNC_FALLBACK`, les champs
+ *  de connexion sont absents → le client bascule en enregistrement classique. */
+export interface RealtimeSessionDescriptor {
+    mode: RealtimeMode;
+    sessionId?: string | null;
+    provider?: string | null;
+    model?: string | null;
+    wsEndpoint?: string | null;
+    ephemeralToken?: string | null;
+    inputAudioMimeType?: string | null;
+    inputSampleRate?: number | null;
+    outputSampleRate?: number | null;
+    voice?: string | null;
+    tacheNumero: number;
+    targetDurationSec?: number | null;
+    sessionsRemaining: number;
+}
+
+/** Réponse de GET /api/realtime/eo/quota. */
+export interface RealtimeQuotaResponse {
+    remaining: number;
+    cap: number;
+}
+
+/** Réponse de POST /api/realtime/eo/sessions/{id}/finish. */
+export interface RealtimeSessionStateResponse {
+    sessionId: string;
+    status: string;
+    tacheNumero: number;
+    sessionsRemaining: number;
+}
+
 /** Vrai tant que l'évaluation IA n'a pas abouti. */
 export function isSubmissionPending(s: { statut: SubmissionStatut }): boolean {
     return s.statut !== "EVALUATED" && s.statut !== "FAILED";
@@ -882,6 +933,10 @@ export interface SubscriptionStatusResponse {
     /** True si l'accès vient d'un pass one-time (lot 5) : « Mon accès » sans
      *  résiliation. Absent (undefined) sur les anciens backends → traiter false. */
     oneTime?: boolean;
+    /** Sessions d'expression orale TEMPS RÉEL restantes sur le pass courant
+     *  (examinateur IA, T1/T2). Null/absent si non concerné (compte gratuit ou
+     *  pass sans accès TCF). Le quota est configuré côté backend. */
+    realtimeSessionsRemaining?: number | null;
 }
 
 /** Réponse de `POST /api/billing/cancel`. Deux variantes :

@@ -1,5 +1,6 @@
 package com.sejourfr.app.entity;
 
+import com.sejourfr.app.enums.ProductionSubmissionSource;
 import com.sejourfr.app.enums.SubmissionStatut;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -69,6 +70,14 @@ public class ProductionSubmission {
     @Column(nullable = false, length = 20)
     private SubmissionStatut statut = SubmissionStatut.SUBMITTED;
 
+    /**
+     * Origine : ASYNC (upload audio/texte classique) ou REALTIME (session EO
+     * temps reel, production portee par la Transcription, sans media stocke).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private ProductionSubmissionSource source = ProductionSubmissionSource.ASYNC;
+
     /** Nombre de relances manuelles via /retry. Plafonne a 3 (anti-abus). */
     @Column(name = "retry_count", nullable = false)
     private short retryCount = 0;
@@ -124,6 +133,9 @@ public class ProductionSubmission {
 
     public SubmissionStatut getStatut() { return statut; }
     public void setStatut(SubmissionStatut statut) { this.statut = statut; }
+
+    public ProductionSubmissionSource getSource() { return source; }
+    public void setSource(ProductionSubmissionSource source) { this.source = source; }
 
     public short getRetryCount() { return retryCount; }
     public void setRetryCount(short retryCount) { this.retryCount = retryCount; }

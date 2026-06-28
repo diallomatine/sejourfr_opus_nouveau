@@ -258,3 +258,44 @@ sejourfr:
       prompt-version: ${EVAL_PROMPT_VERSION:v1.5}
       cost-per-million-input-tokens: 0.27
       cost-per-million-output-tokens: 1.10
+
+  # Expression orale en TEMPS RÉEL (examinateur vocal IA, Tâches 1 & 2).
+  # S'ajoute au pipeline async — ne le remplace pas. Schéma de connexion (A) :
+  # le backend émet un token éphémère (persona verrouillée côté serveur), le
+  # client ouvre lui-même le WebSocket vers le fournisseur. Si la clé n'est pas
+  # renseignée, le mode bascule silencieusement en async (jamais bloquant).
+  realtime:
+    provider: ${REALTIME_PROVIDER:gemini}
+    persona-version: v1
+    # Réserve un slot de quota le temps que le client établisse la connexion.
+    reservation-window-seconds: 300
+    gemini:
+      # Clé Google AI (Gemini API). Absente -> temps réel désactivé (fallback async).
+      api-key: ${GEMINI_API_KEY:}
+      auth-tokens-url: https://generativelanguage.googleapis.com/v1alpha/auth_tokens
+      # Token éphémère CONTRAINT -> endpoint "...Constrained" (sinon la system
+      # instruction verrouillée + la transcription ne s'appliquent pas).
+      ws-endpoint: wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained
+      # ⚠️ Gamme native-audio en évolution : alias GA stable par défaut (le
+      # preview ...-09-2025 est déprécié le 2026-03-19). À revérifier au build.
+      model: ${GEMINI_REALTIME_MODEL:gemini-live-2.5-flash-native-audio}
+      voice: ${GEMINI_REALTIME_VOICE:Aoede}
+      temperature: 0.7
+      token-uses: 1
+      new-session-expire-seconds: 120
+      session-expire-seconds: 1800
+      timeout-sec: 15
+    # Formats audio Gemini Live : entrée PCM 16 bits 16 kHz mono, sortie 24 kHz.
+    audio:
+      input-sample-rate: 16000
+      input-mime-type: audio/pcm;rate=16000
+      output-sample-rate: 24000
+    # Quota de sessions temps réel par pass (cap keyé par Plan.code). Valeurs
+    # PROVISOIRES — ajustables sans redéploiement. Seuls les pass TCF (INTEGRAL)
+    # sont éligibles ; un code absent retombe sur default-sessions.
+    quota:
+      default-sessions: ${REALTIME_DEFAULT_SESSIONS:0}
+      by-plan-code:
+        INTEGRAL_PASS_SPRINT: ${REALTIME_SESSIONS_SPRINT:25}
+        INTEGRAL_PASS_3M: ${REALTIME_SESSIONS_TRIMESTRE:60}
+        INTEGRAL_PASS_1Y: ${REALTIME_SESSIONS_ANNUEL:120}

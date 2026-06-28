@@ -10,6 +10,7 @@ import com.sejourfr.app.service.BillingService;
 import com.sejourfr.app.service.ReceiptVerificationService;
 import com.sejourfr.app.service.SubscriptionService;
 import com.sejourfr.app.service.billing.SubscriptionCancellationService;
+import com.sejourfr.app.service.realtime.RealtimeQuotaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -34,6 +35,7 @@ public class BillingController {
     private final SubscriptionService subscriptionService;
     private final ReceiptVerificationService receiptVerificationService;
     private final SubscriptionCancellationService subscriptionCancellationService;
+    private final RealtimeQuotaService realtimeQuotaService;
     private final CurrentUser currentUser;
 
     /**
@@ -72,8 +74,12 @@ public class BillingController {
      */
     @GetMapping("/subscription-status")
     public SubscriptionStatusResponse getSubscriptionStatus() {
-        return subscriptionService.currentSubscription(currentUser.getId())
+        java.util.UUID userId = currentUser.getId();
+        return subscriptionService.currentSubscription(userId)
                 .map(SubscriptionStatusResponse::from)
+                // Compteur de sessions EO temps réel restantes (le pass TCF en
+                // ouvre un quota ; null/0 sinon). Le front affiche le décompte.
+                .map(s -> s.withRealtimeSessionsRemaining(realtimeQuotaService.remaining(userId)))
                 .orElseGet(SubscriptionStatusResponse::notPremium);
     }
 
