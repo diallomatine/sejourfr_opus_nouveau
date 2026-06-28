@@ -168,12 +168,11 @@ IRN : il faut le niveau partout) ; `ExamReport` rend la card « Votre niveau
 par épreuve » (badge rouge sur l'épreuve plancher) + note expliquant le min.
 Miroirs `AttemptEpreuveResult` dans lib/types.ts et attempt_models.dart. **CO en examen = conditions réelles** : audio
 autoplay à écoute unique sans contrôles (`MediaView` prop `examAudio`,
-fallback bouton one-shot si l'autoplay est bloqué) et retour arrière interdit
-vers une question CO (`canGoPrevious` du runner). **Examen Civique = retour
-arrière interdit sur tout l'examen** (`module === "CIVIQUE"` en mode exam :
-une réponse validée est définitive, conditions réelles) ; le TCF ne bloque que
-les questions CO. En TRAINING (séries), le lecteur natif et la navigation
-restent libres.
+fallback bouton one-shot si l'autoplay est bloqué). **Retour arrière interdit
+sur tout examen** (`mode === "exam"` → `canGoPrevious = false`, toutes épreuves
+confondues civique/CO/CE/STRUCTURE : une réponse validée est définitive,
+conditions réelles — parité mobile `runner_screen.dart`). En TRAINING (séries),
+le lecteur natif et la navigation restent libres.
 
 ## Identité visuelle (à ne pas dévier)
 
@@ -233,6 +232,13 @@ standard 36px, variante `.cocarde.lg` à 56px.
 
 **Hygiène (rappel transverse, cf. CLAUDE.md racine)**
 
+- **Parité web ⇄ mobile (impératif)** : le web et le mobile partagent le même backend et doivent offrir
+  **le même fonctionnement et le même rôle**. Tout **bug corrigé**, **changement** ou **ajout de
+  fonctionnalité** sur une surface partagée (freemium, paywall, runner, examens, productions EE/EO, EO
+  temps réel, chrono…) doit être **répercuté et vérifié sur l'autre front DANS LA MÊME PASSE** : aucune
+  **régression** de l'autre côté, et les deux fronts restent **synchronisés au maximum**. Avant de fermer
+  une tâche, se poser explicitement la question : « web et mobile font-ils exactement pareil, sans
+  régression ? ». Détail complet : `CLAUDE.md` racine (Hygiène d'architecture).
 - Toute nouvelle page App Router prend sa place dans `app/<segment>/`. Les composants partagés à 2+ pages
   remontent dans `app/_components/`. Si un helper apparaît dans 2 pages, le mettre dans `lib/`. À la 2ᵉ
   duplication, pas plus tard.

@@ -265,6 +265,13 @@ change un DTO, mettre à jour le model Dart correspondant.
 
 **Hygiène (rappel transverse, cf. CLAUDE.md racine)**
 
+- **Parité web ⇄ mobile (impératif)** : le mobile et le web partagent le même backend et doivent offrir
+  **le même fonctionnement et le même rôle**. Tout **bug corrigé**, **changement** ou **ajout de
+  fonctionnalité** sur une surface partagée (freemium, paywall, runner, examens, productions EE/EO, EO
+  temps réel, chrono…) doit être **répercuté et vérifié sur l'autre front DANS LA MÊME PASSE** : aucune
+  **régression** de l'autre côté, et les deux fronts restent **synchronisés au maximum**. Avant de fermer
+  une tâche, se poser explicitement la question : « web et mobile font-ils exactement pareil, sans
+  régression ? ». Détail complet : `CLAUDE.md` racine (Hygiène d'architecture).
 - Si un widget apparaît 2 fois dans 2 écrans, **l'extraire** dans `core/widgets/` (générique) ou
   `screens/<area>/widgets/` (local à un domaine). Ex: `screens/hub/widgets/hub_home_widgets.dart` et
   `core/widgets/paywall_sheet.dart` ont été extraits dès qu'une 2ᵉ surface en avait besoin.
