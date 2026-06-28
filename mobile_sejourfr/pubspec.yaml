@@ -78,6 +78,8 @@ dependencies:
   # pas le JSON wrapper renvoyé par serverVerificationData côté Android).
   in_app_purchase_android: ^0.4.0
   lucide_icons_flutter: ^3.1.14+2
+  web_socket_channel: ^3.0.3
+  flutter_pcm_sound: ^3.3.3
 
 dev_dependencies:
   flutter_test:

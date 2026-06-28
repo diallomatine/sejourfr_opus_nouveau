@@ -264,6 +264,7 @@ class SubscriptionStatusResponse {
     required this.moduleAccess,
     required this.autoRenew,
     this.oneTime = false,
+    this.realtimeSessionsRemaining,
   });
 
   final bool isPremium;
@@ -277,6 +278,11 @@ class SubscriptionStatusResponse {
   /// Accès issu d'un pass one-time (lot 5) : « Mon accès » sans résiliation.
   final bool oneTime;
 
+  /// Sessions d'expression orale TEMPS RÉEL restantes sur le pass courant
+  /// (examinateur IA, T1/T2). Null si non concerné (compte gratuit ou pass sans
+  /// accès TCF) — le front n'affiche le compteur que si la valeur est présente.
+  final int? realtimeSessionsRemaining;
+
   factory SubscriptionStatusResponse.fromJson(Map<String, dynamic> json) {
     return SubscriptionStatusResponse(
       isPremium: json['isPremium'] as bool? ?? false,
@@ -289,6 +295,8 @@ class SubscriptionStatusResponse {
       moduleAccess: ModuleAccessParse.fromString(json['moduleAccess'] as String?),
       autoRenew: json['autoRenew'] as bool? ?? false,
       oneTime: json['oneTime'] as bool? ?? false,
+      realtimeSessionsRemaining:
+          (json['realtimeSessionsRemaining'] as num?)?.toInt(),
     );
   }
 

@@ -9,6 +9,7 @@ import 'full_tcf_exam_repository.dart';
 import 'lots_repository.dart';
 import 'production_repository.dart';
 import 'profile_repository.dart';
+import 'realtime_repository.dart';
 import 'themes_repository.dart';
 import 'user_content_repository.dart';
 
@@ -30,6 +31,10 @@ final userContentRepositoryProvider = Provider<UserContentRepository>(
 
 final productionRepositoryProvider = Provider<ProductionRepository>(
   (ref) => ProductionRepository(ref.watch(apiClientProvider)),
+);
+
+final realtimeRepositoryProvider = Provider<RealtimeRepository>(
+  (ref) => RealtimeRepository(ref.watch(apiClientProvider)),
 );
 
 final lotsRepositoryProvider = Provider<LotsRepository>(

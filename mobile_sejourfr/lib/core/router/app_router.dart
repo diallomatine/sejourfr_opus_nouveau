@@ -50,6 +50,8 @@ import '../../screens/tcf_production/eo_results_screen.dart';
 import '../../screens/tcf_production/history_session_screen.dart';
 import '../../screens/tcf_production/production_exams_screen.dart';
 import '../../screens/tcf_production/production_history_screen.dart';
+import '../../screens/tcf_production/realtime/realtime_eo_controller.dart';
+import '../../screens/tcf_production/realtime/realtime_eo_screen.dart';
 import '../auth/auth_controller.dart';
 import '../models/enums.dart';
 
@@ -562,6 +564,13 @@ final routerProvider = Provider<GoRouter>((ref) {
               epreuve: EpreuveType.tcfEo,
               attemptId: state.pathParameters['attemptId']!,
             ),
+          ),
+          // Session EO temps réel (examinateur vocal). Les arguments (descripteur
+          // + tâche + attempt) passent par `state.extra`.
+          GoRoute(
+            path: 'realtime',
+            builder: (_, state) =>
+                RealtimeEoScreen(args: state.extra as RealtimeRunnerArgs),
           ),
           GoRoute(
             path: 't/:taskIndex',
