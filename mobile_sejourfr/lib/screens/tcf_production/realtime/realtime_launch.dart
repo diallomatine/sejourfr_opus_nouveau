@@ -2,7 +2,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/repositories.dart';
+import '../../../core/models/billing_models.dart';
 import '../../../core/models/realtime_models.dart';
+import '../../../core/widgets/paywall_sheet.dart';
 import 'realtime_launch_sheet.dart';
 
 /// Issue de la négociation du mode d'une tâche EO T1/T2.
@@ -44,13 +46,22 @@ Future<RealtimeNegotiation> negotiateRealtimeSession(
   } catch (_) {
     return RealtimeNegotiation.classic;
   }
-  if (quota.remaining <= 0 || !context.mounted) {
-    return RealtimeNegotiation.classic;
-  }
+  if (!context.mounted) return RealtimeNegotiation.classic;
 
-  final choice =
-      await showRealtimeLaunchSheet(context, remaining: quota.remaining);
+  // Le modal s'ouvre TOUJOURS (abonné ou non) : pour un non-abonné la carte
+  // temps réel est verrouillée et ouvre le paywall (incitation à s'abonner).
+  final choice = await showRealtimeLaunchSheet(
+    context,
+    remaining: quota.remaining,
+    cap: quota.cap,
+  );
   if (choice == null) return RealtimeNegotiation.cancelled;
+  if (choice == RealtimeLaunchChoice.paywall) {
+    if (context.mounted) {
+      await showPaywallSheet(context, initialTarget: PlanModuleTarget.integral);
+    }
+    return RealtimeNegotiation.cancelled;
+  }
   if (choice == RealtimeLaunchChoice.classic || !context.mounted) {
     return RealtimeNegotiation.classic;
   }

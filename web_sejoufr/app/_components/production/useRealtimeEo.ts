@@ -26,6 +26,8 @@ export function isRealtimeEligible(mode: "text" | "audio", tacheNumero: number):
  */
 export function useRealtimeEo(enabled: boolean) {
   const [remaining, setRemaining] = useState<number | null>(null);
+  // Cap du pass : 0 = non éligible (free/Civique → paywall), > 0 = pass TCF.
+  const [cap, setCap] = useState<number | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
@@ -33,7 +35,10 @@ export function useRealtimeEo(enabled: boolean) {
     realtimeApi
       .getQuota()
       .then((q) => {
-        if (!cancelled) setRemaining(q.remaining);
+        if (!cancelled) {
+          setRemaining(q.remaining);
+          setCap(q.cap);
+        }
       })
       .catch(() => undefined);
     return () => {
@@ -64,5 +69,5 @@ export function useRealtimeEo(enabled: boolean) {
     [],
   );
 
-  return {remaining, start};
+  return {remaining, cap, start};
 }

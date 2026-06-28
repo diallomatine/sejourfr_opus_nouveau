@@ -542,11 +542,15 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             tacheNumero={currentTask.tacheNumero}
             taskTitle={productionTaskTitle(config.epreuve, currentTask.tacheNumero)}
             sessionsRemaining={rt.remaining}
-            realtimeAvailable={rt.remaining == null ? true : rt.remaining > 0}
+            cap={rt.cap}
             starting={rtStarting}
             error={rtError}
             onPickRealtime={startRealtimeTask}
             onPickClassic={() => setTaskMode("classic")}
+            // Aligné mobile : le paywall s'ouvre PAR-DESSUS le modal de choix,
+            // sans démarrer l'enregistrement classique. Fermer le paywall sans
+            // s'abonner laisse le modal en place (rien n'a été lancé).
+            onPaywall={() => setPaywallOpen(true)}
             onClose={() => setTaskMode("classic")}
           />
         )}

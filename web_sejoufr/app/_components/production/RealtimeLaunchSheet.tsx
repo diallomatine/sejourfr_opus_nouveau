@@ -1,24 +1,29 @@
 "use client";
 
 import {useEffect, useState} from "react";
-import {Check, Mic, Radio, X} from "lucide-react";
+import {Check, Lock, Mic, Radio, X} from "lucide-react";
 
 /**
- * Modal de lancement d'une Tâche 1 / 2 d'expression orale (§2.3). On SÉLECTIONNE
- * un mode — TEMPS RÉEL (examinateur IA) ou CLASSIQUE (enregistrement) — puis on
- * confirme avec « Valider ». ✕ en haut ferme sans rien lancer. Quota épuisé /
- * non éligible → option temps réel désactivée (le candidat n'est jamais bloqué).
+ * Modal de lancement d'une Tâche 1 / 2 d'expression orale (§2.3). S'ouvre pour
+ * TOUT LE MONDE (abonné ou non). On SÉLECTIONNE un mode — TEMPS RÉEL
+ * (examinateur IA) ou CLASSIQUE (enregistrement) — puis on confirme avec
+ * « Valider ». ✕ en haut ferme sans rien lancer. Trois états de la carte temps
+ * réel selon le quota :
+ *  - `cap === 0` (non-abonné) → verrouillée, un clic ouvre le PAYWALL (incitation) ;
+ *  - `cap > 0 && remaining === 0` (abonné, quota épuisé) → désactivée ;
+ *  - sinon → sélectionnable.
  */
 export function RealtimeLaunchSheet({
     open,
     tacheNumero,
     taskTitle,
     sessionsRemaining,
-    realtimeAvailable,
+    cap,
     starting,
     error,
     onPickRealtime,
     onPickClassic,
+    onPaywall,
     onClose,
 }: {
     open: boolean;
@@ -26,22 +31,30 @@ export function RealtimeLaunchSheet({
     taskTitle: string;
     /** Sessions temps réel restantes (null = inconnu / non concerné). */
     sessionsRemaining: number | null;
-    /** False = quota épuisé ou pass sans temps réel → seul le classique. */
-    realtimeAvailable: boolean;
+    /** Cap du pass : 0 = non éligible (→ paywall), > 0 = pass TCF (null = inconnu). */
+    cap: number | null;
     starting: boolean;
     error?: string | null;
     onPickRealtime: () => void;
     onPickClassic: () => void;
+    /** Clic sur la carte temps réel verrouillée (non-abonné). */
+    onPaywall: () => void;
     onClose: () => void;
 }) {
+    const known = cap != null;
+    const remaining = sessionsRemaining ?? 0;
+    const locked = known && cap === 0; // non-abonné → paywall
+    const exhausted = known && (cap ?? 0) > 0 && remaining <= 0; // abonné, quota épuisé
+    const available = !known || ((cap ?? 0) > 0 && remaining > 0);
+
     const [selected, setSelected] = useState<"realtime" | "classic">(
-        realtimeAvailable ? "realtime" : "classic",
+        available ? "realtime" : "classic",
     );
 
     // Pré-sélection à l'ouverture : temps réel si dispo, sinon classique.
     useEffect(() => {
-        if (open) setSelected(realtimeAvailable ? "realtime" : "classic");
-    }, [open, realtimeAvailable]);
+        if (open) setSelected(available ? "realtime" : "classic");
+    }, [open, available]);
 
     useEffect(() => {
         if (!open) return;
@@ -54,16 +67,23 @@ export function RealtimeLaunchSheet({
 
     if (!open) return null;
 
-    const remainingLabel =
-        sessionsRemaining == null
+    const remainingLabel = locked
+        ? "Réservé à l'abonnement Intégral — touchez pour vous abonner"
+        : exhausted
+          ? "Plus de session temps réel sur votre pass"
+          : sessionsRemaining == null
             ? null
-            : realtimeAvailable && sessionsRemaining > 0
-              ? `−1 session · il vous en reste ${sessionsRemaining} sur votre pass`
-              : "Plus de session temps réel sur votre pass";
+            : `−1 session · il vous en reste ${sessionsRemaining} sur votre pass`;
+
+    const onRealtimeClick = () => {
+        if (starting) return;
+        if (locked) onPaywall();
+        else if (available) setSelected("realtime");
+    };
 
     const onValidate = () => {
         if (starting) return;
-        if (selected === "realtime" && realtimeAvailable) onPickRealtime();
+        if (selected === "realtime" && available) onPickRealtime();
         else onPickClassic();
     };
 
@@ -80,10 +100,10 @@ export function RealtimeLaunchSheet({
 
                 <button
                     type="button"
-                    className={`rls-option rls-rt${selected === "realtime" ? " is-selected" : ""}`}
-                    onClick={() => !starting && realtimeAvailable && setSelected("realtime")}
-                    disabled={starting || !realtimeAvailable}
-                    aria-pressed={selected === "realtime"}
+                    className={`rls-option rls-rt${selected === "realtime" && available ? " is-selected" : ""}${locked ? " is-locked" : ""}`}
+                    onClick={onRealtimeClick}
+                    disabled={starting || exhausted}
+                    aria-pressed={selected === "realtime" && available}
                 >
                     <span className="rls-opt-ico"><Radio size={20} strokeWidth={2} /></span>
                     <span className="rls-opt-body">
@@ -95,11 +115,15 @@ export function RealtimeLaunchSheet({
                             {"Une intelligence artificielle joue l'examinateur : elle vous parle et vous répond en direct, comme à un vrai oral. Votre échange est noté à la fin."}
                         </span>
                     </span>
-                    <span className="rls-radio" aria-hidden>{selected === "realtime" && <Check size={13} strokeWidth={3} />}</span>
+                    <span className="rls-radio" aria-hidden>
+                        {locked || exhausted
+                            ? <Lock size={12} strokeWidth={2.4} />
+                            : selected === "realtime" && <Check size={13} strokeWidth={3} />}
+                    </span>
                 </button>
 
                 {remainingLabel && (
-                    <p className={`rls-remaining${realtimeAvailable ? "" : " is-empty"}`}>{remainingLabel}</p>
+                    <p className={`rls-remaining${available ? "" : locked ? " is-locked" : " is-empty"}`}>{remainingLabel}</p>
                 )}
 
                 <button
@@ -172,6 +196,9 @@ export function RealtimeLaunchSheet({
                     }
                     .rls-option:disabled { opacity: 0.5; cursor: default; }
                     .rls-rt:disabled { border-color: var(--color-line); background: var(--color-paper-2); }
+                    .rls-rt.is-locked { opacity: 1; cursor: pointer; border-style: dashed; border-color: var(--color-red); background: #fff; }
+                    .rls-rt.is-locked .rls-radio { color: var(--color-red); border-color: var(--color-red); background: #fff; }
+                    .rls-remaining.is-locked { color: var(--color-red-dark, #B5251E); background: var(--color-red-light, #FDECEB); }
                     .rls-option.is-selected.rls-rt { border-color: var(--color-red); background: var(--color-red-light, #FDECEB); }
                     .rls-option.is-selected.rls-classic { border-color: var(--color-blue); background: var(--color-blue-light, #E8ECF8); }
                     .rls-opt-ico {

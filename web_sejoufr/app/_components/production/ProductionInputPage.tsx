@@ -198,11 +198,15 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
             tacheNumero={task.tacheNumero}
             taskTitle={taskTitle}
             sessionsRemaining={rt.remaining}
-            realtimeAvailable={rt.remaining == null ? true : rt.remaining > 0}
+            cap={rt.cap}
             starting={rtStarting}
             error={rtError}
             onPickRealtime={startRealtime}
             onPickClassic={() => setUiMode("classic")}
+            // Aligné mobile : le paywall s'ouvre PAR-DESSUS le modal de choix,
+            // sans démarrer l'enregistrement classique. S'il ferme le paywall
+            // sans s'abonner, il retrouve le modal (rien n'a été lancé).
+            onPaywall={() => setPaywallOpen(true)}
             onClose={() => setUiMode("classic")}
           />
         )}
