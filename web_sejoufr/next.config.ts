@@ -25,6 +25,25 @@ const securityHeaders = [
         key: "Content-Security-Policy",
         value: "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
     },
+    {
+        // CSP `script-src` en **Report-Only** : n'applique RIEN (aucune
+        // régression possible), mais fait remonter dans la console ce qu'une
+        // CSP stricte bloquerait (styled-jsx inline, Google Identity…). Sert à
+        // instrumenter le chantier WEB-03 : une fois les violations
+        // cartographiées et migrées vers des nonces, basculer cette directive
+        // en `Content-Security-Policy` (enforcing). Tant que c'est Report-Only,
+        // c'est sûr en prod.
+        key: "Content-Security-Policy-Report-Only",
+        value:
+            "default-src 'self'; " +
+            "script-src 'self' https://accounts.google.com https://apis.google.com; " +
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+            "img-src 'self' data: https:; " +
+            "font-src 'self' https://fonts.gstatic.com; " +
+            "connect-src 'self' https: wss:; " +
+            "frame-src https://accounts.google.com; " +
+            "frame-ancestors 'self'; object-src 'none'; base-uri 'self'",
+    },
 ];
 
 const nextConfig: NextConfig = {

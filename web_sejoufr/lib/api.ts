@@ -287,6 +287,15 @@ export const authApi = {
     },
 
     logout() {
+        // Revocation serveur best-effort du refresh token (endpoint idempotent),
+        // puis purge locale quoi qu'il arrive (réseau coupé, token déjà expiré…).
+        const rt = tokenStorage.getRefresh();
+        if (rt) {
+            void apiFetch<void>("/api/auth/logout", {
+                method: "POST",
+                json: {refreshToken: rt},
+            }).catch(() => undefined);
+        }
         tokenStorage.clear();
     },
 };

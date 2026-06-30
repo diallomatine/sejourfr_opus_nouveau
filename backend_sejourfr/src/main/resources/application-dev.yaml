@@ -87,8 +87,11 @@ sejourfr:
   security:
     jwt:
       # Cle de signature (HS256) en BASE64. >= 32 octets.
-      # En dev seulement. Pour la prod on lit ${JWT_SECRET}.
-      secret: ZGV2LXNlY3JldC1ub24tcHJvZHVjdGlvbi1jbGUtc2lnbmF0dXJlLWp3dC1zZWpvdXJmci1tcXNkbWZkc2Y=
+      # Defaut = placeholder DEV non-production (deja « brule », present dans
+      # l'historique git) ; un dev/staging partage pose ${JWT_SECRET} pour ne
+      # pas signer avec une cle publique. La prod lit ${JWT_SECRET} sans defaut
+      # (echec au boot si absente).
+      secret: ${JWT_SECRET:ZGV2LXNlY3JldC1ub24tcHJvZHVjdGlvbi1jbGUtc2lnbmF0dXJlLWp3dC1zZWpvdXJmci1tcXNkbWZkc2Y=}
   storage:
     local:
       root: /Users/diallomatine/Desktop/Nouveu_Projets/sejour_storage

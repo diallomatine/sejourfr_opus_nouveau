@@ -18,6 +18,7 @@ import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.mapper.ProductionSubmissionMapper;
 import com.sejourfr.app.mapper.ProductionTaskMapper;
+import com.sejourfr.app.ratelimit.RateLimitGuard;
 import com.sejourfr.app.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -66,9 +67,15 @@ public class ProductionSubmissionService {
     private final SubscriptionService subscriptionService;
     private final ProductionBilanService bilanService;
     private final ProductionExamCompositionService compositionService;
+    private final RateLimitGuard rateLimitGuard;
 
     public ProductionSubmissionDto submitAudio(UUID productionTaskId, UUID attemptId, MultipartFile audio) {
         UUID userId = currentUser.getId();
+        // Garde-fou cout LLM (Whisper + Claude/OpenAI) : borne le volume absolu
+        // par utilisateur, tous tiers. Le quota freemium reste gere par
+        // enforceQuota ; ceci ne fait que couper l'abus (boucle, compte premium
+        // qui martele l'endpoint de notation).
+        rateLimitGuard.checkProductionSubmission(userId);
         ProductionTask task = loadActiveTask(productionTaskId);
         assertEpreuve(task, EpreuveType.TCF_EO);
         enforceQuota(userId, task.getEpreuve(), attemptId);
@@ -80,6 +87,7 @@ public class ProductionSubmissionService {
 
     public ProductionSubmissionDto submitText(SubmitProductionTextRequest req) {
         UUID userId = currentUser.getId();
+        rateLimitGuard.checkProductionSubmission(userId);
         ProductionTask task = loadActiveTask(req.productionTaskId());
         assertEpreuve(task, EpreuveType.TCF_EE);
         enforceQuota(userId, task.getEpreuve(), req.attemptId());

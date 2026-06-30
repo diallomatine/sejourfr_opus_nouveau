@@ -2,6 +2,7 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.ContactRequest;
 import com.sejourfr.app.dto.ContactResponse;
+import com.sejourfr.app.util.LogMask;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -50,7 +51,7 @@ public class ContactService {
         String subject = req.subject().trim();
         String message = req.message().trim();
 
-        log.info("Contact form submission from {} : '{}' (ticket {})", email, subject, ticketId);
+        log.info("Contact form submission from {} : '{}' (ticket {})", LogMask.email(email), subject, ticketId);
 
         // Source de vérité : la demande atterrit dans la boite de réception admin.
         conversationService.createFromContact(name, email, subject, message);

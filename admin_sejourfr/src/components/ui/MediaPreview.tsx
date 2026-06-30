@@ -1,4 +1,5 @@
 import type { MediaType } from "../../types/api";
+import { sanitizeSvg } from "../../lib/sanitizeSvg";
 import styles from "./MediaPreview.module.css";
 
 interface Props {
@@ -22,7 +23,7 @@ export function MediaPreview({ url, type, altText, compact, inlineSvg }: Props) 
         <div className={styles.badge}>SVG · inline</div>
         <div
           className={styles.image}
-          dangerouslySetInnerHTML={{ __html: inlineSvg }}
+          dangerouslySetInnerHTML={{ __html: sanitizeSvg(inlineSvg) }}
           role="img"
           aria-label={altText ?? "Document"}
         />

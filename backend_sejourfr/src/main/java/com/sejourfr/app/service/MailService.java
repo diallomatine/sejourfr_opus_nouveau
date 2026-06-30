@@ -1,5 +1,6 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.util.LogMask;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
@@ -316,9 +317,9 @@ public class MailService {
             mail.setSubject("[Contact SejourFR] " + subject);
             mail.setText(body);
             mailSender.send(mail);
-            log.info("Contact message relayed from {} to {}", senderEmail, contactAddress);
+            log.info("Contact message relayed from {} to {}", LogMask.email(senderEmail), contactAddress);
         } catch (Exception e) {
-            log.error("Failed to relay contact message from {} : {}", senderEmail, e.getMessage());
+            log.error("Failed to relay contact message from {} : {}", LogMask.email(senderEmail), e.getMessage());
             throw new IllegalStateException("Impossible d'envoyer votre message. Réessayez plus tard.", e);
         }
     }

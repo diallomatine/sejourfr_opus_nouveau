@@ -255,9 +255,11 @@ class BillingController extends StateNotifier<BillingState> {
       if (response.notFoundIDs.isNotEmpty) {
         // Log non-bloquant : on continue avec les produits trouvés. Cas
         // courant pendant le setup quand les SKUs ne sont pas encore validés
-        // côté App Store Connect / Play Console.
-        // ignore: avoid_print
-        print('IAP: SKUs introuvables côté store: ${response.notFoundIDs}');
+        // côté App Store Connect / Play Console. Gardé en debug uniquement
+        // (pas de bruit dans les logs release / idevicesyslog).
+        if (kDebugMode) {
+          debugPrint('IAP: SKUs introuvables côté store: ${response.notFoundIDs}');
+        }
       }
 
       final products = <IapProduct>[];

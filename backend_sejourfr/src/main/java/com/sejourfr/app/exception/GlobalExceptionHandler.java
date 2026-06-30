@@ -4,6 +4,7 @@ import com.sejourfr.app.service.social.InvalidSocialTokenException;
 import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -78,6 +79,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, Object>> handleMaxUpload(MaxUploadSizeExceededException e, WebRequest req) {
         return build(HttpStatus.PAYLOAD_TOO_LARGE, "Fichier trop volumineux", req, null, e);
+    }
+
+    /**
+     * Depassement d'une limite anti-abus. Renvoie 429 + header {@code Retry-After}
+     * (secondes) pour que les clients reessaient apres le delai indique.
+     */
+    @ExceptionHandler(RateLimitException.class)
+    public ResponseEntity<Map<String, Object>> handleRateLimit(RateLimitException e, WebRequest req) {
+        ResponseEntity<Map<String, Object>> logged =
+                build(HttpStatus.TOO_MANY_REQUESTS, e.getMessage(), req, null, e);
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.getRetryAfterSeconds()))
+                .body(logged.getBody());
     }
 
     /**

@@ -2,7 +2,12 @@ spring:
   application:
     name: sejourfr-backend
   profiles:
-    active: dev
+    # Defaut dev pour le confort local ; un deploiement DOIT poser
+    # SPRING_PROFILES_ACTIVE=prod (les scripts de deploiement le font). Le
+    # profil actif est logue au demarrage, avec un WARN si dev est actif
+    # (cf. StartupProfileLogger) — garde-fou contre un deploiement prod
+    # demarre par erreur en dev.
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   jpa:
     open-in-view: false
     hibernate:
@@ -163,6 +168,14 @@ sejourfr:
     global-timeout-sec: ${AUDIO_GENERATION_TIMEOUT_SEC:120}
     rate-limit-per-minute: 10
     duplicate-similarity-threshold: 0.85
+
+  # Rate-limit anti-abus (par IP / par utilisateur), applique en memoire.
+  # Les seuils par surface ont des defauts genereux dans RateLimitProperties
+  # (login, register, forgot/reset-password, contact, demo guest, soumissions
+  # production EE/EO). Surcharge possible via sejourfr.rate-limit.<surface>.*.
+  # RATE_LIMIT_ENABLED=false = soupape de secours (desactive tout le mecanisme).
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
 
   # Pipeline d'evaluation des productions (EO/EE du TCF IRN).
   # Distinct de sejourfr.anthropic (qui sert a generer des questions audio CO).
