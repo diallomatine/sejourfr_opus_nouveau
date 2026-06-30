@@ -271,6 +271,44 @@ lisible — pas de patch rapide qui s'accumule.
   web l'autorisait déjà (rejouable à volonté) — le fix a aligné mobile + backend sur le
   comportement web, pas l'inverse.
 
+### Tests (non négociable)
+
+**Tout code ajouté ou modifié doit être couvert par des tests, dans la même passe.**
+Une feature, un bugfix, une règle métier, un endpoint, une migration à impact logique ne
+se ferment pas sans test(s) qui verrouillent le comportement. Avant un refactor d'un bloc
+existant non couvert : écrire d'abord le filet de tests, puis refactorer. Pas d'exception
+« je testerai plus tard ».
+
+Bonnes pratiques pour ce projet (cf. `docs/plan-tests-backend.md`, infra déjà en place) :
+
+- **Lancer la suite** : `./mvnw verify` (unitaires `*Test` via surefire + intégration `*IT`
+  via failsafe). Le build doit rester **vert** — un commit ne part pas sur du rouge.
+- **Choisir la bonne granularité** :
+  - *Unitaire* (`*Test`, Mockito) par défaut pour la logique métier, les branches, les
+    validations, le mapping, les appels à des clients externes (toujours **mockés**, jamais
+    de vrai réseau). Gabarit : `FullTcfExamServiceFreemiumTest`, `AiEvaluationServiceTest`.
+  - *Intégration* (`*IT extends AbstractIntegrationTest`) quand le cas traverse réellement
+    la base (requêtes JPA, specifications, contraintes, transactions). Tourne sur un
+    **Postgres embarqué** (Zonky, pas de Docker) qui applique les **vraies migrations
+    Flyway** → toute contrainte (NOT NULL, FK, CHECK, index unique) est vérifiée pour de
+    vrai, et `ddl-auto: validate` valide le mapping JPA.
+- **Tester chaque couche** : manager → `*ManagerIT` (vrai PG) ; service → unitaire ou IT ;
+  controller → **droits** via la matrice (`AdminRoutes/AuthenticatedRoutes/PublicRoutesSecurityIT`,
+  401 anonyme / 403 mauvais rôle / 200 rôle attendu, avec un vrai JWT) **et** comportement ;
+  mapper → unitaire pur ; specification → `*IT`. Un nouvel endpoint admin s'ajoute à la
+  matrice de droits.
+- **Seeder via `TestData`** (fabriques de toutes les entités, déjà validées) plutôt que de
+  bâtir les entités à la main — les fabriques respectent toutes les contraintes du schéma.
+- **Assertions tolérantes au seed Flyway** : les tables seedées (questions, production_tasks,
+  exam_templates, audio_question_drafts) contiennent déjà des lignes → filtrer aux ids créés
+  dans le test ou raisonner en delta, **jamais** de total exact sur une table seedée.
+- **Pièges connus** : `repository.save()` ne flushe pas (une violation de contrainte passe
+  inaperçue → utiliser `saveAndFlush` quand on veut l'attraper) ; ordre `id ASC` Postgres
+  (uuid non signé) ≠ `Comparator<UUID>` Java (signé) ; `when(x).thenReturn(helperQuiMock(...))`
+  → `UnfinishedStubbing` (extraire le mock en variable avant le `thenReturn`).
+- **Parité fronts** : un test backend qui fige une règle partagée (freemium, quotas, droits)
+  est le garde-fou de la cohérence mobile ⇄ web — le maintenir à jour quand la règle évolue.
+
 ### Maintenir les `CLAUDE.md` à jour
 
 Après une modif structurante (nouvelle feature, nouveau pipeline, changement de convention,
