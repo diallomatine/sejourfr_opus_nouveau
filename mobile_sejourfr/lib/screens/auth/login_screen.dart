@@ -36,11 +36,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _loadSavedCredentials() async {
-    final creds = await ref.read(tokenStorageProvider).readCredentials();
-    if (creds != null && mounted) {
+    final email = await ref.read(tokenStorageProvider).readSavedEmail();
+    if (email != null && mounted) {
       setState(() {
-        _email.text = creds.email;
-        _password.text = creds.password;
+        _email.text = email;
         _remember = true;
       });
     }
@@ -67,9 +66,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             email: email,
             password: password,
           );
-      // Succès : on enregistre (ou efface) les identifiants selon la case.
+      // Succès : on mémorise (ou efface) l'email selon la case — jamais le mot de passe.
       if (_remember) {
-        await storage.saveCredentials(email, password);
+        await storage.saveEmail(email);
       } else {
         await storage.clearCredentials();
       }
@@ -164,7 +163,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       value: _remember,
                       onChanged: (v) => setState(() => _remember = v),
                       label: Text(
-                        'Enregistrer mes identifiants',
+                        'Se souvenir de mon email',
                         style: AppFonts.ui(size: 13.5, color: AppColors.ink),
                       ),
                     ),

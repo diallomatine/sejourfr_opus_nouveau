@@ -13,4 +13,12 @@ export const authApi = {
   me() {
     return apiRequest<AuthenticatedUser>("/api/auth/me");
   },
+
+  logout(refreshToken: string) {
+    return apiRequest<void>("/api/auth/logout", {
+      method: "POST",
+      body: { refreshToken },
+      skipRefresh: true,
+    });
+  },
 };

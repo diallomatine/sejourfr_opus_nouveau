@@ -14,7 +14,11 @@ class TokenStorage {
   static const _kRefresh = 'sejourfr.refreshToken';
   static const _kUser = 'sejourfr.user';
   static const _kSavedEmail = 'sejourfr.savedEmail';
-  static const _kSavedPassword = 'sejourfr.savedPassword';
+  // Ancienne clé : le mot de passe était persisté pour « Enregistrer mes
+  // identifiants ». On ne le stocke plus (un mot de passe réutilisable est plus
+  // risqué qu'un refresh token révocable — MOB-02). La constante reste pour
+  // PURGER la valeur héritée sur les installs existants.
+  static const _kLegacySavedPassword = 'sejourfr.savedPassword';
 
   /// Lecture défensive du secure storage. Une valeur chiffrée par une ancienne
   /// version (clé Android Keystore invalidée par la mise à jour, format de
@@ -72,26 +76,22 @@ class TokenStorage {
   }
 
   // --------------------------------------------------------------------------
-  // « Enregistrer mes identifiants » (option de l'écran de connexion).
-  // Stockés à part de la session : un logout vide les tokens mais conserve les
-  // identifiants enregistrés (l'utilisateur peut se reconnecter sans retaper).
-  // Chiffrés au repos (Keychain iOS / EncryptedSharedPreferences Android).
+  // « Se souvenir de mon email » (option de l'écran de connexion).
+  // On ne persiste QUE l'email (préremplissage) — jamais le mot de passe. Stocké
+  // à part de la session : un logout vide les tokens mais conserve l'email
+  // mémorisé. Chiffré au repos (Keychain iOS / EncryptedSharedPreferences).
   // --------------------------------------------------------------------------
 
-  Future<void> saveCredentials(String email, String password) async {
+  Future<void> saveEmail(String email) async {
     await _storage.write(key: _kSavedEmail, value: email);
-    await _storage.write(key: _kSavedPassword, value: password);
+    // Purge un éventuel mot de passe stocké par une ancienne version.
+    await _storage.delete(key: _kLegacySavedPassword);
   }
 
-  Future<({String email, String password})?> readCredentials() async {
-    final email = await _read(_kSavedEmail);
-    final password = await _read(_kSavedPassword);
-    if (email == null || password == null) return null;
-    return (email: email, password: password);
-  }
+  Future<String?> readSavedEmail() => _read(_kSavedEmail);
 
   Future<void> clearCredentials() async {
     await _storage.delete(key: _kSavedEmail);
-    await _storage.delete(key: _kSavedPassword);
+    await _storage.delete(key: _kLegacySavedPassword);
   }
 }

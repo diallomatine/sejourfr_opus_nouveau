@@ -41,6 +41,12 @@ export function AuthProvider({children}: { children: ReactNode }) {
     }, []);
 
     const logout = useCallback(() => {
+        // Revocation serveur best-effort du refresh token (idempotent cote
+        // backend), puis purge locale quoi qu'il arrive.
+        const refresh = tokenStorage.getRefresh();
+        if (refresh) {
+            void authApi.logout(refresh).catch(() => undefined);
+        }
         tokenStorage.clear();
         setUser(null);
     }, []);
