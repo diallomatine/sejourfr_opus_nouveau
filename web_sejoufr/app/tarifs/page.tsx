@@ -38,36 +38,51 @@ async function fetchPlans(): Promise<PlanPublicResponse[]> {
 export default async function TarifsPage() {
   const plans = await fetchPlans();
 
-  // JSON-LD ItemList → rich snippets Google Shopping pour les plans payants.
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    itemListElement: plans
-      .filter((p) => p.code !== "FREE")
-      .map((p, i) => ({
-        "@type": "ListItem",
-        position: i + 1,
-        item: {
+  // JSON-LD : un Product représentatif "Accès Intégral" + AggregateOffer
+  // couvrant la fourchette de prix des passes (tirés du catalogue dynamique).
+  // Renseigne image/description/brand/sku + politique de retour → lève le
+  // critique (image) et les avertissements "Fiches de marchand". Pas de
+  // shippingDetails (produit numérique, rien n'est expédié) ni de
+  // aggregateRating/review (aucun avis utilisateur réel noté affiché).
+  const paidPlans = plans.filter((p) => p.code !== "FREE");
+  const prices = paidPlans.map((p) => p.price);
+  const jsonLd =
+    paidPlans.length > 0
+      ? {
+          "@context": "https://schema.org",
           "@type": "Product",
-          name: `SejourFR — ${p.name}`,
+          name: "SejourFR — Accès Intégral (Civique + TCF IRN)",
+          description:
+            "Préparation complète à l'examen civique et au TCF IRN : QCM type examen, examens blancs en conditions réelles, corrections expliquées et suivi de progression.",
+          image: `${SITE.url}/tarifs/opengraph-image`,
+          brand: { "@type": "Brand", name: "SejourFR" },
+          sku: "SEJFR-INTEGRAL",
           offers: {
-            "@type": "Offer",
-            price: p.price.toFixed(2),
+            "@type": "AggregateOffer",
             priceCurrency: "EUR",
-            availability: "https://schema.org/InStock",
+            lowPrice: Math.min(...prices).toFixed(2),
+            highPrice: Math.max(...prices).toFixed(2),
+            offerCount: String(paidPlans.length),
             url: `${SITE.url}/tarifs`,
+            hasMerchantReturnPolicy: {
+              "@type": "MerchantReturnPolicy",
+              applicableCountry: "FR",
+              returnPolicyCategory:
+                "https://schema.org/MerchantReturnNotPermitted",
+            },
           },
-        },
-      })),
-  };
+        }
+      : null;
 
   return (
     <>
       <main className="container-x tarifs-page">
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
-        />
+        {jsonLd && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
+          />
+        )}
         <PricingHero />
         <PricingPlans plans={plans} />
         <PricingComparison />
