@@ -70,7 +70,8 @@ class AppleSubscriptionServiceTest {
         billingProperties = mock(BillingProperties.class); // isOneTime() = false par défaut
         service = new AppleSubscriptionService(
                 appleStoreClient, planManager, userManager, userSubscriptionManager,
-                processedEventManager, mailService, oneTimeAccessService, billingProperties);
+                processedEventManager, new SubscriptionNotificationService(mailService),
+                oneTimeAccessService, billingProperties);
 
         user = new User();
         user.setId(userId);

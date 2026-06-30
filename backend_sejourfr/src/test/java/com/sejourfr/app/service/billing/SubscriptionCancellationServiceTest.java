@@ -51,7 +51,8 @@ class SubscriptionCancellationServiceTest {
         stripeSubscriptionService = mock(StripeSubscriptionService.class);
         mailService = mock(MailService.class);
         service = new SubscriptionCancellationService(
-                subscriptionService, userSubscriptionManager, stripeSubscriptionService, mailService);
+                subscriptionService, userSubscriptionManager, stripeSubscriptionService,
+                new SubscriptionNotificationService(mailService));
     }
 
     private UserSubscription sub(SubscriptionSource source, SubscriptionStatus status, String origTx) {

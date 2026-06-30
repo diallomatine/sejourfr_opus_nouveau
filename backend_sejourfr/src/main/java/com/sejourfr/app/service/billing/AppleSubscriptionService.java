@@ -19,7 +19,6 @@ import com.sejourfr.app.manager.PlanManager;
 import com.sejourfr.app.manager.ProcessedExternalEventManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
-import com.sejourfr.app.service.MailService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,7 +57,7 @@ public class AppleSubscriptionService {
     private final UserManager userManager;
     private final UserSubscriptionManager userSubscriptionManager;
     private final ProcessedExternalEventManager processedEventManager;
-    private final MailService mailService;
+    private final SubscriptionNotificationService subscriptionNotifier;
     private final OneTimeAccessService oneTimeAccessService;
     private final com.sejourfr.app.config.BillingProperties billingProperties;
 
@@ -150,7 +149,7 @@ public class AppleSubscriptionService {
                     userId, tx.getProductId(), tx.getOriginalTransactionId(), sub.getEndsAt(), isNew
             );
             if (isNew) {
-                sendActivationMail(sub);
+                subscriptionNotifier.sendActivation(sub);
             }
             return sub;
         } catch (ResponseStatusException e) {
@@ -262,26 +261,8 @@ public class AppleSubscriptionService {
         // Pas de mail si CANCELED → CANCELED (replay notification).
         if (oldStatus != SubscriptionStatus.CANCELED
                 && sub.getStatus() == SubscriptionStatus.CANCELED) {
-            sendCancellationMail(sub);
+            subscriptionNotifier.sendCancellation(sub);
         }
-    }
-
-    private void sendActivationMail(UserSubscription sub) {
-        User user = sub.getUser();
-        String planName = sub.getPlan() != null ? sub.getPlan().getName() : "Premium";
-        mailService.sendSubscriptionActivatedEmail(
-                user.getEmail(), user.getFirstName(), planName,
-                sub.getEndsAt(), sub.isAutoRenew()
-        );
-    }
-
-    private void sendCancellationMail(UserSubscription sub) {
-        User user = sub.getUser();
-        String planName = sub.getPlan() != null ? sub.getPlan().getName() : "Premium";
-        mailService.sendSubscriptionCanceledEmail(
-                user.getEmail(), user.getFirstName(), planName,
-                sub.getEndsAt(), sub.getSource().name()
-        );
     }
 
     // ------------------------------------------------------------------------

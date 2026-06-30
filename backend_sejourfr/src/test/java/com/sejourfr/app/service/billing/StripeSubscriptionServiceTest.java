@@ -66,7 +66,7 @@ class StripeSubscriptionServiceTest {
         billingProperties = mock(BillingProperties.class);
         service = new StripeSubscriptionService(
                 userManager, planManager, userSubscriptionManager,
-                mailService, oneTimeAccessService, billingProperties);
+                new SubscriptionNotificationService(mailService), oneTimeAccessService, billingProperties);
         when(userSubscriptionManager.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 

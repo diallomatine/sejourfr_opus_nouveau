@@ -9,7 +9,6 @@ import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.PlanManager;
 import com.sejourfr.app.manager.UserManager;
 import com.sejourfr.app.manager.UserSubscriptionManager;
-import com.sejourfr.app.service.MailService;
 import com.stripe.exception.EventDataObjectDeserializationException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Charge;
@@ -57,7 +56,7 @@ public class StripeSubscriptionService {
     private final UserManager userManager;
     private final PlanManager planManager;
     private final UserSubscriptionManager userSubscriptionManager;
-    private final MailService mailService;
+    private final SubscriptionNotificationService subscriptionNotifier;
     private final OneTimeAccessService oneTimeAccessService;
     private final BillingProperties billingProperties;
 
@@ -162,7 +161,7 @@ public class StripeSubscriptionService {
         if (isNew) {
             userSubscriptionManager
                     .findBySourceAndOriginalTransactionId(SubscriptionSource.STRIPE, subscriptionId)
-                    .ifPresent(this::sendActivationMail);
+                    .ifPresent(subscriptionNotifier::sendActivation);
         }
     }
 
@@ -233,7 +232,7 @@ public class StripeSubscriptionService {
         // notre /cancel endpoint), on ne renvoie pas.
         if (oldStatus != SubscriptionStatus.CANCELED
                 && sub.getStatus() == SubscriptionStatus.CANCELED) {
-            sendCancellationMail(sub);
+            subscriptionNotifier.sendCancellation(sub);
         }
     }
 
@@ -357,24 +356,6 @@ public class StripeSubscriptionService {
         applySubscriptionState(sub, subscription);
         userSubscriptionManager.save(sub);
         return isNew;
-    }
-
-    private void sendActivationMail(UserSubscription sub) {
-        User user = sub.getUser();
-        String planName = sub.getPlan() != null ? sub.getPlan().getName() : "Premium";
-        mailService.sendSubscriptionActivatedEmail(
-                user.getEmail(), user.getFirstName(), planName,
-                sub.getEndsAt(), sub.isAutoRenew()
-        );
-    }
-
-    private void sendCancellationMail(UserSubscription sub) {
-        User user = sub.getUser();
-        String planName = sub.getPlan() != null ? sub.getPlan().getName() : "Premium";
-        mailService.sendSubscriptionCanceledEmail(
-                user.getEmail(), user.getFirstName(), planName,
-                sub.getEndsAt(), sub.getSource().name()
-        );
     }
 
     /**
