@@ -225,26 +225,70 @@ en clair dans les logs. RGPD + bonne pratique.
 
 ---
 
+## Phase 2 · Batch J — Outillage de durcissement (étapes sûres des chantiers)
+
+Étapes **non-bloquantes** posées pour amorcer les chantiers structurants sans
+toucher à la prod.
+
+### Fichiers modifiés
+- `web_sejoufr/next.config.ts` — **WEB-03 (étape 1)** : CSP stricte en
+  `Content-Security-Policy-Report-Only`. N'applique rien (zéro régression) mais
+  fait remonter ce qu'une CSP enforcing bloquerait → instrumente la migration
+  vers une CSP à nonce. Build web OK.
+- `backend_sejourfr/pom.xml` — **SCA** : profil Maven opt-in `security-scan`
+  (`mvn -Psecurity-scan verify`, OWASP Dependency-Check, `failBuildOnCVSS=7`,
+  formats HTML+SARIF, clé `NVD_API_KEY`). Ne ralentit pas les builds normaux
+  (vérifié `mvn -o compile`). À brancher en CI.
+
+---
+
 ## Non auto-appliqué — décisions structurantes (validation requise)
 
 Ces findings touchent l'**auth en prod** ou peuvent **bricker une app installée** :
 je ne les applique pas en aveugle (cf. brief « ne casse pas la prod » + « décisions
 structurantes = proposer »).
 
-- **WEB-01 / WEB-02 / ADM-02 — JWT (+ refresh 30 j) en `localStorage` / cookie JS.**
-  Le fix propre = refresh token en cookie **`httpOnly; Secure; SameSite`** posé par
-  le **backend** + access token en mémoire. C'est une **réécriture du flux d'auth**
-  des 3 surfaces (backend pose/lit les cookies, web/admin arrêtent `localStorage`,
-  SSR Next adapté) → risque de couper le login de **tous** les utilisateurs si mal
-  déployé. **Atténuation déjà en place** : sinks XSS assainis (Batch B) + CSP
-  backend (Batch C) réduisent fortement l'exploitabilité réelle. → **À planifier
-  comme chantier dédié** (backend d'abord, puis fronts, avec rollout testé).
-- **MOB-01 — Certificate pinning Dio.** Un pin mal géré **brique toutes les apps
-  installées** à la rotation du certificat. → À faire avec **pins de secours** +
-  procédure de rotation + kill-switch, comme chantier décidé.
-- **WEB-03 — CSP `script-src` web.** Nécessite une CSP **à nonce** (styled-jsx +
-  Google Identity) — chantier réel ; une CSP `unsafe-inline` n'apporterait rien.
-  → À planifier (le SVG assaini + headers backend couvrent déjà l'essentiel).
+### Chantier 1 — WEB-01 / WEB-02 / ADM-02 : JWT (+ refresh 30 j) hors `localStorage`
+Le fix propre = refresh token en cookie **`httpOnly; Secure; SameSite=Strict`** posé
+par le **backend** + access token en mémoire (jamais persisté). C'est une réécriture
+du flux d'auth des 3 surfaces → risque de couper le login de **tous** les
+utilisateurs si mal déployé. **Atténuation déjà en place** : sinks XSS assainis
+(Batch B) + CSP backend (Batch C) + CSP web report-only (Batch J).
+
+Plan d'exécution (backend d'abord, additif, rollout testé en staging) :
+1. **Backend additif** : sur login/register/refresh, poser EN PLUS un cookie
+   `Set-Cookie: sejourfr.rt=<refresh>; HttpOnly; Secure; SameSite=Strict; Path=/api/auth`
+   (tout en continuant à renvoyer les tokens en JSON → clients actuels intacts).
+2. **Backend lecture** : `/api/auth/refresh` accepte le refresh depuis le cookie
+   si le body est absent. **CSRF** : comme l'auth API reste **Bearer-header**
+   (cookie non accepté comme credential d'accès), pas de surface CSRF nouvelle ;
+   seul `/refresh` lit le cookie → y exiger un en-tête custom (`X-Refresh: 1`) ou
+   `SameSite=Strict` suffit.
+3. **Fronts** : web/admin cessent d'écrire le refresh en `localStorage` (le cookie
+   httpOnly s'en charge) ; l'access token reste en mémoire JS (state), re-dérivé
+   via `/refresh` au boot. Supprimer le cookie JS dupliqué (WEB-02).
+4. **Rollout** : déployer 1 (additif, sans risque), tester, puis 3 derrière un flag,
+   avec fallback `localStorage` tant que le flag est off.
+- Effort : **L**. Mobile non concerné (secure storage OK).
+
+### Chantier 2 — MOB-01 : Certificate pinning
+⚠ Le whole-cert pinning (seul exposé par `dart:io`) **brique l'app à chaque
+renouvellement de certificat** (Let's Encrypt = nouvelle clé tous les 90 j). Donc :
+1. **SPKI pinning** (survit au renouvellement si la clé est conservée) via un
+   package vetté (`http_certificate_pinning`) ou un `SecurityContext` custom.
+2. **Pins multiples** : clé courante **+** clé de secours (backup CSR) → la
+   rotation ne brique pas.
+3. **Default OFF** + flag : n'activer qu'après test sandbox sur le vrai host prod.
+4. **Runbook de rotation** documenté + kill-switch serveur (`/api/app-config`).
+- Effort : **M**. Ne pas activer sans pins de secours + procédure.
+
+### Chantier 3 — WEB-03 (étape 2) : CSP `script-src` enforcing
+La Report-Only (Batch J) collecte les violations. Ensuite :
+1. Cartographier les inline scripts (styled-jsx, Google Identity, Next).
+2. CSP **à nonce** : middleware Next génère un nonce par requête, propagé aux
+   `<script>` et à styled-jsx ; `script-src 'self' 'nonce-…' https://accounts.google.com`.
+3. Basculer `Content-Security-Policy-Report-Only` → `Content-Security-Policy`.
+- Effort : **L**.
 
 ### Findings Basse acceptés (risque résiduel faible, documentés)
 - **MOB-04** brouillons EE en `SharedPreferences` (texte de l'user, purgé au succès).
