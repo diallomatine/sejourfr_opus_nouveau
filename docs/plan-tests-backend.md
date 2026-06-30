@@ -72,14 +72,20 @@ services **sous filet de tests** (refacto sans régression).
   (`AttemptScoringService`, `AttemptCompositionService`, `AttemptInteractionService`),
   façade à API publique inchangée, 929 tests toujours verts.
 
-## Refacto — suite possible (non bloquant)
+## Refacto réalisé (sous filet, API publiques inchangées, 929 tests verts)
 
-`AttemptService` (799 l.) est désormais focalisé sur le start/dispatch. Restent gros
-mais **cohésifs** (1 responsabilité = 1 intégration paiement / 1 orchestration), donc
-acceptables tels quels — à découper seulement si la logique grossit :
-`GoogleSubscriptionService` (541), `FullTcfExamService` (531), `StripeSubscriptionService`
-(512), `AppleSubscriptionService` (495). Tous couverts par des tests → découpe sûre si
-besoin plus tard.
+- **`AttemptService`** 1252 → 799 l. + `service/attempt/` : `AttemptScoringService` (138),
+  `AttemptCompositionService` (228), `AttemptInteractionService` (254). Façade orchestrant
+  le start/dispatch.
+- **`FullTcfExamService`** 531 → 339 l. + `FullTcfExamResponseBuilder` (222) : construction
+  des réponses + scoring CECRL extraits.
+- **Billing DRY** : emails Premium (activation/résiliation) dupliqués à l'identique dans
+  Stripe/Apple/Google (+ inline cancellation) → `SubscriptionNotificationService`
+  partagé. −64 lignes nettes.
+
+Les services billing par provider (~500 l.) restent gros mais **cohésifs** (1 intégration
+paiement chacun : verify-receipt + webhooks + mapping de statut spécifiques) — corrects
+tels quels, et couverts par des tests donc découpables sans risque si la logique grossit.
 
 ## Gabarits validés (à reproduire au fan-out)
 
