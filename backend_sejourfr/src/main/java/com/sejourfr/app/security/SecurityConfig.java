@@ -17,6 +17,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 
 @Configuration
 @EnableMethodSecurity
@@ -41,6 +42,24 @@ public class SecurityConfig {
         http
                 .cors(Customizer.withDefaults())                                  // <-- AJOUTÉ
                 .csrf(AbstractHttpConfigurer::disable)
+                // Headers de securite. X-Content-Type-Options=nosniff et
+                // X-Frame-Options=DENY sont deja poses par defaut ; on ajoute
+                // HSTS (emis uniquement sur requete HTTPS — le proxy termine le
+                // TLS et transmet X-Forwarded-Proto), Referrer-Policy, et une
+                // CSP d'API : `default-src 'none'` neutralise toute execution de
+                // script dans une reponse (defense XSS), `style-src 'unsafe-inline'`
+                // + `img-src` laissent la page HTML de confirmation d'email
+                // s'afficher correctement.
+                .headers(headers -> headers
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .preload(true)
+                                .maxAgeInSeconds(31_536_000L))
+                        .referrerPolicy(rp -> rp.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(
+                                "default-src 'none'; style-src 'unsafe-inline'; "
+                                        + "img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'"))
+                )
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // 401 sur "pas authentifie / token KO" (declenche le refresh JWT cote client),
                 // 403 sur "authentifie mais role insuffisant".

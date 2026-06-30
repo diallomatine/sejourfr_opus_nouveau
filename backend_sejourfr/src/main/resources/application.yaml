@@ -2,7 +2,12 @@ spring:
   application:
     name: sejourfr-backend
   profiles:
-    active: dev
+    # Defaut dev pour le confort local ; un deploiement DOIT poser
+    # SPRING_PROFILES_ACTIVE=prod (les scripts de deploiement le font). Le
+    # profil actif est logue au demarrage, avec un WARN si dev est actif
+    # (cf. StartupProfileLogger) — garde-fou contre un deploiement prod
+    # demarre par erreur en dev.
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   jpa:
     open-in-view: false
     hibernate:
