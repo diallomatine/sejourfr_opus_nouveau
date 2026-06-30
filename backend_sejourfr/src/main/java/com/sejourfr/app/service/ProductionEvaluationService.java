@@ -283,6 +283,29 @@ public class ProductionEvaluationService {
         if (!estOral && audio != null && !audio.isEmpty()) {
             throw new BusinessException("Tache TCF_EE : ne pas envoyer un audio en plus du texte.");
         }
+        if (estOral && audio != null && !audio.isEmpty()) {
+            validateAudioContentType(audio);
+        }
+    }
+
+    /**
+     * Garde-fou content-type avant stockage R2 / transcription : on rejette un
+     * type manifestement non-audio (text/html, image/svg+xml…), tout en
+     * tolerant l'absence de type ou {@code application/octet-stream} (certains
+     * clients mobiles n'etiquettent pas leur upload binaire). La cle R2 est un
+     * UUID genere serveur — pas de path-traversal possible via le nom de fichier.
+     */
+    private void validateAudioContentType(MultipartFile audio) {
+        String contentType = audio.getContentType();
+        if (contentType == null || contentType.isBlank()) {
+            return;
+        }
+        String lower = contentType.toLowerCase();
+        boolean ok = lower.startsWith("audio/") || lower.equals("application/octet-stream");
+        if (!ok) {
+            throw new BusinessException(
+                    "Type de fichier audio invalide (" + contentType + "). Formats acceptes : audio/*.");
+        }
     }
 
     private byte[] readBytes(MultipartFile audio) {
