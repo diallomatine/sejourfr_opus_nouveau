@@ -25,6 +25,9 @@
         <app-store-server-library.version>5.2.0</app-store-server-library.version>
         <google-api-androidpublisher.version>v3-rev20260519-2.0.0</google-api-androidpublisher.version>
         <google-auth-library.version>1.47.0</google-auth-library.version>
+        <embedded-postgres.version>2.0.7</embedded-postgres.version>
+        <zonky-pg-binaries.version>16.2.0</zonky-pg-binaries.version>
+        <jacoco.version>0.8.12</jacoco.version>
     </properties>
 
     <dependencyManagement>
@@ -33,6 +36,16 @@
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>bom</artifactId>
                 <version>${aws-sdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Binaires Postgres embarqués (tests d'intégration Zonky). Le BOM
+                 aligne toutes les variantes d'architecture sur la même version
+                 de Postgres (16.x). On ne tire que les arch utiles (cf. <dependencies>). -->
+            <dependency>
+                <groupId>io.zonky.test.postgres</groupId>
+                <artifactId>embedded-postgres-binaries-bom</artifactId>
+                <version>${zonky-pg-binaries.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -178,6 +191,37 @@
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Spring Boot 4 a éclaté le test-autoconfigure en modules par techno :
+             @AutoConfigureMockMvc / @WebMvcTest vivent désormais dans
+             spring-boot-webmvc-test (non tiré par starter-test). Ce starter les
+             ramène (+ resttestclient). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Postgres embarqué pour les tests d'intégration : lance un vrai binaire
+             Postgres (pas de Docker). Flyway applique les vraies migrations →
+             parité de schéma avec la prod. Piloté via @DynamicPropertySource. -->
+        <dependency>
+            <groupId>io.zonky.test</groupId>
+            <artifactId>embedded-postgres</artifactId>
+            <version>${embedded-postgres.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Binaire arm64 macOS (dev local Apple Silicon). -->
+        <dependency>
+            <groupId>io.zonky.test.postgres</groupId>
+            <artifactId>embedded-postgres-binaries-darwin-arm64v8</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Binaire linux amd64 (CI / serveurs). -->
+        <dependency>
+            <groupId>io.zonky.test.postgres</groupId>
+            <artifactId>embedded-postgres-binaries-linux-amd64</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -205,6 +249,51 @@
                         </exclude>
                     </excludes>
                 </configuration>
+            </plugin>
+
+            <!-- Tests d'intégration (*IT) : phase integration-test via failsafe.
+                 Les tests unitaires (*Test) restent sur surefire (phase test). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Couverture : rapport HTML/XML (target/site/jacoco). Pas de gate
+                 bloquant pour l'instant — on mesure d'abord, on durcit ensuite. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>prepare-agent-integration</id>
+                        <goals>
+                            <goal>prepare-agent-integration</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                            <goal>report-integration</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
