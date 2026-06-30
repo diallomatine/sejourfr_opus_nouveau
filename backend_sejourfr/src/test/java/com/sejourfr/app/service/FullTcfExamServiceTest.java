@@ -60,9 +60,11 @@ class FullTcfExamServiceTest {
         levelEstimator = mock(TcfLevelEstimatorService.class);
         productionBilanService = mock(ProductionBilanService.class);
 
+        FullTcfExamResponseBuilder responseBuilder = new FullTcfExamResponseBuilder(
+                attemptManager, productionSubmissionManager, levelEstimator, productionBilanService);
         service = new FullTcfExamService(
                 attemptManager, userManager, productionSubmissionManager,
-                subscriptionService, attemptService, levelEstimator, productionBilanService);
+                subscriptionService, attemptService, responseBuilder);
 
         when(attemptManager.save(any(Attempt.class))).thenAnswer(inv -> inv.getArgument(0));
         when(levelEstimator.capB2(any())).thenAnswer(inv -> inv.getArgument(0));
