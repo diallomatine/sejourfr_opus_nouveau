@@ -208,4 +208,45 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+            Analyse SCA des dépendances (OWASP Dependency-Check). Profil opt-in
+            pour ne PAS ralentir les builds normaux (le scan télécharge / met à
+            jour la base NVD). À lancer en CI ou en local :
+
+                mvn -Psecurity-scan verify
+
+            Recommandé : poser une clé API NVD (NVD_API_KEY) pour des mises à
+            jour de base rapides et non throttlées (sinon le 1er run est long).
+            failBuildOnCVSS=7 → échoue sur une vuln High/Critical (CVSS >= 7).
+        -->
+        <profile>
+            <id>security-scan</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.owasp</groupId>
+                        <artifactId>dependency-check-maven</artifactId>
+                        <version>10.0.4</version>
+                        <configuration>
+                            <failBuildOnCVSS>7</failBuildOnCVSS>
+                            <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+                            <formats>
+                                <format>HTML</format>
+                                <format>SARIF</format>
+                            </formats>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
