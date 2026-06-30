@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { audioDraftsApi } from "../../api/audioDraftsApi";
+import { sanitizeSvg } from "../../lib/sanitizeSvg";
 import { Button } from "../../components/ui/Button";
 import { Modal } from "../../components/ui/Modal";
 import { PageHeader } from "../../components/ui/PageHeader";
@@ -363,7 +364,7 @@ function DraftCard({ draft, onValidate, onReject, validating }: DraftCardProps) 
                 className={styles.image}
                 role="img"
                 aria-label={current.imageAltText ?? "Image support"}
-                dangerouslySetInnerHTML={{ __html: current.inlineSvg ?? "" }}
+                dangerouslySetInnerHTML={{ __html: sanitizeSvg(current.inlineSvg) }}
               />
             )}
           </div>

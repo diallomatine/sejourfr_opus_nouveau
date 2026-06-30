@@ -12,8 +12,10 @@ import type { MediaResponse } from "@/lib/types";
  * lancement automatique, une seule écoute, pas de pause ni de réécoute.
  * En entraînement (défaut), le lecteur natif reste libre.
  *
- * Le SVG inline vient du backend (seed Flyway), pas d'un upload utilisateur,
- * donc `dangerouslySetInnerHTML` est acceptable ici.
+ * Le SVG inline est assaini (DOMPurify, profil SVG) avant injection : la
+ * source (drafts générés IA / images admin) n'est pas strictement fiable.
+ * La sanitisation se fait côté client (import dynamique) pour ne jamais
+ * exécuter DOMPurify au SSR — pas de hydration mismatch, pas de jsdom.
  */
 export function MediaView({
   media,
@@ -25,12 +27,35 @@ export function MediaView({
   // Priorité url > inlineSvg : le backend ne pose normalement qu'un seul des
   // deux, mais si une image porte les deux (cas CO_IMAGE), on privilégie l'URL.
   const preferUrl = media.type === "IMAGE" && !!media.url;
+  const showSvg = !!media.inlineSvg && !preferUrl;
+  const [safeSvg, setSafeSvg] = useState("");
+
+  useEffect(() => {
+    if (!showSvg) {
+      setSafeSvg("");
+      return;
+    }
+    let active = true;
+    import("dompurify").then((mod) => {
+      if (active) {
+        setSafeSvg(
+          mod.default.sanitize(media.inlineSvg as string, {
+            USE_PROFILES: { svg: true, svgFilters: true },
+          }),
+        );
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [showSvg, media.inlineSvg]);
+
   return (
     <div className="mediaview">
-      {media.inlineSvg && !preferUrl ? (
+      {showSvg ? (
         <div
           className="mediaview-svg"
-          dangerouslySetInnerHTML={{ __html: media.inlineSvg }}
+          dangerouslySetInnerHTML={{ __html: safeSvg }}
           role="img"
           aria-label="Document"
         />
