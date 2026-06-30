@@ -264,6 +264,91 @@ class QuestionMapperTest {
         assertThat(r.audioMedia().type()).isEqualTo(MediaType.AUDIO);
     }
 
+    private Media audioMedia() {
+        Media audio = new Media();
+        audio.setId(UUID.randomUUID());
+        audio.setType(MediaType.AUDIO);
+        audio.setUrl("https://r2.example/a.mp3");
+        return audio;
+    }
+
+    private Question coQuestion(String l0, String l1, String l2, String l3) {
+        Question q = baseQuestion(QuestionType.CO);
+        q.setModule(Module.TCF);
+        q.setMedia(audioMedia()); // CO : l'audio est porté par media_id
+        q.setChoices(new ArrayList<>(List.of(
+                choice(l0, true, 0), // bonne réponse en position d'origine 0 (« A »)
+                choice(l1, false, 1),
+                choice(l2, false, 2),
+                choice(l3, false, 3))));
+        return q;
+    }
+
+    /** Index de l'unique choix correct dans la réponse publique, pour un seed donné. */
+    private int correctIndex(Question q, UUID seed) {
+        QuestionPublicResponse r = mapper.toPublic(q, true, seed);
+        for (int i = 0; i < r.choices().size(); i++) {
+            if (Boolean.TRUE.equals(r.choices().get(i).correct())) return i;
+        }
+        throw new IllegalStateException("pas de choix correct");
+    }
+
+    @Test
+    void toPublic_coWrittenQuestion_shufflesSoCorrectAnswerIsNotAlwaysFirst() {
+        // CO « WRITTEN_QUESTION » : propositions affichées en TEXTE, audio_mode NULL
+        // (publié depuis un draft). La bonne réponse est en position 0 en base.
+        // Régression visée : elle ne doit PAS rester collée à l'index 0 (« toujours A »).
+        Question q = coQuestion(
+                "Mon parcours associatif, je pense.",
+                "Dès la fin de l'été dernier, en réalité.",
+                "Devant un jury de cinq personnes.",
+                "Plutôt avec une certaine émotion, à vrai dire.");
+
+        java.util.Set<Integer> positions = new java.util.HashSet<>();
+        for (long i = 1; i <= 60; i++) {
+            positions.add(correctIndex(q, new UUID(i, 0L)));
+        }
+        // Le shuffle est actif : la bonne réponse atterrit à plusieurs positions,
+        // et pas uniquement à l'index 0.
+        assertThat(positions).hasSizeGreaterThan(1);
+        assertThat(positions).anyMatch(p -> p != 0);
+    }
+
+    @Test
+    void toPublic_coWrittenQuestion_shuffleIsStablePerSeed() {
+        Question q = coQuestion("Texte un", "Texte deux", "Texte trois", "Texte quatre");
+        UUID seed = new UUID(7L, 0L);
+
+        QuestionPublicResponse r1 = mapper.toPublic(q, false, seed);
+        QuestionPublicResponse r2 = mapper.toPublic(q, false, seed);
+
+        assertThat(r2.choices()).extracting(ChoicePublicResponse::id)
+                .containsExactlyElementsOf(r1.choices().stream().map(ChoicePublicResponse::id).toList());
+    }
+
+    @Test
+    void toPublic_coLetterLabels_keepsDisplayOrderWithoutShuffle() {
+        // CO « lue dans l'audio » façon seeds : labels lettres seules, audio_mode NULL.
+        // L'ordre doit suivre l'audio (displayOrder), jamais mélangé.
+        Question q = coQuestion("A", "B", "C", "D");
+        for (long i = 1; i <= 20; i++) {
+            QuestionPublicResponse r = mapper.toPublic(q, false, new UUID(i, 0L));
+            assertThat(r.choices()).extracting(ChoicePublicResponse::label)
+                    .containsExactly("A", "B", "C", "D");
+        }
+    }
+
+    @Test
+    void toPublic_coFullAudioMode_keepsDisplayOrderWithoutShuffle() {
+        Question q = coQuestion("Réponse A", "Réponse B", "Réponse C", "Réponse D");
+        q.setAudioMode(com.sejourfr.app.audioquestion.domain.AudioMode.FULL_AUDIO);
+
+        QuestionPublicResponse r = mapper.toPublic(q, false, new UUID(3L, 0L));
+
+        assertThat(r.choices()).extracting(ChoicePublicResponse::label)
+                .containsExactly("Réponse A", "Réponse B", "Réponse C", "Réponse D");
+    }
+
     @Test
     void toReview_sortsByDisplayOrderExposesCorrectAndSelection() {
         Question q = baseQuestion(QuestionType.CONNAISSANCE);

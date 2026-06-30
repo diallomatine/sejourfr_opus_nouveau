@@ -1,5 +1,6 @@
 package com.sejourfr.app.audioquestion.service;
 
+import com.sejourfr.app.audioquestion.domain.AudioMode;
 import com.sejourfr.app.audioquestion.dto.AudioDraftDto;
 import com.sejourfr.app.audioquestion.dto.BatchGenerationResultDto;
 import com.sejourfr.app.audioquestion.entity.AudioDraftStatus;
@@ -66,6 +67,28 @@ class AudioDraftServiceIT extends AbstractIntegrationTest {
         assertThat(tcfCo).hasSize(1);
         assertThat(tcfCo.get(0).getStatus()).isEqualTo(QuestionStatus.ACTIVE);
         assertThat(tcfCo.get(0).getMedia()).isNotNull();
+        // Labels = vrai texte (« Bonjour »/« Bonsoir ») → propositions affichées →
+        // WRITTEN_QUESTION pour que le runner mélange les choix.
+        assertThat(tcfCo.get(0).getAudioMode()).isEqualTo(AudioMode.WRITTEN_QUESTION);
+    }
+
+    @Test
+    void validateDraft_letterLabels_setsFullAudioMode() {
+        AudioQuestionDraft draft = pendingReviewDraft();
+        draft.setChoices(List.of(
+                new AudioQuestionDraft.DraftChoice("Réponse A", true, 0),
+                new AudioQuestionDraft.DraftChoice("Réponse B", false, 1),
+                new AudioQuestionDraft.DraftChoice("Réponse C", false, 2),
+                new AudioQuestionDraft.DraftChoice("Réponse D", false, 3)));
+        draftRepository.save(draft);
+
+        service.validateDraft(draft.getId(), UUID.randomUUID());
+
+        Question published = questionRepository.findAll().stream()
+            .filter(q -> draft.getStatement().equals(q.getStatement()))
+            .findFirst().orElseThrow();
+        // Propositions lues dans l'audio (écran = lettres seules) → pas de shuffle.
+        assertThat(published.getAudioMode()).isEqualTo(AudioMode.FULL_AUDIO);
     }
 
     @Test

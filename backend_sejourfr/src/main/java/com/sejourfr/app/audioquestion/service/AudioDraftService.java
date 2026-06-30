@@ -1,5 +1,6 @@
 package com.sejourfr.app.audioquestion.service;
 
+import com.sejourfr.app.audioquestion.domain.AudioMode;
 import com.sejourfr.app.audioquestion.dto.AudioDraftDto;
 import com.sejourfr.app.audioquestion.dto.BatchGenerationResultDto;
 import com.sejourfr.app.audioquestion.dto.BatchGenerationResultDto.DraftOutcome;
@@ -268,6 +269,11 @@ public class AudioDraftService {
         } else {
             q.setQuestionType(QuestionType.CO);
             q.setMedia(audioMedia);
+            // Mode audio explicite : FULL_AUDIO quand les propositions sont lues
+            // (labels = lettres « A »/« Réponse A »), sinon WRITTEN_QUESTION (texte
+            // affiché → le runner mélange les choix). Cf. QuestionMapper.choicesAreReadAloud.
+            q.setAudioMode(choicesAreLetterPlaceholders(draft.getChoices())
+                ? AudioMode.FULL_AUDIO : AudioMode.WRITTEN_QUESTION);
         }
 
         List<AudioQuestionDraft.DraftChoice> draftChoices = draft.getChoices();
@@ -362,6 +368,19 @@ public class AudioDraftService {
 
     private static boolean hasText(String s) {
         return s != null && !s.isBlank();
+    }
+
+    /** Label « lettre seule » d'une CO dont l'audio lit les propositions : « A » ou « Réponse A » (A-D). */
+    private static final java.util.regex.Pattern LETTER_PLACEHOLDER =
+        java.util.regex.Pattern.compile("(?i)^(r[ée]ponse\\s+)?[a-d]$");
+
+    private static boolean choicesAreLetterPlaceholders(List<AudioQuestionDraft.DraftChoice> choices) {
+        if (choices == null || choices.isEmpty()) return false;
+        for (AudioQuestionDraft.DraftChoice c : choices) {
+            String label = c.label() == null ? "" : c.label().trim();
+            if (!LETTER_PLACEHOLDER.matcher(label).matches()) return false;
+        }
+        return true;
     }
 
     private static String truncate(String s, int max) {
