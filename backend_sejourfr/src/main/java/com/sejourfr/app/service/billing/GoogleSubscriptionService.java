@@ -8,6 +8,7 @@ import com.google.api.services.androidpublisher.model.SubscriptionPurchaseV2;
 import com.sejourfr.app.entity.Plan;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserSubscription;
+import com.sejourfr.app.util.LogMask;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.PlanManager;
@@ -85,7 +86,7 @@ public class GoogleSubscriptionService {
             UUID userId, String expectedProductId, String purchaseToken) {
         log.info(
                 "Google verify-receipt START user={} expectedProductId={} purchaseToken={}",
-                userId, expectedProductId, purchaseToken
+                userId, expectedProductId, LogMask.token(purchaseToken)
         );
         try {
             // Mode passes one-time (lot 5) : produit managed → API products.get
@@ -109,7 +110,7 @@ public class GoogleSubscriptionService {
             UserSubscription sub = upsert(user, plan, lineItem, state, purchaseToken);
             log.info(
                     "Google verify-receipt OK user={} productId={} purchaseToken={} status={} endsAt={} new={}",
-                    userId, lineItem.getProductId(), purchaseToken, sub.getStatus(), sub.getEndsAt(), isNew
+                    userId, lineItem.getProductId(), LogMask.token(purchaseToken), sub.getStatus(), sub.getEndsAt(), isNew
             );
             if (isNew) {
                 sendActivationMail(sub);
@@ -120,7 +121,7 @@ public class GoogleSubscriptionService {
             // est muet dans les logs et seul un message générique remonte à l'app).
             log.warn(
                     "Google verify-receipt REFUSÉ user={} expectedProductId={} purchaseToken={} → {} {}",
-                    userId, expectedProductId, purchaseToken,
+                    userId, expectedProductId, LogMask.token(purchaseToken),
                     e.getStatusCode(), e.getReason()
             );
             throw e;
@@ -140,7 +141,7 @@ public class GoogleSubscriptionService {
             pp = googleStoreClient.getProduct(expectedProductId, purchaseToken);
         } catch (IOException e) {
             log.warn("Google getProduct a échoué (productId={}, token={}) : {}",
-                    expectedProductId, purchaseToken, e.getMessage(), e);
+                    expectedProductId, LogMask.token(purchaseToken), e.getMessage(), e);
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Reçu Google invalide ou inaccessible : " + e.getMessage(), e);
@@ -166,7 +167,7 @@ public class GoogleSubscriptionService {
         UserSubscription sub = oneTimeAccessService.grantOneTimeAccess(
                 userId, plan, SubscriptionSource.GOOGLE, purchaseToken, pp.getOrderId());
         log.info("Google one-time pass user={} productId={} token={} endsAt={}",
-                userId, expectedProductId, purchaseToken, sub.getEndsAt());
+                userId, expectedProductId, LogMask.token(purchaseToken), sub.getEndsAt());
         return sub;
     }
 
@@ -275,7 +276,7 @@ public class GoogleSubscriptionService {
             // attend que l'app revienne ; pas de création sans userId.
             log.warn(
                     "Google RTDN messageId={} type={} purchaseToken={} : aucune subscription locale, ignorée.",
-                    messageId, notificationType, purchaseToken
+                    messageId, notificationType, LogMask.token(purchaseToken)
             );
             return;
         }
@@ -291,7 +292,7 @@ public class GoogleSubscriptionService {
             sub.setAutoRenew(false);
             userSubscriptionManager.save(sub);
             log.info("Google RTDN REVOKED appliqué user={} purchaseToken={}",
-                    sub.getUser().getId(), purchaseToken);
+                    sub.getUser().getId(), LogMask.token(purchaseToken));
             return;
         }
 
@@ -354,10 +355,10 @@ public class GoogleSubscriptionService {
                         sub.setAutoRenew(false);
                         userSubscriptionManager.save(sub);
                         log.info("Google one-time voided/refund user={} token={}",
-                                sub.getUser().getId(), token);
+                                sub.getUser().getId(), LogMask.token(token));
                     }, () -> log.warn(
                             "Google RTDN voided messageId={} token={} : aucune subscription locale.",
-                            messageId, token));
+                            messageId, LogMask.token(token)));
             return;
         }
         JsonNode oneTime = data.path("oneTimeProductNotification");
@@ -406,7 +407,7 @@ public class GoogleSubscriptionService {
             // (403 permissions SA, 404 token/package, API non activée…) — on la
             // trace en entier, c'est la donnée clé pour diagnostiquer.
             log.warn("Google getSubscriptionV2 a échoué (purchaseToken={}) : {}",
-                    purchaseToken, e.getMessage(), e);
+                    LogMask.token(purchaseToken), e.getMessage(), e);
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
                     "Reçu Google invalide ou inaccessible : " + e.getMessage(),

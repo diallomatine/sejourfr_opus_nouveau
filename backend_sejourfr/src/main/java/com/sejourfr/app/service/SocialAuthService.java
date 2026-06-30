@@ -1,5 +1,6 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.util.LogMask;
 import com.sejourfr.app.dto.AppleSignInRequest;
 import com.sejourfr.app.dto.AuthenticatedUser;
 import com.sejourfr.app.dto.GoogleSignInRequest;
@@ -105,7 +106,7 @@ public class SocialAuthService {
             User existing = byEmail.get();
             existing.setLastLoginAt(Instant.now());
             log.info("Social sign-in sur compte existant : email={} (provider d'origine={}, via={})",
-                    identity.email(), existing.getAuthProvider(), identity.provider());
+                    LogMask.email(identity.email()), existing.getAuthProvider(), identity.provider());
             return userManager.save(existing);
         }
 
@@ -121,7 +122,7 @@ public class SocialAuthService {
         user.setAuthProvider(identity.provider());
         user.setProviderUserId(identity.providerUserId());
         user.setLastLoginAt(Instant.now());
-        log.info("Creation compte via {} : email={}", identity.provider(), identity.email());
+        log.info("Creation compte via {} : email={}", identity.provider(), LogMask.email(identity.email()));
         User saved = userManager.save(user);
         mailService.sendWelcomeEmail(saved.getEmail(), saved.getFirstName());
         return saved;
