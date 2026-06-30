@@ -149,6 +149,10 @@ Liste complète des endpoints → `docs/api-endpoints.md`.
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 # DB : Postgres local, db = sejourfr_nouveau, user = diallomatine (cf. application-dev.yaml)
 # Mail : MailHog sur localhost:1025 (UI http://localhost:8025)
+# Tests : ./mvnw verify  (unitaires *Test via surefire + intégration *IT via failsafe).
+#   Les *IT tournent sur un Postgres EMBARQUÉ (Zonky, pas de Docker) qui applique les
+#   vraies migrations Flyway. Profil `test`, base AbstractIntegrationTest + fabriques
+#   TestData. Détails + gabarits : docs/plan-tests-backend.md.
 
 # Admin (depuis admin_sejourfr/)
 npm install && npm run dev
@@ -602,3 +606,5 @@ Référence à consulter quand le contexte le demande — pas chargé par défau
 - `docs/refonte-entrainement.md` — statut refonte hubs Civique/TCF (mobile + web)
 - `docs/roadmap.md` — roadmap commune (Stripe, refresh JWT web, tests, etc.)
 - `docs/audio-pipeline/` — spec exhaustive du pipeline audio CO (10 fichiers)
+- `docs/plan-tests-backend.md` — stratégie de tests backend (Postgres embarqué Zonky,
+  conventions *Test/*IT, gabarits par couche)

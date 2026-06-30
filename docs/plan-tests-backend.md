@@ -67,8 +67,19 @@ services **sous filet de tests** (refacto sans régression).
   - Services : ~56 services (unit Mockito + IT DB) — freemium, billing, quotas,
     transitions de statut, mapping, RGPD, etc.
   - Couverture JaCoCo : ~47 % instr (unit) + 40 % instr (IT), complémentaires
-- [ ] Optionnel : mappers (13) + specifications (3)
-- [ ] Refacto archi (gros services) sous filet de tests
+- [x] Mappers (13, unitaires) + specifications (3, IT) → **929 tests verts** (473 unit + 456 IT)
+- [x] Refacto archi : `AttemptService` 1252 → 799 l. + 3 services `service/attempt/`
+  (`AttemptScoringService`, `AttemptCompositionService`, `AttemptInteractionService`),
+  façade à API publique inchangée, 929 tests toujours verts.
+
+## Refacto — suite possible (non bloquant)
+
+`AttemptService` (799 l.) est désormais focalisé sur le start/dispatch. Restent gros
+mais **cohésifs** (1 responsabilité = 1 intégration paiement / 1 orchestration), donc
+acceptables tels quels — à découper seulement si la logique grossit :
+`GoogleSubscriptionService` (541), `FullTcfExamService` (531), `StripeSubscriptionService`
+(512), `AppleSubscriptionService` (495). Tous couverts par des tests → découpe sûre si
+besoin plus tard.
 
 ## Gabarits validés (à reproduire au fan-out)
 
