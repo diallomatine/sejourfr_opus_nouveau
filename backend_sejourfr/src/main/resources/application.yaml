@@ -164,6 +164,14 @@ sejourfr:
     rate-limit-per-minute: 10
     duplicate-similarity-threshold: 0.85
 
+  # Rate-limit anti-abus (par IP / par utilisateur), applique en memoire.
+  # Les seuils par surface ont des defauts genereux dans RateLimitProperties
+  # (login, register, forgot/reset-password, contact, demo guest, soumissions
+  # production EE/EO). Surcharge possible via sejourfr.rate-limit.<surface>.*.
+  # RATE_LIMIT_ENABLED=false = soupape de secours (desactive tout le mecanisme).
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+
   # Pipeline d'evaluation des productions (EO/EE du TCF IRN).
   # Distinct de sejourfr.anthropic (qui sert a generer des questions audio CO).
   # Cles API exclusivement via variables d'environnement.

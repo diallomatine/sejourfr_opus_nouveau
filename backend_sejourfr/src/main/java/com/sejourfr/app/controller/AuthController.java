@@ -1,6 +1,7 @@
 package com.sejourfr.app.controller;
 
 import com.sejourfr.app.dto.*;
+import com.sejourfr.app.ratelimit.RateLimitGuard;
 import com.sejourfr.app.service.AuthService;
 import com.sejourfr.app.service.UserProfileService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,6 +22,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserProfileService userProfileService;
+    private final RateLimitGuard rateLimitGuard;
 
     /**
      * Récupère l'IP de l'appelant en respectant les headers du reverse proxy
@@ -43,6 +45,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public TokenResponse login(@Valid @RequestBody LoginRequest req, HttpServletRequest http) {
+        rateLimitGuard.checkLogin(clientIp(http), req.email());
         return authService.login(req, userAgent(http), clientIp(http));
     }
 
@@ -72,18 +75,21 @@ public class AuthController {
      */
     @PostMapping("/register")
     public TokenResponse register(@Valid @RequestBody RegisterRequest req, HttpServletRequest http) {
+        rateLimitGuard.checkRegister(clientIp(http));
         return authService.register(req, userAgent(http), clientIp(http));
     }
 
     @PostMapping("/forgot-password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) {
+    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest req, HttpServletRequest http) {
+        rateLimitGuard.checkForgotPassword(clientIp(http));
         authService.requestPasswordReset(req.email());
     }
 
     @PostMapping("/reset-password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest req, HttpServletRequest http) {
+        rateLimitGuard.checkResetPassword(clientIp(http));
         authService.resetPassword(req.token(), req.newPassword());
     }
 

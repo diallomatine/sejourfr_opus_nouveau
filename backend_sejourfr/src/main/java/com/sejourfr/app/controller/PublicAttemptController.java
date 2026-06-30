@@ -4,6 +4,7 @@ import com.sejourfr.app.dto.AnswerResultResponse;
 import com.sejourfr.app.dto.AttemptResponse;
 import com.sejourfr.app.dto.StartAttemptRequest;
 import com.sejourfr.app.dto.SubmitAnswerRequest;
+import com.sejourfr.app.ratelimit.RateLimitGuard;
 import com.sejourfr.app.service.PublicAttemptService;
 import com.sejourfr.app.util.ClientIpExtractor;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,11 +32,14 @@ import java.util.UUID;
 public class PublicAttemptController {
 
     private final PublicAttemptService publicAttemptService;
+    private final RateLimitGuard rateLimitGuard;
 
     @PostMapping("/demo")
     @ResponseStatus(HttpStatus.CREATED)
     public AttemptResponse startDemo(@Valid @RequestBody StartAttemptRequest req, HttpServletRequest httpReq) {
-        return publicAttemptService.startDemo(req, ClientIpExtractor.extract(httpReq));
+        String ip = ClientIpExtractor.extract(httpReq);
+        rateLimitGuard.checkDemo(ip);
+        return publicAttemptService.startDemo(req, ip);
     }
 
     @GetMapping("/{id}")
