@@ -1,0 +1,53 @@
+# Profil `test` : utilisé par les tests d'intégration (AbstractIntegrationTest).
+# Le datasource est injecté à chaud par @DynamicPropertySource (Postgres embarqué
+# Zonky) — ne RIEN mettre ici pour spring.datasource.*.
+#
+# Hérite de application.yaml (tous les defaults sejourfr.*). Les clés externes
+# (Stripe / Apple / Google / R2 / Anthropic / OpenAI / Gemini) restent vides →
+# les endpoints correspondants répondent 503 de façon inerte, sans appel réseau.
+spring:
+  flyway:
+    enabled: true
+    # Schéma commun UNIQUEMENT (pas de seed dev) : les tests créent leurs propres
+    # données via TestData. On garde out-of-order pour respecter l'ordre réel.
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    out-of-order: true
+    ignore-migration-patterns: "*:missing"
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate   # valide le mapping JPA contre le schéma Flyway réel
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          time_zone: UTC
+  # JavaMailSender doit exister (MailService l'injecte) mais ne se connecte jamais :
+  # les envois sont @Async et avalent les erreurs. Host bidon, port fermé.
+  mail:
+    host: localhost
+    port: 3025
+    properties:
+      mail:
+        smtp:
+          connectiontimeout: 500
+          timeout: 500
+          writetimeout: 500
+
+sejourfr:
+  # Secret JWT déterministe pour les tests (base64, 48 octets). Permet de signer
+  # de vrais access tokens via JwtService dans les tests controllers (droits).
+  security:
+    jwt:
+      secret: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWYwMTIzNDU2Nzg5YWJjZGVm"
+  # Rate-limit désactivé : on teste la logique métier, pas les seuils anti-abus
+  # (ceux-ci ont leurs propres tests ciblés).
+  rate-limit:
+    enabled: false
+
+logging:
+  level:
+    com.sejourfr: WARN
+    org.flywaydb: INFO
+    org.hibernate.SQL: OFF

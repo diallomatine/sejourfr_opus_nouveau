@@ -1,11 +1,9 @@
 package com.sejourfr.app.service.billing;
 
 import com.sejourfr.app.dto.CancelSubscriptionResponse;
-import com.sejourfr.app.entity.User;
 import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.manager.UserSubscriptionManager;
-import com.sejourfr.app.service.MailService;
 import com.sejourfr.app.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,7 +57,7 @@ public class SubscriptionCancellationService {
     private final SubscriptionService subscriptionService;
     private final UserSubscriptionManager userSubscriptionManager;
     private final StripeSubscriptionService stripeSubscriptionService;
-    private final MailService mailService;
+    private final SubscriptionNotificationService subscriptionNotifier;
 
     @Transactional
     public CancelSubscriptionResponse cancelForUser(UUID userId) {
@@ -143,12 +141,7 @@ public class SubscriptionCancellationService {
         // Mail de confirmation. Le webhook qui arrivera ensuite ne renverra
         // PAS de mail (transition CANCELED → CANCELED ignorée par
         // StripeSubscriptionService.handleSubscriptionUpdate).
-        User user = sub.getUser();
-        String planName = sub.getPlan() != null ? sub.getPlan().getName() : "Premium";
-        mailService.sendSubscriptionCanceledEmail(
-                user.getEmail(), user.getFirstName(), planName,
-                sub.getEndsAt(), sub.getSource().name()
-        );
+        subscriptionNotifier.sendCancellation(sub);
 
         return CancelSubscriptionResponse.done(buildStripeDoneMessage(sub.getEndsAt()));
     }

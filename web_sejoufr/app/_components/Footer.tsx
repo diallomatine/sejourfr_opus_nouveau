@@ -8,43 +8,20 @@ import {ApiException, newsletterApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {shouldHideGlobalChrome} from "@/lib/chrome-routes";
 
-// lucide-react ne distribue plus les icônes de marques (politique de trademark) :
-// on définit nos propres SVG pour Twitter/Instagram/LinkedIn/YouTube/GitHub.
+// La présence officielle de SejourFR = ses apps sur les stores (pas de comptes
+// réseaux sociaux à ce jour). On rend les logos App Store / Google Play plutôt
+// que des liens génériques vers twitter.com/instagram.com, etc.
 type IconProps = { className?: string };
-const Twitter = ({className}: IconProps) => (
+const AppStore = ({className}: IconProps) => (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden focusable="false">
         <path
-            d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            d="M17.05 12.54c-.02-2.06 1.68-3.05 1.76-3.1-.96-1.4-2.45-1.6-2.98-1.62-1.27-.13-2.48.75-3.12.75-.64 0-1.64-.73-2.7-.71-1.39.02-2.67.81-3.38 2.05-1.44 2.5-.37 6.2 1.03 8.23.69.99 1.51 2.11 2.58 2.07 1.03-.04 1.42-.67 2.67-.67 1.25 0 1.6.67 2.69.65 1.11-.02 1.82-1.01 2.5-2.01.79-1.15 1.11-2.27 1.13-2.33-.02-.01-2.17-.83-2.19-3.3zM15 6.24c.57-.69.95-1.65.85-2.61-.82.03-1.81.55-2.4 1.24-.53.6-.99 1.58-.87 2.51.91.07 1.85-.46 2.42-1.14z"/>
     </svg>
 );
-const Instagram = ({className}: IconProps) => (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2"
-         strokeLinecap="round" strokeLinejoin="round" aria-hidden focusable="false">
-        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
-        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
-    </svg>
-);
-const Linkedin = ({className}: IconProps) => (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2"
-         strokeLinecap="round" strokeLinejoin="round" aria-hidden focusable="false">
-        <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/>
-        <rect x="2" y="9" width="4" height="12"/>
-        <circle cx="4" cy="4" r="2"/>
-    </svg>
-);
-const Youtube = ({className}: IconProps) => (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2"
-         strokeLinecap="round" strokeLinejoin="round" aria-hidden focusable="false">
-        <path
-            d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19.1c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/>
-        <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" fill="currentColor" stroke="none"/>
-    </svg>
-);
-const Github = ({className}: IconProps) => (
+const PlayStore = ({className}: IconProps) => (
     <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden focusable="false">
         <path
-            d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.4 3-.405 1.02.005 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+            d="M3.6 2.32a1.02 1.02 0 0 0-.35.79v17.78c0 .33.13.61.36.79l.1.06 9.96-9.96v-.24L3.7 2.26l-.1.06zm13.4 6.4L14.7 6.9 4.86 1.28c-.28-.16-.55-.18-.78-.06l9.96 9.97 3.96-2.47zm3.16 1.9-2.4-1.5-3.3 2.88 3.3 3.3 2.4-1.5c.7-.44.7-1.24 0-1.68zM4.08 22.78c.23.12.5.1.78-.06l9.84-5.62-3.4-3.4-9.96 9.97.74-.89z"/>
     </svg>
 );
 
@@ -70,11 +47,16 @@ const legalLinks = [
 ];
 
 const socials = [
-    {href: "https://twitter.com", label: "Twitter / X", Icon: Twitter},
-    {href: "https://instagram.com", label: "Instagram", Icon: Instagram},
-    {href: "https://linkedin.com", label: "LinkedIn", Icon: Linkedin},
-    {href: "https://youtube.com", label: "YouTube", Icon: Youtube},
-    {href: "https://github.com", label: "GitHub", Icon: Github},
+    {
+        href: "https://apps.apple.com/fr/app/sejourfr/id6771509569",
+        label: "SejourFR sur l'App Store",
+        Icon: AppStore,
+    },
+    {
+        href: "https://play.google.com/store/apps/details?id=com.sejourfr.app&hl=fr",
+        label: "SejourFR sur Google Play",
+        Icon: PlayStore,
+    },
 ];
 
 export function Footer() {

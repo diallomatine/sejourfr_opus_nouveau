@@ -7,6 +7,7 @@ import com.sejourfr.app.dto.MediaResponse;
 import com.sejourfr.app.dto.QuestionDto;
 import com.sejourfr.app.dto.QuestionPublicResponse;
 import com.sejourfr.app.dto.QuestionReviewResponse;
+import com.sejourfr.app.audioquestion.domain.AudioMode;
 import com.sejourfr.app.entity.Choice;
 import com.sejourfr.app.entity.Media;
 import com.sejourfr.app.entity.Passage;
@@ -21,12 +22,17 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Component
 public class QuestionMapper {
 
     private static final int PASSAGE_PREVIEW_LENGTH = 140;
+
+    /** Label « lettre seule » d'une CO dont l'audio lit les propositions : « A » ou « Réponse A » (A-D). */
+    private static final Pattern LETTER_PLACEHOLDER =
+            Pattern.compile("(?i)^(r[ée]ponse\\s+)?[a-d]$");
 
     // ------------------------------------------------------------------------
     // Vue admin (full info : correct, active, etc.)
@@ -91,14 +97,15 @@ public class QuestionMapper {
         List<Choice> ordered = q.getChoices().stream()
                 .sorted(Comparator.comparingInt(Choice::getDisplayOrder))
                 .collect(Collectors.toCollection(ArrayList::new));
-        // Questions audio (TCF CO) : l'audio énonce les réponses dans l'ordre
-        // displayOrder (« A… B… C… D… ») et fige la correspondance lettre↔
-        // réponse. On ne les shuffle PAS, sinon la lettre/position affichée ne
-        // correspond plus à celle dite dans l'audio. On se base sur la présence
-        // d'un média AUDIO (les seeds CO ne renseignent pas tous audio_mode, qui
-        // reste souvent NULL). Les autres questions sont mélangées de façon
-        // stable (seed = AttemptQuestion.id) pour limiter la mémorisation.
-        if (!isAudioQuestion(q)) {
+        // On ne shuffle PAS les questions dont les propositions sont LUES dans
+        // l'audio (CO_IMAGE et CO FULL_AUDIO) : l'audio énonce les réponses dans
+        // l'ordre displayOrder (« A… B… C… D… ») et fige la correspondance lettre↔
+        // réponse — mélanger désynchroniserait la lettre affichée de celle dite.
+        // En revanche les CO WRITTEN_QUESTION affichent le TEXTE des propositions à
+        // l'écran : elles DOIVENT être mélangées, sinon la bonne réponse reste collée
+        // à sa position d'origine (biais « la bonne réponse est toujours A »). Le
+        // shuffle est stable (seed = AttemptQuestion.id) pour limiter la mémorisation.
+        if (!choicesAreReadAloud(q)) {
             Collections.shuffle(ordered, new Random(uuidSeed(shuffleSeedId)));
         }
 
@@ -175,16 +182,39 @@ public class QuestionMapper {
     }
 
     /**
-     * Une question est « audio » si elle porte un média AUDIO (cas TCF CO :
-     * l'audio lit les 4 réponses dans l'ordre displayOrder) ou si son
-     * audioMode est renseigné. Dans ce cas on n'autorise pas le shuffle des
-     * choix — l'ordre affiché doit suivre l'audio.
+     * Vrai quand les propositions sont LUES dans l'audio (l'écran n'affiche que
+     * des lettres) : l'ordre affiché doit alors suivre l'audio, on ne shuffle pas.
+     * Cas : CO_IMAGE, et CO en mode FULL_AUDIO.
+     *
+     * <p>{@code audio_mode} n'est pas fiable en base (NULL sur les seeds CO et sur
+     * les questions publiées depuis un draft). On retombe donc sur la forme des
+     * labels — mais uniquement pour les questions audio (présence d'un média
+     * AUDIO) : quand les propositions sont lues, l'écran ne montre que des lettres
+     * (« A »…« D » côté seeds, « Réponse A »…« Réponse D » côté génération). Si les
+     * labels portent du vrai texte (WRITTEN_QUESTION), les propositions sont
+     * affichées → on shuffle.
      */
-    private static boolean isAudioQuestion(Question q) {
+    private static boolean choicesAreReadAloud(Question q) {
         if (q.getQuestionType() == QuestionType.CO_IMAGE) return true;
+        if (q.getAudioMode() == AudioMode.FULL_AUDIO) return true;
+        if (q.getAudioMode() == AudioMode.WRITTEN_QUESTION) return false;
+        if (!hasAudioMedium(q)) return false;
+        return allChoicesAreLetterPlaceholders(q);
+    }
+
+    private static boolean hasAudioMedium(Question q) {
         if (q.getAudioMedia() != null) return true;
-        if (q.getAudioMode() != null) return true;
         return q.getMedia() != null && q.getMedia().getType() == MediaType.AUDIO;
+    }
+
+    private static boolean allChoicesAreLetterPlaceholders(Question q) {
+        List<Choice> choices = q.getChoices();
+        if (choices == null || choices.isEmpty()) return false;
+        for (Choice c : choices) {
+            String label = c.getLabel() == null ? "" : c.getLabel().trim();
+            if (!LETTER_PLACEHOLDER.matcher(label).matches()) return false;
+        }
+        return true;
     }
 
     private static long uuidSeed(UUID id) {

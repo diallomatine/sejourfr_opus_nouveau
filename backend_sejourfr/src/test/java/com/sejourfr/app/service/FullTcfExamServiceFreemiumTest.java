@@ -57,9 +57,11 @@ class FullTcfExamServiceFreemiumTest {
         TcfLevelEstimatorService levelEstimator = mock(TcfLevelEstimatorService.class);
         ProductionBilanService productionBilanService = mock(ProductionBilanService.class);
 
+        FullTcfExamResponseBuilder responseBuilder = new FullTcfExamResponseBuilder(
+                attemptManager, productionSubmissionManager, levelEstimator, productionBilanService);
         service = new FullTcfExamService(
                 attemptManager, userManager, productionSubmissionManager,
-                subscriptionService, attemptService, levelEstimator, productionBilanService);
+                subscriptionService, attemptService, responseBuilder);
 
         when(userManager.findById(userId)).thenReturn(Optional.of(new User()));
         // Compte gratuit (pas d'abonnement TCF).
