@@ -110,6 +110,11 @@ export class GeminiLiveSession {
     // garde-fou si rien n'arrive.
     private awaitingFirstExaminer = true;
     private welcomeTimer: ReturnType<typeof setTimeout> | null = null;
+    // Transcription : on accumule les fragments Gemini VERBATIM (ils portent leur
+    // propre espacement) et on n'émet une ligne qu'à la fin du tour (turnComplete
+    // / interrupted). Ajouter un espace entre fragments coupait les mots.
+    private candidateBuf = "";
+    private examinerBuf = "";
 
     constructor(descriptor: RealtimeSessionDescriptor, cb: GeminiLiveCallbacks) {
         this.descriptor = descriptor;
@@ -196,6 +201,10 @@ export class GeminiLiveSession {
         if (msg.setupComplete) {
             // Phase d'accueil : micro coupé, on attend la 1re phrase de l'examinateur.
             this.cb.onStateChange?.("welcoming");
+            // Gemini ne parle pas spontanément : on déclenche l'accueil par un
+            // premier tour utilisateur « Bonjour. » — l'examinateur enchaîne
+            // aussitôt (fin de l'attente « il met du temps à arriver »).
+            this.sendOpeningTrigger();
             // Garde-fou : si rien sous ~8 s, on libère le micro et on passe en
             // conversation (un greeting audio manquant ne doit pas bloquer le candidat).
             this.welcomeTimer = setTimeout(() => this.beginConversation(), 8000);
@@ -204,19 +213,56 @@ export class GeminiLiveSession {
         const sc = msg.serverContent;
         if (!sc) return;
 
-        if (sc.interrupted) this.flushPlayback();
+        // Accumulation VERBATIM (les fragments Gemini portent leur espacement).
+        if (sc.inputTranscription?.text) this.candidateBuf += sc.inputTranscription.text;
+        if (sc.outputTranscription?.text) this.examinerBuf += sc.outputTranscription.text;
 
-        if (sc.inputTranscription?.text) {
-            this.cb.onCandidateTranscript?.(sc.inputTranscription.text);
+        if (sc.interrupted) {
+            this.flushPlayback();
+            this.flushLine("examiner"); // barge-in : le tour examinateur est clos
         }
-        if (sc.outputTranscription?.text) {
-            this.cb.onExaminerTranscript?.(sc.outputTranscription.text);
-        }
+
         const parts = sc.modelTurn?.parts ?? [];
         for (const p of parts) {
             const data = p.inlineData?.data;
             if (data) this.enqueueAudio(data);
         }
+
+        // Fin de tour : on émet les lignes complètes (candidat puis examinateur).
+        if (sc.turnComplete) {
+            this.flushLine("candidate");
+            this.flushLine("examiner");
+        }
+    }
+
+    /** Émet une ligne de transcription complète (tour terminé), puis vide le buffer. */
+    private flushLine(speaker: "candidate" | "examiner"): void {
+        if (speaker === "candidate") {
+            const text = this.candidateBuf.trim();
+            this.candidateBuf = "";
+            if (text) this.cb.onCandidateTranscript?.(text);
+        } else {
+            const text = this.examinerBuf.trim();
+            this.examinerBuf = "";
+            if (text) this.cb.onExaminerTranscript?.(text);
+        }
+    }
+
+    /**
+     * Amorce l'entretien : Gemini ne prend pas la parole tout seul après le setup.
+     * On envoie un vrai tour utilisateur « Bonjour. » ({@code clientContent} +
+     * {@code turnComplete}) — l'examinateur enchaîne son accueil (dicté par la
+     * persona verrouillée dans le token). Ce tour texte n'est PAS de l'audio micro
+     * → il n'apparaît pas dans la transcription du candidat.
+     */
+    private sendOpeningTrigger(): void {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+        this.ws.send(JSON.stringify({
+            clientContent: {
+                turns: [{role: "user", parts: [{text: "Bonjour."}]}],
+                turnComplete: true,
+            },
+        }));
     }
 
     // --- Capture micro -------------------------------------------------------
@@ -368,6 +414,10 @@ export class GeminiLiveSession {
 
     /** Coupe tout : micro, WebSocket, lecture. */
     stop(): void {
+        // Clôture en plein tour : on émet le dernier buffer (sinon la fin de la
+        // dernière réponse du candidat serait perdue).
+        this.flushLine("candidate");
+        this.flushLine("examiner");
         this.closed = true;
         if (this.welcomeTimer != null) {
             clearTimeout(this.welcomeTimer);

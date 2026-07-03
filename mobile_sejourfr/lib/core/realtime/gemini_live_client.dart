@@ -52,6 +52,12 @@ class GeminiLiveClient {
   final void Function(String message)? onError;
   final void Function()? onClosed;
 
+  // Transcription : on accumule les fragments Gemini VERBATIM (ils portent leur
+  // propre espacement) et on n'émet une ligne qu'à la fin du tour (turnComplete /
+  // interrupted). Ajouter un espace entre fragments coupait les mots.
+  final StringBuffer _candidateBuf = StringBuffer();
+  final StringBuffer _examinerBuf = StringBuffer();
+
   final AudioRecorder _recorder = AudioRecorder();
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _wsSub;
@@ -146,6 +152,10 @@ class GeminiLiveClient {
 
   Future<void> dispose() async {
     if (_closed) return;
+    // Clôture en plein tour : on émet le dernier buffer (sinon la fin de la
+    // dernière réponse du candidat serait perdue).
+    _flushLine('candidate');
+    _flushLine('examiner');
     _closed = true;
     _welcomeTimer?.cancel();
     _welcomeTimer = null;
@@ -277,23 +287,33 @@ class GeminiLiveClient {
     }
     if (msg == null) return;
 
+    // Gemini ne parle pas spontanément : à l'ack du setup, on déclenche l'accueil
+    // par un premier tour utilisateur « Bonjour. » → l'examinateur enchaîne tout
+    // de suite (fin de l'attente « il met du temps à arriver »).
+    if (msg['setupComplete'] != null) {
+      _sendOpeningTrigger();
+      return;
+    }
+
     final server = msg['serverContent'];
     if (server is! Map<String, dynamic>) return;
 
+    // Accumulation VERBATIM (les fragments Gemini portent leur espacement).
     final input = server['inputTranscription'];
     if (input is Map<String, dynamic>) {
       final t = input['text'] as String?;
-      if (t != null && t.isNotEmpty) onCandidateTranscript?.call(t);
+      if (t != null && t.isNotEmpty) _candidateBuf.write(t);
     }
     final output = server['outputTranscription'];
     if (output is Map<String, dynamic>) {
       final t = output['text'] as String?;
-      if (t != null && t.isNotEmpty) onExaminerTranscript?.call(t);
+      if (t != null && t.isNotEmpty) _examinerBuf.write(t);
     }
 
     if (server['interrupted'] == true) {
       _pcmQueue.clear();
       _setSpeaking(false);
+      _flushLine('examiner'); // barge-in : le tour examinateur est clos
     }
 
     final modelTurn = server['modelTurn'];
@@ -314,9 +334,45 @@ class GeminiLiveClient {
       }
     }
 
-    if (server['turnComplete'] == true && _pcmQueue.isEmpty) {
-      _setSpeaking(false);
+    if (server['turnComplete'] == true) {
+      // Fin de tour : on émet les lignes complètes (candidat puis examinateur).
+      _flushLine('candidate');
+      _flushLine('examiner');
+      if (_pcmQueue.isEmpty) _setSpeaking(false);
     }
+  }
+
+  /// Émet une ligne de transcription complète (tour terminé), puis vide le buffer.
+  void _flushLine(String speaker) {
+    final buf = speaker == 'examiner' ? _examinerBuf : _candidateBuf;
+    final text = buf.toString().trim();
+    buf.clear();
+    if (text.isEmpty) return;
+    if (speaker == 'examiner') {
+      onExaminerTranscript?.call(text);
+    } else {
+      onCandidateTranscript?.call(text);
+    }
+  }
+
+  /// Amorce l'entretien : Gemini ne prend pas la parole seul après le setup. On
+  /// envoie un vrai tour utilisateur « Bonjour. » ; l'examinateur enchaîne son
+  /// accueil (dicté par la persona verrouillée dans le token). Ce tour texte
+  /// n'est PAS de l'audio micro → il n'apparaît pas dans la transcription candidat.
+  void _sendOpeningTrigger() {
+    _send({
+      'clientContent': {
+        'turns': [
+          {
+            'role': 'user',
+            'parts': [
+              {'text': 'Bonjour.'}
+            ]
+          }
+        ],
+        'turnComplete': true,
+      }
+    });
   }
 
   void _onWsDone() {
