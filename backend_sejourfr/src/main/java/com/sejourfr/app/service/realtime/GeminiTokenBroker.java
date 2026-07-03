@@ -84,7 +84,11 @@ public class GeminiTokenBroker implements RealtimeTokenBroker {
         }
     }
 
-    private Map<String, Object> buildRequestBody(RealtimeProperties.Gemini g, String systemInstruction, Instant now) {
+    /**
+     * Construit le corps de la requete {@code auth_tokens} : la config verrouillee
+     * dans le token. Package-private pour etre testable sans reseau.
+     */
+    Map<String, Object> buildRequestBody(RealtimeProperties.Gemini g, String systemInstruction, Instant now) {
         // Sous-message generationConfig : modalite de sortie + voix + temperature.
         Map<String, Object> generationConfig = new LinkedHashMap<>();
         generationConfig.put("responseModalities", List.of("AUDIO"));
@@ -105,6 +109,7 @@ public class GeminiTokenBroker implements RealtimeTokenBroker {
         setup.put("systemInstruction", Map.of("parts", List.of(Map.of("text", systemInstruction))));
         setup.put("inputAudioTranscription", Map.of());
         setup.put("outputAudioTranscription", Map.of());
+        setup.put("realtimeInputConfig", buildRealtimeInputConfig(g.getVad()));
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("uses", g.getTokenUses());
@@ -112,6 +117,23 @@ public class GeminiTokenBroker implements RealtimeTokenBroker {
         body.put("newSessionExpireTime", now.plusSeconds(g.getNewSessionExpireSeconds()).toString());
         body.put("bidiGenerateContentSetup", setup);
         return body;
+    }
+
+    /**
+     * VAD verrouillee dans le token : examinateur PATIENT (fin de parole peu
+     * sensible, fenetre de silence confortable, la meme pour tous les niveaux)
+     * mais reactif au DEBUT de parole. Corrige le tour clos trop tot sur une pause
+     * de reflexion (l'examinateur relancait/coupait alors que le candidat
+     * reprenait).
+     */
+    private static Map<String, Object> buildRealtimeInputConfig(RealtimeProperties.Vad vad) {
+        Map<String, Object> aad = new LinkedHashMap<>();
+        aad.put("disabled", vad.isDisabled());
+        aad.put("startOfSpeechSensitivity", vad.getStartSensitivity());
+        aad.put("endOfSpeechSensitivity", vad.getEndSensitivity());
+        aad.put("prefixPaddingMs", vad.getPrefixPaddingMs());
+        aad.put("silenceDurationMs", vad.getSilenceDurationMs());
+        return Map.of("automaticActivityDetection", aad);
     }
 
     /** Gemini attend le modele prefixe par {@code models/}. */

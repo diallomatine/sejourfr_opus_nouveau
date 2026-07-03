@@ -122,18 +122,22 @@ export class GeminiLiveSession {
     /** Ouvre le micro + le WebSocket et démarre la conversation. */
     async start(): Promise<void> {
         this.cb.onStateChange?.("connecting");
+        // Latence : on ouvre le WebSocket TOUT DE SUITE, en parallèle de l'init
+        // micro. Le handshake WS + l'envoi du setup + la génération de l'accueil
+        // par le modèle (le plus gros du « l'examinateur met du temps à arriver »)
+        // se déroulent pendant que getUserMedia/AudioContext/worklet s'initialisent.
+        // Le micro n'émet de toute façon rien avant la 1re phrase de l'examinateur
+        // (half-duplex, awaitingFirstExaminer) — rien n'impose de l'attendre.
+        this.openSocket();
         try {
             await this.openMic();
         } catch (e) {
             const name = e && typeof e === "object" && "name" in e ? String((e as {name?: unknown}).name) : "";
             const msg = e && typeof e === "object" && "message" in e ? String((e as {message?: unknown}).message) : "";
             this.fail(micErrorMessage(name, msg));
-            return;
         }
         // StrictMode (double-montage dev) : si stop() a été appelé pendant
-        // l'ouverture async du micro, ne pas ouvrir un socket orphelin.
-        if (this.closed) return;
-        this.openSocket();
+        // l'ouverture async du micro, fail()/stop() a déjà coupé le socket.
     }
 
     private openSocket(): void {

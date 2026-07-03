@@ -317,6 +317,16 @@ local concerné et celui de la racine si la modif est transverse. Pas de changel
 exhaustif — juste de quoi qu'un futur Claude se repère vite. Inutile d'y consigner les
 bugfixes ou les micro-ajustements.
 
+**Exception — la doc de notation IA doit TOUJOURS être exhaustive et à jour.**
+`docs/notation-ia-eo-ee.md` est la référence grand public (compréhensible par un
+non-informaticien) de la façon dont l'IA note les productions EE/EO. Contrairement aux
+CLAUDE.md, elle **n'est pas** un simple aide-mémoire : elle doit rester **complète et
+exacte**. Dès qu'on touche une **règle de notation, un barème, un poids de critère, une
+consigne donnée à l'IA** (`production-rubrics-*.json`, `production-evaluation-tool-schema-*.json`),
+**une tâche EE/EO**, ou le **comportement de l'examinateur vocal** (`realtime-personas-*.json`,
+config VAD), on met à jour ce fichier **dans la même passe**, en gardant un langage clair et
+sans jargon non expliqué. Ce n'est pas un « bugfix à ne pas consigner » : c'est une exigence.
+
 ## Paiements multi-source (Stripe + Apple + Google)
 
 Le statut Premium est centralisé dans `user_subscriptions` (table backend). C'est
@@ -641,6 +651,13 @@ Référence à consulter quand le contexte le demande — pas chargé par défau
 - `docs/setup-paiement-one-time.md` — passes achat unique (lot 5) : setup Stripe/Apple/Google pas-à-pas + SKU
 - `docs/pipeline-audio-co.md` — génération audio TCF CO (Claude → Azure Speech → R2)
 - `docs/pipeline-evaluation-eo-ee.md` — éval EO/EE (Whisper → Claude/OpenAI → R2 privé)
+- `docs/notation-ia-eo-ee.md` — **explication grand public** (non technique) de la notation
+  IA de TOUTES les tâches EE/EO : les 6 tâches, critères + poids, barème /20, règles spéciales
+  (tolérance transcription temps réel, examinateur = témoin de compréhension, pas d'exigence
+  d'exhaustivité, hors-sujet), examinateur vocal, feedback, niveau CECRL au bilan. **À TENIR À
+  JOUR À CHAQUE CHANGEMENT** de règle de notation, barème, critère, consigne IA, tâche, ou
+  comportement de l'examinateur vocal — dans la même passe que le changement — et à garder
+  **toujours compréhensible par un non-informaticien** (voir aussi la règle dédiée ci-dessous).
 - `docs/refonte-entrainement.md` — statut refonte hubs Civique/TCF (mobile + web)
 - `docs/roadmap.md` — roadmap commune (Stripe, refresh JWT web, tests, etc.)
 - `docs/audio-pipeline/` — spec exhaustive du pipeline audio CO (10 fichiers)

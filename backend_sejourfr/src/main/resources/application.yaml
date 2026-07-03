@@ -294,6 +294,20 @@ sejourfr:
       model: ${REALTIME_GEMINI_MODEL:gemini-live-2.5-flash-native-audio}
       voice: ${REALTIME_GEMINI_VOICE:Aoede}
       temperature: 0.7
+      # VAD verrouillée dans le token (realtimeInputConfig.automaticActivityDetection).
+      # Arbitrage patience ↔ réactivité : end-sensitivity LOW garde l'examinateur
+      # tolérant aux pauses de réflexion (il ne coupe pas l'apprenant), tandis que
+      # silence-duration-ms=500 (bas de la fourchette Google recommandée 500-800,
+      # défaut serveur ~800) réduit ~de moitié l'attente contrôlable avant qu'il
+      # réponde. start-sensitivity HIGH = détection rapide du début de parole. Ne
+      # pas descendre silence-duration-ms sous ~500 (fragmenterait la parole).
+      # Tunable sans redeploy via env (REALTIME_GEMINI_VAD_* si surchargé).
+      vad:
+        disabled: false
+        start-sensitivity: START_SENSITIVITY_HIGH
+        end-sensitivity: END_SENSITIVITY_LOW
+        prefix-padding-ms: 300
+        silence-duration-ms: 500
       token-uses: 1
       new-session-expire-seconds: 120
       session-expire-seconds: 1800

@@ -66,6 +66,32 @@ class EvaluationPromptBuilderTest {
     }
 
     @Test
+    void systemPrompt_interaction_utilise_examinateur_comme_preuve_de_comprehension() {
+        String system = builder.buildSystemPrompt();
+        assertThat(system).contains("# Production orale en INTERACTION");
+        // Point 2/4b : tolerance STT temps reel + examinateur temoin de comprehension.
+        assertThat(system).contains("TRANSCRIPTION TEMPS REEL");
+        assertThat(system).contains("TEMOIN DE COMPREHENSION");
+        assertThat(system).contains("s'est FAIT COMPRENDRE");
+    }
+
+    @Test
+    void userPrompt_EO_T2_ne_exige_pas_toutes_les_questions() {
+        ProductionTask task = new ProductionTask();
+        task.setEpreuve(EpreuveType.TCF_EO);
+        task.setTacheNumero((short) 2);
+        task.setNiveauCible("B1");
+        task.setConsigne("Reservez une chambre d'hotel.");
+        task.setDureeMaxSec(300);
+
+        String user = builder.buildUserPrompt(task, "Candidat : bonjour je voudrais une chambre", true, 200);
+
+        assertThat(user).contains("ÉPREUVE : Expression orale, tâche 2");
+        // Point 6 : les questions du sujet sont des pistes, pas une check-list.
+        assertThat(user).contains("ne penalise JAMAIS le fait qu'il n'ait pas pose toutes ces questions");
+    }
+
+    @Test
     void userPrompt_EO_injecte_duree_factuelle_sous_objectif() {
         ProductionTask task = new ProductionTask();
         task.setEpreuve(EpreuveType.TCF_EO);

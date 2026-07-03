@@ -147,6 +147,10 @@ class _LiveStrip extends StatelessWidget {
     final live = state.phase == RealtimePhase.welcoming ||
         state.phase == RealtimePhase.live ||
         state.phase == RealtimePhase.finishing;
+    // Le décompte ne s'affiche qu'une fois qu'il court réellement (à la 1re
+    // parole de l'examinateur) : pendant l'accueil il resterait figé sur la cible.
+    final counting = state.phase == RealtimePhase.live ||
+        state.phase == RealtimePhase.finishing;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
@@ -173,9 +177,11 @@ class _LiveStrip extends StatelessWidget {
           const SizedBox(width: 8),
           if (live) ...[
             const _LiveDot(),
-            const SizedBox(width: 12),
-            Text(_fmt(state.remainingSec),
-                style: AppFonts.display(size: 18, color: AppColors.red)),
+            if (counting) ...[
+              const SizedBox(width: 12),
+              Text(_fmt(state.remainingSec),
+                  style: AppFonts.display(size: 18, color: AppColors.red)),
+            ],
           ],
         ],
       ),

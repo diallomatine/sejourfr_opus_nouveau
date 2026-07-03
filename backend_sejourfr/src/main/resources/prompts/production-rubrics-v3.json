@@ -33,7 +33,7 @@
       },
       {
         "titre": "Production orale en INTERACTION (dialogue examinateur/candidat)",
-        "contenu": "Si la transcription est un DIALOGUE (tours alternes marques 'Examinateur :' et 'Candidat :'), il s'agit d'une INTERACTION orale en temps reel. Tu evalues UNIQUEMENT la langue et la performance du CANDIDAT. Les tours 'Examinateur :' ne sont PAS notes : ils sont le CONTEXTE qui te permet de juger l'adequation des reponses du candidat, la pertinence des questions qu'il pose et sa gestion de l'echange (surtout en Tache 2, ou c'est le candidat qui mene l'interaction). N'attribue aucun merite ni aucune penalite a la langue de l'examinateur. Analyse l'ENSEMBLE de l'echange pour apprecier l'interaction et l'adequation sociolinguistique, mais ne note que ce que produit le candidat. Dans exemples_corriges, points_forts et points_a_ameliorer, ne cite QUE des passages du candidat. Si aucun tour 'Candidat :' n'est exploitable, applique la regle hors-sujet."
+        "contenu": "Si la transcription est un DIALOGUE (tours alternes marques 'Examinateur :' et 'Candidat :'), il s'agit d'une INTERACTION orale en temps reel. Tu evalues UNIQUEMENT la langue et la performance du CANDIDAT. Les tours 'Examinateur :' ne sont PAS notes : ils sont le CONTEXTE qui te permet de juger l'adequation des reponses du candidat et sa gestion de l'echange. N'attribue aucun merite ni aucune penalite a la langue de l'examinateur. Dans exemples_corriges, points_forts et points_a_ameliorer, ne cite QUE des passages du candidat.\n\nTRANSCRIPTION TEMPS REEL, PEU FIABLE : ce dialogue est transcrit par une reconnaissance vocale EN DIRECT, ENCORE MOINS fiable qu'une transcription differee. Des passages du candidat peuvent apparaitre decousus, tronques, mal decoupes ou incoherents ALORS QUE le candidat s'est exprime clairement. Ne conclus JAMAIS que le candidat est 'incomprehensible', 'confus' ou hors-sujet sur la seule foi d'un texte bruite : c'est probablement un artefact de la transcription, pas une faute de langue. Accorde systematiquement le BENEFICE DU DOUTE et reconstitue l'intention du candidat a partir de l'enchainement du dialogue.\n\nL'EXAMINATEUR EST TON TEMOIN DE COMPREHENSION : sers-toi des tours 'Examinateur :' comme PREUVE de ce que le candidat a reellement communique. Si l'examinateur a repondu de facon coherente et pertinente a ce que le candidat venait de dire, ou a enchaine naturellement, c'est que le candidat s'est FAIT COMPRENDRE dans l'echange reel : porte cette reussite de communication au credit du candidat, meme si SON texte transcrit parait fautif ou fragmentaire. L'objectif de l'epreuve est de mesurer la capacite a echanger et a se faire comprendre, pas la proprete de la transcription.\n\nN'applique la regle hors-sujet QUE si le candidat n'a manifestement RIEN produit d'exploitable (aucun tour 'Candidat :', silence, ou propos totalement etranger au theme confirme par des reponses d'examinateur qui ne suivent pas) — JAMAIS parce que la transcription est bruitee."
       },
       {
         "titre": "Longueur de la production",
@@ -199,7 +199,7 @@
     "EO_T1": {
       "intitule": "Expression orale - Tache 1 : entretien dirige (se presenter, parler de soi et de son quotidien)",
       "niveau_cible_indicatif": "A2",
-      "support": "transcription Whisper (cf. section orale du bloc commun)",
+      "support": "transcription automatique - Whisper differe ou reconnaissance temps reel (cf. section orale du bloc commun)",
       "criteres": [
         {
           "code": "pertinence",
@@ -222,7 +222,7 @@
           "poids": 0.15
         }
       ],
-      "bareme_note": "Specifique T1 : 'repondre aux attentes' = la personne se presente et parle de son quotidien de facon comprehensible avec un lexique simple.",
+      "bareme_note": "Specifique T1 : 'repondre aux attentes' = la personne se presente et parle de son quotidien de facon COMPREHENSIBLE avec un lexique simple. On juge sa capacite a echanger et a se faire comprendre, PAS l'exhaustivite : les pistes de l'entretien (parcours, projets, loisirs...) ne sont qu'un guide, ne penalise pas les points non abordes.",
       "descripteurs": {
         "A1": "Mots isoles, formules apprises, repond a peine.",
         "A2": "Se presente et parle de son quotidien en phrases simples, lexique de base, propos comprehensible malgre des erreurs.",
@@ -231,12 +231,12 @@
         "C1": "Aisance, spontaneite, nuances.",
         "C2": "Maitrise complete et naturelle."
       },
-      "consignes_correcteur": "Juger : etendue du lexique, controle grammatical PERCEPTIBLE (accords, temps, structures), coherence/enchainement du propos, traitement de la consigne. (Tolerance transcription : cf. bloc commun.)"
+      "consignes_correcteur": "Juger : etendue du lexique, controle grammatical PERCEPTIBLE (accords, temps, structures), coherence/enchainement du propos, capacite a se faire comprendre. Ne pas exiger que tous les themes suggeres soient couverts. (Tolerance transcription temps reel : cf. bloc commun.)"
     },
     "EO_T2": {
       "intitule": "Expression orale - Tache 2 : interaction (situation de la vie courante, obtenir/donner des informations)",
       "niveau_cible_indicatif": "B1",
-      "support": "transcription Whisper (cf. section orale du bloc commun)",
+      "support": "transcription automatique - Whisper differe ou reconnaissance temps reel (cf. section orale du bloc commun)",
       "criteres": [
         {
           "code": "pertinence",
@@ -259,7 +259,7 @@
           "poids": 0.20
         }
       ],
-      "bareme_note": "Specifique T2 : 'repondre aux attentes' = la personne mene la situation (pose les questions utiles / donne les informations demandees) de facon comprehensible et adaptee au contexte.",
+      "bareme_note": "Specifique T2 : 'repondre aux attentes' = la personne PARTICIPE a l'echange et se fait COMPRENDRE. On juge sa capacite a dialoguer, a s'adapter aux reponses de l'examinateur et a se faire comprendre dans une situation de la vie courante — PAS l'exhaustivite ni la perfection. Les questions/points listes dans le sujet ne sont que des PISTES pour orienter le candidat : ne penalise JAMAIS le fait qu'il n'ait pas pose toutes ces questions ni couvert tous les points. Un echange fonctionnel ou mutuellement compris repond aux attentes, meme incomplet.",
       "descripteurs": {
         "A1": "Echange minimal, mots isoles.",
         "A2": "Questions simples / informations de base, lexique courant, echange fonctionnel malgre des erreurs.",
@@ -268,7 +268,7 @@
         "C1": "Aisance et spontaneite dans l'echange.",
         "C2": "Maitrise complete."
       },
-      "consignes_correcteur": "Specifique T2 : valoriser la capacite a interagir (questions pertinentes, reponses adaptees, gestion de la situation) et l'adequation au registre du contexte. Juger lexique, grammaire perceptible, coherence de l'echange. (Tolerance transcription : cf. bloc commun.)"
+      "consignes_correcteur": "Specifique T2 : valoriser la capacite a interagir et a se faire COMPRENDRE dans l'echange (comprehension mutuelle attestee par les reponses coherentes de l'examinateur). NE PAS exiger une liste de questions ni compter les points du sujet non traites comme des fautes : le sujet n'est qu'une aide a l'orientation, pas une check-list. Juger lexique, grammaire perceptible, capacite a comprendre l'interlocuteur et a repondre a propos, adequation au registre du contexte. (Tolerance transcription temps reel : cf. bloc commun.)"
     },
     "EO_T3": {
       "intitule": "Expression orale - Tache 3 : expression d'un point de vue / monologue suivi",

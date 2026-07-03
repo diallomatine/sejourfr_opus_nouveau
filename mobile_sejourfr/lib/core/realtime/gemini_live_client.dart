@@ -79,9 +79,10 @@ class GeminiLiveClient {
       throw StateError('Descripteur realtime incomplet (endpoint/token).');
     }
 
-    await _configureAudioSession();
-    await _setupPlayback();
-
+    // Latence : on ouvre le WS et on envoie le setup TOUT DE SUITE, avant l'init
+    // audio locale. Le handshake + la génération de l'accueil par le modèle (le
+    // plus gros du « l'examinateur met du temps à arriver ») se déroulent en
+    // parallèle de _configureAudioSession/_setupPlayback/_startMic ci-dessous.
     final uri = Uri.parse('$endpoint?access_token=$token');
     final channel = WebSocketChannel.connect(uri);
     _channel = channel;
@@ -102,6 +103,13 @@ class GeminiLiveClient {
         'outputAudioTranscription': <String, dynamic>{},
       }
     });
+
+    // Init audio locale (doit être prête AVANT le 1er audio examinateur :
+    // _enqueueAudio ignore l'audio tant que _pcmReady est faux). Le round-trip
+    // setupComplete + la génération de l'accueil (≥ ~1 s) laissent largement le
+    // temps à ce setup rapide de se terminer.
+    await _configureAudioSession();
+    await _setupPlayback();
 
     await _startMic();
 

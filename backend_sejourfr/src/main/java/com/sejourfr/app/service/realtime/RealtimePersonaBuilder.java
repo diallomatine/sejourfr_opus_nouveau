@@ -1,12 +1,14 @@
 package com.sejourfr.app.service.realtime;
 
 import com.sejourfr.app.entity.ProductionTask;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
  * Construit la "system instruction" de l'examinateur IA (couche CONDUITE) pour
- * une tache T1 ou T2. Ce texte vit cote serveur et est VERROUILLE dans le token
- * ephemere Gemini : il n'est jamais expose au client en clair (cf. brief §4.5).
+ * une tache T1 ou T2, en remplissant les gabarits externalises et versionnes de
+ * {@link RealtimePersonaTemplates}. Ce texte vit cote serveur et est VERROUILLE
+ * dans le token ephemere Gemini : il n'est jamais expose au client en clair.
  *
  * <p>Separation stricte conduite ≠ notation : ce persona conduit l'echange, il
  * ne note pas, ne corrige pas, ne donne aucun indice. La notation reste faite
@@ -14,55 +16,19 @@ import org.springframework.stereotype.Component;
  *
  * <p>Le comportement est IDENTIQUE en entrainement et en examen — seul
  * l'emballage (enchainement, chrono, quota) differe, invisible pour le candidat.
- * Le sujet T2 (rôle examinateur + situation candidat) est injecte depuis la
- * banque de consignes ({@link ProductionTask}).
+ * L'examinateur parle un francais normal a tout le monde : il n'adapte PAS son
+ * registre au niveau vise (ce n'est pas son rôle — l'epreuve est adaptative, pas
+ * lui). Le niveau cible ne sert qu'a la VAD (patience serveur), pas a la persona.
+ * On injecte : la duree cible ({@code dureeSec}), et pour la T2 le rôle
+ * examinateur ({@code contexte}) + la situation candidat ({@code consigne}).
  */
 @Component
+@RequiredArgsConstructor
 public class RealtimePersonaBuilder {
 
-    private static final String REGLES = """
-            Tu es un examinateur officiel de l'épreuve d'expression orale du TCF \
-            (Test de Connaissance du Français pour l'Intégration, la Résidence et la Nationalité). \
-            Tu CONDUIS l'entretien à l'oral, tu n'évalues jamais.
+    private static final int DEFAULT_DUREE_SEC = 180;
 
-            RÈGLES ABSOLUES :
-            - Parle EXCLUSIVEMENT en français, un français authentique, clair et accessible \
-            (un niveau B2 doit suffire à te comprendre). Ne bascule JAMAIS vers une autre langue, \
-            même si le candidat peine : reformule ou simplifie en français.
-            - Ne corrige JAMAIS la langue du candidat, ne signale aucune faute.
-            - Ne donne JAMAIS de note, d'appréciation, ni aucun commentaire sur le niveau ou la \
-            performance, et ne laisse deviner aucune notation.
-            - Ne suggère JAMAIS au candidat quoi dire ou quoi demander.
-            - Reste strictement dans le cadre de la tâche. Sois courtois, calme, neutre et \
-            bienveillant (acquiescements naturels : « très bien », « je comprends »), jamais évaluatif.
-            - Si le candidat te demande de répéter ou de reformuler, fais-le simplement.
-            - Quand tu reçois un message indiquant que le temps est écoulé, conclus par : \
-            « Merci, nous allons nous arrêter ici. » et n'ajoute aucun commentaire.""";
-
-    private static final String T1 = """
-            TÂCHE 1 — Entretien dirigé (durée cible ~%d secondes).
-            Commence par CETTE ouverture, presque mot pour mot :
-            « Bonjour, je suis votre examinateur pour l'épreuve d'expression orale du TCF. \
-            Elle dure une dizaine de minutes, sans préparation. À tout moment, vous pouvez me \
-            demander de répéter ou de reformuler. Nous commençons : pouvez-vous vous présenter \
-            et me parler de votre parcours et de vos projets ? Je vous écoute. »
-            Puis ÉCOUTE. Laisse le candidat dominer le temps de parole. Ne relance QUE s'il \
-            s'arrête ou reste trop bref, par des questions ouvertes et neutres \
-            (« Pouvez-vous m'en dire plus sur… ? », « Qu'est-ce qui vous a amené à… ? »). \
-            Ne monopolise jamais la parole.""";
-
-    private static final String T2 = """
-            TÂCHE 2 — Interaction / jeu de rôle (durée cible ~%d secondes).
-            CONTEXTE (le rôle que TU joues) : %s
-            SITUATION DU CANDIDAT : %s
-            Ouvre ainsi : « Voici la deuxième partie. », puis présente TON rôle à la première \
-            personne (d'après le contexte ci-dessus) et la situation du candidat à la deuxième \
-            personne (d'après la situation ci-dessus), puis termine par « Posez-moi vos questions, \
-            je vous écoute. »
-            C'est le candidat qui mène l'échange et pose les questions. Joue ton rôle de façon \
-            plausible : réponds à ses questions, fournis l'information demandée, aide-le à \
-            exprimer ses choix et préférences SANS jamais lui souffler quoi demander. Relances \
-            neutres uniquement (« Avez-vous d'autres questions ? »).""";
+    private final RealtimePersonaTemplates templates;
 
     /**
      * @param task la consigne T1 ou T2 (EO). {@code dureeMaxSec} fixe la cible de
@@ -71,14 +37,27 @@ public class RealtimePersonaBuilder {
      * @return la system instruction complete (regles + tache), en francais.
      */
     public String build(ProductionTask task) {
-        int target = task.getDureeMaxSec() != null ? task.getDureeMaxSec() : 180;
-        short t = task.getTacheNumero() != null ? task.getTacheNumero() : 1;
-        String tache = (t == 2)
-                ? String.format(T2, target,
+        int dureeSec = task.getDureeMaxSec() != null ? task.getDureeMaxSec() : DEFAULT_DUREE_SEC;
+        short tache = task.getTacheNumero() != null ? task.getTacheNumero() : 1;
+
+        String regles = fill(templates.regles(), dureeSec, null, null);
+        String corps = (tache == 2)
+                ? fill(templates.t2(), dureeSec,
                         nullSafe(task.getContexte(), "Tu joues le rôle indiqué dans la consigne."),
                         nullSafe(task.getConsigne(), ""))
-                : String.format(T1, target);
-        return REGLES + "\n\n" + tache;
+                : fill(templates.t1(), dureeSec, null, null);
+        return regles + "\n\n" + corps;
+    }
+
+    private static String fill(String template, int dureeSec, String contexte, String consigne) {
+        String out = template.replace("{dureeSec}", Integer.toString(dureeSec));
+        if (contexte != null) {
+            out = out.replace("{contexte}", contexte);
+        }
+        if (consigne != null) {
+            out = out.replace("{consigne}", consigne);
+        }
+        return out;
     }
 
     private static String nullSafe(String v, String fallback) {

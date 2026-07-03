@@ -113,11 +113,14 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
         if (mounted) state = state.copyWith(examinerSpeaking: speaking);
       },
       // L'examinateur a commencé (1er audio) ou garde-fou 8 s : fin de l'accueil,
-      // le micro du candidat s'ouvre → on passe en conversation.
+      // le micro du candidat s'ouvre → on passe en conversation. C'est ICI que
+      // le chrono de la tâche démarre : le temps ne compte QU'À partir du premier
+      // mot de l'examinateur, jamais pendant la connexion/accueil.
       onListeningStart: () {
         if (mounted && state.phase == RealtimePhase.welcoming) {
           state = state.copyWith(phase: RealtimePhase.live);
         }
+        _ticker ??= Timer.periodic(const Duration(seconds: 1), _onTick);
       },
       onError: (msg) => _fail(msg),
       onClosed: () {
@@ -132,9 +135,11 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
     try {
       await client.start();
       if (!mounted) return;
-      // Phase d'accueil : micro coupé tant que l'examinateur n'a pas parlé.
+      // Phase d'accueil : micro coupé tant que l'examinateur n'a pas parlé. Le
+      // chrono (_ticker) ne démarre QU'À la 1re parole de l'examinateur, dans
+      // onListeningStart — pas ici. Le relais du transcript, lui, tourne dès la
+      // connexion.
       state = state.copyWith(phase: RealtimePhase.welcoming);
-      _ticker = Timer.periodic(const Duration(seconds: 1), _onTick);
       _flushTimer =
           Timer.periodic(const Duration(milliseconds: 1500), (_) => _flush());
     } catch (e) {

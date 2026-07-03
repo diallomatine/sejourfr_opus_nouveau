@@ -177,6 +177,7 @@ class RealtimeSessionServiceTest {
         assertThat(d.targetDurationSec()).isEqualTo(180);
         // 3 restants, cette session en reserve 1.
         assertThat(d.sessionsRemaining()).isEqualTo(2);
+        verify(tokenBroker).mint("persona");
     }
 
     @Test

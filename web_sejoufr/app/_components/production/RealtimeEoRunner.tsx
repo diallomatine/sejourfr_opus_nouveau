@@ -107,9 +107,12 @@ export function RealtimeEoRunner({
     // Minuteur : la cible fait foi. À échéance, on signale au modèle puis on
     // clôture après une courte grâce (phrase de fin de l'examinateur).
     useEffect(() => {
-        // Le chrono court dès l'accueil (welcoming) : sinon il ne démarrerait
-        // jamais si l'on restait bloqué en accueil.
-        if (state !== "live" && state !== "welcoming") return;
+        // Le chrono ne démarre QU'AU premier mot de l'examinateur (passage en
+        // "live" via beginConversation), pas pendant l'accueil : la latence de
+        // connexion/greeting ne doit pas amputer le temps de parole du candidat.
+        // Le garde-fou de 8 s côté client promeut welcoming → live même sans
+        // audio, donc le chrono finit toujours par démarrer.
+        if (state !== "live") return;
         const id = setInterval(() => {
             elapsedRef.current += 1;
             setElapsed(elapsedRef.current);
@@ -155,7 +158,7 @@ export function RealtimeEoRunner({
                     {state !== "connecting" && (
                         <span className="rte-live"><span className="rte-dot" />EN DIRECT</span>
                     )}
-                    {(state === "live" || state === "welcoming" || timeUp) && (
+                    {(state === "live" || timeUp) && (
                         <span className={`rte-timer${remaining <= 15 && !timeUp ? " is-urgent" : ""}`}>
                             {timeUp ? "0:00" : fmt(remaining)}
                         </span>

@@ -74,6 +74,7 @@ public class RealtimeProperties {
         private String model = "gemini-live-2.5-flash-native-audio";
         private String voice = "Aoede";
         private double temperature = 0.7;
+        private Vad vad = new Vad();
         /** Le token ne sert qu'a ouvrir UNE session. */
         private int tokenUses = 1;
         /** Delai pour DEMARRER la session avec le token (newSessionExpireTime). */
@@ -104,6 +105,9 @@ public class RealtimeProperties {
         public double getTemperature() { return temperature; }
         public void setTemperature(double temperature) { this.temperature = temperature; }
 
+        public Vad getVad() { return vad; }
+        public void setVad(Vad vad) { this.vad = vad; }
+
         public int getTokenUses() { return tokenUses; }
         public void setTokenUses(int tokenUses) { this.tokenUses = tokenUses; }
 
@@ -115,6 +119,50 @@ public class RealtimeProperties {
 
         public int getTimeoutSec() { return timeoutSec; }
         public void setTimeoutSec(int timeoutSec) { this.timeoutSec = timeoutSec; }
+    }
+
+    /**
+     * VAD (detection d'activite vocale) de Gemini Live, verrouillee dans le token
+     * cote serveur via {@code realtimeInputConfig.automaticActivityDetection}.
+     * Specifique au fournisseur (les valeurs de sensibilite sont des enums
+     * Gemini).
+     *
+     * <p>Arbitrage patience ↔ reactivite. {@code endSensitivity=LOW} garde
+     * l'examinateur tolerant aux pauses de reflexion d'un apprenant (il ne coupe
+     * pas / n'enchaine pas par-dessus des la 1re pause), tandis que
+     * {@code silenceDurationMs=500} (bas de la fourchette Google recommandee
+     * 500-800, defaut serveur ~800) reduit ~de moitie l'attente controlable avant
+     * qu'il reponde. {@code startSensitivity=HIGH} detecte vite le debut de parole.
+     * Une SEULE fenetre de silence pour tous les niveaux ({@code silenceDurationMs})
+     * — ne pas descendre sous ~500 ms sous peine de fragmenter la parole.
+     */
+    public static class Vad {
+        private boolean disabled = false;
+        private String startSensitivity = "START_SENSITIVITY_HIGH";
+        private String endSensitivity = "END_SENSITIVITY_LOW";
+        private int prefixPaddingMs = 300;
+        /**
+         * Fenetre de silence (ms) avant de considerer le tour du candidat fini.
+         * 500 = bas de la fourchette Google recommandee (500-800, defaut serveur
+         * ~800) : reduit ~de moitie l'attente avant que l'examinateur reponde,
+         * sans fragmenter la parole (ne pas descendre sous ~500).
+         */
+        private int silenceDurationMs = 500;
+
+        public boolean isDisabled() { return disabled; }
+        public void setDisabled(boolean disabled) { this.disabled = disabled; }
+
+        public String getStartSensitivity() { return startSensitivity; }
+        public void setStartSensitivity(String v) { this.startSensitivity = v; }
+
+        public String getEndSensitivity() { return endSensitivity; }
+        public void setEndSensitivity(String v) { this.endSensitivity = v; }
+
+        public int getPrefixPaddingMs() { return prefixPaddingMs; }
+        public void setPrefixPaddingMs(int v) { this.prefixPaddingMs = v; }
+
+        public int getSilenceDurationMs() { return silenceDurationMs; }
+        public void setSilenceDurationMs(int v) { this.silenceDurationMs = v; }
     }
 
     /**
