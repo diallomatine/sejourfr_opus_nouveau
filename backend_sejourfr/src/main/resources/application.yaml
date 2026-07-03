@@ -291,11 +291,12 @@ sejourfr:
       ws-endpoint: wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained
       # ⚠️ Gamme native-audio en évolution : alias GA stable par défaut (le
       # preview ...-09-2025 est déprécié le 2026-03-19). À revérifier au build.
-      # gemini-3.1-flash-live-preview : la transcription temps réel (inputAudio-
-      # Transcription) sort avec des fragments proprement espacés (concaténation
-      # verbatim côté client), là où le native-audio 2.5 émettait parfois des
-      # fragments « nus » → mots coupés (« bon jour », « 2 5 »). Modèle de réf.
-      model: ${REALTIME_GEMINI_MODEL:gemini-3.1-flash-live-preview}
+      # native-audio 2.5 = le moins cher, choix assumé. La transcription temps
+      # réel devient propre côté CLIENT : fragments concaténés VERBATIM + ligne
+      # émise seulement au turnComplete (pas d'espace ajouté, pas de nouvelle
+      # ligne par flush) — c'est l'assemblage qui corrigeait « bon jour »/« 2 5 »,
+      # pas le modèle.
+      model: ${REALTIME_GEMINI_MODEL:gemini-live-2.5-flash-native-audio}
       voice: ${REALTIME_GEMINI_VOICE:Aoede}
       temperature: 0.7
       # VAD verrouillée dans le token (realtimeInputConfig.automaticActivityDetection).

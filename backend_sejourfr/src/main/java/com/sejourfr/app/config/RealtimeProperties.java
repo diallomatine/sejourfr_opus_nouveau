@@ -71,7 +71,7 @@ public class RealtimeProperties {
         // et la transcription, ne s'appliquent que sur celui-ci).
         private String wsEndpoint =
                 "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained";
-        private String model = "gemini-3.1-flash-live-preview";
+        private String model = "gemini-live-2.5-flash-native-audio";
         private String voice = "Aoede";
         private double temperature = 0.7;
         private Vad vad = new Vad();
