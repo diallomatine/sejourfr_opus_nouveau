@@ -1,7 +1,7 @@
 "use client";
 
 import {useCallback, useEffect, useRef, useState} from "react";
-import {Mic, Square, Volume2} from "lucide-react";
+import {Mic, MessagesSquare, Square, Volume2, X} from "lucide-react";
 import {realtimeApi} from "@/lib/api";
 import {GeminiLiveSession, type GeminiLiveState} from "@/lib/realtime/geminiLive";
 import type {RealtimeSessionDescriptor, RealtimeSpeaker} from "@/lib/types";
@@ -42,8 +42,13 @@ export function RealtimeEoRunner({
     const [examinerSpeaking, setExaminerSpeaking] = useState(false);
     const [timeUp, setTimeUp] = useState(false);
     const [finishing, setFinishing] = useState(false);
+    // Dialogue affiché à la demande (bouton « Voir ma transcription »). Chaque
+    // tour terminé arrive comme UNE ligne complète → une bulle.
+    const [lines, setLines] = useState<{speaker: RealtimeSpeaker; text: string}[]>([]);
+    const [showTranscript, setShowTranscript] = useState(false);
 
     const liveRef = useRef<GeminiLiveSession | null>(null);
+    const sheetBodyRef = useRef<HTMLDivElement | null>(null);
     const pendingRef = useRef<Record<RealtimeSpeaker, string>>({CANDIDATE: "", EXAMINER: ""});
     const finishedRef = useRef(false);
     const elapsedRef = useRef(0);
@@ -83,9 +88,11 @@ export function RealtimeEoRunner({
             onSpeakingChange: setExaminerSpeaking,
             onCandidateTranscript: (t) => {
                 pendingRef.current.CANDIDATE += (pendingRef.current.CANDIDATE ? " " : "") + t;
+                setLines((prev) => [...prev, {speaker: "CANDIDATE", text: t}]);
             },
             onExaminerTranscript: (t) => {
                 pendingRef.current.EXAMINER += (pendingRef.current.EXAMINER ? " " : "") + t;
+                setLines((prev) => [...prev, {speaker: "EXAMINER", text: t}]);
             },
             onError: (m) => {
                 if (!finishedRef.current) {
@@ -125,6 +132,13 @@ export function RealtimeEoRunner({
         }, 1000);
         return () => clearInterval(id);
     }, [state, target, finish]);
+
+    // Panneau ouvert / nouveau tour → on colle le dialogue en bas.
+    useEffect(() => {
+        if (showTranscript && sheetBodyRef.current) {
+            sheetBodyRef.current.scrollTop = sheetBodyRef.current.scrollHeight;
+        }
+    }, [showTranscript, lines.length]);
 
     const remaining = Math.max(0, target - elapsed);
     const yourTurn = state === "live" && !examinerSpeaking && !timeUp;
@@ -177,18 +191,63 @@ export function RealtimeEoRunner({
                 <p className="rte-hint">{hint}</p>
             </div>
 
-            <button
-                type="button"
-                className="rte-stop"
-                onClick={() => void finish()}
-                disabled={finishing || state === "connecting"}
-            >
-                <Square size={16} strokeWidth={2.4} fill="currentColor" />
-                Terminer l&apos;oral
-            </button>
+            <div className="rte-actions">
+                {lines.length > 0 && (
+                    <button
+                        type="button"
+                        className="rte-see"
+                        onClick={() => setShowTranscript(true)}
+                    >
+                        <MessagesSquare size={16} strokeWidth={2} />
+                        Voir ma transcription
+                    </button>
+                )}
+                <button
+                    type="button"
+                    className="rte-stop"
+                    onClick={() => void finish()}
+                    disabled={finishing || state === "connecting"}
+                >
+                    <Square size={16} strokeWidth={2.4} fill="currentColor" />
+                    Terminer l&apos;oral
+                </button>
+            </div>
+
+            {showTranscript && (
+                <div className="rte-sheet" role="dialog" aria-modal="true" aria-label="Transcription de l'échange">
+                    <div className="rte-sheet-head">
+                        <span className="rte-sheet-title">Transcription</span>
+                        <button
+                            type="button"
+                            className="rte-sheet-close"
+                            onClick={() => setShowTranscript(false)}
+                            aria-label="Fermer"
+                        >
+                            <X size={18} strokeWidth={2.2} />
+                        </button>
+                    </div>
+                    <div className="rte-sheet-body" ref={sheetBodyRef}>
+                        {lines.length === 0 ? (
+                            <p className="rte-sheet-empty">Le dialogue s&apos;affichera ici au fil de l&apos;échange.</p>
+                        ) : (
+                            lines.map((l, i) => (
+                                <div
+                                    key={i}
+                                    className={`rte-bubble${l.speaker === "CANDIDATE" ? " is-you" : " is-exam"}`}
+                                >
+                                    <span className="rte-bubble-who">
+                                        {l.speaker === "CANDIDATE" ? "Vous" : "Examinateur"}
+                                    </span>
+                                    <p className="rte-bubble-text">{l.text}</p>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            )}
 
             <style>{`
-                .rte { display: flex; flex-direction: column; gap: 18px; min-height: 60vh; }
+                .rte { position: relative; display: flex; flex-direction: column; gap: 18px; min-height: 60vh; }
                 .rte-strip {
                     display: flex; align-items: center; justify-content: space-between; gap: 12px;
                     background: #fff; border: 1px solid var(--color-line);
@@ -239,6 +298,48 @@ export function RealtimeEoRunner({
                     font-family: var(--font-sans); font-weight: 800; font-size: 14px; cursor: pointer;
                 }
                 .rte-stop:disabled { opacity: 0.5; cursor: default; }
+
+                .rte-actions { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+                .rte-see {
+                    display: inline-flex; align-items: center; gap: 8px;
+                    border: 1px solid var(--color-line); border-radius: 12px;
+                    padding: 10px 18px; background: #fff; color: var(--color-blue);
+                    font-family: var(--font-sans); font-weight: 700; font-size: 13px; cursor: pointer;
+                }
+                .rte-see:hover { background: var(--color-blue-soft, #F4F6FC); }
+
+                .rte-sheet {
+                    position: absolute; inset: 0; z-index: 5;
+                    background: #fff; border: 1px solid var(--color-line); border-radius: 14px;
+                    display: flex; flex-direction: column; overflow: hidden;
+                }
+                .rte-sheet-head {
+                    display: flex; align-items: center; justify-content: space-between;
+                    padding: 14px 16px; border-bottom: 1px solid var(--color-line); flex-shrink: 0;
+                }
+                .rte-sheet-title { font-family: var(--font-display); font-size: 18px; color: var(--color-ink); }
+                .rte-sheet-close {
+                    display: inline-flex; border: none; cursor: pointer;
+                    background: var(--color-paper-2, #F2F1EC); border-radius: 9px; padding: 6px; color: var(--color-ink);
+                }
+                .rte-sheet-body {
+                    flex: 1; overflow-y: auto; padding: 16px;
+                    display: flex; flex-direction: column; gap: 10px;
+                }
+                .rte-sheet-empty { color: var(--color-muted); font-size: 13px; text-align: center; margin: auto; max-width: 240px; }
+                .rte-bubble {
+                    max-width: 80%; padding: 9px 13px; border-radius: 14px;
+                    display: flex; flex-direction: column; gap: 3px;
+                }
+                .rte-bubble.is-exam { align-self: flex-start; background: var(--color-blue-light, #E8ECF8); border-bottom-left-radius: 4px; }
+                .rte-bubble.is-you { align-self: flex-end; background: var(--color-red-light, #FDECEB); border-bottom-right-radius: 4px; }
+                .rte-bubble-who {
+                    font-family: var(--font-mono); font-weight: 700; font-size: 10px;
+                    letter-spacing: 0.04em; text-transform: uppercase;
+                }
+                .rte-bubble.is-exam .rte-bubble-who { color: var(--color-blue); }
+                .rte-bubble.is-you .rte-bubble-who { color: var(--color-red-dark, #B5251E); }
+                .rte-bubble-text { margin: 0; font-size: 14px; line-height: 1.45; color: var(--color-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
 
                 @keyframes rte-pulse {
                     0% { box-shadow: 0 0 0 0 rgba(225, 55, 47, 0.40); transform: scale(1); }

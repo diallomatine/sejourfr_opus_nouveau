@@ -39,6 +39,13 @@ class RealtimeRunnerArgs {
 
 enum RealtimePhase { connecting, welcoming, live, finishing, done, failed }
 
+/// Un tour de dialogue affiché dans la transcription (une ligne complète).
+class RealtimeLine {
+  const RealtimeLine(this.speaker, this.text);
+  final RealtimeSpeaker speaker;
+  final String text;
+}
+
 class RealtimeEoState {
   const RealtimeEoState({
     required this.phase,
@@ -47,6 +54,7 @@ class RealtimeEoState {
     this.examinerSpeaking = false,
     this.error,
     this.sessionsRemaining,
+    this.transcript = const [],
   });
 
   final RealtimePhase phase;
@@ -55,6 +63,10 @@ class RealtimeEoState {
   final bool examinerSpeaking;
   final String? error;
   final int? sessionsRemaining;
+
+  /// Dialogue candidat/examinateur, un élément par tour terminé (pour affichage
+  /// à la demande — bouton « Voir ma transcription »).
+  final List<RealtimeLine> transcript;
 
   int get remainingSec =>
       (targetSec - elapsedSec).clamp(0, targetSec).toInt();
@@ -65,6 +77,7 @@ class RealtimeEoState {
     bool? examinerSpeaking,
     String? error,
     int? sessionsRemaining,
+    List<RealtimeLine>? transcript,
   }) {
     return RealtimeEoState(
       phase: phase ?? this.phase,
@@ -73,6 +86,7 @@ class RealtimeEoState {
       examinerSpeaking: examinerSpeaking ?? this.examinerSpeaking,
       error: error ?? this.error,
       sessionsRemaining: sessionsRemaining ?? this.sessionsRemaining,
+      transcript: transcript ?? this.transcript,
     );
   }
 }
@@ -165,6 +179,12 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
     _pending.add((speaker: speaker, text: trimmed));
+    // Chaque tour terminé = une ligne affichable (bouton « Voir ma transcription »).
+    if (mounted) {
+      state = state.copyWith(
+        transcript: [...state.transcript, RealtimeLine(speaker, trimmed)],
+      );
+    }
   }
 
   /// Envoie les fragments accumulés, en fusionnant les tours consécutifs d'un

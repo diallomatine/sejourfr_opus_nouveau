@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/models/realtime_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/screen_header.dart';
 import 'realtime_eo_controller.dart';
 
@@ -89,6 +91,21 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     if (leave == true) controller.finish();
   }
 
+  void _openTranscript() {
+    showAppSheet<void>(
+      context,
+      icon: LucideIcons.messageSquare,
+      title: 'Transcription',
+      sub: 'Votre échange avec l\'examinateur',
+      children: [
+        SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: _TranscriptBody(args: widget.args),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final args = widget.args;
@@ -125,6 +142,7 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
                 state: state,
                 onFinish: _confirmLeave,
                 onExit: _exitFailed,
+                onShowTranscript: _openTranscript,
               ),
             ],
           ),
@@ -388,26 +406,143 @@ class _BottomBar extends StatelessWidget {
     required this.state,
     required this.onFinish,
     required this.onExit,
+    required this.onShowTranscript,
   });
 
   final RealtimeEoState state;
   final VoidCallback onFinish;
   final VoidCallback onExit;
+  final VoidCallback onShowTranscript;
 
   @override
   Widget build(BuildContext context) {
     final isFailed = state.phase == RealtimePhase.failed;
+    final canShow = state.transcript.isNotEmpty && !isFailed;
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-        child: AppButton(
-          label: isFailed ? 'Retour' : 'Terminer l\'oral',
-          variant:
-              isFailed ? AppButtonVariant.outline : AppButtonVariant.primary,
-          isLoading: state.phase == RealtimePhase.finishing,
-          icon: isFailed ? null : LucideIcons.check,
-          onPressed: isFailed ? onExit : onFinish,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (canShow) ...[
+              AppButton(
+                label: 'Voir ma transcription',
+                variant: AppButtonVariant.soft,
+                icon: LucideIcons.messageSquare,
+                onPressed: onShowTranscript,
+              ),
+              const SizedBox(height: 10),
+            ],
+            AppButton(
+              label: isFailed ? 'Retour' : 'Terminer l\'oral',
+              variant:
+                  isFailed ? AppButtonVariant.outline : AppButtonVariant.primary,
+              isLoading: state.phase == RealtimePhase.finishing,
+              icon: isFailed ? null : LucideIcons.check,
+              onPressed: isFailed ? onExit : onFinish,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Corps du bottom sheet « Voir ma transcription » : dialogue en bulles
+/// (candidat à droite/rouge, examinateur à gauche/bleu), live via Riverpod +
+/// auto-scroll en bas à chaque nouveau tour.
+class _TranscriptBody extends ConsumerStatefulWidget {
+  const _TranscriptBody({required this.args});
+
+  final RealtimeRunnerArgs args;
+
+  @override
+  ConsumerState<_TranscriptBody> createState() => _TranscriptBodyState();
+}
+
+class _TranscriptBodyState extends ConsumerState<_TranscriptBody> {
+  final ScrollController _sc = ScrollController();
+
+  @override
+  void dispose() {
+    _sc.dispose();
+    super.dispose();
+  }
+
+  void _stickToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_sc.hasClients) _sc.jumpTo(_sc.position.maxScrollExtent);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lines = ref.watch(
+      realtimeEoControllerProvider(widget.args).select((s) => s.transcript),
+    );
+    if (lines.isEmpty) {
+      return Center(
+        child: Text(
+          'Le dialogue s\'affichera ici au fil de l\'échange.',
+          textAlign: TextAlign.center,
+          style: AppFonts.ui(size: 13, color: AppColors.muted),
+        ),
+      );
+    }
+    _stickToBottom();
+    return ListView.separated(
+      controller: _sc,
+      padding: const EdgeInsets.only(top: 4),
+      itemCount: lines.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (_, i) => _Bubble(line: lines[i]),
+    );
+  }
+}
+
+class _Bubble extends StatelessWidget {
+  const _Bubble({required this.line});
+
+  final RealtimeLine line;
+
+  @override
+  Widget build(BuildContext context) {
+    final isYou = line.speaker == RealtimeSpeaker.candidate;
+    return Align(
+      alignment: isYou ? Alignment.centerRight : Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.78,
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+          decoration: BoxDecoration(
+            color: isYou ? AppColors.redLight : AppColors.blueLight,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(14),
+              topRight: const Radius.circular(14),
+              bottomLeft: Radius.circular(isYou ? 14 : 4),
+              bottomRight: Radius.circular(isYou ? 4 : 14),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isYou ? 'VOUS' : 'EXAMINATEUR',
+                style: AppFonts.label(
+                  size: 10,
+                  color: isYou ? AppColors.redDark : AppColors.blueDark,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                line.text,
+                style: AppFonts.ui(size: 14, color: AppColors.ink),
+              ),
+            ],
+          ),
         ),
       ),
     );
