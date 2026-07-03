@@ -3,11 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/api/repositories.dart';
+import '../../../core/models/enums.dart';
 import '../../../core/models/realtime_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/screen_header.dart';
+import '../widgets/transcript_dialogue.dart';
 import 'realtime_eo_controller.dart';
 
 /// Écran d'une session EO en temps réel (examinateur vocal IA). Volontairement
@@ -45,14 +48,43 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     super.dispose();
   }
 
-  void _goToResult() {
+  Future<void> _goToResult() async {
     if (_navigated) return;
     _navigated = true;
     if (widget.args.popOnDone) {
       context.pop(true);
-    } else {
+      return;
+    }
+    // Comme une soumission EE / EO T3 : on va DIRECTEMENT au détail du rapport
+    // (spinner d'évaluation puis rapport + transcription), pas au bilan de
+    // session multi-tâches. On résout la submission créée par la session.
+    final repo = ref.read(productionRepositoryProvider);
+    final attemptId = widget.args.attemptId;
+    final taskIndex = (widget.args.task.tacheNumero) - 1;
+    String? submissionId;
+    for (var i = 0; i < 4 && submissionId == null; i++) {
+      try {
+        final subs = await repo.listMine(epreuve: EpreuveType.tcfEo, limit: 10);
+        for (final s in subs) {
+          if (s.attemptId == attemptId) {
+            submissionId = s.id;
+            break;
+          }
+        }
+      } catch (_) {/* retry */}
+      if (submissionId == null) {
+        await Future.delayed(const Duration(milliseconds: 700));
+      }
+    }
+    if (!mounted) return;
+    if (submissionId != null) {
       context.pushReplacement(
-        '/tcf/expression-orale/sessions/${widget.args.attemptId}?live=1',
+        '/tcf/expression-orale/resultats/$submissionId?taskIndex=$taskIndex&single=1',
+      );
+    } else {
+      // Repli : le bilan de session (poll) finira par afficher le résultat.
+      context.pushReplacement(
+        '/tcf/expression-orale/sessions/$attemptId?live=1',
       );
     }
   }
@@ -496,54 +528,9 @@ class _TranscriptBodyState extends ConsumerState<_TranscriptBody> {
       padding: const EdgeInsets.only(top: 4),
       itemCount: lines.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (_, i) => _Bubble(line: lines[i]),
-    );
-  }
-}
-
-class _Bubble extends StatelessWidget {
-  const _Bubble({required this.line});
-
-  final RealtimeLine line;
-
-  @override
-  Widget build(BuildContext context) {
-    final isYou = line.speaker == RealtimeSpeaker.candidate;
-    return Align(
-      alignment: isYou ? Alignment.centerRight : Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.78,
-        ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-          decoration: BoxDecoration(
-            color: isYou ? AppColors.redLight : AppColors.blueLight,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(14),
-              topRight: const Radius.circular(14),
-              bottomLeft: Radius.circular(isYou ? 14 : 4),
-              bottomRight: Radius.circular(isYou ? 4 : 14),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isYou ? 'VOUS' : 'EXAMINATEUR',
-                style: AppFonts.label(
-                  size: 10,
-                  color: isYou ? AppColors.redDark : AppColors.blueDark,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                line.text,
-                style: AppFonts.ui(size: 14, color: AppColors.ink),
-              ),
-            ],
-          ),
-        ),
+      itemBuilder: (_, i) => TranscriptBubble(
+        candidate: lines[i].speaker == RealtimeSpeaker.candidate,
+        text: lines[i].text,
       ),
     );
   }

@@ -14,6 +14,7 @@ import {DualChromeShell} from "@/app/_components/DualChromeShell";
 import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/module_detail/parts";
 import {HubDetailHeader} from "@/app/_components/hub/HubParts";
 import {ProductionFeedbackView} from "./ProductionFeedbackView";
+import {TranscriptDialogue} from "./TranscriptDialogue";
 import {EoTranscriptNotice} from "./EoTranscriptNotice";
 import {type ProductionConfig} from "./config";
 import hub from "@/app/_components/hub/hub.module.css";
@@ -153,11 +154,11 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
             {config.mode === "audio" && submission.transcription && (
               <details className={prod.card}>
                 <summary className={prod.cardLabel} style={{cursor: "pointer"}}>
-                  Voir la transcription de votre audio
+                  Voir ma transcription
                 </summary>
-                <p className={prod.submitted} style={{marginTop: 12}}>
-                  {submission.transcription}
-                </p>
+                <div style={{marginTop: 12, maxHeight: 380, overflowY: "auto"}}>
+                  <TranscriptDialogue raw={submission.transcription} />
+                </div>
               </details>
             )}
             {config.mode === "text" && submission.texteSoumis && (

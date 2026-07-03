@@ -5,6 +5,7 @@ import {Mic, MessagesSquare, Square, Volume2, X} from "lucide-react";
 import {realtimeApi} from "@/lib/api";
 import {GeminiLiveSession, type GeminiLiveState} from "@/lib/realtime/geminiLive";
 import type {RealtimeSessionDescriptor, RealtimeSpeaker} from "@/lib/types";
+import {TranscriptDialogue} from "./TranscriptDialogue";
 
 /** Grâce après le temps écoulé : laisse l'examinateur dire sa phrase de clôture. */
 const CLOSE_GRACE_SEC = 7;
@@ -230,17 +231,7 @@ export function RealtimeEoRunner({
                         {lines.length === 0 ? (
                             <p className="rte-sheet-empty">Le dialogue s&apos;affichera ici au fil de l&apos;échange.</p>
                         ) : (
-                            lines.map((l, i) => (
-                                <div
-                                    key={i}
-                                    className={`rte-bubble${l.speaker === "CANDIDATE" ? " is-you" : " is-exam"}`}
-                                >
-                                    <span className="rte-bubble-who">
-                                        {l.speaker === "CANDIDATE" ? "Vous" : "Examinateur"}
-                                    </span>
-                                    <p className="rte-bubble-text">{l.text}</p>
-                                </div>
-                            ))
+                            <TranscriptDialogue lines={lines} />
                         )}
                     </div>
                 </div>
@@ -327,19 +318,6 @@ export function RealtimeEoRunner({
                     display: flex; flex-direction: column; gap: 10px;
                 }
                 .rte-sheet-empty { color: var(--color-muted); font-size: 13px; text-align: center; margin: auto; max-width: 240px; }
-                .rte-bubble {
-                    max-width: 80%; padding: 9px 13px; border-radius: 14px;
-                    display: flex; flex-direction: column; gap: 3px;
-                }
-                .rte-bubble.is-exam { align-self: flex-start; background: var(--color-blue-light, #E8ECF8); border-bottom-left-radius: 4px; }
-                .rte-bubble.is-you { align-self: flex-end; background: var(--color-red-light, #FDECEB); border-bottom-right-radius: 4px; }
-                .rte-bubble-who {
-                    font-family: var(--font-mono); font-weight: 700; font-size: 10px;
-                    letter-spacing: 0.04em; text-transform: uppercase;
-                }
-                .rte-bubble.is-exam .rte-bubble-who { color: var(--color-blue); }
-                .rte-bubble.is-you .rte-bubble-who { color: var(--color-red-dark, #B5251E); }
-                .rte-bubble-text { margin: 0; font-size: 14px; line-height: 1.45; color: var(--color-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
 
                 @keyframes rte-pulse {
                     0% { box-shadow: 0 0 0 0 rgba(225, 55, 47, 0.40); transform: scale(1); }

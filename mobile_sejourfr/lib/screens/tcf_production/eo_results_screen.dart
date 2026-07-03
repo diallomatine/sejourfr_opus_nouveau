@@ -11,7 +11,9 @@ import '../../core/models/production_models.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
+import '../../core/widgets/app_sheet.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
+import 'widgets/transcript_dialogue.dart';
 import 'eo_session_controller.dart';
 import 'widgets/avertissements_card.dart';
 import 'widgets/correction_example.dart';
@@ -21,7 +23,23 @@ import 'widgets/evaluation_loading_view.dart';
 import 'widgets/feedback_block.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/results_eval_banner.dart';
-import 'widgets/transcription_section.dart';
+
+/// Ouvre la transcription en bottom sheet : dialogue en bulles pour un oral
+/// interactif (realtime), texte simple pour un enregistrement monologue.
+void _openTranscript(BuildContext context, String transcription) {
+  showAppSheet<void>(
+    context,
+    icon: LucideIcons.messageSquare,
+    title: 'Transcription',
+    sub: 'Générée automatiquement — des erreurs peuvent subsister',
+    children: [
+      SizedBox(
+        height: MediaQuery.of(context).size.height * 0.6,
+        child: TranscriptDialogueView(transcription: transcription),
+      ),
+    ],
+  );
+}
 
 final _eoSubmissionFetcher = FutureProvider.autoDispose
     .family<ProductionSubmissionDto, String>((ref, id) {
@@ -171,10 +189,13 @@ class _Body extends ConsumerWidget {
   final String? fullExamId;
   final Map<String, String> queryParameters;
 
-  /// Mode entrainement libre (single-task depuis le hub). Le bilan de session
-  /// n'a pas de sens : on propose juste un retour au hub des taches.
+  /// Mode entrainement libre (single-task depuis le hub, ou session realtime
+  /// arrivee ici avec `single=1`). Le bilan de session n'a pas de sens : on
+  /// propose juste un retour au hub des taches.
   bool get _isSingleTask =>
-      !isHistory && session != null && session!.totalTasks == 1;
+      !isHistory &&
+      (queryParameters['single'] == '1' ||
+          (session != null && session!.totalTasks == 1));
 
   String get _bilanCtaLabel =>
       fullExamId != null ? 'Continuer l\'examen blanc' : 'Voir mon bilan';
@@ -243,16 +264,13 @@ class _Body extends ConsumerWidget {
               if (submission.transcription != null &&
                   submission.transcription!.isNotEmpty) ...[
                 const SizedBox(height: 4),
-                Text(
-                  'Transcription de votre enregistrement',
-                  style: AppFonts.ui(
-                    size: 15,
-                    weight: FontWeight.w700,
-                    color: AppColors.ink,
-                  ),
+                AppButton(
+                  label: 'Voir ma transcription',
+                  variant: AppButtonVariant.soft,
+                  icon: LucideIcons.messageSquare,
+                  onPressed: () =>
+                      _openTranscript(context, submission.transcription!),
                 ),
-                const SizedBox(height: 8),
-                TranscriptionSection(transcription: submission.transcription!),
               ],
             ],
           ),
