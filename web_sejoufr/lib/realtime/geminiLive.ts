@@ -127,6 +127,14 @@ export class GeminiLiveSession {
     /** Ouvre le micro + le WebSocket et démarre la conversation. */
     async start(): Promise<void> {
         this.cb.onStateChange?.("connecting");
+        // Double-montage StrictMode / Fast Refresh (dev) : React lance start()
+        // puis démonte aussitôt (cleanup -> stop()) avant de remonter. On diffère
+        // l'ouverture du WS d'un micro-tick pour que le cleanup pose closed=true
+        // AVANT — sinon la session jetée ouvrirait un socket clos en plein
+        // handshake (1006), gâchant le token à usage unique et faisant remonter
+        // une fausse « connexion échouée ». La vraie session (2e montage) passe.
+        await Promise.resolve();
+        if (this.closed) return;
         // Latence : on ouvre le WebSocket TOUT DE SUITE, en parallèle de l'init
         // micro. Le handshake WS + l'envoi du setup + la génération de l'accueil
         // par le modèle (le plus gros du « l'examinateur met du temps à arriver »)
@@ -158,6 +166,7 @@ export class GeminiLiveSession {
         this.ws = ws;
 
         ws.onopen = () => {
+            if (this.closed) return;
             // Endpoint "Constrained" : TOUT le setup (generationConfig, voix,
             // transcription in/out, VAD, systemInstruction) est verrouillé dans le
             // token éphémère côté serveur. Le client n'envoie qu'un setup MINIMAL
@@ -168,7 +177,12 @@ export class GeminiLiveSession {
             }));
         };
         ws.onmessage = (ev) => this.onMessage(ev);
-        ws.onerror = () => this.fail("La connexion à l'examinateur a échoué.");
+        ws.onerror = () => {
+            // Session déjà fermée (cleanup StrictMode/Fast Refresh) : ne pas
+            // remonter une fausse erreur qui tuerait le vrai flux.
+            if (this.closed) return;
+            this.fail("La connexion à l'examinateur a échoué.");
+        };
         ws.onclose = (ev) => {
             // Code/raison utiles au diagnostic (1007 = setup invalide, 1008 = auth,
             // 1011 = erreur serveur…).
