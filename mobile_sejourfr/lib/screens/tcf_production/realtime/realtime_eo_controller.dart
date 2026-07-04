@@ -107,12 +107,20 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
   GeminiLiveClient? _client;
   Timer? _ticker;
   Timer? _flushTimer;
-  Timer? _graceTimer;
+  Timer? _capTimer;
+  Timer? _settleTimer;
   bool _finishing = false;
+  // Après 0:00, l'examinateur a-t-il commencé sa conclusion (parlé au moins une
+  // fois) ? La clôture attend qu'il ait parlé PUIS se taise (repos), pas un
+  // délai fixe — sinon silence mort ou coupure en plein mot.
+  bool _heardClose = false;
 
-  /// Délai de grâce après l'écoulement du temps avant clôture forcée (laisse
-  /// l'examinateur prononcer sa phrase de fin).
-  static const _graceSeconds = 10;
+  /// Repos de silence après la conclusion avant de couper (ms).
+  static const _settleMs = 1200;
+
+  /// Plafond de sécurité après 0:00 : borne le cas où l'examinateur ne conclut
+  /// jamais ou divague.
+  static const _capSeconds = 12;
 
   final List<({RealtimeSpeaker speaker, String text})> _pending = [];
 
@@ -124,7 +132,19 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
       onCandidateTranscript: (t) => _enqueue(RealtimeSpeaker.candidate, t),
       onExaminerTranscript: (t) => _enqueue(RealtimeSpeaker.examiner, t),
       onSpeakingChange: (speaking) {
-        if (mounted) state = state.copyWith(examinerSpeaking: speaking);
+        if (!mounted) return;
+        state = state.copyWith(examinerSpeaking: speaking);
+        // Fenêtre de clôture (temps écoulé, clôture pas encore lancée) : on
+        // attend que l'examinateur ait prononcé sa conclusion PUIS se taise.
+        if (state.phase != RealtimePhase.finishing || _finishing) return;
+        if (speaking) {
+          _heardClose = true;
+          _settleTimer?.cancel();
+          _settleTimer = null;
+        } else if (_heardClose && _settleTimer == null) {
+          _settleTimer =
+              Timer(const Duration(milliseconds: _settleMs), finish);
+        }
       },
       // L'examinateur a commencé (1er audio) ou garde-fou 8 s : fin de l'accueil,
       // le micro du candidat s'ouvre → on passe en conversation. C'est ICI que
@@ -169,9 +189,12 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
         (state.phase == RealtimePhase.live ||
             state.phase == RealtimePhase.welcoming)) {
       state = state.copyWith(phase: RealtimePhase.finishing);
+      // Signale la fin (coupe le micro + demande la conclusion). La clôture réelle
+      // est pilotée par la fin de parole (onSpeakingChange) ; le plafond borne le
+      // cas où l'examinateur ne conclut pas.
+      _ticker?.cancel();
       _client?.notifyTimeUp();
-      _graceTimer =
-          Timer(const Duration(seconds: _graceSeconds), () => finish());
+      _capTimer = Timer(const Duration(seconds: _capSeconds), finish);
     }
   }
 
@@ -223,7 +246,8 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
     if (_finishing) return;
     _finishing = true;
     _ticker?.cancel();
-    _graceTimer?.cancel();
+    _capTimer?.cancel();
+    _settleTimer?.cancel();
     if (mounted) state = state.copyWith(phase: RealtimePhase.finishing);
 
     _flushTimer?.cancel();
@@ -254,7 +278,8 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
   void dispose() {
     _ticker?.cancel();
     _flushTimer?.cancel();
-    _graceTimer?.cancel();
+    _capTimer?.cancel();
+    _settleTimer?.cancel();
     _client?.dispose();
     super.dispose();
   }

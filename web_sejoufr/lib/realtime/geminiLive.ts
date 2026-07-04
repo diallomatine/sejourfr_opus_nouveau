@@ -105,6 +105,9 @@ export class GeminiLiveSession {
     private playHead = 0;
     private speaking = false;
     private closed = false;
+    // Micro coupé (temps écoulé) : on cesse d'émettre les frames candidat mais on
+    // garde le WS ouvert pour laisser l'examinateur prononcer sa phrase de clôture.
+    private inputMuted = false;
     // Tant que l'examinateur n'a pas prononcé sa première phrase (accueil), on
     // coupe le micro du candidat. Libéré au 1er audio examinateur, ou par
     // garde-fou si rien n'arrive.
@@ -334,7 +337,8 @@ export class GeminiLiveSession {
         // Half-duplex : on n'émet PAS le micro pendant que l'examinateur parle —
         // évite la boucle d'écho (sa voix transcrite comme parole candidat).
         // Conséquence assumée : pas de barge-in (le candidat attend la question).
-        if (this.awaitingFirstExaminer || this.speaking) return;
+        // `inputMuted` : temps écoulé → le candidat ne parle plus, on écoute la clôture.
+        if (this.awaitingFirstExaminer || this.speaking || this.inputMuted) return;
         const pcm = ctxRate === this.inputRate ? frame : downsample(frame, ctxRate, this.inputRate);
         const b64 = arrayBufferToBase64(floatToPcm16(pcm));
         this.ws.send(JSON.stringify({
@@ -416,6 +420,10 @@ export class GeminiLiveSession {
      * n'est PAS un tour de dialogue et serait ignoré.
      */
     notifyTimeUp(): void {
+        // Le candidat ne parle plus : on coupe son micro pour que le seul tour
+        // restant soit la clôture de l'examinateur (évite qu'un dernier mot du
+        // candidat relance un échange après le temps).
+        this.inputMuted = true;
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             this.ws.send(JSON.stringify({
                 clientContent: {

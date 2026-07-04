@@ -865,3 +865,27 @@
   border-radius: 12px; padding: 12px 14px; margin-bottom: 16px;
   font-size: 13px; color: var(--color-blue-dark);
 }
+
+/* Étape de lecture du sujet avant une session temps réel (le candidat démarre
+   l'échange quand il est prêt — le jeu de rôle T2 exige d'avoir lu la situation). */
+.rtPrep {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.rtPrepHint {
+  margin: 0 2px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+.rtPrepActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 2px;
+}
+.rtPrepActions .btn:last-child {
+  flex: 1;
+  min-width: 180px;
+}

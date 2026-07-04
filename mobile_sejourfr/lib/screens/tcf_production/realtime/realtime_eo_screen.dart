@@ -5,11 +5,13 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/api/repositories.dart';
 import '../../../core/models/enums.dart';
+import '../../../core/models/production_models.dart';
 import '../../../core/models/realtime_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/screen_header.dart';
+import '../widgets/consigne_card.dart';
 import '../widgets/transcript_dialogue.dart';
 import 'realtime_eo_controller.dart';
 
@@ -32,6 +34,15 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulse;
   bool _navigated = false;
+  // Étape de lecture du sujet : tant que le candidat n'a pas appuyé sur
+  // « Commencer », on NE crée PAS le contrôleur (pas de connexion Gemini) — il
+  // lit sa consigne à son rythme. Le jeton tient 120 s avant le 1er échange.
+  bool _started = false;
+  // Consigne repliable pendant la session (aide-mémoire, indispensable au jeu
+  // de rôle T2 où le candidat mène l'interaction). Repliée par défaut : elle a
+  // déjà été lue en entier à l'étape « Commencer » et on garde le micro plein
+  // écran ; un tap la rouvre (l'étage micro devient alors scrollable).
+  bool _showSubject = false;
 
   @override
   void initState() {
@@ -115,7 +126,8 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('Terminer', style: AppFonts.label(color: AppColors.red)),
+            child:
+                Text('Terminer', style: AppFonts.label(color: AppColors.red)),
           ),
         ],
       ),
@@ -138,15 +150,76 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     );
   }
 
+  /// Étape de lecture du sujet avant de lancer l'échange. Le candidat lit sa
+  /// consigne (situation du jeu de rôle en T2) et démarre quand il est prêt —
+  /// on ne bascule plus directement dans l'oral sans laisser voir le sujet.
+  Widget _buildPrep(BuildContext context, ProductionTaskDto task) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            ScreenHeader(
+              title: 'Oral avec un examinateur',
+              sub: task.displayTitle,
+              onBack: _exitFailed,
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ConsigneCard(
+                      consigne: task.consigne,
+                      title: 'Votre sujet · Tâche ${task.tacheNumero}',
+                      subtitle: task.contexte,
+                      accent: AppColors.red,
+                      soft: AppColors.redLight,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Prenez le temps de lire votre sujet. L\'examinateur '
+                      'commencera à vous parler dès que vous appuierez sur '
+                      '« Commencer ».',
+                      style: AppFonts.ui(size: 13.5, color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: AppButton(
+                  label: 'Commencer l\'échange',
+                  icon: LucideIcons.mic,
+                  onPressed: () => setState(() => _started = true),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final args = widget.args;
+    final task = args.task;
+
+    // Lecture du sujet AVANT de connecter la session : on ne touche pas au
+    // provider (donc pas de connexion) tant que `_started` est faux.
+    if (!_started) return _buildPrep(context, task);
+
     ref.listen<RealtimeEoState>(realtimeEoControllerProvider(args),
         (prev, next) {
       if (next.phase == RealtimePhase.done) _goToResult();
     });
     final state = ref.watch(realtimeEoControllerProvider(args));
-    final task = args.task;
 
     return PopScope(
       canPop: state.phase == RealtimePhase.done ||
@@ -168,6 +241,14 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                 child: _LiveStrip(state: state),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: _SubjectPanel(
+                  task: task,
+                  expanded: _showSubject,
+                  onToggle: () => setState(() => _showSubject = !_showSubject),
+                ),
               ),
               Expanded(child: _MicStage(pulse: _pulse, state: state)),
               _BottomBar(
@@ -273,12 +354,95 @@ class _LiveDot extends StatelessWidget {
         Container(
           width: 7,
           height: 7,
-          decoration: const BoxDecoration(
-              shape: BoxShape.circle, color: AppColors.red),
+          decoration:
+              const BoxDecoration(shape: BoxShape.circle, color: AppColors.red),
         ),
         const SizedBox(width: 5),
-        Text('EN DIRECT', style: AppFonts.label(color: AppColors.red, size: 10)),
+        Text('EN DIRECT',
+            style: AppFonts.label(color: AppColors.red, size: 10)),
       ],
+    );
+  }
+}
+
+/// Consigne repliable pendant la session (aide-mémoire). Dépliée par défaut : en
+/// T2 (jeu de rôle) le candidat mène l'échange à partir de sa situation, il doit
+/// pouvoir la relire sans quitter l'oral. Hauteur bornée pour garder le micro visible.
+class _SubjectPanel extends StatelessWidget {
+  const _SubjectPanel({
+    required this.task,
+    required this.expanded,
+    required this.onToggle,
+  });
+
+  final ProductionTaskDto task;
+  final bool expanded;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.redLight,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: AppColors.red.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Votre sujet · Tâche ${task.tacheNumero}',
+                      style: AppFonts.label(color: AppColors.redDark, size: 11),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: expanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 180),
+                    child: Icon(LucideIcons.chevronDown,
+                        size: 18, color: AppColors.redDark),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (expanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 150),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        task.consigne,
+                        style: AppFonts.ui(
+                            size: 14, color: AppColors.ink, height: 1.5),
+                      ),
+                      if (task.contexte != null &&
+                          task.contexte!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          task.contexte!,
+                          style: AppFonts.ui(
+                              size: 13, color: AppColors.inkSoft, height: 1.5),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -330,74 +494,88 @@ class _MicStage extends StatelessWidget {
     final accentSoft =
         examiner ? AppColors.blue.withValues(alpha: 0.12) : AppColors.redLight;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 28),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AnimatedBuilder(
-            animation: pulse,
-            builder: (context, _) {
-              final t = yourTurn ? pulse.value : 0.0;
-              return SizedBox(
-                width: 220,
-                height: 220,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: 150 + t * 40,
-                      height: 150 + t * 40,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: accentSoft.withValues(
-                            alpha: examiner ? 0.18 : (0.5 - t * 0.25)),
-                      ),
-                    ),
-                    Container(
-                      width: 116,
-                      height: 116,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: accent,
-                        boxShadow: [
-                          BoxShadow(
-                            color: accent.withValues(alpha: 0.30),
-                            blurRadius: 26,
-                            offset: const Offset(0, 12),
+    // Étage centré mais tolérant au manque de place (consigne dépliée, grande
+    // taille de police, petit écran) : on centre quand ça rentre, on scrolle
+    // sinon — jamais d'overflow.
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedBuilder(
+                  animation: pulse,
+                  builder: (context, _) {
+                    final t = yourTurn ? pulse.value : 0.0;
+                    return SizedBox(
+                      width: 220,
+                      height: 220,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            width: 150 + t * 40,
+                            height: 150 + t * 40,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: accentSoft.withValues(
+                                  alpha: examiner ? 0.18 : (0.5 - t * 0.25)),
+                            ),
+                          ),
+                          Container(
+                            width: 116,
+                            height: 116,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: accent,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: accent.withValues(alpha: 0.30),
+                                  blurRadius: 26,
+                                  offset: const Offset(0, 12),
+                                ),
+                              ],
+                            ),
+                            child: waiting
+                                ? const Center(
+                                    child: SizedBox(
+                                      width: 30,
+                                      height: 30,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 3,
+                                          color: AppColors.white),
+                                    ),
+                                  )
+                                : Icon(
+                                    examiner
+                                        ? LucideIcons.volume2
+                                        : LucideIcons.mic,
+                                    size: 48,
+                                    color: AppColors.white,
+                                  ),
                           ),
                         ],
                       ),
-                      child: waiting
-                          ? const Center(
-                              child: SizedBox(
-                                width: 30,
-                                height: 30,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 3, color: AppColors.white),
-                              ),
-                            )
-                          : Icon(
-                              examiner ? LucideIcons.volume2 : LucideIcons.mic,
-                              size: 48,
-                              color: AppColors.white,
-                            ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
-              );
-            },
+                const SizedBox(height: 28),
+                Text(label,
+                    textAlign: TextAlign.center,
+                    style: AppFonts.display(size: 22)),
+                if (hint.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(hint,
+                      textAlign: TextAlign.center,
+                      style: AppFonts.ui(size: 13.5, color: AppColors.muted)),
+                ],
+              ],
+            ),
           ),
-          const SizedBox(height: 28),
-          Text(label,
-              textAlign: TextAlign.center, style: AppFonts.display(size: 22)),
-          if (hint.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(hint,
-                textAlign: TextAlign.center,
-                style: AppFonts.ui(size: 13.5, color: AppColors.muted)),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -468,8 +646,9 @@ class _BottomBar extends StatelessWidget {
             ],
             AppButton(
               label: isFailed ? 'Retour' : 'Terminer l\'oral',
-              variant:
-                  isFailed ? AppButtonVariant.outline : AppButtonVariant.primary,
+              variant: isFailed
+                  ? AppButtonVariant.outline
+                  : AppButtonVariant.primary,
               isLoading: state.phase == RealtimePhase.finishing,
               icon: isFailed ? null : LucideIcons.check,
               onPressed: isFailed ? onExit : onFinish,

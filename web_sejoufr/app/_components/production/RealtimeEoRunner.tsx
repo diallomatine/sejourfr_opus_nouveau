@@ -1,14 +1,21 @@
 "use client";
 
 import {useCallback, useEffect, useRef, useState} from "react";
-import {Mic, MessagesSquare, Square, Volume2, X} from "lucide-react";
+import {ChevronDown, Mic, MessagesSquare, Square, Volume2, X} from "lucide-react";
 import {realtimeApi} from "@/lib/api";
 import {GeminiLiveSession, type GeminiLiveState} from "@/lib/realtime/geminiLive";
-import type {RealtimeSessionDescriptor, RealtimeSpeaker} from "@/lib/types";
+import type {ProductionTaskDto, RealtimeSessionDescriptor, RealtimeSpeaker} from "@/lib/types";
 import {TranscriptDialogue} from "./TranscriptDialogue";
 
-/** Grâce après le temps écoulé : laisse l'examinateur dire sa phrase de clôture. */
-const CLOSE_GRACE_SEC = 7;
+/**
+ * Clôture après le temps écoulé. On ne coupe plus l'examinateur au bout d'un
+ * délai fixe : à 0:00 on lui signale la fin (il prononce sa phrase de clôture),
+ * puis on clôture DÈS QU'IL REDEVIENT SILENCIEUX (`CLOSE_SETTLE_MS` de repos
+ * après avoir parlé) — pas de silence mort ni de coupure en plein milieu. Le
+ * plafond `CLOSE_CAP_SEC` borne le cas où il divague ou ne conclut jamais.
+ */
+const CLOSE_SETTLE_MS = 1200;
+const CLOSE_CAP_SEC = 12;
 
 function fmt(sec: number): string {
     const m = Math.floor(sec / 60);
@@ -26,11 +33,15 @@ function fmt(sec: number): string {
  */
 export function RealtimeEoRunner({
     descriptor,
+    task,
     taskTitle,
     onFinished,
     onFatalError,
 }: {
     descriptor: RealtimeSessionDescriptor;
+    /** Sujet de la tâche : reste affiché (aide-mémoire) pendant l'échange —
+     *  indispensable au jeu de rôle T2 où le candidat mène l'interaction. */
+    task: ProductionTaskDto;
     taskTitle: string;
     onFinished: () => void;
     onFatalError: (message: string) => void;
@@ -47,6 +58,8 @@ export function RealtimeEoRunner({
     // tour terminé arrive comme UNE ligne complète → une bulle.
     const [lines, setLines] = useState<{speaker: RealtimeSpeaker; text: string}[]>([]);
     const [showTranscript, setShowTranscript] = useState(false);
+    // Consigne dépliée par défaut : le candidat garde son sujet sous les yeux.
+    const [showSubject, setShowSubject] = useState(true);
 
     const liveRef = useRef<GeminiLiveSession | null>(null);
     const sheetBodyRef = useRef<HTMLDivElement | null>(null);
@@ -54,6 +67,11 @@ export function RealtimeEoRunner({
     const finishedRef = useRef(false);
     const elapsedRef = useRef(0);
     const timeUpRef = useRef(false);
+    // Clôture pilotée par la fin de parole : l'examinateur a-t-il commencé sa
+    // conclusion (parlé au moins une fois depuis 0:00) ? + timers repos/plafond.
+    const heardCloseRef = useRef(false);
+    const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const capTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Relais batché du transcript (~1,2 s) : capture serveur fiable du dialogue
     // (artefact de notation). On NE l'affiche PAS — on l'envoie seulement.
@@ -70,6 +88,8 @@ export function RealtimeEoRunner({
     const finish = useCallback(async () => {
         if (finishedRef.current) return;
         finishedRef.current = true;
+        if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+        if (capTimerRef.current) clearTimeout(capTimerRef.current);
         setFinishing(true);
         liveRef.current?.stop();
         flush();
@@ -107,6 +127,8 @@ export function RealtimeEoRunner({
         const relay = setInterval(flush, 1200);
         return () => {
             clearInterval(relay);
+            if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+            if (capTimerRef.current) clearTimeout(capTimerRef.current);
             live.stop();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,12 +149,32 @@ export function RealtimeEoRunner({
             if (!timeUpRef.current && elapsedRef.current >= target) {
                 timeUpRef.current = true;
                 setTimeUp(true);
+                // Signale la fin (coupe le micro candidat + demande la conclusion).
+                // La clôture réelle est pilotée par la fin de parole (effet plus
+                // bas) ; le plafond borne le cas où l'examinateur ne conclut pas.
                 liveRef.current?.notifyTimeUp();
-                window.setTimeout(() => void finish(), CLOSE_GRACE_SEC * 1000);
+                capTimerRef.current = setTimeout(() => void finish(), CLOSE_CAP_SEC * 1000);
             }
         }, 1000);
         return () => clearInterval(id);
     }, [state, target, finish]);
+
+    // Clôture pilotée par la parole de l'examinateur après 0:00 : on attend qu'il
+    // ait prononcé sa conclusion (a parlé au moins une fois) PUIS qu'il se taise
+    // (repos `CLOSE_SETTLE_MS`) avant de couper — sinon on tranche en plein mot ou
+    // on laisse un silence. S'il reparle, on annule le repos et on réattend.
+    useEffect(() => {
+        if (!timeUp) return;
+        if (examinerSpeaking) {
+            heardCloseRef.current = true;
+            if (settleTimerRef.current) {
+                clearTimeout(settleTimerRef.current);
+                settleTimerRef.current = null;
+            }
+        } else if (heardCloseRef.current && !settleTimerRef.current) {
+            settleTimerRef.current = setTimeout(() => void finish(), CLOSE_SETTLE_MS);
+        }
+    }, [timeUp, examinerSpeaking, finish]);
 
     // Panneau ouvert / nouveau tour → on colle le dialogue en bas.
     useEffect(() => {
@@ -179,6 +221,28 @@ export function RealtimeEoRunner({
                         </span>
                     )}
                 </span>
+            </div>
+
+            <div className="rte-subject">
+                <button
+                    type="button"
+                    className="rte-subject-head"
+                    onClick={() => setShowSubject((v) => !v)}
+                    aria-expanded={showSubject}
+                >
+                    <span className="rte-subject-eyebrow">Votre sujet · Tâche {task.tacheNumero}</span>
+                    <ChevronDown
+                        size={16}
+                        strokeWidth={2.4}
+                        className={`rte-subject-chev${showSubject ? " is-open" : ""}`}
+                    />
+                </button>
+                {showSubject && (
+                    <div className="rte-subject-body">
+                        <p className="rte-subject-consigne">{task.consigne}</p>
+                        {task.contexte && <p className="rte-subject-contexte">{task.contexte}</p>}
+                    </div>
+                )}
             </div>
 
             <div className="rte-stage">
@@ -250,6 +314,29 @@ export function RealtimeEoRunner({
                     font-family: var(--font-mono); font-weight: 700; font-size: 10px;
                     color: var(--color-red-dark, #B5251E); background: #fff;
                     border: 1px solid var(--color-red); border-radius: 5px; padding: 1px 5px;
+                }
+                .rte-subject {
+                    background: var(--color-red-light, #FDECEB);
+                    border: 1px solid var(--color-red);
+                    border-radius: 14px; overflow: hidden;
+                }
+                .rte-subject-head {
+                    width: 100%; display: flex; align-items: center; justify-content: space-between;
+                    gap: 10px; padding: 11px 14px; background: none; border: none; cursor: pointer;
+                }
+                .rte-subject-eyebrow {
+                    font-family: var(--font-mono); font-weight: 700; font-size: 11px;
+                    letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-red-dark, #B5251E);
+                }
+                .rte-subject-chev { color: var(--color-red-dark, #B5251E); transition: transform 0.18s ease; }
+                .rte-subject-chev.is-open { transform: rotate(180deg); }
+                .rte-subject-body { padding: 0 14px 13px; }
+                .rte-subject-consigne {
+                    margin: 0; font-family: var(--font-sans); font-weight: 600; font-size: 14px;
+                    line-height: 1.5; color: var(--color-ink);
+                }
+                .rte-subject-contexte {
+                    margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: var(--color-ink-2, #1F2950);
                 }
                 .rte-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
                 .rte-live {

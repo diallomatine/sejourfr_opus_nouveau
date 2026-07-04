@@ -161,6 +161,7 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
         ) : uiMode === "realtime" && rtDescriptor && rtAttemptId ? (
           <RealtimeEoRunner
             descriptor={rtDescriptor}
+            task={task}
             taskTitle={taskTitle}
             onFinished={() => goToRealtimeResult(rtAttemptId)}
             onFatalError={(m) => {

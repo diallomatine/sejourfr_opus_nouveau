@@ -79,7 +79,10 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   // Temps réel (EO Tâches 1 & 2). `taskMode` pilote l'UI de la tâche courante :
   // "choosing" = modal de choix, "classic" = enregistrement, "realtime" = runner.
   const rt = useRealtimeEo(status === "authenticated" && config.mode === "audio");
-  const [taskMode, setTaskMode] = useState<"choosing" | "classic" | "realtime">("classic");
+  // "choosing" = modal de choix ; "preparing" = lecture du sujet avant de lancer
+  // la session (le candidat démarre quand il est prêt) ; "realtime" = runner ;
+  // "classic" = enregistrement.
+  const [taskMode, setTaskMode] = useState<"choosing" | "preparing" | "classic" | "realtime">("classic");
   const [activeDescriptor, setActiveDescriptor] = useState<RealtimeSessionDescriptor | null>(null);
   const [rtStarting, setRtStarting] = useState(false);
   const [rtError, setRtError] = useState<string | null>(null);
@@ -481,6 +484,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
               taskMode === "realtime" && activeDescriptor ? (
                 <RealtimeEoRunner
                   descriptor={activeDescriptor}
+                  task={currentTask}
                   taskTitle={productionTaskTitle(config.epreuve, currentTask.tacheNumero)}
                   onFinished={advanceAfterRealtime}
                   onFatalError={(m) => {
@@ -488,6 +492,43 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                     setTaskMode("classic");
                   }}
                 />
+              ) : taskMode === "preparing" ? (
+                <div className={prod.rtPrep}>
+                  <div className={prod.card}>
+                    <p className={prod.cardLabel}>Votre sujet · Tâche {currentTask.tacheNumero}</p>
+                    <p className={prod.consigne}>{currentTask.consigne}</p>
+                    {currentTask.contexte && <div className={prod.contexte}>{currentTask.contexte}</div>}
+                    <div className={prod.metaRow}>
+                      <span className={prod.metaChip}>
+                        <Mic size={13} strokeWidth={2} />
+                        Niveau {currentTask.niveauCible}
+                      </span>
+                    </div>
+                  </div>
+                  <p className={prod.rtPrepHint}>
+                    Prenez le temps de lire votre sujet. L&apos;examinateur commencera à vous
+                    parler dès que vous appuierez sur «&nbsp;Commencer&nbsp;».
+                  </p>
+                  {rtError && <div className={detail.error}>{rtError}</div>}
+                  <div className={prod.rtPrepActions}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      disabled={rtStarting}
+                      onClick={() => setTaskMode("choosing")}
+                    >
+                      Changer de mode
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-red btn-lg"
+                      disabled={rtStarting}
+                      onClick={startRealtimeTask}
+                    >
+                      {rtStarting ? "Connexion à l'examinateur…" : "Commencer l'échange"}
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <EoRecordingForm
                   key={currentTask.id}
@@ -545,7 +586,10 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             cap={rt.cap}
             starting={rtStarting}
             error={rtError}
-            onPickRealtime={startRealtimeTask}
+            // Choix « examinateur IA » → étape de lecture du sujet (le jeton
+            // Gemini n'est frappé qu'au « Commencer », pas de risque d'expiration
+            // pendant la lecture).
+            onPickRealtime={() => setTaskMode("preparing")}
             onPickClassic={() => setTaskMode("classic")}
             // Aligné mobile : le paywall s'ouvre PAR-DESSUS le modal de choix,
             // sans démarrer l'enregistrement classique. Fermer le paywall sans

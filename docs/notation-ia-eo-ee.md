@@ -200,11 +200,20 @@ vocale (technologie Google Gemini Live). Deux choses à bien distinguer :
 
 Quelques réglages pensés pour le confort du candidat :
 
+- **Le candidat lit d'abord son sujet, puis démarre quand il est prêt.** Avant chaque tâche, sa
+  consigne (en Tâche 2, la situation du jeu de rôle) s'affiche à l'écran ; l'examinateur ne
+  commence à parler qu'au moment où le candidat appuie sur « Commencer ». On ne bascule jamais
+  dans l'oral sans lui laisser le temps de lire son sujet. Ce sujet **reste consultable** à
+  l'écran pendant tout l'échange (utile en Tâche 2, où c'est le candidat qui mène).
 - **Le chrono de la tâche ne démarre qu'au premier mot de l'examinateur.** Le temps de
   connexion et d'accueil n'est **pas** décompté du temps de parole du candidat.
 - **L'examinateur est patient mais réactif.** Il laisse le candidat finir ses phrases (il ne le
   coupe pas sur une pause de réflexion), tout en répondant assez vite pour que l'échange reste
   fluide.
+- **Quand le temps est écoulé, l'examinateur termine sa phrase de conclusion.** À la fin d'une
+  tâche, on le laisse prononcer sa formule de clôture jusqu'au bout avant de fermer l'échange —
+  il n'est pas coupé au milieu d'un mot, et il n'y a pas non plus de silence inutile avant de
+  passer à la suite.
 - **Il parle un français normal**, clair et accessible, sans s'adapter artificiellement au
   niveau du candidat (comme à un vrai examen). S'il n'a pas compris, il demande simplement de
   répéter.

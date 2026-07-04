@@ -68,6 +68,9 @@ class GeminiLiveClient {
   bool _started = false;
   bool _closed = false;
   bool _speaking = false;
+  // Micro coupé (temps écoulé) : le candidat ne parle plus, on garde le WS
+  // ouvert pour laisser l'examinateur prononcer sa phrase de clôture.
+  bool _inputMuted = false;
   // Phase d'accueil : tant que l'examinateur n'a pas parlé, on coupe le micro
   // du candidat. Libéré au 1er audio examinateur, ou par garde-fou ~8 s.
   bool _awaitingFirstExaminer = true;
@@ -133,7 +136,10 @@ class GeminiLiveClient {
   }
 
   /// Signale au modèle que le temps est écoulé pour qu'il prononce sa clôture.
+  /// Coupe aussi le micro candidat : le seul tour restant est la conclusion de
+  /// l'examinateur (évite qu'un dernier mot du candidat relance un échange).
   void notifyTimeUp() {
+    _inputMuted = true;
     _send({
       'clientContent': {
         'turns': [
@@ -253,8 +259,9 @@ class GeminiLiveClient {
       (chunk) {
         // Accueil : micro coupé tant que l'examinateur n'a pas parlé. Puis
         // half-duplex : on n'émet pas pendant qu'il parle (anti-écho ; le
-        // candidat attend la fin de la question — pas de barge-in).
-        if (_closed || _awaitingFirstExaminer || _speaking) return;
+        // candidat attend la fin de la question — pas de barge-in). `_inputMuted`
+        // : temps écoulé → on écoute la clôture, plus d'émission candidat.
+        if (_closed || _awaitingFirstExaminer || _speaking || _inputMuted) return;
         _send({
           'realtimeInput': {
             'audio': {'mimeType': _inMime, 'data': base64Encode(chunk)}
