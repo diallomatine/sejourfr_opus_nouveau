@@ -99,14 +99,13 @@ class GeminiLiveClient {
       cancelOnError: true,
     );
 
-    // Setup : le modèle + la persona sont verrouillés dans le token (endpoint
-    // "...Constrained"). On (re)déclare la transcription in/out pour maximiser
-    // la remontée des events de transcription (cf. caveat token éphémère).
+    // Endpoint "...Constrained" : TOUT le setup (modèle, persona, transcription
+    // in/out, VAD, generationConfig) est verrouillé dans le token éphémère côté
+    // serveur. Le client n'envoie qu'un setup MINIMAL (juste le modèle) —
+    // réenvoyer les champs verrouillés fait rejeter la connexion.
     _send({
       'setup': {
         if (descriptor.model != null) 'model': descriptor.model,
-        'inputAudioTranscription': <String, dynamic>{},
-        'outputAudioTranscription': <String, dynamic>{},
       }
     });
 
@@ -377,6 +376,12 @@ class GeminiLiveClient {
 
   void _onWsDone() {
     if (_closed) return;
+    // Code/raison utiles au diagnostic (1007 = setup invalide, 1008 = auth…).
+    final code = _channel?.closeCode;
+    if (code != null && code != ws_status.normalClosure && code != 1005) {
+      dev.log('WS fermé code=$code raison=${_channel?.closeReason ?? "—"}',
+          name: 'GeminiLiveClient');
+    }
     onClosed?.call();
   }
 

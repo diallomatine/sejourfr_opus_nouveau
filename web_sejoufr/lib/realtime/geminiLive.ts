@@ -158,20 +158,23 @@ export class GeminiLiveSession {
         this.ws = ws;
 
         ws.onopen = () => {
-            // Setup minimal : modèle + sortie AUDIO + transcription des deux côtés.
-            // Les champs sensibles (persona) restent verrouillés dans le token.
+            // Endpoint "Constrained" : TOUT le setup (generationConfig, voix,
+            // transcription in/out, VAD, systemInstruction) est verrouillé dans le
+            // token éphémère côté serveur. Le client n'envoie qu'un setup MINIMAL
+            // (juste le modèle) — réenvoyer les champs verrouillés fait rejeter la
+            // connexion par l'endpoint contraint.
             ws.send(JSON.stringify({
-                setup: {
-                    model: this.descriptor.model ?? undefined,
-                    generationConfig: {responseModalities: ["AUDIO"]},
-                    inputAudioTranscription: {},
-                    outputAudioTranscription: {},
-                },
+                setup: {model: this.descriptor.model ?? undefined},
             }));
         };
         ws.onmessage = (ev) => this.onMessage(ev);
         ws.onerror = () => this.fail("La connexion à l'examinateur a échoué.");
-        ws.onclose = () => {
+        ws.onclose = (ev) => {
+            // Code/raison utiles au diagnostic (1007 = setup invalide, 1008 = auth,
+            // 1011 = erreur serveur…).
+            if (ev.code !== 1000 && ev.code !== 1005) {
+                console.warn(`[realtime] WS fermé code=${ev.code} raison=${ev.reason || "—"}`);
+            }
             if (!this.closed) {
                 this.closed = true;
                 this.cb.onStateChange?.("closed");
