@@ -261,6 +261,15 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
     _flushTimer?.cancel();
     await _flush();
     await _client?.dispose();
+    // `dispose()` vide les derniers tours encore en tampon (une prise de parole
+    // non close par un `turnComplete` — typiquement la réponse du candidat juste
+    // avant la fin du temps) via les callbacks → `_pending`. On les RENVOIE avant
+    // de clôturer : le backend passe la session en COMPLETED au `finish` et
+    // ignore tout fragment arrivé après (« tardif »). Sans ce 2ᵉ flush, un échange
+    // court perdait son unique tour candidat → aucune submission créée → tâche
+    // « non évaluée » (constaté en examen complet). Le web fait déjà ce flush
+    // après `stop()`.
+    await _flush();
 
     try {
       final res = await _repo.finishSession(_args.sessionId);
