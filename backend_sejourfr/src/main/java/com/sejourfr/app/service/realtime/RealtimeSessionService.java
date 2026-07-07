@@ -9,6 +9,7 @@ import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.RealtimeSession;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.RealtimeSessionStatus;
 import com.sejourfr.app.exception.BusinessException;
@@ -16,6 +17,7 @@ import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.RealtimeSessionManager;
+import com.sejourfr.app.manager.UserSubscriptionManager;
 import com.sejourfr.app.service.ProductionEvaluationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +55,7 @@ public class RealtimeSessionService {
     private final ProductionTaskManager productionTaskManager;
     private final AttemptManager attemptManager;
     private final ProductionEvaluationService productionEvaluationService;
+    private final UserSubscriptionManager userSubscriptionManager;
     private final RealtimeProperties props;
 
     @Transactional
@@ -124,9 +127,17 @@ public class RealtimeSessionService {
             return;
         }
         if (session.getStatus() == RealtimeSessionStatus.PENDING) {
-            // Premiere activite reelle : connexion etablie -> debit du quota.
+            // Premiere activite reelle : connexion etablie -> debit d'UNE session
+            // sur le solde du pass. Transition PENDING->ACTIVE unique (garde du
+            // if), donc debit exactement une fois par session ; le debit est
+            // conditionne au solde > 0 (concurrence). Une session jamais connectee
+            // (PENDING) ou en echec sans connexion ne consomme rien.
             session.setStatus(RealtimeSessionStatus.ACTIVE);
             session.setConnectedAt(Instant.now());
+            UserSubscription subscription = session.getSubscription();
+            if (subscription != null) {
+                userSubscriptionManager.decrementRealtimeSessions(subscription.getId());
+            }
         }
         session.setTranscript(appendLine(session.getTranscript(), req.speaker(), req.text()));
         sessionManager.save(session);

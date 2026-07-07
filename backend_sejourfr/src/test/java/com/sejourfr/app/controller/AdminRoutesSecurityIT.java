@@ -69,6 +69,7 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.POST, "/api/admin/exams"),
                 Arguments.of(HttpMethod.PUT, "/api/admin/themes/" + RANDOM_ID),
                 Arguments.of(HttpMethod.PATCH, "/api/admin/plans/" + RANDOM_ID),
+                Arguments.of(HttpMethod.PATCH, "/api/admin/subscriptions/" + RANDOM_ID + "/realtime-sessions"),
                 Arguments.of(HttpMethod.DELETE, "/api/admin/questions/" + RANDOM_ID));
     }
 

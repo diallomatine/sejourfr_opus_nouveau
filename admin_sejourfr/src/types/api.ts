@@ -647,6 +647,8 @@ export interface AdminSubscriptionDto {
   planName: string | null;
   moduleAccess: ModuleAccess | null;
   planPrice: number | null;
+  /** Solde de sessions EO temps réel du pass (ajustable par l'admin). */
+  realtimeEoSessionsRemaining: number;
 }
 
 export interface AdminSubscriptionListResponse {

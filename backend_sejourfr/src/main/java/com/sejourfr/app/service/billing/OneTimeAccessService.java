@@ -94,6 +94,17 @@ public class OneTimeAccessService {
         Instant base = extension ? currentEnd : now;
         Instant endsAt = base.plus(plan.getDurationDays(), ChronoUnit.DAYS);
 
+        // Sessions EO temps réel : on CUMULE (report du reste du pass couvrant en
+        // cours + allocation du nouveau pass = plans.realtime_eo_sessions). Un
+        // premier achat repart de 0 + allocation. Le report ne vient que si l'accès
+        // en cours couvre au moins le module acheté (extension), auquel cas
+        // currentSubscription est bien le pass qu'on prolonge (Intégral pour l'EO).
+        int carriedRealtime = extension
+                ? subscriptionService.currentSubscription(userId)
+                        .map(UserSubscription::getRealtimeEoSessionsRemaining)
+                        .orElse(0)
+                : 0;
+
         UserSubscription sub = new UserSubscription();
         sub.setUser(user);
         sub.setPlan(plan);
@@ -105,6 +116,7 @@ public class OneTimeAccessService {
         sub.setAutoRenew(false);
         sub.setStartsAt(now);
         sub.setEndsAt(endsAt);
+        sub.setRealtimeEoSessionsRemaining(carriedRealtime + Math.max(0, plan.getRealtimeEoSessions()));
         userSubscriptionManager.save(sub);
 
         log.info("Pass one-time accordé user={} plan={} source={} endsAt={} (base={})",

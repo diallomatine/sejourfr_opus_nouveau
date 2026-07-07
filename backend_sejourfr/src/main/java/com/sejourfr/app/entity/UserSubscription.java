@@ -116,6 +116,16 @@ public class UserSubscription {
     @Column(name = "expiry_reminded_at")
     private Instant expiryRemindedAt;
 
+    /**
+     * Solde de sessions EO temps réel du pass. Posé à la souscription
+     * (= {@code plans.realtime_eo_sessions}), cumulé à la prolongation / au
+     * ré-achat, décrémenté de 1 à la connexion réelle d'une session, et
+     * ajustable par l'admin. Source de vérité du quota temps réel
+     * (cf. {@code RealtimeQuotaService}).
+     */
+    @Column(name = "realtime_eo_sessions_remaining", nullable = false)
+    private int realtimeEoSessionsRemaining = 0;
+
     @PreUpdate
     public void touchUpdatedAt() {
         this.updatedAt = Instant.now();
@@ -165,4 +175,9 @@ public class UserSubscription {
 
     public Instant getExpiryRemindedAt() { return expiryRemindedAt; }
     public void setExpiryRemindedAt(Instant expiryRemindedAt) { this.expiryRemindedAt = expiryRemindedAt; }
+
+    public int getRealtimeEoSessionsRemaining() { return realtimeEoSessionsRemaining; }
+    public void setRealtimeEoSessionsRemaining(int realtimeEoSessionsRemaining) {
+        this.realtimeEoSessionsRemaining = realtimeEoSessionsRemaining;
+    }
 }

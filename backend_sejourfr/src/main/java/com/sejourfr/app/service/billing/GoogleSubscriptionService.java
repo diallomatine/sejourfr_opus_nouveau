@@ -443,7 +443,8 @@ public class GoogleSubscriptionService {
                 .findBySourceAndOriginalTransactionId(SubscriptionSource.GOOGLE, purchaseToken)
                 .orElse(null);
 
-        if (sub == null) {
+        boolean created = sub == null;
+        if (created) {
             sub = new UserSubscription();
             sub.setUser(user);
             sub.setSource(SubscriptionSource.GOOGLE);
@@ -462,6 +463,12 @@ public class GoogleSubscriptionService {
         sub.setEndsAt(parseExpiry(lineItem.getExpiryTime(), null));
         sub.setAutoRenew(deriveAutoRenew(lineItem, true));
         sub.setStatus(mapSubscriptionState(state.getSubscriptionState(), SubscriptionStatus.ACTIVE));
+        // Sessions EO temps réel : allocation du pass à la 1re souscription.
+        // TODO (récurrent dormant) : re-créditer à chaque renouvellement — non
+        // implémenté (mode ONE_TIME actif, cf. OneTimeAccessService).
+        if (created) {
+            sub.setRealtimeEoSessionsRemaining(Math.max(0, plan.getRealtimeEoSessions()));
+        }
         return userSubscriptionManager.save(sub);
     }
 

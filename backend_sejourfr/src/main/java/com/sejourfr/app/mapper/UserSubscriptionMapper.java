@@ -31,7 +31,8 @@ public class UserSubscriptionMapper {
                 plan != null ? plan.getCode() : null,
                 plan != null ? plan.getName() : null,
                 plan != null ? plan.getModuleAccess() : null,
-                plan != null ? plan.getPrice() : null
+                plan != null ? plan.getPrice() : null,
+                sub.getRealtimeEoSessionsRemaining()
         );
     }
 }

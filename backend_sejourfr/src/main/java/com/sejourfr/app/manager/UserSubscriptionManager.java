@@ -48,6 +48,14 @@ public class UserSubscriptionManager {
     }
 
     /**
+     * Débit atomique d'une session EO temps réel (conditionné au solde &gt; 0).
+     * Renvoie {@code true} si une session a bien été débitée.
+     */
+    public boolean decrementRealtimeSessions(UUID subscriptionId) {
+        return repository.decrementRealtimeSessions(subscriptionId) > 0;
+    }
+
+    /**
      * Recherche paginée par {@link Specification} — utilisée par l'admin pour
      * combiner filtres source/status/module/search.
      */

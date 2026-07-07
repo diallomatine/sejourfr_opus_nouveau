@@ -176,3 +176,22 @@
   flex-wrap: wrap;
 }
 
+
+.rtEditor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rtInput {
+  max-width: 120px;
+}
+
+.rtOk {
+  color: var(--green);
+}
+
+.rtError {
+  color: var(--red);
+}

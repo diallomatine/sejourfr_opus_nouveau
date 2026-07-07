@@ -80,6 +80,8 @@ Endpoints utilisés actuellement :
 - `GET /api/admin/subscriptions?source=…&status=…&moduleAccess=…&search=…&page=…&size=…` (lot 4c)
 - `POST /api/admin/subscriptions/{id}/cancel` — annulation manuelle (support).
   Stripe → DONE ; Apple/Google → REDIRECT (l'admin copie l'URL pour la transmettre).
+- `PATCH /api/admin/subscriptions/{id}/realtime-sessions` `{ remaining }` — pose le
+  solde de sessions EO temps réel du pass (support : offrir/corriger des sessions).
 
 **Authentification** : JWT Bearer dans l'en-tête `Authorization`. Le refresh est automatique côté `http.ts` quand une requête prend un 401 — pas besoin de le gérer dans les composants.
 
@@ -159,6 +161,11 @@ Pas encore d'API côté backend, donc pas implémenté ici :
   invalide `["adminSubscriptions"]`. Bandeau de feedback en bas de modal :
   vert pour DONE (Stripe), ambre pour REDIRECT (Apple/Google) avec l'URL à
   copier-coller au client, rouge si erreur.
+  Modal détail : champ **Sessions temps réel (EO)** éditable (input + Enregistrer)
+  → `subscriptionsApi.setRealtimeSessions(id, remaining)` (PATCH) → invalide
+  `["adminSubscriptions"]`. C'est le solde `user_subscriptions.realtime_eo_sessions_remaining`
+  (posé à la souscription = `plans.realtime_eo_sessions`, cumulé à la prolongation,
+  débité à chaque session temps réel).
 
 ## Pistes d'évolution
 

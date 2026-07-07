@@ -334,17 +334,31 @@ function SubscriptionDetailModal({
   const [lastResult, setLastResult] = useState<CancelSubscriptionResponse | null>(
     null,
   );
+  const [rtInput, setRtInput] = useState("");
+  const [rtSaved, setRtSaved] = useState<number | null>(null);
 
   // Reset l'état de feedback quand on bascule sur un autre abo (ou qu'on
   // referme/rouvre la modal sur le même).
   useEffect(() => {
     setLastResult(null);
-  }, [sub?.id]);
+    setRtSaved(null);
+    setRtInput(sub ? String(sub.realtimeEoSessionsRemaining) : "");
+  }, [sub?.id, sub]);
 
   const cancelMutation = useMutation({
     mutationFn: (id: string) => subscriptionsApi.cancel(id),
     onSuccess: (res) => {
       setLastResult(res);
+      queryClient.invalidateQueries({ queryKey: ["adminSubscriptions"] });
+    },
+  });
+
+  const setRealtimeMutation = useMutation({
+    mutationFn: (remaining: number) =>
+      subscriptionsApi.setRealtimeSessions(sub!.id, remaining),
+    onSuccess: (dto) => {
+      setRtSaved(dto.realtimeEoSessionsRemaining);
+      setRtInput(String(dto.realtimeEoSessionsRemaining));
       queryClient.invalidateQueries({ queryKey: ["adminSubscriptions"] });
     },
   });
@@ -367,6 +381,13 @@ function SubscriptionDetailModal({
           `store à transmettre au client.`;
     if (!window.confirm(msg)) return;
     cancelMutation.mutate(sub.id);
+  };
+
+  const rtParsed = Number.parseInt(rtInput, 10);
+  const rtValid = Number.isFinite(rtParsed) && rtParsed >= 0;
+  const rtChanged = rtValid && rtParsed !== sub.realtimeEoSessionsRemaining;
+  const handleSaveRealtime = () => {
+    if (rtValid) setRealtimeMutation.mutate(rtParsed);
   };
 
   const copyRedirect = async (url: string) => {
@@ -416,6 +437,43 @@ function SubscriptionDetailModal({
             <div className={styles.detailSub}>
               {MODULE_LABEL[sub.moduleAccess]} · {formatPrice(sub.planPrice)}
             </div>
+          )}
+        </DetailRow>
+
+        <DetailRow label="Sessions temps réel (EO)">
+          <div className={styles.rtEditor}>
+            <Input
+              type="number"
+              min={0}
+              value={rtInput}
+              onChange={(e) => setRtInput(e.target.value)}
+              className={styles.rtInput}
+            />
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSaveRealtime}
+              disabled={!rtChanged || setRealtimeMutation.isPending}
+            >
+              {setRealtimeMutation.isPending ? "…" : "Enregistrer"}
+            </Button>
+          </div>
+          <span className={styles.detailSub}>
+            Solde de sessions examinateur vocal du pass — débité à chaque
+            session, cumulé à la prolongation. Ajustable ici (support).
+          </span>
+          {rtSaved !== null && (
+            <span className={`${styles.detailSub} ${styles.rtOk}`}>
+              Solde mis à jour : {rtSaved}
+            </span>
+          )}
+          {setRealtimeMutation.isError && (
+            <span className={`${styles.detailSub} ${styles.rtError}`}>
+              {setRealtimeMutation.error instanceof HttpError
+                ? setRealtimeMutation.error.payload?.message ??
+                  setRealtimeMutation.error.message
+                : (setRealtimeMutation.error as Error).message}
+            </span>
           )}
         </DetailRow>
 

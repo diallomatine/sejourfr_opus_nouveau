@@ -349,7 +349,8 @@ public class AppleSubscriptionService {
                         SubscriptionSource.APPLE, tx.getOriginalTransactionId())
                 .orElse(null);
 
-        if (sub == null) {
+        boolean created = sub == null;
+        if (created) {
             sub = new UserSubscription();
             sub.setUser(user);
             sub.setSource(SubscriptionSource.APPLE);
@@ -370,6 +371,15 @@ public class AppleSubscriptionService {
         sub.setEndsAt(toInstant(tx.getExpiresDate(), null));
         sub.setStatus(deriveStatusFromTransaction(tx));
         sub.setAutoRenew(deriveAutoRenew(renewalInfo, true /* défaut ARS = on */));
+        // Sessions EO temps réel : allocation du pass à la 1re souscription.
+        // TODO (mode abonnement récurrent, dormant) : re-créditer l'allocation à
+        // chaque RENOUVELLEMENT (DID_RENEW → expiresDate avancé). Non implémenté
+        // ici car le produit est en mode ONE_TIME (cf. OneTimeAccessService, qui
+        // cumule bien) et la détection fiable d'un renouvellement en webhook est
+        // hors périmètre tant que le récurrent reste dormant.
+        if (created) {
+            sub.setRealtimeEoSessionsRemaining(Math.max(0, plan.getRealtimeEoSessions()));
+        }
         return userSubscriptionManager.save(sub);
     }
 

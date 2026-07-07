@@ -161,6 +161,49 @@ class OneTimeAccessServiceTest {
                 .isEqualTo(404);
     }
 
+    private Plan integralPass(int realtimeSessions) {
+        Plan p = new Plan();
+        p.setCode("INTEGRAL_ANNUEL");
+        p.setName("Intégral 1 an");
+        p.setModuleAccess(ModuleAccess.INTEGRAL);
+        p.setDurationDays(365);
+        p.setRealtimeEoSessions(realtimeSessions);
+        return p;
+    }
+
+    @Test
+    void premierAchatIntegral_octroieLesSessionsRealtimeDuPass() {
+        Plan integral = integralPass(10);
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.STRIPE, "pi_rt1")).thenReturn(Optional.empty());
+        when(subscriptionService.currentEndForAtLeast(userId, ModuleAccess.INTEGRAL)).thenReturn(null);
+
+        UserSubscription sub = service.grantOneTimeAccess(
+                userId, integral, SubscriptionSource.STRIPE, "pi_rt1", "pi_rt1");
+
+        // Premier achat : solde = allocation du pass.
+        assertThat(sub.getRealtimeEoSessionsRemaining()).isEqualTo(10);
+    }
+
+    @Test
+    void prolongationIntegral_cumuleLesSessionsRealtimeAvecLeReste() {
+        Plan integral = integralPass(10);
+        Instant currentEnd = Instant.now().plus(20, ChronoUnit.DAYS);
+        UserSubscription covering = new UserSubscription();
+        covering.setRealtimeEoSessionsRemaining(3); // reste avant la prolongation
+        when(userSubscriptionManager.findBySourceAndOriginalTransactionId(
+                SubscriptionSource.STRIPE, "pi_rt2")).thenReturn(Optional.empty());
+        when(subscriptionService.currentEndForAtLeast(userId, ModuleAccess.INTEGRAL))
+                .thenReturn(currentEnd);
+        when(subscriptionService.currentSubscription(userId)).thenReturn(Optional.of(covering));
+
+        UserSubscription sub = service.grantOneTimeAccess(
+                userId, integral, SubscriptionSource.STRIPE, "pi_rt2", "pi_rt2");
+
+        // Cumul : report du reste (3) + allocation du nouveau pass (10).
+        assertThat(sub.getRealtimeEoSessionsRemaining()).isEqualTo(13);
+    }
+
     @Test
     void prolongation_finPassee_repartDeMaintenant_mailBienvenue() {
         // currentEndForAtLeast renvoie une date déjà passée → pas une extension.

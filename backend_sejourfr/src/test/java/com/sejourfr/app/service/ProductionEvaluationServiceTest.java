@@ -300,7 +300,7 @@ class ProductionEvaluationServiceTest {
         User other = new User();
         other.setId(UUID.randomUUID());
         s.setUser(other);
-        when(submissionManager.findById(s.getId())).thenReturn(Optional.of(s));
+        when(submissionManager.findByIdWithTask(s.getId())).thenReturn(Optional.of(s));
 
         assertThatThrownBy(() -> service.retry(s.getId(), userId)).isInstanceOf(BusinessException.class);
     }
@@ -309,7 +309,7 @@ class ProductionEvaluationServiceTest {
     void retry_submission_non_failed_refuse() {
         ProductionSubmission s = failedSubmission((short) 0);
         s.setStatut(SubmissionStatut.EVALUATED);
-        when(submissionManager.findById(s.getId())).thenReturn(Optional.of(s));
+        when(submissionManager.findByIdWithTask(s.getId())).thenReturn(Optional.of(s));
 
         assertThatThrownBy(() -> service.retry(s.getId(), userId)).isInstanceOf(BusinessException.class);
     }
@@ -317,7 +317,7 @@ class ProductionEvaluationServiceTest {
     @Test
     void retry_plafond_atteint_refuse() {
         ProductionSubmission s = failedSubmission((short) 3); // max = 3
-        when(submissionManager.findById(s.getId())).thenReturn(Optional.of(s));
+        when(submissionManager.findByIdWithTask(s.getId())).thenReturn(Optional.of(s));
 
         assertThatThrownBy(() -> service.retry(s.getId(), userId)).isInstanceOf(BusinessException.class);
         verify(pipelineRunner, never()).runPipelineAsync(any(), anyBoolean());
@@ -326,7 +326,7 @@ class ProductionEvaluationServiceTest {
     @Test
     void retry_valide_incremente_repasse_en_SUBMITTED_et_relance() {
         ProductionSubmission s = failedSubmission((short) 1);
-        when(submissionManager.findById(s.getId())).thenReturn(Optional.of(s));
+        when(submissionManager.findByIdWithTask(s.getId())).thenReturn(Optional.of(s));
 
         ProductionSubmission result = service.retry(s.getId(), userId);
 

@@ -17,6 +17,7 @@ import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionTaskManager;
 import com.sejourfr.app.manager.RealtimeSessionManager;
+import com.sejourfr.app.manager.UserSubscriptionManager;
 import com.sejourfr.app.service.ProductionEvaluationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,7 @@ class RealtimeSessionServiceTest {
     @Mock private ProductionTaskManager productionTaskManager;
     @Mock private AttemptManager attemptManager;
     @Mock private ProductionEvaluationService productionEvaluationService;
+    @Mock private UserSubscriptionManager userSubscriptionManager;
 
     private final RealtimeProperties props = new RealtimeProperties();
 
@@ -63,7 +65,8 @@ class RealtimeSessionServiceTest {
     @BeforeEach
     void setUp() {
         service = new RealtimeSessionService(sessionManager, quotaService, personaBuilder,
-                tokenBroker, productionTaskManager, attemptManager, productionEvaluationService, props);
+                tokenBroker, productionTaskManager, attemptManager, productionEvaluationService,
+                userSubscriptionManager, props);
         user = new User();
         user.setId(UUID.randomUUID());
     }
@@ -202,10 +205,13 @@ class RealtimeSessionServiceTest {
     // ----- appendTranscript -----
 
     @Test
-    void appendTranscript_pending_passe_active_et_debite_a_la_premiere_activite() {
+    void appendTranscript_pending_passe_active_et_debite_une_session_du_pass() {
+        UserSubscription subscription = new UserSubscription();
+        subscription.setId(UUID.randomUUID());
         RealtimeSession session = new RealtimeSession();
         session.setId(UUID.randomUUID());
         session.setUser(user);
+        session.setSubscription(subscription);
         session.setStatus(RealtimeSessionStatus.PENDING);
         session.setTranscript("");
         when(sessionManager.findById(session.getId())).thenReturn(Optional.of(session));
@@ -216,6 +222,8 @@ class RealtimeSessionServiceTest {
         assertThat(session.getStatus()).isEqualTo(RealtimeSessionStatus.ACTIVE);
         assertThat(session.getConnectedAt()).isNotNull();
         assertThat(session.getTranscript()).isEqualTo("Candidat : Bonjour");
+        // Débit d'UNE session sur le pass, à la 1re activité (PENDING -> ACTIVE).
+        verify(userSubscriptionManager).decrementRealtimeSessions(subscription.getId());
         verify(sessionManager).save(session);
     }
 
@@ -234,6 +242,8 @@ class RealtimeSessionServiceTest {
 
         assertThat(session.getTranscript())
             .isEqualTo("Candidat : Bonjour\nExaminateur : Bonjour, presentez-vous");
+        // Déjà ACTIVE : pas de nouveau débit (le débit a lieu une seule fois).
+        verify(userSubscriptionManager, never()).decrementRealtimeSessions(any());
     }
 
     @Test

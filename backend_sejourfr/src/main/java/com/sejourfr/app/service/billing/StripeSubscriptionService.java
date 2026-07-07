@@ -354,6 +354,13 @@ public class StripeSubscriptionService {
         sub.setStripeCustomerId(customerId);
         sub.setStripeSubscriptionId(subscription.getId());
         applySubscriptionState(sub, subscription);
+        // Sessions EO temps réel : allocation du pass à la 1re souscription
+        // (le plan vient d'être posé par applySubscriptionState). TODO (récurrent
+        // dormant) : re-créditer à chaque renouvellement — non implémenté (mode
+        // ONE_TIME actif, cf. OneTimeAccessService).
+        if (isNew && sub.getPlan() != null) {
+            sub.setRealtimeEoSessionsRemaining(Math.max(0, sub.getPlan().getRealtimeEoSessions()));
+        }
         userSubscriptionManager.save(sub);
         return isNew;
     }

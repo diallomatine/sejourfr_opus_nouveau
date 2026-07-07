@@ -33,6 +33,7 @@ public record AdminSubscriptionDto(
         String planCode,
         String planName,
         ModuleAccess moduleAccess,
-        BigDecimal planPrice
+        BigDecimal planPrice,
+        int realtimeEoSessionsRemaining
 ) {
 }

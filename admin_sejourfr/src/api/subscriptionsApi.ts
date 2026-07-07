@@ -1,5 +1,6 @@
 import { apiRequest } from "./http";
 import type {
+  AdminSubscriptionDto,
   AdminSubscriptionFilters,
   AdminSubscriptionListResponse,
   CancelSubscriptionResponse,
@@ -23,6 +24,14 @@ export const subscriptionsApi = {
     return apiRequest<CancelSubscriptionResponse>(
       `/api/admin/subscriptions/${id}/cancel`,
       { method: "POST" },
+    );
+  },
+
+  /** Pose le solde de sessions EO temps réel d'une souscription (support). */
+  setRealtimeSessions(id: string, remaining: number) {
+    return apiRequest<AdminSubscriptionDto>(
+      `/api/admin/subscriptions/${id}/realtime-sessions`,
+      { method: "PATCH", body: { remaining } },
     );
   },
 };

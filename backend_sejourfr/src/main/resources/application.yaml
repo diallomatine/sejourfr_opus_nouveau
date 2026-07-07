@@ -280,8 +280,6 @@ sejourfr:
   realtime:
     provider: ${REALTIME_PROVIDER:gemini}
     persona-version: v1
-    # Réserve un slot de quota le temps que le client établisse la connexion.
-    reservation-window-seconds: 300
     gemini:
       # Clé Google AI (Gemini API). Absente -> temps réel désactivé (fallback async).
       api-key: ${GEMINI_API_KEY:}

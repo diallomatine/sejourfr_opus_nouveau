@@ -9,6 +9,7 @@ import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.repository.UserSubscriptionRepository;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -41,6 +42,9 @@ class UserSubscriptionManagerIT extends AbstractIntegrationTest {
 
     @Autowired
     private PlanManager planManager;
+
+    @Autowired
+    private EntityManager em;
 
     @Autowired
     private TestData testData;
@@ -159,6 +163,31 @@ class UserSubscriptionManagerIT extends AbstractIntegrationTest {
         s.setEndsAt(endsAt);
         s.setExpiryRemindedAt(remindedAt);
         return manager.save(s);
+    }
+
+    @Test
+    void decrementRealtimeSessionsDebitsOneWhenPositiveAndStopsAtZero() {
+        UserSubscription sub = testData.userSubscription();
+        sub.setRealtimeEoSessionsRemaining(2);
+        manager.save(sub);
+
+        // 2 -> 1 (débitée)
+        assertThat(manager.decrementRealtimeSessions(sub.getId())).isTrue();
+        em.clear(); // le UPDATE en masse ne touche pas le cache L1 → on relit la DB
+        assertThat(manager.findById(sub.getId()).orElseThrow()
+                .getRealtimeEoSessionsRemaining()).isEqualTo(1);
+
+        // 1 -> 0 (débitée)
+        assertThat(manager.decrementRealtimeSessions(sub.getId())).isTrue();
+        em.clear();
+        assertThat(manager.findById(sub.getId()).orElseThrow()
+                .getRealtimeEoSessionsRemaining()).isZero();
+
+        // 0 : solde nul → aucun débit, jamais négatif.
+        assertThat(manager.decrementRealtimeSessions(sub.getId())).isFalse();
+        em.clear();
+        assertThat(manager.findById(sub.getId()).orElseThrow()
+                .getRealtimeEoSessionsRemaining()).isZero();
     }
 
     @Test

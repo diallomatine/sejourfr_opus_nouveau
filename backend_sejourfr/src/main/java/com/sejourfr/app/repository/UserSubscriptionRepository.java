@@ -4,6 +4,7 @@ import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.SubscriptionSource;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -54,4 +55,17 @@ public interface UserSubscriptionRepository
             """)
     List<UserSubscription> findOneTimeExpiringSoon(
             @Param("now") Instant now, @Param("threshold") Instant threshold);
+
+    /**
+     * Débit atomique d'UNE session EO temps réel sur le pass, conditionné au
+     * solde > 0 (évite tout passage sous zéro sur des connexions concurrentes).
+     * Renvoie le nombre de lignes affectées (1 = débitée, 0 = solde déjà nul).
+     */
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            UPDATE UserSubscription s
+            SET s.realtimeEoSessionsRemaining = s.realtimeEoSessionsRemaining - 1
+            WHERE s.id = :id AND s.realtimeEoSessionsRemaining > 0
+            """)
+    int decrementRealtimeSessions(@Param("id") UUID id);
 }

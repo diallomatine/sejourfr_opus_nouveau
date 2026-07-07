@@ -6,6 +6,7 @@ import com.sejourfr.app.entity.UserSubscription;
 import com.sejourfr.app.enums.ModuleAccess;
 import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
+import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.UserSubscriptionManager;
 import com.sejourfr.app.mapper.UserSubscriptionMapper;
 import com.sejourfr.app.specification.UserSubscriptionSpecifications;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Service admin pour la liste paginée des UserSubscription. Filtres optionnels
@@ -70,5 +72,19 @@ public class AdminSubscriptionService {
                 safePage,
                 safeSize
         );
+    }
+
+    /**
+     * Pose le solde de sessions EO temps réel d'une souscription (support :
+     * offrir / corriger des sessions). Renvoie la souscription mise à jour.
+     */
+    @Transactional
+    public AdminSubscriptionDto setRealtimeSessions(UUID subscriptionId, int remaining) {
+        UserSubscription sub = userSubscriptionManager.findById(subscriptionId)
+                .orElseThrow(() -> new NotFoundException(
+                        "Souscription introuvable : " + subscriptionId));
+        sub.setRealtimeEoSessionsRemaining(Math.max(0, remaining));
+        userSubscriptionManager.save(sub);
+        return userSubscriptionMapper.toAdminDto(sub);
     }
 }

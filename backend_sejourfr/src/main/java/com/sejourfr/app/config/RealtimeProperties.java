@@ -30,14 +30,6 @@ public class RealtimeProperties {
     private Gemini gemini = new Gemini();
     private Audio audio = new Audio();
 
-    /**
-     * Fenetre (secondes) pendant laquelle une session PENDING "reserve" un slot
-     * de quota, le temps que le client etablisse la connexion. Au-dela, une
-     * session PENDING jamais connectee ne compte plus (le token a expire). Evite
-     * qu'un client multiplie les mint sans connexion pour depasser le cap.
-     */
-    private int reservationWindowSeconds = 300;
-
     public String getProvider() { return provider; }
     public void setProvider(String provider) { this.provider = provider; }
 
@@ -49,9 +41,6 @@ public class RealtimeProperties {
 
     public Audio getAudio() { return audio; }
     public void setAudio(Audio audio) { this.audio = audio; }
-
-    public int getReservationWindowSeconds() { return reservationWindowSeconds; }
-    public void setReservationWindowSeconds(int v) { this.reservationWindowSeconds = v; }
 
     /**
      * Gemini Live (audio natif). Token ephemere emis via l'endpoint REST
