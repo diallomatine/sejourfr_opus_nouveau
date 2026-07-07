@@ -166,7 +166,12 @@ function ExamAudio({ src }: { src?: string }) {
   useEffect(() => {
     const el = audioRef.current;
     if (!el) return;
-    el.play().catch(() => setPhase("blocked"));
+    // Auto-play 0,5s après l'ouverture de la question (parité mobile), pour
+    // laisser une respiration avant l'écoute unique — conditions TCF réelles.
+    const timer = setTimeout(() => {
+      el.play().catch(() => setPhase("blocked"));
+    }, 500);
+    return () => clearTimeout(timer);
   }, []);
 
   const launch = () => {

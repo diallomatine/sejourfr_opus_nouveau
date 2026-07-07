@@ -160,7 +160,7 @@ class _RunnerView extends ConsumerWidget {
                   if (question.hasMedia)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),
-                      // En examen module TCF : audio auto-play 2s, lecture
+                      // En examen module TCF : audio auto-play 0,5s, lecture
                       // unique, pas de pause possible — conditions du TCF réel.
                       child: QuestionMediaView(
                         media: question.media!,
@@ -171,7 +171,7 @@ class _RunnerView extends ConsumerWidget {
                   // CO_IMAGE : l'image (media) est au-dessus, l'audio qui énonce
                   // les propositions A/B/C/D vit dans audioMedia → second player
                   // juste en dessous. Mêmes conditions examen que le média
-                  // principal (auto-play 2s, lecture unique en examen module).
+                  // principal (auto-play 0,5s, lecture unique en examen module).
                   if (question.audioMedia != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 14),

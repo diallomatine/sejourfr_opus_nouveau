@@ -27,7 +27,7 @@ class QuestionMediaView extends StatelessWidget {
   final MediaDto media;
 
   /// Active les conditions strictes d'un examen module sur le player audio
-  /// (auto-play 2s, pas de pause). Ignoré pour image / vidéo.
+  /// (auto-play 0,5s, pas de pause). Ignoré pour image / vidéo.
   final bool examMode;
 
   /// Nombre maximum d'écoutes pour les audios (typiquement 1 en examen).

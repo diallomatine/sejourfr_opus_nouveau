@@ -32,7 +32,7 @@ class SejourAudioPlayer extends StatefulWidget {
 }
 
 class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
-  static const _examAutoStartDelay = Duration(seconds: 2);
+  static const _examAutoStartDelay = Duration(milliseconds: 500);
 
   final _player = AudioPlayer();
   bool _ready = false;
@@ -97,7 +97,7 @@ class _SejourAudioPlayerState extends State<SejourAudioPlayer> {
       await _player.setUrl(widget.url);
       if (!mounted) return;
       setState(() => _ready = true);
-      // Examen module : on déclenche la lecture automatique 2s après le
+      // Examen module : on déclenche la lecture automatique 0,5s après le
       // chargement, pour reproduire les conditions du TCF officiel.
       if (widget.examMode) {
         _autoStartTimer?.cancel();

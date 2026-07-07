@@ -141,7 +141,7 @@ class Attempt {
   final TargetLevel? levelAchieved;
 
   /// Non-null quand l'attempt est un examen module TCF (CO ou CE). Active
-  /// le mode strict côté runner : audio auto-play 2s, lecture unique, pas
+  /// le mode strict côté runner : audio auto-play 0,5s, lecture unique, pas
   /// de pause, soumission auto à la fin du temps.
   final QuestionType? moduleExamQuestionType;
 
