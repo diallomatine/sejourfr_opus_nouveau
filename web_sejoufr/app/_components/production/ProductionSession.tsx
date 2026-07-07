@@ -25,7 +25,7 @@ import { EeWritingForm, clearEeDraft } from "./EeWritingForm";
 import { EoRecordingForm } from "./EoRecordingForm";
 import { RealtimeLaunchSheet } from "./RealtimeLaunchSheet";
 import { RealtimeEoRunner } from "./RealtimeEoRunner";
-import { isRealtimeEligible, useRealtimeEo } from "./useRealtimeEo";
+import { useRealtimeEo } from "./useRealtimeEo";
 import { type ProductionConfig } from "./config";
 import detail from "@/app/_components/hub/detail.module.css";
 import prod from "./production.module.css";
@@ -77,26 +77,25 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   const [paywallOpen, setPaywallOpen] = useState(false);
 
   // Temps réel (EO Tâches 1 & 2). `taskMode` pilote l'UI de la tâche courante :
-  // "choosing" = modal de choix, "classic" = enregistrement, "realtime" = runner.
+  // "classic" = enregistrement (montre le sujet + le bouton micro) ; "choosing" =
+  // modal de choix du mode (ouvert sur le bouton micro) ; "realtime" = runner.
   const rt = useRealtimeEo(status === "authenticated" && config.mode === "audio");
-  // "choosing" = modal de choix ; "preparing" = lecture du sujet avant de lancer
-  // la session (le candidat démarre quand il est prêt) ; "realtime" = runner ;
-  // "classic" = enregistrement.
-  const [taskMode, setTaskMode] = useState<"choosing" | "preparing" | "classic" | "realtime">("classic");
+  const [taskMode, setTaskMode] = useState<"choosing" | "classic" | "realtime">("classic");
   const [activeDescriptor, setActiveDescriptor] = useState<RealtimeSessionDescriptor | null>(null);
   const [rtStarting, setRtStarting] = useState(false);
   const [rtError, setRtError] = useState<string | null>(null);
 
-  /** Entre dans la tâche `n` : ouvre le modal de choix si elle est éligible au
-   *  temps réel (EO T1/T2), sinon mode classique direct. */
+  /** Entre dans la tâche `n` : on affiche d'abord le sujet (mode "classic" =
+   *  EoRecordingForm). Le choix du mode EO T1/T2 est proposé sur le bouton
+   *  « démarrer » du formulaire (askMode), une fois le sujet lu. */
   const enterTask = useCallback(
     (n: number) => {
       setCurrentTache(n);
       setActiveDescriptor(null);
       setRtError(null);
-      setTaskMode(isRealtimeEligible(config.mode, n) ? "choosing" : "classic");
+      setTaskMode("classic");
     },
-    [config.mode],
+    [],
   );
 
   /** Deadline absolue du chrono EE (ms epoch). Null = pas de chrono (EO, ou
@@ -336,6 +335,22 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     }
   }
 
+  // Choix du mode EO T1/T2, déclenché par le bouton « démarrer » du formulaire une
+  // fois le sujet lu. askMode ouvre la modal et rend une promesse résolue par ses
+  // callbacks : « classic » → EoRecordingForm enregistre ; « realtime » →
+  // startRealtimeTask ; « cancel » → retour au sujet.
+  const modeResolverRef = useRef<((c: "classic" | "realtime" | "cancel") => void) | null>(null);
+  const askMode = useCallback((): Promise<"classic" | "realtime" | "cancel"> => {
+    setTaskMode("choosing");
+    return new Promise((resolve) => {
+      modeResolverRef.current = resolve;
+    });
+  }, []);
+  const resolveMode = useCallback((choice: "classic" | "realtime" | "cancel") => {
+    modeResolverRef.current?.(choice);
+    modeResolverRef.current = null;
+  }, []);
+
   /** Après une session temps réel, le backend a créé la submission : on la
    *  détecte (poll court) puis on avance le stepper, comme `send()` en async. */
   async function advanceAfterRealtime(evaluated: boolean) {
@@ -500,43 +515,6 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                     setTaskMode("classic");
                   }}
                 />
-              ) : taskMode === "preparing" ? (
-                <div className={prod.rtPrep}>
-                  <div className={prod.card}>
-                    <p className={prod.cardLabel}>Votre sujet · Tâche {currentTask.tacheNumero}</p>
-                    <p className={prod.consigne}>{currentTask.consigne}</p>
-                    {currentTask.contexte && <div className={prod.contexte}>{currentTask.contexte}</div>}
-                    <div className={prod.metaRow}>
-                      <span className={prod.metaChip}>
-                        <Mic size={13} strokeWidth={2} />
-                        Niveau {currentTask.niveauCible}
-                      </span>
-                    </div>
-                  </div>
-                  <p className={prod.rtPrepHint}>
-                    Prenez le temps de lire votre sujet. L&apos;examinateur commencera à vous
-                    parler dès que vous appuierez sur «&nbsp;Commencer&nbsp;».
-                  </p>
-                  {rtError && <div className={detail.error}>{rtError}</div>}
-                  <div className={prod.rtPrepActions}>
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      disabled={rtStarting}
-                      onClick={() => setTaskMode("choosing")}
-                    >
-                      Changer de mode
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-red btn-lg"
-                      disabled={rtStarting}
-                      onClick={startRealtimeTask}
-                    >
-                      {rtStarting ? "Connexion à l'examinateur…" : "Commencer l'échange"}
-                    </button>
-                  </div>
-                </div>
               ) : (
                 <EoRecordingForm
                   key={currentTask.id}
@@ -545,6 +523,11 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                   error={rtError}
                   submitLabel={submitLabel}
                   examMode
+                  onModeChoice={
+                    currentTask.tacheNumero === 1 || currentTask.tacheNumero === 2
+                      ? askMode
+                      : undefined
+                  }
                   onSubmit={(audio) =>
                     send((aid) => productionApi.submitAudio(currentTask.id, aid, audio))
                   }
@@ -594,16 +577,25 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             cap={rt.cap}
             starting={rtStarting}
             error={rtError}
-            // Choix « examinateur IA » → étape de lecture du sujet (le jeton
-            // Gemini n'est frappé qu'au « Commencer », pas de risque d'expiration
-            // pendant la lecture).
-            onPickRealtime={() => setTaskMode("preparing")}
-            onPickClassic={() => setTaskMode("classic")}
-            // Aligné mobile : le paywall s'ouvre PAR-DESSUS le modal de choix,
-            // sans démarrer l'enregistrement classique. Fermer le paywall sans
-            // s'abonner laisse le modal en place (rien n'a été lancé).
-            onPaywall={() => setPaywallOpen(true)}
-            onClose={() => setTaskMode("classic")}
+            onPickRealtime={() => {
+              resolveMode("realtime");
+              startRealtimeTask();
+            }}
+            onPickClassic={() => {
+              setTaskMode("classic");
+              resolveMode("classic");
+            }}
+            // Paywall par-dessus le modal ; on résout « cancel » (rien n'a été
+            // lancé) et on revient au sujet — retaper « démarrer » rouvre le choix.
+            onPaywall={() => {
+              setTaskMode("classic");
+              resolveMode("cancel");
+              setPaywallOpen(true);
+            }}
+            onClose={() => {
+              setTaskMode("classic");
+              resolveMode("cancel");
+            }}
           />
         )}
 

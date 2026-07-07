@@ -22,8 +22,6 @@ import '../../core/widgets/segmented_tabs.dart';
 import 'ee_session_controller.dart';
 import 'eo_session_controller.dart';
 import 'expression_hub_data.dart';
-import 'realtime/realtime_eo_controller.dart';
-import 'realtime/realtime_launch.dart';
 import 'tcf_production_module.dart';
 import 'widgets/exam_filter_chips.dart';
 import 'widgets/preparation_points.dart';
@@ -725,14 +723,10 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
     setState(() => _starting = true);
     ref.read(selectedModuleProvider.notifier).state = AppModule.tcf;
     try {
-      // EO T1/T2 : proposer le mode examinateur temps réel (si quota dispo).
-      // Sinon (T3, EE, quota épuisé, choix « classique » ou fallback async),
-      // on enchaîne sur le flux d'enregistrement existant.
-      if (widget.module.isEo &&
-          (task.tacheNumero == 1 || task.tacheNumero == 2)) {
-        final handled = await _maybeStartRealtime(task);
-        if (handled) return;
-      }
+      // On ouvre TOUJOURS le briefing (lecture du sujet). Le choix du mode EO
+      // T1/T2 (examinateur temps réel vs enregistrement seul) est proposé LÀ-BAS,
+      // au moment de « Commencer l'enregistrement » — jamais avant d'avoir lu le
+      // sujet. Cf. eo_briefing_screen._onStartPressed.
       if (widget.module.isEo) {
         await ref.read(eoSessionProvider.notifier).startSingle(task: task);
       } else {
@@ -765,43 +759,6 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
       }
     } finally {
       if (mounted) setState(() => _starting = false);
-    }
-  }
-
-  /// Propose et démarre, si possible, une session EO temps réel. Retourne
-  /// `true` si le flux a été pris en charge (navigation realtime lancée ou modal
-  /// annulé) ; `false` pour retomber sur l'enregistrement classique.
-  Future<bool> _maybeStartRealtime(ProductionTaskDto task) async {
-    final negotiation = await negotiateRealtimeSession(
-      context,
-      ref,
-      productionTaskId: task.id,
-      // L'entraînement isolé crée un attempt dédié (seulement si « temps réel »).
-      resolveAttemptId: () async {
-        final attempt = await ref
-            .read(productionRepositoryProvider)
-            .startProductionAttempt(epreuve: EpreuveType.tcfEo);
-        return attempt.id;
-      },
-    );
-    if (!mounted) return true;
-    switch (negotiation.decision) {
-      case RealtimeDecision.cancelled:
-        setState(() => _starting = false);
-        return true;
-      case RealtimeDecision.classic:
-        return false;
-      case RealtimeDecision.realtime:
-        setState(() => _starting = false);
-        context.push(
-          '/tcf/expression-orale/realtime',
-          extra: RealtimeRunnerArgs(
-            descriptor: negotiation.descriptor!,
-            task: task,
-            attemptId: negotiation.attemptId!,
-          ),
-        );
-        return true;
     }
   }
 

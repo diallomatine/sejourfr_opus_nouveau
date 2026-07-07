@@ -11,7 +11,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_sheet.dart';
 import '../../../core/widgets/screen_header.dart';
-import '../widgets/consigne_card.dart';
 import '../widgets/transcript_dialogue.dart';
 import 'realtime_eo_controller.dart';
 
@@ -37,14 +36,10 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
   // Clôture sans prise de parole (seul l'examinateur a parlé) : rien à évaluer.
   // On affiche un écran d'explication au lieu d'ouvrir un bilan « introuvable ».
   bool _noSpeech = false;
-  // Étape de lecture du sujet : tant que le candidat n'a pas appuyé sur
-  // « Commencer », on NE crée PAS le contrôleur (pas de connexion Gemini) — il
-  // lit sa consigne à son rythme. Le jeton tient 120 s avant le 1er échange.
-  bool _started = false;
   // Consigne repliable pendant la session (aide-mémoire, indispensable au jeu
-  // de rôle T2 où le candidat mène l'interaction). Repliée par défaut : elle a
-  // déjà été lue en entier à l'étape « Commencer » et on garde le micro plein
-  // écran ; un tap la rouvre (l'étage micro devient alors scrollable).
+  // de rôle T2 où le candidat mène l'interaction). Repliée par défaut : le sujet
+  // a déjà été lu sur le briefing (l'écran qui précède le choix du mode), et on
+  // garde le micro plein écran ; un tap la rouvre (l'étage micro devient scrollable).
   bool _showSubject = false;
 
   @override
@@ -153,62 +148,6 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     );
   }
 
-  /// Étape de lecture du sujet avant de lancer l'échange. Le candidat lit sa
-  /// consigne (situation du jeu de rôle en T2) et démarre quand il est prêt —
-  /// on ne bascule plus directement dans l'oral sans laisser voir le sujet.
-  Widget _buildPrep(BuildContext context, ProductionTaskDto task) {
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            ScreenHeader(
-              title: 'Oral avec un examinateur',
-              sub: task.displayTitle,
-              onBack: _exitFailed,
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ConsigneCard(
-                      consigne: task.consigne,
-                      title: 'Votre sujet · Tâche ${task.tacheNumero}',
-                      subtitle: task.contexte,
-                      accent: AppColors.red,
-                      soft: AppColors.redLight,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Prenez le temps de lire votre sujet. L\'examinateur '
-                      'commencera à vous parler dès que vous appuierez sur '
-                      '« Commencer ».',
-                      style: AppFonts.ui(size: 13.5, color: AppColors.muted),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                child: AppButton(
-                  label: 'Commencer l\'échange',
-                  icon: LucideIcons.mic,
-                  onPressed: () => setState(() => _started = true),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   /// Clôture sans réponse du candidat : l'examinateur s'est présenté mais rien
   /// n'a été dit → aucune submission créée. On explique clairement (au lieu du
   /// bilan « session introuvable ») et on propose de reprendre.
@@ -254,10 +193,8 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     final args = widget.args;
     final task = args.task;
 
-    // Lecture du sujet AVANT de connecter la session : on ne touche pas au
-    // provider (donc pas de connexion) tant que `_started` est faux.
-    if (!_started) return _buildPrep(context, task);
-
+    // Le sujet a été lu sur le briefing (écran précédent) et le mode a été choisi
+    // là-bas : on connecte la session dès l'arrivée ici, pas d'étape intermédiaire.
     ref.listen<RealtimeEoState>(realtimeEoControllerProvider(args),
         (prev, next) {
       if (next.phase != RealtimePhase.done) return;

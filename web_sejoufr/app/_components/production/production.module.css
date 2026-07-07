@@ -873,12 +873,6 @@
   flex-direction: column;
   gap: 14px;
 }
-.rtPrepHint {
-  margin: 0 2px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--color-muted);
-}
 .rtPrepActions {
   display: flex;
   flex-wrap: wrap;

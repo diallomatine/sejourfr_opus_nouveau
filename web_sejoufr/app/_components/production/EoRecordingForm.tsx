@@ -66,6 +66,7 @@ export function EoRecordingForm({
   error,
   submitLabel = "Soumettre à l'évaluation",
   examMode = false,
+  onModeChoice,
   onSubmit,
 }: {
   task: ProductionTaskDto;
@@ -75,9 +76,17 @@ export function EoRecordingForm({
   /** En examen blanc : décompte par tâche (dureeMaxSec), auto-stop à 0 et
    *  soumission immédiate au stop (manuel ou auto) — pas d'étape de réécoute. */
   examMode?: boolean;
+  /** EO T1/T2 : appelé au 1ᵉʳ tap « démarrer » (une fois le sujet lu) pour
+   *  choisir le mode — examinateur temps réel vs enregistrement seul. « classic »
+   *  → on enregistre ici ; « realtime »/« cancel » → le parent prend la main
+   *  (navigation vers l'échange, ou retour). Absent = enregistrement direct. */
+  onModeChoice?: () => Promise<"classic" | "realtime" | "cancel">;
   onSubmit: (audio: Blob, durationSec: number) => void;
 }) {
   const [phase, setPhase] = useState<"idle" | "recording" | "recorded">("idle");
+  // Une fois « seul » choisi, les taps suivants (réenregistrer) démarrent
+  // directement sans reproposer le mode.
+  const [classicLocked, setClassicLocked] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [permError, setPermError] = useState<string | null>(null);
@@ -154,6 +163,18 @@ export function EoRecordingForm({
       if (result) result.onchange = null;
     };
   }, []);
+
+  /** Tap sur le bouton micro. Pour EO T1/T2 (`onModeChoice` fourni), on propose
+   *  d'abord le mode maintenant que le sujet a été lu ; « seul » → capture ici,
+   *  « temps réel »/annulé → le parent gère. Sinon capture directe. */
+  async function handleStartClick() {
+    if (onModeChoice && !classicLocked) {
+      const choice = await onModeChoice();
+      if (choice !== "classic") return;
+      setClassicLocked(true);
+    }
+    await start();
+  }
 
   async function start() {
     setPermError(null);
@@ -329,7 +350,7 @@ export function EoRecordingForm({
           <button
             type="button"
             className={styles.recordCircle}
-            onClick={start}
+            onClick={handleStartClick}
             disabled={submitting || blocked || (examMode && phase === "recorded")}
             aria-label={phase === "recorded" ? "Réenregistrer" : "Démarrer l'enregistrement"}
           >

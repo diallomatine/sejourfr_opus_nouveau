@@ -41,10 +41,8 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
   bool _navigated = false;
   bool _submittingExam = false;
 
-  /// Garde : l'offre « temps réel vs classique » n'est proposée qu'une fois par
-  /// tâche (par instance d'écran). `_negotiating` couvre la phase d'attente
-  /// (quota + modal + démarrage de session) par un loader plein écran.
-  bool _realtimeHandled = false;
+  /// Couvre la phase d'attente du choix de mode EO T1/T2 (quota + modal +
+  /// démarrage de la session temps réel) par un loader plein écran.
   bool _negotiating = false;
 
   /// Examen : timer déterministe possédé par l'écran qui force l'arrêt + la
@@ -76,10 +74,10 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
       // `startSingle`) est déjà démarrée par l'écran appelant ; on la respecte.
       // Aucun fallback `start()` ici — un deep-link nu sur cette route sans
       // session active affiche l'erreur "session introuvable".
-
-      // Examen : propose le mode examinateur temps réel pour T1/T2. Module exam
-      // → session déjà prête ici ; full exam → via le listener au chargement.
-      _ensureRealtimeOffer();
+      //
+      // Le choix du mode EO T1/T2 (temps réel vs seul) N'EST PLUS proposé ici à
+      // l'ouverture : il l'est sur « Commencer l'enregistrement » (_onStartPressed),
+      // une fois le sujet lu — pour tous les contextes (isolé, module, complet).
     });
   }
 
@@ -162,59 +160,76 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     );
   }
 
-  /// Propose le mode examinateur temps réel pour une tâche T1/T2 d'examen, une
-  /// seule fois par écran. No-op hors examen / hors T1-T2 / si déjà proposé.
-  void _ensureRealtimeOffer() {
-    if (_realtimeHandled || !mounted) return;
+  /// Tap sur « Commencer l'enregistrement ». Pour une tâche EO T1/T2 (examen
+  /// module, examen complet OU entraînement isolé), on propose D'ABORD le mode
+  /// (examinateur temps réel vs enregistrement seul) — MAINTENANT que le sujet a
+  /// été lu sur ce briefing. T3 (ou négociation → classique) : capture directe.
+  Future<void> _onStartPressed() async {
+    if (_negotiating || _requestingPerm) return;
     final session = ref.read(eoSessionProvider).value;
-    if (session == null || !session.isStarted || !session.isExam) return;
-    final task = session.taskAt(widget.taskIndex);
-    if (task == null) return;
-    final t = task.tacheNumero;
-    if (t != 1 && t != 2) return;
-    _realtimeHandled = true;
-    _offerRealtime(session, task);
+    final task = session?.taskAt(widget.taskIndex);
+    final t = task?.tacheNumero;
+    if (session != null && task != null && (t == 1 || t == 2)) {
+      final handled = await _negotiateRealtime(session, task);
+      if (handled) return;
+    }
+    await _startRecording();
   }
 
-  /// Négocie le mode (modal §2.3). En « temps réel », lance la session sur
-  /// l'attempt de l'examen ; à la clôture (le backend a créé la submission), on
-  /// avance comme après une soumission audio. Classique / annulé / échec →
-  /// l'écran affiche l'enregistrement habituel pour cette tâche.
-  Future<void> _offerRealtime(
+  /// Négocie le mode (modal §2.3) sur l'attempt déjà provisionné de la session
+  /// (`startSingle` / `startExam` / `startInFullExam`). Retourne `true` si le
+  /// flux est pris en charge (temps réel lancé, ou modal annulé → on reste sur le
+  /// briefing), `false` pour retomber sur l'enregistrement classique.
+  Future<bool> _negotiateRealtime(
       EoSessionState session, ProductionTaskDto task) async {
     final attemptId = session.attempt?.id;
-    if (attemptId == null) return;
+    if (attemptId == null) return false;
     setState(() => _negotiating = true);
     final negotiation = await negotiateRealtimeSession(
       context,
       ref,
       productionTaskId: task.id,
-      // Examen : on réutilise l'attempt de la session (pas de création).
       resolveAttemptId: () async => attemptId,
     );
-    if (!mounted) return;
-    if (negotiation.decision != RealtimeDecision.realtime ||
-        negotiation.descriptor == null) {
-      setState(() => _negotiating = false);
-      return;
-    }
-    final done = await context.push<bool>(
-      '/tcf/expression-orale/realtime',
-      extra: RealtimeRunnerArgs(
-        descriptor: negotiation.descriptor!,
-        task: task,
-        attemptId: attemptId,
-        popOnDone: true,
-      ),
-    );
-    if (!mounted) return;
-    if (done == true) {
-      _navigated = true;
-      setState(() => _submittingExam = true);
-      await _advanceExamFlow();
-    } else {
-      // Temps réel échoué/abandonné → enregistrement classique pour la tâche.
-      setState(() => _negotiating = false);
+    if (!mounted) return true;
+    switch (negotiation.decision) {
+      case RealtimeDecision.cancelled:
+        setState(() => _negotiating = false);
+        return true; // modal fermé sans choix → on reste sur le briefing
+      case RealtimeDecision.classic:
+        setState(() => _negotiating = false);
+        return false; // → enregistrement classique (fall-through)
+      case RealtimeDecision.realtime:
+        final args = RealtimeRunnerArgs(
+          descriptor: negotiation.descriptor!,
+          task: task,
+          attemptId: attemptId,
+          // Examen : l'échange rend la main (pop true) pour enchaîner la tâche.
+          popOnDone: session.isExam,
+        );
+        if (session.isExam) {
+          final done = await context.push<bool>(
+            '/tcf/expression-orale/realtime',
+            extra: args,
+          );
+          if (!mounted) return true;
+          if (done == true) {
+            _navigated = true;
+            setState(() => _submittingExam = true);
+            await _advanceExamFlow();
+          } else {
+            // Temps réel abandonné → retour au briefing (classique possible).
+            setState(() => _negotiating = false);
+          }
+        } else {
+          // Entraînement isolé : on remplace le briefing par l'échange ; le
+          // realtime screen navigue lui-même vers le résultat (popOnDone=false).
+          context.pushReplacement(
+            '/tcf/expression-orale/realtime',
+            extra: args,
+          );
+        }
+        return true;
     }
   }
 
@@ -442,12 +457,6 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
       }
     });
 
-    // Full exam : la session EO se charge en async (`startInFullExam`) → on
-    // (re)tente l'offre temps réel dès qu'elle est prête (guard interne).
-    ref.listen(eoSessionProvider, (prev, next) {
-      if (next.hasValue) _ensureRealtimeOffer();
-    });
-
     final isExam = sessionAsync.value?.isExam ?? false;
     final fallbackRoute = _fallbackRouteFor(context);
 
@@ -535,7 +544,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
                         child: _MicStartButton(
                           loading: _requestingPerm,
                           onPressed:
-                              _requestingPerm ? null : _startRecording,
+                              _requestingPerm ? null : _onStartPressed,
                         ),
                       ),
                     ),

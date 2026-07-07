@@ -1,7 +1,7 @@
 "use client";
 
 import {useParams, useRouter} from "next/navigation";
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useRef, useState} from "react";
 import {ApiException, productionApi} from "@/lib/api";
 import {useAuth} from "@/lib/auth-context";
 import {productionTaskTitle, type ProductionTaskDto, type RealtimeSessionDescriptor} from "@/lib/types";
@@ -60,8 +60,10 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
       .then((t) => {
         if (cancelled) return;
         setTask(t);
-        const eligible = config.mode === "audio" && (t.tacheNumero === 1 || t.tacheNumero === 2);
-        setUiMode(eligible ? "choosing" : "classic");
+        // On affiche D'ABORD le sujet (EoRecordingForm / EeWritingForm). Le choix
+        // du mode EO T1/T2 (examinateur temps réel vs seul) est proposé sur le
+        // bouton « démarrer » du formulaire (askMode), pas avant lecture du sujet.
+        setUiMode("classic");
       })
       .catch((e) => {
         if (!cancelled)
@@ -120,6 +122,22 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
       setRtStarting(false);
     }
   }
+
+  // Choix du mode EO T1/T2, déclenché par le bouton « démarrer » du formulaire.
+  // askMode ouvre la modal (RealtimeLaunchSheet) et rend une promesse résolue par
+  // ses callbacks : « classic » → le formulaire enregistre en place ; « realtime »
+  // → startRealtime prend la main ; « cancel » → retour au sujet.
+  const modeResolverRef = useRef<((c: "classic" | "realtime" | "cancel") => void) | null>(null);
+  const askMode = useCallback((): Promise<"classic" | "realtime" | "cancel"> => {
+    setUiMode("choosing");
+    return new Promise((resolve) => {
+      modeResolverRef.current = resolve;
+    });
+  }, []);
+  const resolveMode = useCallback((choice: "classic" | "realtime" | "cancel") => {
+    modeResolverRef.current?.(choice);
+    modeResolverRef.current = null;
+  }, []);
 
   /** Après une session temps réel, le backend a créé la submission : on la
    *  retrouve par attempt puis on navigue vers le résultat (poll de l'éval). */
@@ -189,7 +207,7 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
               >
                 Retour à l&apos;épreuve
               </button>
-              <button type="button" className="btn" onClick={() => setUiMode("choosing")}>
+              <button type="button" className="btn" onClick={() => setUiMode("classic")}>
                 Réessayer l&apos;oral
               </button>
             </div>
@@ -200,6 +218,9 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
             submitting={submitting}
             error={submitError ?? rtError}
             submitLabel="Soumettre à l'évaluation"
+            onModeChoice={
+              task.tacheNumero === 1 || task.tacheNumero === 2 ? askMode : undefined
+            }
             onSubmit={(audio) =>
               finalize((attemptId) => productionApi.submitAudio(task.id, attemptId, audio))
             }
@@ -227,13 +248,25 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
             cap={rt.cap}
             starting={rtStarting}
             error={rtError}
-            onPickRealtime={startRealtime}
-            onPickClassic={() => setUiMode("classic")}
-            // Aligné mobile : le paywall s'ouvre PAR-DESSUS le modal de choix,
-            // sans démarrer l'enregistrement classique. S'il ferme le paywall
-            // sans s'abonner, il retrouve le modal (rien n'a été lancé).
-            onPaywall={() => setPaywallOpen(true)}
-            onClose={() => setUiMode("classic")}
+            onPickRealtime={() => {
+              resolveMode("realtime");
+              startRealtime();
+            }}
+            onPickClassic={() => {
+              setUiMode("classic");
+              resolveMode("classic");
+            }}
+            // Paywall par-dessus le modal ; on résout « cancel » (rien n'a été
+            // lancé) et on revient au sujet — retaper « démarrer » rouvre le choix.
+            onPaywall={() => {
+              setUiMode("classic");
+              resolveMode("cancel");
+              setPaywallOpen(true);
+            }}
+            onClose={() => {
+              setUiMode("classic");
+              resolveMode("cancel");
+            }}
           />
         )}
 
