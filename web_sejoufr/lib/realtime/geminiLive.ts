@@ -104,6 +104,21 @@ export class GeminiLiveSession {
     private playbackCtx: AudioContext | null = null;
     private playHead = 0;
     private speaking = false;
+    // Sources en cours de lecture : un barge-in les stoppe SANS fermer le
+    // contexte (un AudioContext recréé hors geste utilisateur peut rester
+    // suspendu → examinateur définitivement muet pour le reste de la session).
+    private activeSources = new Set<AudioBufferSourceNode>();
+    // Garde-fou anti-blocage : fin de lecture estimée en horloge murale. Si le
+    // contexte audio reste suspendu (autoplay) ou que `onended` ne se déclenche
+    // jamais, `speaking` resterait true → micro verrouillé à vie (half-duplex).
+    // Ce timer force speaking=false peu après la fin théorique de la lecture.
+    private expectedEndMs = 0;
+    private speakGuard: ReturnType<typeof setTimeout> | null = null;
+    // Tenue du micro ~300 ms après la fin de parole de l'examinateur : un trou
+    // de jitter entre deux chunks rouvrait le micro en pleine phrase → l'écho
+    // résiduel du haut-parleur partait à Gemini (VAD start=HIGH) → faux
+    // barge-in → réponse coupée (« l'examinateur se perd en cours d'entretien »).
+    private micHoldUntilMs = 0;
     private closed = false;
     // Micro coupé (temps écoulé) : on cesse d'émettre les frames candidat mais on
     // garde le WS ouvert pour laisser l'examinateur prononcer sa phrase de clôture.
@@ -341,6 +356,9 @@ export class GeminiLiveSession {
         // Conséquence assumée : pas de barge-in (le candidat attend la question).
         // `inputMuted` : temps écoulé → le candidat ne parle plus, on écoute la clôture.
         if (this.awaitingFirstExaminer || this.speaking || this.inputMuted) return;
+        // Tenue post-parole : on n'émet pas pendant la courte fenêtre qui suit la
+        // fin (réelle ou supposée) de l'examinateur — anti faux barge-in par écho.
+        if (Date.now() < this.micHoldUntilMs) return;
         const pcm = ctxRate === this.inputRate ? frame : downsample(frame, ctxRate, this.inputRate);
         const b64 = arrayBufferToBase64(floatToPcm16(pcm));
         this.ws.send(JSON.stringify({
@@ -380,16 +398,39 @@ export class GeminiLiveSession {
         const startAt = Math.max(now, this.playHead);
         src.start(startAt);
         this.playHead = startAt + buf.duration;
+        this.activeSources.add(src);
         if (!this.speaking) {
             this.speaking = true;
             this.cb.onSpeakingChange?.(true);
         }
+        this.armSpeakGuard(buf.duration);
         src.onended = () => {
+            this.activeSources.delete(src);
             if (this.playbackCtx && this.playHead - this.playbackCtx.currentTime <= 0.05 && this.speaking) {
                 this.speaking = false;
+                this.micHoldUntilMs = Date.now() + 300;
                 this.cb.onSpeakingChange?.(false);
             }
         };
+    }
+
+    /** (Ré)arme la fin de lecture estimée : maintenant (ou la fin déjà prévue)
+     *  + la durée du lot reçu. Marge 900 ms avant de forcer speaking=false —
+     *  filet de sécurité si `onended` ne vient jamais (contexte suspendu). */
+    private armSpeakGuard(durationSec: number): void {
+        const now = Date.now();
+        this.expectedEndMs = Math.max(this.expectedEndMs, now) + durationSec * 1000;
+        if (this.speakGuard != null) clearTimeout(this.speakGuard);
+        this.speakGuard = setTimeout(() => {
+            if (this.closed) return;
+            // Lecture jamais terminée proprement : on rend la parole au candidat
+            // plutôt que de bloquer la session (au pire, échange sans le son).
+            if (this.speaking) {
+                this.speaking = false;
+                this.micHoldUntilMs = Date.now() + 300;
+                this.cb.onSpeakingChange?.(false);
+            }
+        }, this.expectedEndMs - now + 900);
     }
 
     /** Fin de l'accueil : ouvre le micro et passe en conversation. */
@@ -403,14 +444,28 @@ export class GeminiLiveSession {
         if (!this.closed) this.cb.onStateChange?.("live");
     }
 
+    /** Interrompt la lecture en cours (barge-in) SANS fermer le contexte : un
+     *  AudioContext recréé hors geste utilisateur peut rester suspendu et
+     *  rendrait l'examinateur définitivement muet pour la suite de la session. */
     private flushPlayback(): void {
-        if (this.playbackCtx) {
-            this.playbackCtx.close().catch(() => undefined);
-            this.playbackCtx = null;
+        for (const src of this.activeSources) {
+            try {
+                src.onended = null;
+                src.stop();
+            } catch {
+                // déjà terminé
+            }
         }
+        this.activeSources.clear();
         this.playHead = 0;
+        this.expectedEndMs = 0;
+        if (this.speakGuard != null) {
+            clearTimeout(this.speakGuard);
+            this.speakGuard = null;
+        }
         if (this.speaking) {
             this.speaking = false;
+            this.micHoldUntilMs = Date.now() + 300;
             this.cb.onSpeakingChange?.(false);
         }
     }
@@ -459,6 +514,10 @@ export class GeminiLiveSession {
         }
         this.micStream?.getTracks().forEach((t) => t.stop());
         this.flushPlayback();
+        if (this.playbackCtx) {
+            this.playbackCtx.close().catch(() => undefined);
+            this.playbackCtx = null;
+        }
         if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
             try {
                 this.ws.close();

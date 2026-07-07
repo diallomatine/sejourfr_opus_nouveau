@@ -65,7 +65,11 @@ export function RealtimeEoRunner({
 
     const liveRef = useRef<GeminiLiveSession | null>(null);
     const sheetBodyRef = useRef<HTMLDivElement | null>(null);
-    const pendingRef = useRef<Record<RealtimeSpeaker, string>>({CANDIDATE: "", EXAMINER: ""});
+    // File ORDONNÉE des tours à relayer (l'ordre du dialogue est un artefact de
+    // notation) + chaîne d'envoi séquentielle : les appendTranscript partent un
+    // par un, dans l'ordre, et `finish()` peut ATTENDRE que tout soit arrivé.
+    const pendingRef = useRef<{speaker: RealtimeSpeaker; text: string}[]>([]);
+    const sendChainRef = useRef<Promise<void>>(Promise.resolve());
     const finishedRef = useRef(false);
     const elapsedRef = useRef(0);
     const timeUpRef = useRef(false);
@@ -76,15 +80,31 @@ export function RealtimeEoRunner({
     const capTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Relais batché du transcript (~1,2 s) : capture serveur fiable du dialogue
-    // (artefact de notation). On NE l'affiche PAS — on l'envoie seulement.
-    const flush = useCallback(() => {
-        if (!sessionId) return;
-        (["CANDIDATE", "EXAMINER"] as RealtimeSpeaker[]).forEach((speaker) => {
-            const text = pendingRef.current[speaker].trim();
-            if (!text) return;
-            pendingRef.current[speaker] = "";
-            realtimeApi.appendTranscript(sessionId, speaker, text).catch(() => undefined);
+    // (artefact de notation). On NE l'affiche PAS — on l'envoie seulement. Les
+    // tours consécutifs d'un même locuteur sont fusionnés (un appel par
+    // segment) et les envois passent par sendChainRef : ordre garanti, et la
+    // Future retournée attend TOUS les envois engagés (ce flush + les ticks
+    // précédents encore en vol).
+    const flush = useCallback((): Promise<void> => {
+        if (!sessionId || pendingRef.current.length === 0) return sendChainRef.current;
+        const batch = pendingRef.current;
+        pendingRef.current = [];
+        const segments: {speaker: RealtimeSpeaker; text: string}[] = [];
+        for (const turn of batch) {
+            const last = segments[segments.length - 1];
+            if (last && last.speaker === turn.speaker) last.text += ` ${turn.text}`;
+            else segments.push({...turn});
+        }
+        sendChainRef.current = sendChainRef.current.then(async () => {
+            for (const seg of segments) {
+                try {
+                    await realtimeApi.appendTranscript(sessionId, seg.speaker, seg.text);
+                } catch {
+                    // Best-effort : un fragment perdu ne doit pas casser la session.
+                }
+            }
         });
+        return sendChainRef.current;
     }, [sessionId]);
 
     const finish = useCallback(async () => {
@@ -93,9 +113,14 @@ export function RealtimeEoRunner({
         if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
         if (capTimerRef.current) clearTimeout(capTimerRef.current);
         setFinishing(true);
+        // stop() émet synchroneusement les derniers tours en tampon (callbacks →
+        // pendingRef) ; on ATTEND ensuite la chaîne d'envoi complète avant de
+        // clôturer : le backend passe la session en COMPLETED au finish et
+        // ignore silencieusement tout fragment arrivé après — un flush non
+        // attendu perdait le dernier tour (voire tout un échange court) →
+        // « rien de transcrit, impossible d'évaluer ».
         liveRef.current?.stop();
-        flush();
-        await new Promise((r) => setTimeout(r, 400));
+        await flush();
         // `evaluated` : le backend note la session seulement si le candidat a
         // parlé. En cas d'échec réseau du finish, on suppose évalué (comportement
         // historique : on tente d'afficher le résultat plutôt que de bloquer).
@@ -115,11 +140,11 @@ export function RealtimeEoRunner({
             onStateChange: setState,
             onSpeakingChange: setExaminerSpeaking,
             onCandidateTranscript: (t) => {
-                pendingRef.current.CANDIDATE += (pendingRef.current.CANDIDATE ? " " : "") + t;
+                pendingRef.current.push({speaker: "CANDIDATE", text: t});
                 setLines((prev) => [...prev, {speaker: "CANDIDATE", text: t}]);
             },
             onExaminerTranscript: (t) => {
-                pendingRef.current.EXAMINER += (pendingRef.current.EXAMINER ? " " : "") + t;
+                pendingRef.current.push({speaker: "EXAMINER", text: t});
                 setLines((prev) => [...prev, {speaker: "EXAMINER", text: t}]);
             },
             onError: (m) => {

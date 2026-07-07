@@ -132,6 +132,12 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
 
   final List<({RealtimeSpeaker speaker, String text})> _pending = [];
 
+  // Tous les envois de transcript passent par cette chaîne : l'ordre des lignes
+  // est garanti côté backend, et `finish()` peut ATTENDRE que tout soit parti
+  // (y compris un tick périodique encore en vol) avant `finishSession` — le
+  // backend ignore silencieusement tout fragment arrivé après la clôture.
+  Future<void> _sendChain = Future.value();
+
   String get attemptId => _args.attemptId;
 
   Future<void> start() async {
@@ -219,9 +225,11 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
   }
 
   /// Envoie les fragments accumulés, en fusionnant les tours consécutifs d'un
-  /// même locuteur (un appel backend par segment).
-  Future<void> _flush() async {
-    if (_pending.isEmpty) return;
+  /// même locuteur (un appel backend par segment). Les envois sont chaînés sur
+  /// [_sendChain] ; attendre la Future retournée = attendre TOUS les envois
+  /// déjà engagés (ceux de ce flush ET les précédents encore en vol).
+  Future<void> _flush() {
+    if (_pending.isEmpty) return _sendChain;
     final batch = List.of(_pending);
     _pending.clear();
 
@@ -236,17 +244,20 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
     }
 
     final sessionId = _args.sessionId;
-    for (final seg in segments) {
-      try {
-        await _repo.appendTranscript(
-          sessionId: sessionId,
-          speaker: seg.speaker,
-          text: seg.text,
-        );
-      } catch (_) {
-        // Best-effort : un fragment perdu ne doit pas casser la session.
+    _sendChain = _sendChain.then((_) async {
+      for (final seg in segments) {
+        try {
+          await _repo.appendTranscript(
+            sessionId: sessionId,
+            speaker: seg.speaker,
+            text: seg.text,
+          );
+        } catch (_) {
+          // Best-effort : un fragment perdu ne doit pas casser la session.
+        }
       }
-    }
+    });
+    return _sendChain;
   }
 
   /// Clôture demandée par l'utilisateur ou par le minuteur.

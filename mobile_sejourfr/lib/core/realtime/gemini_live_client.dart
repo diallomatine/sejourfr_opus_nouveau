@@ -68,6 +68,24 @@ class GeminiLiveClient {
   bool _started = false;
   bool _closed = false;
   bool _speaking = false;
+  // Garde-fou anti-blocage : fin de lecture ESTIMÉE (durée cumulée des
+  // échantillons reçus). Si le moteur natif meurt en silence, l'événement de
+  // drain (_onFeed remainingFrames == 0) n'arrive jamais et `_speaking`
+  // resterait true → micro verrouillé à vie (half-duplex). Ce timer force
+  // speaking=false peu après la fin théorique de la lecture.
+  DateTime _speakUntil = DateTime.fromMillisecondsSinceEpoch(0);
+  Timer? _speakGuard;
+  // Tenue du micro ~300 ms après la fin de parole de l'examinateur : un trou
+  // entre deux lots audio rouvrait le micro en pleine phrase → l'écho résiduel
+  // du haut-parleur partait à Gemini (VAD start=HIGH) → faux barge-in →
+  // réponse coupée (« l'examinateur se perd en cours d'entretien »).
+  DateTime _micHoldUntil = DateTime.fromMillisecondsSinceEpoch(0);
+  // Reprise après incident audio (interruption AVAudioSession — appel, Siri,
+  // notification, changement d'écouteurs — ou échec natif de feed) : sans elle,
+  // le moteur de lecture reste mort jusqu'à la fin de la session.
+  StreamSubscription<AudioInterruptionEvent>? _interruptionSub;
+  bool _recovering = false;
+  DateTime _lastRecover = DateTime.fromMillisecondsSinceEpoch(0);
   // Micro coupé (temps écoulé) : le candidat ne parle plus, on garde le WS
   // ouvert pour laisser l'examinateur prononcer sa phrase de clôture.
   bool _inputMuted = false;
@@ -119,6 +137,15 @@ class GeminiLiveClient {
     await _configureAudioSession();
     await _startMic();
     if (_closed) return;
+
+    // Reprise après interruption système (appel entrant, Siri, alarme…) : la
+    // fin d'interruption laisse l'AVAudioSession désactivée et le moteur de
+    // lecture natif mort — on reconfigure tout pour que l'examinateur reste
+    // audible et le micro capté jusqu'à la fin de la session.
+    final session = await AudioSession.instance;
+    _interruptionSub = session.interruptionEventStream.listen((event) {
+      if (!event.begin) _recoverAudio();
+    });
 
     // WS + setup une fois le micro prêt. Le handshake + la génération de
     // l'accueil par le modèle (le plus long) se déroulent ensuite ; le micro
@@ -187,6 +214,10 @@ class GeminiLiveClient {
     _closed = true;
     _welcomeTimer?.cancel();
     _welcomeTimer = null;
+    _speakGuard?.cancel();
+    _speakGuard = null;
+    await _interruptionSub?.cancel();
+    _interruptionSub = null;
     await _micSub?.cancel();
     _micSub = null;
     try {
@@ -240,7 +271,44 @@ class GeminiLiveClient {
     const batch = 8000;
     final take = _pcmQueue.length < batch ? _pcmQueue.length : batch;
     final list = List<int>.generate(take, (_) => _pcmQueue.removeFirst());
-    FlutterPcmSound.feed(PcmArrayInt16.fromList(list));
+    // Un échec natif (AudioOutputUnitStart…) rejette la Future : sans ce catch,
+    // l'erreur serait avalée par la zone async et la lecture mourrait sans
+    // trace. On tente une reprise (session + moteur) ; en dernier recours, le
+    // garde-fou _speakGuard rend le micro au candidat.
+    unawaited(
+      FlutterPcmSound.feed(PcmArrayInt16.fromList(list)).catchError((Object e) {
+        dev.log('feed lecture échoué: $e', name: 'GeminiLiveClient');
+        _recoverAudio();
+      }),
+    );
+  }
+
+  /// Reconfigure la chaîne audio complète (session + lecture + micro si tombé)
+  /// après un incident. Idempotent, garde anti-rafale (2 s).
+  Future<void> _recoverAudio() async {
+    if (_closed || _recovering) return;
+    final now = DateTime.now();
+    if (now.difference(_lastRecover) < const Duration(seconds: 2)) return;
+    _lastRecover = now;
+    _recovering = true;
+    try {
+      await _configureAudioSession();
+      await _setupPlayback();
+      await _configureAudioSession();
+      if (!await _recorder.isRecording()) {
+        await _micSub?.cancel();
+        _micSub = null;
+        await _startMic();
+      }
+      if (_closed) return;
+      // Relance la pompe si de l'audio attendait pendant l'incident.
+      if (_pcmQueue.isNotEmpty) _onFeed(0);
+      dev.log('Chaîne audio reprise après incident', name: 'GeminiLiveClient');
+    } catch (e) {
+      dev.log('Reprise audio échouée: $e', name: 'GeminiLiveClient');
+    } finally {
+      _recovering = false;
+    }
   }
 
   void _enqueueAudio(Uint8List bytes) {
@@ -253,13 +321,48 @@ class GeminiLiveClient {
       _pcmQueue.add(samples.getInt16(i * 2, Endian.little));
     }
     _setSpeaking(true);
-    // Relance la lecture si le buffer natif était drainé.
-    FlutterPcmSound.start();
+    _armSpeakGuard(count);
+    // Pompe le lot NOUS-MÊMES. Surtout pas FlutterPcmSound.start() : il repose
+    // sur un flag STATIQUE (_needsStart) partagé par tout le process, remis à
+    // true uniquement par l'événement natif « buffer à zéro ». Une session
+    // précédente fermée en pleine lecture (plafond 12 s, Terminer, barge-in)
+    // fait release() sans jamais recevoir cet événement → le flag reste false
+    // et start() ne relance plus RIEN : 2ᵉ session muette, file jamais drainée,
+    // _speaking bloqué à true → micro verrouillé (bug tâche 2 en examen).
+    // Appel direct idempotent : les lots sont prélevés séquentiellement de la
+    // même file et le canal natif préserve l'ordre des feed().
+    _onFeed(0);
+  }
+
+  /// (Ré)arme la fin de lecture estimée : maintenant (ou la fin déjà prévue)
+  /// + la durée du lot reçu. Marge 900 ms avant de forcer speaking=false.
+  void _armSpeakGuard(int sampleCount) {
+    final now = DateTime.now();
+    final base = _speakUntil.isAfter(now) ? _speakUntil : now;
+    _speakUntil =
+        base.add(Duration(microseconds: sampleCount * 1000000 ~/ _outRate));
+    _speakGuard?.cancel();
+    _speakGuard = Timer(
+      _speakUntil.difference(now) + const Duration(milliseconds: 900),
+      () {
+        if (_closed) return;
+        // Lecture jamais drainée (moteur natif mort) : on rend la parole au
+        // candidat plutôt que de bloquer la session — au pire l'échange
+        // continue sans le son de l'examinateur, mais reste évaluable.
+        _setSpeaking(false);
+      },
+    );
   }
 
   void _setSpeaking(bool value) {
     if (_speaking == value) return;
     _speaking = value;
+    if (!value) {
+      // Fin de parole : tenue du micro ~300 ms (anti faux barge-in par écho —
+      // un trou de jitter entre deux lots ne doit pas rouvrir le micro en
+      // pleine phrase de l'examinateur).
+      _micHoldUntil = DateTime.now().add(const Duration(milliseconds: 300));
+    }
     onSpeakingChange?.call(value);
   }
 
@@ -291,7 +394,12 @@ class GeminiLiveClient {
         // half-duplex : on n'émet pas pendant qu'il parle (anti-écho ; le
         // candidat attend la fin de la question — pas de barge-in). `_inputMuted`
         // : temps écoulé → on écoute la clôture, plus d'émission candidat.
-        if (_closed || _awaitingFirstExaminer || _speaking || _inputMuted) return;
+        if (_closed || _awaitingFirstExaminer || _speaking || _inputMuted) {
+          return;
+        }
+        // Tenue post-parole : fenêtre courte après la fin de l'examinateur
+        // pendant laquelle on n'émet pas (anti faux barge-in par écho).
+        if (DateTime.now().isBefore(_micHoldUntil)) return;
         _send({
           'realtimeInput': {
             'audio': {'mimeType': _inMime, 'data': base64Encode(chunk)}
@@ -348,6 +456,8 @@ class GeminiLiveClient {
 
     if (server['interrupted'] == true) {
       _pcmQueue.clear();
+      _speakGuard?.cancel();
+      _speakUntil = DateTime.fromMillisecondsSinceEpoch(0);
       _setSpeaking(false);
       _flushLine('examiner'); // barge-in : le tour examinateur est clos
     }
