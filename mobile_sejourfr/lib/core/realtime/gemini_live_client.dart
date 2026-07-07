@@ -88,10 +88,27 @@ class GeminiLiveClient {
       throw StateError('Descripteur realtime incomplet (endpoint/token).');
     }
 
-    // Latence : on ouvre le WS et on envoie le setup TOUT DE SUITE, avant l'init
-    // audio locale. Le handshake + la génération de l'accueil par le modèle (le
-    // plus gros du « l'examinateur met du temps à arriver ») se déroulent en
-    // parallèle de _configureAudioSession/_setupPlayback/_startMic ci-dessous.
+    // Micro D'ABORD, WS ENSUITE. On exige l'autorisation micro AVANT d'ouvrir le
+    // WebSocket : sinon l'examinateur (audio d'accueil) démarrerait malgré un
+    // refus de permission — le candidat entendrait l'agent parler alors que son
+    // micro n'est pas ouvert. On sort sans jamais ouvrir la session si refus.
+    if (!await _recorder.hasPermission()) {
+      _fail('Permission micro refusée.');
+      return;
+    }
+    if (_closed) return;
+
+    // Init audio locale (doit être prête AVANT le 1er audio examinateur :
+    // _enqueueAudio ignore l'audio tant que _pcmReady est faux).
+    await _configureAudioSession();
+    await _setupPlayback();
+    await _startMic();
+    if (_closed) return;
+
+    // WS + setup une fois le micro prêt. Le handshake + la génération de
+    // l'accueil par le modèle (le plus long) se déroulent ensuite ; le micro
+    // n'émet rien avant la 1re phrase de l'examinateur (half-duplex), donc
+    // ouvrir le WS après le micro ne coûte pas de parole candidat.
     final uri = Uri.parse('$endpoint?access_token=$token');
     final channel = WebSocketChannel.connect(uri);
     _channel = channel;
@@ -111,15 +128,6 @@ class GeminiLiveClient {
         if (descriptor.model != null) 'model': descriptor.model,
       }
     });
-
-    // Init audio locale (doit être prête AVANT le 1er audio examinateur :
-    // _enqueueAudio ignore l'audio tant que _pcmReady est faux). Le round-trip
-    // setupComplete + la génération de l'accueil (≥ ~1 s) laissent largement le
-    // temps à ce setup rapide de se terminer.
-    await _configureAudioSession();
-    await _setupPlayback();
-
-    await _startMic();
 
     // Garde-fou : si l'examinateur ne dit rien sous ~8 s, on ouvre le micro
     // quand même (un greeting audio manquant ne doit pas bloquer le candidat).

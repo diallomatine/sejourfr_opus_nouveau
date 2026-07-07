@@ -138,22 +138,24 @@ export class GeminiLiveSession {
         // une fausse « connexion échouée ». La vraie session (2e montage) passe.
         await Promise.resolve();
         if (this.closed) return;
-        // Latence : on ouvre le WebSocket TOUT DE SUITE, en parallèle de l'init
-        // micro. Le handshake WS + l'envoi du setup + la génération de l'accueil
-        // par le modèle (le plus gros du « l'examinateur met du temps à arriver »)
-        // se déroulent pendant que getUserMedia/AudioContext/worklet s'initialisent.
-        // Le micro n'émet de toute façon rien avant la 1re phrase de l'examinateur
-        // (half-duplex, awaitingFirstExaminer) — rien n'impose de l'attendre.
-        this.openSocket();
+        // Micro D'ABORD, WebSocket ENSUITE. On exige l'autorisation micro AVANT
+        // d'ouvrir le socket : sinon l'examinateur (audio d'accueil) démarrerait
+        // pendant / malgré un refus de permission — l'utilisateur entendrait
+        // l'agent parler alors que son micro n'est pas ouvert. La correction prime
+        // sur le parallélisme d'antan (WS ouvert en même temps que getUserMedia) ;
+        // une fois la permission mémorisée, getUserMedia résout quasi instantanément.
         try {
             await this.openMic();
         } catch (e) {
             const name = e && typeof e === "object" && "name" in e ? String((e as {name?: unknown}).name) : "";
             const msg = e && typeof e === "object" && "message" in e ? String((e as {message?: unknown}).message) : "";
             this.fail(micErrorMessage(name, msg));
+            return;
         }
         // StrictMode (double-montage dev) : si stop() a été appelé pendant
-        // l'ouverture async du micro, fail()/stop() a déjà coupé le socket.
+        // l'ouverture async du micro, on n'ouvre pas le socket.
+        if (this.closed) return;
+        this.openSocket();
     }
 
     private openSocket(): void {
