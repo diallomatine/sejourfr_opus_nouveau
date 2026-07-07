@@ -26,6 +26,11 @@ public class ProductionSubmissionManager {
         return repository.findById(id);
     }
 
+    /** Submission avec sa {@code productionTask} eager-loadée (retry hors session Hibernate). */
+    public Optional<ProductionSubmission> findByIdWithTask(UUID id) {
+        return repository.findByIdWithTask(id);
+    }
+
     public ProductionSubmission save(ProductionSubmission submission) {
         return repository.save(submission);
     }

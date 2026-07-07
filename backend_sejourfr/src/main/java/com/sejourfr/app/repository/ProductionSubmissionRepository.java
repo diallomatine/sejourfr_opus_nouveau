@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -17,6 +18,15 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
 
     /** Toutes les submissions d'un attempt (utile pour assembler le score d'un examen complet). */
     List<ProductionSubmission> findByAttemptIdOrderBySubmittedAtAsc(UUID attemptId);
+
+    /**
+     * Submission + sa {@code productionTask} eager-loadée. Utilisé par le retry :
+     * {@link com.sejourfr.app.service.ProductionEvaluationService#retry} n'est pas
+     * {@code @Transactional}, donc accéder à la task en lazy hors session lève une
+     * {@code LazyInitializationException} (bug relancé après échec d'éval).
+     */
+    @Query("SELECT s FROM ProductionSubmission s JOIN FETCH s.productionTask WHERE s.id = :id")
+    Optional<ProductionSubmission> findByIdWithTask(@Param("id") UUID id);
 
     /** Historique d'un utilisateur (timeline descendante). */
     List<ProductionSubmission> findByUserIdOrderBySubmittedAtDesc(UUID userId, Pageable pageable);

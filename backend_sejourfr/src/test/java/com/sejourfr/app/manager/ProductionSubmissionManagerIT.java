@@ -92,6 +92,21 @@ class ProductionSubmissionManagerIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void findByIdWithTaskExposesEpreuveOutsideSession() {
+        User user = testData.user();
+        Attempt attempt = testData.attempt(user);
+        ProductionTask eo = task(EpreuveType.TCF_EO, (short) 3);
+        ProductionSubmission saved = submission(attempt, eo, user, Instant.now(), SubmissionStatut.FAILED);
+
+        ProductionSubmission loaded = manager.findByIdWithTask(saved.getId()).orElseThrow();
+
+        // La session Hibernate est fermée ici (manager non @Transactional côté
+        // appelant) : sans le JOIN FETCH, getEpreuve() lèverait
+        // LazyInitializationException — exactement le bug du retry EE/EO.
+        assertThat(loaded.getProductionTask().getEpreuve()).isEqualTo(EpreuveType.TCF_EO);
+    }
+
+    @Test
     void findByAttemptIdOrdersBySubmittedAtAsc() {
         User user = testData.user();
         Attempt attempt = testData.attempt(user);

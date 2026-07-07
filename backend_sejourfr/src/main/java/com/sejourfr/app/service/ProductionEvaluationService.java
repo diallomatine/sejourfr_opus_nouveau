@@ -243,7 +243,7 @@ public class ProductionEvaluationService {
      * l'appartenance utilisateur et le plafond de retries.
      */
     public ProductionSubmission retry(UUID submissionId, UUID userId) {
-        ProductionSubmission sub = submissionManager.findById(submissionId)
+        ProductionSubmission sub = submissionManager.findByIdWithTask(submissionId)
             .orElseThrow(() -> new NotFoundException("Submission introuvable : " + submissionId));
         if (sub.getUser() == null || !sub.getUser().getId().equals(userId)) {
             throw new BusinessException("Cette submission ne vous appartient pas.");
