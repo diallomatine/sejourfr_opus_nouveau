@@ -94,6 +94,7 @@ class RealtimeSessionStateResponse {
     required this.status,
     required this.tacheNumero,
     required this.sessionsRemaining,
+    required this.evaluated,
   });
 
   final String sessionId;
@@ -101,11 +102,18 @@ class RealtimeSessionStateResponse {
   final int tacheNumero;
   final int sessionsRemaining;
 
+  /// Vrai si le candidat a parlé → une submission a été créée (résultat à
+  /// afficher). Faux si seul l'examinateur a parlé (accueil sans réponse) :
+  /// rien à évaluer, on l'annonce clairement au lieu d'ouvrir un bilan vide.
+  final bool evaluated;
+
   factory RealtimeSessionStateResponse.fromJson(Map<String, dynamic> json) =>
       RealtimeSessionStateResponse(
         sessionId: json['sessionId'] as String,
         status: json['status'] as String? ?? '',
         tacheNumero: (json['tacheNumero'] as num?)?.toInt() ?? 0,
         sessionsRemaining: (json['sessionsRemaining'] as num?)?.toInt() ?? 0,
+        // Défensif (anciens backends) : par défaut évalué → on tente le résultat.
+        evaluated: json['evaluated'] as bool? ?? true,
       );
 }

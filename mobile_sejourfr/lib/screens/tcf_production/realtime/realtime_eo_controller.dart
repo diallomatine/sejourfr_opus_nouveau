@@ -55,6 +55,7 @@ class RealtimeEoState {
     this.error,
     this.sessionsRemaining,
     this.transcript = const [],
+    this.evaluated = true,
   });
 
   final RealtimePhase phase;
@@ -63,6 +64,11 @@ class RealtimeEoState {
   final bool examinerSpeaking;
   final String? error;
   final int? sessionsRemaining;
+
+  /// À la clôture (phase `done`) : le candidat a-t-il parlé → une submission
+  /// existe-t-elle à afficher ? Faux si seul l'examinateur a parlé (rien à
+  /// évaluer) — l'écran l'annonce au lieu d'ouvrir un bilan « introuvable ».
+  final bool evaluated;
 
   /// Dialogue candidat/examinateur, un élément par tour terminé (pour affichage
   /// à la demande — bouton « Voir ma transcription »).
@@ -78,6 +84,7 @@ class RealtimeEoState {
     String? error,
     int? sessionsRemaining,
     List<RealtimeLine>? transcript,
+    bool? evaluated,
   }) {
     return RealtimeEoState(
       phase: phase ?? this.phase,
@@ -87,6 +94,7 @@ class RealtimeEoState {
       error: error ?? this.error,
       sessionsRemaining: sessionsRemaining ?? this.sessionsRemaining,
       transcript: transcript ?? this.transcript,
+      evaluated: evaluated ?? this.evaluated,
     );
   }
 }
@@ -260,6 +268,7 @@ class RealtimeEoController extends StateNotifier<RealtimeEoState> {
         state = state.copyWith(
           phase: RealtimePhase.done,
           sessionsRemaining: res.sessionsRemaining,
+          evaluated: res.evaluated,
         );
       }
     } catch (e) {

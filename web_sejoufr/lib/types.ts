@@ -565,6 +565,9 @@ export interface RealtimeSessionStateResponse {
     status: string;
     tacheNumero: number;
     sessionsRemaining: number;
+    /** Vrai si le candidat a parlé → une submission a été créée (résultat à afficher).
+     *  Faux si seul l'examinateur a parlé (accueil sans réponse) → rien à évaluer. */
+    evaluated: boolean;
 }
 
 /** Vrai tant que l'évaluation IA n'a pas abouti. */

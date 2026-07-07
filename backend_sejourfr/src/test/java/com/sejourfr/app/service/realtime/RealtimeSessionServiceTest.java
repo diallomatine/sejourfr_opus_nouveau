@@ -290,6 +290,7 @@ class RealtimeSessionServiceTest {
         assertThat(session.getEndedAt()).isNotNull();
         assertThat(resp.status()).isEqualTo(RealtimeSessionStatus.COMPLETED);
         assertThat(resp.sessionsRemaining()).isEqualTo(1);
+        assertThat(resp.evaluated()).isTrue();
         verify(productionEvaluationService).evaluateRealtimeTranscript(
             eq(user.getId()), eq(task.getId()), eq(attempt.getId()), any(String.class), any());
     }
@@ -309,6 +310,7 @@ class RealtimeSessionServiceTest {
 
         assertThat(session.getStatus()).isEqualTo(RealtimeSessionStatus.FAILED);
         assertThat(resp.status()).isEqualTo(RealtimeSessionStatus.FAILED);
+        assertThat(resp.evaluated()).isFalse();
         verify(productionEvaluationService, never())
             .evaluateRealtimeTranscript(any(), any(), any(), any(), any());
     }
@@ -329,9 +331,13 @@ class RealtimeSessionServiceTest {
         when(sessionManager.findById(session.getId())).thenReturn(Optional.of(session));
         when(quotaService.remaining(user.getId())).thenReturn(0);
 
-        service.finish(user, session.getId());
+        RealtimeSessionStateResponse resp = service.finish(user, session.getId());
 
         assertThat(session.getStatus()).isEqualTo(RealtimeSessionStatus.COMPLETED);
+        // Bug corrigé : sans tour candidat, aucune submission n'est créée ->
+        // evaluated=false, les fronts affichent « vous n'avez pas parlé » au lieu
+        // d'un écran de résultat vide (« session introuvable »).
+        assertThat(resp.evaluated()).isFalse();
         verify(productionEvaluationService, never())
             .evaluateRealtimeTranscript(any(), any(), any(), any(), any());
     }
@@ -348,6 +354,8 @@ class RealtimeSessionServiceTest {
         RealtimeSessionStateResponse resp = service.finish(user, session.getId());
 
         assertThat(resp.status()).isEqualTo(RealtimeSessionStatus.COMPLETED);
+        // Session déjà COMPLETED sans transcript/attempt : rien à réévaluer.
+        assertThat(resp.evaluated()).isFalse();
         verify(sessionManager, never()).save(any());
         verify(productionEvaluationService, never())
             .evaluateRealtimeTranscript(any(), any(), any(), any(), any());
@@ -374,5 +382,8 @@ class RealtimeSessionServiceTest {
         RealtimeSessionStateResponse resp = service.finish(user, session.getId());
 
         assertThat(resp.status()).isEqualTo(RealtimeSessionStatus.COMPLETED);
+        // Submission créée (le candidat a parlé) même si le pipeline d'éval a
+        // échoué : evaluated=true, le front ouvre le résultat (statut rejouable).
+        assertThat(resp.evaluated()).isTrue();
     }
 }

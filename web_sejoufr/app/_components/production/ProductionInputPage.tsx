@@ -18,7 +18,7 @@ import {type ProductionConfig} from "./config";
 import hub from "@/app/_components/hub/hub.module.css";
 import prod from "./production.module.css";
 
-type UiMode = "loading" | "choosing" | "classic" | "realtime";
+type UiMode = "loading" | "choosing" | "classic" | "realtime" | "noSpeech";
 
 /**
  * Écran de saisie d'un sujet (entraînement libre) : crée un attempt à la volée,
@@ -163,12 +163,37 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
             descriptor={rtDescriptor}
             task={task}
             taskTitle={taskTitle}
-            onFinished={() => goToRealtimeResult(rtAttemptId)}
+            onFinished={(evaluated) =>
+              evaluated ? goToRealtimeResult(rtAttemptId) : setUiMode("noSpeech")
+            }
             onFatalError={(m) => {
               setRtError(m);
               setUiMode("classic");
             }}
           />
+        ) : uiMode === "noSpeech" ? (
+          <div className={prod.rtPrep}>
+            <div className={prod.card}>
+              <p className={prod.cardLabel}>Aucune prise de parole</p>
+              <p className={prod.consigne}>
+                L&apos;examinateur s&apos;est présenté, mais vous n&apos;avez rien dit —
+                il n&apos;y a donc rien à évaluer. Reprenez l&apos;échange quand vous
+                êtes prêt·e à répondre à voix haute.
+              </p>
+            </div>
+            <div className={prod.rtPrepActions}>
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => router.push(config.base)}
+              >
+                Retour à l&apos;épreuve
+              </button>
+              <button type="button" className="btn" onClick={() => setUiMode("choosing")}>
+                Réessayer l&apos;oral
+              </button>
+            </div>
+          </div>
         ) : config.mode === "audio" ? (
           <EoRecordingForm
             task={task}

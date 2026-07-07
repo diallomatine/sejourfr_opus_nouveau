@@ -217,6 +217,11 @@ Quelques réglages pensés pour le confort du candidat :
 - **Il parle un français normal**, clair et accessible, sans s'adapter artificiellement au
   niveau du candidat (comme à un vrai examen). S'il n'a pas compris, il demande simplement de
   répéter.
+- **Si le candidat ne dit rien, il n'y a rien à noter.** Quand on laisse seulement
+  l'examinateur se présenter puis qu'on termine sans avoir parlé, aucune réponse n'a été
+  produite : l'application l'annonce clairement (« Aucune prise de parole — rien à évaluer »)
+  et invite à reprendre l'échange, au lieu d'ouvrir un bilan vide. Aucune note n'est calculée
+  dans ce cas.
 
 ---
 

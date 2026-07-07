@@ -34,6 +34,9 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _pulse;
   bool _navigated = false;
+  // Clôture sans prise de parole (seul l'examinateur a parlé) : rien à évaluer.
+  // On affiche un écran d'explication au lieu d'ouvrir un bilan « introuvable ».
+  bool _noSpeech = false;
   // Étape de lecture du sujet : tant que le candidat n'a pas appuyé sur
   // « Commencer », on NE crée PAS le contrôleur (pas de connexion Gemini) — il
   // lit sa consigne à son rythme. Le jeton tient 120 s avant le 1er échange.
@@ -206,6 +209,46 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
     );
   }
 
+  /// Clôture sans réponse du candidat : l'examinateur s'est présenté mais rien
+  /// n'a été dit → aucune submission créée. On explique clairement (au lieu du
+  /// bilan « session introuvable ») et on propose de reprendre.
+  Widget _buildNoSpeech(BuildContext context, ProductionTaskDto task) {
+    return Scaffold(
+      backgroundColor: AppColors.bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            ScreenHeader(
+              title: 'Oral avec un examinateur',
+              sub: task.displayTitle,
+              onBack: _exitFailed,
+            ),
+            Expanded(
+              child: _Centered(
+                icon: LucideIcons.micOff,
+                title: 'Aucune prise de parole',
+                sub: 'L\'examinateur s\'est présenté, mais vous n\'avez rien dit '
+                    '— il n\'y a donc rien à évaluer. Reprenez l\'échange quand '
+                    'vous êtes prêt·e à répondre à voix haute.',
+              ),
+            ),
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: AppButton(
+                  label: 'Retour à l\'épreuve',
+                  icon: LucideIcons.arrowLeft,
+                  onPressed: _exitFailed,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final args = widget.args;
@@ -217,9 +260,19 @@ class _RealtimeEoScreenState extends ConsumerState<RealtimeEoScreen>
 
     ref.listen<RealtimeEoState>(realtimeEoControllerProvider(args),
         (prev, next) {
-      if (next.phase == RealtimePhase.done) _goToResult();
+      if (next.phase != RealtimePhase.done) return;
+      // En examen (popOnDone) on rend la main même sans réponse (tâche sautée,
+      // comptée non rendue au bilan). En entraînement isolé sans prise de parole,
+      // rien à évaluer → écran d'explication plutôt qu'un bilan vide.
+      if (next.evaluated || widget.args.popOnDone) {
+        _goToResult();
+      } else if (mounted) {
+        setState(() => _noSpeech = true);
+      }
     });
     final state = ref.watch(realtimeEoControllerProvider(args));
+
+    if (_noSpeech) return _buildNoSpeech(context, task);
 
     return PopScope(
       canPop: state.phase == RealtimePhase.done ||

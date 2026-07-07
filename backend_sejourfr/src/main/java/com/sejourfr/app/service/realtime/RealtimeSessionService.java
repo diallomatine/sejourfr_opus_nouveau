@@ -143,7 +143,12 @@ public class RealtimeSessionService {
         RealtimeSession session = ownedSession(user, sessionId);
         if (session.getStatus() == RealtimeSessionStatus.COMPLETED
                 || session.getStatus() == RealtimeSessionStatus.FAILED) {
-            return RealtimeSessionStateResponse.of(session, quotaService.remaining(user.getId()));
+            // Double finish (idempotent) : « evaluated » se relit du transcript
+            // (une submission n'existe que si le candidat a parlé).
+            boolean alreadyEvaluated = session.getStatus() == RealtimeSessionStatus.COMPLETED
+                    && session.getAttempt() != null && session.getProductionTask() != null
+                    && hasCandidateTurn(session.getTranscript());
+            return RealtimeSessionStateResponse.of(session, quotaService.remaining(user.getId()), alreadyEvaluated);
         }
         session.setEndedAt(Instant.now());
         boolean reallyHappened = session.getConnectedAt() != null
@@ -151,10 +156,11 @@ public class RealtimeSessionService {
         session.setStatus(reallyHappened ? RealtimeSessionStatus.COMPLETED : RealtimeSessionStatus.FAILED);
         sessionManager.save(session);
 
+        boolean evaluated = false;
         if (session.getStatus() == RealtimeSessionStatus.COMPLETED) {
-            triggerNotation(user, session);
+            evaluated = triggerNotation(user, session);
         }
-        return RealtimeSessionStateResponse.of(session, quotaService.remaining(user.getId()));
+        return RealtimeSessionStateResponse.of(session, quotaService.remaining(user.getId()), evaluated);
     }
 
     /**
@@ -164,15 +170,15 @@ public class RealtimeSessionService {
      * s'appuyant sur l'echange pour juger l'adequation et la gestion (T2). Echec
      * de notation non bloquant : la session reste COMPLETED, pas de penalite.
      */
-    private void triggerNotation(User user, RealtimeSession session) {
+    private boolean triggerNotation(User user, RealtimeSession session) {
         if (session.getAttempt() == null || session.getProductionTask() == null) {
             log.warn("Session realtime {} sans attempt/tache : notation ignoree.", session.getId());
-            return;
+            return false;
         }
         String dialogue = session.getTranscript();
         if (!hasCandidateTurn(dialogue)) {
             log.info("Session realtime {} sans tour candidat : rien a noter.", session.getId());
-            return;
+            return false;
         }
         Integer durationSec = elapsedSeconds(session);
         try {
@@ -185,6 +191,10 @@ public class RealtimeSessionService {
         } catch (RuntimeException e) {
             log.warn("Notation realtime echouee pour session {} : {}", session.getId(), e.getMessage());
         }
+        // La submission a été créée (l'éval s'effectue en arrière-plan et peut
+        // échouer sans impacter l'existence de la submission) : côté front, il y a
+        // bien un résultat à afficher (spinner puis note, ou statut FAILED rejouable).
+        return true;
     }
 
     /** Vrai si le transcript contient au moins un tour « Candidat : … » non vide. */

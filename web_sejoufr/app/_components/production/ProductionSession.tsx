@@ -338,18 +338,26 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
 
   /** Après une session temps réel, le backend a créé la submission : on la
    *  détecte (poll court) puis on avance le stepper, comme `send()` en async. */
-  async function advanceAfterRealtime() {
+  async function advanceAfterRealtime(evaluated: boolean) {
     let subs = subsByTache;
-    for (let i = 0; i < 5; i++) {
-      const fresh = await fetchSubs().catch(() => null);
-      if (fresh && fresh.has(currentTache)) {
-        subs = fresh;
-        break;
+    // On ne poll la submission que si le candidat a parlé (sinon aucune n'est
+    // créée : session sans réponse → tâche sautée, comptée « non rendue » au bilan).
+    if (evaluated) {
+      for (let i = 0; i < 5; i++) {
+        const fresh = await fetchSubs().catch(() => null);
+        if (fresh && fresh.has(currentTache)) {
+          subs = fresh;
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 700));
       }
-      await new Promise((r) => setTimeout(r, 700));
     }
     setSubsByTache(subs);
-    const nextTodo = TACHES.find((n) => !subs.has(n));
+    // La tâche courante est traitée (évaluée OU sautée sans prise de parole) :
+    // on l'exclut pour ne pas y revenir en boucle quand il n'y a pas de submission.
+    const handled = new Set(subs.keys());
+    handled.add(currentTache);
+    const nextTodo = TACHES.find((n) => !handled.has(n));
     if (nextTodo === undefined) {
       if (fullExamId) {
         finishedRef.current = true;
@@ -486,7 +494,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                   descriptor={activeDescriptor}
                   task={currentTask}
                   taskTitle={productionTaskTitle(config.epreuve, currentTask.tacheNumero)}
-                  onFinished={advanceAfterRealtime}
+                  onFinished={(evaluated) => advanceAfterRealtime(evaluated)}
                   onFatalError={(m) => {
                     setRtError(m);
                     setTaskMode("classic");

@@ -43,7 +43,9 @@ export function RealtimeEoRunner({
      *  indispensable au jeu de rôle T2 où le candidat mène l'interaction. */
     task: ProductionTaskDto;
     taskTitle: string;
-    onFinished: () => void;
+    /** `evaluated` = le candidat a parlé → une submission existe (résultat à
+     *  afficher). Faux = seul l'examinateur a parlé → rien à évaluer. */
+    onFinished: (evaluated: boolean) => void;
     onFatalError: (message: string) => void;
 }) {
     const sessionId = descriptor.sessionId ?? "";
@@ -94,12 +96,17 @@ export function RealtimeEoRunner({
         liveRef.current?.stop();
         flush();
         await new Promise((r) => setTimeout(r, 400));
+        // `evaluated` : le backend note la session seulement si le candidat a
+        // parlé. En cas d'échec réseau du finish, on suppose évalué (comportement
+        // historique : on tente d'afficher le résultat plutôt que de bloquer).
+        let evaluated = true;
         try {
-            await realtimeApi.finishSession(sessionId);
+            const state = await realtimeApi.finishSession(sessionId);
+            evaluated = state.evaluated;
         } catch {
             // La session reste exploitable côté backend ; on continue.
         }
-        onFinished();
+        onFinished(evaluated);
     }, [flush, onFinished, sessionId]);
 
     // Connexion Gemini Live (montée une seule fois).
