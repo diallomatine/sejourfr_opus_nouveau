@@ -100,8 +100,23 @@ class GeminiLiveClient {
 
     // Init audio locale (doit être prête AVANT le 1er audio examinateur :
     // _enqueueAudio ignore l'audio tant que _pcmReady est faux).
+    //
+    // ORDRE CRITIQUE (bug 2ᵉ session : plus aucun son ni micro, alors que le WS
+    // et la transcription marchent — donc c'est l'AVAudioSession partagée qui est
+    // morte, pas Gemini). `FlutterPcmSound.setup()` RECONFIGURE l'AVAudioSession
+    // sur iOS et, après le `release()` de la session précédente, peut la laisser
+    // inactive ou routée sur l'écouteur (sans defaultToSpeaker) → lecture muette
+    // ET micro qui ne capte rien. On encadre donc son setup par notre config :
+    //   1. _configureAudioSession() : session active + playAndRecord (FlutterPcmSound
+    //      construit son moteur sur une session déjà active) ;
+    //   2. _setupPlayback() : FlutterPcmSound.setup (peut re-toucher la session) ;
+    //   3. _configureAudioSession() À NOUVEAU : notre setActive(true) +
+    //      defaultToSpeaker a le DERNIER mot (comme l'enregistreur classique juste
+    //      avant record.start, cf. AudioRecorderService.start) ;
+    //   4. _startMic() sur une session active + playAndRecord.
     await _configureAudioSession();
     await _setupPlayback();
+    await _configureAudioSession();
     await _startMic();
     if (_closed) return;
 
@@ -190,7 +205,14 @@ class GeminiLiveClient {
     } catch (_) {/* no-op */}
     try {
       final session = await AudioSession.instance;
-      await session.setActive(false);
+      // `notifyOthersOnDeactivation` : libère proprement l'AVAudioSession pour
+      // que la session suivante (ou un autre lecteur) la réacquière sans hériter
+      // d'un état verrouillé (cf. bug 2ᵉ session muette).
+      await session.setActive(
+        false,
+        avAudioSessionSetActiveOptions:
+            AVAudioSessionSetActiveOptions.notifyOthersOnDeactivation,
+      );
     } catch (_) {/* no-op */}
   }
 
