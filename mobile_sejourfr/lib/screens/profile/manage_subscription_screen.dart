@@ -190,6 +190,14 @@ class _PremiumView extends StatelessWidget {
                     ? 'Accès complet à tout SejourFR'
                     : 'Accès complet au parcours Civique',
               ),
+              if (status.realtimeSessionsRemaining != null) ...[
+                const Divider(height: 1),
+                _DetailRow(
+                  label: 'Simulations orales restantes',
+                  value:
+                      '${status.realtimeSessionsRemaining} session${status.realtimeSessionsRemaining! > 1 ? 's' : ''}',
+                ),
+              ],
               const Divider(height: 1),
               _DetailRow(label: 'Géré par', value: _sourceLabel(status.source)),
               const Divider(height: 1),

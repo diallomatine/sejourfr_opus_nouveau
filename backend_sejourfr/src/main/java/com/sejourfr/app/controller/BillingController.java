@@ -75,11 +75,14 @@ public class BillingController {
     @GetMapping("/subscription-status")
     public SubscriptionStatusResponse getSubscriptionStatus() {
         java.util.UUID userId = currentUser.getId();
+        RealtimeQuotaService.Quota quota = realtimeQuotaService.evaluate(userId);
+        // Solde de sessions EO temps réel : exposé UNIQUEMENT quand le pass ouvre
+        // un quota (cap > 0 = accès TCF/Intégral) ; null pour Civique/Free (non
+        // concerné) → le front n'affiche le décompte que si présent.
+        Integer realtimeRemaining = quota.cap() > 0 ? quota.remaining() : null;
         return subscriptionService.currentSubscription(userId)
                 .map(SubscriptionStatusResponse::from)
-                // Compteur de sessions EO temps réel restantes (le pass TCF en
-                // ouvre un quota ; null/0 sinon). Le front affiche le décompte.
-                .map(s -> s.withRealtimeSessionsRemaining(realtimeQuotaService.remaining(userId)))
+                .map(s -> s.withRealtimeSessionsRemaining(realtimeRemaining))
                 .orElseGet(SubscriptionStatusResponse::notPremium);
     }
 

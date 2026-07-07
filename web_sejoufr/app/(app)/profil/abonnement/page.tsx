@@ -210,6 +210,14 @@ function PremiumView({
                         label="Périmètre"
                         value={isIntegral ? "Accès complet à tout SejourFR" : "Accès complet au parcours Civique"}
                     />
+                    {status.realtimeSessionsRemaining != null && (
+                        <DetailRow
+                            label="Simulations orales restantes"
+                            value={`${status.realtimeSessionsRemaining} session${
+                                status.realtimeSessionsRemaining > 1 ? "s" : ""
+                            }`}
+                        />
+                    )}
                     <DetailRow label="Géré par" value={sourceLabel(status.source)}/>
                     <DetailRow label="Expire le" value={ends ? formatLong(ends) : "—"}/>
                 </dl>

@@ -4,6 +4,7 @@ import com.sejourfr.app.dto.SubscriptionStatusResponse;
 import com.sejourfr.app.dto.VerifyReceiptRequest;
 import com.sejourfr.app.service.billing.AppleSubscriptionService;
 import com.sejourfr.app.service.billing.GoogleSubscriptionService;
+import com.sejourfr.app.service.realtime.RealtimeQuotaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -32,6 +33,7 @@ public class ReceiptVerificationService {
     private final AppleSubscriptionService appleSubscriptionService;
     private final GoogleSubscriptionService googleSubscriptionService;
     private final SubscriptionService subscriptionService;
+    private final RealtimeQuotaService realtimeQuotaService;
 
     public SubscriptionStatusResponse verify(UUID userId, VerifyReceiptRequest request) {
         switch (request.source()) {
@@ -48,8 +50,13 @@ public class ReceiptVerificationService {
     }
 
     private SubscriptionStatusResponse buildResponse(UUID userId) {
+        RealtimeQuotaService.Quota quota = realtimeQuotaService.evaluate(userId);
+        // Cohérent avec /subscription-status : solde temps réel exposé seulement
+        // pour un pass à quota (cap > 0 = TCF/Intégral), null sinon.
+        Integer realtimeRemaining = quota.cap() > 0 ? quota.remaining() : null;
         return subscriptionService.currentSubscription(userId)
                 .map(SubscriptionStatusResponse::from)
+                .map(s -> s.withRealtimeSessionsRemaining(realtimeRemaining))
                 .orElseGet(SubscriptionStatusResponse::notPremium);
     }
 }

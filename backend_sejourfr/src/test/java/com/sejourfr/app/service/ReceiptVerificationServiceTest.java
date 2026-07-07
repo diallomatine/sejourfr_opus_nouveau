@@ -9,6 +9,7 @@ import com.sejourfr.app.enums.SubscriptionSource;
 import com.sejourfr.app.enums.SubscriptionStatus;
 import com.sejourfr.app.service.billing.AppleSubscriptionService;
 import com.sejourfr.app.service.billing.GoogleSubscriptionService;
+import com.sejourfr.app.service.realtime.RealtimeQuotaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
@@ -34,6 +35,7 @@ class ReceiptVerificationServiceTest {
     private AppleSubscriptionService appleSubscriptionService;
     private GoogleSubscriptionService googleSubscriptionService;
     private SubscriptionService subscriptionService;
+    private RealtimeQuotaService realtimeQuotaService;
     private ReceiptVerificationService service;
 
     private final UUID userId = UUID.randomUUID();
@@ -43,8 +45,12 @@ class ReceiptVerificationServiceTest {
         appleSubscriptionService = mock(AppleSubscriptionService.class);
         googleSubscriptionService = mock(GoogleSubscriptionService.class);
         subscriptionService = mock(SubscriptionService.class);
+        realtimeQuotaService = mock(RealtimeQuotaService.class);
+        when(realtimeQuotaService.evaluate(userId))
+                .thenReturn(new RealtimeQuotaService.Quota(null, 10, 4));
         service = new ReceiptVerificationService(
-                appleSubscriptionService, googleSubscriptionService, subscriptionService);
+                appleSubscriptionService, googleSubscriptionService, subscriptionService,
+                realtimeQuotaService);
     }
 
     private UserSubscription premiumSub() {
@@ -70,6 +76,8 @@ class ReceiptVerificationServiceTest {
         verifyNoInteractions(googleSubscriptionService);
         assertThat(res.isPremium()).isTrue();
         assertThat(res.source()).isEqualTo(SubscriptionSource.APPLE);
+        // Pass à quota (cap 10 > 0) → solde temps réel exposé.
+        assertThat(res.realtimeSessionsRemaining()).isEqualTo(4);
     }
 
     @Test
