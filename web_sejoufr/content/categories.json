@@ -11,6 +11,12 @@
     "color": "red",
     "description": "Le parcours pour devenir français"
   },
+  "tcf": {
+    "name": "TCF",
+    "slug": "tcf",
+    "color": "green",
+    "description": "Le TCF IRN épreuve par épreuve : format, notation, méthode et préparation"
+  },
   "actualite": {
     "name": "Actualité",
     "slug": "actualite",

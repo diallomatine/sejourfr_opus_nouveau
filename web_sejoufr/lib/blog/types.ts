@@ -1,10 +1,11 @@
 export type ArticleCategorySlug =
   | "titre-de-sejour"
   | "naturalisation"
+  | "tcf"
   | "actualite"
   | "conseils";
 
-export type CategoryColor = "blue" | "red" | "amber" | "indigo";
+export type CategoryColor = "blue" | "red" | "amber" | "indigo" | "green";
 
 export interface CategoryMeta {
   name: string;

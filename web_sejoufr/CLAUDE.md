@@ -174,6 +174,30 @@ confondues civique/CO/CE/STRUCTURE : une réponse validée est définitive,
 conditions réelles — parité mobile `runner_screen.dart`). En TRAINING (séries),
 le lecteur natif et la navigation restent libres.
 
+## Blog (`/blog`) — contenu SEO
+
+Blog éditorial statique (SSG), sans backend : les articles sont des fichiers **MDX** dans
+`content/articles/*.mdx`, lus par `lib/blog/articles.ts` (gray-matter + reading-time,
+mémoïsé au build). Le `slug` du frontmatter doit **matcher le nom du fichier**.
+
+- **Catégories** : `content/categories.json` + union `ArticleCategorySlug` dans
+  `lib/blog/types.ts` + tonalité couleur dans `categoryTone()` (`lib/blog/categories.ts`).
+  Cinq catégories : `titre-de-sejour` (bleu), `naturalisation` (rouge), **`tcf` (vert)**,
+  `actualite` (ambre), `conseils` (indigo). Ajouter une catégorie = toucher ces 3 fichiers.
+- **Pagination (9 articles/page, multiple de 3 pour remplir les lignes desktop)** :
+  helpers `getBlogPage` / `getCategoryPage` / `blogPageCount` / `categoryPageCount` +
+  constante `ARTICLES_PER_PAGE` dans `lib/blog/articles.ts`. L'article **à la une n'existe
+  qu'en page 1**. Routes : `/blog` (page 1) + `/blog/page/[page]` (2..N, `generateStaticParams`,
+  404 hors bornes), idem `/blog/category/[slug]` + `/blog/category/[slug]/page/[page]`.
+  Les corps de page vivent dans `components/blog/BlogIndexView.tsx` et
+  `CategoryListView.tsx` (partagés page 1 / pages suivantes) ; `components/blog/Pagination.tsx`
+  rend la nav (fenêtre de numéros + ellipses, libellés Précédent/Suivant masqués < 640 px).
+- **Rédaction** : conventions dans `content/articles/BLOG_STYLE_GUIDE.md` (frontmatter, ton,
+  composants MDX, longueur, maillage interne).
+- **`content/articles/ARTICLES_INDEX.md`** : index des sujets déjà traités + pistes libres.
+  **À lire avant d'écrire un article** (anti-doublon SEO) et **à compléter dans la même passe**
+  quand on en ajoute un.
+
 ## Identité visuelle (à ne pas dévier)
 
 ### Couleurs (variables CSS définies dans `@theme`)

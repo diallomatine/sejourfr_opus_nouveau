@@ -80,3 +80,68 @@ export function getRelatedArticles(
 export function getAllSlugs(): string[] {
   return readArticles().map((a) => a.slug);
 }
+
+/** Nombre de cards par page — multiple de 3 pour remplir les lignes du desktop. */
+export const ARTICLES_PER_PAGE = 9;
+
+export interface PagedArticles {
+  /** Page courante, 1-indexée. */
+  page: number;
+  totalPages: number;
+  total: number;
+  /** Article mis en avant — page 1 des listes qui en affichent un. */
+  featured: ArticleListItem | null;
+  /** Cards de la grille pour cette page. */
+  items: ArticleListItem[];
+}
+
+function pageCount(total: number): number {
+  return Math.max(1, Math.ceil(total / ARTICLES_PER_PAGE));
+}
+
+/**
+ * Page de l'index /blog : le plus récent est mis à la une (page 1 seulement),
+ * le reste est paginé par `ARTICLES_PER_PAGE`.
+ */
+export function getBlogPage(page: number): PagedArticles {
+  const all = listArticles();
+  const [first, ...rest] = all;
+  const totalPages = pageCount(rest.length);
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = (safePage - 1) * ARTICLES_PER_PAGE;
+  return {
+    page: safePage,
+    totalPages,
+    total: all.length,
+    featured: safePage === 1 ? (first ?? null) : null,
+    items: rest.slice(start, start + ARTICLES_PER_PAGE),
+  };
+}
+
+/** Page d'une catégorie : pas d'article à la une, grille pleine. */
+export function getCategoryPage(
+  category: ArticleCategorySlug,
+  page: number,
+): PagedArticles {
+  const all = getArticlesByCategory(category);
+  const totalPages = pageCount(all.length);
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = (safePage - 1) * ARTICLES_PER_PAGE;
+  return {
+    page: safePage,
+    totalPages,
+    total: all.length,
+    featured: null,
+    items: all.slice(start, start + ARTICLES_PER_PAGE),
+  };
+}
+
+/** Nombre total de pages de l'index /blog (pour generateStaticParams). */
+export function blogPageCount(): number {
+  return pageCount(Math.max(0, listArticles().length - 1));
+}
+
+/** Nombre total de pages d'une catégorie (pour generateStaticParams). */
+export function categoryPageCount(category: ArticleCategorySlug): number {
+  return pageCount(getArticlesByCategory(category).length);
+}

@@ -69,5 +69,13 @@ export function categoryTone(color: CategoryColor): CategoryTone {
         coverTo: "#7c3aed",
         dot: "#6366f1",
       };
+    case "green":
+      return {
+        fg: "var(--color-green)",
+        badgeBg: "rgba(22, 143, 91, 0.12)",
+        coverFrom: "var(--color-green)",
+        coverTo: "#0c5f3c",
+        dot: "var(--color-green)",
+      };
   }
 }
