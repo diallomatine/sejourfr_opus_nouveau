@@ -13,8 +13,8 @@
 | `publishedAt` | `YYYY-MM-DD` | oui | Sert au tri (desc) |
 | `updatedAt` | `YYYY-MM-DD` | non | Mettre = `publishedAt` si jamais modifié |
 | `author` | objet `{name, role, initials}` | oui | Toujours `Abdoul Matine Diallo / Fondateur SéjourFR / AD` |
-| `coverImage` | string | non | Pas utilisé aujourd'hui — on a `coverIcon` à la place |
-| `coverIcon` | string | non | Clé Lucide, voir §3 |
+| `coverImage` | string | non | Photo de couverture. URL **Unsplash** (`images.unsplash.com` est le seul hôte autorisé dans `next.config.ts`), suffixe `?w=1600&q=80&fit=crop&auto=format`. Si fournie, elle remplace l'icône. **Vérifier l'URL (HTTP 200) avant de commiter** — un ID inventé casse la card |
+| `coverIcon` | string | non | Clé Lucide, voir §3. Sert de fallback (dégradé catégorie + icône) quand `coverImage` est absente |
 | `tags` | string[] | oui | 4-6 tags, lowercase, accents/tirets autorisés |
 | `seo.title` | string | recommandé | ≤ 60 chars |
 | `seo.description` | string | recommandé | ≤ 155 chars |
