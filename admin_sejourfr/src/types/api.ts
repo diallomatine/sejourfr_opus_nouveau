@@ -676,3 +676,34 @@ export interface CancelSubscriptionResponse {
   message: string;
   redirectUrl: string | null;
 }
+
+// ============ AUDIENCE DES LANDINGS (page_views) ============
+
+/** Une provenance et son entonnoir sur la fenêtre demandée. */
+export interface PageViewSourceStat {
+  source: string;
+  views: number;
+  ctaClicks: number;
+  /** Part des vues ayant abouti à un clic CTA, en %. Null si aucune vue. */
+  ctaRate: number | null;
+}
+
+export interface PageViewDailyStat {
+  /** Jour ISO (yyyy-MM-dd), Europe/Paris. */
+  day: string;
+  views: number;
+  ctaClicks: number;
+}
+
+/**
+ * Audience agrégée d'une landing. Compte des VUES, pas des visiteurs uniques :
+ * aucun identifiant de terminal n'est posé côté navigateur (cf. migration V020).
+ */
+export interface PageViewStatsResponse {
+  path: string;
+  days: number;
+  views: number;
+  ctaClicks: number;
+  sources: PageViewSourceStat[];
+  daily: PageViewDailyStat[];
+}

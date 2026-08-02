@@ -124,6 +124,37 @@ l'ouverture publique / montée en trafic**, pas avant :
 Plus tard encore (vrai volume) : rétention via **partitionnement par date** ou
 archivage des `TERMINE` anciens — surtout pas de suppression d'historique user.
 
+## Mesure d'audience des landings (sans traceur)
+
+Compteur **maison**, sans service tiers, pour savoir combien de visiteurs
+consultent une page de campagne (`/reussir`, le lien de bio réseaux) et combien
+cliquent son CTA, découpé par réseau de provenance.
+
+- **Table `page_views` (V020)** : agrégat, pas journal — une ligne par
+  (page, source, événement, jour), incrémentée par `INSERT … ON CONFLICT DO
+  UPDATE` (atomique). La table est donc **bornée** par construction, à
+  l'inverse du problème des attempts invités signalé plus haut.
+- **Rien n'est stocké côté visiteur** : ni cookie, ni localStorage, ni
+  sessionStorage ; et rien de personnel côté serveur : ni IP, ni user-agent, ni
+  identifiant. C'est ce qui permet à `/confidentialite` de continuer d'affirmer
+  qu'aucun traceur n'est déposé, et de se passer de bandeau de consentement.
+  **Ne pas ajouter de déduplication persistante sans repasser sur la page
+  légale.** Conséquence assumée : on compte des **vues**, pas des visiteurs
+  uniques.
+- **Deux listes blanches** dans `PageViewService` (`TRACKED_PATHS`,
+  `KNOWN_SOURCES`) : l'endpoint d'écriture étant public, elles sont la seule
+  chose qui empêche un tiers de créer des dimensions à volonté. Ajouter une
+  landing mesurée = l'ajouter à `TRACKED_PATHS`.
+- **Web** : `lib/audience.ts` (`detectTrafficSource`, `trackPageView`,
+  `trackCtaClick`) — même détection de provenance que le badge du hero, un seul
+  endroit qui décide « ce visiteur vient de TikTok ».
+- **Admin** : `features/audience/` — vues, clics, taux de clic par réseau et
+  série journalière, sur 7 / 30 / 90 jours.
+- Reste à faire avant l'ouverture publique : un **rate-limit par IP** sur
+  `POST /api/public/page-views`, même chantier que la démo invitée. Sans lui, un
+  bot peut gonfler un compteur — donnée fausse, mais ni fuite ni inflation de
+  stockage.
+
 ## Identité visuelle (résumé)
 
 - Bleu France `#1E3A8C` + Rouge France `#E1372F` (CTAs critiques seulement).

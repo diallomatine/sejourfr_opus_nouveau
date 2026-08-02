@@ -18,6 +18,7 @@ import { SubscriptionsPage } from "./features/subscriptions/SubscriptionsPage";
 import { ThemesPage } from "./features/themes/ThemesPage";
 import { queryClient } from "./lib/queryClient";
 import { LoginPage } from "./pages/LoginPage";
+import { AudiencePage } from "./features/audience/AudiencePage";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 
 export function App() {
@@ -67,6 +68,7 @@ export function App() {
                   path="/example-audio/review"
                   element={<ExampleAudioReviewPage />}
                 />
+                <Route path="/audience" element={<AudiencePage />} />
                 <Route path="/plans" element={<PlansPage />} />
                 <Route path="/subscriptions" element={<SubscriptionsPage />} />
                 <Route path="/conversations" element={<ConversationsPage />} />

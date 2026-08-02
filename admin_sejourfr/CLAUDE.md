@@ -36,6 +36,9 @@ src/
 │   ├── layout/AppLayout.*   Sidebar + main outlet (visible quand connecté)
 │   └── ui/                  Primitives réutilisables (Button, Modal, Tag, etc.)
 ├── features/                Une feature = un dossier (entité + UI + helpers)
+│   ├── audience/            Audience des landings (/reussir) : vues, clics CTA,
+│   │                        taux de clic par réseau, série journalière. Lecture
+│   │                        seule, compteur agrégé sans traceur (cf. racine)
 │   ├── dashboard/
 │   ├── questions/           Le plus complexe : liste + filtres + modal CRUD
 │   ├── themes/
@@ -76,6 +79,8 @@ Endpoints utilisés actuellement :
 - `GET /api/admin/conversations/unread-count`
 - `POST|GET|PATCH|DELETE /api/admin/audio-questions[/{id}[/preview|validate]]` + `GET /api/admin/audio-questions/generation-logs`
 - `POST /api/admin/production/examples/audio/batch-generate?size=10`, `GET …/pending/count`, `GET …/to-review`, `POST …/{id}/publish`, `POST …/{id}/regenerate` (audios exemples EO — feature `exampleAudio/`)
+- `GET /api/admin/page-views?path=…&days=…` + `GET /api/admin/page-views/paths`
+  — audience des landings (feature `audience/`)
 - `GET /api/admin/plans`, `PATCH /api/admin/plans/{id}` (commerce — lot 4c)
 - `GET /api/admin/subscriptions?source=…&status=…&moduleAccess=…&search=…&page=…&size=…` (lot 4c)
 - `POST /api/admin/subscriptions/{id}/cancel` — annulation manuelle (support).

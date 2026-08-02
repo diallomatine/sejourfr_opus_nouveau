@@ -86,9 +86,25 @@ Cf. `exams-tcf.md`.
 
 Cf. `pipeline-evaluation-eo-ee.md`.
 
+## Audience des landings
+
+- `POST /api/public/page-views` — public, sans authentification. Corps
+  `{path, source, event}` avec `event = VIEW | CTA`. Répond **204** (émis en
+  `sendBeacon`, la réponse n'est jamais lue). Le backend n'accepte qu'un `path`
+  de la liste blanche `PageViewService.TRACKED_PATHS` et normalise `source`
+  (`tiktok|instagram|whatsapp|facebook|youtube|direct`, tout le reste →
+  `autre`) : c'est ce qui borne la table face à un endpoint ouvert.
+- `GET /api/admin/page-views?path=/reussir&days=30` — agrégat par source et par
+  jour (`PageViewStatsResponse`).
+- `GET /api/admin/page-views/paths` — pages mesurées, pour le sélecteur admin.
+
+**Aucune donnée personnelle** : ni IP, ni user-agent, ni identifiant de
+visiteur, et rien n'est écrit dans le navigateur. Compte des **vues**, pas des
+visiteurs uniques. Cf. migration V020.
+
 ## Admin
 
-- `/api/admin/{dashboard,questions,themes,conversations,media,passages,audio-questions,calibration/{submissions,stats}}`
+- `/api/admin/{dashboard,questions,themes,conversations,media,passages,audio-questions,calibration/{submissions,stats},page-views}`
 
 ## À implémenter
 

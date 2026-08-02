@@ -9,6 +9,12 @@ import {
   useSyncExternalStore,
   type ReactElement,
 } from "react";
+import {
+  detectTrafficSource,
+  trackCtaClick,
+  trackPageView,
+  type TrafficSource,
+} from "@/lib/audience";
 import { useAuth } from "@/lib/auth-context";
 import { SOCIAL_ACCOUNTS, STORE_LINKS } from "@/lib/site";
 import type { PlanPublicResponse } from "@/lib/types";
@@ -27,6 +33,9 @@ type Parcours = "tcf" | "civique";
 
 const DEMO_HREF = "/entrainement?module=TCF";
 
+/** Chemin mesuré côté backend (liste blanche `PageViewService.TRACKED_PATHS`). */
+const TRACKED_PATH = "/reussir";
+
 /** Réseaux reconnus pour le badge de provenance. */
 const NETWORKS: Record<string, { label: string; icon: ReactElement }> = {
   tiktok: { label: "TikTok", icon: <TikTokIcon /> },
@@ -42,6 +51,8 @@ const TRANSCRIPT =
 export function ReussirView({ plans }: { plans: PlanPublicResponse[] }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   useReveal(rootRef);
+
+  useEffect(() => trackPageView(TRACKED_PATH), []);
 
   return (
     <div className={styles.page} ref={rootRef}>
@@ -123,10 +134,7 @@ function Hero() {
             </ul>
 
             <div className={styles.ctaRow} data-rv>
-              <Link href={DEMO_HREF} className={styles.btn}>
-                Tester gratuitement
-                <ArrowIcon />
-              </Link>
+              <DemoCta />
             </div>
 
             <ul className={styles.trust} data-rv>
@@ -146,6 +154,25 @@ function Hero() {
         </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * Le CTA de démo, partagé par le hero, le bloc final et la barre collante.
+ * Passer par un composant unique garantit que les trois points d'entrée sont
+ * mesurés de la même façon — un bouton ajouté ailleurs sans lui serait un trou
+ * silencieux dans le taux de conversion.
+ */
+function DemoCta({ label = "Tester gratuitement" }: { label?: string }) {
+  return (
+    <Link
+      href={DEMO_HREF}
+      className={styles.btn}
+      onClick={() => trackCtaClick(TRACKED_PATH)}
+    >
+      {label}
+      <ArrowIcon />
+    </Link>
   );
 }
 
@@ -938,10 +965,7 @@ function FinalSection() {
               Commence par une <em>série offerte</em>. Maintenant.
             </h2>
             <div className={styles.ctaRow} data-rv>
-              <Link href={DEMO_HREF} className={styles.btn}>
-                Tester gratuitement
-                <ArrowIcon />
-              </Link>
+              <DemoCta />
             </div>
             <div className={styles.stores} data-rv>
               <a
@@ -1079,10 +1103,7 @@ function StickyCta() {
           <br />
           Sans compte
         </span>
-        <Link href={DEMO_HREF} className={styles.btn}>
-          Commencer
-          <ArrowIcon />
-        </Link>
+        <DemoCta label="Commencer" />
       </div>
     </div>
   );
@@ -1270,36 +1291,19 @@ function useCountUp(start: boolean, target: number, decimals: number): number {
 }
 
 /**
- * Provenance du visiteur : `?utm_source=` / `?src=` d'abord (fiable, c'est nous
- * qui posons le paramètre dans le lien de la bio), le referrer en repli.
+ * Provenance affichée par le badge du hero. Même détection que la mesure
+ * d'audience (`lib/audience.ts`) : un seul endroit qui décide « ce visiteur
+ * vient de TikTok », sinon le badge et les chiffres divergeraient.
  *
- * Lu via `useSyncExternalStore` : le rendu serveur reste neutre (« Bienvenue »)
- * et le badge se précise au montage, sans mismatch d'hydratation.
+ * Lu via `useSyncExternalStore` : le rendu serveur reste neutre
+ * (« Bienvenue »), le badge se précise au montage, sans mismatch d'hydratation.
  */
-function detectOrigin(): string | null {
-  const params = new URLSearchParams(window.location.search);
-  const raw = (
-    params.get("utm_source") ||
-    params.get("src") ||
-    document.referrer ||
-    ""
-  ).toLowerCase();
-  if (!raw) return null;
-  if (raw.includes("tiktok")) return "tiktok";
-  if (raw.includes("instagram")) return "instagram";
-  if (raw.includes("whatsapp") || raw.includes("wa.me") || raw === "wa") return "whatsapp";
-  if (raw.includes("facebook") || raw.includes("fb.") || raw === "fb") return "facebook";
-  if (raw.includes("youtube") || raw.includes("youtu.be")) return "youtube";
-  return null;
-}
-
-/** La provenance ne change jamais pendant la visite : rien à réabonner. */
 function subscribeOrigin() {
   return () => {};
 }
 
-function useOrigin(): string | null {
-  return useSyncExternalStore(subscribeOrigin, detectOrigin, () => null);
+function useOrigin(): TrafficSource | null {
+  return useSyncExternalStore(subscribeOrigin, detectTrafficSource, () => null);
 }
 
 // ============================================================================

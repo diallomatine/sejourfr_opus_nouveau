@@ -402,6 +402,11 @@ WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
   pas de capture à re-shooter à chaque refonte de l'app, rien à charger. Les
   badges stores viennent de `STORE_LINKS` (`lib/site.ts`), partagés avec le
   bloc final.
+- **Mesure d'audience** : `lib/audience.ts` envoie une vue au montage et un
+  clic à chaque CTA de démo, en `sendBeacon` (survit à la navigation).
+  Les trois CTA passent par le composant `DemoCta` — un bouton ajouté sans
+  lui serait un trou silencieux dans le taux de conversion. Aucun cookie ni
+  stockage navigateur (cf. CLAUDE.md racine).
 - Liens sociaux dans `lib/site.ts` (`SOCIAL_ACCOUNTS`) : une entrée à
   `url: null` **n'est pas rendue** — on ne publie jamais un lien vers un compte
   qui n'existe pas encore.

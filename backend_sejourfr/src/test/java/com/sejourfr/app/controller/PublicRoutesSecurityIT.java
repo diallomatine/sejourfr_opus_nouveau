@@ -39,6 +39,7 @@ class PublicRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/public/lots"),
                 Arguments.of(HttpMethod.POST, "/api/public/attempts/demo"),
                 Arguments.of(HttpMethod.GET, "/api/public/attempts/" + RANDOM_ID),
+                Arguments.of(HttpMethod.POST, "/api/public/page-views"),
                 // GET /api/exams/**
                 Arguments.of(HttpMethod.GET, "/api/exams"),
                 Arguments.of(HttpMethod.GET, "/api/exams/some-slug"),
