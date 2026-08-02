@@ -932,6 +932,12 @@ vend du contenu digital). L'ancien `openSubscriptionWeb()` est supprimé.
   N'ACQUITTE PAS le store. Au prochain démarrage le `purchaseStream`
   re-livre l'achat → retry automatique. Le user n'a pas payé deux fois.
 
+**Affichage des prix d'un pass** (`_PassRow`) : le **prix réellement débité**
+en gros, l'équivalent mensuel en sous-texte (« soit 13,33 €/mois »). Un pass
+se paie une fois — un « /mois » en principal laisserait croire à un
+abonnement. Même hiérarchie côté web (`/paiement`, `/tarifs`) : ne pas
+réinverser d'un seul côté.
+
 **Restore purchases** : bouton **« Restaurer mes achats »** (variante secondary,
 sous les cartes du paywall).
 

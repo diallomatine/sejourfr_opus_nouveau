@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import GoogleSignInButton from "@/app/_components/GoogleSignInButton";
 import { AuthShell } from "@/app/_components/auth/AuthShell";
 import { PasswordInput } from "@/app/_components/auth/PasswordInput";
 import styles from "@/app/_components/auth/auth.module.css";
 import { ApiException } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { safeInternalPath } from "@/lib/security";
 import type { TargetProcedure } from "@/lib/types";
 
 const MENTIONS: { v: TargetProcedure; code: string; name: string; tcf: string }[] = [
@@ -18,17 +19,29 @@ const MENTIONS: { v: TargetProcedure; code: string; name: string; tcf: string }[
 ];
 
 export default function InscriptionPage() {
+  return (
+    <Suspense fallback={null}>
+      <InscriptionInner />
+    </Suspense>
+  );
+}
+
+function InscriptionInner() {
   const router = useRouter();
+  const search = useSearchParams();
   const { register, status, user } = useAuth();
+  // Parcours d'achat depuis une landing : ?next=/paiement?plan=… ramène le
+  // nouvel inscrit sur le pass qu'il venait de choisir, au lieu du dashboard.
+  const nextHref = safeInternalPath(search.get("next"), "/dashboard");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mention, setMention] = useState<TargetProcedure>("CSP");
 
   useEffect(() => {
     if (status === "authenticated" && user) {
-      router.replace("/dashboard");
+      router.replace(nextHref);
     }
-  }, [status, user, router]);
+  }, [status, user, router, nextHref]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -46,7 +59,7 @@ export default function InscriptionPage() {
 
     try {
       await register(payload);
-      router.push("/dashboard");
+      router.push(nextHref);
     } catch (err) {
       if (err instanceof ApiException) {
         const fields = err.payload?.fieldErrors;
@@ -191,13 +204,16 @@ export default function InscriptionPage() {
 
         <GoogleSignInButton
           variant="signup"
-          onSuccess={() => router.push("/dashboard")}
+          onSuccess={() => router.push(nextHref)}
           onError={setError}
         />
 
         <p className={styles.switchLine}>
           Déjà un compte ?{" "}
-          <Link href="/connexion" className={`${styles.switchLink} ${styles.switchLinkBlue}`}>
+          <Link
+            href={`/connexion?next=${encodeURIComponent(nextHref)}`}
+            className={`${styles.switchLink} ${styles.switchLinkBlue}`}
+          >
             Se connecter →
           </Link>
         </p>

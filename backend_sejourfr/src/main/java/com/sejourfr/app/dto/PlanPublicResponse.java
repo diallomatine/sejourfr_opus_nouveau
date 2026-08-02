@@ -12,6 +12,12 @@ import java.math.BigDecimal;
  * et nature ({@code purchaseType}) — le front rend une grille de passes pour
  * ONE_TIME, le toggle de périodicité pour SUBSCRIPTION.
  *
+ * <p>Expose {@code realtimeEoSessions} — le nombre de simulations orales en
+ * temps réel (examinateur vocal IA) ouvertes par le pass, tel qu'il est stocké
+ * en base et éditable côté admin. Les fronts l'affichent sur les cartes de
+ * tarifs ; 0 = pass non éligible (Civique, Free), à rendre comme tel plutôt que
+ * masqué (c'est une différence d'offre assumée entre Civique et Intégral).
+ *
  * <p>Expose aussi les Product IDs store ({@code appleProductId} /
  * {@code googleProductId}) : le mobile s'en sert comme SKU à passer à
  * StoreKit / Play Billing, sans avoir à les déduire de {@code code} (les IDs
@@ -30,6 +36,7 @@ public record PlanPublicResponse(
         BigDecimal originalPrice,
         ModuleAccess moduleAccess,
         int durationDays,
+        int realtimeEoSessions,
         PlanPurchaseType purchaseType,
         String appleProductId,
         String googleProductId

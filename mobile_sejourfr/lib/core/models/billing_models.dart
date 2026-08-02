@@ -206,6 +206,7 @@ class PlanPublicResponse {
     required this.originalPrice,
     required this.moduleAccess,
     required this.durationDays,
+    required this.realtimeEoSessions,
     required this.purchaseType,
     required this.appleProductId,
     required this.googleProductId,
@@ -218,6 +219,10 @@ class PlanPublicResponse {
   final double? originalPrice;
   final ModuleAccess moduleAccess;
   final int durationDays;
+
+  /// Simulations orales en temps réel (examinateur vocal IA) ouvertes par ce
+  /// pass. 0 = non éligible (Civique, Free) — à afficher comme tel.
+  final int realtimeEoSessions;
   final PlanPurchaseType purchaseType;
   final String? appleProductId;
   final String? googleProductId;
@@ -231,6 +236,7 @@ class PlanPublicResponse {
       originalPrice: (json['originalPrice'] as num?)?.toDouble(),
       moduleAccess: ModuleAccessParse.fromString(json['moduleAccess'] as String?),
       durationDays: (json['durationDays'] as num?)?.toInt() ?? 0,
+      realtimeEoSessions: (json['realtimeEoSessions'] as num?)?.toInt() ?? 0,
       purchaseType: PlanPurchaseTypeParse.fromString(json['purchaseType'] as String?),
       appleProductId: json['appleProductId'] as String?,
       googleProductId: json['googleProductId'] as String?,

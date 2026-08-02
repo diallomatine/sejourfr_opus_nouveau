@@ -358,6 +358,14 @@ fin la plus tardive. Exposée via `GET /api/billing/subscription-status`.
 `subscription-status` renvoie `isPremium=true, source=STRIPE` → l'app mobile
 masque le bouton d'achat IAP. Pareil dans l'autre sens.
 
+**`GET /api/billing/plans`** expose `realtimeEoSessions` (colonne
+`plans.realtime_eo_sessions`, V018/V113) : le nombre de simulations orales en
+temps réel ouvertes par le pass — 25 (sprint 6 sem) / 60 (3 mois) / 120 (1 an)
+sur Intégral, **0** sur Civique et Free. Les fronts l'affichent tel quel sur les
+cartes de tarifs (0 = « sans simulation orale ») au lieu de coder le quota en
+dur — il reste éditable côté admin. Miroirs : `web_sejoufr/lib/types.ts`,
+`mobile_sejourfr/lib/core/models/billing_models.dart`.
+
 **Endpoints** :
 - `GET /api/billing/subscription-status` — authentifié, statut agrégé.
 - `POST /api/billing/verify-receipt` — authentifié, l'app mobile soumet un reçu
@@ -485,6 +493,12 @@ ce que le lot 4b mette à jour l'appel en `?planCode=<string>`.
     `SubscriptionStatusResponse.oneTime` expose la nature aux fronts.
   - Mobile : paywall en **grille de passes** (pilotée par `purchaseType`),
     `buyConsumable` (passes ré-achetables), « Mon accès » sans résiliation.
+  - **Affichage des prix (les 3 surfaces)** : le **montant réellement débité**
+    est le prix principal (« 19,99 € »), l'équivalent mensuel passe en
+    sous-texte (« soit 13,33 €/mois »). Un pass se paie une fois — mettre un
+    « /mois » en avant laisse croire à un abonnement. Vaut pour `/paiement`
+    (`OneTimePasses`), `/tarifs` (`PassModuleCard`) et le paywall mobile
+    (`_PassRow`). Ne pas réinverser sur une seule surface.
   - Stores : produits **Consommables** (Apple) / **managed in-app** (Google),
     product IDs = `Plan.code` (Apple MAJ, Google minuscules). Guide pas-à-pas →
     `docs/setup-paiement-one-time.md`.

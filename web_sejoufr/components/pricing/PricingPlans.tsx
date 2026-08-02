@@ -359,16 +359,11 @@ function PassModuleCard({
               )}
               <span className="pp-pass-dur">{passDurationLabel(p.durationDays)}</span>
               <span className="pp-pass-prices">
-                {monthly !== null ? (
-                  <>
-                    <span className="pp-pass-month">
-                      {formatPrice(Number(monthly.toFixed(2)))} €
-                      <span className="pp-pass-per">/mois</span>
-                    </span>
-                    <span className="pp-pass-total">soit {formatPrice(p.price)} €</span>
-                  </>
-                ) : (
-                  <span className="pp-pass-month">{formatPrice(p.price)} €</span>
+                <span className="pp-pass-month">{formatPrice(p.price)} €</span>
+                {monthly !== null && (
+                  <span className="pp-pass-total">
+                    soit {formatPrice(Number(monthly.toFixed(2)))} €/mois
+                  </span>
                 )}
               </span>
             </div>
@@ -455,14 +450,6 @@ const styles = `
     color: var(--color-ink);
     line-height: 1.05;
     white-space: nowrap;
-  }
-  .pp-pass-per {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    color: var(--color-muted);
-    margin-left: 2px;
   }
   .pp-pass-total {
     font-family: var(--font-mono);

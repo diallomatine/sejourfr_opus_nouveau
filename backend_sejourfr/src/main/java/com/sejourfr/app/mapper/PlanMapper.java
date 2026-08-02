@@ -18,6 +18,7 @@ public class PlanMapper {
                 p.getOriginalPrice(),
                 p.getModuleAccess(),
                 p.getDurationDays(),
+                p.getRealtimeEoSessions(),
                 p.getPurchaseType(),
                 p.getAppleProductId(),
                 p.getGoogleProductId()

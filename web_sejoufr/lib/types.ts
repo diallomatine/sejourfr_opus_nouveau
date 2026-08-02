@@ -331,6 +331,10 @@ export interface PlanPublicResponse {
     moduleAccess: ModuleAccess;
     /** Durée d'accès en jours. Source de vérité de la durée en mode ONE_TIME. */
     durationDays: number;
+    /** Simulations orales en temps réel (examinateur vocal IA) ouvertes par ce
+     *  pass. 0 = non éligible (Civique, Free) — à afficher comme tel, c'est une
+     *  différence d'offre assumée entre Civique et Intégral. */
+    realtimeEoSessions: number;
     /** ONE_TIME (pass) ou SUBSCRIPTION (abonnement). Le front rend une grille de
      *  passes pour ONE_TIME, le toggle de périodicité pour SUBSCRIPTION. */
     purchaseType: PlanPurchaseType;

@@ -20,6 +20,20 @@ export const APP_GROUP_PREFIXES = [
   "/succes",
 ];
 
+/** Routes autoportantes : landings de campagne qui portent leur propre en-tête,
+ *  leurs propres CTA et leur propre pied de page. Le chrome global (SiteHeader,
+ *  Footer, bandeau app mobile) y est masqué **pour tout le monde**, connecté ou
+ *  non — une page de lien de bio réseaux n'a qu'un seul job, chaque lien de nav
+ *  supplémentaire est une fuite. */
+export const STANDALONE_PREFIXES = ["/reussir"];
+
+export function isStandaloneRoute(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return STANDALONE_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
 export function isDualChromeRoute(pathname: string | null): boolean {
   if (!pathname) return false;
   return DUAL_CHROME_PREFIXES.some(
@@ -46,6 +60,7 @@ export function shouldHideGlobalChrome(
   pathname: string | null,
   isAuthenticated: boolean,
 ): boolean {
+  if (isStandaloneRoute(pathname)) return true;
   if (!isAuthenticated) return false;
   return isAppGroupRoute(pathname) || isDualChromeRoute(pathname);
 }

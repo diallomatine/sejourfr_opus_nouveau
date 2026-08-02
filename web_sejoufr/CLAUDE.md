@@ -120,6 +120,7 @@ app/
 ├── a-propos/page.tsx             # disclaimer non-affiliation + sources officielles (conformité
 │                                 #   stores ; LegalPageLayout, miroir de l'écran /about mobile ;
 │                                 #   aussi lié depuis le footer : ligne disclaimer + colonne Légal)
+├── reussir/page.tsx             # ★ landing de bio réseaux (autoportante, cf. section dédiée)
 └── examen-blanc/page.tsx         # ancienne route publique (à dépublier en V2)
 
 lib/
@@ -368,6 +369,53 @@ rachat). `billingApi.cancel()` et `CancelSubscriptionResponse` restent
 définis (mode abonnement dormant, cf. réversibilité racine) mais ne sont
 plus consommés par cette page. Le plan courant est retrouvé via
 `status.productId` (Stripe = `Plan.code`, mobile = apple/googleProductId).
+
+## `/reussir` — landing de bio réseaux
+
+Page **autoportante** destinée au lien unique des bios TikTok / Instagram /
+WhatsApp / Facebook. `app/reussir/page.tsx` (server, `revalidate = 1800`, fetch
+`billingApi.listPlans()`) + `app/_components/reussir/ReussirView.tsx` (client) +
+`reussir.module.css`.
+
+- **Chrome global masqué pour tout le monde** : `STANDALONE_PREFIXES` +
+  `isStandaloneRoute` dans `lib/chrome-routes.ts`, et `shouldHideGlobalChrome`
+  retourne `true` sur ces routes **avant** le test d'authentification. Une
+  landing de bio n'a qu'un seul job — chaque lien de nav en plus est une fuite.
+  Ajouter une future landing = une entrée dans `STANDALONE_PREFIXES`.
+- **Message match multi-réseaux** : le titre ne nomme aucun réseau ; un badge
+  affiche la provenance détectée (`?utm_source=` / `?src=`, puis `document.referrer`)
+  parmi TikTok / Instagram / WhatsApp / Facebook / YouTube, et retombe sur
+  « Bienvenue sur SejourFR ». Lu via `useSyncExternalStore` (snapshot serveur
+  neutre → pas de mismatch d'hydratation).
+- **Tarifs pilotés par la base** : les cartes viennent de `/api/billing/plans`
+  filtrées `purchaseType === "ONE_TIME"`, triées par `durationDays`. Le
+  sélecteur de parcours (**TCF par défaut**) affiche **strictement** les pass du
+  module choisi — Intégral (rouge) ou Civique (bleu) — jamais les deux. Le
+  nombre de simulations orales vient de `PlanPublicResponse.realtimeEoSessions`
+  (cf. CLAUDE.md racine), jamais codé en dur.
+- **Parcours d'achat continu** : un clic sur un pass va sur
+  `/paiement?module=…&plan=<code>` si l'utilisateur est connecté, sinon sur
+  `/inscription?next=<cette URL>`. C'est ce qui a motivé les deux ajouts
+  ci-dessous.
+- **Section app mobile** : bloc encre dédié (iOS + Android, même compte, même
+  progression) avec un aperçu d'écran rendu en **CSS pur** (`PhoneMockup`) —
+  pas de capture à re-shooter à chaque refonte de l'app, rien à charger. Les
+  badges stores viennent de `STORE_LINKS` (`lib/site.ts`), partagés avec le
+  bloc final.
+- Liens sociaux dans `lib/site.ts` (`SOCIAL_ACCOUNTS`) : une entrée à
+  `url: null` **n'est pas rendue** — on ne publie jamais un lien vers un compte
+  qui n'existe pas encore.
+
+### `?next=` sur `/inscription` et `?plan=` sur `/paiement`
+
+- **`/inscription?next=<chemin interne>`** (miroir de `/connexion`) : passé par
+  `safeInternalPath` (anti open-redirect), utilisé après `register`, après le
+  sign-in Google, et propagé au lien « Se connecter ». Sans le paramètre, le
+  comportement historique (`/dashboard`) est inchangé.
+- **`/paiement?plan=<code>`** : met en évidence le pass ciblé (`.otp-pass.is-targeted`)
+  et scrolle dessus au montage. Le gate non-connecté de `/paiement` conserve
+  désormais l'URL complète (module + plan) dans son `?next=`, et propose
+  inscription **et** connexion.
 
 ## Stratégie produit — parité fonctionnelle avec le mobile
 

@@ -27,6 +27,7 @@ class PlanMapperTest {
         p.setOriginalPrice(new BigDecimal("99.99"));
         p.setModuleAccess(ModuleAccess.INTEGRAL);
         p.setDurationDays(365);
+        p.setRealtimeEoSessions(120);
         p.setPurchaseType(PlanPurchaseType.ONE_TIME);
         p.setActive(true);
         p.setStripePriceId("price_abc");
@@ -46,9 +47,26 @@ class PlanMapperTest {
         assertThat(dto.originalPrice()).isEqualByComparingTo("99.99");
         assertThat(dto.moduleAccess()).isEqualTo(ModuleAccess.INTEGRAL);
         assertThat(dto.durationDays()).isEqualTo(365);
+        assertThat(dto.realtimeEoSessions()).isEqualTo(120);
         assertThat(dto.purchaseType()).isEqualTo(PlanPurchaseType.ONE_TIME);
         assertThat(dto.appleProductId()).isEqualTo("apple.integral.yearly");
         assertThat(dto.googleProductId()).isEqualTo("google.integral.yearly");
+    }
+
+    /** Un pass sans examinateur vocal (Civique, Free) expose bien 0 — les fronts
+     *  s'en servent pour afficher « pas de simulation orale » plutôt que rien. */
+    @Test
+    void toPublicResponse_zeroRealtimeSessionsForNonEligiblePlan() {
+        Plan p = new Plan();
+        p.setCode("CIVIQUE_PASS_3M");
+        p.setName("Civique — pass 3 mois");
+        p.setBillingCycle(BillingCycle.NONE);
+        p.setPrice(new BigDecimal("9.99"));
+        p.setModuleAccess(ModuleAccess.CIVIQUE);
+        p.setDurationDays(90);
+        p.setPurchaseType(PlanPurchaseType.ONE_TIME);
+
+        assertThat(mapper.toPublicResponse(p).realtimeEoSessions()).isZero();
     }
 
     @Test

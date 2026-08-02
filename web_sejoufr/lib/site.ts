@@ -17,3 +17,28 @@ export const SITE = {
     /** Questions visibles par catégorie pour un user gratuit (doit matcher backend). */
     freeQuestionsPerCategory: 5,
 };
+
+export const STORE_LINKS = {
+    ios: "https://apps.apple.com/fr/app/sejourfr/id6771509569",
+    android: "https://play.google.com/store/apps/details?id=com.sejourfr.app&hl=fr",
+};
+
+/**
+ * Comptes réseaux de SejourFR. Une entrée à `url: null` n'est pas rendue —
+ * on ne publie jamais un lien vers un compte qui n'existe pas. Renseigner
+ * l'URL ici suffit à faire apparaître la ligne sur `/reussir`.
+ */
+export const SOCIAL_ACCOUNTS: {
+    key: "tiktok" | "instagram" | "facebook" | "youtube";
+    label: string;
+    handle: string;
+    url: string | null;
+}[] = [
+    {
+        key: "tiktok",
+        label: "TikTok",
+        handle: "@sejourfrofficiel",
+        url: "https://www.tiktok.com/@sejourfrofficiel",
+    },
+    {key: "instagram", label: "Instagram", handle: "@sejourfr", url: null},
+];

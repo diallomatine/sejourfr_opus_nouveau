@@ -601,39 +601,26 @@ class _PassRow extends StatelessWidget {
     final popular = pass.plan.code == _popularPassCode;
     // Le pass populaire est mis en avant en rouge (CTA/urgence assumé ici).
     final c = popular ? AppColors.red : accent;
-    // On affiche le prix ramené au mois (« 6,66 € /mois ») et on garde le
-    // total réellement débité en sous-texte — pas de gros montant brut.
+    // Un pass se paie une fois : c'est le montant réellement débité qui est en
+    // gros. L'équivalent mensuel passe en sous-texte, pour comparer les durées
+    // entre elles — l'annoncer en principal laisserait croire à un abonnement.
+    // Parité web : /paiement (OneTimePasses) et /tarifs (PassModuleCard).
     final monthly = pass.monthlyEquivalentLabel;
-    final priceWidget = monthly == null
-        ? Text(
-            pass.localizedPrice,
-            style: AppFonts.display(size: 20, weight: FontWeight.w700, color: c),
-          )
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    monthly,
-                    style: AppFonts.display(
-                        size: 20, weight: FontWeight.w700, color: c),
-                  ),
-                  const SizedBox(width: 2),
-                  Text('/mois',
-                      style: AppFonts.mono(size: 10, color: AppColors.muted)),
-                ],
-              ),
-              Text(
-                'soit ${pass.localizedPrice}',
-                style: AppFonts.mono(size: 10.5, color: AppColors.muted),
-              ),
-            ],
-          );
+    final priceWidget = Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          pass.localizedPrice,
+          style: AppFonts.display(size: 20, weight: FontWeight.w700, color: c),
+        ),
+        if (monthly != null)
+          Text(
+            'soit $monthly/mois',
+            style: AppFonts.mono(size: 10.5, color: AppColors.muted),
+          ),
+      ],
+    );
     return Material(
       color: c.withValues(alpha: 0.06),
       borderRadius: BorderRadius.circular(12),

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import {usePathname, useRouter, useSearchParams} from "next/navigation";
-import {Suspense, useEffect, useMemo, useState} from "react";
+import {Suspense, useEffect, useMemo, useRef, useState} from "react";
 import {
     ApiException,
     billingApi,
@@ -133,8 +133,11 @@ function monthlyEquivalent(price: number, cycle: BillingCycle): number | null {
 /**
  * Équivalent mensuel d'un pass one-time, dérivé de sa durée (1 an → /12,
  * 3 mois → /3, 6 semaines → /1,5 en comptant un mois = 4 semaines). Null pour
- * un pass ≤ 1 mois (le prix affiché est déjà mensuel). On met en avant ce
- * « X €/mois » et on garde le total réellement débité en sous-texte.
+ * un pass ≤ 1 mois (le prix affiché est déjà mensuel).
+ *
+ * C'est le **prix réellement débité** qui s'affiche en gros — un pass se paie
+ * une fois, annoncer un « /mois » en principal laisse croire à un abonnement.
+ * L'équivalent mensuel reste en sous-texte, pour la comparaison entre durées.
  */
 function passMonthlyEquivalent(price: number, days: number): number | null {
     const months =
@@ -183,6 +186,14 @@ function PaiementInner() {
     const searchParams = useSearchParams();
     const currentPlan = deriveCurrentPlan(user);
     const focusedModule = moduleFromParam(searchParams.get("module"));
+
+    // Pass choisi en amont (landing /reussir, paywall) : on le met en évidence et
+    // on scrolle dessus — l'utilisateur retrouve exactement ce qu'il a cliqué.
+    const targetPlanCode = searchParams.get("plan");
+
+    // Cible de retour après auth : on conserve module + plan pour retomber sur
+    // le même pass, sinon l'utilisateur doit re-choisir après l'inscription.
+    const currentUrl = `${pathname}${searchParams.toString() ? `?${searchParams}` : ""}`;
 
     const canceledParam = searchParams.get("canceled");
     const [showCanceled, setShowCanceled] = useState<boolean>(
@@ -274,8 +285,11 @@ function PaiementInner() {
         return (
             <main className="pay-gate">
                 <p>Connectez-vous pour obtenir ou gérer votre accès.</p>
-                <Link href="/connexion?next=/paiement" className="pay-gate-cta">
+                <Link href={`/connexion?next=${encodeURIComponent(currentUrl)}`} className="pay-gate-cta">
                     Se connecter →
+                </Link>
+                <Link href={`/inscription?next=${encodeURIComponent(currentUrl)}`} className="pay-gate-alt">
+                    Créer un compte
                 </Link>
                 <style>{gateStyles}</style>
             </main>
@@ -333,6 +347,7 @@ function PaiementInner() {
                     plans={plans}
                     modules={visibleModules}
                     loadingCode={loadingCode}
+                    targetPlanCode={targetPlanCode}
                     onSubscribe={handleSubscribe}
                 />
             ) : (
@@ -412,13 +427,23 @@ function OneTimePasses({
                            plans,
                            modules,
                            loadingCode,
+                           targetPlanCode,
                            onSubscribe,
                        }: {
     plans: PlanPublicResponse[];
     modules: PlanModuleTarget[];
     loadingCode: string | null;
+    targetPlanCode: string | null;
     onSubscribe: (code: string) => void;
 }) {
+    const targetRef = useRef<HTMLButtonElement | null>(null);
+
+    useEffect(() => {
+        const el = targetRef.current;
+        if (!el) return;
+        el.scrollIntoView({block: "center", behavior: "smooth"});
+    }, [targetPlanCode]);
+
     return (
         <section className={`pay-cards ${modules.length === 1 ? "is-single" : ""}`}>
             {modules.map((module) => {
@@ -442,30 +467,25 @@ function OneTimePasses({
                         <div className="otp-passes">
                             {passes.map((p) => {
                                 const popular = p.code === POPULAR_PASS_CODE;
+                                const targeted = p.code === targetPlanCode;
                                 const monthly = passMonthlyEquivalent(p.price, p.durationDays);
                                 return (
                                     <button
                                         key={p.code}
+                                        ref={targeted ? targetRef : undefined}
                                         type="button"
-                                        className={`otp-pass ${popular ? "is-popular" : ""}`}
+                                        className={`otp-pass ${popular ? "is-popular" : ""} ${targeted ? "is-targeted" : ""}`}
                                         disabled={loadingCode !== null}
                                         onClick={() => onSubscribe(p.code)}
                                     >
                                         {popular && <span className="otp-pop">Le plus populaire</span>}
                                         <span className="otp-pass-dur">{durationLabel(p.durationDays)}</span>
                                         <span className="otp-pass-prices">
-                                            {monthly !== null ? (
-                                                <>
-                                                    <span className="otp-pass-permonth">
-                                                        {formatPrice(Number(monthly.toFixed(2)))} €
-                                                        <span className="otp-pass-per">/mois</span>
-                                                    </span>
-                                                    <span className="otp-pass-total">
-                                                        soit {formatPrice(p.price)} €
-                                                    </span>
-                                                </>
-                                            ) : (
-                                                <span className="otp-pass-permonth">{formatPrice(p.price)} €</span>
+                                            <span className="otp-pass-main">{formatPrice(p.price)} €</span>
+                                            {monthly !== null && (
+                                                <span className="otp-pass-sub">
+                                                    soit {formatPrice(Number(monthly.toFixed(2)))} €/mois
+                                                </span>
                                             )}
                                         </span>
                                         <span className="otp-pass-cta">
@@ -502,12 +522,12 @@ const otpStyles = `
 .otp-pass:hover:not(:disabled) { border-color:var(--color-blue); transform:translateY(-1px); }
 .otp-pass:disabled { opacity:.55; cursor:default; }
 .otp-pass.is-popular { border-color:var(--color-red); background:var(--color-red-light); }
+.otp-pass.is-targeted { border-color:var(--color-blue); box-shadow:0 0 0 3px rgba(30,58,140,.16); }
 .otp-pop { position:absolute; top:-9px; left:14px; background:var(--color-red); color:#fff; font-family:var(--font-mono); font-size:9px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:2px 8px; border-radius:100px; }
 .otp-pass-dur { font-weight:700; font-size:15px; color:var(--color-ink); flex:1; min-width:0; }
 .otp-pass-prices { display:flex; flex-direction:column; align-items:flex-end; gap:1px; min-width:0; }
-.otp-pass-permonth { font-family:var(--font-display); font-size:21px; font-weight:700; color:var(--color-ink); line-height:1.05; white-space:nowrap; }
-.otp-pass-per { font-family:var(--font-mono); font-size:10px; font-weight:700; letter-spacing:.06em; color:var(--color-muted); margin-left:2px; }
-.otp-pass-total { font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em; color:var(--color-muted); white-space:nowrap; }
+.otp-pass-main { font-family:var(--font-display); font-size:21px; font-weight:700; color:var(--color-ink); line-height:1.05; white-space:nowrap; }
+.otp-pass-sub { font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em; color:var(--color-muted); white-space:nowrap; }
 .otp-pass-cta { font-family:var(--font-mono); font-size:11px; font-weight:700; color:var(--color-blue); white-space:nowrap; }
 .otp-norenew { display:flex; align-items:center; justify-content:center; gap:6px; margin:14px 0 0; font-size:12px; font-weight:600; color:var(--color-green); line-height:1.4; text-align:center; }
 .otp-norenew svg { width:14px; height:14px; flex:0 0 auto; }
@@ -824,6 +844,14 @@ const gateStyles = `
     cursor: pointer;
   }
   .pay-gate-cta:hover { background: var(--color-blue); color: #fff; }
+  .pay-gate-alt {
+    color: var(--color-muted);
+    font-size: 13.5px;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .pay-gate-alt:hover { color: var(--color-ink); }
 `;
 
 // ============================================================================
