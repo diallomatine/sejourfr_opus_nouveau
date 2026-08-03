@@ -15,12 +15,9 @@ import '../../core/widgets/app_sheet.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'widgets/transcript_dialogue.dart';
 import 'eo_session_controller.dart';
-import 'widgets/avertissements_card.dart';
-import 'widgets/correction_example.dart';
-import 'widgets/criterion_row.dart';
 import 'widgets/donut_chart_score.dart';
 import 'widgets/evaluation_loading_view.dart';
-import 'widgets/feedback_block.dart';
+import 'widgets/evaluation_report.dart';
 import 'widgets/production_app_header.dart';
 import 'widgets/results_eval_banner.dart';
 
@@ -236,31 +233,10 @@ class _Body extends ConsumerWidget {
               DonutChartScore(
                 noteSur20: eval.noteSurVingt?.toDouble(),
               ),
-              AvertissementsCard(
-                avertissements: eval.feedback.avertissements,
+              EvaluationReport(
+                evaluation: eval,
+                correctionsTitle: 'Reformulations pour plus de clarté',
               ),
-              if (eval.feedback.scoresCriteres.isNotEmpty)
-                _CriteresCard(criteres: eval.feedback.scoresCriteres),
-              if (eval.feedback.pointsForts.isNotEmpty)
-                FeedbackBlock(
-                  kind: FeedbackKind.positive,
-                  title: 'Points forts',
-                  items: eval.feedback.pointsForts,
-                ),
-              if (eval.feedback.pointsAAmeliorer.isNotEmpty)
-                FeedbackBlock(
-                  kind: FeedbackKind.improve,
-                  title: 'A ameliorer',
-                  items: eval.feedback.pointsAAmeliorer,
-                ),
-              if (eval.feedback.exemplesCorriges.isNotEmpty)
-                _CorrectionsCard(examples: eval.feedback.exemplesCorriges),
-              if (eval.feedback.suggestions.isNotEmpty)
-                FeedbackBlock(
-                  kind: FeedbackKind.suggest,
-                  title: 'Suggestion globale',
-                  items: eval.feedback.suggestions,
-                ),
               if (submission.transcription != null &&
                   submission.transcription!.isNotEmpty) ...[
                 const SizedBox(height: 4),
@@ -333,83 +309,6 @@ class _Body extends ConsumerWidget {
         SnackBar(content: Text(ApiClient.toApiException(e).message)),
       );
     }
-  }
-}
-
-class _CriteresCard extends StatelessWidget {
-  const _CriteresCard({required this.criteres});
-
-  final List<CriterionScore> criteres;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Detail par criteres',
-            style: AppFonts.ui(
-              size: 15,
-              weight: FontWeight.w700,
-              color: AppColors.ink,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...criteres.map((c) => CriterionRow(criterion: c)),
-        ],
-      ),
-    );
-  }
-}
-
-class _CorrectionsCard extends StatelessWidget {
-  const _CorrectionsCard({required this.examples});
-
-  final List<CorrectionExample> examples;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(LucideIcons.lightbulb,
-                  size: 18, color: AppColors.amber),
-              const SizedBox(width: 8),
-              Text(
-                'Reformulations pour plus de clarté',
-                style: AppFonts.ui(
-                  size: 15,
-                  weight: FontWeight.w700,
-                  color: AppColors.ink,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...examples.map((e) => CorrectionExampleCard(example: e)),
-        ],
-      ),
-    );
   }
 }
 

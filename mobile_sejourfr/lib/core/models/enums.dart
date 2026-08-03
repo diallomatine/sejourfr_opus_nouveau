@@ -205,6 +205,73 @@ enum NiveauCecrl {
       };
 }
 
+/// Degré de certitude d'une évaluation IA (contrat de notation v4). Un niveau
+/// par tâche n'est JAMAIS affiché sans sa confiance à côté.
+enum ConfianceEvaluation {
+  haute('HAUTE'),
+  moyenne('MOYENNE'),
+  faible('FAIBLE');
+
+  const ConfianceEvaluation(this.wire);
+  final String wire;
+
+  static ConfianceEvaluation? fromWireNullable(String? value) {
+    if (value == null) return null;
+    final normalized = value.trim().toUpperCase();
+    for (final c in ConfianceEvaluation.values) {
+      if (c.wire == normalized) return c;
+    }
+    return null;
+  }
+
+  String get displayName => switch (this) {
+        ConfianceEvaluation.haute => 'confiance haute',
+        ConfianceEvaluation.moyenne => 'confiance moyenne',
+        ConfianceEvaluation.faible => 'confiance faible',
+      };
+}
+
+/// Bande qualitative d'un critère, calculée côté serveur depuis sa note /20.
+/// Les fronts affichent la bande, plus le nombre : une IA ne distingue pas
+/// honnêtement un 13 d'un 14. La note globale /20 reste, elle, affichée.
+/// Absente des évaluations antérieures au contrat v4.
+enum BandeCritere {
+  tresBonneMaitrise('TRES_BONNE_MAITRISE'),
+  satisfaisant('SATISFAISANT'),
+  enCoursAcquisition('EN_COURS_ACQUISITION'),
+  fragile('FRAGILE'),
+  nonEvaluable('NON_EVALUABLE');
+
+  const BandeCritere(this.wire);
+  final String wire;
+
+  static BandeCritere? fromWireNullable(String? value) {
+    if (value == null) return null;
+    final normalized = value.trim().toUpperCase();
+    for (final b in BandeCritere.values) {
+      if (b.wire == normalized) return b;
+    }
+    return null;
+  }
+
+  String get displayName => switch (this) {
+        BandeCritere.tresBonneMaitrise => 'Très bonne maîtrise',
+        BandeCritere.satisfaisant => 'Satisfaisant',
+        BandeCritere.enCoursAcquisition => "En cours d'acquisition",
+        BandeCritere.fragile => 'Fragile',
+        BandeCritere.nonEvaluable => 'Non évaluable',
+      };
+
+  /// Remplissage 0..1 de la barre du critère (5 crans, pas une note).
+  double get fillRatio => switch (this) {
+        BandeCritere.tresBonneMaitrise => 1.0,
+        BandeCritere.satisfaisant => 0.75,
+        BandeCritere.enCoursAcquisition => 0.5,
+        BandeCritere.fragile => 0.25,
+        BandeCritere.nonEvaluable => 0.0,
+      };
+}
+
 /// Cycle de vie d'une `production_submissions` côté backend.
 enum SubmissionStatut {
   submitted('SUBMITTED'),

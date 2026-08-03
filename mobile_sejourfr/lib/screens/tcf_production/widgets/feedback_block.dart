@@ -13,11 +13,16 @@ class FeedbackBlock extends StatelessWidget {
     required this.kind,
     required this.title,
     required this.items,
+    this.subtitle,
   });
 
   final FeedbackKind kind;
   final String title;
   final List<String> items;
+
+  /// Ligne d'intention sous le titre (ex: cadrer les priorites plutot que de
+  /// les lire comme une liste de reproches).
+  final String? subtitle;
 
   ({Color bg, Color accent, IconData icon}) get _palette {
     switch (kind) {
@@ -71,6 +76,17 @@ class FeedbackBlock extends StatelessWidget {
               ),
             ],
           ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle!,
+              style: AppFonts.ui(
+                size: 12,
+                color: AppColors.muted,
+                height: 1.4,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           ...items.map(
             (e) => Padding(

@@ -151,19 +151,45 @@ class ProductionSubmissionDto {
 
 /// Vue front d'une AiEvaluation. Le bloc `feedback` est passe en l'etat depuis
 /// le JSONB persiste cote backend.
+///
+/// Contrat v4 : `niveauObserve` / `confiance` / `avertissementNiveau` ont ete
+/// AJOUTES entre `noteSurVingt` et `feedback` cote Java. Le parsing se fait
+/// uniquement par cle JSON — l'ordre du record n'a donc aucun effet ici. Les
+/// evaluations deja en base (v3) laissent les trois champs a null : c'est un
+/// cas normal, l'ecran retombe sur l'affichage precedent.
 class EvaluationResult {
   EvaluationResult({
     required this.feedback,
     this.noteSurVingt,
+    this.niveauObserve,
+    this.confiance,
+    this.avertissementNiveau,
   });
 
   /// Note 0..20, peut etre nulle si l'IA n'a pas pu noter (ex: production vide).
   final double? noteSurVingt;
 
+  /// Niveau observe SUR CETTE TACHE. Le niveau qui fait foi reste celui du
+  /// bilan d'epreuve (`ProductionBilan.niveauGlobal`).
+  final NiveauCecrl? niveauObserve;
+
+  /// Certitude de l'evaluation. Null pour une eval anterieure au contrat v4.
+  final ConfianceEvaluation? confiance;
+
+  /// Rappel pret a afficher sous le niveau observe (texte fourni par le
+  /// backend). Null quand il n'y a pas de niveau.
+  final String? avertissementNiveau;
+
   final EvaluationFeedback feedback;
+
+  /// Garde-fou produit : jamais de niveau sans sa confiance a cote.
+  bool get hasNiveauObserve => niveauObserve != null && confiance != null;
 
   factory EvaluationResult.fromJson(Map<String, dynamic> json) => EvaluationResult(
         noteSurVingt: (json['noteSurVingt'] as num?)?.toDouble(),
+        niveauObserve: NiveauCecrl.fromWireNullable(json['niveauObserve'] as String?),
+        confiance: ConfianceEvaluation.fromWireNullable(json['confiance'] as String?),
+        avertissementNiveau: json['avertissementNiveau'] as String?,
         feedback: EvaluationFeedback.fromJson(
           (json['feedback'] as Map<String, dynamic>?) ?? const {},
         ),
@@ -174,6 +200,9 @@ class EvaluationResult {
 class EvaluationFeedback {
   EvaluationFeedback({
     this.noteGlobale,
+    this.confiance,
+    this.confianceRaisons = const [],
+    this.accomplissement,
     this.scoresCriteres = const [],
     this.pointsForts = const [],
     this.pointsAAmeliorer = const [],
@@ -183,16 +212,39 @@ class EvaluationFeedback {
   });
 
   final double? noteGlobale;
+
+  /// Confiance telle que declaree dans le feedback brut. `EvaluationResult`
+  /// porte la valeur qui fait foi (plafonnee cote serveur) ; celle-ci sert de
+  /// repli et accompagne `confianceRaisons`.
+  final ConfianceEvaluation? confiance;
+
+  /// 1 a 3 raisons courtes expliquant le degre de confiance.
+  final List<String> confianceRaisons;
+
+  /// Ce que le candidat a traite / oublie par rapport a la consigne. Null pour
+  /// les evaluations anterieures au contrat v4.
+  final Accomplissement? accomplissement;
+
   final List<CriterionScore> scoresCriteres;
   final List<String> pointsForts;
+
+  /// Limite a 2 cote backend : ce sont des priorites, pas une liste de reproches.
   final List<String> pointsAAmeliorer;
   final List<String> suggestions;
   final List<CorrectionExample> exemplesCorriges;
   final List<String> avertissements;
 
   factory EvaluationFeedback.fromJson(Map<String, dynamic> json) {
+    final accomplissement = json['accomplissement'];
     return EvaluationFeedback(
       noteGlobale: (json['note_globale'] as num?)?.toDouble(),
+      confiance: ConfianceEvaluation.fromWireNullable(json['confiance'] as String?),
+      confianceRaisons: ((json['confiance_raisons'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .toList(),
+      accomplissement: accomplissement is Map<String, dynamic>
+          ? Accomplissement.fromJson(accomplissement)
+          : null,
       scoresCriteres: ((json['scores_criteres'] as List?) ?? const [])
           .map((e) => CriterionScore.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -207,12 +259,63 @@ class EvaluationFeedback {
   }
 }
 
+/// Check-list « accomplissement » : ce que le candidat a traite ou non par
+/// rapport a la consigne. Affichee AVANT le detail de langue.
+class Accomplissement {
+  Accomplissement({
+    this.pointsTraites = const [],
+    this.pointsOublies = const [],
+  });
+
+  final List<AccomplissementPoint> pointsTraites;
+  final List<AccomplissementPoint> pointsOublies;
+
+  bool get isEmpty => pointsTraites.isEmpty && pointsOublies.isEmpty;
+
+  /// Manques reels : seuls les points obligatoires non traites pesent sur la
+  /// note. Les pistes non abordees sont informatives.
+  List<AccomplissementPoint> get manques =>
+      pointsOublies.where((p) => p.obligatoire).toList();
+
+  List<AccomplissementPoint> get pistesNonAbordees =>
+      pointsOublies.where((p) => !p.obligatoire).toList();
+
+  static List<AccomplissementPoint> _points(Object? raw) =>
+      ((raw as List?) ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(AccomplissementPoint.fromJson)
+          .where((p) => p.libelle.isNotEmpty)
+          .toList();
+
+  factory Accomplissement.fromJson(Map<String, dynamic> json) => Accomplissement(
+        pointsTraites: _points(json['points_traites']),
+        pointsOublies: _points(json['points_oublies']),
+      );
+}
+
+/// Un point de la consigne. `obligatoire == false` = simple piste suggeree par
+/// le sujet : ne pas la traiter n'est PAS une faute et n'influence pas la note.
+class AccomplissementPoint {
+  AccomplissementPoint({required this.libelle, required this.obligatoire});
+
+  final String libelle;
+  final bool obligatoire;
+
+  factory AccomplissementPoint.fromJson(Map<String, dynamic> json) =>
+      AccomplissementPoint(
+        libelle: (json['libelle'] as String? ?? '').trim(),
+        obligatoire: json['obligatoire'] as bool? ?? false,
+      );
+}
+
 class CriterionScore {
   CriterionScore({
     required this.code,
     this.label,
     required this.noteSurVingt,
     required this.commentaire,
+    this.bande,
+    this.preuve,
   });
 
   final String code;
@@ -221,17 +324,30 @@ class CriterionScore {
   /// Null pour les anciennes evaluations : le widget retombe sur une table
   /// locale dans `CriterionRow._labelForCode`.
   final String? label;
+
+  /// Note interne /20 : sert au calcul cote backend, plus a l'affichage des
+  /// que `bande` est renseignee (contrat v4).
   final double noteSurVingt;
   final String commentaire;
+
+  /// Bande qualitative calculee cote serveur. Null sur les evaluations v3 —
+  /// le widget retombe alors sur l'affichage chiffre historique.
+  final BandeCritere? bande;
+
+  /// Citation litterale et courte de la production, justifiant le critere.
+  final String? preuve;
 
   factory CriterionScore.fromJson(Map<String, dynamic> json) {
     final raw = json['label'] as String?;
     final cleaned = raw == null || raw.trim().isEmpty ? null : raw.trim();
+    final preuve = (json['preuve'] as String?)?.trim();
     return CriterionScore(
       code: json['code'] as String,
       label: cleaned,
-      noteSurVingt: (json['note_sur_20'] as num).toDouble(),
+      noteSurVingt: (json['note_sur_20'] as num?)?.toDouble() ?? 0,
       commentaire: json['commentaire'] as String? ?? '',
+      bande: BandeCritere.fromWireNullable(json['bande'] as String?),
+      preuve: preuve == null || preuve.isEmpty ? null : preuve,
     );
   }
 }

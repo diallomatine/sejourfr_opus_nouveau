@@ -120,7 +120,9 @@ lib/
     │   │                                automatique sur les évals IA quand `?live=1`
     │   └── widgets/                     production_app_header, donut_chart_score,
     │                                    consigne_card, writing_zone, criterion_row,
-    │                                    feedback_block, transcription_section, etc.
+    │                                    feedback_block, transcription_section,
+    │                                    evaluation_report (corps partagé EE/EO),
+    │                                    accomplishment_card, niveau_observe_card, etc.
     ├── review/                    Favoris + erreurs récentes (tabs)
     └── profile/                   Compte + paramètres + logout + suppression de compte
 ```
@@ -670,6 +672,31 @@ entre T1/T2/T3** ; après T3 → bilan détaillé (`HistorySessionScreen` `?live
 - `/tcf/expression-orale/resultats/:id?taskIndex=N&history=1` → résultats détaillés d'une
   submission (correction IA complète) — push en single-task après soumission, ou depuis le
   bilan en tap d'une ligne.
+
+**Correction IA affichée (contrat de notation v4)** — le corps des deux écrans de résultats
+(EE + EO) est le widget partagé `widgets/evaluation_report.dart` : un seul endroit décide de
+l'ordre et de la forme de la correction. Ordre imposé : **niveau observé** sur la tâche
+(`niveau_observe_card.dart`) → **avertissements** (dont la limite « évaluation fondée sur la
+transcription » à l'oral, jamais enterrée en bas d'écran) → **accomplissement**
+(`accomplishment_card.dart`, check-list de la consigne, **avant** la langue) → détail par
+critère → points forts → **priorités** (`points_a_ameliorer`, 2 max côté backend) →
+corrections → suggestion.
+
+- **Par critère on affiche la bande, pas la note** : `CriterionScore.bande` (`BandeCritere`,
+  calculée côté serveur) → « Très bonne maîtrise / Satisfaisant / En cours d'acquisition /
+  Fragile / Non évaluable », plus la `preuve` (citation littérale) sous le commentaire. La
+  **note globale /20 reste affichée** (donut). La table icône↔code de `criterion_row.dart`
+  couvre les 10 codes v4 (`realisation_consigne`, `adequation_destinataire`,
+  `chronologie_recit`, `developpement_reponses`, `prise_position`, `argumentation`,
+  `conduite_echange`, `lexique`, `morphosyntaxe`, `coherence`) **et** les codes v3 encore en
+  base — un test verrouille qu'aucun ne retombe sur l'icône par défaut.
+- **Garde-fou non négociable** : jamais de niveau sans sa confiance
+  (`EvaluationResult.hasNiveauObserve`). Le **bilan d'épreuve** reste le seul niveau qui fait
+  foi.
+- **Rétrocompatibilité v3** : `niveauObserve` / `confiance` / `avertissementNiveau` / `bande` /
+  `accomplissement` / `preuve` absents = cas **normal** (évaluations déjà en base) → les blocs
+  concernés disparaissent et l'écran redevient celui d'avant. Couvert par
+  `test/production_models_test.dart` + `test/evaluation_report_test.dart`.
 
 **Modélisation (sémantique clé)** : `production_tasks` = les **SUJETS** d'entraînement —
 plusieurs lignes par (épreuve, tacheNumero), chacune un sujet concret (ex. « Vous êtes
