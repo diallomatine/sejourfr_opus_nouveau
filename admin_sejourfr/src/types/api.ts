@@ -679,10 +679,7 @@ export interface CancelSubscriptionResponse {
 
 // ============ ÉVALUATION IA EO/EE (notation v4) ============
 //
-// Miroir de EvaluationResultDto (backend). Aucune feature admin ne consomme
-// encore ces types (pas de vue de détail submission/évaluation côté admin au
-// 2026-08 — cf. AdminCalibrationController côté backend, hors périmètre ici) ;
-// posés en avance pour la prochaine passe qui branchera l'écran de calibration.
+// Miroir de EvaluationResultDto (backend), consommé par `features/calibration/`.
 
 export type NiveauCecrl = "A1_NON_ATTEINT" | "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 
@@ -696,14 +693,27 @@ export type BandeCritere =
   | "FRAGILE"
   | "NON_EVALUABLE";
 
-/** Codes de critères v4. `pertinence` n'existe plus en v4 mais reste présent
- * sur les évaluations antérieures en base. */
+/**
+ * Les 10 codes de critères v4 (source : `prompts/production-rubrics-v4.json`),
+ * plus `pertinence` qui n'existe plus en v4 mais reste porté par les
+ * évaluations antérieures en base.
+ *
+ * Répartition par tâche : EE_T1 realisation_consigne · adequation_destinataire ·
+ * lexique · morphosyntaxe · coherence — EE_T2 realisation_consigne ·
+ * chronologie_recit · coherence · lexique · morphosyntaxe — EE_T3
+ * prise_position · argumentation · coherence · lexique · morphosyntaxe —
+ * EO_T1 realisation_consigne · developpement_reponses · lexique ·
+ * morphosyntaxe · coherence — EO_T2 conduite_echange · adequation_destinataire ·
+ * lexique · morphosyntaxe · coherence — EO_T3 prise_position · argumentation ·
+ * coherence · lexique · morphosyntaxe.
+ */
 export type CritereCode =
   | "realisation_consigne"
   | "adequation_destinataire"
   | "chronologie_recit"
   | "prise_position"
   | "argumentation"
+  | "developpement_reponses"
   | "conduite_echange"
   | "lexique"
   | "morphosyntaxe"
@@ -758,7 +768,101 @@ export interface EvaluationResultDto {
   niveauObserve: NiveauCecrl | null;
   confiance: ConfianceEvaluation | null;
   avertissementNiveau: string | null;
-  feedback: EvaluationFeedback;
+  /** Le JSONB persisté peut être absent en base : null est un cas normal. */
+  feedback: EvaluationFeedback | null;
+}
+
+// ============ PRODUCTIONS EO/EE (submissions + sujets) ============
+
+export type EpreuveType =
+  | "CIVIQUE"
+  | "TCF_CO"
+  | "TCF_CE"
+  | "TCF_STRUCTURE"
+  | "TCF_EO"
+  | "TCF_EE"
+  | "TCF_COMPLET";
+
+export type SubmissionStatut =
+  | "SUBMITTED"
+  | "TRANSCRIBING"
+  | "EVALUATING"
+  | "EVALUATED"
+  | "FAILED";
+
+/** Miroir de ProductionTaskDto — catalogue des sujets EO/EE (`GET /api/production-tasks`). */
+export interface ProductionTaskDto {
+  id: string;
+  epreuve: EpreuveType;
+  tacheNumero: number;
+  niveauCible: string | null;
+  consigne: string;
+  contexte: string | null;
+  dureeMaxSec: number | null;
+  dureeMinSec: number | null;
+  motsMin: number | null;
+  motsMax: number | null;
+}
+
+/**
+ * Miroir de ProductionSubmissionDto. `evaluation` est null tant que le pipeline
+ * IA n'a pas abouti ; `transcription` n'est renseignée que pour l'oral. Le DTO
+ * ne porte PAS l'épreuve : elle se retrouve via `productionTaskId` dans le
+ * catalogue des sujets.
+ */
+export interface ProductionSubmissionDto {
+  id: string;
+  attemptId: string | null;
+  productionTaskId: string | null;
+  tacheNumero: number | null;
+  statut: SubmissionStatut;
+  mediaUrl: string | null;
+  texteSoumis: string | null;
+  motsCount: number | null;
+  mediaDurationSec: number | null;
+  retryCount: number;
+  erreurMessage: string | null;
+  submittedAt: string;
+  evaluation: EvaluationResultDto | null;
+  transcription: string | null;
+}
+
+// ============ CALIBRATION DE LA NOTATION IA ============
+
+/** Payload et réponse de POST /api/admin/calibration/submissions/{id}/human-note. */
+export interface HumanCalibrationNoteDto {
+  submissionId: string;
+  noteHumaineSurVingt: number;
+  niveauCecrlHumain: NiveauCecrl;
+  commentaires: string | null;
+}
+
+/**
+ * Santé de la notation (`GET /api/admin/calibration/stats`).
+ *
+ * Convention de signe du backend : `ecart = note humaine − note IA`.
+ * `ecartMoyen` est donc un BIAIS signé — négatif = l'IA note au-dessus du
+ * correcteur (trop indulgente), positif = trop sévère. `ecartMoyenAbsolu` est
+ * une DISPERSION : la taille moyenne de l'erreur, quel que soit son sens.
+ */
+export interface CalibrationStatsDto {
+  totalNotes: number;
+  ecartMoyen: number;
+  ecartMoyenAbsolu: number;
+  ecartTypeAbsolu: number;
+  ecartsHorsCible: number;
+  /** Ratio sur 100. */
+  pourcentageHorsCible: number;
+  seuilHorsCible: number;
+  calibre: boolean;
+}
+
+/** Écart entre le niveau brut du LLM et le niveau recalculé serveur. */
+export interface NiveauCalibrationStatsDto {
+  totalAvecNiveau: number;
+  divergents: number;
+  /** Ratio sur 100. */
+  pourcentageDivergents: number;
 }
 
 // ============ AUDIENCE DES LANDINGS (page_views) ============

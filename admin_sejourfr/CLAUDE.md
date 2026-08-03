@@ -50,6 +50,9 @@ src/
 │   │                        (userId/authorId null → coordonnées dans
 │   │                        userEmail/userFullName). « Répondre » envoie un
 │   │                        email au contact (MailService, Reply-To support).
+│   ├── calibration/         Calibration de la notation IA EO/EE : bandeau de
+│   │                        santé (biais vs dispersion), liste des productions
+│   │                        évaluées, fiche de détail + annotation humaine
 │   ├── audioQuestions/      Génération assistée TCF CO : form + preview + audit
 │   │                        (modes WRITTEN_QUESTION / FULL_AUDIO — cf CLAUDE.md racine)
 │   └── exampleAudio/        Génération batch + validation des audios des exemples
@@ -87,6 +90,35 @@ Endpoints utilisés actuellement :
   Stripe → DONE ; Apple/Google → REDIRECT (l'admin copie l'URL pour la transmettre).
 - `PATCH /api/admin/subscriptions/{id}/realtime-sessions` `{ remaining }` — pose le
   solde de sessions EO temps réel du pass (support : offrir/corriger des sessions).
+- `GET /api/admin/calibration/submissions?status=evaluated&hasHumanNote=…&limit=…`,
+  `POST /api/admin/calibration/submissions/{id}/human-note`,
+  `GET /api/admin/calibration/stats`, `GET /api/admin/calibration/stats/niveau`
+  (feature `calibration/`)
+- `GET /api/production-tasks?epreuve=TCF_EE|TCF_EO` — catalogue des sujets, utilisé
+  pour retrouver l'épreuve et la consigne d'une soumission (le DTO submission ne
+  porte que `productionTaskId`). Route authentifiée, pas `/api/admin/**`.
+
+### Calibration de la notation IA (`features/calibration/`)
+
+Écran qui répond à « est-ce que l'IA note juste ? ». Un correcteur annote de
+vraies productions, le bandeau mesure l'écart avec l'IA.
+
+- **Convention de signe du backend** : `écart = note humaine − note IA`. Donc
+  `ecartMoyen` **négatif** = l'IA note au-dessus du correcteur = **trop
+  indulgente**. Contre-intuitif : l'écran l'écrit toujours en toutes lettres,
+  jamais en brut. `ecartMoyen` = biais (dans quel sens), `ecartMoyenAbsolu` =
+  dispersion (de combien) — deux cartes distinctes, avec la formule affichée.
+- **Limites de l'API (à ne pas prendre pour des bugs de l'écran)** :
+  `hasHumanNote=true` ne filtre pas et renvoie **toutes** les évaluées ; l'écran
+  déduit les annotées par différence avec la liste `false` (même tri, même
+  limite). Aucun endpoint ne relit une note humaine existante : le formulaire
+  repart vide sur une production déjà annotée, et un nouvel enregistrement
+  **ajoute** une observation (pas de contrainte d'unicité en base) au lieu de
+  remplacer.
+- **Rétrocompatibilité v3** : `niveauObserve` / `confiance` / `avertissementNiveau`
+  à null, pas de `bande`, `preuve` ni `accomplissement`, code de critère
+  `pertinence` disparu en v4. Chaque bloc se masque si absent — l'absence est un
+  cas normal. `isLegacyEvaluation()` pose un badge « format v3 ».
 
 **Authentification** : JWT Bearer dans l'en-tête `Authorization`. Le refresh est automatique côté `http.ts` quand une requête prend un 401 — pas besoin de le gérer dans les composants.
 
