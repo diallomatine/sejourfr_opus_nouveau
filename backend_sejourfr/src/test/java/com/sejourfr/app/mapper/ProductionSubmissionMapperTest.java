@@ -6,6 +6,8 @@ import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.Transcription;
+import com.sejourfr.app.enums.ConfianceEvaluation;
+import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.TranscriptionManager;
@@ -117,6 +119,62 @@ class ProductionSubmissionMapperTest {
                 .doesNotContainKeys("niveau_cecrl", "justification_niveau");
         // La sanitisation ne doit pas muter la map d'origine de l'entité.
         assertThat(feedback).containsKey("niveau_cecrl");
+    }
+
+    @Test
+    void toDto_evalV2_exposeLeNiveauObserveAvecSaConfiance() {
+        UUID id = UUID.randomUUID();
+        ProductionSubmission s = submission(id);
+        s.setAttempt(null);
+        s.setProductionTask(null);
+
+        Map<String, Object> feedback = new LinkedHashMap<>();
+        feedback.put("niveau_cecrl", "B1");
+        feedback.put("confiance", "MOYENNE");
+
+        AiEvaluation eval = new AiEvaluation();
+        eval.setNoteSur20(new BigDecimal("13.0"));
+        eval.setNiveauCecrl(NiveauCecrl.B1);
+        eval.setFeedbackJson(feedback);
+
+        when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.of(eval));
+        when(transcriptionManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
+
+        ProductionSubmissionDto dto = mapper.toDto(s);
+
+        assertThat(dto.evaluation().niveauObserve()).isEqualTo(NiveauCecrl.B1);
+        assertThat(dto.evaluation().confiance()).isEqualTo(ConfianceEvaluation.MOYENNE);
+        assertThat(dto.evaluation().avertissementNiveau())
+                .isEqualTo(ProductionSubmissionMapper.AVERTISSEMENT_NIVEAU);
+        // Le niveau brut reste hors du feedback : une seule porte d'affichage.
+        assertThat(dto.evaluation().feedback()).doesNotContainKey("niveau_cecrl");
+    }
+
+    @Test
+    void toDto_evalLegacySansConfiance_nExposePasDeNiveau() {
+        UUID id = UUID.randomUUID();
+        ProductionSubmission s = submission(id);
+        s.setAttempt(null);
+        s.setProductionTask(null);
+
+        // Feedback au format v3 : niveau persisté, mais aucune confiance.
+        Map<String, Object> feedback = new LinkedHashMap<>();
+        feedback.put("note_globale", 13);
+
+        AiEvaluation eval = new AiEvaluation();
+        eval.setNoteSur20(new BigDecimal("13.0"));
+        eval.setNiveauCecrl(NiveauCecrl.B1);
+        eval.setFeedbackJson(feedback);
+
+        when(aiEvaluationManager.findLatestBySubmissionId(id)).thenReturn(Optional.of(eval));
+        when(transcriptionManager.findLatestBySubmissionId(id)).thenReturn(Optional.empty());
+
+        ProductionSubmissionDto dto = mapper.toDto(s);
+
+        assertThat(dto.evaluation().niveauObserve()).isNull();
+        assertThat(dto.evaluation().confiance()).isNull();
+        assertThat(dto.evaluation().avertissementNiveau()).isNull();
+        assertThat(dto.evaluation().noteSurVingt()).isEqualByComparingTo("13.0");
     }
 
     @Test

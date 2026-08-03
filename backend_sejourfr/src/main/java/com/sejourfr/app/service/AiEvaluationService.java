@@ -5,8 +5,11 @@ import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.Transcription;
+import com.sejourfr.app.enums.BandeCritere;
+import com.sejourfr.app.enums.ConfianceEvaluation;
 import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.NiveauCecrl;
+import com.sejourfr.app.enums.ProductionSubmissionSource;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.exception.AiEvaluationException;
 import com.sejourfr.app.exception.NotFoundException;
@@ -43,12 +46,29 @@ public class AiEvaluationService {
      * Au-dela de cet ecart |note_LLM − note_calculee|, on log pour calibration.
      */
     private static final BigDecimal SEUIL_ECART_CALIBRATION = new BigDecimal("3");
+
+    /**
+     * Limite ASSUMEE de la correction orale : on ne dispose que du texte
+     * transcrit (en temps reel, l'audio ne transite meme pas par nos serveurs).
+     * Ce n'est pas un choix pedagogique — on le dit au candidat, mot pour mot.
+     */
+    static final String AVERTISSEMENT_TRANSCRIPTION =
+        "Cette évaluation est fondée sur la transcription écrite de votre production : "
+            + "nous n'analysons pas votre voix. L'aisance, la fluidité, le débit et la "
+            + "prononciation ne sont donc pas évalués ici — c'est une limite technique de "
+            + "notre correction, pas un choix pédagogique. À l'examen officiel, ces "
+            + "dimensions comptent.";
+
+    /** Trace du modele quand aucun LLM n'a ete appele (production jugee inevaluable). */
+    static final String MODELE_VALIDATION_SERVEUR = "validation-serveur";
+
     private final ProductionSubmissionManager submissionManager;
     private final TranscriptionManager transcriptionManager;
     private final AiEvaluationManager aiEvaluationManager;
     private final EvaluationLlmClient llmClient;
     private final EvaluationPromptBuilder promptBuilder;
     private final ProductionRubricsProvider rubrics;
+    private final ProductionValidityService validityService;
     private final ProductionEvaluationProperties props;
 
     private static BigDecimal extractNote(Map<String, Object> feedback) {
@@ -143,19 +163,39 @@ public class AiEvaluationService {
         }
 
         ProductionInput input = loadInput(sub, task);
+
+        // Controles DETERMINISTES avant tout appel LLM (langue, recopiage de la
+        // consigne, production vide). Un verdict INVALIDE court-circuite l'IA :
+        // pas de note absurde, pas d'appel paye.
+        ProductionValidityService.Verdict verdict = validityService.evaluer(task, input.production());
+        if (verdict.invalide()) {
+            return persistProductionInvalide(sub, task, verdict);
+        }
+
         Integer dureeSec = task.getEpreuve() == EpreuveType.TCF_EO ? sub.getMediaDurationSec() : null;
         String systemPrompt = promptBuilder.buildSystemPrompt();
         String userPrompt = promptBuilder.buildUserPrompt(task, input.production(), input.litteral(), dureeSec);
 
         EvaluationLlmClient.Outcome outcome = llmClient.evaluate(systemPrompt, userPrompt);
 
-        // Avertissements construits cote serveur (longueur/duree), injectes dans
-        // le feedback expose au front. L'IA ne les produit pas elle-meme.
+        // Avertissements construits cote serveur (limite orale, longueur/duree,
+        // controles de validite), injectes dans le feedback expose au front.
+        // L'IA ne les produit pas elle-meme.
         Map<String, Object> feedback = new LinkedHashMap<>(outcome.feedback());
         List<String> avertissements = buildAvertissements(sub, task);
+        avertissements.addAll(verdict.raisons());
         if (!avertissements.isEmpty()) {
             feedback.put("avertissements", avertissements);
         }
+        // Confiance (schema v2) : lue, normalisee, puis PLAFONNEE serveur.
+        applyConfiance(feedback, sub, verdict, submissionId);
+        // Accomplissement (schema v2) : conserve tel quel, structure normalisee.
+        // Aucun point `obligatoire: false` (une simple piste du sujet) n'entre
+        // dans un quelconque calcul de note — c'est une regle produit.
+        normalizeAccomplissement(feedback);
+        // Preuves : une citation absente de la production a ete inventee par
+        // l'IA -> on la retire plutot que de la montrer au candidat.
+        stripPreuvesInventees(feedback, input.production(), submissionId);
         // EO : `exemples_corriges` ne doit garder que des reformulations de
         // clarte (niveau phrase). On retire les corrections purement
         // orthographiques (accents/casse/ponctuation) et les corrections de mot
@@ -169,17 +209,26 @@ public class AiEvaluationService {
         // `code`). Source = la rubrique de la tache (fallback DB) : evite au mobile
         // de maintenir une table parallele code→libelle qui derive.
         enrichScoresWithLabels(feedback, task);
+        // Bande qualitative par critere, derivee de note_sur_20 : ce sont les
+        // fronts qui l'AFFICHENT a la place du nombre (une IA ne distingue pas
+        // honnetement un 13 d'un 14). note_sur_20 reste dans le JSON.
+        applyBandesCriteres(feedback);
         // note_globale calculee SERVEUR a partir des scores par critere ponderes
         // par la rubrique : on ecrase la valeur du LLM (advisory). Garantit la
         // coherence global <-> criteres. Si la rubrique est absente, on conserve
         // la note du LLM (extractNote la relira).
         applyServerComputedNote(feedback, task, submissionId);
         BigDecimal noteSur20 = extractNote(feedback);
-        // niveau_cecrl du LLM = advisory (conserve en base, jamais affiche). Le
-        // niveau AFFICHE est calcule serveur depuis lexique+morphosyntaxe, comme
-        // note_globale. On lit le brut AVANT d'ecraser feedback.niveau_cecrl.
+        // niveau_cecrl du LLM = advisory (conserve en base pour la calibration,
+        // jamais expose). Le niveau OBSERVE expose par tache est celui calcule
+        // serveur depuis lexique+morphosyntaxe+coherence, comme note_globale —
+        // toujours accompagne de sa confiance. On lit le brut AVANT d'ecraser
+        // feedback.niveau_cecrl.
         NiveauCecrl niveauIa = extractNiveau(feedback);
         NiveauCecrl niveauCalcule = applyServerComputedNiveau(feedback, noteSur20, niveauIa, submissionId);
+        // Plafonds cibles, APRES le calcul du niveau (jamais avant : ils
+        // coupent un niveau, ils ne le fabriquent pas).
+        niveauCalcule = applyPlafonds(feedback, task, niveauCalcule, submissionId);
 
         AiEvaluation eval = new AiEvaluation();
         eval.setSubmission(sub);
@@ -201,6 +250,278 @@ public class AiEvaluationService {
         log.info("AiEvaluation persistee submission={} note={} niveau={} (LLM={}) model={}",
                 submissionId, noteSur20, niveauCalcule, niveauIa, llmClient.getModelName());
         return eval;
+    }
+
+    /**
+     * Production jugee ineexploitable par les controles deterministes : aucun
+     * appel LLM. On persiste quand meme une {@link AiEvaluation} (note 0,
+     * {@code A1_NON_ATTEINT}, confiance {@code FAIBLE}) expliquant au candidat
+     * pourquoi, et la submission passe a {@code EVALUATED} : l'utilisateur voit
+     * un resultat, pas une erreur technique.
+     */
+    private AiEvaluation persistProductionInvalide(ProductionSubmission sub, ProductionTask task,
+                                                   ProductionValidityService.Verdict verdict) {
+        List<String> raisons = verdict.raisons();
+        Map<String, Object> feedback = new LinkedHashMap<>();
+        feedback.put("note_globale", BigDecimal.ZERO);
+        feedback.put("niveau_cecrl", NiveauCecrl.A1_NON_ATTEINT.name());
+        feedback.put("confiance", ConfianceEvaluation.FAIBLE.name());
+        feedback.put("confiance_raisons", List.copyOf(raisons));
+        feedback.put("accomplissement", Map.of(
+            "points_traites", List.of(),
+            "points_oublies", List.of()));
+        feedback.put("scores_criteres", scoresNonEvaluables(task));
+        feedback.put("points_forts", List.of());
+        feedback.put("points_a_ameliorer", raisons.stream().limit(2).toList());
+        feedback.put("suggestions", List.of());
+        feedback.put("exemples_corriges", List.of());
+
+        List<String> avertissements = buildAvertissements(sub, task);
+        avertissements.addAll(raisons);
+        feedback.put("avertissements", avertissements);
+
+        AiEvaluation eval = new AiEvaluation();
+        eval.setSubmission(sub);
+        eval.setModeleUtilise(MODELE_VALIDATION_SERVEUR);
+        eval.setPromptVersion(llmClient.getPromptVersion());
+        eval.setNoteSur20(BigDecimal.ZERO);
+        eval.setNiveauCecrl(NiveauCecrl.A1_NON_ATTEINT);
+        eval.setNiveauCecrlIa(null);
+        eval.setFeedbackJson(feedback);
+        eval.setTokensInput(0);
+        eval.setTokensOutput(0);
+        eval.setCoutEstimeCentimes(0);
+        aiEvaluationManager.save(eval);
+
+        sub.setStatut(SubmissionStatut.EVALUATED);
+        sub.setErreurMessage(null);
+        submissionManager.save(sub);
+
+        log.info("Production jugee invalide (aucun appel LLM) submission={} raisons={}",
+            sub.getId(), raisons);
+        return eval;
+    }
+
+    /** Tous les criteres de la rubrique a 0, bande {@code NON_EVALUABLE}. */
+    private List<Map<String, Object>> scoresNonEvaluables(ProductionTask task) {
+        Object grille = rubrics.find(task.getEpreuve(), task.getTacheNumero())
+            .map(r -> r.get("criteres")).orElse(null);
+        if (!(grille instanceof List<?> criteres)) return List.of();
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Object c : criteres) {
+            if (!(c instanceof Map<?, ?> m) || m.get("code") == null) continue;
+            Map<String, Object> score = new LinkedHashMap<>();
+            score.put("code", m.get("code").toString());
+            if (m.get("label") != null) score.put("label", m.get("label").toString());
+            score.put("note_sur_20", 0);
+            score.put("bande", BandeCritere.NON_EVALUABLE.name());
+            score.put("commentaire", "Ce critère n'a pas pu être évalué : votre production "
+                + "n'était pas exploitable.");
+            out.add(score);
+        }
+        return out;
+    }
+
+    /**
+     * Confiance finale = {@code min(confiance IA, plafond serveur)} — on peut
+     * abaisser la certitude annoncee par l'IA, jamais la relever. Plafonds :
+     * <ul>
+     *   <li>verdict {@code AVERTISSEMENT} (langue douteuse, consigne recopiee)
+     *       → {@code MOYENNE} ;</li>
+     *   <li>production issue d'un dialogue TEMPS REEL → {@code MOYENNE} : la
+     *       transcription y est produite au fil de l'eau, elle est
+     *       structurellement moins fiable qu'un texte rendu.</li>
+     * </ul>
+     * Une confiance absente ou hors enum vaut {@code MOYENNE} (+ log warn) :
+     * l'absence d'information n'est pas une certitude.
+     */
+    private void applyConfiance(Map<String, Object> feedback, ProductionSubmission sub,
+                                ProductionValidityService.Verdict verdict, UUID submissionId) {
+        ConfianceEvaluation declaree = ConfianceEvaluation.parse(feedback.get("confiance"));
+        if (declaree == null) {
+            log.warn("confiance absente ou invalide ({}) submission={} — MOYENNE par defaut.",
+                feedback.get("confiance"), submissionId);
+            declaree = ConfianceEvaluation.MOYENNE;
+        }
+
+        List<String> raisonsServeur = new ArrayList<>();
+        ConfianceEvaluation plafond = null;
+        if (verdict.avertissement()) {
+            plafond = ConfianceEvaluation.min(plafond, ConfianceEvaluation.MOYENNE);
+            raisonsServeur.add("des vérifications automatiques ont signalé un doute sur cette production");
+        }
+        if (sub.getSource() == ProductionSubmissionSource.REALTIME) {
+            plafond = ConfianceEvaluation.min(plafond, ConfianceEvaluation.MOYENNE);
+            raisonsServeur.add("transcription produite en direct pendant l'échange, donc partiellement incertaine");
+        }
+
+        ConfianceEvaluation finale = ConfianceEvaluation.min(declaree, plafond);
+        feedback.put("confiance", finale.name());
+        if (finale != declaree) {
+            log.info("Confiance degradee submission={} : IA={} -> serveur={} ({})",
+                submissionId, declaree, finale, raisonsServeur);
+            List<String> raisons = new ArrayList<>();
+            Object existantes = feedback.get("confiance_raisons");
+            if (existantes instanceof List<?> l) {
+                for (Object r : l) if (r != null) raisons.add(r.toString());
+            }
+            raisons.addAll(raisonsServeur);
+            feedback.put("confiance_raisons", raisons);
+        }
+    }
+
+    /**
+     * Garantit la presence du bloc {@code accomplissement} avec ses deux listes,
+     * meme quand le LLM l'omet (ancien schema ou reponse partielle). On ne
+     * REECRIT rien : la distinction {@code obligatoire} true/false vient de
+     * l'IA et une piste ({@code obligatoire: false}) ne doit jamais peser sur
+     * la note — aucun calcul de ce service ne la lit.
+     */
+    @SuppressWarnings("unchecked")
+    private void normalizeAccomplissement(Map<String, Object> feedback) {
+        Object raw = feedback.get("accomplissement");
+        if (!(raw instanceof Map<?, ?> map)) {
+            feedback.put("accomplissement", new LinkedHashMap<>(Map.of(
+                "points_traites", List.of(),
+                "points_oublies", List.of())));
+            return;
+        }
+        Map<String, Object> acc = new LinkedHashMap<>((Map<String, Object>) map);
+        acc.putIfAbsent("points_traites", List.of());
+        acc.putIfAbsent("points_oublies", List.of());
+        if (!(acc.get("points_traites") instanceof List<?>)) acc.put("points_traites", List.of());
+        if (!(acc.get("points_oublies") instanceof List<?>)) acc.put("points_oublies", List.of());
+        feedback.put("accomplissement", acc);
+    }
+
+    /**
+     * Retire les {@code preuve} qui n'apparaissent PAS dans la production : ce
+     * sont des citations inventees par l'IA, et une fausse citation detruit la
+     * confiance du candidat dans toute la correction. Comparaison sur texte
+     * normalise (accents/casse/ponctuation/espaces neutralises) pour tolerer
+     * une recopie approximative sans tolerer une invention.
+     */
+    @SuppressWarnings("unchecked")
+    private void stripPreuvesInventees(Map<String, Object> feedback, String production, UUID submissionId) {
+        if (!(feedback.get("scores_criteres") instanceof List<?> scores)) return;
+        String haystack = normalizeForOrthoCompare(production == null ? "" : production);
+        int retirees = 0;
+        for (Object s : scores) {
+            if (!(s instanceof Map<?, ?> rawMap)) continue;
+            Map<String, Object> sm = (Map<String, Object>) rawMap;
+            Object preuve = sm.get("preuve");
+            if (preuve == null) continue;
+            String needle = normalizeForOrthoCompare(preuve.toString());
+            if (needle.isEmpty()) {
+                sm.remove("preuve");
+                continue;
+            }
+            if (!haystack.contains(needle)) {
+                sm.remove("preuve");
+                retirees++;
+            }
+        }
+        if (retirees > 0) {
+            log.warn("{} preuve(s) inventee(s) retiree(s) submission={} — citation absente de la production.",
+                retirees, submissionId);
+        }
+    }
+
+    /**
+     * Ajoute a chaque score sa {@code bande} qualitative (16-20 / 11-15 / 6-10 /
+     * 1-5 / 0). Les fronts affichent la bande, plus le nombre.
+     */
+    @SuppressWarnings("unchecked")
+    private void applyBandesCriteres(Map<String, Object> feedback) {
+        if (!(feedback.get("scores_criteres") instanceof List<?> scores)) return;
+        for (Object s : scores) {
+            if (!(s instanceof Map<?, ?> rawMap)) continue;
+            Map<String, Object> sm = (Map<String, Object>) rawMap;
+            if (!(sm.get("note_sur_20") instanceof Number n)) continue;
+            BandeCritere bande = BandeCritere.of(new BigDecimal(n.toString()));
+            if (bande != null) sm.put("bande", bande.name());
+        }
+    }
+
+    /**
+     * Plafonds cibles appliques APRES le calcul du niveau. Seules les regles
+     * objectivables a partir des criteres v4 sont retenues :
+     * <ul>
+     *   <li>T3 (EE ou EO) avec {@code prise_position} ≤ seuil : aucune opinion
+     *       identifiable → le niveau observe ne peut pas depasser A2 ;</li>
+     *   <li>EO T2 avec {@code conduite_echange} ≤ seuil : aucun veritable
+     *       echange → meme plafond.</li>
+     * </ul>
+     * Le hors-sujet (note 0 → {@code A1_NON_ATTEINT}) est deja tranche par
+     * {@code computeNiveau} : on ne le touche pas. Chaque plafond applique est
+     * logue ET explique au candidat dans {@code avertissements}.
+     *
+     * @return le niveau eventuellement abaisse (jamais releve)
+     */
+    private NiveauCecrl applyPlafonds(Map<String, Object> feedback, ProductionTask task,
+                                      NiveauCecrl niveau, UUID submissionId) {
+        ProductionEvaluationProperties.Plafonds cfg = props.getPlafonds();
+        if (!cfg.isEnabled() || niveau == null) return niveau;
+
+        Map<String, BigDecimal> notes = notesParCode(feedback.get("scores_criteres"));
+        int tache = task.getTacheNumero();
+        NiveauCecrl out = niveau;
+
+        BigDecimal prisePosition = notes.get("prise_position");
+        if (tache == 3 && prisePosition != null
+                && prisePosition.compareTo(BigDecimal.valueOf(cfg.getPrisePositionSeuil())) <= 0) {
+            out = appliquerPlafond(feedback, out, cfg.getPrisePositionNiveauMax(), submissionId,
+                "prise_position=" + prisePosition,
+                "Aucune prise de position claire n'a été identifiée. Sur cette tâche, donner son "
+                    + "avis et le défendre est attendu : le niveau observé est donc limité à "
+                    + cfg.getPrisePositionNiveauMax().name().replace("_", " ") + ".");
+        }
+
+        BigDecimal conduiteEchange = notes.get("conduite_echange");
+        if (task.getEpreuve() == EpreuveType.TCF_EO && tache == 2 && conduiteEchange != null
+                && conduiteEchange.compareTo(BigDecimal.valueOf(cfg.getConduiteEchangeSeuil())) <= 0) {
+            out = appliquerPlafond(feedback, out, cfg.getConduiteEchangeNiveauMax(), submissionId,
+                "conduite_echange=" + conduiteEchange,
+                "L'échange n'a pas vraiment eu lieu : vous n'avez pas mené le dialogue ni obtenu "
+                    + "les informations attendues. Le niveau observé est donc limité à "
+                    + cfg.getConduiteEchangeNiveauMax().name().replace("_", " ") + ".");
+        }
+
+        if (out != niveau) feedback.put("niveau_cecrl", out.name());
+        return out;
+    }
+
+    private NiveauCecrl appliquerPlafond(Map<String, Object> feedback, NiveauCecrl actuel,
+                                         NiveauCecrl plafond, UUID submissionId,
+                                         String declencheur, String raisonCandidat) {
+        if (plafond == null || actuel.ordinal() <= plafond.ordinal()) return actuel;
+        log.info("Plafond de niveau applique submission={} ({}) : {} -> {}",
+            submissionId, declencheur, actuel, plafond);
+        addAvertissement(feedback, raisonCandidat);
+        return plafond;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void addAvertissement(Map<String, Object> feedback, String message) {
+        List<String> out = new ArrayList<>();
+        if (feedback.get("avertissements") instanceof List<?> l) {
+            for (Object o : l) if (o != null) out.add(o.toString());
+        }
+        out.add(message);
+        feedback.put("avertissements", out);
+    }
+
+    /** Index {@code code -> note_sur_20} des scores exploitables. */
+    private static Map<String, BigDecimal> notesParCode(Object scoresCriteres) {
+        Map<String, BigDecimal> out = new HashMap<>();
+        if (!(scoresCriteres instanceof List<?> scores)) return out;
+        for (Object s : scores) {
+            if (s instanceof Map<?, ?> m && m.get("code") != null
+                    && m.get("note_sur_20") instanceof Number n) {
+                out.put(m.get("code").toString(), new BigDecimal(n.toString()));
+            }
+        }
+        return out;
     }
 
     /**
@@ -263,6 +584,8 @@ public class AiEvaluationService {
     /**
      * Avertissements affiches a l'utilisateur (construits serveur, hors IA) :
      * <ul>
+     *   <li>EO : limite assumee « evaluation fondee sur la transcription »,
+     *       TOUJOURS en tete (cf. {@link #AVERTISSEMENT_TRANSCRIPTION}) ;</li>
      *   <li>EE : depassement modere de la limite de mots (tolerance) ;</li>
      *   <li>EO : duree parlee sous la cible / sous le minimum (2 min).</li>
      * </ul>
@@ -279,6 +602,7 @@ public class AiEvaluationService {
             return out;
         }
         // TCF_EO
+        out.add(AVERTISSEMENT_TRANSCRIPTION);
         Integer duree = sub.getMediaDurationSec();
         Integer cible = task.getDureeMaxSec();
         Integer min = task.getDureeMinSec();

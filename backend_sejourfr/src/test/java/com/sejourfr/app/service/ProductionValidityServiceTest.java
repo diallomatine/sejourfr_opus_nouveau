@@ -1,0 +1,215 @@
+package com.sejourfr.app.service;
+
+import com.sejourfr.app.config.ProductionEvaluationProperties;
+import com.sejourfr.app.entity.ProductionTask;
+import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.ValiditeProduction;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Controles deterministes pre-LLM : langue dominante, recopiage de la consigne,
+ * production vide. Chaque famille est testee avec un cas PASSANT et un cas
+ * BLOQUANT — les seuils sont des heuristiques, la marge doit rester confortable
+ * des deux cotes.
+ */
+class ProductionValidityServiceTest {
+
+    private static final String CONSIGNE =
+        "Vous venez d'emménager dans un nouvel appartement. Vous écrivez à un ami "
+            + "pour lui annoncer la nouvelle, décrire votre logement et l'inviter à venir vous voir.";
+
+    private final ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+    private final ProductionValidityService service = new ProductionValidityService(props);
+
+    private static ProductionTask task(EpreuveType epreuve, int tache) {
+        ProductionTask t = new ProductionTask();
+        t.setEpreuve(epreuve);
+        t.setTacheNumero((short) tache);
+        t.setConsigne(CONSIGNE);
+        return t;
+    }
+
+    // ------------------------------------------------------------------ langue
+
+    @Test
+    void production_francaise_courante_est_valide() {
+        String texte = "Bonjour Marie, je t'écris pour te dire que j'ai enfin trouvé un "
+            + "nouvel appartement dans le centre de la ville. Il est très joli et il y a "
+            + "deux chambres avec un grand balcon. Je t'invite à venir le voir samedi prochain.";
+
+        var verdict = service.evaluer(task(EpreuveType.TCF_EE, 1), texte);
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.VALIDE);
+        assertThat(verdict.raisons()).isEmpty();
+    }
+
+    @Test
+    void production_en_anglais_est_invalide() {
+        String texte = "Hello Mary, I am writing to tell you that I finally found a new "
+            + "apartment in the city center. It is very nice and it has two bedrooms with "
+            + "a big balcony. I invite you to come and see it next Saturday.";
+
+        var verdict = service.evaluer(task(EpreuveType.TCF_EE, 1), texte);
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.INVALIDE);
+        assertThat(verdict.raisons()).anyMatch(r -> r.contains("n'est pas rédigé en français"));
+    }
+
+    @Test
+    void production_en_alphabet_non_latin_est_invalide() {
+        String texte = "مرحبا ماري، أكتب إليك لأخبرك أنني وجدت أخيرا شقة جديدة في وسط "
+            + "المدينة. إنها جميلة جدا وفيها غرفتان مع شرفة كبيرة.";
+
+        var verdict = service.evaluer(task(EpreuveType.TCF_EE, 1), texte);
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.INVALIDE);
+        assertThat(verdict.raisons()).anyMatch(r -> r.contains("un autre alphabet"));
+    }
+
+    @Test
+    void texte_court_sous_le_seuil_d_analyse_n_est_pas_juge_sur_la_langue() {
+        // 6 mots : au-dessus du minimum exploitable (5), sous le seuil d'analyse
+        // de la langue (12) -> aucun verdict sur la langue.
+        var verdict = service.evaluer(task(EpreuveType.TCF_EE, 1), "Hello Mary how are you today");
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.VALIDE);
+    }
+
+    // -------------------------------------------------------------------- vide
+
+    @Test
+    void production_vide_est_invalide() {
+        var verdict = service.evaluer(task(EpreuveType.TCF_EE, 1), "   \n  ");
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.INVALIDE);
+        assertThat(verdict.raisons()).anyMatch(r -> r.contains("vide ou trop courte"));
+    }
+
+    @Test
+    void production_quasi_vide_est_invalide() {
+        var verdict = service.evaluer(task(EpreuveType.TCF_EE, 1), "Bonjour merci");
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.INVALIDE);
+    }
+
+    @Test
+    void dialogue_sans_tour_candidat_exploitable_est_invalide() {
+        String dialogue = """
+            Examinateur : Bonjour, pouvez-vous vous présenter en quelques mots ?
+            Candidat : euh
+            Examinateur : Prenez votre temps, parlez-moi de votre travail et de votre ville.
+            """;
+
+        var verdict = service.evaluer(task(EpreuveType.TCF_EO, 1), dialogue);
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.INVALIDE);
+        assertThat(verdict.raisons()).anyMatch(r -> r.contains("aucune prise de parole"));
+    }
+
+    @Test
+    void dialogue_avec_tours_candidat_est_valide() {
+        String dialogue = """
+            Examinateur : Bonjour, pouvez-vous vous présenter ?
+            Candidat : Bonjour, je m'appelle Karim et je viens du Maroc. Je travaille comme
+            cuisinier dans un restaurant à Lyon depuis deux ans.
+            Examinateur : Et que faites-vous pendant votre temps libre ?
+            Candidat : J'aime beaucoup faire du sport avec mes amis et je vais souvent au cinéma.
+            """;
+
+        var verdict = service.evaluer(task(EpreuveType.TCF_EO, 1), dialogue);
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.VALIDE);
+    }
+
+    @Test
+    void dialogue_les_mots_de_l_examinateur_ne_comptent_pas() {
+        // Seul l'examinateur parle francais ; le candidat repond en anglais.
+        String dialogue = """
+            Examinateur : Bonjour, pouvez-vous vous présenter et me parler de votre travail ?
+            Candidat : Hello, my name is John and I work as a cook in a restaurant downtown
+            since two years, I really like my job and my colleagues there.
+            """;
+
+        var verdict = service.evaluer(task(EpreuveType.TCF_EO, 1), dialogue);
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.INVALIDE);
+        assertThat(verdict.raisons()).anyMatch(r -> r.contains("n'est pas rédigé en français"));
+    }
+
+    // --------------------------------------------------------------- recopiage
+
+    @Test
+    void consigne_recopiee_integralement_est_invalide() {
+        var verdict = service.evaluer(task(EpreuveType.TCF_EE, 1), CONSIGNE);
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.INVALIDE);
+        assertThat(verdict.raisons()).anyMatch(r -> r.contains("mot pour mot"));
+    }
+
+    @Test
+    void recopiage_partiel_de_la_consigne_declenche_un_avertissement() {
+        // ~40 % de la production recopie l'enonce : evaluable, mais signale.
+        String texte = "Vous venez d'emménager dans un nouvel appartement. Vous écrivez à un ami "
+            + "pour lui annoncer la nouvelle. Salut Paul, mon logement est clair et calme, il y a "
+            + "deux chambres et une cuisine. Passe me voir dimanche si tu es libre, on mangera ensemble.";
+
+        var verdict = service.evaluer(task(EpreuveType.TCF_EE, 1), texte);
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.AVERTISSEMENT);
+        assertThat(verdict.raisons()).anyMatch(r -> r.contains("recopie l'énoncé"));
+    }
+
+    @Test
+    void production_personnelle_ne_declenche_aucun_recopiage() {
+        String texte = "Salut Paul ! J'ai une bonne nouvelle : j'ai enfin déménagé la semaine "
+            + "dernière. Mon logement se trouve près de la gare, il est lumineux et il y a un "
+            + "petit jardin derrière. Viens passer le week-end quand tu veux, il y a de la place.";
+
+        var verdict = service.evaluer(task(EpreuveType.TCF_EE, 1), texte);
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.VALIDE);
+    }
+
+    @Test
+    void consigne_absente_desactive_le_controle_de_recopiage() {
+        ProductionTask t = task(EpreuveType.TCF_EE, 1);
+        t.setConsigne(null);
+
+        var verdict = service.evaluer(t, CONSIGNE);
+
+        assertThat(verdict.statut()).isEqualTo(ValiditeProduction.VALIDE);
+    }
+
+    // ------------------------------------------------------------- primitives
+
+    @Test
+    void toursDuCandidat_ne_garde_que_les_repliques_du_candidat() {
+        String dialogue = """
+            Examinateur : Question une ?
+            Candidat : Réponse une.
+            suite de la réponse une.
+            Examinateur : Question deux ?
+            Candidat : Réponse deux.
+            """;
+
+        String candidat = ProductionValidityService.toursDuCandidat(dialogue);
+
+        assertThat(candidat).contains("Réponse une.", "suite de la réponse une.", "Réponse deux.");
+        assertThat(candidat).doesNotContain("Question une", "Question deux");
+    }
+
+    @Test
+    void motsNormalises_deplie_les_elisions_et_retire_les_accents() {
+        assertThat(ProductionValidityService.motsNormalises("L'été, à Paris !"))
+            .containsExactly("l", "ete", "a", "paris");
+    }
+
+    @Test
+    void ratioRecopiage_est_nul_quand_les_textes_sont_plus_courts_que_le_ngramme() {
+        assertThat(ProductionValidityService.ratioRecopiage(
+            ProductionValidityService.motsNormalises("un deux trois"), "un deux trois", 5))
+            .isZero();
+    }
+}

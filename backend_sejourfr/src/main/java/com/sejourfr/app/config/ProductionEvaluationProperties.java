@@ -33,6 +33,8 @@ public class ProductionEvaluationProperties {
     private OpenAi openai = new OpenAi();
     private DeepSeek deepseek = new DeepSeek();
     private NiveauCecrl niveauCecrl = new NiveauCecrl();
+    private Validite validite = new Validite();
+    private Plafonds plafonds = new Plafonds();
     /**
      * Plafond audio accepte pour une submission EO (defaut: 5 min).
      */
@@ -108,6 +110,22 @@ public class ProductionEvaluationProperties {
 
     public void setNiveauCecrl(NiveauCecrl niveauCecrl) {
         this.niveauCecrl = niveauCecrl;
+    }
+
+    public Validite getValidite() {
+        return validite;
+    }
+
+    public void setValidite(Validite validite) {
+        this.validite = validite;
+    }
+
+    public Plafonds getPlafonds() {
+        return plafonds;
+    }
+
+    public void setPlafonds(Plafonds plafonds) {
+        this.plafonds = plafonds;
     }
 
     public int getMaxAudioDurationSeconds() {
@@ -604,6 +622,155 @@ public class ProductionEvaluationProperties {
 
         public void setPoidsTaches(java.util.List<Double> poidsTaches) {
             this.poidsTaches = poidsTaches;
+        }
+    }
+
+    /**
+     * Seuils des controles DETERMINISTES pre-LLM (cf. {@code ProductionValidityService}).
+     * Ajustables sans redeploiement : ce sont des heuristiques, elles se recalibrent.
+     */
+    public static class Validite {
+        /** Sous ce nombre de mots exploitables, la production est INVALIDE (vide/quasi vide). */
+        private int minMotsExploitables = 5;
+        /**
+         * Nombre de mots a partir duquel le ratio de mots-outils devient
+         * statistiquement lisible. En dessous, on ne juge pas la langue.
+         */
+        private int motsMinAnalyseLangue = 12;
+        /** Ratio de mots-outils francais sous lequel la production est INVALIDE (pas en francais). */
+        private double ratioMotsOutilsInvalide = 0.10;
+        /** Ratio de mots-outils francais sous lequel on emet un AVERTISSEMENT. */
+        private double ratioMotsOutilsAvertissement = 0.18;
+        /** Part de lettres d'un alphabet non latin au-dela de laquelle la production est INVALIDE. */
+        private double ratioAlphabetNonLatinInvalide = 0.30;
+        /** Taille des n-grammes (en mots normalises) du controle de recopiage de la consigne. */
+        private int ngramConsigne = 5;
+        /** Recouvrement production/consigne au-dela duquel on emet un AVERTISSEMENT. */
+        private double ratioRecopiageAvertissement = 0.30;
+        /** Recouvrement production/consigne au-dela duquel la production est INVALIDE. */
+        private double ratioRecopiageInvalide = 0.60;
+
+        public int getMinMotsExploitables() {
+            return minMotsExploitables;
+        }
+
+        public void setMinMotsExploitables(int minMotsExploitables) {
+            this.minMotsExploitables = minMotsExploitables;
+        }
+
+        public int getMotsMinAnalyseLangue() {
+            return motsMinAnalyseLangue;
+        }
+
+        public void setMotsMinAnalyseLangue(int motsMinAnalyseLangue) {
+            this.motsMinAnalyseLangue = motsMinAnalyseLangue;
+        }
+
+        public double getRatioMotsOutilsInvalide() {
+            return ratioMotsOutilsInvalide;
+        }
+
+        public void setRatioMotsOutilsInvalide(double ratioMotsOutilsInvalide) {
+            this.ratioMotsOutilsInvalide = ratioMotsOutilsInvalide;
+        }
+
+        public double getRatioMotsOutilsAvertissement() {
+            return ratioMotsOutilsAvertissement;
+        }
+
+        public void setRatioMotsOutilsAvertissement(double ratioMotsOutilsAvertissement) {
+            this.ratioMotsOutilsAvertissement = ratioMotsOutilsAvertissement;
+        }
+
+        public double getRatioAlphabetNonLatinInvalide() {
+            return ratioAlphabetNonLatinInvalide;
+        }
+
+        public void setRatioAlphabetNonLatinInvalide(double ratioAlphabetNonLatinInvalide) {
+            this.ratioAlphabetNonLatinInvalide = ratioAlphabetNonLatinInvalide;
+        }
+
+        public int getNgramConsigne() {
+            return ngramConsigne;
+        }
+
+        public void setNgramConsigne(int ngramConsigne) {
+            this.ngramConsigne = ngramConsigne;
+        }
+
+        public double getRatioRecopiageAvertissement() {
+            return ratioRecopiageAvertissement;
+        }
+
+        public void setRatioRecopiageAvertissement(double ratioRecopiageAvertissement) {
+            this.ratioRecopiageAvertissement = ratioRecopiageAvertissement;
+        }
+
+        public double getRatioRecopiageInvalide() {
+            return ratioRecopiageInvalide;
+        }
+
+        public void setRatioRecopiageInvalide(double ratioRecopiageInvalide) {
+            this.ratioRecopiageInvalide = ratioRecopiageInvalide;
+        }
+    }
+
+    /**
+     * Plafonds de niveau CECRL appliques cote serveur APRES le calcul du niveau
+     * par soumission. Volontairement peu nombreux : uniquement des regles
+     * objectivables a partir des criteres v4. Le hors-sujet (note 0 →
+     * {@code A1_NON_ATTEINT}) est gere en amont et n'est pas un plafond.
+     */
+    public static class Plafonds {
+        /** Coupe-circuit global (banc de mesure : comparer avec / sans plafonds). */
+        private boolean enabled = true;
+        /** T3 (EE ou EO) : {@code prise_position} <= seuil → aucune opinion identifiable. */
+        private double prisePositionSeuil = 5.0;
+        private com.sejourfr.app.enums.NiveauCecrl prisePositionNiveauMax =
+            com.sejourfr.app.enums.NiveauCecrl.A2;
+        /** EO T2 : {@code conduite_echange} <= seuil → aucun veritable echange. */
+        private double conduiteEchangeSeuil = 5.0;
+        private com.sejourfr.app.enums.NiveauCecrl conduiteEchangeNiveauMax =
+            com.sejourfr.app.enums.NiveauCecrl.A2;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public double getPrisePositionSeuil() {
+            return prisePositionSeuil;
+        }
+
+        public void setPrisePositionSeuil(double prisePositionSeuil) {
+            this.prisePositionSeuil = prisePositionSeuil;
+        }
+
+        public com.sejourfr.app.enums.NiveauCecrl getPrisePositionNiveauMax() {
+            return prisePositionNiveauMax;
+        }
+
+        public void setPrisePositionNiveauMax(com.sejourfr.app.enums.NiveauCecrl prisePositionNiveauMax) {
+            this.prisePositionNiveauMax = prisePositionNiveauMax;
+        }
+
+        public double getConduiteEchangeSeuil() {
+            return conduiteEchangeSeuil;
+        }
+
+        public void setConduiteEchangeSeuil(double conduiteEchangeSeuil) {
+            this.conduiteEchangeSeuil = conduiteEchangeSeuil;
+        }
+
+        public com.sejourfr.app.enums.NiveauCecrl getConduiteEchangeNiveauMax() {
+            return conduiteEchangeNiveauMax;
+        }
+
+        public void setConduiteEchangeNiveauMax(com.sejourfr.app.enums.NiveauCecrl conduiteEchangeNiveauMax) {
+            this.conduiteEchangeNiveauMax = conduiteEchangeNiveauMax;
         }
     }
 }

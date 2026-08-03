@@ -26,9 +26,11 @@ import java.util.Map;
  * <p>Deux niveaux de calcul :
  * <ul>
  *   <li><b>Par soumission</b> ({@link #computeNiveau}) : compétence = moyenne
- *       des critères porteurs (lexique + morphosyntaxe) → seuils config.
- *       Calculé et persisté par {@code AiEvaluationService} à chaque évaluation
- *       (calibration admin), mais <b>jamais exposé par tâche</b> aux fronts.</li>
+ *       des critères porteurs (lexique + morphosyntaxe + cohérence) → seuils
+ *       config. Calculé et persisté par {@code AiEvaluationService} à chaque
+ *       évaluation, puis exposé par tâche comme « performance observée »,
+ *       <b>toujours avec sa confiance</b> (cf. {@code EvaluationResultDto}).
+ *       Ce n'est PAS le niveau qui fait foi.</li>
  *   <li><b>Par épreuve en examen</b> ({@link #bilanEpreuve}) : moyenne
  *       <b>pondérée</b> des compétences des 3 tâches (poids croissants
  *       T1 &lt; T2 &lt; T3, cf. {@code poids-taches}) passée aux mêmes seuils.

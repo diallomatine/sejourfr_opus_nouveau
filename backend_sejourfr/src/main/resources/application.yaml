@@ -205,7 +205,10 @@ sejourfr:
     # prompts/production-rubrics-<v>.json. Le system prompt et le user message
     # sont generes depuis ce fichier (plus de .md system/user-template).
     # prompt-version (ci-dessous) ne gouverne plus que le tool-schema (sortie).
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v3}
+    # Defaut v4 : criteres PROPRES A CHAQUE TACHE. v3 (4 criteres universels)
+    # reste charge et valide -> EVAL_RUBRICS_VERSION=v3 suffit a revenir en
+    # arriere (le banc de mesure bascule v3 <-> v4 avec cette seule variable).
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v4}
     # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
     # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
     # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).
@@ -220,6 +223,30 @@ sejourfr:
       seuil-b2: 15.0
       seuil-b1: 12.0
       seuil-a2: 7.0
+    # Controles DETERMINISTES executes AVANT l'appel LLM (aucune IA) :
+    # langue dominante, recopiage de la consigne, production vide. Un verdict
+    # INVALIDE court-circuite le LLM (note 0 / A1_NON_ATTEINT / confiance
+    # FAIBLE) ; un AVERTISSEMENT laisse l'IA noter mais plafonne la confiance a
+    # MOYENNE et expose ses raisons au candidat. Heuristiques => seuils
+    # ajustables sans redeploiement.
+    validite:
+      min-mots-exploitables: 5
+      mots-min-analyse-langue: 12
+      ratio-mots-outils-invalide: 0.10
+      ratio-mots-outils-avertissement: 0.18
+      ratio-alphabet-non-latin-invalide: 0.30
+      ngram-consigne: 5
+      ratio-recopiage-avertissement: 0.30
+      ratio-recopiage-invalide: 0.60
+    # Plafonds de niveau appliques APRES le calcul du niveau par soumission.
+    # Volontairement peu nombreux : uniquement ce qui est objectivable a partir
+    # des criteres v4. enabled=false pour mesurer avec / sans.
+    plafonds:
+      enabled: ${EVAL_PLAFONDS_ENABLED:true}
+      prise-position-seuil: 5.0
+      prise-position-niveau-max: A2
+      conduite-echange-seuil: 5.0
+      conduite-echange-niveau-max: A2
     max-audio-duration-seconds: 300
     max-text-words: 300
     min-text-words: 10
@@ -239,7 +266,7 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v1.5}
+      prompt-version: ${EVAL_PROMPT_VERSION:v2}
       # Tarification gpt-4o-mini (USD / 1M tokens, mai 2026). A surcharger si
       # on bascule sur gpt-4o ou gpt-5 (cout estime persiste dans ai_evaluations).
       cost-per-million-input-tokens: 0.15
@@ -253,7 +280,7 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v1.5}
+      prompt-version: ${EVAL_PROMPT_VERSION:v2}
       cost-per-million-input-tokens: 3.0
       cost-per-million-output-tokens: 15.0
     # DeepSeek : API compatible OpenAI (meme client). Activer avec
@@ -268,7 +295,7 @@ sejourfr:
       temperature: ${EVAL_DEEPSEEK_TEMPERATURE:0}
       max-tokens: 2000
       timeout-sec: 60
-      prompt-version: ${EVAL_PROMPT_VERSION:v1.5}
+      prompt-version: ${EVAL_PROMPT_VERSION:v2}
       cost-per-million-input-tokens: 0.27
       cost-per-million-output-tokens: 1.10
 
