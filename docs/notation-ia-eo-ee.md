@@ -198,6 +198,28 @@ vocale (technologie Google Gemini Live). Deux choses à bien distinguer :
   **candidat** qui mène et pose les questions ; l'examinateur **répond** et attend, sans
   prendre l'initiative.
 
+- **En Tâche 2, l'examinateur connaît ses réponses à l'avance.** Chaque sujet de jeu de rôle
+  est accompagné d'une **fiche de scénario** : le rôle tenu, la manière de s'adresser au
+  candidat (vouvoiement ou tutoiement), la phrase d'accueil, et surtout **les faits** —
+  les prix, les délais, les horaires, les conditions. Avant, l'examinateur les inventait au
+  fil de la conversation et pouvait **se contredire** (annoncer 12 €, puis 15 €), ce qui
+  pénalisait injustement un candidat qui avait bien écouté. Désormais ces informations sont
+  **fixées d'avance** : il ne peut ni les changer en route, ni en inventer d'autres. S'il
+  n'a pas la réponse, il le dit simplement, sans donner de chiffre au hasard.
+
+  Trois précisions importantes :
+  - **Il ne les donne pas spontanément.** Il répond à la question posée, puis attend la
+    suivante. C'est bien au candidat d'aller chercher l'information.
+  - **Ce n'est pas une liste de questions obligatoires.** Les questions du sujet restent des
+    **pistes** : ne pas toutes les poser n'a jamais été et n'est toujours pas une faute. La
+    fiche sert à rendre l'examinateur cohérent, **pas** à cocher des cases. Une information
+    non obtenue est une simple observation, elle **ne fait pas baisser la note**.
+  - **Le candidat ne voit jamais cette fiche.** Elle reste côté serveur : l'afficher
+    reviendrait à donner les réponses de l'examen.
+
+  Si un sujet n'a pas encore de fiche, l'examinateur se comporte exactement comme avant :
+  aucun sujet existant n'est dégradé.
+
 Quelques réglages pensés pour le confort du candidat :
 
 - **Le candidat lit d'abord son sujet, puis démarre quand il est prêt.** Avant chaque tâche, sa
@@ -271,7 +293,8 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 |-----------------------|---------|
 | **Toutes les consignes de notation** (critères, poids, barème, règles spéciales, exemples de calibration, tolérance transcription, règle « pas d'exhaustivité »…) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v3.json` |
 | **Le format de réponse de l'IA** (note, niveau, points forts, exemples corrigés…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v1.5.json` |
-| **Le comportement de l'examinateur vocal** (ton, cadre, interdiction d'orienter le candidat, ouverture T1/T2…) | `backend_sejourfr/src/main/resources/prompts/realtime-personas-v1.json` |
+| **Le comportement de l'examinateur vocal** (ton, cadre, interdiction d'orienter le candidat, ouverture T1/T2, façon de rendre la fiche de scénario T2…) | `backend_sejourfr/src/main/resources/prompts/realtime-personas-v2.json` (version active ; la v1, sans fiche de scénario, reste disponible en repli) |
+| **Les faits d'un jeu de rôle T2** (prix, délais, horaires, attitude du personnage) | colonne `agent_role_card` du sujet, en base — renseignée par les migrations `db/migration/300_tcf/production/eo/tache_2/` |
 | **La patience / réactivité de l'examinateur vocal** (détection de fin de parole) | `backend_sejourfr/src/main/resources/application.yaml` (section `sejourfr.realtime.gemini.vad`) |
 
 > **Deux garde-fous automatiques** : au démarrage, l'application **refuse de démarrer** si les

@@ -9,7 +9,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -63,6 +65,16 @@ public class ProductionTask {
     @Column(name = "mots_max")
     private Integer motsMax;
 
+    /**
+     * Fiche de scenario de l'examinateur-personnage — EO tache 2 uniquement,
+     * NULL partout ailleurs (contrainte {@code chk_prod_task_agent_role_card}).
+     * Absente, l'examinateur retombe sur son comportement historique : il
+     * improvise ses faits.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "agent_role_card", columnDefinition = "jsonb")
+    private AgentRoleCard agentRoleCard;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = false;
 
@@ -103,6 +115,9 @@ public class ProductionTask {
 
     public Integer getMotsMax() { return motsMax; }
     public void setMotsMax(Integer motsMax) { this.motsMax = motsMax; }
+
+    public AgentRoleCard getAgentRoleCard() { return agentRoleCard; }
+    public void setAgentRoleCard(AgentRoleCard agentRoleCard) { this.agentRoleCard = agentRoleCard; }
 
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }

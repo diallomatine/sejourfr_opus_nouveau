@@ -311,7 +311,10 @@ sejourfr:
   # renseignée, le mode bascule silencieusement en async (jamais bloquant).
   realtime:
     provider: ${REALTIME_PROVIDER:gemini}
-    persona-version: v1
+    # Gabarit de persona chargé (prompts/realtime-personas-<version>.json).
+    # v2 = v1 + rendu de la fiche de scénario T2 (production_tasks.agent_role_card)
+    # quand le sujet en porte une. Repli sur v1 possible par variable d'env.
+    persona-version: ${REALTIME_PERSONA_VERSION:v2}
     gemini:
       # Clé Google AI (Gemini API). Absente -> temps réel désactivé (fallback async).
       api-key: ${GEMINI_API_KEY:}

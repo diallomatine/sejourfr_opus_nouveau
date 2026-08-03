@@ -1,10 +1,15 @@
 package com.sejourfr.app.mapper;
 
 import com.sejourfr.app.dto.ProductionTaskDto;
+import com.sejourfr.app.entity.AgentRoleCard;
 import com.sejourfr.app.entity.ProductionTask;
+import com.sejourfr.app.enums.AgentInfoImportance;
+import com.sejourfr.app.enums.AgentRelation;
 import com.sejourfr.app.enums.EpreuveType;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,5 +62,37 @@ class ProductionTaskMapperTest {
         assertThat(dto.contexte()).isNull();
         assertThat(dto.dureeMaxSec()).isNull();
         assertThat(dto.motsMin()).isNull();
+    }
+
+    @Test
+    void toDto_neverLeaksTheAgentRoleCard() {
+        // Les `valeur` de la fiche T2 sont les reponses que le candidat doit
+        // obtenir en questionnant l'examinateur : rien de la fiche ne doit
+        // atteindre un client, sous aucune forme.
+        ProductionTask task = new ProductionTask();
+        task.setId(UUID.randomUUID());
+        task.setEpreuve(EpreuveType.TCF_EO);
+        task.setTacheNumero((short) 2);
+        task.setNiveauCible("B1");
+        task.setConsigne("Vous appelez le service après-vente.");
+        task.setContexte("L'examinateur joue le conseiller.");
+        task.setDureeMaxSec(210);
+        task.setAgentRoleCard(new AgentRoleCard(
+                "Conseiller du service après-vente",
+                AgentRelation.INCONNU_VOUVOIEMENT,
+                "Obtenir une réparation.",
+                "Service après-vente, bonjour.",
+                List.of(new AgentRoleCard.Info("delai", "Le délai est de trois semaines.", AgentInfoImportance.HAUTE)),
+                List.of(new AgentRoleCard.Info("pret", "Aucun appareil de prêt.", AgentInfoImportance.BASSE)),
+                List.of("Tu proposes d'abord la réparation.")));
+
+        String json = new ObjectMapper().writeValueAsString(mapper.toDto(task));
+
+        assertThat(json)
+                .doesNotContain("agentRoleCard")
+                .doesNotContain("trois semaines")
+                .doesNotContain("Aucun appareil de prêt")
+                .doesNotContain("Service après-vente, bonjour")
+                .contains("Vous appelez le service après-vente.");
     }
 }
