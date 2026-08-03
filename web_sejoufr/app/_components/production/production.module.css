@@ -245,6 +245,166 @@
   margin: 0;
 }
 
+/* ---------- Performance observée sur la tâche + confiance ----------
+   Garde-fou produit : le niveau n'est jamais affiché sans sa confiance. */
+.levelCard {
+  background: var(--color-blue-soft);
+  border: 1px solid var(--color-blue-light);
+  border-radius: 16px;
+  padding: 16px 18px;
+}
+.levelTitle {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+.levelValue { color: var(--color-blue); font-weight: 700; }
+.levelMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+.confChip {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--color-green) 14%, transparent);
+  color: var(--color-green);
+}
+.confChip[data-confiance="MOYENNE"] {
+  background: color-mix(in srgb, var(--color-amber) 18%, transparent);
+  color: #8a5a00;
+}
+.confChip[data-confiance="FAIBLE"] {
+  background: color-mix(in srgb, var(--color-muted) 16%, transparent);
+  color: var(--color-muted);
+}
+.levelNote {
+  flex: 1;
+  min-width: 200px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+.confList {
+  list-style: disc;
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+/* ---------- « À savoir » (limites de l'évaluation) ----------
+   Volontairement neutre : ce sont des informations de transparence, pas des
+   alertes — d'où le fond papier plutôt qu'un bandeau d'erreur. */
+.limitsBox {
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  border-left: 3px solid var(--color-blue);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.limitsTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--color-ink);
+}
+.limitsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink-2);
+}
+
+/* ---------- Accomplissement de la consigne (avant la langue) ---------- */
+.accList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.accItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.accIcon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--color-green);
+}
+.accIcon[data-state="missing"] {
+  background: transparent;
+  border: 2px solid var(--color-red);
+}
+.accIcon[data-state="skipped"] {
+  background: transparent;
+  border: 2px solid var(--color-muted-2);
+}
+.accLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-ink);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.accTag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-green) 12%, transparent);
+  color: var(--color-green);
+}
+.accTag[data-state="missing"] {
+  background: color-mix(in srgb, var(--color-red) 10%, transparent);
+  color: var(--color-red);
+}
+.accTag[data-state="skipped"] {
+  background: var(--color-line-2);
+  color: var(--color-muted);
+}
+.accFoot {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-line-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
 /* ---------- Critères notés (feedback) ---------- */
 .critRow {
   display: flex;
@@ -270,9 +430,10 @@
 .critBody { flex: 1; min-width: 0; }
 .critTop {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
+  gap: 6px 10px;
 }
 .critLabel { font-weight: 700; font-size: 13.5px; color: var(--color-ink); }
 .critNote {
@@ -297,6 +458,70 @@
   margin: 0;
 }
 
+/* ---------- Bande qualitative d'un critère (remplace la note chiffrée) ----------
+   4 segments : Fragile 1 · En cours 2 · Satisfaisant 3 · Très bonne maîtrise 4.
+   Non évaluable : aucun segment allumé. */
+.critBande {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--color-green) 14%, transparent);
+  color: var(--color-green);
+}
+.critBande[data-band="SATISFAISANT"] {
+  background: color-mix(in srgb, var(--color-blue) 12%, transparent);
+  color: var(--color-blue);
+}
+.critBande[data-band="EN_COURS_ACQUISITION"] {
+  background: color-mix(in srgb, var(--color-amber) 20%, transparent);
+  color: #8a5a00;
+}
+.critBande[data-band="FRAGILE"] {
+  background: color-mix(in srgb, var(--color-red) 10%, transparent);
+  color: var(--color-red);
+}
+.critBande[data-band="NON_EVALUABLE"] {
+  background: var(--color-line-2);
+  color: var(--color-muted);
+}
+.critSteps {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0 6px;
+}
+.critSteps span {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-line-2);
+}
+.critSteps[data-band="TRES_BONNE_MAITRISE"] span:nth-child(-n + 4) { background: var(--color-green); }
+.critSteps[data-band="SATISFAISANT"] span:nth-child(-n + 3) { background: var(--color-blue); }
+.critSteps[data-band="EN_COURS_ACQUISITION"] span:nth-child(-n + 2) { background: var(--color-amber); }
+.critSteps[data-band="FRAGILE"] span:nth-child(-n + 1) { background: var(--color-red); }
+.critProof {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--color-paper);
+  border-left: 2px solid var(--color-line);
+  font-size: 12.5px;
+  line-height: 1.5;
+  font-style: italic;
+  color: var(--color-ink-2);
+}
+.critProof svg { flex-shrink: 0; margin-top: 3px; color: var(--color-muted-2); }
+.critProof span { min-width: 0; overflow-wrap: anywhere; }
+
 /* ---------- Blocs feedback (listes) ---------- */
 .fbBlock { margin-top: 4px; }
 .fbTitle {
@@ -307,6 +532,12 @@
   font-size: 14px;
   color: var(--color-ink);
   margin: 0 0 10px;
+}
+.fbHint {
+  margin: -4px 0 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-muted);
 }
 .fbList {
   list-style: none;

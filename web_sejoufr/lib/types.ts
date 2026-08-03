@@ -465,12 +465,37 @@ export interface ProductionExampleDto {
     niveauIndicatif: string | null;
 }
 
+/** Degré de certitude d'une évaluation IA (schéma de sortie v2, notation v4).
+ *  Null sur les évaluations antérieures — l'absence n'est pas une erreur. */
+export type ConfianceEvaluation = "HAUTE" | "MOYENNE" | "FAIBLE";
+
+/** Bande qualitative d'un critère, dérivée côté serveur de sa note /20. Les
+ *  fronts affichent la BANDE et non le nombre : une IA ne distingue pas
+ *  honnêtement un 13 d'un 14. La note globale /20, elle, reste affichée. */
+export type BandeCritere =
+    | "TRES_BONNE_MAITRISE"
+    | "SATISFAISANT"
+    | "EN_COURS_ACQUISITION"
+    | "FRAGILE"
+    | "NON_EVALUABLE";
+
 /** Résultat IA. `feedback` est le JSONB brut (clés snake_case) — utiliser
- *  {@link parseEeFeedback} pour le normaliser avant affichage. Le niveau CECRL
- *  n'est plus attribué par tâche : il ne vit qu'au niveau du bilan d'épreuve
- *  (cf. {@link ProductionBilanResponse}). */
+ *  {@link parseEeFeedback} pour le normaliser avant affichage.
+ *
+ *  `niveauObserve` est la performance observée SUR CETTE TÂCHE, formulée
+ *  prudemment (« proche du niveau B1 ») : le seul niveau qui fait foi reste
+ *  celui du bilan d'épreuve (cf. {@link ProductionBilanResponse}). Garde-fou
+ *  produit : il n'est JAMAIS affiché sans `confiance` à côté — le backend ne
+ *  le renseigne d'ailleurs pas quand la confiance est inconnue.
+ *
+ *  Les évaluations d'avant la notation v4 laissent `niveauObserve`,
+ *  `confiance` et `avertissementNiveau` à null (et leur `feedback` n'a ni
+ *  `bande`, ni `accomplissement`, ni `preuve`) : cas normal, pas une erreur. */
 export interface EvaluationResultDto {
     noteSurVingt: number | null;
+    niveauObserve: NiveauCecrl | null;
+    confiance: ConfianceEvaluation | null;
+    avertissementNiveau: string | null;
     feedback: Record<string, unknown> | null;
 }
 
@@ -689,7 +714,24 @@ export interface EeCriterion {
     code: string;
     label: string;
     noteSurVingt: number;
+    /** Null sur une évaluation d'avant la notation v4 : on retombe alors sur
+     *  l'affichage chiffré historique plutôt que d'inventer une bande. */
+    bande: BandeCritere | null;
     commentaire: string | null;
+    /** Citation littérale de la production qui justifie le jugement. */
+    preuve: string | null;
+}
+
+/** Point de la consigne, traité ou non. `obligatoire: false` = simple piste
+ *  suggérée par le sujet : ne pas la traiter n'enlève aucun point. */
+export interface EeAccomplishmentPoint {
+    libelle: string;
+    obligatoire: boolean;
+}
+
+export interface EeAccomplishment {
+    pointsTraites: EeAccomplishmentPoint[];
+    pointsOublies: EeAccomplishmentPoint[];
 }
 
 export interface EeCorrection {
@@ -700,8 +742,14 @@ export interface EeCorrection {
 
 export interface EeFeedback {
     noteGlobale: number | null;
+    /** Ce que le candidat a traité / oublié de la consigne. Null (et non pas
+     *  listes vides) quand l'évaluation ne porte pas l'information. */
+    accomplissement: EeAccomplishment | null;
     criteres: EeCriterion[];
+    confiance: ConfianceEvaluation | null;
+    confianceRaisons: string[];
     pointsForts: string[];
+    /** Limité à 2 côté backend depuis la notation v4 : ce sont des priorités. */
     pointsAAmeliorer: string[];
     suggestions: string[];
     exemplesCorriges: EeCorrection[];
@@ -731,6 +779,38 @@ function asString(v: unknown): string | null {
     return typeof v === "string" && v.trim().length > 0 ? v : null;
 }
 
+const BANDES: readonly string[] = [
+    "TRES_BONNE_MAITRISE",
+    "SATISFAISANT",
+    "EN_COURS_ACQUISITION",
+    "FRAGILE",
+    "NON_EVALUABLE",
+];
+
+function asBande(v: unknown): BandeCritere | null {
+    const s = asString(v)?.toUpperCase();
+    return s && BANDES.includes(s) ? (s as BandeCritere) : null;
+}
+
+function asConfiance(v: unknown): ConfianceEvaluation | null {
+    const s = asString(v)?.toUpperCase();
+    return s === "HAUTE" || s === "MOYENNE" || s === "FAIBLE" ? s : null;
+}
+
+/** `obligatoire` manquant → point traité comme exigé : on ne minimise jamais
+ *  un manque, alors qu'une piste est explicitement marquée `false`. */
+function asAccomplishmentPoints(v: unknown): EeAccomplishmentPoint[] {
+    if (!Array.isArray(v)) return [];
+    return v
+        .map((item): EeAccomplishmentPoint | null => {
+            const r = asRecord(item);
+            const libelle = r ? asString(r.libelle) : null;
+            if (!r || !libelle) return null;
+            return {libelle, obligatoire: r.obligatoire !== false};
+        })
+        .filter((p): p is EeAccomplishmentPoint => p !== null);
+}
+
 /**
  * Normalise le `feedback` JSONB d'une {@link EvaluationResultDto} en structure
  * typée prête à l'affichage. Tolérant aux variations de clés (`justification`
@@ -742,7 +822,10 @@ export function parseEeFeedback(
 ): EeFeedback {
     const empty: EeFeedback = {
         noteGlobale: evaluation?.noteSurVingt ?? null,
+        accomplissement: null,
         criteres: [],
+        confiance: evaluation?.confiance ?? null,
+        confianceRaisons: [],
         pointsForts: [],
         pointsAAmeliorer: [],
         suggestions: [],
@@ -763,10 +846,20 @@ export function parseEeFeedback(
                 code,
                 label: asString(r.label) ?? eeCriterionLabel(code),
                 noteSurVingt: note ?? 0,
+                bande: asBande(r.bande),
                 commentaire: asString(r.justification) ?? asString(r.commentaire),
+                preuve: asString(r.preuve),
             };
         })
         .filter((c): c is EeCriterion => c !== null);
+
+    const accRaw = asRecord(fb.accomplissement);
+    const accomplissement: EeAccomplishment | null = accRaw
+        ? {
+              pointsTraites: asAccomplishmentPoints(accRaw.points_traites),
+              pointsOublies: asAccomplishmentPoints(accRaw.points_oublies),
+          }
+        : null;
 
     const correctionsRaw = Array.isArray(fb.exemples_corriges) ? fb.exemples_corriges : [];
     const exemplesCorriges: EeCorrection[] = correctionsRaw
@@ -786,7 +879,10 @@ export function parseEeFeedback(
 
     return {
         noteGlobale: asNumber(fb.note_globale) ?? empty.noteGlobale,
+        accomplissement,
         criteres,
+        confiance: empty.confiance ?? asConfiance(fb.confiance),
+        confianceRaisons: asStringList(fb.confiance_raisons),
         pointsForts: asStringList(fb.points_forts),
         pointsAAmeliorer: asStringList(fb.points_a_ameliorer),
         suggestions: asStringList(fb.suggestions),
@@ -795,17 +891,40 @@ export function parseEeFeedback(
     };
 }
 
-/** Libellé de repli pour un critère EE si le backend n'a pas fourni `label`. */
+/** Libellé de repli pour un critère EE/EO si le backend n'a pas fourni `label`
+ *  (il le fournit depuis la rubrique de la tâche : cette table n'est qu'un
+ *  filet, jamais la source). Les codes propres à chaque tâche sont arrivés
+ *  avec la notation v4 ; les anciens codes restent listés pour les évaluations
+ *  déjà en base. */
 export function eeCriterionLabel(code: string): string {
     switch (code) {
-        case "pertinence":
-            return "Pertinence et développement du contenu";
-        case "coherence":
-        case "organisation":
-            return "Organisation et cohérence";
+        // --- v4 : critères propres à chaque tâche ---
+        case "realisation_consigne":
+            return "Réalisation de la consigne";
+        case "adequation_destinataire":
+            return "Adéquation au destinataire et au registre";
+        case "chronologie_recit":
+            return "Chronologie et repères temporels";
+        case "prise_position":
+            return "Prise de position claire";
+        case "argumentation":
+            return "Justification et développement des arguments";
+        case "conduite_echange":
+            return "Conduite de l'échange";
+        case "developpement_reponses":
+            return "Développement des réponses";
+        // --- communs aux six tâches (le serveur en dérive le niveau) ---
         case "vocabulaire":
         case "lexique":
-            return "Richesse et précision du vocabulaire";
+            return "Étendue et maîtrise du lexique";
+        case "morphosyntaxe":
+            return "Correction morphosyntaxique";
+        case "coherence":
+        case "organisation":
+            return "Cohérence et organisation";
+        // --- codes hérités (évaluations antérieures) ---
+        case "pertinence":
+            return "Pertinence et développement du contenu";
         case "grammaire":
             return "Correction grammaticale";
         case "orthographe":
@@ -814,6 +933,34 @@ export function eeCriterionLabel(code: string): string {
             return "Clarté de l'expression écrite";
         default:
             return code ? code.charAt(0).toUpperCase() + code.slice(1).replace(/_/g, " ") : "Critère";
+    }
+}
+
+/** Libellé affichable d'une bande de critère. */
+export function bandeCritereLabel(b: BandeCritere): string {
+    switch (b) {
+        case "TRES_BONNE_MAITRISE":
+            return "Très bonne maîtrise";
+        case "SATISFAISANT":
+            return "Satisfaisant";
+        case "EN_COURS_ACQUISITION":
+            return "En cours d'acquisition";
+        case "FRAGILE":
+            return "Fragile";
+        case "NON_EVALUABLE":
+            return "Non évaluable";
+    }
+}
+
+/** Libellé affichable d'un degré de confiance. */
+export function confianceLabel(c: ConfianceEvaluation): string {
+    switch (c) {
+        case "HAUTE":
+            return "confiance haute";
+        case "MOYENNE":
+            return "confiance moyenne";
+        case "FAIBLE":
+            return "confiance faible";
     }
 }
 

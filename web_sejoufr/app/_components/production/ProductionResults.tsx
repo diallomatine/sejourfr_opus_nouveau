@@ -15,7 +15,6 @@ import {ModuleDetailGate, moduleDetailStyles as ds} from "@/app/_components/modu
 import {HubDetailHeader} from "@/app/_components/hub/HubParts";
 import {ProductionFeedbackView} from "./ProductionFeedbackView";
 import {TranscriptDialogue} from "./TranscriptDialogue";
-import {EoTranscriptNotice} from "./EoTranscriptNotice";
 import {type ProductionConfig} from "./config";
 import hub from "@/app/_components/hub/hub.module.css";
 import prod from "./production.module.css";
@@ -150,7 +149,6 @@ export function ProductionResults({config}: {config: ProductionConfig}) {
               evaluation={submission.evaluation}
               isOral={config.mode === "audio"}
             />
-            {config.mode === "audio" && <EoTranscriptNotice />}
             {config.mode === "audio" && submission.transcription && (
               <details className={prod.card}>
                 <summary className={prod.cardLabel} style={{cursor: "pointer"}}>

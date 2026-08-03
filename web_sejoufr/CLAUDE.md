@@ -877,6 +877,35 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
     `tacheNumero` seul (sans niveau) → renvoyait toute l'épreuve. Branche ajoutée +
     query `findByEpreuveAndTacheNumeroAndActiveTrueOrderByNiveauCibleAscCreatedAtAsc`.
 
+### Écran de résultat d'une production (notation IA v4)
+
+`ProductionFeedbackView` (rendu par `ProductionResults`, routes
+`/entrainement/tcf/{ee,eo}/resultats/[submissionId]`) suit l'ordre :
+**note globale /20 → performance observée + confiance → « À savoir » →
+check-list d'accomplissement → critères en bandes → points forts → priorités →
+suggestions → corrections**. Règles à ne pas défaire :
+
+- **Le niveau n'est JAMAIS affiché sans sa confiance** (`EvaluationResultDto.
+  niveauObserve` + `confiance` + `avertissementNiveau`, tous fournis par le
+  backend). Le seul niveau qui fait foi reste celui du bilan d'épreuve.
+- **Un critère s'affiche en bande, pas en note** (`scores_criteres[].bande`,
+  calculée serveur) : une IA ne distingue pas honnêtement un 13 d'un 14. La
+  note **globale** /20, elle, reste chiffrée. La `preuve` (citation littérale)
+  s'affiche sous le commentaire.
+- **L'accomplissement passe avant la langue** et distingue les points
+  **obligatoires** des **pistes** (`obligatoire: false`) : une piste non
+  traitée n'enlève aucun point et doit être présentée comme telle.
+- `points_a_ameliorer` est plafonné à 2 côté backend → titre « Vos priorités ».
+- **Rétrocompatibilité v3** : les évaluations déjà en base n'ont ni niveau, ni
+  confiance, ni accomplissement, ni bandes, ni preuves. Les blocs concernés ne
+  sont pas rendus et les critères retombent sur l'affichage chiffré historique.
+  C'est un cas normal, jamais une erreur.
+- L'avertissement « évaluation fondée sur la transcription, la voix n'est pas
+  analysée » vient désormais du backend en tête de `feedback.avertissements`
+  (EO). `EoTranscriptNotice` ne sert plus qu'**avant** l'enregistrement
+  (`EoRecordingForm`) ; le résultat garde un repli statique du même message si
+  l'évaluation ne porte aucun avertissement (éval v3).
+
 ### Endpoints backend manquants (à créer si besoin)
 
 Côté Spring, ces endpoints n'existent pas encore et leur absence est gérée par
