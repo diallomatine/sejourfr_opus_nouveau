@@ -1,10 +1,17 @@
 package com.sejourfr.app.calibration;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Resultat brut d'un cas du corpus pour une passe : ce que le pipeline de
  * production a repondu, en face de ce que le corpus attendait.
+ *
+ * @param criteres         note /20 par code de critere, telle qu'elle a servi au
+ *                         calcul serveur. Conservee pour pouvoir REJOUER HORS
+ *                         LIGNE le passage note -> niveau (balayage de seuils
+ *                         {@code niveau-cecrl.seuil-*}, plafonds) sans refaire
+ *                         un seul appel LLM.
  *
  * @param statut           {@code OK} · {@code VALIDITE_SERVEUR} (court-circuite
  *                         avant le LLM par les controles deterministes) ·
@@ -27,6 +34,7 @@ record CaseRun(
     String niveauObtenu,
     String niveauIa,
     Double note,
+    Map<String, Double> criteres,
     double noteMin,
     double noteMax,
     String confianceAttendue,

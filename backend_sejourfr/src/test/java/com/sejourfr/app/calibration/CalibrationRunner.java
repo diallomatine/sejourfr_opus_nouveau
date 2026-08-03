@@ -172,7 +172,7 @@ final class CalibrationRunner {
         if (eval == null) {
             return new CaseRun(cas.id(), cas.groupe(), passe, "ERREUR_APPEL", erreur,
                 attendu.niveau().name(), noms(attendu.tolerance()), null, null, null,
-                attendu.noteMin(), attendu.noteMax(),
+                Map.of(), attendu.noteMin(), attendu.noteMax(),
                 nom(attendu.confiance()), null, attendu.obligatoireTraite(), null,
                 attendu.pointsOublies(), List.of(), attendu.pieges(),
                 List.of(), List.of(), recorder.appele, tentatives, ratees, modele(),
@@ -194,6 +194,7 @@ final class CalibrationRunner {
             eval.getNiveauCecrl() == null ? null : eval.getNiveauCecrl().name(),
             eval.getNiveauCecrlIa() == null ? null : eval.getNiveauCecrlIa().name(),
             eval.getNoteSur20() == null ? null : eval.getNoteSur20().doubleValue(),
+            notesParCode(feedback.get("scores_criteres")),
             attendu.noteMin(), attendu.noteMax(),
             nom(attendu.confiance()), texte(feedback.get("confiance")),
             attendu.obligatoireTraite(), obligatoireTraite(feedback),
@@ -267,6 +268,24 @@ final class CalibrationRunner {
             }
         }
         return List.copyOf(out);
+    }
+
+    /**
+     * Notes /20 par code de critere, telles que le serveur les a vues. Permet de
+     * rejouer hors ligne le passage note -> niveau (seuils, plafonds) sans
+     * relancer d'appel LLM.
+     */
+    private static Map<String, Double> notesParCode(Object scoresCriteres) {
+        Map<String, Double> out = new LinkedHashMap<>();
+        if (scoresCriteres instanceof List<?> scores) {
+            for (Object s : scores) {
+                if (s instanceof Map<?, ?> m && m.get("code") != null
+                    && m.get("note_sur_20") instanceof Number n) {
+                    out.put(m.get("code").toString(), n.doubleValue());
+                }
+            }
+        }
+        return Map.copyOf(out);
     }
 
     private static Boolean obligatoireTraite(Map<String, Object> feedback) {

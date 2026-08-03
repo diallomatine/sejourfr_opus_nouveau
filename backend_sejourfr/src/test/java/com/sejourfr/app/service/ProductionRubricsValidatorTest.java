@@ -108,6 +108,92 @@ class ProductionRubricsValidatorTest {
         assertThatCode(v::validate).doesNotThrowAnyException();
     }
 
+    /** v4.1 (correction de l'indulgence) doit demarrer au meme titre que v3 et v4. */
+    @Test
+    void validate_realV41File_noThrow() {
+        when(taskManager.findAllActive()).thenReturn(List.of());
+        ProductionRubricsValidator v =
+                new ProductionRubricsValidator(realProvider("v4.1"), taskManager);
+
+        assertThatCode(v::validate).doesNotThrowAnyException();
+    }
+
+    /** v4.1 garde le contrat structurel de v4 : 6 taches, poids a 1.00, codes porteurs presents. */
+    @Test
+    void v41File_keepsV4Contract() {
+        Map<String, Map<String, Object>> all = realProvider("v4.1").all();
+
+        assertThat(all).containsOnlyKeys("EE_T1", "EE_T2", "EE_T3", "EO_T1", "EO_T2", "EO_T3");
+        for (String cle : all.keySet()) {
+            assertThat(codes(all, cle))
+                    .as(cle + " garde les codes porteurs du niveau CECRL")
+                    .contains("lexique", "morphosyntaxe", "coherence");
+            assertThat(poidsTotal(all, cle)).as(cle + " : somme des poids")
+                    .isEqualTo(1.0, org.assertj.core.data.Offset.offset(0.0001));
+        }
+        assertThat(codes(all, "EO_T2")).contains("conduite_echange");
+        assertThat(codes(all, "EE_T2")).contains("chronologie_recit");
+    }
+
+    /**
+     * Ce que v4.1 corrige : les tolerances de v4 sont ENCADREES (jamais supprimees)
+     * et le bas d'echelle est ancre. On verrouille la presence des regles, pas leur
+     * redaction — c'est le banc de mesure qui juge de leur effet.
+     */
+    @Test
+    void v41File_framesTolerancesAndAnchorsLowLevels() {
+        Map<String, Object> commun = realProvider("v4.1").getCommun();
+        String texte = String.valueOf(commun.get("sections"));
+
+        // Les 6 tolerances de v4 sont TOUJOURS la (aucune suppression).
+        assertThat(texte)
+                .as("tolerance longueur conservee")
+                .contains("Ne penalise donc JAMAIS une production pour sa longueur")
+                .as("tolerance orthographe a l'oral conservee")
+                .contains("n'evalue PAS l'orthographe sur de l'oral transcrit")
+                .as("tolerance exhaustivite conservee")
+                .contains("n'exige JAMAIS l'exhaustivite")
+                .as("examinateur temoin de comprehension conserve")
+                .contains("L'EXAMINATEUR EST TON TEMOIN DE COMPREHENSION")
+                .as("benefice du doute conserve")
+                .contains("BENEFICE DU DOUTE")
+                .as("interdiction de conclure a l'incomprehensibilite conservee")
+                .contains("Ne conclus JAMAIS que le candidat est 'incomprehensible'");
+
+        // ... mais elles sont desormais encadrees, et le bas d'echelle est ancre.
+        assertThat(texte)
+                .contains("Ne pas penaliser un defaut n'est pas crediter une qualite")
+                .contains("PLAFOND A1")
+                .contains("PLAFOND A2")
+                .contains("TEST DECISIF A1 vs A2")
+                .contains("GARDE-FOU DE COUPLAGE")
+                .contains("REPERES DE NOTE GLOBALE")
+                .as("le hors-sujet reste a 0/20 malgre le durcissement du bas d'echelle")
+                .contains("Cette regle PRIME sur toute autre consideration");
+    }
+
+    /** Ancres few-shot v4.1 : le bas d'echelle est couvert sur les 3 taches ecrites. */
+    @Test
+    void v41File_fewShotAddsLowLevelWrittenAnchors() {
+        Map<String, Object> commun = realProvider("v4.1").getCommun();
+        List<?> fewShot = (List<?>) commun.get("few_shot");
+
+        assertThat(fewShot).hasSizeGreaterThanOrEqualTo(12);
+        List<String> basEchelle = new ArrayList<>();
+        for (Object o : fewShot) {
+            Map<?, ?> m = (Map<?, ?>) o;
+            String niveau = String.valueOf(m.get("niveau_cecrl"));
+            String contexte = String.valueOf(m.get("contexte"));
+            if (("A1".equals(niveau) || "A2".equals(niveau)) && contexte.startsWith("EE_")) {
+                basEchelle.add(contexte.substring(0, 5));
+            }
+        }
+        assertThat(basEchelle)
+                .as("une ancre A1 ou A2 sur chacune des 3 taches ecrites les plus deviantes")
+                .contains("EE_T1", "EE_T2", "EE_T3");
+        assertThat(basEchelle).hasSizeGreaterThanOrEqualTo(6);
+    }
+
     /** v4 = criteres PROPRES A CHAQUE TACHE (le defaut corrige) + socle commun conserve. */
     @Test
     void v4File_hasTaskSpecificCriteria() {

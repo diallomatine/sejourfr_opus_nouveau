@@ -205,10 +205,15 @@ sejourfr:
     # prompts/production-rubrics-<v>.json. Le system prompt et le user message
     # sont generes depuis ce fichier (plus de .md system/user-template).
     # prompt-version (ci-dessous) ne gouverne plus que le tool-schema (sortie).
-    # Defaut v4 : criteres PROPRES A CHAQUE TACHE. v3 (4 criteres universels)
-    # reste charge et valide -> EVAL_RUBRICS_VERSION=v3 suffit a revenir en
-    # arriere (le banc de mesure bascule v3 <-> v4 avec cette seule variable).
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v4}
+    # Defaut v4.1 : v4 (criteres propres a chaque tache) + correction de
+    # l'INDULGENCE mesuree au banc. Mesure sur golden-set-v1 (48 cas, DeepSeek) :
+    # ecart global (reference - IA) -1,93 en v4 -> -1,0 en v4.1 ; notes dans la
+    # fourchette 60 % -> 82-88 % ; A1 dans la fourchette 12 % -> 63 % ; A2 38 %
+    # -> 92-100 % ; B2 inchange (85,7 % d'accord exact, ecart +0,5).
+    # v3 et v4 restent charges et valides -> EVAL_RUBRICS_VERSION=v3|v4 suffit a
+    # revenir en arriere (le banc de mesure bascule d'une version a l'autre avec
+    # cette seule variable).
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v4.1}
     # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
     # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
     # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).

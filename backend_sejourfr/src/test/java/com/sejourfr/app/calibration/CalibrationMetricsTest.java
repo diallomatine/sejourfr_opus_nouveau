@@ -3,6 +3,7 @@ package com.sejourfr.app.calibration;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -16,7 +17,7 @@ class CalibrationMetricsTest {
     private static CaseRun run(String id, String groupe, int passe, String attendu, List<String> tolerance,
                                String obtenu, Double note, double min, double max) {
         return new CaseRun(id, groupe, passe, "OK", null, attendu, tolerance, obtenu, obtenu,
-            note, min, max, "HAUTE", "HAUTE", true, true, List.of(), List.of(), List.of(),
+            note, Map.of(), min, max, "HAUTE", "HAUTE", true, true, List.of(), List.of(), List.of(),
             List.of(), List.of(), true, 1, 0, "modele-test", 10, 20, 1, 5);
     }
 
@@ -65,7 +66,7 @@ class CalibrationMetricsTest {
     @Test
     void un_run_en_erreur_n_est_pas_exploitable_et_compte_comme_invalide() {
         CaseRun erreur = new CaseRun("c1", "EE_T1", 1, "ERREUR_APPEL", "timeout", "B1", List.of("B1"),
-            null, null, null, 11, 15, "HAUTE", null, true, null, List.of(), List.of(), List.of(),
+            null, null, null, Map.of(), 11, 15, "HAUTE", null, true, null, List.of(), List.of(), List.of(),
             List.of(), List.of(), true, 3, 3, "modele-test", null, null, null, 5);
 
         assertThat(erreur.exploitable()).isFalse();
@@ -78,7 +79,7 @@ class CalibrationMetricsTest {
     @Test
     void le_court_circuit_de_validite_reste_une_reponse_du_systeme() {
         CaseRun bloque = new CaseRun("c1", "EE_T3", 1, "VALIDITE_SERVEUR", null, "A1_NON_ATTEINT",
-            List.of("A1_NON_ATTEINT"), "A1_NON_ATTEINT", null, 0.0, 0, 0, "HAUTE", "FAIBLE",
+            List.of("A1_NON_ATTEINT"), "A1_NON_ATTEINT", null, 0.0, Map.of(), 0, 0, "HAUTE", "FAIBLE",
             false, false, List.of(), List.of(), List.of("HORS_SUJET"), List.of(), List.of(),
             false, 0, 0, "validation-serveur", 0, 0, 0, 1);
 
@@ -92,7 +93,7 @@ class CalibrationMetricsTest {
     @Test
     void un_piege_est_rate_vers_le_haut_quand_le_niveau_depasse_la_tolerance() {
         CaseRun surevalue = new CaseRun("p1", "EE_T3", 1, "OK", null, "A1_NON_ATTEINT",
-            List.of("A1_NON_ATTEINT"), "A2", "A2", 9.0, 0, 0, "HAUTE", "HAUTE", false, false,
+            List.of("A1_NON_ATTEINT"), "A2", "A2", 9.0, Map.of(), 0, 0, "HAUTE", "HAUTE", false, false,
             List.of(), List.of(), List.of("HORS_SUJET"), List.of(), List.of(), true, 1, 0, "m", 1, 1, 1, 1);
 
         List<CalibrationMetrics.PiegeResultat> p = CalibrationMetrics.pieges(List.of(surevalue));
@@ -105,7 +106,7 @@ class CalibrationMetricsTest {
     @Test
     void un_piege_est_evite_quand_niveau_et_note_tiennent_dans_la_zone() {
         CaseRun bon = new CaseRun("p1", "EO_T2", 1, "OK", null, "A2", List.of("A2", "B1"), "B1", "B1",
-            12.0, 9, 13, "MOYENNE", "MOYENNE", true, true, List.of(), List.of(),
+            12.0, Map.of(), 9, 13, "MOYENNE", "MOYENNE", true, true, List.of(), List.of(),
             List.of("TRANSCRIPTION_BRUITEE"), List.of(), List.of(), true, 1, 0, "m", 1, 1, 1, 1);
 
         assertThat(CalibrationMetrics.pieges(List.of(bon)).get(0).evite()).isTrue();
@@ -134,10 +135,10 @@ class CalibrationMetricsTest {
     @Test
     void la_confiance_distingue_le_sur_et_le_sous_confiant() {
         CaseRun plusSur = new CaseRun("c1", "EE_T1", 1, "OK", null, "B1", List.of("B1"), "B1", "B1",
-            12.0, 11, 15, "MOYENNE", "HAUTE", true, true, List.of(), List.of(), List.of(),
+            12.0, Map.of(), 11, 15, "MOYENNE", "HAUTE", true, true, List.of(), List.of(), List.of(),
             List.of(), List.of(), true, 1, 0, "m", 1, 1, 1, 1);
         CaseRun moinsSur = new CaseRun("c2", "EE_T1", 1, "OK", null, "B1", List.of("B1"), "B1", "B1",
-            12.0, 11, 15, "HAUTE", "FAIBLE", true, true, List.of(), List.of(), List.of(),
+            12.0, Map.of(), 11, 15, "HAUTE", "FAIBLE", true, true, List.of(), List.of(), List.of(),
             List.of(), List.of(), true, 1, 0, "m", 1, 1, 1, 1);
 
         CalibrationMetrics.ConfianceResultat c = CalibrationMetrics.confiance(List.of(plusSur, moinsSur));
