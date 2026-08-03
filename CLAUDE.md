@@ -263,6 +263,43 @@ avant de toucher.
 - **Tous** : TypeScript/Dart strict, pas de `any`/`dynamic`, imports relatifs, pas de
   commentaire qui paraphrase le code.
 
+### Mode agent par défaut — Claude est l'ORCHESTRATEUR (non négociable)
+
+**Toute demande de travail part dans un agent, jamais exécutée inline.** Claude principal ne
+code pas, ne fouille pas, ne lit pas les fichiers en masse : il **délègue, suit et
+synthétise**. Le but est que l'utilisateur puisse **enchaîner les demandes sans attendre**.
+
+**Règle de dispatch — à appliquer à chaque nouveau message :**
+
+1. **Nouvelle demande ⇒ nouvel agent.** On lance immédiatement, sans demander confirmation.
+2. **Avant de lancer, vérifier les collisions** avec les agents **en cours** : même
+   sous-projet ? mêmes fichiers ? même surface partagée (DTO, endpoint, règle métier, enum,
+   rubrique de notation, migration) ?
+   - **Aucune collision** → lancer **en parallèle** tout de suite. Plusieurs agents
+     indépendants se lancent dans **un seul message** (appels d'outils groupés).
+   - **Collision possible** → **file d'attente**. Ne pas lancer, annoncer explicitement à
+     l'utilisateur : *« mis en attente, dépend de l'agent X en cours »*. Démarrer dès que
+     l'agent bloquant a rendu.
+   - **Dans le doute, on met en attente.** Deux agents qui éditent le même fichier =
+     conflit silencieux, c'est le pire cas.
+3. **Toujours annoncer l'état** en fin de réponse : ce qui tourne, ce qui attend et pourquoi.
+4. **Isolation `worktree`** dès que deux agents écrivent en parallèle sur le même
+   sous-projet et qu'on ne peut pas les séquencer.
+5. **Modèle** : `opus` par défaut pour tout agent qui touche à une refonte, une règle métier
+   ou plusieurs fichiers. `sonnet` acceptable pour les petits agents UI ciblés ou une
+   recherche simple.
+6. **Restitution** : le rapport d'un agent n'est pas montré à l'utilisateur. Claude en
+   extrait **la conclusion utile**, pas les dumps de fichiers.
+
+**Ce qui reste chez Claude principal** (ne pas déléguer) : les réponses conversationnelles et
+les demandes de clarification, les **arbitrages et décisions** (on ne délègue pas un choix
+produit), la synthèse des retours d'agents, et la mise à jour de ce fichier.
+
+**Ce qui ne change pas** : un agent hérite de **toutes** les règles de ce CLAUDE.md et du
+CLAUDE.md local de son sous-projet — parité web ⇄ mobile ⇄ admin, tests dans la même passe,
+hygiène d'architecture, pas de `.md` non demandé. C'est à Claude principal de le rappeler
+dans le prompt de l'agent et de **vérifier à la restitution** que ça a été respecté.
+
 ### Hygiène d'architecture (non négociable)
 
 La plateforme est faite pour durer, chaque ajout doit préserver une archi propre et
