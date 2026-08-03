@@ -677,6 +677,90 @@ export interface CancelSubscriptionResponse {
   redirectUrl: string | null;
 }
 
+// ============ ÉVALUATION IA EO/EE (notation v4) ============
+//
+// Miroir de EvaluationResultDto (backend). Aucune feature admin ne consomme
+// encore ces types (pas de vue de détail submission/évaluation côté admin au
+// 2026-08 — cf. AdminCalibrationController côté backend, hors périmètre ici) ;
+// posés en avance pour la prochaine passe qui branchera l'écran de calibration.
+
+export type NiveauCecrl = "A1_NON_ATTEINT" | "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+
+export type ConfianceEvaluation = "HAUTE" | "MOYENNE" | "FAIBLE";
+
+/** Bande de maîtrise par critère (notation v4). */
+export type BandeCritere =
+  | "TRES_BONNE_MAITRISE"
+  | "SATISFAISANT"
+  | "EN_COURS_ACQUISITION"
+  | "FRAGILE"
+  | "NON_EVALUABLE";
+
+/** Codes de critères v4. `pertinence` n'existe plus en v4 mais reste présent
+ * sur les évaluations antérieures en base. */
+export type CritereCode =
+  | "realisation_consigne"
+  | "adequation_destinataire"
+  | "chronologie_recit"
+  | "prise_position"
+  | "argumentation"
+  | "conduite_echange"
+  | "lexique"
+  | "morphosyntaxe"
+  | "coherence"
+  | "pertinence";
+
+export interface AccomplissementPoint {
+  libelle: string;
+  obligatoire: boolean;
+}
+
+export interface AccomplissementFeedback {
+  points_traites?: AccomplissementPoint[];
+  points_oublies?: AccomplissementPoint[];
+}
+
+export interface ScoreCritereFeedback {
+  code: CritereCode;
+  label?: string;
+  note_sur_20?: number;
+  bande?: BandeCritere;
+  commentaire?: string;
+  preuve?: string;
+}
+
+/**
+ * Structure libre du feedback JSONB — tous les champs sont facultatifs, une
+ * évaluation v3 en base n'en porte qu'une partie (pas de bande, pas de
+ * preuve, pas d'accomplissement). Absence = cas normal, pas une erreur.
+ */
+export interface EvaluationFeedback {
+  note_globale?: number;
+  confiance?: ConfianceEvaluation;
+  confiance_raisons?: string[];
+  accomplissement?: AccomplissementFeedback;
+  scores_criteres?: ScoreCritereFeedback[];
+  points_forts?: string[];
+  points_a_ameliorer?: string[];
+  suggestions?: string[];
+  exemples_corriges?: string[];
+  avertissements?: string[];
+}
+
+/**
+ * Vue front d'une évaluation IA (EvaluationResultDto backend). `niveauObserve`,
+ * `confiance` et `avertissementNiveau` sont null pour les évaluations
+ * antérieures au schéma v2/v3 — absence normale, aucun front ne doit planter
+ * dessus.
+ */
+export interface EvaluationResultDto {
+  noteSurVingt: number | null;
+  niveauObserve: NiveauCecrl | null;
+  confiance: ConfianceEvaluation | null;
+  avertissementNiveau: string | null;
+  feedback: EvaluationFeedback;
+}
+
 // ============ AUDIENCE DES LANDINGS (page_views) ============
 
 /** Une provenance et son entonnoir sur la fenêtre demandée. */
