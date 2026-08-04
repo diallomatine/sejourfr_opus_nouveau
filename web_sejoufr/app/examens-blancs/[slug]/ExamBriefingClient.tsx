@@ -241,7 +241,8 @@ function ExamBriefingInner({
                 {isGuest ? (
                   <p className="brf-mobile-note">
                     Sans compte, cet examen couvre les épreuves de{" "}
-                    <strong>compréhension</strong> (orale puis écrite).
+                    <strong>compréhension</strong>{" "}
+                    (orale puis écrite).
                     L&apos;<strong>expression écrite et orale</strong>, évaluées
                     par l&apos;IA, ne sont pas disponibles en démo —{" "}
                     <Link href="/inscription?next=/examens-blancs">

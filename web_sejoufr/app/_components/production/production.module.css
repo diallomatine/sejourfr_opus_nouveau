@@ -1086,7 +1086,7 @@
   font-family: var(--font-mono); font-weight: 700; font-size: 13px;
 }
 .sessTacheNumDone { background: var(--color-green); color: #fff; }
-.sessTacheBody { flex: 1; min-width: 0; }
+.sessTacheBody { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .sessTacheTitle { font-weight: 700; font-size: 14px; color: var(--color-ink); }
 .sessTacheSub { font-size: 12.5px; color: var(--color-muted); margin-top: 2px; }
 .sessTacheSubPending { color: var(--color-blue); font-weight: 600; }

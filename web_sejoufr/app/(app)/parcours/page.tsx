@@ -143,7 +143,8 @@ function ParcoursForm() {
           <h1>
             {isOnboarding ? (
               <>
-                Quelle <em>démarche</em> préparez-vous&nbsp;?
+                Quelle <em>démarche</em>{" "}
+                préparez-vous&nbsp;?
               </>
             ) : (
               <>
@@ -185,7 +186,8 @@ function ParcoursForm() {
 
       <p className="pc-rule">
         <strong>Sans compensation entre les épreuves.</strong> Le niveau exigé
-        doit être atteint dans les <strong>4 épreuves</strong> du TCF IRN —
+        doit être atteint dans les <strong>4 épreuves</strong>{" "}
+        du TCF IRN —
         compréhension orale, compréhension écrite, expression écrite et
         expression orale. L&apos;attestation affiche un niveau par épreuve&nbsp;:
         il n&apos;y a pas de moyenne, et l&apos;épreuve la plus basse décide.

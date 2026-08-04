@@ -43,6 +43,8 @@ interface Props {
   imageUrl?: string;
   /** Alt textuel pour l'image. Fallback : `title`. */
   imageAlt?: string;
+  /** Force le préchargement (LCP) : posé sur la 1re couverture d'une grille. */
+  priority?: boolean;
 }
 
 /**
@@ -63,6 +65,7 @@ export function CoverIllustration({
   fillHeight = false,
   imageUrl,
   imageAlt,
+  priority,
 }: Props) {
   const meta = getCategory(category);
   const tone = categoryTone(meta.color);
@@ -92,7 +95,7 @@ export function CoverIllustration({
               : "(min-width: 1024px) 400px, 100vw"
           }
           className="cover-illustration-image"
-          priority={variant === "hero"}
+          priority={priority ?? variant === "hero"}
         />
         <span aria-hidden className="cover-illustration-scrim" />
         {variant === "hero" && (

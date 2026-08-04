@@ -269,7 +269,8 @@ export function ExamReport({
             </ul>
             <p className="rpt-epv-note">
               Comme au TCF IRN, votre niveau global correspond à votre épreuve
-              la <strong>plus faible</strong> — il faut atteindre le niveau
+              la <strong>plus faible</strong>{" "}
+              — il faut atteindre le niveau
               dans chaque épreuve pour le valider (l&apos;expression écrite et
               orale comptent aussi le jour J). Faites monter votre point
               faible pour faire monter l&apos;ensemble.

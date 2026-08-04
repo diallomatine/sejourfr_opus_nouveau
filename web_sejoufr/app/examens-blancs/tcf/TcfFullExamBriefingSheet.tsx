@@ -88,7 +88,8 @@ export function TcfFullExamBriefingSheet({ slotNumber, onClose, isFreeAccount, o
 
         {isFreeAccount && (
           <div className={s.freeNote}>
-            <strong>Compte gratuit :</strong> l&apos;expression écrite et orale (EE + EO),
+            <strong>Compte gratuit :</strong>{" "}
+            l&apos;expression écrite et orale (EE + EO),
             évaluées par l&apos;IA, vous sont offertes <strong>une seule fois</strong>. Vous
             pourrez ensuite refaire cet examen en compréhension (CO + CE) ; l&apos;EE et l&apos;EO
             passeront en abonnement Intégral.

@@ -82,7 +82,8 @@ export function GuestGateSheet({
             <span className="ggs-check">✓</span> Une série gratuite par thème et niveau
           </div>
           <div className="ggs-feature">
-            <span className="ggs-check">✓</span> Expression écrite et orale évaluées par l&apos;IA
+            <span className="ggs-check">✓</span>{" "}
+            Expression écrite et orale évaluées par l&apos;IA
           </div>
           <div className="ggs-feature">
             <span className="ggs-check">✓</span> Révision de vos erreurs

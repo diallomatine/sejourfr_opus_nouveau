@@ -12,7 +12,14 @@ function formatDate(iso: string) {
   });
 }
 
-export function ArticleCard({ article }: { article: ArticleListItem }) {
+export function ArticleCard({
+  article,
+  priority,
+}: {
+  article: ArticleListItem;
+  /** Vrai sur la 1re carte d'une grille sans article à la une (LCP). */
+  priority?: boolean;
+}) {
   return (
     <Link href={`/blog/${article.slug}`} className="article-card">
       <CoverIllustration
@@ -21,6 +28,7 @@ export function ArticleCard({ article }: { article: ArticleListItem }) {
         variant="card"
         imageUrl={article.coverImage}
         imageAlt={article.title}
+        priority={priority}
       />
       <div className="article-card-body">
         <div className="article-card-top">

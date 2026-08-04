@@ -132,7 +132,8 @@ export function ProductionFeedbackView({
           </ul>
           {accPoints.some((p) => !p.obligatoire) && (
             <p className={styles.accFoot}>
-              Les <strong>pistes</strong> sont des idées proposées par le sujet : ne pas les
+              Les <strong>pistes</strong>{" "}
+              sont des idées proposées par le sujet : ne pas les
               traiter n&apos;enlève aucun point.
             </p>
           )}

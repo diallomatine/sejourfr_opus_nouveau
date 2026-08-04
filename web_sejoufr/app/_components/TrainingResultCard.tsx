@@ -54,7 +54,8 @@ export function TrainingResultCard({
 
                 {!isPremium && variant === "primary" && (
                     <div className="trc-paywall">
-                        Vous avez terminé les <strong>{total} questions</strong> de la démo.
+                        Vous avez terminé les <strong>{total} questions</strong>{" "}
+                        de la démo.
                         L&apos;abonnement débloque l&apos;entraînement illimité, le choix du
                         thème et la révision ciblée des erreurs.
                     </div>

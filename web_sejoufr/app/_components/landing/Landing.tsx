@@ -90,7 +90,8 @@ export function Hero() {
           </h1>
 
           <p className={styles.heroDefine}>
-            <strong>TCF IRN</strong> — le test de français pour l&apos;Intégration,
+            <strong>TCF IRN</strong>{" "}
+            — le test de français pour l&apos;Intégration,
             la Résidence et la Nationalité.
           </p>
 
@@ -188,7 +189,8 @@ function HeroExamPreview() {
         <div className={styles.examExplain}>
           <CheckCircle2 size={17} className={styles.examExplainIco} aria-hidden />
           <p>
-            <strong>Bonne réponse.</strong> La devise figure à l&apos;article 2 de
+            <strong>Bonne réponse.</strong>{" "}
+            La devise figure à l&apos;article 2 de
             la Constitution.
           </p>
         </div>
