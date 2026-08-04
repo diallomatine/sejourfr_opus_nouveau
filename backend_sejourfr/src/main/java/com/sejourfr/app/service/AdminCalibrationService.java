@@ -1,9 +1,9 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.CalibrationStatsDto;
+import com.sejourfr.app.dto.CalibrationSubmissionDto;
 import com.sejourfr.app.dto.HumanCalibrationNoteDto;
 import com.sejourfr.app.dto.NiveauCalibrationStatsDto;
-import com.sejourfr.app.dto.ProductionSubmissionDto;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.HumanCalibrationNote;
 import com.sejourfr.app.entity.ProductionSubmission;
@@ -16,6 +16,7 @@ import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.HumanCalibrationNoteManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.mapper.CalibrationSubmissionMapper;
 import com.sejourfr.app.mapper.HumanCalibrationNoteMapper;
 import com.sejourfr.app.mapper.ProductionSubmissionMapper;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +61,7 @@ public class AdminCalibrationService {
     private final HumanCalibrationNoteManager humanNoteManager;
     private final UserManager userManager;
     private final ProductionSubmissionMapper submissionMapper;
+    private final CalibrationSubmissionMapper calibrationMapper;
     private final HumanCalibrationNoteMapper noteMapper;
 
     // ------------------------------------------------------------------------
@@ -74,9 +76,12 @@ public class AdminCalibrationService {
      * <p>Les ids annotes sont charges en UNE requete (et non par une lecture des
      * notes submission par submission) : la liste peut monter a
      * {@value #LIMIT_MAX} lignes.
+     *
+     * <p>Chaque ligne porte la version de grille de sa derniere evaluation IA :
+     * comparer une note IA a une note humaine n'a de sens qu'a bareme connu.
      */
     @Transactional(readOnly = true)
-    public List<ProductionSubmissionDto> listSubmissions(String status, Boolean hasHumanNote, int limit) {
+    public List<CalibrationSubmissionDto> listSubmissions(String status, Boolean hasHumanNote, int limit) {
         if (!"evaluated".equalsIgnoreCase(status)) {
             throw new BusinessException("status=evaluated est le seul filtre supporte pour l'instant.");
         }
@@ -94,7 +99,11 @@ public class AdminCalibrationService {
                 .limit(safe)
                 .toList();
 
-        return filtered.stream().map(submissionMapper::toDtoWithSignedAudio).toList();
+        return filtered.stream()
+                .map(s -> calibrationMapper.toDto(
+                        submissionMapper.toDtoWithSignedAudio(s),
+                        aiEvaluationManager.findLatestBySubmissionId(s.getId()).orElse(null)))
+                .toList();
     }
 
     /**

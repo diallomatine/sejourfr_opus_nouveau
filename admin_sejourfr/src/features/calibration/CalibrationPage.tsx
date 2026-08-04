@@ -7,6 +7,7 @@ import { EmptyState, Panel } from "../../components/ui/Panel";
 import { Spinner } from "../../components/ui/Spinner";
 import { Tag } from "../../components/ui/Tag";
 import type {
+  CalibrationSubmissionDto,
   NiveauCecrl,
   ProductionSubmissionDto,
   ProductionTaskDto,
@@ -46,6 +47,7 @@ const NIVEAU_TONE: Record<
 type Onglet = "pending" | "annotated";
 
 interface SubmissionRow {
+  entry: CalibrationSubmissionDto;
   submission: ProductionSubmissionDto;
   task?: ProductionTaskDto;
   epreuve: string;
@@ -59,8 +61,8 @@ export function CalibrationPage() {
   // note la fait basculer de « à annoter » vers « déjà annotées », et elle peut
   // sortir de la fenêtre chargée — la retrouver dans les listes ferait
   // disparaître la fiche sous les yeux du correcteur au moment où il valide.
-  const [selected, setSelected] = useState<ProductionSubmissionDto | null>(null);
-  const selectedId = selected?.id ?? null;
+  const [selected, setSelected] = useState<CalibrationSubmissionDto | null>(null);
+  const selectedId = selected?.submission.id ?? null;
 
   const statsQuery = useQuery({
     queryKey: ["calibration", "stats"],
@@ -113,12 +115,14 @@ export function CalibrationPage() {
 
   const rows = useMemo<SubmissionRow[]>(() => {
     const source = onglet === "pending" ? pending : annotated;
-    return source.map((submission) => {
+    return source.map((entry) => {
+      const submission = entry.submission;
       const task = submission.productionTaskId
         ? tasksById.get(submission.productionTaskId)
         : undefined;
       const tacheNumero = submission.tacheNumero ?? task?.tacheNumero;
       return {
+        entry,
         submission,
         task,
         epreuve: task ? EPREUVE_LABEL[task.epreuve] : "—",
@@ -261,7 +265,7 @@ export function CalibrationPage() {
                         <button
                           type="button"
                           className={tableStyles.iconBtn}
-                          onClick={() => setSelected(row.submission)}
+                          onClick={() => setSelected(row.entry)}
                         >
                           {onglet === "pending" ? "Annoter" : "Revoir"}
                         </button>
@@ -278,7 +282,7 @@ export function CalibrationPage() {
                   <button
                     type="button"
                     className={styles.card}
-                    onClick={() => setSelected(row.submission)}
+                    onClick={() => setSelected(row.entry)}
                   >
                     <span className={styles.cardTop}>
                       <span className={styles.cardTitle}>{row.epreuve}</span>
@@ -302,10 +306,10 @@ export function CalibrationPage() {
       </Panel>
 
       <SubmissionDetailModal
-        submission={selected}
+        entry={selected}
         task={
-          selected?.productionTaskId
-            ? tasksById.get(selected.productionTaskId)
+          selected?.submission.productionTaskId
+            ? tasksById.get(selected.submission.productionTaskId)
             : undefined
         }
         seuilHorsCible={seuil}

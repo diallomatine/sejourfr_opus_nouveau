@@ -1,6 +1,11 @@
 package com.sejourfr.app.controller;
 
+import com.sejourfr.app.entity.Question;
+import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.User;
+import com.sejourfr.app.enums.MediaType;
+import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.manager.QuestionManager;
 import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.AuthTestSupport;
 import com.sejourfr.app.support.TestData;
@@ -30,6 +35,8 @@ class AdminQuestionControllerIT extends AbstractIntegrationTest {
     private TestData testData;
     @Autowired
     private AuthTestSupport auth;
+    @Autowired
+    private QuestionManager questionManager;
 
     private String adminBearer() {
         User admin = testData.admin();
@@ -70,6 +77,43 @@ class AdminQuestionControllerIT extends AbstractIntegrationTest {
                         .param("media", "NONE")
                         .header(HttpHeaders.AUTHORIZATION, adminBearer()))
                 .andExpect(status().isOk());
+    }
+
+    /**
+     * Bout en bout : le parametre de requete filtre reellement le corps de la
+     * reponse, et le compteur de resultats suit. C'est ce que la console admin
+     * n'obtenait pas quand elle filtrait dans le navigateur — le total restait
+     * celui de la recherche non filtree.
+     */
+    @Test
+    void mediaFilterNarrowsResultsAndTotal() throws Exception {
+        Theme theme = testData.theme(Module.CIVIQUE, "media-http", "Thème média HTTP");
+        Question avecAudio = testData.question(theme);
+        avecAudio.setMedia(testData.media(MediaType.AUDIO));
+        questionManager.save(avecAudio);
+        Question sansMedia = testData.question(theme);
+
+        mockMvc.perform(get("/api/admin/questions")
+                        .param("themeId", theme.getId().toString())
+                        .param("media", "AUDIO")
+                        .header(HttpHeaders.AUTHORIZATION, adminBearer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(avecAudio.getId().toString()));
+
+        mockMvc.perform(get("/api/admin/questions")
+                        .param("themeId", theme.getId().toString())
+                        .param("media", "NONE")
+                        .header(HttpHeaders.AUTHORIZATION, adminBearer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(sansMedia.getId().toString()));
+
+        mockMvc.perform(get("/api/admin/questions")
+                        .param("themeId", theme.getId().toString())
+                        .header(HttpHeaders.AUTHORIZATION, adminBearer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2));
     }
 
     @Test

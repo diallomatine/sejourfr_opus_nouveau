@@ -16,6 +16,7 @@ import type {
   MediaType,
   Module,
   QuestionDto,
+  QuestionMediaFilter,
   QuestionType,
 } from "../../types/api";
 import { QuestionFormModal } from "./QuestionFormModal";
@@ -89,6 +90,13 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
     queryFn: () => themesApi.list(module),
   });
 
+  // Le filtre média n'est proposé que pour le TCF : le laisser partir sur le
+  // module civique restreindrait la recherche sur un critère invisible à l'écran.
+  const mediaParam: QuestionMediaFilter | undefined =
+    supportsMedia && filters.media !== ""
+      ? (filters.media as QuestionMediaFilter)
+      : undefined;
+
   const queryParams = useMemo(
     () => ({
       module,
@@ -96,11 +104,12 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
       difficulty: (filters.difficulty as Difficulty) || undefined,
       type: (filters.type as QuestionType) || undefined,
       active: filters.active === "" ? undefined : filters.active === "true",
+      media: mediaParam,
       search: debouncedSearch || undefined,
       page,
       size: PAGE_SIZE,
     }),
-    [module, filters.themeId, filters.difficulty, filters.type, filters.active, debouncedSearch, page],
+    [module, filters.themeId, filters.difficulty, filters.type, filters.active, mediaParam, debouncedSearch, page],
   );
 
   const questionsQuery = useQuery({
@@ -172,15 +181,6 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
   const data = questionsQuery.data;
   const isInitialLoading = questionsQuery.isLoading;
   const isError = questionsQuery.isError;
-
-  const mediaFilterActive = supportsMedia && filters.media !== "";
-
-  const visibleRows = useMemo(() => {
-    if (!data) return [];
-    if (!mediaFilterActive) return data.content;
-    if (filters.media === "none") return data.content.filter((q) => !q.mediaId);
-    return data.content.filter((q) => q.mediaType === filters.media);
-  }, [data, filters.media, mediaFilterActive]);
 
   const activeFiltersCount = [
     filters.themeId,
@@ -285,7 +285,7 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
                 <option value="AUDIO">Audio</option>
                 <option value="IMAGE">Image</option>
                 <option value="VIDEO">Vidéo</option>
-                <option value="none">Sans média</option>
+                <option value="NONE">Sans média</option>
               </FilterSelect>
             )}
 
@@ -313,25 +313,14 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
           </div>
         )}
 
-        {data && mediaFilterActive && (
-          <p className={styles.scopeNote}>
-            Le filtre média est appliqué dans le navigateur : il ne porte que sur
-            les {data.content.length} questions de la page affichée.
-          </p>
-        )}
-
-        {data && visibleRows.length === 0 && (
+        {data && data.content.length === 0 && (
           <EmptyState
             title="Aucune question"
-            description={
-              mediaFilterActive
-                ? "Aucune question avec ce média sur la page affichée. Changez de page ou retirez le filtre média."
-                : "Aucune question ne correspond aux filtres sélectionnés."
-            }
+            description="Aucune question ne correspond aux filtres sélectionnés."
           />
         )}
 
-        {data && visibleRows.length > 0 && (
+        {data && data.content.length > 0 && (
           <div className={tableStyles.tableWrap}>
             <table className={`${tableStyles.table} ${tableStyles.cardTable}`}>
               <thead>
@@ -346,7 +335,7 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
                 </tr>
               </thead>
               <tbody>
-                {visibleRows.map((q) => (
+                {data.content.map((q) => (
                   <tr
                     key={q.id}
                     className={styles.rowClickable}

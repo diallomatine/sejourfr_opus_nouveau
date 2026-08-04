@@ -1,14 +1,14 @@
 import { apiRequest, HttpError } from "./http";
 import type {
   CalibrationStatsDto,
+  CalibrationSubmissionDto,
   HumanCalibrationNoteDto,
   NiveauCalibrationStatsDto,
-  ProductionSubmissionDto,
 } from "../types/api";
 
 export const calibrationApi = {
   submissions(hasHumanNote: boolean, limit: number) {
-    return apiRequest<ProductionSubmissionDto[]>(
+    return apiRequest<CalibrationSubmissionDto[]>(
       "/api/admin/calibration/submissions",
       { query: { status: "evaluated", hasHumanNote, limit } },
     );

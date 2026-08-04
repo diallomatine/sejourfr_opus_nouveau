@@ -28,8 +28,13 @@ const BANDE_CLASS: Record<BandeCritere, string> = {
 
 export function EvaluationReport({
   evaluation,
+  rubricsVersion,
+  promptVersion,
 }: {
   evaluation: EvaluationResultDto;
+  /** Grille appliquée. Null pour une évaluation antérieure à la colonne. */
+  rubricsVersion: string | null;
+  promptVersion: string | null;
 }) {
   const feedback = evaluation.feedback;
   const criteres = feedback?.scores_criteres ?? [];
@@ -45,11 +50,23 @@ export function EvaluationReport({
     <section className={styles.wrap}>
       <div className={styles.head}>
         <h3 className={styles.title}>Évaluation de l&apos;IA</h3>
-        {legacy && (
-          <span className={styles.legacy} title="Évaluation antérieure au schéma v4">
-            Format v3 — sans bandes ni preuves
+        <div className={styles.headTags}>
+          {legacy && (
+            <span className={styles.legacy} title="Évaluation antérieure au schéma v4">
+              Format v3 — sans bandes ni preuves
+            </span>
+          )}
+          <span
+            className={styles.legacy}
+            title={
+              promptVersion
+                ? `Grille de notation appliquée · schéma de sortie ${promptVersion}`
+                : "Grille de notation appliquée"
+            }
+          >
+            Grille {rubricsVersion ?? "inconnue"}
           </span>
-        )}
+        </div>
       </div>
 
       <div className={styles.summary}>

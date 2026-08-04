@@ -1,6 +1,7 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.dto.CalibrationStatsDto;
+import com.sejourfr.app.dto.CalibrationSubmissionDto;
 import com.sejourfr.app.dto.HumanCalibrationNoteDto;
 import com.sejourfr.app.dto.NiveauCalibrationStatsDto;
 import com.sejourfr.app.dto.ProductionSubmissionDto;
@@ -16,6 +17,7 @@ import com.sejourfr.app.manager.AiEvaluationManager;
 import com.sejourfr.app.manager.HumanCalibrationNoteManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.UserManager;
+import com.sejourfr.app.mapper.CalibrationSubmissionMapper;
 import com.sejourfr.app.mapper.HumanCalibrationNoteMapper;
 import com.sejourfr.app.mapper.ProductionSubmissionMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,9 +62,11 @@ class AdminCalibrationServiceTest {
         userManager = mock(UserManager.class);
         submissionMapper = mock(ProductionSubmissionMapper.class);
         noteMapper = mock(HumanCalibrationNoteMapper.class);
+        // Mapper pur : la vraie implementation, sinon les assertions sur les
+        // versions de grille ne testeraient qu'un mock.
         service = new AdminCalibrationService(
                 submissionManager, aiEvaluationManager, humanNoteManager,
-                userManager, submissionMapper, noteMapper);
+                userManager, submissionMapper, new CalibrationSubmissionMapper(), noteMapper);
     }
 
     private static ProductionSubmission sub(UUID id) {
@@ -108,7 +112,7 @@ class AdminCalibrationServiceTest {
                 .thenReturn(Set.of(annotee.getId()));
         when(submissionMapper.toDtoWithSignedAudio(any())).thenReturn(mock(ProductionSubmissionDto.class));
 
-        List<ProductionSubmissionDto> result = service.listSubmissions("evaluated", true, 50);
+        List<CalibrationSubmissionDto> result = service.listSubmissions("evaluated", true, 50);
 
         assertThat(result).hasSize(1);
         verify(submissionMapper).toDtoWithSignedAudio(annotee);
@@ -125,7 +129,7 @@ class AdminCalibrationServiceTest {
                 .thenReturn(Set.of(annotee.getId()));
         when(submissionMapper.toDtoWithSignedAudio(any())).thenReturn(mock(ProductionSubmissionDto.class));
 
-        List<ProductionSubmissionDto> result = service.listSubmissions("evaluated", false, 50);
+        List<CalibrationSubmissionDto> result = service.listSubmissions("evaluated", false, 50);
 
         assertThat(result).hasSize(1);
         verify(submissionMapper).toDtoWithSignedAudio(vierge);
@@ -144,6 +148,61 @@ class AdminCalibrationServiceTest {
         service.listSubmissions("evaluated", false, 50);
 
         verify(humanNoteManager, times(1)).findAnnotatedSubmissionIds(any());
+    }
+
+    /**
+     * Comparer note IA et note humaine n'a de sens qu'a bareme connu : la ligne
+     * expose la grille de sa derniere evaluation.
+     */
+    @Test
+    void listSubmissions_expose_les_versions_de_la_derniere_evaluation() {
+        ProductionSubmission vierge = sub(UUID.randomUUID());
+        AiEvaluation eval = new AiEvaluation();
+        eval.setRubricsVersion("v4.2");
+        eval.setPromptVersion("v4");
+        when(submissionManager.findByStatutOrderedBySubmittedAt(SubmissionStatut.EVALUATED))
+                .thenReturn(List.of(vierge));
+        when(humanNoteManager.findAnnotatedSubmissionIds(any())).thenReturn(Set.of());
+        when(submissionMapper.toDtoWithSignedAudio(any())).thenReturn(mock(ProductionSubmissionDto.class));
+        when(aiEvaluationManager.findLatestBySubmissionId(vierge.getId()))
+                .thenReturn(Optional.of(eval));
+
+        List<CalibrationSubmissionDto> result = service.listSubmissions("evaluated", false, 50);
+
+        assertThat(result).singleElement().satisfies(row -> {
+            assertThat(row.rubricsVersion()).isEqualTo("v4.2");
+            assertThat(row.promptVersion()).isEqualTo("v4");
+            assertThat(row.submission()).isNotNull();
+        });
+    }
+
+    /**
+     * Colonne {@code rubrics_version} ajoutee apres coup (V022) : une evaluation
+     * anterieure sort avec une version nulle, ce n'est pas une erreur. Idem
+     * quand aucune evaluation n'est rattachee.
+     */
+    @Test
+    void listSubmissions_versions_nulles_quand_inconnues() {
+        ProductionSubmission ancienne = sub(UUID.randomUUID());
+        ProductionSubmission sansEval = sub(UUID.randomUUID());
+        AiEvaluation legacy = new AiEvaluation();
+        legacy.setPromptVersion("v2");
+        when(submissionManager.findByStatutOrderedBySubmittedAt(SubmissionStatut.EVALUATED))
+                .thenReturn(List.of(ancienne, sansEval));
+        when(humanNoteManager.findAnnotatedSubmissionIds(any())).thenReturn(Set.of());
+        when(submissionMapper.toDtoWithSignedAudio(any())).thenReturn(mock(ProductionSubmissionDto.class));
+        when(aiEvaluationManager.findLatestBySubmissionId(ancienne.getId()))
+                .thenReturn(Optional.of(legacy));
+        when(aiEvaluationManager.findLatestBySubmissionId(sansEval.getId()))
+                .thenReturn(Optional.empty());
+
+        List<CalibrationSubmissionDto> result = service.listSubmissions("evaluated", false, 50);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).rubricsVersion()).isNull();
+        assertThat(result.get(0).promptVersion()).isEqualTo("v2");
+        assertThat(result.get(1).rubricsVersion()).isNull();
+        assertThat(result.get(1).promptVersion()).isNull();
     }
 
     // ------------------------------------------------------------------------

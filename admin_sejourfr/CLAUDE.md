@@ -90,6 +90,10 @@ Endpoints utilisés actuellement :
   Stripe → DONE ; Apple/Google → REDIRECT (l'admin copie l'URL pour la transmettre).
 - `PATCH /api/admin/subscriptions/{id}/realtime-sessions` `{ remaining }` — pose le
   solde de sessions EO temps réel du pass (support : offrir/corriger des sessions).
+- `GET|POST|PUT|PATCH|DELETE /api/admin/questions[…]` — la liste accepte
+  `?media=AUDIO|IMAGE|VIDEO|NONE` (majuscules), **filtre serveur** : ne jamais
+  refiltrer la page courante côté navigateur, le compteur et la pagination
+  deviendraient faux.
 - `GET /api/admin/calibration/submissions?status=evaluated&hasHumanNote=…&limit=…`,
   `GET|POST /api/admin/calibration/submissions/{id}/human-note`,
   `GET /api/admin/calibration/stats`, `GET /api/admin/calibration/stats/niveau`
@@ -118,6 +122,14 @@ vraies productions, le bandeau mesure l'écart avec l'IA.
   contrainte d'unicité en base) au lieu de remplacer — le tableau de bord ne
   compte que la plus récente par soumission, donc réannoter ne fausse pas la
   statistique.
+- **Version de grille** : la liste renvoie des `CalibrationSubmissionDto`
+  (`{ submission, rubricsVersion, promptVersion }`), pas des
+  `ProductionSubmissionDto` bruts. Une note produite avec la grille v3 et une
+  note v4.2 ne se comparent pas, donc la fiche affiche « Grille v4.2 » à côté
+  du badge de format ; `rubricsVersion` null (colonne ajoutée en V022) donne
+  « Grille inconnue », pas une erreur. Ces deux versions vivent dans un DTO
+  **admin** : ne pas les remonter dans `ProductionSubmissionDto` /
+  `EvaluationResultDto`, partagés avec le web et le mobile.
 - **Rétrocompatibilité v3** : `niveauObserve` / `confiance` / `avertissementNiveau`
   à null, pas de `bande`, `preuve` ni `accomplissement`, code de critère
   `pertinence` disparu en v4. Chaque bloc se masque si absent — l'absence est un

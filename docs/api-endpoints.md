@@ -118,6 +118,14 @@ visiteurs uniques. Cf. migration V020.
   principal ; le filtre porte sur `question.media`, pas sur l'audio secondaire
   d'une `CO_IMAGE`). **Filtre serveur** : la console ne doit plus filtrer la
   page affichée dans le navigateur.
+- `GET /api/admin/calibration/submissions?status=evaluated&hasHumanNote=&limit=`
+  — renvoie des `CalibrationSubmissionDto`
+  `{ submission, rubricsVersion, promptVersion }` : la soumission au format
+  partagé, plus les versions de la dernière évaluation IA. `rubricsVersion` est
+  `null` pour une évaluation antérieure à la colonne
+  `ai_evaluations.rubrics_version` (V022). DTO propre à l'admin — ces versions
+  ne sont PAS ajoutées à `ProductionSubmissionDto` / `EvaluationResultDto`, que
+  le web et le mobile consomment aussi.
 
 **Pagination** : `?size=` est plafonné à **100** sur toutes les listes paginées
 (`spring.data.web.pageable.max-page-size`), défaut 20.

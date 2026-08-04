@@ -1,8 +1,8 @@
 import { Button } from "../../../components/ui/Button";
 import { Modal } from "../../../components/ui/Modal";
 import type {
+  CalibrationSubmissionDto,
   HumanCalibrationNoteDto,
-  ProductionSubmissionDto,
   ProductionTaskDto,
 } from "../../../types/api";
 import { EPREUVE_LABEL, formatDateTime } from "../calibrationHelpers";
@@ -12,7 +12,7 @@ import { ProductionView } from "./ProductionView";
 import styles from "./SubmissionDetailModal.module.css";
 
 interface SubmissionDetailModalProps {
-  submission: ProductionSubmissionDto | null;
+  entry: CalibrationSubmissionDto | null;
   task?: ProductionTaskDto;
   seuilHorsCible: number;
   existingNote: HumanCalibrationNoteDto | null;
@@ -21,15 +21,16 @@ interface SubmissionDetailModalProps {
 }
 
 export function SubmissionDetailModal({
-  submission,
+  entry,
   task,
   seuilHorsCible,
   existingNote,
   isLoadingNote,
   onClose,
 }: SubmissionDetailModalProps) {
-  if (!submission) return null;
+  if (!entry) return null;
 
+  const submission = entry.submission;
   const epreuve = task ? EPREUVE_LABEL[task.epreuve] : "Épreuve inconnue";
   const tache = submission.tacheNumero ?? task?.tacheNumero;
 
@@ -71,7 +72,11 @@ export function SubmissionDetailModal({
         <ProductionView submission={submission} />
 
         {submission.evaluation ? (
-          <EvaluationReport evaluation={submission.evaluation} />
+          <EvaluationReport
+            evaluation={submission.evaluation}
+            rubricsVersion={entry.rubricsVersion}
+            promptVersion={entry.promptVersion}
+          />
         ) : (
           <p className={styles.noEval}>
             Aucune évaluation IA rattachée à cette soumission — rien à comparer.

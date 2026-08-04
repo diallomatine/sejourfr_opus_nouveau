@@ -20,6 +20,13 @@
   margin: 0;
 }
 
+.headTags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
 .legacy {
   font-family: "JetBrains Mono", monospace;
   font-size: 10px;

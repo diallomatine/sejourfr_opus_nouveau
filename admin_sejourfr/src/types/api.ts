@@ -28,6 +28,14 @@ export type MessageSender = "USER" | "ADMIN";
 
 export type MediaType = "AUDIO" | "IMAGE" | "VIDEO";
 
+/**
+ * Miroir de l'enum backend `QuestionMediaFilter` : valeurs du paramètre
+ * `GET /api/admin/questions?media=…`. `NONE` (majuscules, comme tout le reste)
+ * cible les questions sans média — ce n'est pas un type de média, d'où l'enum
+ * distincte de `MediaType`.
+ */
+export type QuestionMediaFilter = MediaType | "NONE";
+
 export type PassageType = "TEXTE" | "AUDIO" | "DIALOGUE";
 
 // ---------------------------------------------------------------------------
@@ -840,6 +848,22 @@ export interface ProductionSubmissionDto {
 }
 
 // ============ CALIBRATION DE LA NOTATION IA ============
+
+/**
+ * Une ligne de `GET /api/admin/calibration/submissions` : la soumission plus
+ * les versions de l'évaluation IA. DTO propre à l'admin — la version de grille
+ * n'intéresse que l'écran qui juge la notation, elle n'est pas ajoutée aux DTO
+ * partagés avec le web et le mobile.
+ *
+ * `rubricsVersion` est null pour les évaluations antérieures à la colonne
+ * `ai_evaluations.rubrics_version` : l'écran affiche « inconnue ». Une note
+ * produite avec la grille v3 et une note v4.2 ne se comparent pas.
+ */
+export interface CalibrationSubmissionDto {
+  submission: ProductionSubmissionDto;
+  rubricsVersion: string | null;
+  promptVersion: string | null;
+}
 
 /** Payload et réponse de POST /api/admin/calibration/submissions/{id}/human-note. */
 export interface HumanCalibrationNoteDto {
