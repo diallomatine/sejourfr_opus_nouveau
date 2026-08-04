@@ -205,7 +205,12 @@ function BilanInner() {
       {/* Cards par épreuve */}
       <div className={s.bilanCards}>
         {ordered.map((sa) => (
-          <SubAttemptCard key={sa.epreuve} sa={sa} examId={examId} />
+          <SubAttemptCard
+            key={sa.epreuve}
+            sa={sa}
+            examId={examId}
+            isFloor={level != null && sa.cecrlLevel === level}
+          />
         ))}
       </div>
 
@@ -219,9 +224,13 @@ function BilanInner() {
 function SubAttemptCard({
   sa,
   examId,
+  isFloor,
 }: {
   sa: FullTcfExamSubAttempt;
   examId: string;
+  /** Épreuve au niveau plancher : c'est elle qui décide du résultat global.
+   *  Même convention que `ExamReport` (badge rouge sur l'épreuve plancher). */
+  isFloor: boolean;
 }) {
   const router = useRouter();
   const meta = EPREUVE_META[sa.epreuve];
@@ -276,7 +285,9 @@ function SubAttemptCard({
         <span className={s.bilanCardSub}>{sub}</span>
       </span>
       {evaluated ? (
-        <span className={s.bilanCardLevel}>{niveauCecrlLabel(sa.cecrlLevel)}</span>
+        <span className={`${s.bilanCardLevel} ${isFloor ? s.isFloor : ""}`}>
+          {niveauCecrlLabel(sa.cecrlLevel)}
+        </span>
       ) : (
         <span className={s.bilanCardLevelPending}>
           {pending ? "…" : "—"}

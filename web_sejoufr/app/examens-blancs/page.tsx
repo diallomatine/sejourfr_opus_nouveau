@@ -655,7 +655,11 @@ function ExamsGuestHome() {
                     icon={<Waves size={22} strokeWidth={1.8}/>}
                     title="TCF IRN"
                     chip="Tous les modules"
-                    tips={["Conditions réelles", "90 minutes", "4 épreuves", "Niveau CECRL"]}
+                    // Sans compte, l'épreuve offerte est le diagnostic de
+                    // compréhension (CO + CE, 50 Q / 55 min) : annoncer les
+                    // 90 minutes et 4 épreuves de l'examen complet promettait
+                    // ce que la modale de lancement refuse juste après.
+                    tips={["Conditions réelles", "55 minutes", "50 questions", "Niveau CECRL"]}
                     sub={`${SLOTS} épreuves disponibles · 1 offerte sans compte`}
                 >
                     <ExamsGrid

@@ -827,9 +827,9 @@ function BilanView({
                           : "Évaluée"}
                 </span>
               </span>
-              {evaluatedOk && note != null && (
-                <span className={prod.sessTachePill}>{formatNote(note)}/20</span>
-              )}
+              {/* La note vit dans le sous-titre (« Note 10/20 »), comme sur
+                  mobile : la pastille la répétait mot pour mot sur la même
+                  ligne. */}
               {s && !pending && (
                 <ChevronRight size={18} className={prod.sessTacheChevron} aria-hidden />
               )}

@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 
-/// Carte de score "EE" : donut violet a droite (CustomPainter), texte score
-/// /20 a gauche. Calque sur `.donut-section` du HTML. Aucun niveau CECRL ici :
-/// le niveau n'est attribue qu'au bilan d'epreuve (examen blanc).
+/// Carte de score "EE" : donut a droite (CustomPainter), texte score /20 a
+/// gauche. Aucun niveau CECRL ici : le niveau n'est attribue qu'au bilan
+/// d'epreuve (examen blanc).
+///
+/// La couleur du donut suit la rampe de maitrise de la marque
+/// ([masteryColor]) — pas de teinte hors palette.
 ///
 /// La note est PEDAGOGIQUE : notre echelle (16-20 = B2, 11-15 = B1, 6-10 = A2,
 /// 1-5 = A1) est plus fine que celle du TCF, ou 10/20 vaut deja B2. Aucune
@@ -21,9 +24,6 @@ class DonutChartScore extends StatelessWidget {
   /// Note 0..20 ; null si pas evaluable.
   final double? noteSur20;
 
-  static const _violet = Color(0xFF7C3AED);
-  static const _violetLight = Color(0xFFF3EEFE);
-
   double get _percent {
     if (noteSur20 == null) return 0.0;
     return ((noteSur20! / 20.0) * 100).clamp(0, 100).toDouble();
@@ -37,17 +37,20 @@ class DonutChartScore extends StatelessWidget {
 
   String get _subLabel {
     final p = _percent;
-    if (p == 0) return 'Non evaluable';
-    if (p < 40) return 'A retravailler';
+    if (p == 0) return 'Non évaluable';
+    if (p < 40) return 'À retravailler';
     if (p < 60) return 'En progrès';
     if (p < 80) return 'Bon niveau';
-    return 'Tres bon niveau';
+    return 'Très bon niveau';
   }
+
+  Color get _tone => masteryColor(_percent);
 
   String _formatNote() {
     if (noteSur20 == null) return '—';
-    if (noteSur20 == noteSur20!.truncateToDouble())
+    if (noteSur20 == noteSur20!.truncateToDouble()) {
       return noteSur20!.toInt().toString();
+    }
     return noteSur20!.toStringAsFixed(1).replaceAll('.', ',');
   }
 
@@ -120,8 +123,8 @@ class DonutChartScore extends StatelessWidget {
                       size: const Size(100, 100),
                       painter: _DonutPainter(
                         percent: _percent,
-                        background: _violetLight,
-                        foreground: _violet,
+                        background: _tone.withValues(alpha: 0.14),
+                        foreground: _tone,
                         strokeWidth: 10,
                       ),
                     ),
@@ -133,7 +136,7 @@ class DonutChartScore extends StatelessWidget {
                           style: AppFonts.ui(
                             size: 20,
                             weight: FontWeight.w700,
-                            color: _violet,
+                            color: _tone,
                           ),
                         ),
                         const SizedBox(height: 2),

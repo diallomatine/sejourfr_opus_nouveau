@@ -491,6 +491,14 @@ export function QuestionRunner({
   // contrôles (cf. MediaView examAudio). En entraînement, lecteur libre.
   const examCoAudio =
     mode === "exam" && (q.questionType === "CO" || isCoImage);
+  // Sur le TCF, le thème d'une question EST son épreuve : afficher « Compréhension
+  // orale » en pastille de type puis « COMPRÉHENSION ORALE » en thème sur la même
+  // ligne écrit deux fois la même information.
+  const showThemeTag =
+    !!q.themeName &&
+    (multiSection ||
+      q.themeName.trim().toLowerCase() !==
+        questionTypeLabel(q.questionType).trim().toLowerCase());
   const correctIds = state.lastResult?.correctChoiceIds ?? [];
   const isCorrect = state.lastResult?.correct === true;
   const showCorrection = mode === "training" && hasFeedback;
@@ -607,7 +615,7 @@ export function QuestionRunner({
           {!multiSection && (
             <span className="qr-tag qr-tag-blue">{questionTypeLabel(q.questionType)}</span>
           )}
-          <span className="qr-tag-theme">{q.themeName}</span>
+          {showThemeTag && <span className="qr-tag-theme">{q.themeName}</span>}
         </div>
 
         {/* PASSAGE */}

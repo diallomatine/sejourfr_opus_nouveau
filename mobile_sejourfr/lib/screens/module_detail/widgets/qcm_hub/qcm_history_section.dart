@@ -11,11 +11,16 @@ class QcmHistorySection extends StatelessWidget {
   const QcmHistorySection({
     super.key,
     required this.history,
+    required this.moduleTitle,
     required this.onSeeAll,
     required this.onTap,
   });
 
   final List<AttemptSummary> history;
+
+  /// Intitulé du module (« Compréhension orale »…) : cette liste ne contient
+  /// que les examens blancs DE CE MODULE, pas les examens TCF complets.
+  final String moduleTitle;
   final VoidCallback onSeeAll;
   final ValueChanged<AttemptSummary> onTap;
 
@@ -77,6 +82,7 @@ class QcmHistorySection extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             child: _HistoryRow(
               attempt: attempt,
+              moduleTitle: moduleTitle,
               onTap: () => onTap(attempt),
             ),
           ),
@@ -86,9 +92,14 @@ class QcmHistorySection extends StatelessWidget {
 }
 
 class _HistoryRow extends StatelessWidget {
-  const _HistoryRow({required this.attempt, required this.onTap});
+  const _HistoryRow({
+    required this.attempt,
+    required this.moduleTitle,
+    required this.onTap,
+  });
 
   final AttemptSummary attempt;
+  final String moduleTitle;
   final VoidCallback onTap;
 
   @override
@@ -134,7 +145,9 @@ class _HistoryRow extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Examen complet',
+                        'Examen · $moduleTitle',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: AppFonts.ui(
                           size: 13.5,
                           weight: FontWeight.w700,

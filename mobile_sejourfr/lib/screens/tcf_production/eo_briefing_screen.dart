@@ -461,7 +461,7 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Acces au microphone requis'),
+        title: const Text('Accès au microphone requis'),
         content: Text(
           status.isPermanentlyDenied
               ? "Vous avez refuse l'acces au microphone. "
@@ -990,7 +990,7 @@ class _ErrorBox extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           AppButton(
-            label: 'Reessayer',
+            label: 'Réessayer',
             onPressed: onRetry,
             icon: LucideIcons.refreshCw,
           ),

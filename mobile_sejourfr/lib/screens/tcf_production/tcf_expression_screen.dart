@@ -119,6 +119,9 @@ class _TcfExpressionScreenState extends ConsumerState<TcfExpressionScreen> {
                         error: (_, __) => const SizedBox.shrink(),
                         data: (data) => _History(
                           data: data,
+                          accent: widget.module.isEo
+                              ? AppColors.red
+                              : AppColors.blue,
                           onSeeAll: _openHistory,
                           onExam: _openExamSession,
                           onSingle: _openReport,
@@ -299,12 +302,17 @@ List<Object> _recentMerged(HubData data, int limit) {
 class _History extends StatelessWidget {
   const _History({
     required this.data,
+    required this.accent,
     required this.onSeeAll,
     required this.onExam,
     required this.onSingle,
   });
 
   final HubData data;
+
+  /// Accent du module (EE bleu / EO rouge) : le lien « Tout voir » suivait le
+  /// rouge en dur, y compris sur l'épreuve écrite.
+  final Color accent;
   final VoidCallback onSeeAll;
   final ValueChanged<ExamSession> onExam;
   final ValueChanged<ProductionSubmissionDto> onSingle;
@@ -343,9 +351,7 @@ class _History extends StatelessWidget {
                 onTap: onSeeAll,
                 child: Text('Tout voir',
                     style: AppFonts.ui(
-                        size: 12,
-                        weight: FontWeight.w700,
-                        color: AppColors.red)),
+                        size: 12, weight: FontWeight.w700, color: accent)),
               ),
             ],
           ),
@@ -360,7 +366,7 @@ class _History extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _HubStat(
-                  label: 'Score moyen',
+                  label: 'Moyenne examens',
                   value: moyenneExamens == null
                       ? '—'
                       : '${_formatNote(moyenneExamens)}/20',

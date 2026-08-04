@@ -646,17 +646,19 @@ export function eeTaskSubtitle(tacheNumero: number): string {
     }
 }
 
-/** Titre éditorial d'une tâche EO (parité mobile). */
+/** Titre éditorial d'une tâche EO (parité `displayTitle` mobile).
+ *  L'ordre suit les tâches réellement servies par le backend
+ *  (`production-rubrics` EO_T2 = conduite de l'échange, EO_T3 = point de vue). */
 export function eoTaskTitle(tacheNumero: number): string {
     switch (tacheNumero) {
         case 1:
-            return "Entretien dirigé ";
+            return "Entretien dirigé";
         case 2:
-            return "Expression d'un point de vue ";
+            return "Jeu de rôle";
         case 3:
-            return "Jeu de rôle ";
+            return "Point de vue";
         default:
-            return `Tâche ${tacheNumero} `;
+            return `Tâche ${tacheNumero}`;
     }
 }
 
@@ -666,9 +668,9 @@ export function eoTaskSubtitle(tacheNumero: number): string {
         case 1:
             return "Se présenter et répondre à des questions";
         case 2:
-            return "Donner et défendre son opinion";
+            return "Interagir et obtenir des informations";
         case 3:
-            return "Interagir dans une situation simulée";
+            return "Donner et défendre son opinion";
         default:
             return "";
     }

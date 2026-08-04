@@ -90,6 +90,33 @@ export function ProductionHub({ config }: { config: ProductionConfig }) {
 
   const recent = useMemo(() => history.slice(0, 4), [history]);
 
+  /**
+   * Dernière note connue par tâche. `lastPerTask` est borné au niveau visé par
+   * le candidat : quand il a travaillé la tâche à un autre niveau, la réponse
+   * est vide et la card annonçait « Pas encore travaillée » juste au-dessus
+   * d'un historique qui affiche ses notes sur cette même tâche. On repart donc
+   * de l'historique (déjà chargé, trié du plus récent au plus ancien) et on ne
+   * garde `lastPerTask` que pour les tâches sorties de la fenêtre d'historique.
+   */
+  const lastNoteByTask = useMemo(() => {
+    const m = new Map<number, number>();
+    const seen = new Set<number>();
+    for (const [n, s] of lastPerTask) {
+      const note = s.evaluation?.noteSurVingt;
+      if (note != null) m.set(n, note);
+    }
+    // `history` est trié du plus récent au plus ancien : la première occurrence
+    // d'une tâche est sa dernière note, tous niveaux confondus.
+    for (const s of history) {
+      const n = s.tacheNumero;
+      const note = s.evaluation?.noteSurVingt;
+      if (n == null || note == null || seen.has(n)) continue;
+      seen.add(n);
+      m.set(n, note);
+    }
+    return m;
+  }, [history, lastPerTask]);
+
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={config.base} />;
 
@@ -119,7 +146,7 @@ export function ProductionHub({ config }: { config: ProductionConfig }) {
       >
         <div className={detail.levelGrid}>
           {TASKS.map((n) => {
-            const note = lastPerTask.get(n)?.evaluation?.noteSurVingt ?? null;
+            const note = lastNoteByTask.get(n) ?? null;
             return (
               <LevelChoiceCard
                 key={n}

@@ -77,9 +77,13 @@ class SerieCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 if (done)
                   AppTag(
-                    label: 'Meilleur ${lot.lastScore}/${lot.totalQuestions}',
+                    // `lastScore` est le score du DERNIER attempt fini sur ce
+                    // lot (cf. LotDto backend), pas le meilleur.
+                    label: 'Dernier ${lot.lastScore}/${lot.totalQuestions}',
                     tone: scoreTone,
-                    icon: LucideIcons.check,
+                    icon: scoreTone == TagTone.success
+                        ? LucideIcons.check
+                        : null,
                   )
                 else
                   const AppTag(

@@ -281,6 +281,7 @@ class _TcfQcmDetailScreenState extends ConsumerState<TcfQcmDetailScreen> {
                         error: (_, __) => const SizedBox.shrink(),
                         data: (history) => QcmHistorySection(
                           history: history,
+                          moduleTitle: widget.module.title,
                           onSeeAll: _openExamsPage,
                           onTap: _showExamSheet,
                         ),

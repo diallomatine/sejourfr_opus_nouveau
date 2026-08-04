@@ -516,7 +516,10 @@ class _Content extends StatelessWidget {
           current: taskIndex + 1,
           total: session.totalTasks,
           niveau: task.niveauCible,
-          subtitle: task.displayTitle,
+          // En entraînement libre le bandeau n'affiche que ce sous-titre :
+          // le répéter dupliquerait le titre de la ConsigneCard juste en
+          // dessous. On garde alors le libellé de mode par défaut.
+          subtitle: session.totalTasks <= 1 ? null : task.displayTitle,
           trailing: examTimer,
         ),
         Expanded(

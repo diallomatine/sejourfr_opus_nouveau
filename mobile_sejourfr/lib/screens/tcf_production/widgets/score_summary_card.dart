@@ -37,7 +37,7 @@ class ScoreSummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Votre evaluation',
+            'Votre évaluation',
             style: AppFonts.mono(
               size: 10,
               color: Colors.white.withValues(alpha: 0.7),

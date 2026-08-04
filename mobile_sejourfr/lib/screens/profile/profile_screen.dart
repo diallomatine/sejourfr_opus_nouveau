@@ -422,14 +422,21 @@ class _PassCard extends StatelessWidget {
     if (!premium) {
       name = 'Découverte';
       accent = AppColors.inkSoft;
-    } else if (sub?.moduleAccess == ModuleAccess.integral) {
+    } else if (sub?.moduleAccess == ModuleAccess.integral ||
+        (sub == null && user.hasTcf && user.hasCivique)) {
       name = 'Pass Intégral';
       accent = AppColors.red;
-    } else if (sub?.moduleAccess == ModuleAccess.tcf) {
+    } else if (sub?.moduleAccess == ModuleAccess.tcf ||
+        (sub == null && user.hasTcf)) {
       name = 'Pass TCF';
       accent = AppColors.blue;
-    } else {
+    } else if (sub?.moduleAccess == ModuleAccess.civique || user.hasCivique) {
       name = 'Pass Civique';
+      accent = AppColors.blue;
+    } else {
+      // Premium annoncé sans périmètre connu (statut pas encore chargé) : on
+      // ne nomme pas un pass au hasard, ce serait mentir sur ce qui est ouvert.
+      name = 'Pass actif';
       accent = AppColors.blue;
     }
 

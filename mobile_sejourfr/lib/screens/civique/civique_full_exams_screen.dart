@@ -337,7 +337,7 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
       slot: number,
       filled: done,
       accent: AppColors.blue,
-      title: 'Épreuve $number',
+      title: 'Examen $number',
       subtitle: subtitle,
       subtitleColor: done ? AppColors.blue : AppColors.inkFaint,
       lockedEmpty: lockedEmpty,

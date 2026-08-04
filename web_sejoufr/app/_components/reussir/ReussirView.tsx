@@ -284,11 +284,14 @@ function Waveform() {
 // ② L'EXAMINATEUR IA
 // ============================================================================
 
+// Critères réellement notés à l'oral. La prononciation n'en fait pas partie :
+// l'évaluation part de la transcription (cf. docs/notation-ia-eo-ee.md §9), et
+// l'annoncer ici promettait ce que le produit refuse explicitement de faire.
 const CRITERIA: { label: string; note: string; width: number; amber?: boolean }[] = [
   { label: "Lexique", note: "17,0", width: 86 },
   { label: "Grammaire", note: "14,5", width: 72, amber: true },
   { label: "Cohérence du discours", note: "18,0", width: 90 },
-  { label: "Prononciation", note: "15,5", width: 79 },
+  { label: "Développement des arguments", note: "15,5", width: 79 },
 ];
 
 function AiSection() {

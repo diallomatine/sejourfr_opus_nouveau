@@ -426,7 +426,11 @@ function formatDuration(startedAt: string, finishedAt?: string | null): string {
   );
   if (!Number.isFinite(sec) || sec <= 0) return "—";
   const m = Math.round(sec / 60);
-  return m > 0 ? `${m} min` : `${sec} s`;
+  if (m < 1) return `${sec} s`;
+  if (m < 60) return `${m} min`;
+  // Une session laissée ouverte puis finalisée plus tard produit des durées de
+  // plusieurs heures : « 3036 min » n'est pas lisible.
+  return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}`;
 }
 
 const styles = `

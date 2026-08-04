@@ -3,16 +3,8 @@
 import {useEffect, useRef, useState} from "react";
 import {Clock, FileText} from "lucide-react";
 import type {ProductionTaskDto} from "@/lib/types";
+import {ProductionCriteriaCard} from "./ProductionCriteriaCard";
 import styles from "./production.module.css";
-
-/** Les 5 critères d'évaluation EE (affichés avant rédaction, parité mobile). */
-const EE_CRITERIA = [
-  "Pertinence et développement du contenu",
-  "Organisation et cohérence du texte",
-  "Richesse et précision du vocabulaire",
-  "Correction grammaticale",
-  "Orthographe et ponctuation",
-];
 
 const DRAFT_PREFIX = "sejourfr.ee.draft.";
 
@@ -86,6 +78,23 @@ export function EeWritingForm({
   const max = task.motsMax;
   const inRange =
     (min == null || words >= min) && (max == null || words <= max);
+  // Fenêtre réellement acceptée par le backend (`ProductionEvaluationService.
+  // validateTextWordCount`) : sous `motsMin` ou au-delà de `motsMax × 1.2`,
+  // la soumission part en 422. On le dit avant le clic au lieu de laisser le
+  // candidat découvrir l'erreur serveur (parité `ee_briefing_writing_screen`).
+  const maxTolere = max != null ? Math.floor(max * 1.2) : null;
+  const submittable =
+    words > 0 &&
+    (min == null || words >= min) &&
+    (maxTolere == null || words <= maxTolere);
+  const lengthHint =
+    words === 0 || submittable
+      ? null
+      : min != null && words < min
+        ? `Encore ${min - words} mot${min - words > 1 ? "s" : ""} avant de pouvoir soumettre (${min} minimum).`
+        : `Texte trop long de ${words - (maxTolere ?? words)} mot${
+            words - (maxTolere ?? words) > 1 ? "s" : ""
+          } : raccourcissez-le pour pouvoir soumettre (${max} mots attendus).`;
 
   // Auto-soumission examen (chrono à 0:00). Recevable = mots ∈ [motsMin,
   // motsMax×1.2] — on tolère 20 % au-dessus de la borne haute. Le parent décide.
@@ -102,7 +111,7 @@ export function EeWritingForm({
   const rangeLabel =
     min != null && max != null ? `${min}–${max} mots` : min != null ? `≥ ${min} mots` : "";
 
-  const canSubmit = words > 0 && !submitting;
+  const canSubmit = submittable && !submitting;
 
   return (
     <>
@@ -124,17 +133,7 @@ export function EeWritingForm({
         </div>
       </div>
 
-      <div className={styles.card}>
-        <p className={styles.cardLabel}>Vous serez évalué sur</p>
-        <ul className={styles.criteriaList}>
-          {EE_CRITERIA.map((c) => (
-            <li key={c} className={styles.criteriaItem}>
-              <span className={styles.criteriaDot} />
-              {c}
-            </li>
-          ))}
-        </ul>
-      </div>
+      <ProductionCriteriaCard epreuve="TCF_EE" tacheNumero={task.tacheNumero} />
 
       <div className={styles.writeZone}>
         <div className={styles.writeHead}>
@@ -158,6 +157,8 @@ export function EeWritingForm({
           Brouillon enregistré automatiquement sur cet appareil.
         </p>
       </div>
+
+      {lengthHint && <p className={styles.lengthHint}>{lengthHint}</p>}
 
       {error && <div className={styles.error}>{error}</div>}
 

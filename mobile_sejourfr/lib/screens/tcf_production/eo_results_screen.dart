@@ -158,7 +158,7 @@ class _Wrapper extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.white,
       appBar: ProductionAppHeader(
-        title: 'Resultats',
+        title: 'Résultats',
         fallbackRoute: fallbackRoute,
         rightAction: const ProductionAppHeaderInfo(),
       ),
@@ -227,8 +227,8 @@ class _Body extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
             children: [
               const ResultsEvalBanner(
-                title: 'Evaluation terminee !',
-                subtitle: 'Voici votre evaluation detaillee.',
+                title: 'Évaluation terminée !',
+                subtitle: 'Voici votre évaluation détaillée.',
               ),
               DonutChartScore(
                 noteSur20: eval.noteSurVingt?.toDouble(),
@@ -329,7 +329,7 @@ class _FailedBlock extends StatelessWidget {
               size: 40, color: AppColors.red),
           const SizedBox(height: 12),
           Text(
-            "L'evaluation n'a pas abouti",
+            "L'évaluation n'a pas abouti",
             style: AppFonts.display(
               size: 18,
               weight: FontWeight.w700,

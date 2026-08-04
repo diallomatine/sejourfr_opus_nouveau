@@ -39,9 +39,11 @@ class FeedbackBlock extends StatelessWidget {
           icon: LucideIcons.circleAlert,
         );
       case FeedbackKind.suggest:
+        // Bleu France : la suggestion n'a pas de sémantique propre, elle suit
+        // la marque (le violet hors palette venait de la maquette HTML).
         return (
-          bg: const Color(0xFFF3EEFE),
-          accent: const Color(0xFF6D28D9),
+          bg: AppColors.blue.withValues(alpha: 0.07),
+          accent: AppColors.blue,
           icon: LucideIcons.lightbulb,
         );
     }

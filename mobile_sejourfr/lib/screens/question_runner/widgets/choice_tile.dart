@@ -110,7 +110,10 @@ class ChoiceTile extends StatelessWidget {
                   color: letterBg,
                   borderRadius: BorderRadius.circular(AppRadii.sm),
                 ),
-                child: mark != null
+                // En mode lettre-clé la pastille est la SEULE information du
+                // choix : on ne la remplace jamais par l'icône de correction,
+                // sinon on ne sait plus quelle lettre était la bonne.
+                child: (mark != null && !letterKeyMode)
                     ? Icon(mark, size: 16, color: letterColor)
                     : Text(
                         letter,
@@ -135,6 +138,12 @@ class ChoiceTile extends StatelessWidget {
                         ),
                       ),
               ),
+              if (mark != null && letterKeyMode)
+                Icon(
+                  mark,
+                  size: 18,
+                  color: correct ? AppColors.green : AppColors.red,
+                ),
             ],
           ),
         ),

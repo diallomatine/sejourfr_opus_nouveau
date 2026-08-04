@@ -455,7 +455,7 @@ class _ExamSlotCard extends StatelessWidget {
       slot: slot,
       filled: done,
       accent: _accent,
-      title: 'Épreuve $slot',
+      title: 'Examen $slot',
       subtitle: _subtitle(lockedEmpty: lockedEmpty, level: level),
       subtitleColor: done ? _accent : AppColors.inkFaint,
       trailing: _trailing(lockedEmpty: lockedEmpty),

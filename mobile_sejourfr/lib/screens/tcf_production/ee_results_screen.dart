@@ -212,7 +212,7 @@ class _ResultsBody extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
             children: [
               const ResultsEvalBanner(
-                title: 'Evaluation terminée !',
+                title: 'Évaluation terminée !',
                 subtitle: 'Voici votre correction détaillée.',
               ),
               DonutChartScore(
@@ -221,7 +221,7 @@ class _ResultsBody extends ConsumerWidget {
               EvaluationReport(evaluation: eval),
               if (submission.texteSoumis != null) ...[
                 const SizedBox(height: 4),
-                _SectionTitle('Votre redaction'),
+                _SectionTitle('Votre rédaction'),
                 const SizedBox(height: 8),
                 _SubmittedTextCard(text: submission.texteSoumis!),
               ],

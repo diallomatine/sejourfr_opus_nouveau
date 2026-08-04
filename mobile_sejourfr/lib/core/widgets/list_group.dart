@@ -90,8 +90,10 @@ class ListRow extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
+                        // Les libellés de thème civique dépassent la largeur
+                        // d'une ligne : on enroule plutôt que de tronquer.
                         title,
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: AppFonts.ui(
                           size: 15,

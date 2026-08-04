@@ -396,7 +396,9 @@ const COMPETENCES = [
   {
     Icon: Mic,
     title: "Expression orale",
-    desc: "Répondez à des questions enregistrées. L'IA analyse prononciation, fluidité et lexique.",
+    // Ni la prononciation ni la fluidité ne sont évaluées (l'évaluation part de
+    // la transcription — cf. docs/notation-ia-eo-ee.md §9). On ne les promet pas.
+    desc: "Répondez à des questions enregistrées. L'IA analyse le contenu, le lexique et la grammaire.",
     ai: true,
   },
   {

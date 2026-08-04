@@ -125,6 +125,11 @@
 .stepBody {
   flex: 1;
   min-width: 0;
+  /* Même correction que `.bilanCardBody` : sans colonne, « Compréhension orale »
+     et « 20 min · 25 questions » se collaient sur la même ligne. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 .stepLabel {
   font-weight: 600;
@@ -494,6 +499,11 @@
 .bilanCardBody {
   flex: 1;
   min-width: 0;
+  /* Les enfants sont des <span> : sans colonne, le nom de l'épreuve et son
+     score se collaient sur une seule ligne (« Compréhension oraleScore 0/50 »). */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 .bilanCardLabel {
   font-weight: 600;
@@ -509,8 +519,13 @@
   font-family: var(--font-mono);
   font-size: 1rem;
   font-weight: 700;
-  color: var(--color-green);
+  color: var(--color-blue);
   flex-shrink: 0;
+}
+/* L'épreuve qui tire le résultat vers le bas. Le vert inconditionnel affichait
+   « A1 non atteint » en signal de réussite. */
+.bilanCardLevel.isFloor {
+  color: var(--color-red);
 }
 .bilanCardLevelPending {
   font-size: 0.75rem;

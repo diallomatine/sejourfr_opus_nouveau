@@ -4,16 +4,8 @@ import {useEffect, useRef, useState} from "react";
 import {Clock, Mic, RotateCcw, Square} from "lucide-react";
 import {formatDurationSec, type ProductionTaskDto} from "@/lib/types";
 import {EoTranscriptNotice} from "./EoTranscriptNotice";
+import {ProductionCriteriaCard} from "./ProductionCriteriaCard";
 import styles from "./production.module.css";
-
-/** Les 5 critères d'évaluation EO (affichés avant l'enregistrement). */
-const EO_CRITERIA = [
-  "Pertinence et richesse du contenu",
-  "Aisance et fluidité",
-  "Correction grammaticale",
-  "Lexique et précision",
-  "Prononciation et intonation",
-];
 
 /** Choisit un conteneur audio supporté par le navigateur (Chrome/FF: webm,
  *  Safari: mp4). Whisper accepte ces formats. */
@@ -357,17 +349,7 @@ export function EoRecordingForm({
         </div>
       </div>
 
-      <div className={styles.card}>
-        <p className={styles.cardLabel}>Vous serez évalué sur</p>
-        <ul className={styles.criteriaList}>
-          {EO_CRITERIA.map((c) => (
-            <li key={c} className={styles.criteriaItem}>
-              <span className={styles.criteriaDot} />
-              {c}
-            </li>
-          ))}
-        </ul>
-      </div>
+      <ProductionCriteriaCard epreuve="TCF_EO" tacheNumero={task.tacheNumero} />
 
       <EoTranscriptNotice />
 

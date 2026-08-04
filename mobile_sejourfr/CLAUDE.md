@@ -428,7 +428,8 @@ et leurs widgets n'existent plus. `/civique` et `/tcf` sont des **redirects** ve
   (compteur « X/N séries faites » via `lotsProvider`) + historique des examens du module
   en dessous + bouton **« Examens blancs » fixé en bas** (`FixedActionBar`) → page des
   examens du module. Tap niveau → `TcfLevelLotsScreen` (« Séries » = les lots, cartes
-  `SerieCard` partagées avec badge meilleur score) + même bouton fixe.
+  `SerieCard` partagées avec badge « Dernier X/Y » — `LotDto.lastScore` est le
+  **dernier** score, pas le meilleur) + même bouton fixe.
 - Civique (`/civique/theme/:themeId` → `CiviqueThemeDetailScreen`) : pas de niveaux —
   séries directes (cap 6 + « Voir plus ») + historique + bouton fixe → 10 examens du thème.
 - `widgets/serie_card.dart` est la carte série partagée TCF/Civique ;
@@ -761,7 +762,8 @@ page intermédiaire pour capturer — le tap sur le micro lance la capture sur p
    check vert + mini-player just_audio sur le fichier local + CTA "Voir mon évaluation" → swap vers
    `EvaluationLoadingView(includeTranscription: true)` pendant l'upload R2 + Whisper + Claude
    (~15 s), puis push résultats.
-4. **Résultats** (`eo_results_screen.dart`) : score donut violet + critères + feedback + **transcription
+4. **Résultats** (`eo_results_screen.dart`) : score donut (couleur = rampe `masteryColor`,
+   plus de violet hors palette) + critères + feedback + **transcription
    Whisper**. Atteint en single-task après soumission, ou depuis le bilan en tap d'une ligne, ou
    depuis l'historique des sessions passées (mode `isHistory`). En 3-tâches, `eo_finished_screen`
    **bypasse** ce screen entre les tâches : il push direct le briefing suivant, et après T3 le
