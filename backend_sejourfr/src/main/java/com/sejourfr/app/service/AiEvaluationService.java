@@ -101,10 +101,18 @@ public class AiEvaluationService {
     }
 
     /**
-     * {@code round(Σ note_sur_20[code] × poids[code])}, arrondi a l'entier le plus
-     * proche (HALF_UP), borne a [0,20]. Retourne null si les criteres/poids ou les
-     * scores sont inexploitables (le hors-sujet — tous les criteres a 0 — rend
-     * coherent 0, puisque Σ(0×poids)=0). Package-private pour le test unitaire.
+     * {@code Σ note_sur_20[code] × poids[code]}, arrondi a UNE DECIMALE (HALF_UP),
+     * borne a [0,20]. Retourne null si les criteres/poids ou les scores sont
+     * inexploitables (le hors-sujet — tous les criteres a 0 — rend coherent 0,
+     * puisque Σ(0×poids)=0). Package-private pour le test unitaire.
+     *
+     * <p><b>Une decimale, et pas l'entier</b> : depuis v5 le niveau se lit sur la
+     * note. Avec quatre criteres a 0,25, la moyenne tombe sur des quarts de
+     * point ; arrondir a l'entier faisait afficher « 13/20 » a cote d'un niveau
+     * A2 calcule sur 12,5 — exactement la contradiction que la grille du TCF
+     * doit faire disparaitre. Arrondir le niveau plutot que la note a ete mesure
+     * comme PIRE (38 -> 35 classements exacts sur la campagne v5) : c'est donc
+     * la note qui garde la decimale.
      */
     static BigDecimal weightedNote(Object criteres, Object scoresCriteres) {
         if (!(criteres instanceof List<?> critList) || !(scoresCriteres instanceof List<?> scores)) {
@@ -131,7 +139,7 @@ public class AiEvaluationService {
             any = true;
         }
         if (!any) return null;
-        BigDecimal rounded = sum.setScale(0, RoundingMode.HALF_UP);
+        BigDecimal rounded = sum.setScale(1, RoundingMode.HALF_UP);
         if (rounded.compareTo(BigDecimal.ZERO) < 0) return BigDecimal.ZERO;
         if (rounded.compareTo(NOTE_MAX) > 0) return NOTE_MAX;
         return rounded;
@@ -252,7 +260,7 @@ public class AiEvaluationService {
     /** Competence /20 (criteres porteurs du niveau) d'un feedback deja traite. */
     private BigDecimal competenceDe(Map<String, Object> feedback, BigDecimal note) {
         return ProductionBilanService.competence(
-                feedback.get("scores_criteres"), props.getNiveauCecrl().getSourceCriteres(), note);
+                feedback.get("scores_criteres"), rubrics.niveauCecrl().getSourceCriteres(), note);
     }
 
     /**
@@ -301,10 +309,19 @@ public class AiEvaluationService {
         // fronts qui l'AFFICHENT a la place du nombre (une IA ne distingue pas
         // honnetement un 13 d'un 14). note_sur_20 reste dans le JSON.
         applyBandesCriteres(feedback);
+        // Forme unique de points_a_ameliorer pour les fronts (objets
+        // {constat, comment, exemple}), quelle que soit la version de schema.
+        feedback.put("points_a_ameliorer", normalizePointsAAmeliorer(feedback.get("points_a_ameliorer")));
         // « Au plus 2 points a ameliorer » : regle produit, donc garantie
         // SERVEUR. Le prompt et le maxItems du tool-schema la demandent, ils ne
         // la tiennent pas (83 evaluations sur 109 depassaient 2 en base).
         capPointsAAmeliorer(feedback);
+        // GARDE-FOU DE COUPLAGE, AVANT le calcul de la note : les criteres de
+        // realisation (communiquer / interagir) ne depassent pas de plus de
+        // `ecart-max` la moyenne des criteres de langue. Depuis v5 ils pesent la
+        // moitie de la note, donc du niveau : c'est ce filet qui empeche une
+        // consigne bien cochee en francais pauvre de faire monter d'un palier.
+        applyCouplage(feedback, submissionId);
         // note_globale calculee SERVEUR a partir des scores par critere ponderes
         // par la rubrique : on ecrase la valeur du LLM (advisory). Garantit la
         // coherence global <-> criteres. Si la rubrique est absente, on conserve
@@ -313,8 +330,9 @@ public class AiEvaluationService {
         BigDecimal noteSur20 = extractNote(feedback);
         // niveau_cecrl du LLM = advisory (conserve en base pour la calibration,
         // jamais expose). Le niveau OBSERVE expose par tache est celui calcule
-        // serveur depuis lexique+morphosyntaxe+coherence, comme note_globale —
-        // toujours accompagne de sa confiance. On lit le brut AVANT d'ecraser
+        // serveur depuis les criteres porteurs de la grille active (v5 : les
+        // quatre, donc la note elle-meme), comme note_globale — toujours
+        // accompagne de sa confiance. On lit le brut AVANT d'ecraser
         // feedback.niveau_cecrl.
         NiveauCecrl niveauIa = extractNiveau(feedback);
         NiveauCecrl niveauCalcule = applyServerComputedNiveau(feedback, noteSur20, niveauIa, submissionId);
@@ -346,7 +364,8 @@ public class AiEvaluationService {
             "points_oublies", List.of()));
         feedback.put("scores_criteres", scoresNonEvaluables(task));
         feedback.put("points_forts", List.of());
-        feedback.put("points_a_ameliorer", raisons.stream().limit(MAX_POINTS_A_AMELIORER).toList());
+        feedback.put("points_a_ameliorer", normalizePointsAAmeliorer(
+                raisons.stream().limit(MAX_POINTS_A_AMELIORER).toList()));
         feedback.put("suggestions", List.of());
         feedback.put("exemples_corriges", List.of());
 
@@ -520,6 +539,41 @@ public class AiEvaluationService {
     }
 
     /**
+     * Forme UNIQUE de {@code points_a_ameliorer} pour les fronts : une liste
+     * d'objets {@code {constat, comment, exemple:{avant,apres}}}.
+     *
+     * <p>Le tool-schema v3 la demande au LLM ; les schemas anterieurs (et le
+     * chemin « production invalide », qui n'appelle aucun LLM) produisent de
+     * simples chaines. Plutot que d'imposer aux 3 fronts de gerer deux formes,
+     * le serveur normalise : une chaine devient {@code {constat: <la chaine>}}
+     * sans {@code comment}. Les fronts n'ont donc qu'un seul contrat, et
+     * {@code comment}/{@code exemple} sont optionnels a l'affichage.
+     */
+    private static List<Map<String, Object>> normalizePointsAAmeliorer(Object raw) {
+        if (!(raw instanceof List<?> points)) return List.of();
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Object p : points) {
+            if (p instanceof Map<?, ?> m) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                for (Map.Entry<?, ?> e : m.entrySet()) {
+                    if (e.getKey() != null) entry.put(e.getKey().toString(), e.getValue());
+                }
+                if (entry.get("constat") == null) {
+                    // Tolerance : certains modeles renvoient encore {libelle}/{texte}.
+                    Object fallback = entry.getOrDefault("libelle", entry.get("texte"));
+                    entry.put("constat", fallback == null ? "" : fallback.toString());
+                }
+                out.add(entry);
+            } else if (p != null) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("constat", p.toString());
+                out.add(entry);
+            }
+        }
+        return out;
+    }
+
+    /**
      * Ajoute a chaque score sa {@code bande} qualitative (16-20 / 11-15 / 6-10 /
      * 1-5 / 0). Les fronts affichent la bande, plus le nombre.
      */
@@ -532,6 +586,56 @@ public class AiEvaluationService {
             if (!(sm.get("note_sur_20") instanceof Number n)) continue;
             BandeCritere bande = BandeCritere.of(new BigDecimal(n.toString()));
             if (bande != null) sm.put("bande", bande.name());
+        }
+    }
+
+    /**
+     * GARDE-FOU DE COUPLAGE (filet deterministe, v5) : les criteres de
+     * REALISATION ({@code communiquer}, {@code interagir}) sont ramenes sous
+     * {@code moyenne(lexique, morphosyntaxe) + ecart-max}. Une tache est
+     * toujours accomplie AVEC des moyens linguistiques : la reussir avec des
+     * moyens tres pauvres est une reussite partielle.
+     *
+     * <p>Applique AVANT {@code applyServerComputedNote} pour que la note — et
+     * donc le niveau, qui en decoule depuis v5 — reflete le plafond. La regle
+     * est deja ecrite dans le prompt ; ce filet la garantit, comme
+     * {@code capPointsAAmeliorer} garantit la regle des 2 priorites.
+     *
+     * <p><b>Sans effet sur les grilles anterieures</b> : v3/v4/v4.1/v4.2 n'ont
+     * ni {@code communiquer} ni {@code interagir}, aucun critere ne matche.
+     */
+    @SuppressWarnings("unchecked")
+    private void applyCouplage(Map<String, Object> feedback, UUID submissionId) {
+        ProductionEvaluationProperties.Couplage cfg = props.getCouplage();
+        if (!cfg.isEnabled() || !(feedback.get("scores_criteres") instanceof List<?> scores)) return;
+
+        Map<String, BigDecimal> notes = notesParCode(feedback.get("scores_criteres"));
+        List<BigDecimal> langue = new ArrayList<>();
+        for (String code : cfg.getCriteresLangue()) {
+            BigDecimal v = notes.get(code);
+            if (v != null) langue.add(v);
+        }
+        // Socle incomplet : on ne plafonne pas a l'aveugle.
+        if (langue.size() != cfg.getCriteresLangue().size() || langue.isEmpty()) return;
+
+        BigDecimal somme = BigDecimal.ZERO;
+        for (BigDecimal v : langue) somme = somme.add(v);
+        BigDecimal plafond = somme
+                .divide(BigDecimal.valueOf(langue.size()), 4, RoundingMode.HALF_UP)
+                .add(BigDecimal.valueOf(cfg.getEcartMax()));
+
+        for (Object s : scores) {
+            if (!(s instanceof Map<?, ?> rawMap)) continue;
+            Map<String, Object> sm = (Map<String, Object>) rawMap;
+            Object code = sm.get("code");
+            if (code == null || !cfg.getCriteresRealisation().contains(code.toString())) continue;
+            if (!(sm.get("note_sur_20") instanceof Number n)) continue;
+            BigDecimal note = new BigDecimal(n.toString());
+            if (note.compareTo(plafond) <= 0) continue;
+            BigDecimal ramenee = plafond.setScale(1, RoundingMode.DOWN);
+            log.info("Couplage applique submission={} critere={} : {} -> {} (socle langue + {}).",
+                    submissionId, code, note, ramenee, cfg.getEcartMax());
+            sm.put("note_sur_20", ramenee);
         }
     }
 
@@ -561,7 +665,7 @@ public class AiEvaluationService {
         int tache = task.getTacheNumero();
         NiveauCecrl out = niveau;
 
-        BigDecimal prisePosition = notes.get("prise_position");
+        BigDecimal prisePosition = noteAccomplissement(notes, "prise_position");
         if (tache == 3 && prisePosition != null
                 && prisePosition.compareTo(BigDecimal.valueOf(cfg.getPrisePositionSeuil())) <= 0) {
             out = appliquerPlafond(feedback, out, cfg.getPrisePositionNiveauMax(), submissionId,
@@ -571,7 +675,7 @@ public class AiEvaluationService {
                     + cfg.getPrisePositionNiveauMax().name().replace("_", " ") + ".");
         }
 
-        BigDecimal conduiteEchange = notes.get("conduite_echange");
+        BigDecimal conduiteEchange = noteAccomplissement(notes, "conduite_echange");
         if (task.getEpreuve() == EpreuveType.TCF_EO && tache == 2 && conduiteEchange != null
                 && conduiteEchange.compareTo(BigDecimal.valueOf(cfg.getConduiteEchangeSeuil())) <= 0) {
             out = appliquerPlafond(feedback, out, cfg.getConduiteEchangeNiveauMax(), submissionId,
@@ -591,6 +695,18 @@ public class AiEvaluationService {
             feedback.put(PLAFOND_NIVEAU_KEY, out.name());
         }
         return out;
+    }
+
+    /**
+     * Note du critere qui porte l'ACCOMPLISSEMENT de la tache : le code propre a
+     * la tache dans les grilles v4/v4.1/v4.2 ({@code prise_position},
+     * {@code conduite_echange}), a defaut {@code communiquer}, qui les absorbe
+     * tous dans la grille TCF (v5). Sans ce repli, les deux plafonds cibles
+     * seraient devenus des no-op silencieux en v5.
+     */
+    private static BigDecimal noteAccomplissement(Map<String, BigDecimal> notes, String codeHistorique) {
+        BigDecimal v = notes.get(codeHistorique);
+        return v != null ? v : notes.get("communiquer");
     }
 
     private NiveauCecrl appliquerPlafond(Map<String, Object> feedback, NiveauCecrl actuel,
@@ -793,14 +909,14 @@ public class AiEvaluationService {
      */
     private NiveauCecrl applyServerComputedNiveau(Map<String, Object> feedback, BigDecimal noteGlobale,
                                                   NiveauCecrl niveauIa, UUID submissionId) {
-        List<String> sourceCodes = props.getNiveauCecrl().getSourceCriteres();
+        List<String> sourceCodes = rubrics.niveauCecrl().getSourceCriteres();
         Object scores = feedback.get("scores_criteres");
         if (!sourceCriteriaPresent(scores, sourceCodes)) {
             log.warn("niveau_cecrl : critere(s) porteur(s) {} manquant(s) dans scores_criteres "
                     + "(submission={}) — fallback sur la moyenne ponderee.", sourceCodes, submissionId);
         }
         NiveauCecrl calcule = ProductionBilanService.computeNiveau(
-                scores, sourceCodes, noteGlobale, props.getNiveauCecrl());
+                scores, sourceCodes, noteGlobale, rubrics.niveauCecrl());
         if (calcule == null) {
             log.warn("niveau_cecrl non calculable serveur (submission={}) — niveau LLM conserve.", submissionId);
             return niveauIa; // feedback.niveau_cecrl reste la valeur LLM

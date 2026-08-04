@@ -35,6 +35,7 @@ public class ProductionEvaluationProperties {
     private NiveauCecrl niveauCecrl = new NiveauCecrl();
     private Validite validite = new Validite();
     private Plafonds plafonds = new Plafonds();
+    private Couplage couplage = new Couplage();
     private Fluidite fluidite = new Fluidite();
     private SecondePasse secondePasse = new SecondePasse();
     private CoherenceBilan coherenceBilan = new CoherenceBilan();
@@ -129,6 +130,14 @@ public class ProductionEvaluationProperties {
 
     public void setPlafonds(Plafonds plafonds) {
         this.plafonds = plafonds;
+    }
+
+    public Couplage getCouplage() {
+        return couplage;
+    }
+
+    public void setCouplage(Couplage couplage) {
+        this.couplage = couplage;
     }
 
     public Fluidite getFluidite() {
@@ -596,7 +605,15 @@ public class ProductionEvaluationProperties {
      * apres analyse du dashboard).
      */
     public static class NiveauCecrl {
-        /** Codes de criteres porteurs du niveau (moyennes pour {@code competence}). */
+        /**
+         * Codes de criteres porteurs du niveau (moyennes pour {@code competence}).
+         *
+         * <p>Valeurs par DEFAUT, utilisees par les grilles qui ne declarent pas
+         * les leurs (v3, v4, v4.1, v4.2). Depuis v5, le fichier de rubriques
+         * porte son propre bloc {@code commun.niveau} et c'est lui qui gagne :
+         * cf. {@code ProductionRubricsProvider#niveauCecrl()}. Ne pas modifier
+         * ces valeurs pour calibrer v5 — elles sont l'etat de v4.2.
+         */
         private java.util.List<String> sourceCriteres = java.util.List.of("lexique", "morphosyntaxe", "coherence");
         /** competence >= seuilB2 -> B2. */
         private double seuilB2 = 15.0;
@@ -606,10 +623,17 @@ public class ProductionEvaluationProperties {
         private double seuilA2 = 7.0;
         /**
          * Poids des taches dans le bilan d'epreuve en examen (index = tacheNumero - 1).
-         * Croissants comme la ponderation officielle TCF : la tache courte (T1) pese
-         * moins que l'argumentation (T3). Cf. {@code ProductionBilanService}.
+         *
+         * <p><b>Egaux depuis v5</b>. Le TCF publie UNE note /20 par epreuve et
+         * aucune ponderation par tache ; la difficulte croissante des 3 taches
+         * est deja portee par leurs DESCRIPTEURS (T3 vise B2), la ponderer une
+         * seconde fois la compterait deux fois. Surtout, la moyenne simple rend
+         * le bilan coherent : la note d'epreuve affichee EST la moyenne des 3
+         * notes de tache, et le niveau d'epreuve se lit sur cette meme note.
+         * Reglable sans redeploiement pour revenir a 1/2/3 si la mesure le
+         * justifiait. Cf. {@code ProductionBilanService}.
          */
-        private java.util.List<Double> poidsTaches = java.util.List.of(1.0, 2.0, 3.0);
+        private java.util.List<Double> poidsTaches = java.util.List.of(1.0, 1.0, 1.0);
 
         public java.util.List<String> getSourceCriteres() {
             return sourceCriteres;
@@ -798,6 +822,66 @@ public class ProductionEvaluationProperties {
 
         public void setConduiteEchangeNiveauMax(com.sejourfr.app.enums.NiveauCecrl conduiteEchangeNiveauMax) {
             this.conduiteEchangeNiveauMax = conduiteEchangeNiveauMax;
+        }
+    }
+
+    /**
+     * GARDE-FOU DE COUPLAGE, filet deterministe (v5). Une tache est toujours
+     * accomplie AVEC des moyens linguistiques : les criteres de REALISATION
+     * ({@code communiquer}, {@code interagir}) ne peuvent pas depasser de plus de
+     * {@code ecartMax} points la moyenne des criteres de LANGUE ({@code lexique},
+     * {@code morphosyntaxe}).
+     *
+     * <p>La regle est d'abord ecrite dans le prompt (bloc commun des rubriques
+     * v5) ; ce filet la GARANTIT, sur le meme modele que
+     * {@code capPointsAAmeliorer} — le prompt la demande, il ne la tient pas
+     * toujours. Il est capital depuis v5 : les criteres de realisation pesent la
+     * moitie de la note, donc du niveau ; sans lui, cocher tous les points d'une
+     * consigne A2 dans un francais pauvre suffirait a monter d'un palier.
+     *
+     * <p>Sans effet sur les grilles anterieures : leurs criteres de tache ne
+     * portent pas ces codes, {@code criteresRealisation} ne matche donc rien.
+     */
+    public static class Couplage {
+        /** Coupe-circuit (banc de mesure : comparer avec / sans). */
+        private boolean enabled = true;
+        /** Codes plafonnes (criteres de realisation de la grille TCF). */
+        private java.util.List<String> criteresRealisation = java.util.List.of("communiquer", "interagir");
+        /** Codes qui forment le socle de langue dont on prend la moyenne. */
+        private java.util.List<String> criteresLangue = java.util.List.of("lexique", "morphosyntaxe");
+        /** Ecart maximal tolere au-dessus de la moyenne du socle de langue. */
+        private double ecartMax = 4.0;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public java.util.List<String> getCriteresRealisation() {
+            return criteresRealisation;
+        }
+
+        public void setCriteresRealisation(java.util.List<String> criteresRealisation) {
+            this.criteresRealisation = criteresRealisation;
+        }
+
+        public java.util.List<String> getCriteresLangue() {
+            return criteresLangue;
+        }
+
+        public void setCriteresLangue(java.util.List<String> criteresLangue) {
+            this.criteresLangue = criteresLangue;
+        }
+
+        public double getEcartMax() {
+            return ecartMax;
+        }
+
+        public void setEcartMax(double ecartMax) {
+            this.ecartMax = ecartMax;
         }
     }
 

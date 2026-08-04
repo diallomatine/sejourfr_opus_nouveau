@@ -51,7 +51,17 @@ public class ProductionBilanService {
 
     private final AiEvaluationManager aiEvaluationManager;
     private final TcfLevelEstimatorService levelEstimator;
+    private final ProductionRubricsProvider rubrics;
     private final ProductionEvaluationProperties props;
+
+    /**
+     * Reglages EFFECTIFS du passage note -> niveau : ceux declares par la grille
+     * active ({@code commun.niveau} des rubriques v5+), a defaut ceux de la
+     * config. Cf. {@link ProductionRubricsProvider#niveauCecrl()}.
+     */
+    private ProductionEvaluationProperties.NiveauCecrl seuils() {
+        return rubrics.niveauCecrl();
+    }
 
     /**
      * Dernière évaluation EVALUATED de chaque tâche d'un attempt, indexée par
@@ -132,7 +142,7 @@ public class ProductionBilanService {
             bilan = levelEstimator.capB2(floorFallback);
         } else {
             BigDecimal competence = acc.divide(sumPoids, 4, RoundingMode.HALF_UP);
-            bilan = niveauFromCompetence(competence, props.getNiveauCecrl());
+            bilan = niveauFromCompetence(competence, seuils());
         }
         return appliquerCoherence(bilan, evalsByTache, manquantesAZero);
     }
@@ -170,7 +180,7 @@ public class ProductionBilanService {
             BigDecimal comp = competenceOf(t3);
             niveauT3 = comp == null
                 ? t3.getNiveauCecrl()
-                : niveauFromCompetence(comp, props.getNiveauCecrl());
+                : niveauFromCompetence(comp, seuils());
             // T3 inexploitable : on ne plafonne pas a l'aveugle.
             if (niveauT3 == null) return bilan;
         }
@@ -196,14 +206,46 @@ public class ProductionBilanService {
         return new CorrespondanceTcfDto(bande.getNiveau(), bande.getScoreMin(), bande.getScoreMax());
     }
 
-    /** Moyenne simple /20 (1 décimale) des notes des évaluations, null si aucune. */
+    /** Note d'épreuve /20 des tâches rendues (cf. {@link #noteEpreuve}). */
     public BigDecimal moyenneNotes(Map<Integer, AiEvaluation> evalsByTache) {
-        List<BigDecimal> notes = new ArrayList<>();
-        for (AiEvaluation eval : evalsByTache.values()) {
-            if (eval.getNoteSur20() != null) notes.add(eval.getNoteSur20());
+        return noteEpreuve(evalsByTache, false);
+    }
+
+    /**
+     * <b>Note d'épreuve</b> /20 (1 décimale) : moyenne pondérée des notes des 3
+     * tâches, avec les mêmes poids ({@code poids-taches}, égaux depuis v5) que
+     * le niveau d'épreuve. C'est LA note de l'épreuve, celle qui se lit au bilan
+     * — et, depuis v5, celle dont le niveau d'épreuve se déduit : les deux
+     * racontent la même histoire par construction.
+     *
+     * <p>Elle ne diverge du niveau que dans un cas, volontairement : une tâche
+     * dont le niveau a été <b>plafonné</b> ({@code plafond_niveau}) entre dans
+     * le niveau avec sa compétence rabaissée, alors que la note affichée reste
+     * celle du barème. Le plafond ne peut donc qu'abaisser le niveau, jamais
+     * gonfler la note.
+     *
+     * @param manquantesAZero tâches jamais rendues parmi 1..3 comptées 0 —
+     *        symétrique de {@link #bilanEpreuveTerminee}, pour qu'une épreuve
+     *        écourtée n'affiche pas une note calculée sur les seules tâches
+     *        rendues à côté d'un niveau calculé sur les trois.
+     */
+    public BigDecimal noteEpreuve(Map<Integer, AiEvaluation> evalsByTache, boolean manquantesAZero) {
+        java.util.Set<Integer> taches = new java.util.TreeSet<>(evalsByTache.keySet());
+        if (manquantesAZero) {
+            for (int t = 1; t <= EXPECTED_TASKS_PER_EPREUVE; t++) taches.add(t);
         }
-        if (notes.isEmpty()) return null;
-        return moyenne(notes).setScale(1, RoundingMode.HALF_UP);
+        BigDecimal acc = BigDecimal.ZERO;
+        BigDecimal sumPoids = BigDecimal.ZERO;
+        for (Integer tache : taches) {
+            AiEvaluation eval = evalsByTache.get(tache);
+            BigDecimal note = eval == null ? BigDecimal.ZERO : eval.getNoteSur20();
+            if (note == null) continue;
+            BigDecimal poids = poidsTache(tache);
+            acc = acc.add(note.multiply(poids));
+            sumPoids = sumPoids.add(poids);
+        }
+        if (sumPoids.signum() == 0) return null;
+        return acc.divide(sumPoids, 1, RoundingMode.HALF_UP);
     }
 
     /**
@@ -227,7 +269,7 @@ public class ProductionBilanService {
         Object scores = eval.getFeedbackJson() != null
                 ? eval.getFeedbackJson().get("scores_criteres")
                 : null;
-        BigDecimal competence = competence(scores, props.getNiveauCecrl().getSourceCriteres(), note);
+        BigDecimal competence = competence(scores, seuils().getSourceCriteres(), note);
         return sousPlafond(competence, plafondNiveau(eval));
     }
 
@@ -248,7 +290,7 @@ public class ProductionBilanService {
     /** Ramène la compétence sous la borne haute de la bande plafonnée. */
     private BigDecimal sousPlafond(BigDecimal competence, NiveauCecrl plafond) {
         if (competence == null || plafond == null) return competence;
-        BigDecimal max = competenceMax(plafond, props.getNiveauCecrl());
+        BigDecimal max = competenceMax(plafond, seuils());
         return (max != null && competence.compareTo(max) > 0) ? max : competence;
     }
 
@@ -277,7 +319,7 @@ public class ProductionBilanService {
 
     /** Poids d'une tâche (index {@code tacheNumero - 1} dans {@code poids-taches}, défaut 1). */
     private BigDecimal poidsTache(Integer tacheNumero) {
-        List<Double> poids = props.getNiveauCecrl().getPoidsTaches();
+        List<Double> poids = seuils().getPoidsTaches();
         if (tacheNumero == null || poids == null
                 || tacheNumero < 1 || tacheNumero > poids.size()) {
             return BigDecimal.ONE;

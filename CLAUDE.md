@@ -213,12 +213,12 @@ Le « quoi » et le « pourquoi » vivent dans `docs/notation-ia-eo-ee.md` (réf
 grand public, **à tenir exhaustive et à jour dans la même passe** — cf. la règle
 dédiée plus bas). Ici, uniquement de quoi se repérer.
 
-- **Versions actives** : rubriques `production-rubrics-v4.2.json`, tool-schema de
-  sortie `production-evaluation-tool-schema-v2.json`, persona vocale
-  `realtime-personas-v2.json`. **v4.1, v4 et v3 restent chargeables et validées** :
-  retour arrière = `EVAL_RUBRICS_VERSION=v3|v4|v4.1` (+ `EVAL_PROMPT_VERSION=v1.5`
-  pour v3), aucune migration. **On versionne, on ne réécrit jamais** une
-  rubrique livrée.
+- **Versions actives** : rubriques `production-rubrics-v5.json`, tool-schema de
+  sortie `production-evaluation-tool-schema-v3.json`, persona vocale
+  `realtime-personas-v2.json`. **v4.2, v4.1, v4 et v3 restent chargeables et
+  validées** : retour arrière = `EVAL_RUBRICS_VERSION=v4.2|v4.1|v4|v3`
+  (+ `EVAL_PROMPT_VERSION=v2`, ou `v1.5` pour v3), aucune migration. **On
+  versionne, on ne réécrit jamais** une rubrique livrée.
 - **v4** = critères propres à chaque tâche (5 par tâche, fini les 4 universels),
   obligatoires vs pistes, bloc accomplissement, confiance, preuve littérale,
   2 priorités max. **v4.1** = correction de l'indulgence du **bas** d'échelle
@@ -226,18 +226,66 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   décisif A1 vs A2 avec obligation de citation). **v4.2** = même technique
   appliquée au **haut** : `TEST DECISIF B1 vs B2` opposable — deux marqueurs B2
   à citer littéralement, dont un pris dans « objection envisagée puis traitée »
-  ou « lexique précis » ; à défaut, lexique/morphosyntaxe/cohérence plafonnés à
-  14/20 (donc niveau B1). Le plafond **ne mord qu'au-dessus de 15/20** : par
-  construction il ne peut rien changer sous B1 (hors-sujet, A1/A2 et
-  transcriptions bruitées intouchés). Mesure : B1 correctement classé 8/12 →
-  10-11/12, B2 6/7 → 7/7, accord exact 75,0 % → 81,25 % (3 campagnes v4.2 vs 1
-  campagne v4.1 le même jour, même modèle).
+  ou « lexique précis ».
+- **v5 = la grille RÉELLE du TCF**, en remplacement de la grille maison :
+  **4 critères équipondérés à 0,25**, **codes identiques sur les 6 tâches** —
+  `communiquer` (accomplir la tâche + enchaîner les idées), `interagir`
+  (adéquation à la situation et au destinataire), `lexique`, `morphosyntaxe`.
+  Ce qui distingue les tâches, ce sont les **descripteurs et consignes**, plus
+  les critères. Absorptions : `realisation_consigne`, `chronologie_recit`,
+  `prise_position`, `argumentation`, `conduite_echange`,
+  `developpement_reponses` **et `coherence`** → `communiquer` ;
+  `adequation_destinataire` → `interagir`.
+  - **L'accomplissement compte enfin dans le niveau** (il en était explicitement
+    exclu jusqu'à v4.2 — d'où des cartes « 11/20 » + « proche du A2 »). Le
+    niveau **dérive de la note** : `seuils 16 / 13 / 9` déclarés **dans le
+    fichier de rubriques** (`commun.niveau`), lus par
+    `ProductionRubricsProvider.niveauCecrl()`, qui l'emporte sur
+    `sejourfr.production-evaluation.niveau-cecrl` (celui-ci ne sert plus qu'aux
+    grilles v3→v4.2). C'est ce qui garde le retour arrière à **une seule
+    variable**.
+  - **Garde-fou de couplage** (ce qui remplace l'exclusion) : `communiquer` et
+    `interagir` ne dépassent jamais de plus de **4 points** la moyenne de
+    `lexique`+`morphosyntaxe`. Écrit dans le prompt **et** appliqué serveur
+    (`AiEvaluationService.applyCouplage`, `sejourfr.production-evaluation.couplage`,
+    no-op sur les grilles antérieures). Conséquence : langue A2 → note ≤ 12 → A2,
+    un `communiquer` élevé ne peut pas fabriquer un B2.
+  - **`note_globale` a UNE décimale** (avant : entier). Avec 4 critères à 0,25 la
+    moyenne tombe sur des quarts de point ; arrondir affichait « 13/20 » à côté
+    d'un A2 calculé sur 12,5. Arrondir le niveau au lieu de la note a été **mesuré
+    comme pire** (38 → 35 classements exacts).
+  - **Bilan d'épreuve** : poids des 3 tâches **égaux** (`poids-taches [1,1,1]`,
+    réglable) — le TCF publie une seule note d'épreuve et aucune pondération, et
+    la difficulté croissante est déjà dans les descripteurs. `noteEpreuve` et
+    `bilanEpreuve` partagent le même périmètre (tâches manquantes à 0 des deux
+    côtés sur une épreuve terminée), donc note et niveau du bilan racontent la
+    même histoire ; `correspondanceTcf` en découle.
+  - **Tool-schema v3** (contrat à répercuter sur les 3 fronts) :
+    `points_a_ameliorer[]` passe de `string` à **objet**
+    `{constat, comment, exemple:{avant, apres}}` — le serveur **normalise
+    toujours** vers cette forme, même sur une sortie v2 ou une production
+    invalide, pour que les fronts n'aient qu'un seul contrat ;
+    `exemples_corriges[]` gagne **`gain`** (ce que la reformulation démontre de
+    plus) ; `scores_criteres` est fixé à exactement 4 items énumérés.
+  - Mesure (témoin v4.2 rejoué le même jour, même modèle, 5 cas v5 perdus par
+    rate-limit du fournisseur) : A1 6/8 → **8/8**, A2 11/13 → 11/13, B1 9/9 et
+    B2 6/6 sur les cas mesurés, accord exact 81,3 % → **88,4 % des cas mesurés**
+    (79,2 % en comptant les cas perdus), 0 % de sortie invalide, pièges
+    identiques. La part de notes dans la fourchette du corpus baisse (83,3 % →
+    76,7 %) : **changement d'échelle**, les fourchettes du corpus ont été écrites
+    pour une note qui n'incluait pas l'accomplissement. Corpus **jamais**
+    retouché.
 - **Banc de mesure** (`src/test/java/.../calibration/`, corpus
   `src/test/resources/calibration/golden-set-v1.json`, 48 cas synthétiques) :
   **opt-in strict**, jamais dans `./mvnw verify` (appelle un LLM payant).
   `./mvnw -q test -Dtest=CalibrationBenchTest -DfailIfNoTests=false
-  -Dcalibration.enabled=true -Dcalibration.rubrics=v4.2 -Dcalibration.prompt=v2
-  -Dcalibration.label=<nom>` → rapport JSON dans `target/calibration/`.
+  -Dcalibration.enabled=true -Dcalibration.rubrics=v5 -Dcalibration.prompt=v3
+  -Dcalibration.provider=deepseek -Dcalibration.label=<nom>` → rapport JSON dans
+  `target/calibration/`. **Toujours fixer `-Dcalibration.provider`** : le `.env`
+  local peut pointer un autre modèle, et deux campagnes ont ainsi tourné sur
+  gpt-4o-mini (v4.2 y tombe à 41,7 % d'accord contre 81,3 % sur DeepSeek).
+  Parallélisme ≤ 3 : au-delà le fournisseur renvoie des 429 et des cas se
+  perdent.
   **Ne jamais ajuster le corpus** pour faire passer une version : on corrige le
   système, jamais la référence. Une campagne ≈ 0,45 € ; comparer une nouvelle
   version à un **rerun de l'ancienne le même jour** (le bruit inter-campagnes

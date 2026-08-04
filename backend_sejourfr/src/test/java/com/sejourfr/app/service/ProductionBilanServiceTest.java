@@ -22,7 +22,10 @@ import static org.mockito.Mockito.mock;
  *   <li>{@code niveau_cecrl} par soumission derive de lexique+morphosyntaxe
  *       (cf. {@link ProductionBilanService#computeNiveau}) ;</li>
  *   <li>bilan d'epreuve en examen = moyenne ponderee des competences des 3
- *       taches (poids 1/2/3) (cf. {@link ProductionBilanService#bilanEpreuve}).</li>
+ *       taches, poids EGAUX depuis v5 (cf.
+ *       {@link ProductionBilanService#bilanEpreuve}) ;</li>
+ *   <li>note d'epreuve et niveau d'epreuve calcules sur le MEME perimetre
+ *       (cf. {@link ProductionBilanService#noteEpreuve}).</li>
  * </ul>
  */
 class ProductionBilanServiceTest {
@@ -100,13 +103,18 @@ class ProductionBilanServiceTest {
     // bilan d'epreuve en examen (moyenne ponderee des competences, poids 1/2/3)
     // ------------------------------------------------------------------------
 
-    private final ProductionBilanService service = new ProductionBilanService(
-        mock(AiEvaluationManager.class),
-        new TcfLevelEstimatorService(),
-        propsAvecSeuilsParDefaut());
+    private final ProductionBilanService service = service(new ProductionEvaluationProperties());
 
-    private static ProductionEvaluationProperties propsAvecSeuilsParDefaut() {
-        return new ProductionEvaluationProperties();
+    /**
+     * Service cable sur les reglages de niveau de la config (grilles v3-v4.2 :
+     * lexique + morphosyntaxe + coherence, seuils 15/12/7). Depuis v5 ces
+     * reglages viennent du fichier de rubriques, d'ou le provider.
+     */
+    private static ProductionBilanService service(ProductionEvaluationProperties props) {
+        ProductionRubricsProvider rubrics = mock(ProductionRubricsProvider.class);
+        org.mockito.Mockito.lenient().when(rubrics.niveauCecrl()).thenReturn(props.getNiveauCecrl());
+        return new ProductionBilanService(
+            mock(AiEvaluationManager.class), new TcfLevelEstimatorService(), rubrics, props);
     }
 
     private static AiEvaluation eval(Number lexique, Number morpho, String note) {
@@ -123,7 +131,7 @@ class ProductionBilanServiceTest {
     @Test
     void bilan_une_T1_faible_ne_plafonne_plus_l_epreuve() {
         // T1 competence 8 (A2), T2 et T3 competence 14 (B1).
-        // Plancher (ancien calcul) -> A2. Pondere : (8×1 + 14×2 + 14×3)/6 = 13 -> B1.
+        // Plancher (ancien calcul) -> A2. Moyenne : (8 + 14 + 14)/3 = 12 -> B1.
         Map<Integer, AiEvaluation> evals = Map.of(
             1, eval(8, 8, "8"),
             2, eval(14, 14, "14"),
@@ -131,25 +139,44 @@ class ProductionBilanServiceTest {
         assertThat(service.bilanEpreuve(evals)).isEqualTo(NiveauCecrl.B1);
     }
 
+    /**
+     * Poids EGAUX depuis v5 (le TCF publie une seule note d'epreuve et aucune
+     * ponderation par tache) : (16 + 10 + 10)/3 = 12 -> B1.
+     */
     @Test
-    void bilan_pondere_T3_pese_plus_que_T1() {
-        // (16×1 + 10×2 + 10×3)/6 = 11 -> A2 : un bon T1 ne suffit pas.
+    void bilan_poids_egaux_par_defaut() {
         Map<Integer, AiEvaluation> evals = Map.of(
             1, eval(16, 16, "16"),
             2, eval(10, 10, "10"),
             3, eval(10, 10, "10"));
-        assertThat(service.bilanEpreuve(evals)).isEqualTo(NiveauCecrl.A2);
+        assertThat(service.bilanEpreuve(evals)).isEqualTo(NiveauCecrl.B1);
+    }
+
+    /**
+     * La ponderation reste REGLABLE sans redeploiement : avec les anciens poids
+     * 1/2/3, (16x1 + 10x2 + 10x3)/6 = 11 -> A2. Verrouille la reversibilite.
+     */
+    @Test
+    void bilan_poids_configurables_restent_honores() {
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        props.getNiveauCecrl().setPoidsTaches(List.of(1.0, 2.0, 3.0));
+        Map<Integer, AiEvaluation> evals = Map.of(
+            1, eval(16, 16, "16"),
+            2, eval(10, 10, "10"),
+            3, eval(10, 10, "10"));
+        assertThat(service(props).bilanEpreuve(evals)).isEqualTo(NiveauCecrl.A2);
     }
 
     @Test
     void bilan_hors_sujet_partiel_penalise_sans_annuler() {
         // T1 hors-sujet (note 0 -> competence 0), T2/T3 a 15.
-        // (0×1 + 15×2 + 15×3)/6 = 12.5 -> B1.
+        // (0 + 15 + 15)/3 = 10 -> A2 : penalise lourdement, sans annuler
+        // l'epreuve (ce serait A1_NON_ATTEINT).
         Map<Integer, AiEvaluation> evals = Map.of(
             1, eval(0, 0, "0"),
             2, eval(15, 15, "15"),
             3, eval(15, 15, "15"));
-        assertThat(service.bilanEpreuve(evals)).isEqualTo(NiveauCecrl.B1);
+        assertThat(service.bilanEpreuve(evals)).isEqualTo(NiveauCecrl.A2);
     }
 
     @Test
@@ -183,12 +210,12 @@ class ProductionBilanServiceTest {
     @Test
     void bilan_termine_tache_manquante_compte_zero() {
         // T1 absente (jamais rendue, examen terminé), T2/T3 a 15.
-        // (0×1 + 15×2 + 15×3)/6 = 12.5 -> B1 (au lieu de null en cours d'examen).
+        // (0 + 15 + 15)/3 = 10 -> A2, la ou l'epreuve en cours vaut B2.
         Map<Integer, AiEvaluation> evals = Map.of(
             2, eval(15, 15, "15"),
             3, eval(15, 15, "15"));
-        assertThat(service.bilanEpreuveTerminee(evals)).isEqualTo(NiveauCecrl.B1);
-        assertThat(service.bilanEpreuve(evals)).isNotEqualTo(NiveauCecrl.B1); // partiel ≠ terminé
+        assertThat(service.bilanEpreuveTerminee(evals)).isEqualTo(NiveauCecrl.A2);
+        assertThat(service.bilanEpreuve(evals)).isEqualTo(NiveauCecrl.B2); // partiel ≠ terminé
     }
 
     @Test
@@ -200,7 +227,7 @@ class ProductionBilanServiceTest {
     // Phase 3 — coherence du bilan (drapeau coherence-bilan.enabled, false)
     // ------------------------------------------------------------------------
 
-    /** T1/T2 excellentes, T3 effondree : (20×1 + 20×2 + 11×3)/6 = 15.5 → B2. */
+    /** T1/T2 excellentes, T3 effondree : (20 + 20 + 11)/3 = 17 → B2. */
     private static Map<Integer, AiEvaluation> epreuveB2AvecT3Faible() {
         return Map.of(
             1, eval(20, 20, "20"),
@@ -216,8 +243,7 @@ class ProductionBilanServiceTest {
     void coherence_eteinte_laisse_le_bilan_intact() {
         ProductionEvaluationProperties props = new ProductionEvaluationProperties();
         assertThat(props.getCoherenceBilan().isEnabled()).isFalse();
-        ProductionBilanService svc = new ProductionBilanService(
-            mock(AiEvaluationManager.class), new TcfLevelEstimatorService(), props);
+        ProductionBilanService svc = service(props);
 
         assertThat(svc.bilanEpreuve(epreuveB2AvecT3Faible())).isEqualTo(NiveauCecrl.B2);
         assertThat(svc.bilanEpreuveTerminee(epreuveB2AvecT3Faible())).isEqualTo(NiveauCecrl.B2);
@@ -233,7 +259,7 @@ class ProductionBilanServiceTest {
 
     @Test
     void coherence_allumee_ne_plafonne_pas_une_tache_3_a_B1() {
-        // (20×1 + 20×2 + 12×3)/6 = 16 -> B2, T3 competence 12 -> B1 : aucun plafond.
+        // (20 + 20 + 12)/3 = 17,33 -> B2, T3 competence 12 -> B1 : aucun plafond.
         Map<Integer, AiEvaluation> evals = Map.of(
             1, eval(20, 20, "20"),
             2, eval(20, 20, "20"),
@@ -266,8 +292,7 @@ class ProductionBilanServiceTest {
     private static ProductionBilanService serviceAvecCoherence() {
         ProductionEvaluationProperties props = new ProductionEvaluationProperties();
         props.getCoherenceBilan().setEnabled(true);
-        return new ProductionBilanService(
-            mock(AiEvaluationManager.class), new TcfLevelEstimatorService(), props);
+        return service(props);
     }
 
     // ------------------------------------------------------------------------
@@ -289,7 +314,7 @@ class ProductionBilanServiceTest {
      */
     @Test
     void bilan_tache3_plafonnee_A2_ne_ressort_plus_B2() {
-        // Sans plafond : (16×1 + 16×2 + 16×3)/6 = 16 -> B2.
+        // Sans plafond : (16 + 16 + 16)/3 = 16 -> B2.
         Map<Integer, AiEvaluation> sansPlafond = Map.of(
             1, eval(16, 16, "16"),
             2, eval(16, 16, "16"),
@@ -297,7 +322,7 @@ class ProductionBilanServiceTest {
         assertThat(service.bilanEpreuve(sansPlafond)).isEqualTo(NiveauCecrl.B2);
 
         // Avec le plafond A2 sur T3 : sa competence est ramenee sous le seuil B1
-        // (11,9999), donc (16 + 32 + 35,9997)/6 = 13,9999 -> B1.
+        // (11,9999), donc (16 + 16 + 11,9999)/3 = 14,67 -> B1.
         Map<Integer, AiEvaluation> avecPlafond = Map.of(
             1, eval(16, 16, "16"),
             2, eval(16, 16, "16"),
@@ -313,7 +338,7 @@ class ProductionBilanServiceTest {
             2, eval(15, 15, "15"),
             3, plafonnee(eval(18, 18, "18"), NiveauCecrl.A1_NON_ATTEINT));
 
-        // (15×1 + 15×2 + 0×3)/6 = 7.5 -> A2.
+        // (15 + 15 + 0)/3 = 10 -> A2.
         assertThat(service.bilanEpreuve(evals)).isEqualTo(NiveauCecrl.A2);
     }
 
@@ -359,6 +384,115 @@ class ProductionBilanServiceTest {
             2, eval(12, 12, "12"),
             3, eval(15, 15, "15"));
         assertThat(service.moyenneNotes(evals)).isEqualByComparingTo(new BigDecimal("12.3"));
+    }
+
+    // ------------------------------------------------------------------------
+    // note d'epreuve et niveau d'epreuve : la meme histoire (v5)
+    // ------------------------------------------------------------------------
+
+    /** Service cable comme la grille v5 : le niveau derive des quatre criteres. */
+    private static ProductionBilanService serviceV5() {
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        ProductionEvaluationProperties.NiveauCecrl n = props.getNiveauCecrl();
+        n.setSourceCriteres(List.of("communiquer", "interagir", "lexique", "morphosyntaxe"));
+        n.setSeuilB2(16.0);
+        n.setSeuilB1(13.0);
+        n.setSeuilA2(9.0);
+        return service(props);
+    }
+
+    private static AiEvaluation evalV5(int communiquer, int interagir, int lexique, int morpho) {
+        AiEvaluation e = new AiEvaluation();
+        BigDecimal note = new BigDecimal(communiquer + interagir + lexique + morpho)
+            .divide(new BigDecimal("4"));
+        e.setNoteSur20(note);
+        Map<String, Object> feedback = new LinkedHashMap<>();
+        feedback.put("scores_criteres", List.of(
+            score("communiquer", communiquer), score("interagir", interagir),
+            score("lexique", lexique), score("morphosyntaxe", morpho)));
+        e.setFeedbackJson(feedback);
+        return e;
+    }
+
+    /**
+     * LE defaut qui a declenche la refonte : une carte affichait « 11/20 » et
+     * « proche du niveau A2 ». Avec la grille du TCF, la note d'epreuve et le
+     * niveau d'epreuve sont deux lectures du MEME nombre.
+     */
+    @Test
+    void v5_note_epreuve_et_niveau_epreuve_racontent_la_meme_histoire() {
+        ProductionBilanService svc = serviceV5();
+        Map<Integer, AiEvaluation> evals = Map.of(
+            1, evalV5(15, 15, 13, 13),   // 14
+            2, evalV5(13, 13, 11, 11),   // 12
+            3, evalV5(14, 14, 12, 12));  // 13
+        // moyenne des trois notes = 13 -> bande B1 (13 a 15).
+        assertThat(svc.noteEpreuve(evals, false)).isEqualByComparingTo(new BigDecimal("13.0"));
+        assertThat(svc.bilanEpreuve(evals)).isEqualTo(NiveauCecrl.B1);
+        assertThat(svc.correspondanceTcf(svc.bilanEpreuve(evals)))
+            .isEqualTo(new CorrespondanceTcfDto(NiveauCecrl.B1, 6, 9));
+    }
+
+    /** Toute la plage : le niveau d'epreuve se lit sur la note d'epreuve. */
+    @Test
+    void v5_le_niveau_epreuve_se_lit_sur_la_note_epreuve() {
+        ProductionBilanService svc = serviceV5();
+        assertThat(svc.bilanEpreuve(troisTachesA(4, 4, 4, 4))).isEqualTo(NiveauCecrl.A1);     // 4
+        assertThat(svc.bilanEpreuve(troisTachesA(11, 11, 8, 8))).isEqualTo(NiveauCecrl.A2);   // 9,5
+        assertThat(svc.bilanEpreuve(troisTachesA(15, 15, 12, 12))).isEqualTo(NiveauCecrl.B1); // 13,5
+        assertThat(svc.bilanEpreuve(troisTachesA(17, 17, 16, 16))).isEqualTo(NiveauCecrl.B2); // 16,5
+    }
+
+    private static Map<Integer, AiEvaluation> troisTachesA(int c, int i, int l, int m) {
+        return Map.of(1, evalV5(c, i, l, m), 2, evalV5(c, i, l, m), 3, evalV5(c, i, l, m));
+    }
+
+    /**
+     * L'accomplissement PESE desormais dans le niveau (25 % + 25 %, comme au
+     * TCF) : a langue egale, une tache accomplie ne se lit plus comme une tache
+     * ratee. C'est exactement ce que la config v4.2 excluait.
+     */
+    @Test
+    void v5_accomplissement_compte_dans_le_niveau() {
+        ProductionBilanService svc = serviceV5();
+        Map<Integer, AiEvaluation> accomplie = troisTachesA(15, 15, 12, 12);   // 13,5 -> B1
+        Map<Integer, AiEvaluation> ratee = troisTachesA(6, 6, 12, 12);         // 9    -> A2
+        // Meme langue (12/12) des deux cotes : seul l'accomplissement change.
+        assertThat(svc.bilanEpreuve(accomplie)).isEqualTo(NiveauCecrl.B1);
+        assertThat(svc.bilanEpreuve(ratee)).isEqualTo(NiveauCecrl.A2);
+    }
+
+    /**
+     * ... mais un accomplissement parfait ne fabrique pas un B2 : avec une
+     * langue A2 (10/10) et le garde-fou de couplage (+4, donc 14 au maximum),
+     * la moyenne plafonne a 12 — B1, jamais B2.
+     */
+    @Test
+    void v5_communiquer_eleve_sur_langue_A2_ne_fabrique_pas_de_B2() {
+        ProductionBilanService svc = serviceV5();
+        // langue A2 au maximum (10/10) + couplage (+4) -> moyenne 12 : A2, jamais B2.
+        assertThat(svc.bilanEpreuve(troisTachesA(14, 14, 10, 10))).isEqualTo(NiveauCecrl.A2);
+        // Meme en poussant communiquer/interagir au maximum autorise par le
+        // couplage sur une langue A1 (5/5 -> plafond 9), on reste en A1 (7/20).
+        assertThat(svc.bilanEpreuve(troisTachesA(9, 9, 5, 5))).isEqualTo(NiveauCecrl.A1);
+    }
+
+    /**
+     * Epreuve ecourtee : la note d'epreuve compte les taches jamais rendues
+     * comme 0, exactement comme le niveau — sinon le bilan afficherait une note
+     * calculee sur deux taches a cote d'un niveau calcule sur trois.
+     */
+    @Test
+    void v5_note_epreuve_terminee_compte_les_taches_manquantes_a_zero() {
+        ProductionBilanService svc = serviceV5();
+        Map<Integer, AiEvaluation> deuxTaches = Map.of(
+            2, evalV5(15, 15, 15, 15),
+            3, evalV5(15, 15, 15, 15));
+
+        assertThat(svc.noteEpreuve(deuxTaches, false)).isEqualByComparingTo(new BigDecimal("15.0"));
+        assertThat(svc.bilanEpreuve(deuxTaches)).isEqualTo(NiveauCecrl.B1);
+        assertThat(svc.noteEpreuve(deuxTaches, true)).isEqualByComparingTo(new BigDecimal("10.0"));
+        assertThat(svc.bilanEpreuveTerminee(deuxTaches)).isEqualTo(NiveauCecrl.A2);
     }
 
     // ------------------------------------------------------------------------

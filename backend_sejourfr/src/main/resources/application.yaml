@@ -62,7 +62,7 @@ management:
 
 sejourfr:
   cors:
-    allowed-origins: http://localhost:3000,http://localhost:5173,http://192.168.1.11:3000
+    allowed-origins: http://localhost:3000,http://localhost:5173,http://192.168.1.10:3000
   stripe:
     # Abonnements récurrents (Checkout Session mode=SUBSCRIPTION) depuis le
     # lot 4. Les Stripe Price IDs vivent en base sur plans.stripe_price_id —
@@ -241,16 +241,25 @@ sejourfr:
     # v3, v4 et v4.1 restent charges et valides -> EVAL_RUBRICS_VERSION=v3|v4|v4.1
     # suffit a revenir en arriere (le banc de mesure bascule d'une version a
     # l'autre avec cette seule variable).
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v4.2}
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v5}
     # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
     # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
     # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).
-    # source-criteres : marqueurs de langue/discours porteurs du niveau. La
-    # coherence (organisation du discours) y est incluse — vraie dimension CECRL,
-    # surtout a l'oral. La pertinence reste EXCLUE (completion de tache : un
-    # debutant qui reussit une tache simple ne doit pas etre classe haut). Les
-    # seuils restent cales (la coherence suit lexique/morpho dans les ancres
-    # few-shot, decalage ~0,2 pt) ; recalibrer via le dashboard si besoin.
+    #
+    # /!\ CE BLOC EST LE REGLAGE DES GRILLES v3 / v4 / v4.1 / v4.2 UNIQUEMENT.
+    # Depuis v5, le fichier de rubriques declare LUI-MEME ses criteres porteurs
+    # et ses seuils (bloc `commun.niveau`), et c'est lui qui gagne — cf.
+    # ProductionRubricsProvider#niveauCecrl(). C'est ce qui permet a
+    # EVAL_RUBRICS_VERSION SEULE de suffire pour revenir en arriere : revenir a
+    # v4.2 avec les seuils de v5 en config donnerait des niveaux faux.
+    # Ne pas calibrer v5 ici, mais dans production-rubrics-v5.json.
+    #
+    # source-criteres (v3-v4.2) : marqueurs de langue/discours porteurs du
+    # niveau. La coherence (organisation du discours) y est incluse — vraie
+    # dimension CECRL, surtout a l'oral. La pertinence y restait EXCLUE
+    # (completion de tache). C'est precisement ce que v5 corrige : le TCF donne
+    # 25 % a l'accomplissement de la tache, la v5 le remet dans le niveau et le
+    # protege autrement (descripteurs par niveau + garde-fou de couplage).
     niveau-cecrl:
       source-criteres: [ lexique, morphosyntaxe, coherence ]
       seuil-b2: 15.0
@@ -261,6 +270,26 @@ sejourfr:
       # seuil-b1 a 13 serait le pire choix teste : A2 passerait a 100% mais B1
       # s'effondrerait a 33%, donc on annoncerait A2 a de vrais B1.
       seuil-a2: 8.0
+      # Poids des taches dans la note ET le niveau d'epreuve (index = tache - 1).
+      # EGAUX depuis v5 : le TCF publie UNE note /20 par epreuve et aucune
+      # ponderation par tache ; la difficulte croissante des 3 taches est deja
+      # portee par leurs descripteurs (T3 vise B2), la ponderer une seconde fois
+      # la compterait deux fois. Surtout, la moyenne simple rend le bilan
+      # coherent : la note d'epreuve affichee est la moyenne des 3 notes de
+      # tache, et le niveau d'epreuve se lit sur cette meme note. Revenir a
+      # [1, 2, 3] ne demande aucun redeploiement.
+      poids-taches: [ 1.0, 1.0, 1.0 ]
+    # GARDE-FOU DE COUPLAGE (filet deterministe, v5) : les criteres de
+    # REALISATION (communiquer, interagir) sont ramenes sous
+    # moyenne(lexique, morphosyntaxe) + ecart-max AVANT le calcul de la note.
+    # La regle est deja ecrite dans le prompt v5 ; ce filet la garantit, comme
+    # le plafond des 2 priorites. C'est la contrepartie de la reintroduction de
+    # l'accomplissement dans le niveau : sans lui, cocher tous les points d'une
+    # consigne A2 dans un francais pauvre suffirait a monter d'un palier.
+    # SANS EFFET sur v3/v4/v4.1/v4.2 : leurs grilles ne portent pas ces codes.
+    couplage:
+      enabled: ${EVAL_COUPLAGE_ENABLED:true}
+      ecart-max: 4.0
     # Controles DETERMINISTES executes AVANT l'appel LLM (aucune IA) :
     # langue dominante, recopiage de la consigne, production vide. Un verdict
     # INVALIDE court-circuite le LLM (note 0 / A1_NON_ATTEINT / confiance
@@ -337,7 +366,7 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v2}
+      prompt-version: ${EVAL_PROMPT_VERSION:v3}
       # Tarification gpt-4o-mini (USD / 1M tokens, mai 2026). A surcharger si
       # on bascule sur gpt-4o ou gpt-5 (cout estime persiste dans ai_evaluations).
       cost-per-million-input-tokens: 0.15
@@ -351,7 +380,7 @@ sejourfr:
       timeout-sec: 60
       max-retries: 2
       retry-backoff-ms: 1000
-      prompt-version: ${EVAL_PROMPT_VERSION:v2}
+      prompt-version: ${EVAL_PROMPT_VERSION:v3}
       cost-per-million-input-tokens: 3.0
       cost-per-million-output-tokens: 15.0
     # DeepSeek : API compatible OpenAI (meme client). Activer avec
@@ -366,7 +395,7 @@ sejourfr:
       temperature: ${EVAL_DEEPSEEK_TEMPERATURE:0}
       max-tokens: 2000
       timeout-sec: 60
-      prompt-version: ${EVAL_PROMPT_VERSION:v2}
+      prompt-version: ${EVAL_PROMPT_VERSION:v3}
       cost-per-million-input-tokens: 0.27
       cost-per-million-output-tokens: 1.10
 

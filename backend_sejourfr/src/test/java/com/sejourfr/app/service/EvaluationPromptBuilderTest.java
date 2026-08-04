@@ -107,4 +107,57 @@ class EvaluationPromptBuilderTest {
         // EO : pas de bloc longueur (specifique EE)
         assertThat(user).doesNotContain("LONGUEUR ATTENDUE");
     }
+
+    // ------------------------------------------------------------------- v5
+
+    private EvaluationPromptBuilder builderV5() {
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        props.setRubricsVersion("v5");
+        ObjectMapper om = new ObjectMapper();
+        ProductionRubricsProvider provider = new ProductionRubricsProvider(props, om);
+        provider.load();
+        return new EvaluationPromptBuilder(om, provider);
+    }
+
+    /**
+     * La grille envoyee au modele est bien celle du TCF : 4 criteres, poids
+     * 0,25, libelles ACCENTUES (ce sont eux qui remontent ensuite jusqu'a
+     * l'ecran du candidat).
+     */
+    @Test
+    void userPrompt_v5_envoie_les_quatre_criteres_du_tcf() {
+        ProductionTask task = new ProductionTask();
+        task.setEpreuve(EpreuveType.TCF_EE);
+        task.setTacheNumero((short) 1);
+        task.setNiveauCible("A2");
+        task.setConsigne("Annoncez votre demenagement a un ami et invitez-le.");
+        task.setMotsMin(30);
+        task.setMotsMax(60);
+
+        String user = builderV5().buildUserPrompt(task, "Salut Marie, j'ai demenage. Viens samedi !",
+                false, null);
+
+        assertThat(user)
+                .contains("\"communiquer\"").contains("\"interagir\"")
+                .contains("\"lexique\"").contains("\"morphosyntaxe\"")
+                .contains("0.25")
+                .as("libelles accentues, tels qu'affiches au candidat")
+                .contains("Communiquer : accomplir la tâche et enchaîner les idées")
+                .as("les criteres abandonnes ne doivent plus apparaitre")
+                .doesNotContain("realisation_consigne").doesNotContain("coherence\"");
+    }
+
+    /** Le system prompt v5 porte le passage note -> niveau et l'exigence pedagogique. */
+    @Test
+    void systemPrompt_v5_porte_le_passage_note_niveau_et_le_comment() {
+        String system = builderV5().buildSystemPrompt();
+
+        assertThat(system)
+                .contains("# Du score au niveau : la note EST le niveau (obligatoire)")
+                .contains("16 et plus -> B2 ; 13 a 15 -> B1 ; 9 a 12 -> A2 ; 1 a 8 -> A1")
+                .contains("# Preuves litterales et priorites : ENSEIGNER, PAS CONSTATER")
+                .contains("GARDE-FOU DE COUPLAGE")
+                .contains("# Exemples d'ancrage");
+        assertThat(system).doesNotContain("{MODALITE}").doesNotContain("{CRITERES}");
+    }
 }

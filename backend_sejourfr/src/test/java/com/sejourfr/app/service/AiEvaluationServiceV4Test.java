@@ -705,8 +705,11 @@ class AiEvaluationServiceV4Test {
 
         AiEvaluation eval = service.evaluate(sub.getId());
 
-        List<String> points = (List<String>) eval.getFeedbackJson().get("points_a_ameliorer");
-        assertThat(points).containsExactly("Varier les connecteurs", "Soigner les accords");
+        // Forme unique pour les fronts : objets {constat, ...}, tronques a 2.
+        List<Map<String, Object>> points =
+            (List<Map<String, Object>>) eval.getFeedbackJson().get("points_a_ameliorer");
+        assertThat(points).extracting(m -> m.get("constat"))
+            .containsExactly("Varier les connecteurs", "Soigner les accords");
     }
 
     @Test
@@ -721,7 +724,8 @@ class AiEvaluationServiceV4Test {
 
         AiEvaluation eval = service.evaluate(sub.getId());
 
-        assertThat((List<String>) eval.getFeedbackJson().get("points_a_ameliorer"))
+        assertThat((List<Map<String, Object>>) eval.getFeedbackJson().get("points_a_ameliorer"))
+            .extracting(m -> m.get("constat"))
             .containsExactly("Varier les connecteurs", "Soigner les accords");
     }
 

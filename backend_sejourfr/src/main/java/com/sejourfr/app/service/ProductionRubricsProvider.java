@@ -49,6 +49,8 @@ public class ProductionRubricsProvider {
     private Map<String, Object> commun = Map.of();
     /** Cle "EE_T1" -> rubrique de la tache. */
     private Map<String, Map<String, Object>> rubrics = Map.of();
+    /** Passage note -> niveau EFFECTIF : bloc {@code commun.niveau} du fichier, sinon la config. */
+    private ProductionEvaluationProperties.NiveauCecrl niveauCecrl;
 
     public ProductionRubricsProvider(ProductionEvaluationProperties props, ObjectMapper objectMapper) {
         this.props = props;
@@ -85,8 +87,13 @@ public class ProductionRubricsProvider {
             }
             this.commun = Map.copyOf(communMap);
             this.rubrics = Map.copyOf(built);
-            log.info("Rubriques production chargees ({}) : {} sections communes, {} taches",
-                version, sectionCount(), rubrics.size());
+            this.niveauCecrl = resolveNiveau(communMap.get("niveau"));
+            log.info("Rubriques production chargees ({}) : {} sections communes, {} taches, "
+                    + "niveau depuis {} (criteres {}, seuils B2={} B1={} A2={})",
+                version, sectionCount(), rubrics.size(),
+                communMap.get("niveau") instanceof Map<?, ?> ? "le fichier" : "la config",
+                niveauCecrl.getSourceCriteres(), niveauCecrl.getSeuilB2(),
+                niveauCecrl.getSeuilB1(), niveauCecrl.getSeuilA2());
         } catch (Exception e) {
             // Source unique des instructions : un fichier absent/illisible est une
             // erreur de config bloquante (fail-fast au demarrage).
@@ -99,6 +106,48 @@ public class ProductionRubricsProvider {
     /** Bloc {@code commun} (global) : {@code sections} + {@code few_shot}. */
     public Map<String, Object> getCommun() {
         return commun;
+    }
+
+    /**
+     * Reglages EFFECTIFS du passage note -> niveau (criteres porteurs + seuils).
+     *
+     * <p>Les criteres qui portent le niveau sont une propriete de la GRILLE, pas
+     * du deploiement : une grille v4.2 derive le niveau de
+     * {@code lexique+morphosyntaxe+coherence}, une grille v5 (celle du TCF) le
+     * derive des QUATRE criteres equiponderes, donc de la note elle-meme. Le
+     * fichier de rubriques peut donc declarer son propre bloc
+     * {@code commun.niveau} ({@code source_criteres}, {@code seuil_b2},
+     * {@code seuil_b1}, {@code seuil_a2}) ; a defaut on retombe sur
+     * {@code sejourfr.production-evaluation.niveau-cecrl}.
+     *
+     * <p>C'est ce qui permet a {@code EVAL_RUBRICS_VERSION} <b>seule</b> de
+     * suffire pour revenir a une version anterieure : sans ce mecanisme, revenir
+     * a v4.2 avec les seuils de v5 en config donnerait des niveaux faux.
+     */
+    public ProductionEvaluationProperties.NiveauCecrl niveauCecrl() {
+        return niveauCecrl == null ? props.getNiveauCecrl() : niveauCecrl;
+    }
+
+    /** Fusionne le bloc {@code commun.niveau} du fichier avec la config (le fichier gagne). */
+    private ProductionEvaluationProperties.NiveauCecrl resolveNiveau(Object node) {
+        ProductionEvaluationProperties.NiveauCecrl base = props.getNiveauCecrl();
+        if (!(node instanceof Map<?, ?> m)) return base;
+        ProductionEvaluationProperties.NiveauCecrl out = new ProductionEvaluationProperties.NiveauCecrl();
+        out.setPoidsTaches(base.getPoidsTaches());
+        out.setSourceCriteres(codes(m.get("source_criteres"), base.getSourceCriteres()));
+        out.setSeuilB2(nombre(m.get("seuil_b2"), base.getSeuilB2()));
+        out.setSeuilB1(nombre(m.get("seuil_b1"), base.getSeuilB1()));
+        out.setSeuilA2(nombre(m.get("seuil_a2"), base.getSeuilA2()));
+        return out;
+    }
+
+    private static java.util.List<String> codes(Object raw, java.util.List<String> defaut) {
+        if (!(raw instanceof java.util.List<?> l) || l.isEmpty()) return defaut;
+        return l.stream().filter(java.util.Objects::nonNull).map(Object::toString).toList();
+    }
+
+    private static double nombre(Object raw, double defaut) {
+        return raw instanceof Number n ? n.doubleValue() : defaut;
     }
 
     /** Rubrique d'une tache (cle {@code <EE|EO>_T<n>}), vide si absente. */

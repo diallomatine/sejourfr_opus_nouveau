@@ -14,8 +14,8 @@
 > **dans la même passe**. Il doit toujours pouvoir être lu et compris par une personne non
 > technique. Pas de jargon non expliqué, pas de raccourci.
 
-**État actuel** : rubriques de notation **v4.2**, format de réponse **v2**, examinateur vocal
-**v2**. Ce que ces numéros veulent dire, et où ils se changent, est expliqué en §15.
+**État actuel** : rubriques de notation **v5** (la grille du TCF), format de réponse **v3**,
+examinateur vocal **v2**. Ce que ces numéros veulent dire, et où ils se changent, est expliqué en §15.
 
 ---
 
@@ -49,6 +49,14 @@ EE T1, EE T2, EE T3, EO T1, EO T2, EO T3.
 | **EO T2** | **Interagir** dans une situation de la vie courante (obtenir / donner des informations) | ~3 min 30 (min. 2 min) | B1 |
 | **EO T3** | **Donner un point de vue** en continu (petit monologue argumenté) | ~3 min 30 (min. 2 min) | B2 |
 
+> ⚠️ **TCF IRN ≠ TCF Canada — piège classique sur les longueurs.** Les bornes ci-dessus
+> (30-60 / 40-90 / 40-90 mots) sont bien celles du **TCF IRN**, l'examen que prépare
+> SejourFR. Les valeurs **60-120 et 120-180 mots** que renvoient la plupart des pages web
+> appartiennent au **TCF Canada**, un autre examen. La confusion est très fréquente en ligne,
+> y compris sur des sites de préparation : **ne pas « corriger » nos bornes d'après une
+> recherche web** sans avoir vérifié que la source parle explicitement de l'IRN. Même
+> vigilance pour toute autre donnée chiffrée (nombre de tâches, durées, barème).
+>
 > **« Niveau visé »** = le niveau pour lequel la tâche est conçue. **Ce n'est pas un plafond** :
 > l'IA peut noter au-dessus ou en dessous selon ce que le candidat produit réellement. Un
 > candidat brillant sur une tâche A2 peut donc obtenir une note élevée ; un candidat faible
@@ -118,101 +126,104 @@ production douteuse que bloquer un vrai candidat maladroit.
 
 ---
 
-## 5. Comment l'IA note : des critères propres à chaque tâche
+## 5. Comment l'IA note : les quatre critères du TCF
 
-### 5.1 Il n'y a plus de critères universels
+### 5.1 La grille est celle du vrai examen
 
-Jusqu'à la version 3 des consignes de notation, l'IA notait **les mêmes 4 critères** sur les
-6 tâches : pertinence, lexique, morphosyntaxe, cohérence. Seuls les poids changeaient.
+**Depuis la version 5 des consignes, notre grille est celle du TCF**, et non plus une grille
+maison. Le TCF évalue les productions sur **quatre critères, qui pèsent exactement le même
+poids — 25 % chacun** :
 
-Le défaut était structurel : **des questions génériques donnent des commentaires génériques.**
-Sur EO T2 (obtenir des informations dans un dialogue), « cohérence » ne veut pas dire
-grand-chose ; ce qui compte vraiment, c'est *« est-ce que le candidat a mené l'échange et
-obtenu ce qu'il cherchait ? »* — et ce critère n'existait nulle part.
+| Critère | Ce qu'il évalue |
+|---|---|
+| **Communiquer** | **Accomplir la tâche** : fournir les informations demandées, décrire, raconter, expliquer, justifier une position, obtenir un renseignement — **et enchaîner ses idées** de façon suivie. |
+| **Interagir** | **S'adapter à la situation de communication et au destinataire** : registre, politesse, formules d'ouverture et de clôture, prise en compte de l'interlocuteur, conduite des tours de parole à l'oral. |
+| **Lexique** | Le vocabulaire est-il **approprié** : étendue, précision, justesse ? |
+| **Morphosyntaxe** | La **correction grammaticale** : conjugaisons, accords, construction et variété des phrases. |
 
-Depuis la version 4, **chaque tâche a ses propres critères** : 5 par tâche. Trois sont
-communs à toutes (lexique, morphosyntaxe, cohérence) ; les deux autres changent selon ce que
-la tâche demande vraiment.
+Les mêmes quatre critères, avec les mêmes poids, servent **sur les six tâches**. Ce qui
+distingue les tâches, ce ne sont plus des critères différents mais **les descripteurs et les
+consignes propres à chaque tâche** : « communiquer » ne veut pas dire la même chose quand on
+annonce un déménagement à un ami (EE T1) et quand on défend un point de vue (EO T3). C'est
+exactement la logique du TCF, où une seule grille sert les trois tâches d'une épreuve.
 
-Deux familles, qui ne jouent pas le même rôle :
+**Ce qui a changé, et pourquoi.** Nos versions 3 et 4 avaient été construites maison : 4
+critères universels puis 5 critères propres à chaque tâche, avec des poids variables
+(15 % à 30 %). Trois écarts avec le vrai examen ont motivé la refonte :
 
-- **Les critères porteurs du niveau** — le **lexique** (richesse et justesse du vocabulaire),
-  la **morphosyntaxe** (grammaire : conjugaisons, accords, construction des phrases) et la
-  **cohérence** (organisation et enchaînement du propos). Ce sont eux qui décident du niveau
-  de langue.
-- **Les critères de tâche** — réalisation de la consigne, conduite de l'échange,
-  argumentation, adéquation au destinataire, chronologie… Ils mesurent la **réussite de la
-  tâche**, pas le niveau de langue.
+1. **5 critères à poids variables** là où le TCF en a **4 égaux** ;
+2. des **noms maison** (« réalisation de la consigne », « conduite de l'échange », « prise de
+   position », « chronologie du récit »…) qui changeaient d'une tâche à l'autre, alors que
+   ceux du TCF sont stables ;
+3. surtout, **l'accomplissement de la tâche était exclu du calcul du niveau**. Le TCF lui
+   donne 25 %. Conséquence observée sur de vraies copies : un message qui accomplit
+   parfaitement sa tâche, s'adresse correctement à son destinataire et se fait comprendre
+   ressortait **A2**, parce que deux des quatre critères du TCF ne pesaient **rien** chez nous.
 
-### 5.2 Les critères et leurs poids, tâche par tâche
+**Où sont passés les anciens critères ?** Ils n'ont pas disparu, ils ont été **absorbés** :
 
-Les pourcentages font 100 % pour chaque tâche. Plus le pourcentage est grand, plus le critère
-pèse dans la note.
+| Ancien critère (v4) | Absorbé par |
+|---|---|
+| Réalisation de la consigne | **communiquer** |
+| Chronologie et repères temporels | **communiquer** |
+| Prise de position claire | **communiquer** |
+| Justification et développement des arguments | **communiquer** |
+| Conduite de l'échange | **communiquer** |
+| Développement des réponses | **communiquer** |
+| Cohérence / organisation | **communiquer** — la formulation officielle range « enchaîner les idées » du côté de *communiquer* ; elle n'est donc plus notée à part, pour ne pas la compter deux fois |
+| Adéquation au destinataire et au registre | **interagir** |
 
-**EE T1 — message court (annoncer, décrire, inviter)**
+Deux familles, qui ne jouent pas le même rôle mais qui pèsent désormais **autant** :
 
-| Critère | Poids | Ce que l'IA regarde |
-|---|:--:|---|
-| Réalisation de la consigne | 30 % | Les points **obligatoires** de la consigne sont-ils traités de façon compréhensible ? |
-| Adéquation au destinataire et au registre | 15 % | Formule d'appel et de clôture présentes et adaptées (ami, famille, collègue), ton tenu du début à la fin. |
-| Étendue et maîtrise du lexique | 20 % | Variété et précision du vocabulaire. |
-| Correction morphosyntaxique | 20 % | Conjugaisons, accords, déterminants, prépositions, construction des phrases. |
-| Clarté et enchaînement du message | 15 % | Le message se lit-il d'un trait ? (Faiblement pondéré : le texte est court.) |
+- **Les critères de langue** — **lexique** et **morphosyntaxe**, notés en absolu sur toute
+  l'échelle A1→C2 ;
+- **Les critères de réalisation** — **communiquer** et **interagir**. Ils ne comptent pas des
+  cases cochées : ils disent **à quel niveau** la tâche est accomplie. Accomplir une consigne
+  A2 avec des moyens A2, c'est une réussite… de niveau A2.
 
-**EE T2 — message développé (raconter, décrire, expliquer, conseiller)**
+### 5.2 Ce que « communiquer » et « interagir » veulent dire, tâche par tâche
 
-| Critère | Poids | Ce que l'IA regarde |
-|---|:--:|---|
-| Réalisation du récit ou du compte rendu | 25 % | Le contenu demandé est-il là, avec des détails ? |
-| Chronologie et repères temporels | 20 % | Les faits s'enchaînent-ils dans un ordre clair, avec des repères de temps ? |
-| Cohérence et organisation | 15 % | Organisation d'ensemble du texte. |
-| Étendue et maîtrise du lexique | 20 % | |
-| Correction morphosyntaxique | 20 % | |
+Les quatre critères et leurs poids ne changent pas. **Ce sont les attentes qui changent** —
+c'est le champ « descripteurs » et les consignes de chaque tâche qui les portent.
 
-**EE T3 — prise de position / opinion argumentée / comparaison**
-
-| Critère | Poids | Ce que l'IA regarde |
-|---|:--:|---|
-| Prise de position claire | 20 % | Le candidat tranche-t-il vraiment ? |
-| Justification et développement des arguments | 25 % | Arguments distincts, exemples, plan apparent. |
-| Organisation et connecteurs logiques | 15 % | |
-| Étendue et maîtrise du lexique | 20 % | |
-| Correction morphosyntaxique | 20 % | |
-
-**EO T1 — entretien dirigé (se présenter, parler de soi)**
-
-| Critère | Poids | Ce que l'IA regarde |
-|---|:--:|---|
-| Réponse à la consigne et présentation de soi | 25 % | Se présente-t-il et parle-t-il de son quotidien de façon compréhensible ? |
-| Développement des réponses | 20 % | Développe-t-il spontanément, ou répond-il par trois mots ? |
-| Étendue et maîtrise du lexique | 25 % | |
-| Correction grammaticale perceptible | 15 % | |
-| Cohérence du propos | 15 % | |
-
-**EO T2 — interaction (obtenir / donner des informations)**
-
-| Critère | Poids | Ce que l'IA regarde |
-|---|:--:|---|
-| Conduite de l'échange et obtention des informations | 30 % | Mène-t-il le dialogue, relance-t-il, obtient-il ce qu'il cherche ? **C'est le critère central de cette tâche.** |
-| Adéquation à l'interlocuteur et au registre | 15 % | |
-| Étendue et maîtrise du lexique | 20 % | |
-| Correction grammaticale perceptible | 20 % | |
-| Cohérence des interventions | 15 % | |
-
-**EO T3 — point de vue / monologue suivi**
-
-| Critère | Poids | Ce que l'IA regarde |
-|---|:--:|---|
-| Point de vue clair et réponse à la question | 20 % | |
-| Développement des arguments et exemples | 25 % | |
-| Organisation du monologue | 20 % | |
-| Étendue et maîtrise du lexique | 20 % | |
-| Correction grammaticale perceptible | 15 % | |
+| Tâche | **Communiquer** y signifie | **Interagir** y signifie |
+|---|---|---|
+| **EE T1** message court | Annoncer, décrire, inviter de façon compréhensible, et enchaîner ces informations d'un trait. | Formule d'appel et de clôture adaptées au destinataire (ami, famille, voisin), registre tenu. |
+| **EE T2** message développé | Raconter / décrire / expliquer avec des détails concrets, dans un ordre clair, avec des repères temporels et des temps du passé employés à bon escient ; le texte forme un tout. | Le message est écrit **pour quelqu'un** : adresse, registre, prise en compte de ce que le destinataire sait déjà. |
+| **EE T3** opinion argumentée | Trancher clairement, soutenir par au moins deux arguments développés, organiser (avis → arguments → conclusion). | Écrire pour un lecteur qui peut ne pas être d'accord : courtoisie du désaccord, objection prise au sérieux. |
+| **EO T1** entretien dirigé | Se présenter et parler de son quotidien de façon compréhensible, **dépasser la réponse minimale** (ajouter un détail, une raison), enchaîner les thèmes. | S'adresser à son examinateur : salutation, registre, réponses qui répondent vraiment à ce qui est demandé. |
+| **EO T2** interaction | **Mener** l'échange : formuler sa demande, relancer, réagir, reformuler, et **obtenir** ce qu'on est venu chercher. | Politesse et registre de la situation (guichet, commerce, employeur), gestion des tours de parole. |
+| **EO T3** point de vue | Répondre à la question, affirmer un point de vue, le soutenir par des arguments développés, tenir un fil du début à la fin. | Tenir son monologue **pour** quelqu'un : nuance plutôt que péremptoire, objection envisagée, adresse à l'examinateur. |
 
 > **C'est le serveur qui calcule la note, pas l'IA.** L'IA note chaque critère sur 20 ; le
-> serveur applique les pourcentages ci-dessus et **écrase** la note d'ensemble que l'IA avait
-> proposée. Ça évite les incohérences (une IA qui annoncerait « 16/20 » avec des critères
-> bas). Si l'écart entre les deux dépasse 3 points, c'est enregistré pour surveillance.
+> serveur en fait la moyenne (les quatre poids sont égaux) et **écrase** la note d'ensemble
+> que l'IA avait proposée. Ça évite les incohérences (une IA qui annoncerait « 16/20 » avec
+> des critères bas). Si l'écart entre les deux dépasse 3 points, c'est enregistré pour
+> surveillance.
+
+### 5.2 bis Le garde-fou qui empêche de « cocher des cases »
+
+Remettre l'accomplissement de la tâche dans le niveau crée un risque évident : **quelqu'un
+qui traite tous les points d'une consigne simple dans un français pauvre remonterait
+indûment.** C'est précisément pour éviter ça que les versions précédentes l'excluaient du
+calcul.
+
+Le vrai TCF s'en protège autrement : par des **descripteurs par niveau**. « Communiquer » à
+un niveau B2, ce n'est pas cocher plus de cases, c'est justifier, nuancer, enchaîner — ce qui
+suppose une langue B2. Nous reproduisons ce mécanisme de deux façons :
+
+1. **Des descripteurs de niveau pour les quatre critères**, tâche par tâche (tableau ci-dessus
+   + descripteurs A1→B2 propres à chaque tâche).
+2. **Un garde-fou de couplage, opposable et vérifié par le serveur** : *communiquer* et
+   *interagir* ne peuvent jamais dépasser de **plus de 4 points** la moyenne de *lexique* et
+   *morphosyntaxe*. Exemple : lexique 5, morphosyntaxe 4 (moyenne 4,5) → *communiquer* et
+   *interagir* sont plafonnés à 8,5, même si la consigne est intégralement traitée. La règle
+   est écrite dans les consignes données à l'IA **et** appliquée par le serveur avant le
+   calcul de la note : si l'IA la dépasse, ses notes sont ramenées sous le plafond.
+
+Conséquence chiffrée, qui est le cœur de la protection : avec une langue A2 au maximum
+(10/10) et le couplage, la moyenne des quatre plafonne à **12/20** — soit A2. **Un
+« communiquer » élevé ne peut pas fabriquer un B2.** Il faut une vraie langue pour ça.
 
 ### 5.3 Points **obligatoires** et **pistes suggérées** — la règle centrale
 
@@ -222,8 +233,8 @@ noter :
 - **Les points obligatoires** : ce que la consigne demande explicitement de faire — ses
   verbes d'action (annoncer, décrire, inviter, raconter, conseiller, donner son avis) et les
   informations qu'elle exige. **Ils comptent dans la note.** Un point obligatoire non traité
-  fait baisser le critère de réalisation de la tâche — **et lui seul**, jamais le lexique ni
-  la grammaire.
+  fait baisser le critère **communiquer** — **et lui seul**, jamais le lexique ni la
+  grammaire.
 - **Les pistes suggérées** : les exemples, idées, thèmes ou questions que le sujet propose
   pour aider (« vous pouvez parler de votre travail, de vos loisirs… », listes de questions
   possibles). **Une piste non traitée n'enlève aucun point.** Jamais. Elle n'est jamais
@@ -271,6 +282,28 @@ liste : si tout est traité, la liste des oublis reste vide.
   consigne donnée à l'IA : **le serveur tronque la liste à deux** avant de vous
   l'afficher, en gardant les deux premières (les plus importantes). L'IA ne peut donc
   pas déborder, même si elle essaie.
+- **Chaque priorité doit ENSEIGNER, pas constater** (version 5). Un vrai rapport observé
+  disait : *« Améliorer la ponctuation pour plus de clarté »*, *« Pratiquer l'utilisation de
+  connecteurs pour mieux organiser les idées »* — et la seule correction proposée était
+  l'ajout d'une virgule. Le candidat apprenait **ce qui n'allait pas, jamais comment faire**.
+  Depuis la version 5, une priorité est composée de trois parties obligatoires :
+
+  | Partie | Contenu |
+  |---|---|
+  | **constat** | Ce qui ne va pas, en une phrase, appuyé sur SA production. |
+  | **comment** | **La technique**, réutilisable et appliquée à son texte : la règle, le mot-outil, la tournure modèle, la question à se poser en se relisant. Doit contenir un verbe d'action adressé au candidat (remplacez, ajoutez, commencez par, relisez). Les formules creuses citées plus haut sont **explicitement interdites**. |
+  | **exemple** | Une phrase **exacte** du candidat, avant / après, qui montre la technique en usage. |
+
+  Exemple réellement produit sur une copie A2 : *« Reliez vos idées avec un connecteur. Par
+  exemple, remplacez le point entre "Il est petit mais joli" et "Il y a une chambre" par
+  "et" : "Il est petit mais joli, et il y a une chambre et une cuisine." »*
+- **Les exemples corrigés doivent faire gagner un niveau**, pas corriger des virgules. Une
+  virgule ajoutée, un accent, une majuscule : interdits. Ce qu'on attend, ce sont des
+  **reformulations** — une juxtaposition transformée en subordonnée, deux phrases fusionnées
+  par un connecteur logique, un mot passe-partout remplacé par un terme précis, une
+  affirmation transformée en argument justifié. Chaque exemple porte un champ **« gain »**
+  qui dit en une phrase ce que la version corrigée démontre de plus (« cette version emploie
+  une subordonnée relative, marqueur attendu au B1 »).
 - Les points forts suivent la même exigence : de vrais points forts cités dans le texte,
   jamais un compliment de politesse.
 
@@ -314,7 +347,8 @@ qu'il n'existe pas.
 raison très concrète : depuis le 1ᵉʳ janvier 2026, la naturalisation exige le **B2 dans les
 quatre épreuves, sans aucune compensation**. Annoncer B2 à une personne réellement B1, c'est
 l'encourager à déposer un dossier voué au refus après avoir payé l'examen. Les consignes
-contiennent donc, depuis les rubriques **v4.2**, un test symétrique de celui du bas.
+contiennent donc, depuis les rubriques **v4.2**, un test symétrique de celui du bas
+(conservé à l'identique en v5).
 
 Ce qui sépare vraiment B1 de B2, ce n'est pas l'absence de fautes : c'est **l'efficacité de
 l'argumentation et la défense d'un point de vue**, puis l'étendue du répertoire. Un B1 peut
@@ -338,8 +372,11 @@ marqueurs** parmi :
 
 Au moins un de ces deux marqueurs doit venir de **l'objection traitée** ou du **lexique
 précis** — les deux endroits où le B1 et le B2 se distinguent le plus nettement. **Si l'IA ne
-peut pas recopier ces marqueurs, c'est qu'ils n'y sont pas** : le niveau est B1, et le
-lexique, la grammaire et la cohérence ne dépassent alors pas 14/20.
+peut pas recopier ces marqueurs, c'est qu'ils n'y sont pas** : le niveau est B1, et **aucun
+des quatre critères** ne dépasse alors 14/20. Depuis la version 5, le plafond couvre aussi
+*communiquer* et *interagir* : ils comptent pour la moitié de la note, donc du niveau — les
+laisser à 17 pendant que la langue est plafonnée à 14 ferait ressortir un B1 à 15,5/20,
+c'est-à-dire un faux B2.
 
 Quatre **faux B2** sont nommés explicitement dans les consignes, parce que ce sont ceux qui
 trompaient l'IA : les **connecteurs de surface** (« premièrement », « deuxièmement », « en
@@ -381,10 +418,17 @@ au niveau visé de la tâche ».
 | 1 – 5 | Niveau A1 |
 | 0 | Hors-sujet (voir §8) |
 
-L'IA doit aussi vérifier que sa **note d'ensemble** est cohérente avec le niveau qu'elle
-annonce. Repères : A1 non atteint 0-3 · A1 2-7 · A2 6-12 · B1 11-16 · B2 15-20. Ces bandes se
-chevauchent volontairement — elles **bornent**, elles ne dictent pas la note. Mais une
-production classée A1 ne doit pas ressortir à 12/20.
+**La note d'ensemble est la moyenne des quatre critères** (ils pèsent 25 % chacun), arrondie
+au dixième. Elle n'est plus arrondie à l'entier depuis la version 5 : avec quatre critères à
+25 %, la moyenne tombe sur des quarts de point, et arrondir faisait afficher « 13/20 » à côté
+d'un niveau calculé sur 12,5 — exactement la contradiction que cette refonte doit faire
+disparaître.
+
+**Et le niveau se lit sur cette note** (§6.3). Les bandes globales ne sont pas tout à fait
+celles d'un critère isolé : elles sont décalées d'environ deux points vers le haut, parce que
+*communiquer* et *interagir* se situent légitimement au-dessus de la langue (jusqu'à +4,
+garde-fou de couplage) et tirent la moyenne. Ces bandes ont été **calées sur le corpus de
+référence** (§12), pas déduites d'un raisonnement.
 
 ### 6.2 Ce que le candidat voit : des bandes, pas des chiffres, par critère
 
@@ -409,8 +453,7 @@ interne : elles servent au calcul, au banc de mesure et à la console d'administ
 
 Le **niveau CECRL** est le niveau de langue « officiel » (A1 débutant → C2 quasi natif).
 
-Il est désormais affiché **sur chaque tâche**, mais dans une formulation volontairement
-prudente :
+Il est affiché **sur chaque tâche**, mais dans une formulation volontairement prudente :
 
 > **Performance observée sur cette tâche : proche du niveau B1**
 > Estimation pédagogique portant sur cette seule tâche. Le niveau qui fait foi est celui du
@@ -423,35 +466,42 @@ Trois garde-fous, non négociables :
    est inconnue, le niveau n'est pas envoyé du tout.
 3. Le **bilan d'épreuve** reste le **seul** niveau qui fait foi.
 
-**Comment ce niveau est calculé.** Pas par l'IA : par le serveur. Il fait la moyenne des trois
-critères porteurs du niveau — **lexique, morphosyntaxe, cohérence** — et la compare à des
-seuils :
+**Comment ce niveau est calculé.** Pas par l'IA : par le serveur, et **directement à partir de
+la note** — c'est-à-dire de la moyenne des quatre critères du TCF :
 
-| Moyenne des trois critères | Niveau |
+| Note de la tâche (moyenne des 4 critères) | Niveau |
 |---|---|
-| 15 et plus | B2 (plafond) |
-| 12 à 14,9 | B1 |
-| 8 à 11,9 | A2 |
-| au-dessus de 0, sous 8 | A1 |
+| 16 et plus | B2 (plafond) |
+| 13 à 15,9 | B1 |
+| 9 à 12,9 | A2 |
+| au-dessus de 0, sous 9 | A1 |
 | exactement 0 | A1 non atteint |
 
-Les critères de **tâche** sont volontairement **exclus** de ce calcul : réussir une tâche
-simple ne prouve pas un haut niveau de langue. Le niveau que l'IA propose de son côté est
-conservé en base pour la calibration, mais **n'est jamais affiché**.
+**C'est le changement le plus important de la version 5.** Jusqu'à la version 4.2, le niveau
+était calculé sur la moyenne de trois critères de langue seulement (lexique, morphosyntaxe,
+cohérence), et l'accomplissement de la tâche en était **explicitement exclu**. Le résultat
+était une carte de résultat qui pouvait afficher « 11/20 » et « proche du niveau A2 » côte à
+côte. Désormais, **la note et le niveau sont deux lectures du même nombre** : ils ne peuvent
+plus se contredire.
 
-Le seuil A2 est passé de 7 à **8** — c'est le seul déplacement de seuil que la mesure a
-montré comme entièrement bénéfique (voir §12).
+Ce que cela ne veut pas dire : que réussir une tâche simple suffit. Le garde-fou de couplage
+(§5.2 bis) et les descripteurs par niveau tiennent cette porte fermée — une langue A2
+plafonne la note à 12/20, donc à A2.
+
+Le niveau que l'IA propose de son côté est conservé en base pour la calibration, mais **n'est
+jamais affiché**.
 
 ### 6.4 Deux plafonds ciblés
 
 Après le calcul du niveau, le serveur applique deux règles qui ne peuvent qu'**abaisser** un
 niveau, jamais le relever :
 
-- **Tâche 3 (écrite ou orale) sans opinion identifiable** — si le critère « prise de
-  position » est à 5/20 ou moins, la tâche consiste précisément à donner et défendre un avis :
-  le niveau observé ne peut pas dépasser **A2**.
-- **Oral, tâche 2, sans véritable échange** — si le critère « conduite de l'échange » est à
-  5/20 ou moins, le dialogue n'a pas vraiment eu lieu : même plafond, **A2**.
+- **Tâche 3 (écrite ou orale) sans opinion identifiable** — si le critère qui porte
+  l'accomplissement (**communiquer** depuis la version 5) est à 5/20 ou moins, la tâche
+  consiste précisément à donner et défendre un avis : le niveau observé ne peut pas dépasser
+  **A2**.
+- **Oral, tâche 2, sans véritable échange** — même critère, même seuil : le dialogue n'a pas
+  vraiment eu lieu, même plafond **A2**.
 
 Dans les deux cas, le candidat reçoit l'explication en clair, pas seulement un chiffre plus
 bas.
@@ -467,9 +517,15 @@ n'aurait servi qu'à changer un libellé, alors que le bilan est le seul niveau 
 C'est le seul niveau qui fait foi. Il apparaît à la fin d'un examen blanc qui enchaîne les
 3 tâches d'une épreuve.
 
-- Le niveau du bilan est une **moyenne pondérée** des trois tâches : la tâche 1 compte pour
-  1, la tâche 2 pour 2, la tâche 3 pour 3 — les tâches plus difficiles pèsent plus, comme au
-  vrai TCF.
+- **La note de l'épreuve est la moyenne des trois notes de tâche**, et **le niveau de
+  l'épreuve se lit sur cette note**, avec les mêmes bandes qu'au §6.3. Une seule histoire,
+  un seul nombre.
+- Les trois tâches comptent **à poids égal** depuis la version 5. Auparavant la tâche 1
+  comptait 1, la 2 comptait 2 et la 3 comptait 3. Deux raisons de revenir à l'égalité : le
+  TCF publie **une** note sur 20 par épreuve et aucune pondération par tâche ; et la
+  difficulté croissante des trois tâches est **déjà** portée par leurs descripteurs (la
+  tâche 3 vise B2), la pondérer une seconde fois la compterait deux fois. Le réglage reste
+  modifiable sans redéploiement.
 - Il est **plafonné à B2** (le niveau utile pour la naturalisation ; C1/C2 ne sont pas
   fiables sur ces formats courts).
 - Une tâche non rendue (temps écoulé, abandon) compte comme **0**.
@@ -508,9 +564,9 @@ Autrement dit : **au vrai TCF, 10/20 suffit pour être B2** — le niveau exigé
 naturalisation. Et 6/20 suffit pour B1, le niveau exigé pour la carte de résident.
 
 **Notre note.** La nôtre est une **note pédagogique**. Elle suit l'échelle « scolaire »
-décrite au §6.1 : autour de 16-20 pour du B2, 11-15 pour du B1, 6-10 pour du A2, 1-5 pour du
-A1. Un 12/20 chez nous, c'est du B1 ; au TCF, un 12/20 c'est du B2. **L'écart est énorme, et
-il est voulu.**
+décrite au §6.1 : 16 et plus pour du B2, 13 à 15,9 pour du B1, 9 à 12,9 pour du A2, en dessous
+de 9 pour du A1. Un 12/20 chez nous, c'est du A2 ; au TCF, un 12/20 c'est du B2. **L'écart est
+énorme, et il est voulu.**
 
 **Pourquoi on ne copie pas l'échelle du TCF.** Parce qu'elle est trop comprimée pour
 apprendre : la moitié de l'échelle (10 à 20) vaut un seul et même niveau, B2. Un candidat qui
@@ -532,18 +588,24 @@ inventée. Nous **ne transformons jamais** notre note en note de TCF : nous part
 chose qui soit honnête, parce que le niveau est la grandeur commune aux deux échelles — pas la
 note.
 
+Depuis la version 5, cette correspondance est bien une fonction directe de **la note
+d'épreuve**, puisque le niveau d'épreuve se lit lui-même sur cette note (§6.3, §6.5) : note
+d'épreuve → niveau → fourchette officielle. Ce qui reste interdit, c'est le raccourci « notre
+13/20 = 13/20 au TCF » : les deux échelles ne se superposent pas.
+
 **Où cette correspondance n'apparaît pas, et pourquoi.** Jamais sur le résultat d'une **tâche
 isolée**. Au TCF, la note sur 20 récompense une épreuve entière ; une tâche seule n'a pas de
 note officielle. Y afficher une fourchette TCF reviendrait à inventer une note qui n'existe
 pas. Sur l'écran d'une tâche, on garde donc « performance observée sur cette tâche » (§6.3) et
 on précise simplement que la note affichée est pédagogique.
 
-**Enfin : aucun seuil n'a bougé.** Cette correspondance est un affichage ajouté par-dessus, pas
-un changement de notation. Les seuils du §6.3, les plafonds du §6.4 et la pondération du §6.5
-sont exactement les mêmes qu'avant. Il aurait été tentant de basculer en « 10 et plus → B2 »
-pour coller au TCF — ce serait faux : l'IA note avec les repères de **notre** échelle, donc
-tout ce qu'elle juge B1 serait remonté en B2 d'un coup, et des mois de calibration mesurée
-(§12) seraient annulés.
+**Enfin : la grille officielle reste hors de notre notation.** Cette correspondance est un
+affichage ajouté par-dessus. Il aurait été tentant de basculer en « 10 et plus → B2 » pour
+coller au TCF — ce serait faux : l'IA note avec les repères de **notre** échelle, donc tout ce
+qu'elle juge B1 serait remonté en B2 d'un coup, et des mois de calibration mesurée (§12)
+seraient annulés. Les seuils de la version 5 (§6.3) ont, eux, été **recalés par la mesure**
+parce que la définition même de la note a changé (elle inclut désormais l'accomplissement) —
+pas pour se rapprocher de la grille officielle.
 
 ---
 
@@ -602,8 +664,8 @@ sont toutes encadrées par la règle du §5.6 : *ne pas sanctionner n'est pas cr
 - **L'examinateur est le témoin de la compréhension.** Dans un dialogue (EO temps réel), si
   l'examinateur a **répondu de façon cohérente** à ce que le candidat venait de dire, c'est la
   **preuve** que le candidat s'est fait comprendre — même si son texte transcrit paraît fautif.
-  L'IA doit porter cette réussite de communication au crédit du candidat, **dans le critère de
-  conduite de l'échange** — jamais dans le lexique ni la grammaire.
+  L'IA doit porter cette réussite de communication au crédit du candidat, **dans le critère
+  communiquer** — jamais dans le lexique ni la grammaire.
 
 - **On n'exige jamais l'exhaustivité.** Voir §5.3 : les pistes du sujet ne coûtent rien.
 
@@ -754,10 +816,13 @@ Dans cet ordre :
    (§6.4), doute signalé par les vérifications automatiques (§4).
 4. **Points forts** — ce qu'il a réussi, cité dans sa production (pas des compliments de
    politesse).
-5. **1 à 2 points à améliorer** — les priorités, pas une liste décourageante.
+5. **1 à 2 points à améliorer** — les priorités, pas une liste décourageante. Chacune avec
+   son **constat**, son **« comment »** (la technique à appliquer) et un **exemple avant /
+   après** pris dans sa propre production (§5.5).
 6. **Suggestions** — conseils pédagogiques (règles à revoir, exercices).
-7. **Exemples corrigés** — des phrases exactes du candidat, réécrites en mieux, avec
-   l'explication. (À l'oral, uniquement des reformulations qui améliorent vraiment la clarté.)
+7. **Exemples corrigés** — des phrases exactes du candidat, réécrites au **palier
+   au-dessus**, avec l'explication et le **gain** obtenu. Jamais une correction de
+   ponctuation. (À l'oral, uniquement des reformulations qui améliorent vraiment la clarté.)
 8. **Une appréciation par critère** (bande + commentaire + citation), avec le libellé propre à
    la tâche.
 9. *(Inactif aujourd'hui)* Sur une production orale, un encart **débit et pauses** —
@@ -891,12 +956,78 @@ Ce qu'il faut en retenir, et ce qu'il ne faut pas en conclure :
   même chiffre à la mesure près** : moins d'un point de note entre deux campagnes, c'est du
   bruit, pas un signal.
 
-**Le seuil A2 est passé de 7 à 8.** En rejouant hors ligne les 96 évaluations des deux
-campagnes v4.1 avec différents seuils, un seul déplacement s'est révélé **entièrement
-bénéfique** : monter le seuil A2 de 7 à 8. Accord exact **71,9 % → 76,0 %**, productions A1
-correctement classées **62,5 % → 87,5 %**, et **aucune dégradation** sur A2, B1 et B2. À
-l'inverse, monter le seuil B1 à 13 était le pire choix testé : les A2 passaient à 100 %, mais
-les B1 s'effondraient à 33 % — on aurait annoncé « A2 » à de vrais B1. On ne l'a pas fait.
+**Troisième correction : la grille du TCF** (consignes **v5**, la version active). Les deux
+premières corrections portaient sur la sévérité ; celle-ci porte sur **ce qu'on mesure**. La
+grille maison (5 critères à poids variables, accomplissement exclu du niveau) a été remplacée
+par celle du TCF (4 critères égaux, accomplissement compris) — les raisons sont au §5.1.
+
+Mesure : **une campagne v4.2 relancée le même jour, sur le même modèle**, contre la v5. Trois
+avertissements avant de lire le tableau, parce qu'ils changent la lecture :
+
+1. **Le fournisseur d'IA local avait changé** entre-temps. Les deux premières campagnes de la
+   journée ont tourné par erreur sur un autre modèle, qui classait v4.2 à **41,7 %** au lieu
+   des 81,3 % connus. C'est le témoin qui l'a révélé — sans lui, on aurait attribué cet
+   effondrement à la v5. **Un témoin rejoué le même jour n'est pas une formalité.**
+2. Le fournisseur a **limité le débit** pendant les campagnes v5 : 5 productions sur 48 n'ont
+   pas pu être évaluées. Elles comptent comme des échecs dans la colonne « sur 48 » et sont
+   exclues de la colonne « sur les cas mesurés ». Les deux lectures sont données.
+3. Les **seuils note → niveau ont été recalés** (16 / 13 / 9 au lieu de 15 / 12 / 8) — pas
+   pour faire de beaux chiffres, mais parce que **la note ne mesure plus la même chose** :
+   elle inclut désormais l'accomplissement, qui tire légitimement la moyenne d'environ un
+   point et demi vers le haut. Ils ont été choisis par un rejeu **hors ligne** de la première
+   campagne v5 (aucun appel d'IA supplémentaire), puis **confirmés sur une seconde campagne**.
+
+| | v4.2 (témoin, même jour) | v5 |
+|---|---|---|
+| productions A1 non atteint correctement classées | 4/8 | 4/8 |
+| productions **A1** correctement classées | 6/8 | **8/8** |
+| productions **A2** correctement classées | 11/13 | **11/13** (11/12 des cas mesurés) |
+| productions B1 correctement classées | 11/12 | 9/12 — **9/9 des cas mesurés** |
+| productions B2 correctement classées | 7/7 | 6/7 — **6/6 des cas mesurés** |
+| accord exact | **81,3 %** (48 cas) | 79,2 % sur 48 · **88,4 % sur les 43 cas mesurés** |
+| pièges évités | 7/8 | 5/8 · **5/6 des cas mesurés**, avec exactement le même unique échec |
+| réponses inexploitables | 0 % | 0 % |
+| écart de sévérité (référence − IA) | −0,91 | −1,23 |
+
+Ce qu'il faut en retenir, et ce qu'il ne faut pas en conclure :
+
+- **le risque principal ne s'est pas matérialisé.** Remettre l'accomplissement dans le niveau
+  pouvait re-gonfler le bas de l'échelle — ce que la v4.1 avait précisément corrigé. Il n'en
+  est rien : les A1 passent de 6/8 à **8/8**, les A2 restent à 11/13, les productions
+  hors-sujet et les transcriptions bruitées sont traitées à l'identique. C'est le garde-fou de
+  couplage (§5.2 bis) qui tient cette porte ;
+- **aucun palier n'est dégradé** : chaque niveau est égal ou meilleur sur les cas réellement
+  mesurés, et le seul piège manqué est le **même** dans les deux versions (une production
+  quasi muette classée A1 au lieu de « A1 non atteint ») ;
+- l'écart de sévérité passe de −0,91 à −1,23 : **moins d'un point d'écart entre deux
+  campagnes, c'est du bruit**, pas un signal ;
+- la part de notes tombant dans la fourchette attendue du corpus baisse (83,3 % → 76,7 %).
+  **Ce n'est pas une dégradation de qualité mais un changement d'échelle** : les fourchettes
+  de notes du corpus ont été écrites pour l'ancienne définition de la note (sans
+  l'accomplissement). Le corpus n'a **pas** été retouché — on ne corrige jamais la référence
+  pour faire passer une version. Les candidats verront des notes plus hautes qu'avant pour une
+  même production ; les **niveaux**, eux, sont plus justes ;
+- **ce qui n'est pas mesuré** : la qualité pédagogique des priorités (le « comment »). Le banc
+  ne compare que des notes et des niveaux. Elle a été vérifiée à la main sur des productions
+  réelles, et elle est garantie par le format de réponse (§5.5), mais elle n'a pas de chiffre.
+
+**Les seuils se règlent par rejeu hors ligne, jamais à l'intuition.** Les évaluations déjà
+jouées conservent la note de chaque critère : on peut donc rejouer le passage note → niveau
+avec d'autres seuils **sans un seul appel d'IA supplémentaire**. C'est ainsi qu'a été décidé,
+au temps de la v4.1, le passage du seuil A2 de 7 à 8 (accord exact 71,9 % → 76,0 %,
+productions A1 correctement classées 62,5 % → 87,5 %, aucune dégradation ailleurs) ; et c'est
+ainsi qu'ont été choisis les seuils 16 / 13 / 9 de la v5, puis confirmés sur une campagne
+indépendante.
+
+Deux enseignements de ces rejeux, qui valent d'être écrits :
+
+- un seuil n'est **pas** transposable d'une version de grille à l'autre. Monter le seuil B1 à
+  13 était le **pire** choix possible sous la v4.2 (les A2 passaient à 100 % mais les B1
+  s'effondraient à 33 %) ; c'est le **bon** choix sous la v5, parce que la note n'y mesure
+  plus la même chose. C'est pour cette raison que, depuis la v5, **chaque grille déclare ses
+  propres seuils dans son fichier** : revenir à la v4.2 remet automatiquement les siens ;
+- **arrondir le niveau plutôt que la note dégrade la mesure** (38 → 35 classements exacts sur
+  la campagne v5). C'est la note qui garde une décimale, pas le niveau qui s'arrondit.
 
 ### 12.5 Ce qui reste faible — à dire franchement
 
@@ -932,6 +1063,16 @@ Le banc sert autant à mesurer les progrès qu'à nommer ce qui ne va pas.
   sont retrouvés que dans **un peu moins de la moitié** des cas. En revanche, la question
   « tous les points obligatoires sont-ils traités ? » reçoit la bonne réponse dans plus de
   **85 %** des cas.
+- **La qualité pédagogique du feedback n'est pas mesurée.** Le banc compare des notes et des
+  niveaux, rien d'autre. Que chaque priorité porte réellement un « comment » utile, que les
+  exemples corrigés fassent vraiment gagner un niveau : c'est **imposé par le format de
+  réponse et par les consignes**, vérifié par des tests automatiques et à la main sur de
+  vraies productions — mais aucun chiffre ne le suit dans le temps. C'est le prochain
+  chantier naturel du banc.
+- **Le fournisseur d'IA peut changer sous nos pieds.** Deux campagnes d'une même journée ont
+  tourné par erreur sur un autre modèle que celui de référence, avec un accord exact deux fois
+  plus bas. La leçon est intégrée : **toute campagne comparative fixe explicitement son
+  fournisseur**, et le témoin de la version précédente est rejoué le même jour.
 - **Et surtout : le corpus est synthétique.** Les 48 productions ont été **écrites à la main**
   pour ce banc. Aucune ne vient d'un utilisateur réel ; aucune n'a été annotée par un
   enseignant de FLE. Les consignes, elles, sont les vraies consignes du projet. C'est une
@@ -1007,7 +1148,7 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 
 | Ce qu'on veut changer | Fichier |
 |-----------------------|---------|
-| **Toutes les consignes de notation** (critères propres à chaque tâche, poids, barème, ancrage du bas **et du haut** de l'échelle, règles obligatoires/pistes, tolérances, exemples de calibration…) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v4.2.json` (version **active**). Les versions `v4.1`, `v4` et `v3` restent en place et valides : on revient en arrière en changeant une seule variable. |
+| **Toutes les consignes de notation** (les 4 critères du TCF et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et les seuils note → niveau**) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v5.json` (version **active**). Les versions `v4.2`, `v4.1`, `v4` et `v3` restent en place et valides : on revient en arrière en changeant **une seule variable** (`EVAL_RUBRICS_VERSION`), parce que chaque grille depuis la v5 déclare elle-même ses seuils. |
 | **Le format de réponse de l'IA** (note, confiance, accomplissement, preuves, exemples corrigés…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v2.json` |
 | **Le comportement de l'examinateur vocal** (ton, cadre, interdiction d'orienter le candidat, ouverture T1/T2, façon de rendre la fiche de scénario T2…) | `backend_sejourfr/src/main/resources/prompts/realtime-personas-v2.json` (version active ; la v1, sans fiche de scénario, reste disponible en repli) |
 | **Les faits d'un jeu de rôle T2** (prix, délais, horaires, attitude du personnage) | colonne `agent_role_card` du sujet, en base — renseignée par les migrations `db/migration/300_tcf/production/eo/tache_2/` |
@@ -1037,12 +1178,15 @@ audios de compréhension orale (autre pipeline), voir
 
 ## 16. Résumé en une page
 
-L'IA joue un correcteur d'examen **juste, pas complaisant**. Pour chaque tâche, elle note
-**5 critères qui lui sont propres**, dit d'abord **ce qui a été traité et ce qui a été
-oublié**, appuie chaque appréciation sur une **citation** de la production, donne **au plus
-deux priorités**, et déclare **à quel point elle est sûre d'elle**. Le serveur, lui, calcule
-la note officielle, en déduit le niveau à partir du lexique, de la grammaire et de la
-cohérence, applique deux plafonds ciblés, et n'affiche jamais un niveau sans sa confiance.
+L'IA joue un correcteur d'examen **juste, pas complaisant**. Pour chaque tâche, elle note les
+**quatre critères du vrai TCF — communiquer, interagir, lexique, morphosyntaxe — à poids
+égal**, dit d'abord **ce qui a été traité et ce qui a été oublié**, appuie chaque appréciation
+sur une **citation** de la production, donne **au plus deux priorités, chacune avec un
+« comment » concret et un exemple avant / après pris dans la copie**, et déclare **à quel
+point elle est sûre d'elle**. Le serveur, lui, calcule la note (la moyenne des quatre),
+**en déduit le niveau directement — la note et le niveau racontent la même histoire**,
+applique le garde-fou de couplage et deux plafonds ciblés, et n'affiche jamais un niveau sans
+sa confiance.
 
 Elle juge avant tout la **capacité du candidat à communiquer et à se faire comprendre**, sans
 le pénaliser pour une transcription imparfaite, pour une piste du sujet non traitée, ni pour

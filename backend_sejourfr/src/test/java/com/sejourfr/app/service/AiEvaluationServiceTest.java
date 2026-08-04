@@ -31,7 +31,9 @@ class AiEvaluationServiceTest {
 
     @Test
     void weightedNote_arrondit_la_somme_ponderee() {
-        // 16*0.35 + 12*0.25 + 8*0.25 + 10*0.15 = 5.6 + 3.0 + 2.0 + 1.5 = 12.1 -> 12
+        // 16*0.35 + 12*0.25 + 8*0.25 + 10*0.15 = 5.6 + 3.0 + 2.0 + 1.5 = 12.1
+        // Une DECIMALE depuis v5 : le niveau se lit sur la note, arrondir a
+        // l'entier ferait diverger la note affichee et le niveau calcule.
         List<Map<String, Object>> scores = List.of(
             score("pertinence", 16),
             score("lexique", 12),
@@ -39,12 +41,12 @@ class AiEvaluationServiceTest {
             score("coherence", 10)
         );
         assertThat(AiEvaluationService.weightedNote(criteresEeT1(), scores))
-            .isEqualByComparingTo(new BigDecimal("12"));
+            .isEqualByComparingTo(new BigDecimal("12.1"));
     }
 
     @Test
     void weightedNote_arrondit_au_plus_proche_HALF_UP() {
-        // Tous a 13.5 -> Σ = 13.5 -> 14 (HALF_UP).
+        // Tous a 13.5 -> Σ = 13.5, conserve tel quel (une decimale).
         List<Map<String, Object>> scores = List.of(
             score("pertinence", 13.5),
             score("lexique", 13.5),
@@ -52,7 +54,7 @@ class AiEvaluationServiceTest {
             score("coherence", 13.5)
         );
         assertThat(AiEvaluationService.weightedNote(criteresEeT1(), scores))
-            .isEqualByComparingTo(new BigDecimal("14"));
+            .isEqualByComparingTo(new BigDecimal("13.5"));
     }
 
     @Test

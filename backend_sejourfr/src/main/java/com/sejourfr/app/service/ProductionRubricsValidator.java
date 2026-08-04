@@ -26,11 +26,14 @@ import java.util.Set;
  *   <li>par rubrique : {@code criteres}, {@code bareme_note}, {@code descripteurs}
  *       et {@code consignes_correcteur} renseignes ;</li>
  *   <li>chaque {@code code} de critere ∈ set canonique ;</li>
- *   <li>presence obligatoire des codes {@code lexique}, {@code morphosyntaxe} et
- *       {@code coherence} : ce sont les criteres PORTEURS DU NIVEAU dont
- *       {@code AiEvaluationService} derive le niveau CECRL affiche
- *       ({@code ProductionEvaluationProperties.NiveauCecrl#getSourceCriteres()}).
- *       Les renommer ou les supprimer casserait silencieusement ce calcul.</li>
+ *   <li>presence obligatoire du SOCLE DE LANGUE ({@code lexique},
+ *       {@code morphosyntaxe}) <b>et</b> des criteres dont le niveau CECRL est
+ *       derive POUR CETTE GRILLE — {@code coherence} en v3/v4/v4.x, les quatre
+ *       criteres du TCF en v5 (cf. {@link ProductionRubricsProvider#niveauCecrl()},
+ *       qui lit {@code commun.niveau} du fichier puis la config). La protection
+ *       suit donc ce que le calcul lit reellement, au lieu de figer une liste
+ *       qui deviendrait fausse a chaque version. Les renommer ou les supprimer
+ *       casserait silencieusement ce calcul.</li>
  * </ul>
  * Tout manquement → log ERROR + {@link IllegalStateException} (le contexte Spring
  * ne demarre pas).
@@ -51,13 +54,17 @@ public class ProductionRubricsValidator {
         "pertinence", "coherence", "lexique", "morphosyntaxe",
         // criteres de tache v4
         "realisation_consigne", "adequation_destinataire", "developpement_reponses",
-        "conduite_echange", "chronologie_recit", "prise_position", "argumentation");
+        "conduite_echange", "chronologie_recit", "prise_position", "argumentation",
+        // grille du TCF, v5 : 4 criteres equiponderes, identiques sur les 6 taches
+        "communiquer", "interagir");
 
     /**
-     * Codes dont la presence est OBLIGATOIRE dans chaque rubrique : le niveau CECRL
-     * serveur en est la moyenne (cf. {@code niveau-cecrl.source-criteres}).
+     * Socle de LANGUE, obligatoire quelle que soit la version de grille : ce sont
+     * les deux criteres notes en absolu sur l'echelle CECRL, presents de v2 a v5.
+     * Les supprimer ou les renommer casserait le garde-fou de couplage
+     * ({@code AiEvaluationService#applyCouplage}) en plus du calcul du niveau.
      */
-    static final Set<String> CODES_OBLIGATOIRES = Set.of("lexique", "morphosyntaxe", "coherence");
+    static final Set<String> SOCLE_LANGUE = Set.of("lexique", "morphosyntaxe");
 
     /** Les 6 rubriques attendues, quelle que soit la version du fichier. */
     static final Set<String> CLES_ATTENDUES = Set.of(
@@ -86,9 +93,16 @@ public class ProductionRubricsValidator {
         }
 
         // 1. Coherence interne de chaque rubrique (poids = 1, codes canoniques).
+        // Les codes OBLIGATOIRES sont le socle de langue + les criteres dont le
+        // niveau CECRL est reellement derive pour CETTE grille (declares par le
+        // fichier depuis v5, sinon la config) : la protection suit ce que le
+        // calcul lit, au lieu de figer une liste qui devient fausse a chaque
+        // version.
+        Set<String> obligatoires = new java.util.LinkedHashSet<>(SOCLE_LANGUE);
+        obligatoires.addAll(rubrics.niveauCecrl().getSourceCriteres());
         Map<String, Map<String, Object>> all = rubrics.all();
         for (Map.Entry<String, Map<String, Object>> e : all.entrySet()) {
-            validateRubric(e.getKey(), e.getValue(), errors);
+            validateRubric(e.getKey(), e.getValue(), obligatoires, errors);
         }
 
         // 1b. Les 6 rubriques EE_T1..3 / EO_T1..3 doivent exister dans le fichier.
@@ -121,7 +135,8 @@ public class ProductionRubricsValidator {
             rubrics.all().size());
     }
 
-    private static void validateRubric(String cle, Map<String, Object> rubric, List<String> errors) {
+    private static void validateRubric(String cle, Map<String, Object> rubric,
+                                       Set<String> obligatoires, List<String> errors) {
         validateChampsObligatoires(cle, rubric, errors);
 
         if (!(rubric.get("criteres") instanceof List<?> criteres) || criteres.isEmpty()) {
@@ -151,11 +166,11 @@ public class ProductionRubricsValidator {
         if (Math.abs(sommePoids - 1.0) > POIDS_TOLERANCE) {
             errors.add(cle + " : Σ poids = " + sommePoids + " (attendu 1.0 ±" + POIDS_TOLERANCE + ").");
         }
-        for (String obligatoire : CODES_OBLIGATOIRES) {
+        for (String obligatoire : obligatoires) {
             if (!codes.contains(obligatoire)) {
                 errors.add(cle + " : critere obligatoire '" + obligatoire + "' absent — le niveau CECRL"
-                    + " serveur est la moyenne de " + CODES_OBLIGATOIRES + ", le supprimer ou le renommer"
-                    + " casserait son calcul.");
+                    + " serveur derive de " + obligatoires + " pour cette grille, le supprimer ou le"
+                    + " renommer casserait son calcul.");
             }
         }
     }

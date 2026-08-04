@@ -162,10 +162,15 @@ public class ProductionSubmissionService {
         // examen terminé incomplet (chrono écoulé, abandon) sans pipeline IA
         // en cours ni FAILED à retenter → tâches manquantes comptées 0.
         NiveauCecrl niveauGlobal = null;
+        // Épreuve écourtée : les tâches jamais rendues comptent 0 — dans le
+        // niveau ET dans la note, sinon le bilan afficherait une note calculée
+        // sur deux tâches à côté d'un niveau calculé sur trois.
+        boolean manquantesAZero = false;
         if (exam && evaluatedCount >= ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE) {
             niveauGlobal = bilanService.bilanEpreuve(evalsByTache);
         } else if (exam && finished && !inFlight && !anyFailed) {
             niveauGlobal = bilanService.bilanEpreuveTerminee(evalsByTache);
+            manquantesAZero = true;
         }
         return new ProductionBilanResponse(
                 attemptId,
@@ -175,7 +180,7 @@ public class ProductionSubmissionService {
                 finished,
                 evaluatedCount,
                 ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE,
-                bilanService.moyenneNotes(evalsByTache),
+                bilanService.noteEpreuve(evalsByTache, manquantesAZero),
                 niveauGlobal,
                 bilanService.correspondanceTcf(niveauGlobal));
     }

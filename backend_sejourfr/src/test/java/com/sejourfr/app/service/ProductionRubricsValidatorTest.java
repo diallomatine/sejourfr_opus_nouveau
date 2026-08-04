@@ -75,6 +75,8 @@ class ProductionRubricsValidatorTest {
     private void stub(Map<String, Map<String, Object>> all) {
         when(rubrics.getCommun()).thenReturn(validCommun());
         when(rubrics.all()).thenReturn(all);
+        // Reglages de niveau "historiques" (v3-v4.2) : lexique + morphosyntaxe + coherence.
+        when(rubrics.niveauCecrl()).thenReturn(new ProductionEvaluationProperties.NiveauCecrl());
         lenient().when(taskManager.findAllActive()).thenReturn(List.of());
     }
 
@@ -325,6 +327,166 @@ class ProductionRubricsValidatorTest {
         }
     }
 
+    // ------------------------------------------------------------------- v5
+
+    /** v5 (grille du TCF) doit demarrer comme v3, v4, v4.1 et v4.2. */
+    @Test
+    void validate_realV5File_noThrow() {
+        when(taskManager.findAllActive()).thenReturn(List.of());
+        ProductionRubricsValidator v =
+                new ProductionRubricsValidator(realProvider("v5"), taskManager);
+
+        assertThatCode(v::validate).doesNotThrowAnyException();
+    }
+
+    /**
+     * LE contrat v5 : la grille reelle du TCF — exactement 4 criteres, memes
+     * codes sur les 6 taches, equiponderes a 0,25. C'est ce qui change tout le
+     * reste, donc c'est verrouille ici.
+     */
+    @Test
+    void v5File_hasFourEquallyWeightedTcfCriteria() {
+        Map<String, Map<String, Object>> all = realProvider("v5").all();
+
+        assertThat(all).containsOnlyKeys("EE_T1", "EE_T2", "EE_T3", "EO_T1", "EO_T2", "EO_T3");
+        for (String cle : all.keySet()) {
+            assertThat(codes(all, cle))
+                    .as(cle + " : les 4 criteres du TCF, dans cet ordre, et aucun autre")
+                    .containsExactly("communiquer", "interagir", "lexique", "morphosyntaxe");
+            for (Object c : (List<?>) all.get(cle).get("criteres")) {
+                assertThat(((Number) ((Map<?, ?>) c).get("poids")).doubleValue())
+                        .as(cle + " : chaque critere pese 0,25")
+                        .isEqualTo(0.25);
+            }
+            assertThat(poidsTotal(all, cle)).as(cle + " : somme des poids")
+                    .isEqualTo(1.0, org.assertj.core.data.Offset.offset(0.0001));
+        }
+    }
+
+    /**
+     * Les libelles affiches au candidat sont ACCENTUES (ils remontent tels quels
+     * dans scores_criteres puis dans les 3 fronts), alors que le reste du
+     * fichier — instructions au modele — reste sans accents.
+     */
+    @Test
+    void v5File_labelsAreProperlyAccented() {
+        Map<String, Map<String, Object>> all = realProvider("v5").all();
+
+        for (String cle : all.keySet()) {
+            for (Object c : (List<?>) all.get(cle).get("criteres")) {
+                Map<?, ?> critere = (Map<?, ?>) c;
+                String label = String.valueOf(critere.get("label"));
+                assertThat(label).as(cle + " : label non vide").isNotBlank();
+                if ("communiquer".equals(critere.get("code"))) {
+                    assertThat(label).contains("tâche").contains("idées");
+                }
+                if ("lexique".equals(critere.get("code"))) {
+                    assertThat(label).contains("approprié");
+                }
+            }
+        }
+    }
+
+    /**
+     * v5 declare LUI-MEME son passage note -> niveau : c'est ce qui permet a
+     * EVAL_RUBRICS_VERSION seule de suffire pour revenir a v4.2 (dont le calcul
+     * lit trois criteres et d'autres seuils).
+     */
+    @Test
+    void v5File_declaresItsOwnLevelSettings() {
+        ProductionEvaluationProperties.NiveauCecrl v5 = realProvider("v5").niveauCecrl();
+
+        assertThat(v5.getSourceCriteres())
+                .as("le niveau derive des QUATRE criteres, donc de la note ponderee elle-meme")
+                .containsExactly("communiquer", "interagir", "lexique", "morphosyntaxe");
+        assertThat(v5.getSeuilB2()).isEqualTo(16.0);
+        assertThat(v5.getSeuilB1()).isEqualTo(13.0);
+        assertThat(v5.getSeuilA2()).isEqualTo(9.0);
+
+        ProductionEvaluationProperties.NiveauCecrl v42 = realProvider("v4.2").niveauCecrl();
+        assertThat(v42.getSourceCriteres())
+                .as("v4.2 ne declare rien : elle garde les reglages de la config")
+                .containsExactly("lexique", "morphosyntaxe", "coherence");
+        assertThat(v42.getSeuilB2()).isEqualTo(15.0);
+    }
+
+    /**
+     * Ce que v5 change ET ce qu'elle ne perd pas : l'accomplissement revient
+     * dans le niveau, mais toutes les tolerances et les deux ancrages
+     * d'echelle de v4.1/v4.2 restent, et le garde-fou de couplage devient la
+     * protection qui remplace l'exclusion du critere de tache.
+     */
+    @Test
+    void v5File_keepsEveryToleranceAndAnchorsBothEnds() {
+        Map<String, Object> commun = realProvider("v5").getCommun();
+        String texte = String.valueOf(commun.get("sections"));
+
+        assertThat(texte)
+                .as("tolerance longueur conservee")
+                .contains("Ne penalise donc JAMAIS une production pour sa longueur")
+                .as("tolerance orthographe a l'oral conservee")
+                .contains("n'evalue PAS l'orthographe sur de l'oral transcrit")
+                .as("tolerance exhaustivite conservee")
+                .contains("n'exige JAMAIS l'exhaustivite")
+                .as("examinateur temoin de comprehension conserve")
+                .contains("L'EXAMINATEUR EST TON TEMOIN DE COMPREHENSION")
+                .as("benefice du doute conserve")
+                .contains("BENEFICE DU DOUTE")
+                .as("interdiction de conclure a l'incomprehensibilite conservee")
+                .contains("Ne conclus JAMAIS que le candidat est 'incomprehensible'")
+                .as("hors-sujet toujours prioritaire")
+                .contains("Cette regle PRIME sur toute autre consideration");
+
+        assertThat(texte)
+                .as("bas d'echelle (v4.1) intact")
+                .contains("PLAFOND A1").contains("PLAFOND A2").contains("TEST DECISIF A1 vs A2")
+                .as("haut d'echelle (v4.2) intact")
+                .contains("TEST DECISIF B1 vs B2")
+                .contains("CITER LITTERALEMENT au moins DEUX de ces marqueurs")
+                .as("le plafond B1 couvre desormais les QUATRE criteres")
+                .contains("AUCUN des quatre criteres ne depasse alors 14/20")
+                .as("le garde-fou de couplage remplace l'exclusion de l'accomplissement")
+                .contains("GARDE-FOU DE COUPLAGE")
+                .contains("ne depassent donc JAMAIS de plus de 4 points la moyenne de lexique et")
+                .as("le niveau se lit sur la note")
+                .contains("16 et plus -> B2 ; 13 a 15 -> B1 ; 9 a 12 -> A2 ; 1 a 8 -> A1");
+    }
+
+    /** v5 exige d'ENSEIGNER : chaque priorite porte un « comment » et un exemple. */
+    @Test
+    void v5File_requiresActionableAdvice() {
+        Map<String, Object> commun = realProvider("v5").getCommun();
+        String texte = String.valueOf(commun.get("sections"));
+
+        assertThat(texte)
+                .contains("ENSEIGNER, PAS CONSTATER")
+                .as("les formules creuses observees en production sont nommement interdites")
+                .contains("ameliorer la ponctuation pour plus de clarte")
+                .contains("pratiquer l'utilisation de connecteurs")
+                .as("une priorite doit contenir une technique et un exemple avant/apres")
+                .contains("TECHNIQUE REUTILISABLE")
+                .contains("verbe d'action adresse au candidat")
+                .as("les exemples corriges doivent faire gagner un niveau")
+                .contains("GAGNER UN NIVEAU");
+    }
+
+    /** Chaque tache v5 rappelle les deux ancrages ET l'exigence pedagogique. */
+    @Test
+    void v5File_eachTaskRecallsAnchorsAndTeachingRule() {
+        Map<String, Map<String, Object>> all = realProvider("v5").all();
+
+        for (Map.Entry<String, Map<String, Object>> e : all.entrySet()) {
+            String consignes = String.valueOf(e.getValue().get("consignes_correcteur"));
+            assertThat(consignes).as(e.getKey())
+                    .contains("ANCRAGE BAS D'ECHELLE")
+                    .contains("TEST DECISIF B1 vs B2")
+                    .contains("ENSEIGNER, PAS CONSTATER");
+            assertThat(String.valueOf(e.getValue().get("descripteurs")))
+                    .as(e.getKey() + " : descripteurs par niveau, ce qui distingue les taches")
+                    .contains("A1").contains("A2").contains("B1").contains("B2");
+        }
+    }
+
     /** v4 = criteres PROPRES A CHAQUE TACHE (le defaut corrige) + socle commun conserve. */
     @Test
     void v4File_hasTaskSpecificCriteria() {
@@ -434,6 +596,59 @@ class ProductionRubricsValidatorTest {
                 .hasMessageContaining("Rubriques de notation invalides");
     }
 
+    /**
+     * La protection suit la grille : avec les reglages v5, c'est l'absence d'un
+     * des QUATRE criteres du TCF qui bloque le demarrage (et non plus celle de
+     * {@code coherence}, qui n'existe plus).
+     */
+    @Test
+    void validate_v5Settings_missingInteragir_throws() {
+        Map<String, Map<String, Object>> all = new LinkedHashMap<>();
+        for (String cle : List.of("EE_T1", "EE_T2", "EE_T3", "EO_T1", "EO_T2", "EO_T3")) {
+            all.put(cle, rubric(List.of(
+                    critere("communiquer", 0.25), critere("interagir", 0.25),
+                    critere("lexique", 0.25), critere("morphosyntaxe", 0.25))));
+        }
+        all.put("EO_T2", rubric(List.of(
+                critere("communiquer", 0.4), critere("lexique", 0.3), critere("morphosyntaxe", 0.3))));
+        when(rubrics.getCommun()).thenReturn(validCommun());
+        when(rubrics.all()).thenReturn(all);
+        when(rubrics.niveauCecrl()).thenReturn(niveauV5());
+        lenient().when(taskManager.findAllActive()).thenReturn(List.of());
+
+        assertThatThrownBy(() -> validator().validate())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Rubriques de notation invalides");
+    }
+
+    /**
+     * Le SOCLE DE LANGUE reste obligatoire meme si la grille pretendait ne pas
+     * en deriver son niveau : c'est lui que lit le garde-fou de couplage.
+     */
+    @Test
+    void validate_missingLexiqueAlwaysThrows_evenIfNotALevelSource() {
+        ProductionEvaluationProperties.NiveauCecrl sansLangue =
+                new ProductionEvaluationProperties.NiveauCecrl();
+        sansLangue.setSourceCriteres(List.of("communiquer"));
+        Map<String, Map<String, Object>> all = new LinkedHashMap<>();
+        for (String cle : List.of("EE_T1", "EE_T2", "EE_T3", "EO_T1", "EO_T2", "EO_T3")) {
+            all.put(cle, rubric(List.of(critere("communiquer", 0.5), critere("morphosyntaxe", 0.5))));
+        }
+        when(rubrics.getCommun()).thenReturn(validCommun());
+        when(rubrics.all()).thenReturn(all);
+        when(rubrics.niveauCecrl()).thenReturn(sansLangue);
+        lenient().when(taskManager.findAllActive()).thenReturn(List.of());
+
+        assertThatThrownBy(() -> validator().validate())
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    private static ProductionEvaluationProperties.NiveauCecrl niveauV5() {
+        ProductionEvaluationProperties.NiveauCecrl n = new ProductionEvaluationProperties.NiveauCecrl();
+        n.setSourceCriteres(List.of("communiquer", "interagir", "lexique", "morphosyntaxe"));
+        return n;
+    }
+
     @Test
     void validate_duplicateCode_throws() {
         Map<String, Map<String, Object>> all = sixRubriques();
@@ -502,6 +717,7 @@ class ProductionRubricsValidatorTest {
     void validate_emptyCommunSections_throws() {
         when(rubrics.getCommun()).thenReturn(Map.of("sections", List.of(), "few_shot", List.of()));
         when(rubrics.all()).thenReturn(sixRubriques());
+        when(rubrics.niveauCecrl()).thenReturn(new ProductionEvaluationProperties.NiveauCecrl());
         lenient().when(taskManager.findAllActive()).thenReturn(List.of());
 
         assertThatThrownBy(() -> validator().validate())
@@ -513,6 +729,7 @@ class ProductionRubricsValidatorTest {
         Map<String, Map<String, Object>> all = sixRubriques();
         when(rubrics.getCommun()).thenReturn(validCommun());
         when(rubrics.all()).thenReturn(all);
+        when(rubrics.niveauCecrl()).thenReturn(new ProductionEvaluationProperties.NiveauCecrl());
 
         ProductionTask task = new ProductionTask();
         task.setEpreuve(EpreuveType.TCF_EE);
