@@ -11,11 +11,14 @@ class FullTcfExamRepository {
 
   final ApiClient _client;
 
-  /// Démarre un nouvel examen blanc complet. Réservé aux abonnés TCF — un
-  /// non-premium reçoit 403 (le mobile affiche le paywall avant cet appel).
-  /// [slotNumber] permet à la grille « 20 examens TCF complets » de
-  /// stabiliser la numérotation (refaire le slot N met à jour le slot N
-  /// au lieu de glisser les essais d'un cran). Cf. V110.
+  /// Démarre un nouvel examen blanc complet. Accessible aux comptes gratuits
+  /// (slot 1 offert, EE/EO évaluées une seule fois à vie) et illimité pour
+  /// les abonnés TCF — le backend n'exige plus `hasTcf` ici, le verrou porte
+  /// sur le slot (le mobile affiche le paywall avant l'appel pour slot > 1
+  /// non-premium, cf. `TcfFullExamsView.startNew`). [slotNumber] permet à la
+  /// grille « 20 examens TCF complets » de stabiliser la numérotation
+  /// (refaire le slot N met à jour le slot N au lieu de glisser les essais
+  /// d'un cran). Cf. V110.
   Future<FullTcfExamResponse> start({int? slotNumber}) async {
     final res = await _client.dio.post<Map<String, dynamic>>(
       '/api/full-tcf-exams',
