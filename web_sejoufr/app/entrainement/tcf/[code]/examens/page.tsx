@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Flame, GraduationCap, LayoutGrid, Target, Trophy } from "lucide-react";
-import { ApiException, attemptApi } from "@/lib/api";
+import { attemptApi } from "@/lib/api";
+import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import {
   type AttemptSummaryResponse,
@@ -104,7 +105,14 @@ export default function TcfModuleExamsPage() {
       });
       router.push(`/sessions/${a.id}`);
     } catch (e) {
-      setError(e instanceof ApiException ? e.message : "Impossible de démarrer l'examen.");
+      handleStartFailure(e, {
+        onPaywall: () => {
+          setIntroOpen(false);
+          setPaywallOpen(true);
+        },
+        onMessage: setError,
+        fallbackMessage: "Impossible de démarrer l'examen.",
+      });
       setStarting(false);
     }
   }

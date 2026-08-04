@@ -3,6 +3,7 @@
 import {useParams, useRouter} from "next/navigation";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {ApiException, productionApi} from "@/lib/api";
+import {handleStartFailure} from "@/lib/start-failure";
 import {useAuth} from "@/lib/auth-context";
 import {productionTaskTitle, type ProductionTaskDto, type RealtimeSessionDescriptor} from "@/lib/types";
 import {DualChromeShell} from "@/app/_components/DualChromeShell";
@@ -47,6 +48,9 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
   const [uiMode, setUiMode] = useState<UiMode>("loading");
   const [rtStarting, setRtStarting] = useState(false);
   const [rtError, setRtError] = useState<string | null>(null);
+  /** Le temps réel a été refusé (quota, broker indisponible, session refusée) :
+   *  on ne repropose plus le choix, le prochain tap sur le micro enregistre. */
+  const [rtRefused, setRtRefused] = useState(false);
   const [rtDescriptor, setRtDescriptor] = useState<RealtimeSessionDescriptor | null>(null);
   const [rtAttemptId, setRtAttemptId] = useState<string | null>(null);
 
@@ -87,11 +91,11 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
       if (config.mode === "text") clearEeDraft(task.id);
       router.push(`${config.base}/resultats/${sub.id}`);
     } catch (e) {
-      if (e instanceof ApiException && e.status === 403) setPaywallOpen(true);
-      else
-        setSubmitError(
-          e instanceof ApiException ? e.message : "Impossible d'envoyer votre réponse.",
-        );
+      handleStartFailure(e, {
+        onPaywall: () => setPaywallOpen(true),
+        onMessage: setSubmitError,
+        fallbackMessage: "Impossible d'envoyer votre réponse.",
+      });
       setSubmitting(false);
     }
   }
@@ -108,15 +112,21 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
         setRtDescriptor(res.descriptor);
         setUiMode("realtime");
       } else if (res.kind === "paywall") {
+        setRtRefused(true);
         setPaywallOpen(true);
         setUiMode("classic");
       } else if (res.kind === "error") {
+        // Refus du backend (épreuve non concordante, tâche déjà rendue) ou
+        // panne : message dans la feuille, enregistrement classique en repli.
+        setRtRefused(true);
         setRtError(res.message);
       } else {
         // Quota épuisé / non éligible : bascule silencieuse en classique.
+        setRtRefused(true);
         setUiMode("classic");
       }
     } catch (e) {
+      setRtRefused(true);
       setRtError(e instanceof ApiException ? e.message : "Connexion à l'examinateur impossible.");
     } finally {
       setRtStarting(false);
@@ -219,7 +229,9 @@ export function ProductionInputPage({config}: {config: ProductionConfig}) {
             error={submitError ?? rtError}
             submitLabel="Soumettre à l'évaluation"
             onModeChoice={
-              task.tacheNumero === 1 || task.tacheNumero === 2 ? askMode : undefined
+              !rtRefused && (task.tacheNumero === 1 || task.tacheNumero === 2)
+                ? askMode
+                : undefined
             }
             onSubmit={(audio) =>
               finalize((attemptId) => productionApi.submitAudio(task.id, attemptId, audio))

@@ -21,7 +21,8 @@ import {
   Waves,
 } from "lucide-react";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
-import { ApiException, attemptApi, dashboardApi } from "@/lib/api";
+import { attemptApi, dashboardApi } from "@/lib/api";
+import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import { masteryHint } from "@/lib/dashboard";
 import {
@@ -161,7 +162,11 @@ export default function HistoriquePage() {
       });
       router.push(`/sessions/${a.id}`);
     } catch (e) {
-      setError(e instanceof ApiException ? e.message : "Impossible de relancer l'examen.");
+      handleStartFailure(e, {
+        onPaywall: () => setPaywallModule(exam.module === "TCF" ? "INTEGRAL" : "CIVIQUE"),
+        onMessage: setError,
+        fallbackMessage: "Impossible de relancer l'examen.",
+      });
       setRetryingId(null);
     }
   }

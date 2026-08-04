@@ -16,7 +16,9 @@ export interface ProductionConfig {
   accent: "blue" | "red";
   /** Segment de la route de saisie : "redaction" (EE) / "enregistrement" (EO). */
   inputSegment: string;
-  examMinutes: string; // "~60 min" / "~12 min"
+  /** Chrono de l'épreuve en examen blanc, tel qu'appliqué par le backend
+   *  (`AttemptService.PRODUCTION_E{E,O}_EXAM_SECONDS`). */
+  examMinutes: string;
   /** Phrase de présentation du format de l'examen blanc. */
   examIntro: string;
 }
@@ -29,7 +31,7 @@ export const EE_CONFIG: ProductionConfig = {
   mode: "text",
   accent: "blue",
   inputSegment: "redaction",
-  examMinutes: "~60 min",
+  examMinutes: "30 min",
   examIntro:
     "Vous rédigez les 3 productions écrites (message, récit, point de vue argumenté). À la fin, l'IA évalue chaque tâche et vous attribue un niveau CECRL global (le plancher des 3 tâches).",
 };
@@ -42,7 +44,7 @@ export const EO_CONFIG: ProductionConfig = {
   mode: "audio",
   accent: "red",
   inputSegment: "enregistrement",
-  examMinutes: "~12 min",
+  examMinutes: "15 min",
   examIntro:
     "Vous enregistrez les 3 tâches orales (entretien dirigé, point de vue, jeu de rôle). À la fin, l'IA transcrit puis évalue chaque tâche et vous attribue un niveau CECRL global (le plancher des 3 tâches).",
 };

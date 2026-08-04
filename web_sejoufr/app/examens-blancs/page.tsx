@@ -12,6 +12,7 @@ import {examSlotGrid} from "@/lib/exam-slots";
 import {moduleAverage} from "@/lib/dashboard";
 import {TcfFullExamBriefingSheet} from "@/app/examens-blancs/tcf/TcfFullExamBriefingSheet";
 import {ApiException, attemptApi, dashboardApi, fullTcfExamApi, publicAttemptApi, publicExamApi,} from "@/lib/api";
+import {handleStartFailure} from "@/lib/start-failure";
 import {useAuth} from "@/lib/auth-context";
 import {
     type AttemptSummaryResponse,
@@ -230,14 +231,14 @@ function ExamsConnectedHome() {
             });
             router.push(`/sessions/${a.id}`);
         } catch (e) {
-            if (e instanceof ApiException && e.status === 403) {
-                setCiviqueSlot(null);
-                setPaywallModule("CIVIQUE");
-            } else {
-                setCiviqueError(
-                    e instanceof ApiException ? e.message : "Impossible de démarrer l'examen.",
-                );
-            }
+            handleStartFailure(e, {
+                onPaywall: () => {
+                    setCiviqueSlot(null);
+                    setPaywallModule("CIVIQUE");
+                },
+                onMessage: setCiviqueError,
+                fallbackMessage: "Impossible de démarrer l'examen.",
+            });
             setCiviqueStarting(false);
         }
     }
@@ -614,9 +615,14 @@ function ExamsGuestHome() {
             });
             router.push(`/sessions/${a.id}`);
         } catch (e) {
-            setDemoError(
-                e instanceof ApiException ? e.message : "Démarrage impossible.",
-            );
+            handleStartFailure(e, {
+                onPaywall: () => {
+                    setIntroModule(null);
+                    setGuestGateOpen(true);
+                },
+                onMessage: setDemoError,
+                fallbackMessage: "Démarrage impossible.",
+            });
             setDemoStarting(false);
         }
     }

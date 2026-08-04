@@ -85,6 +85,10 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   const [activeDescriptor, setActiveDescriptor] = useState<RealtimeSessionDescriptor | null>(null);
   const [rtStarting, setRtStarting] = useState(false);
   const [rtError, setRtError] = useState<string | null>(null);
+  /** Le temps réel a été refusé sur cette tâche (quota, broker indisponible,
+   *  session refusée) : on ne repropose plus le choix, le prochain tap sur le
+   *  micro enregistre directement. Remis à zéro à la tâche suivante. */
+  const [rtRefused, setRtRefused] = useState(false);
 
   /** Entre dans la tâche `n` : on affiche d'abord le sujet (mode "classic" =
    *  EoRecordingForm). Le choix du mode EO T1/T2 est proposé sur le bouton
@@ -94,6 +98,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
       setCurrentTache(n);
       setActiveDescriptor(null);
       setRtError(null);
+      setRtRefused(false);
       setTaskMode("classic");
     },
     [],
@@ -103,8 +108,8 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
    *  attempt pas encore chargé). */
   const [deadline, setDeadline] = useState<number | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
-  /** Signal d'auto-soumission EE envoyé à `EeWritingForm` quand le chrono tombe
-   *  à 0. Incrémenter déclenche la lecture du texte courant. */
+  /** Signal d'expiration envoyé au formulaire de la tâche courante quand le
+   *  chrono tombe à 0 : EE lit son texte, EO coupe sa capture. */
   const [autoSubmitSignal, setAutoSubmitSignal] = useState(0);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -171,17 +176,21 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         setTasks(ordered);
         setSubsByTache(subs);
 
-        // Chrono EE :
-        // - Examen module : ancré sur `startedAt + timeLimitSeconds` backend
-        //   (survit au refresh, source de vérité).
+        // Chrono d'épreuve :
+        // - Examen module EE (30 min) ou EO (15 min) : ancré sur
+        //   `startedAt + timeLimitSeconds` backend (survit au refresh, source
+        //   de vérité — c'est lui qui refuse les soumissions hors délai).
         // - Sous-épreuve EE d'examen complet : le backend ne pose pas
         //   `timeLimitSeconds` et ne réaligne pas `startedAt` à l'entrée EE → on
         //   démarre un décompte 30 min côté front à l'arrivée dans l'épreuve.
-        if (config.mode === "text" && attempt && !attempt.finishedAt) {
+        // - Sous-épreuve EO d'examen complet : AUCUN chrono local, le temps y
+        //   est tenu par le compteur global des 90 min du hub (deux décomptes
+        //   concurrents finiraient par se contredire).
+        if (attempt && !attempt.finishedAt) {
           if (attempt.timeLimitSeconds != null) {
             const start = new Date(attempt.startedAt).getTime();
             setDeadline(start + attempt.timeLimitSeconds * 1000);
-          } else {
+          } else if (config.mode === "text") {
             setDeadline(Date.now() + EE_FALLBACK_LIMIT_SEC * 1000);
           }
         }
@@ -222,7 +231,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, attemptId, config.epreuve, config.mode]);
 
-  // Tick du chrono EE (1 s). On dérive la valeur affichée de la deadline pour
+  // Tick du chrono d'épreuve (1 s). On dérive la valeur affichée de la deadline pour
   // survivre à un refresh ; à 0 on déclenche l'auto-soumission une seule fois.
   useEffect(() => {
     if (deadline == null || phase !== "writing") return;
@@ -323,12 +332,18 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         setActiveDescriptor(res.descriptor);
         setTaskMode("realtime");
       } else if (res.kind === "paywall") {
+        setRtRefused(true);
         setPaywallOpen(true);
         setTaskMode("classic");
       } else if (res.kind === "error") {
+        // Refus du backend (épreuve terminée, temps écoulé, tâche déjà rendue)
+        // ou panne de connexion : on montre le message dans la feuille et on
+        // laisse l'enregistrement classique comme seule voie.
+        setRtRefused(true);
         setRtError(res.message);
       } else {
         // Quota épuisé / non éligible : bascule silencieuse en classique.
+        setRtRefused(true);
         setTaskMode("classic");
       }
     } finally {
@@ -387,10 +402,11 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     }
   }
 
-  /** Chrono EE à 0:00 (examen entier) : auto-soumet le texte de la tâche
-   *  courante s'il est recevable, puis finalise l'épreuve — quelle que soit la
+  /** Chrono à 0:00 (examen entier) : auto-soumet la production de la tâche
+   *  courante si elle est recevable, puis finalise l'épreuve — quelle que soit la
    *  tâche en cours (les tâches non rendues sont comptées 0). */
   const finalizeExam = useCallback(async () => {
+    if (finishedRef.current) return;
     finishedRef.current = true;
     if (timerRef.current) clearTimeout(timerRef.current);
     if (fullExamId) {
@@ -426,6 +442,32 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
     [submitting, currentTask, attemptId, finalizeExam],
   );
 
+  /** Idem côté oral : la capture coupée à 0:00 part quand même en évaluation
+   *  (le backend tolère 60 s de grâce), puis l'épreuve est finalisée. */
+  const onEoTimeout = useCallback(
+    async (audio: Blob | null) => {
+      if (audio && audio.size > 0 && currentTask && !submitting) {
+        setSubmitting(true);
+        try {
+          await productionApi.submitAudio(currentTask.id, attemptId, audio);
+        } catch {
+          // best-effort : les tâches non rendues sont comptées 0 par le bilan
+        } finally {
+          setSubmitting(false);
+        }
+      }
+      await finalizeExam();
+    },
+    [submitting, currentTask, attemptId, finalizeExam],
+  );
+
+  // Expiration pendant un échange avec l'examinateur temps réel : le runner ne
+  // reçoit pas de signal (il n'a rien à rendre), on finalise directement.
+  useEffect(() => {
+    if (autoSubmitSignal <= 0 || taskMode !== "realtime") return;
+    void finalizeExam();
+  }, [autoSubmitSignal, taskMode, finalizeExam]);
+
   if (status === "loading") return <div className={ds.gate} />;
   if (!user) return <ModuleDetailGate next={`${config.base}/session/${attemptId}`} />;
 
@@ -436,7 +478,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
         ? "Valider et passer à l'épreuve suivante"
         : "Valider et terminer";
 
-  const chronoActive = config.mode === "text" && deadline != null && phase === "writing";
+  const chronoActive = deadline != null && phase === "writing";
   const chronoSec = remaining ?? 0;
   const chronoUrgent = chronoActive && chronoSec <= 300;
 
@@ -461,10 +503,12 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
             ? "Le niveau global est calculé sur vos 3 tâches une fois évaluées."
             : config.mode === "text"
               ? "3 tâches enchaînées en 30 minutes — évaluation IA à la fin."
-              : "3 tâches enchaînées, chronométrées par tâche — évaluation IA à la fin."
+              : chronoActive
+                ? "3 tâches enchaînées en 15 minutes, chacune limitée en temps de parole — évaluation IA à la fin."
+                : "3 tâches enchaînées, chronométrées par tâche — évaluation IA à la fin."
         }
       >
-        {/* Chrono EE permanent (examen 30:00) */}
+        {/* Chrono d'épreuve permanent (EE 30:00, EO 15:00) */}
         {chronoActive && (
           <div className={`${prod.examChrono} ${chronoUrgent ? prod.examChronoUrgent : ""}`}>
             <span className={prod.examChronoLabel}>
@@ -524,8 +568,11 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
                   error={rtError}
                   submitLabel={submitLabel}
                   examMode
+                  timeoutSignal={autoSubmitSignal}
+                  onTimeout={onEoTimeout}
                   onModeChoice={
-                    currentTask.tacheNumero === 1 || currentTask.tacheNumero === 2
+                    !rtRefused &&
+                    (currentTask.tacheNumero === 1 || currentTask.tacheNumero === 2)
                       ? askMode
                       : undefined
                   }

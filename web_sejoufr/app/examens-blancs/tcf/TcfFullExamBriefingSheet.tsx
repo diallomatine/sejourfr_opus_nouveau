@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ApiException, fullTcfExamApi } from "@/lib/api";
+import { fullTcfExamApi } from "@/lib/api";
+import { handleStartFailure } from "@/lib/start-failure";
 import s from "./tcfFullExam.module.css";
 
 const EPREUVES = [
@@ -41,12 +42,20 @@ export function TcfFullExamBriefingSheet({ slotNumber, onClose, isFreeAccount, o
       const exam = await fullTcfExamApi.start(slotNumber);
       router.push(`/examens-blancs/tcf/${exam.id}`);
     } catch (e) {
-      if (e instanceof ApiException && e.status === 403 && onNeedsPremium) {
-        onNeedsPremium();
-        return;
-      }
-      setError(e instanceof ApiException ? e.message : "Impossible de démarrer l'examen.");
-      setLoading(false);
+      let handedToPaywall = false;
+      handleStartFailure(e, {
+        onPaywall: () => {
+          if (onNeedsPremium) {
+            onNeedsPremium();
+            handedToPaywall = true;
+          } else {
+            setError("Cet examen blanc est réservé aux abonnés Intégral.");
+          }
+        },
+        onMessage: setError,
+        fallbackMessage: "Impossible de démarrer l'examen.",
+      });
+      if (!handedToPaywall) setLoading(false);
     }
   }
 

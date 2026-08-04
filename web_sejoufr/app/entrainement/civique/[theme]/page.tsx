@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Lightbulb, Target } from "lucide-react";
 import {
-  ApiException,
   attemptApi,
   lotApi,
   publicAttemptApi,
@@ -13,6 +12,7 @@ import {
   publicThemeApi,
   themeApi,
 } from "@/lib/api";
+import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import { themeSlug, resolveThemeRef } from "@/lib/themes";
 import {
@@ -120,7 +120,11 @@ export default function CiviqueThemeSeriesPage() {
         : await attemptApi.start(body);
       router.push(`/sessions/${a.id}?lot=${lot.numero}`);
     } catch (e) {
-      setError(e instanceof ApiException ? e.message : "Impossible de démarrer la série.");
+      handleStartFailure(e, {
+        onPaywall: () => (isGuest ? setGuestGateOpen(true) : setPaywallOpen(true)),
+        onMessage: setError,
+        fallbackMessage: "Impossible de démarrer la série.",
+      });
       setStarting(false);
     }
   }

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Flame, GraduationCap, LayoutGrid, Target, Trophy } from "lucide-react";
-import { ApiException, productionApi } from "@/lib/api";
+import { productionApi } from "@/lib/api";
+import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import {
   canAccessModule,
@@ -166,8 +167,11 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
       });
       router.push(`${config.base}/session/${attempt.id}`);
     } catch (e) {
-      if (e instanceof ApiException && e.status === 403) setPaywallOpen(true);
-      else setError(e instanceof ApiException ? e.message : "Impossible de démarrer l'examen.");
+      handleStartFailure(e, {
+        onPaywall: () => setPaywallOpen(true),
+        onMessage: setError,
+        fallbackMessage: "Impossible de démarrer l'examen.",
+      });
       setStarting(false);
     }
   }

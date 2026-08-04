@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { PaywallSheet } from "@/app/_components/PaywallSheet";
-import { ApiException, attemptApi, publicAttemptApi } from "@/lib/api";
+import { attemptApi, publicAttemptApi } from "@/lib/api";
+import { handleStartFailure } from "@/lib/start-failure";
 import { useAuth } from "@/lib/auth-context";
 import {
   canAccessModule,
@@ -131,11 +132,11 @@ function ExamBriefingInner({
           });
       router.push(`/sessions/${a.id}`);
     } catch (e) {
-      if (e instanceof ApiException && e.status === 403) {
-        setShowPaywall(true);
-      } else {
-        setError(e instanceof ApiException ? e.message : "Démarrage impossible.");
-      }
+      handleStartFailure(e, {
+        onPaywall: () => setShowPaywall(true),
+        onMessage: setError,
+        fallbackMessage: "Démarrage impossible.",
+      });
       setStarting(false);
     }
   }

@@ -133,6 +133,8 @@ lib/
 │                                 #   header/footer/bandeau marketing, la sidebar porte tout)
 ├── dashboard.ts                  # helpers catégories dashboard : categoryHref (CTA Réviser),
 │                                 #   barTone (vert ≥80 / ambre <60 / bleu), moduleAverage
+├── start-failure.ts              # classifyStartFailure / handleStartFailure : un 403 au
+│                                 #   démarrage d'un attempt = paywall, pas erreur technique
 └── types.ts                      # DTOs miroirs Java + helper canAccessModule()
 ```
 
@@ -282,6 +284,15 @@ standard 36px, variante `.cocarde.lg` à 56px.
 Le client `apiFetch` lève une `ApiException` avec `{ status, message, payload }`. Le `payload` peut contenir
 `fieldErrors: Record<string, string>` que les pages d'auth concatènent pour affichage. Les pages traitent
 spécifiquement le 401 (mauvais credentials sur connexion, "créez un compte" sur examen blanc).
+
+**Échec de démarrage d'un attempt** (série, examen blanc QCM, session EE/EO, « Refaire ») : passer par
+`lib/start-failure.ts` — `handleStartFailure(e, {onPaywall, onMessage, fallbackMessage})` ouvre l'offre sur
+un **403** et affiche le message backend sinon. Le paywall des examens blancs est appliqué **par le
+backend** (`AttemptService.enforceMockExamSlotAccess`, slot 1 offert / 2+ abonnés) : un écran dont le statut
+premium en cache est périmé reçoit un 403 là où son UI croyait le slot ouvert — c'est un refus attendu, pas
+une panne, il ne doit jamais s'afficher en erreur technique. **Ne pas réécrire ce `if (status === 403)` dans
+une page** : la règle vit à un seul endroit (miroir de `core/utils/start_failure.dart` côté mobile). Les
+écrans duals guest/connecté routent le 403 vers `GuestGateSheet` en guest, `PaywallSheet` sinon.
 
 ## Examen blanc — flux
 
@@ -533,8 +544,10 @@ Chantier découpé en vagues :
       `POST /api/full-tcf-exams/{id}/begin?epreuve=TCF_CO|TCF_CE` + migration V013
       `attempts.timer_started_at`. `startedAt` (création) reste l'ancre de tri /
       dédup par slot des grilles. Parité mobile faite (`beginEpreuve` côté
-      `tcf_full_exam_progress_screen`). EE/EO inchangés (chrono front 30 min /
-      par-tâche).),
+      `tcf_full_exam_progress_screen`). Sous-épreuves EE/EO du complet :
+      **pas** de `timeLimitSeconds` backend → repli front 30 min pour l'EE,
+      **aucun chrono local pour l'EO** (le temps y est tenu par le compteur
+      global des 90 min du hub ; un second décompte se contredirait).),
       `tcf/[id]/bilan/page.tsx` (CECRL plancher + polling 3 s rapide 30 s puis 8 s,
       max 5 min, sur `status === COMPLETED`), `tcf/TcfFullExamBriefingSheet.tsx`
       (lancement + 403 → paywall, ouvert **inline** depuis la carte TCF).
@@ -752,15 +765,25 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
       (`startAttempt({exam:true, slotNumber})`) ; la grille est **indexée par
       slot** via `bilan.slotNumber` (anciennes sessions sans slot → slot 1).
       Difficulté progressive par slot (1-3 A2 / 4-6 B1 / 7-10 B2), légende
-      `bandLegend`. **Chrono EE 30:00** ancré sur
-      `startedAt + timeLimitSeconds` backend (survit au refresh ; repli
-      30 min front pour les sous-épreuves EE d'examen complet où
-      `timeLimitSeconds` est null) ; alerte rouge sous 5 min ; à 0:00
-      auto-soumission du texte courant si recevable
-      (mots ∈ [`motsMin`, `motsMax`×1.2]) puis `attemptApi.finish` puis bilan.
-      **EO en examen** (`EoRecordingForm examMode`) : décompte par tâche
-      (`dureeMaxSec`), auto-stop à 0, soumission immédiate au stop (pas de
-      réécoute). Fin normale (T3) et abandon (navigation sortante) →
+      `bandLegend`. **Chrono d'épreuve (EE 30:00, EO 15:00)** ancré sur
+      `startedAt + timeLimitSeconds` backend — c'est le backend qui l'impose
+      (`AttemptService.PRODUCTION_E{E,O}_EXAM_SECONDS`, 60 s de grâce à la
+      soumission), le front ne fait que l'afficher ; survit au refresh ;
+      alerte rouge sous 5 min. Repli front 30 min **pour l'EE seule** quand
+      `timeLimitSeconds` est null (sous-épreuve d'examen complet) ; l'EO n'a
+      alors **aucun** chrono local. À 0:00 : EE auto-soumet le texte courant
+      s'il est recevable (mots ∈ [`motsMin`, `motsMax`×1.2]), EO coupe la
+      capture en cours et l'envoie en best-effort (`timeoutSignal` /
+      `onTimeout` sur `EoRecordingForm`, pendant de `autoSubmitSignal` /
+      `onAutoSubmit` côté EE) ; puis `attemptApi.finish` puis bilan.
+      **EO en examen** (`EoRecordingForm examMode`) : en plus du chrono
+      d'épreuve, décompte par tâche (`dureeMaxSec`), auto-stop à 0, soumission
+      immédiate au stop (pas de réécoute). **Une tâche rendue ne se refait pas
+      en session d'examen** (règle backend `ProductionAccessService`) : la
+      tâche courante est toujours `TACHES.find(n => !subs.has(n))`, le bouton
+      micro est désactivé après le stop et « Refaire » n'existe qu'hors examen ;
+      relancer l'évaluation IA d'une soumission (`retrySubmission`) reste
+      légitime. Fin normale (T3) et abandon (navigation sortante) →
       `attemptApi.finish`. `ProductionBilanResponse` gagne `slotNumber` +
       `finished` : en `finished` avec < 3 tâches évaluées, le bilan affiche
       « Non rendue » (pas de polling infini) et le niveau global dès qu'il
