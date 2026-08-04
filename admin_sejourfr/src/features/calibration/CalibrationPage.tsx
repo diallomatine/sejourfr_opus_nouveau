@@ -7,7 +7,6 @@ import { EmptyState, Panel } from "../../components/ui/Panel";
 import { Spinner } from "../../components/ui/Spinner";
 import { Tag } from "../../components/ui/Tag";
 import type {
-  HumanCalibrationNoteDto,
   NiveauCecrl,
   ProductionSubmissionDto,
   ProductionTaskDto,
@@ -57,9 +56,6 @@ export function CalibrationPage() {
   const [onglet, setOnglet] = useState<Onglet>("pending");
   const [limit, setLimit] = useState<number>(50);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [sessionNotes, setSessionNotes] = useState<
-    Record<string, HumanCalibrationNoteDto>
-  >({});
 
   const statsQuery = useQuery({
     queryKey: ["calibration", "stats"],
@@ -76,9 +72,15 @@ export function CalibrationPage() {
     queryFn: () => calibrationApi.submissions(false, limit),
   });
 
-  const allQuery = useQuery({
+  const annotatedQuery = useQuery({
     queryKey: ["calibration", "submissions", { hasHumanNote: true, limit }],
     queryFn: () => calibrationApi.submissions(true, limit),
+  });
+
+  const humanNoteQuery = useQuery({
+    queryKey: ["calibration", "humanNote", selectedId],
+    queryFn: () => calibrationApi.humanNote(selectedId as string),
+    enabled: selectedId !== null,
   });
 
   // Le DTO d'une soumission ne porte pas son épreuve : on la retrouve via le
@@ -98,21 +100,10 @@ export function CalibrationPage() {
     },
   });
 
-  /**
-   * Le backend ne sait filtrer que les NON annotées : `hasHumanNote=true`
-   * renvoie en réalité toutes les évaluées. Les deux listes partageant le même
-   * tri et la même limite, la différence des deux donne exactement les
-   * annotées présentes dans la fenêtre demandée.
-   */
   const pending = useMemo(() => pendingQuery.data ?? [], [pendingQuery.data]);
-  const annotated = useMemo(() => {
-    const pendingIds = new Set(pending.map((s) => s.id));
-    return (allQuery.data ?? []).filter((s) => !pendingIds.has(s.id));
-  }, [allQuery.data, pending]);
-
-  const annotatedIds = useMemo(
-    () => new Set(annotated.map((s) => s.id)),
-    [annotated],
+  const annotated = useMemo(
+    () => annotatedQuery.data ?? [],
+    [annotatedQuery.data],
   );
 
   const rows = useMemo<SubmissionRow[]>(() => {
@@ -138,8 +129,8 @@ export function CalibrationPage() {
     );
   }, [selectedId, pending, annotated]);
 
-  const isLoading = pendingQuery.isLoading || allQuery.isLoading;
-  const error = statsQuery.error ?? pendingQuery.error ?? allQuery.error;
+  const isLoading = pendingQuery.isLoading || annotatedQuery.isLoading;
+  const error = statsQuery.error ?? pendingQuery.error ?? annotatedQuery.error;
   const seuil = statsQuery.data?.seuilHorsCible ?? SEUIL_PAR_DEFAUT;
 
   return (
@@ -310,14 +301,8 @@ export function CalibrationPage() {
             : undefined
         }
         seuilHorsCible={seuil}
-        sessionNote={selected ? (sessionNotes[selected.id] ?? null) : null}
-        previouslyAnnotated={selected ? annotatedIds.has(selected.id) : false}
-        onSaved={(note) =>
-          setSessionNotes((current) => ({
-            ...current,
-            [note.submissionId]: note,
-          }))
-        }
+        existingNote={humanNoteQuery.data ?? null}
+        isLoadingNote={humanNoteQuery.isLoading}
         onClose={() => setSelectedId(null)}
       />
     </>

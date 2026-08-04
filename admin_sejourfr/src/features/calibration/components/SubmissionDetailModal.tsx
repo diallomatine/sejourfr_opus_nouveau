@@ -14,9 +14,8 @@ interface SubmissionDetailModalProps {
   submission: ProductionSubmissionDto | null;
   task?: ProductionTaskDto;
   seuilHorsCible: number;
-  sessionNote: HumanCalibrationNoteDto | null;
-  previouslyAnnotated: boolean;
-  onSaved: (note: HumanCalibrationNoteDto) => void;
+  existingNote: HumanCalibrationNoteDto | null;
+  isLoadingNote: boolean;
   onClose: () => void;
 }
 
@@ -24,9 +23,8 @@ export function SubmissionDetailModal({
   submission,
   task,
   seuilHorsCible,
-  sessionNote,
-  previouslyAnnotated,
-  onSaved,
+  existingNote,
+  isLoadingNote,
   onClose,
 }: SubmissionDetailModalProps) {
   if (!submission) return null;
@@ -75,12 +73,12 @@ export function SubmissionDetailModal({
         )}
 
         <HumanNoteForm
+          key={submission.id}
           submissionId={submission.id}
           noteIa={submission.evaluation?.noteSurVingt ?? null}
           seuilHorsCible={seuilHorsCible}
-          sessionNote={sessionNote}
-          previouslyAnnotated={previouslyAnnotated}
-          onSaved={onSaved}
+          existingNote={existingNote}
+          isLoadingNote={isLoadingNote}
         />
       </div>
     </Modal>

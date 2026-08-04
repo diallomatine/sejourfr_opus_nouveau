@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { calibrationApi } from "../../../api/calibrationApi";
 import { Button } from "../../../components/ui/Button";
 import { FormRow, Input, Select, Textarea } from "../../../components/ui/Form";
+import { Spinner } from "../../../components/ui/Spinner";
 import { useToast } from "../../../components/ui/Toast";
 import type { HumanCalibrationNoteDto, NiveauCecrl } from "../../../types/api";
 import {
@@ -31,20 +32,17 @@ interface HumanNoteFormProps {
   submissionId: string;
   noteIa: number | null;
   seuilHorsCible: number;
-  /** Note saisie pendant cette session — l'API n'expose pas les notes passées. */
-  sessionNote: HumanCalibrationNoteDto | null;
-  /** La soumission portait déjà une note humaine avant cette session. */
-  previouslyAnnotated: boolean;
-  onSaved: (note: HumanCalibrationNoteDto) => void;
+  /** Dernière note humaine enregistrée pour cette soumission, ou `null` si jamais annotée. */
+  existingNote: HumanCalibrationNoteDto | null;
+  isLoadingNote: boolean;
 }
 
 export function HumanNoteForm({
   submissionId,
   noteIa,
   seuilHorsCible,
-  sessionNote,
-  previouslyAnnotated,
-  onSaved,
+  existingNote,
+  isLoadingNote,
 }: HumanNoteFormProps) {
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -62,13 +60,14 @@ export function HumanNoteForm({
   });
 
   useEffect(() => {
+    if (isLoadingNote) return;
     reset({
       noteHumaineSurVingt:
-        sessionNote === null ? "" : String(sessionNote.noteHumaineSurVingt),
-      niveauCecrlHumain: sessionNote?.niveauCecrlHumain ?? "",
-      commentaires: sessionNote?.commentaires ?? "",
+        existingNote === null ? "" : String(existingNote.noteHumaineSurVingt),
+      niveauCecrlHumain: existingNote?.niveauCecrlHumain ?? "",
+      commentaires: existingNote?.commentaires ?? "",
     });
-  }, [submissionId, sessionNote, reset]);
+  }, [existingNote, isLoadingNote, reset]);
 
   const mutation = useMutation({
     mutationFn: (values: HumanNoteFormValues) => {
@@ -81,33 +80,36 @@ export function HumanNoteForm({
         commentaires: values.commentaires.trim() || null,
       });
     },
-    onSuccess: (note) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calibration"] });
       toast.show("Note humaine enregistrée", "success");
-      onSaved(note);
     },
     onError: (err) => toast.show((err as Error).message, "error"),
   });
 
+  const displayedNote = mutation.data ?? existingNote;
   const gap =
-    sessionNote && noteIa !== null
-      ? sessionNote.noteHumaineSurVingt - noteIa
+    displayedNote && noteIa !== null
+      ? displayedNote.noteHumaineSurVingt - noteIa
       : null;
 
   return (
     <section className={styles.wrap}>
       <h3 className={styles.title}>Votre correction</h3>
 
-      {previouslyAnnotated && !sessionNote && (
+      {isLoadingNote && <Spinner label="Recherche d'une note précédente…" />}
+
+      {existingNote && !mutation.data && (
         <p className={styles.warn}>
-          Cette production a déjà été annotée. L&apos;API n&apos;expose pas le
-          détail des notes enregistrées : le formulaire repart donc vide.
-          Enregistrer ajoutera une <strong>observation supplémentaire</strong>,
-          sans remplacer la précédente.
+          Cette production a déjà été annotée — le formulaire ci-dessous
+          reprend la note la plus récente. Enregistrer{" "}
+          <strong>ajoute une nouvelle observation</strong> à l&apos;historique
+          plutôt que de remplacer la précédente ; c&apos;est toujours la plus
+          récente par soumission qui compte dans les statistiques.
         </p>
       )}
 
-      {gap !== null && sessionNote && <GapBanner gap={gap} seuil={seuilHorsCible} />}
+      {gap !== null && <GapBanner gap={gap} seuil={seuilHorsCible} />}
 
       <form
         className={styles.form}

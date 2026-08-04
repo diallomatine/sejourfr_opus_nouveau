@@ -1,4 +1,4 @@
-import { apiRequest } from "./http";
+import { apiRequest, HttpError } from "./http";
 import type {
   CalibrationStatsDto,
   HumanCalibrationNoteDto,
@@ -6,18 +6,26 @@ import type {
   ProductionSubmissionDto,
 } from "../types/api";
 
-/**
- * `hasHumanNote=false` restreint aux submissions non annotées ; `true` renvoie
- * la totalité des évaluées (le backend ne filtre pas dans ce sens). Le tri
- * des deux listes est identique, ce qui permet de déduire les annotées par
- * différence côté page.
- */
 export const calibrationApi = {
   submissions(hasHumanNote: boolean, limit: number) {
     return apiRequest<ProductionSubmissionDto[]>(
       "/api/admin/calibration/submissions",
       { query: { status: "evaluated", hasHumanNote, limit } },
     );
+  },
+
+  /** La dernière note humaine d'une submission, ou `null` si jamais annotée (404). */
+  async humanNote(
+    submissionId: string,
+  ): Promise<HumanCalibrationNoteDto | null> {
+    try {
+      return await apiRequest<HumanCalibrationNoteDto>(
+        `/api/admin/calibration/submissions/${submissionId}/human-note`,
+      );
+    } catch (err) {
+      if (err instanceof HttpError && err.status === 404) return null;
+      throw err;
+    }
   },
 
   saveHumanNote(submissionId: string, body: HumanCalibrationNoteDto) {

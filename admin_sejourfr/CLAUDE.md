@@ -91,7 +91,7 @@ Endpoints utilisés actuellement :
 - `PATCH /api/admin/subscriptions/{id}/realtime-sessions` `{ remaining }` — pose le
   solde de sessions EO temps réel du pass (support : offrir/corriger des sessions).
 - `GET /api/admin/calibration/submissions?status=evaluated&hasHumanNote=…&limit=…`,
-  `POST /api/admin/calibration/submissions/{id}/human-note`,
+  `GET|POST /api/admin/calibration/submissions/{id}/human-note`,
   `GET /api/admin/calibration/stats`, `GET /api/admin/calibration/stats/niveau`
   (feature `calibration/`)
 - `GET /api/production-tasks?epreuve=TCF_EE|TCF_EO` — catalogue des sujets, utilisé
@@ -108,13 +108,16 @@ vraies productions, le bandeau mesure l'écart avec l'IA.
   indulgente**. Contre-intuitif : l'écran l'écrit toujours en toutes lettres,
   jamais en brut. `ecartMoyen` = biais (dans quel sens), `ecartMoyenAbsolu` =
   dispersion (de combien) — deux cartes distinctes, avec la formule affichée.
-- **Limites de l'API (à ne pas prendre pour des bugs de l'écran)** :
-  `hasHumanNote=true` ne filtre pas et renvoie **toutes** les évaluées ; l'écran
-  déduit les annotées par différence avec la liste `false` (même tri, même
-  limite). Aucun endpoint ne relit une note humaine existante : le formulaire
-  repart vide sur une production déjà annotée, et un nouvel enregistrement
-  **ajoute** une observation (pas de contrainte d'unicité en base) au lieu de
-  remplacer.
+- `hasHumanNote=true|false` filtre réellement côté backend (annotées /
+  non-annotées) ; l'écran appelle chaque onglet avec le bon paramètre, sans
+  reconstitution côté front. `GET .../submissions/{id}/human-note` relit la
+  **dernière** note humaine d'une soumission (404 = jamais annotée, traité
+  comme `null`, pas comme une erreur) : à l'ouverture d'une production le
+  formulaire d'annotation se pré-remplit avec cette note et l'écart IA/humain
+  s'affiche immédiatement. Réenregistrer **ajoute** une observation (pas de
+  contrainte d'unicité en base) au lieu de remplacer — le tableau de bord ne
+  compte que la plus récente par soumission, donc réannoter ne fausse pas la
+  statistique.
 - **Rétrocompatibilité v3** : `niveauObserve` / `confiance` / `avertissementNiveau`
   à null, pas de `bande`, `preuve` ni `accomplissement`, code de critère
   `pertinence` disparu en v4. Chaque bloc se masque si absent — l'absence est un
