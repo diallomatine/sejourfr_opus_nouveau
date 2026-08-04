@@ -5,17 +5,21 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/format_date.dart';
 
-/// Carte de score "EE" : donut a droite (CustomPainter), texte score /20 a
-/// gauche. Aucun niveau CECRL ici : le niveau n'est attribue qu'au bilan
-/// d'epreuve (examen blanc).
+/// Carte de note de la tache : explication a gauche, donut a droite avec la
+/// note en son centre. Miroir strict du `ProductionScoreHero` web.
 ///
-/// La couleur du donut suit la rampe de maitrise de la marque
-/// ([masteryColor]) — pas de teinte hors palette.
+/// La note est celle du TCF, sur la MEME echelle que l'examen officiel
+/// (10-20 = B2, 6-9 = B1, 2-5 = A2, 1 = A1, 0 = hors sujet). Deux consequences
+/// portees ici :
 ///
-/// La note est PEDAGOGIQUE : notre echelle (16-20 = B2, 11-15 = B1, 6-10 = A2,
-/// 1-5 = A1) est plus fine que celle du TCF, ou 10/20 vaut deja B2. Aucune
-/// correspondance TCF ici — au TCF, la note /20 porte sur les 3 taches d'une
-/// epreuve, jamais sur une tache isolee.
+/// - **aucun pourcentage** : sur cette echelle comprimee, 7/20 vaut B1 — le
+///   niveau exige pour la carte de resident — et s'afficherait en « 35 % » ;
+/// - **aucun libelle scolaire** (« en progres », « a retravailler ») ni rampe
+///   [masteryColor] : la teinte suit le palier CECRL, pas un barreme sur 100.
+///
+/// Ce qui reste vrai, et ce que dit le texte : la note porte sur CETTE tache,
+/// alors qu'au TCF la note sur 20 est celle de l'epreuve entiere (3 taches),
+/// et c'est elle qui donne le niveau officiel.
 class DonutChartScore extends StatelessWidget {
   const DonutChartScore({
     super.key,
@@ -30,22 +34,17 @@ class DonutChartScore extends StatelessWidget {
     return ((noteSur20! / 20.0) * 100).clamp(0, 100).toDouble();
   }
 
-  String get _percentLabel {
-    final p = _percent;
-    if (p == p.truncateToDouble()) return '${p.toInt()}%';
-    return '${p.toStringAsFixed(0)}%';
+  /// Teinte par palier de la grille TCF, jamais par pourcentage : sur cette
+  /// echelle 10/20 est deja un B2 et 7/20 un B1, que des seuils scolaires
+  /// peindraient en rouge.
+  Color get _tone {
+    final note = noteSur20;
+    if (note == null) return AppColors.muted2;
+    if (note >= 10) return AppColors.green;
+    if (note >= 6) return AppColors.blue;
+    if (note >= 2) return AppColors.amber;
+    return AppColors.red;
   }
-
-  String get _subLabel {
-    final p = _percent;
-    if (p == 0) return 'Non évaluable';
-    if (p < 40) return 'À retravailler';
-    if (p < 60) return 'En progrès';
-    if (p < 80) return 'Bon niveau';
-    return 'Très bon niveau';
-  }
-
-  Color get _tone => masteryColor(_percent);
 
   String _formatNote() =>
       noteSur20 == null ? '—' : formatScore(noteSur20!);
@@ -65,7 +64,7 @@ class DonutChartScore extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Note pédagogique de la tâche',
+            'Note de la tâche',
             style: AppFonts.ui(size: 13, color: AppColors.muted),
           ),
           const SizedBox(height: 12),
@@ -73,42 +72,16 @@ class DonutChartScore extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    RichText(
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: _formatNote(),
-                            style: AppFonts.ui(
-                              size: 28,
-                              weight: FontWeight.w700,
-                              color: AppColors.ink,
-                            ),
-                          ),
-                          TextSpan(
-                            text: '/20',
-                            style: AppFonts.ui(
-                              size: 14,
-                              weight: FontWeight.w500,
-                              color: AppColors.muted2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      _subLabel,
-                      style: AppFonts.ui(
-                        size: 13,
-                        color: AppColors.muted,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  'Note sur 20 attribuée par l\'IA sur l\'échelle du TCF : 10 et '
+                  'plus correspond à B2, 6 à 9 à B1, 2 à 5 à A2. Elle porte sur '
+                  'cette seule tâche — au TCF, la note sur 20 est celle de '
+                  'l\'épreuve entière, tes trois tâches.',
+                  style:
+                      AppFonts.ui(size: 12, color: AppColors.muted, height: 1.5),
                 ),
               ),
+              const SizedBox(width: 14),
               SizedBox(
                 width: 100,
                 height: 100,
@@ -124,39 +97,32 @@ class DonutChartScore extends StatelessWidget {
                         strokeWidth: 10,
                       ),
                     ),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _percentLabel,
-                          style: AppFonts.ui(
-                            size: 20,
-                            weight: FontWeight.w700,
-                            color: _tone,
+                    RichText(
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: _formatNote(),
+                            style: AppFonts.display(
+                              size: 24,
+                              weight: FontWeight.w700,
+                              color: AppColors.ink,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _subLabel,
-                          style: AppFonts.ui(
-                            size: 10,
-                            color: AppColors.muted,
+                          TextSpan(
+                            text: '/20',
+                            style: AppFonts.ui(
+                              size: 12,
+                              weight: FontWeight.w500,
+                              color: AppColors.muted2,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Note sur 20 attribuée par l\'IA selon les critères du TCF. Notre '
-            'échelle est plus fine que celle du TCF, qui note l\'épreuve entière '
-            'et pas une tâche : la correspondance officielle s\'affiche au bilan '
-            'de l\'épreuve.',
-            style: AppFonts.ui(size: 12, color: AppColors.muted, height: 1.5),
           ),
         ],
       ),

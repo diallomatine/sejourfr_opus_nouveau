@@ -161,9 +161,8 @@ class BilanHero extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Grille officielle du TCF IRN, sur l\'épreuve entière. Notre note '
-                    'ci-dessus est pédagogique : son échelle est plus fine, elle sert '
-                    'à suivre tes progrès.',
+                    'Grille officielle du TCF IRN. Notre note ci-dessus utilise la '
+                    'même échelle et porte, comme au TCF, sur l\'épreuve entière.',
                     style: AppFonts.ui(
                       size: 12,
                       color: Colors.white.withValues(alpha: 0.78),

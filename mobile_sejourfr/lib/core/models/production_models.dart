@@ -489,9 +489,9 @@ class ProductionExampleDto {
 /// les epreuves d'expression — miroir de CorrespondanceTcfDto.
 ///
 /// Grille officielle : 0 → A1 non atteint, 1 → A1, 2-5 → A2, 6-9 → B1,
-/// 10-20 → B2. Ce n'est PAS une conversion de notre note : notre echelle est
-/// pedagogique et bien plus fine (10/20 chez nous n'est pas B2). A n'afficher
-/// qu'au bilan d'une epreuve entiere — au TCF, une tache isolee n'a pas de note.
+/// 10-20 → B2. Nos notes suivent la MEME echelle : la fourchette se lit
+/// directement, sans conversion. A n'afficher qu'au bilan d'une epreuve
+/// entiere — au TCF, une tache isolee n'a pas de note.
 class CorrespondanceTcf {
   const CorrespondanceTcf({
     required this.niveau,

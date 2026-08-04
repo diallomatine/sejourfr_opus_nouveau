@@ -252,7 +252,8 @@
   font-variant-numeric: tabular-nums;
 }
 .donutOf { font-size: 0.45em; color: var(--color-muted-2); }
-.donutPct { font-family: var(--font-mono); font-size: 12px; color: var(--color-muted); margin-top: 4px; }
+/* Pas de pourcentage dans ce donut : la note est celle du TCF, dont l'échelle
+   est comprimée (10/20 = B2). Un « 50 % » y contredirait le niveau annoncé. */
 .scoreSide { flex: 1; min-width: 0; }
 .scoreNoteLabel {
   font-family: var(--font-mono);

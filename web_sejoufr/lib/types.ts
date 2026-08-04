@@ -501,9 +501,9 @@ export interface EvaluationResultDto {
 
 /** Fourchette de note officielle du TCF IRN correspondant à un niveau CECRL, sur
  *  les épreuves d'expression. Grille officielle (0 → A1 non atteint, 1 → A1,
- *  2-5 → A2, 6-9 → B1, 10-20 → B2), pas une conversion de notre note : la nôtre
- *  est pédagogique et bien plus fine. N'accompagne que le bilan d'une épreuve
- *  entière — au TCF, une tâche isolée n'a pas de note. */
+ *  2-5 → A2, 6-9 → B1, 10-20 → B2). Nos notes suivent la MÊME échelle : la
+ *  fourchette se lit donc directement, sans conversion. N'accompagne que le
+ *  bilan d'une épreuve entière — au TCF, une tâche isolée n'a pas de note. */
 export interface CorrespondanceTcfDto {
     niveau: NiveauCecrl;
     scoreTcfMin: number;

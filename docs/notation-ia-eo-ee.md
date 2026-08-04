@@ -697,13 +697,26 @@ garde-fou de couplage et les seuils de plafond ont été recalculés dans la mê
 jour** (§12.4). Sans ce travail de fond, le changement de seuils seul aurait été cosmétique et
 dangereux.
 
-**Où l'ancien discours doit disparaître.** Les écrans de résultat affichaient, sous la note,
-une phrase du type « notre échelle est plus fine que celle du TCF, elle sert à suivre vos
-progrès ». Elle est **devenue fausse**. Les emplacements à corriger, côté applications :
-`ProductionScoreHero.tsx`, `ProductionSession.tsx` et `lib/types.ts` pour le web ;
-`donut_chart_score.dart`, `bilan_hero.dart` et `production_models.dart` pour le mobile. Aucun
-échange de données entre le serveur et les applications ne change : c'est du **texte
-d'interface** uniquement.
+**L'ancien discours a disparu des écrans.** Ils affichaient, sous la note, une phrase du type
+« notre échelle est plus fine que celle du TCF, elle sert à suivre vos progrès ». Elle est
+devenue fausse et a été retirée du web comme du mobile, remplacée par la lecture directe de
+l'échelle : « 10 et plus correspond à B2, 6 à 9 à B1, 2 à 5 à A2 ». Aucun échange de données
+entre le serveur et les applications n'a changé : c'était du **texte d'interface** uniquement.
+
+**Ce que l'échelle du TCF a imposé de corriger en plus.** Elle est bien plus resserrée qu'une
+note scolaire, et les écrans avaient été dessinés pour une note scolaire. Une production à
+**7/20 — c'est-à-dire B1, le niveau exigé pour la carte de résident** — s'affichait
+« À retravailler », en rouge, avec « 35 % » en chiffre dominant au centre du cercle. On
+décourageait quelqu'un qui avait exactement le niveau qu'il visait. Le pourcentage et les
+libellés scolaires ont été retirés, et la couleur suit désormais le **palier CECRL** et non un
+seuil sur cent.
+
+**Ce qui reste à arbitrer** (décisions produit, non tranchées) : le cercle de progression se
+remplit toujours à `note/20`, donc un B2 à 10/20 montre un anneau à moitié vide ; et les
+cartes de tâches du hub web affichent encore un pourcentage calculé en `note × 5`, où un
+12/20 — un B2 solide — s'affiche « 60 % ». Ce dernier point vient d'une formule de progression
+partagée avec le tableau de bord et les recommandations : le corriger seulement côté web
+désynchroniserait les trois surfaces.
 
 ---
 

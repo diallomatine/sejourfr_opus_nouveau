@@ -22,9 +22,15 @@ import styles from "./production.module.css";
  *    second plan (`avertissementNiveau`, fourni par le backend), après
  *    l'information principale et non avant.
  *
- * La note est PÉDAGOGIQUE : notre échelle (16-20 = B2, 11-15 = B1, 6-10 = A2,
- * 1-5 = A1) est plus fine que celle du TCF, où 10/20 vaut déjà B2. Aucune
- * correspondance TCF ici : au TCF, une tâche isolée n'a pas de note.
+ * La note est celle du TCF, sur la MÊME échelle que l'examen officiel
+ * (10-20 = B2, 6-9 = B1, 2-5 = A2, 1 = A1, 0 = hors sujet). Elle est donc
+ * directement lisible — d'où la teinte par palier CECRL et non par pourcentage :
+ * cette échelle est comprimée, et 7/20 (un B1, le niveau exigé pour la carte de
+ * résident) ne doit pas s'afficher comme un « 35 % » rouge.
+ *
+ * Ce qui reste vrai, et ce que dit le texte : la note porte sur CETTE tâche,
+ * alors qu'au TCF la note sur 20 est celle de l'épreuve entière (les 3 tâches),
+ * et c'est elle qui donne le niveau officiel.
  */
 export function ProductionScoreHero({
   noteSurVingt,
@@ -42,8 +48,17 @@ export function ProductionScoreHero({
   const showLevel = niveau != null && confiance != null;
   const note = noteSurVingt ?? 0;
   const pct = Math.max(0, Math.min(100, Math.round((note / 20) * 100)));
+  // Teinte par palier de la grille TCF, jamais par pourcentage : sur cette
+  // échelle 10/20 est déjà un B2, et 7/20 un B1 — les seuils scolaires (70/40)
+  // peindraient en rouge des notes qui valent le niveau exigé.
   const color =
-    pct >= 70 ? "var(--color-green)" : pct >= 40 ? "var(--color-amber)" : "var(--color-red)";
+    note >= 10
+      ? "var(--color-green)"
+      : note >= 6
+        ? "var(--color-blue)"
+        : note >= 2
+          ? "var(--color-amber)"
+          : "var(--color-red)";
 
   const r = 52;
   const c = 2 * Math.PI * r;
@@ -71,18 +86,18 @@ export function ProductionScoreHero({
             <p className={styles.heroFoot}>
               {avertissementNiveau ??
                 "Estimation pédagogique portant sur cette seule tâche. Le niveau qui fait foi est celui du bilan des trois tâches de l'épreuve."}{" "}
-              La note ci-contre suit notre échelle pédagogique, plus fine que celle
-              du TCF : sa correspondance officielle s&apos;affiche au bilan.
+              La note ci-contre est sur l&apos;échelle du TCF : 10 et plus
+              correspond à B2, 6 à 9 à B1, 2 à 5 à A2.
             </p>
           </>
         ) : (
           <>
-            <p className={styles.scoreNoteLabel}>Note pédagogique de la tâche</p>
+            <p className={styles.scoreNoteLabel}>Note de la tâche</p>
             <p className={styles.scoreNoteHint}>
-              Note sur 20 attribuée par l&apos;IA selon les critères du TCF. Notre
-              échelle est plus fine que celle du TCF, qui note l&apos;épreuve entière
-              et pas une tâche : la correspondance officielle s&apos;affiche au bilan
-              de l&apos;épreuve.
+              Note sur 20 attribuée par l&apos;IA sur l&apos;échelle du TCF : 10 et
+              plus correspond à B2, 6 à 9 à B1, 2 à 5 à A2. Elle porte sur cette
+              seule tâche — au TCF, la note sur 20 est celle de l&apos;épreuve
+              entière, vos trois tâches.
             </p>
           </>
         )}
@@ -109,7 +124,6 @@ export function ProductionScoreHero({
             {noteSurVingt != null ? formatNoteSur20(note) : "—"}
             <span className={styles.donutOf}>/20</span>
           </span>
-          <span className={styles.donutPct}>{noteSurVingt != null ? `${pct}%` : ""}</span>
         </div>
       </div>
     </div>

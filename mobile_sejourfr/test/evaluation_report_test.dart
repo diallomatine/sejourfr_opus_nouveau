@@ -35,7 +35,7 @@ void main() {
 
     final niveauY = tester.getTopLeft(find.text('Proche du niveau B1')).dy;
     final noteY =
-        tester.getTopLeft(find.text('Note pédagogique de la tâche')).dy;
+        tester.getTopLeft(find.text('Note de la tâche')).dy;
     final avertissementY =
         tester.getTopLeft(find.text('Le niveau qui fait foi est celui du bilan.')).dy;
     expect(niveauY, lessThan(noteY));
@@ -247,6 +247,11 @@ void main() {
     await tester.pumpWidget(_host(eval));
 
     expect(find.textContaining('Proche du niveau'), findsNothing);
-    expect(find.textContaining('B1'), findsNothing);
+    // Aucun niveau ATTRIBUÉ à la production : ni l'en-tête de la carte, ni la
+    // pastille. La légende de l'échelle du TCF (« 6 à 9 à B1 ») cite les
+    // paliers sans en attribuer un — elle dit comment lire la note, pas où se
+    // situe le candidat ; d'où la recherche exacte et non `textContaining`.
+    expect(find.text('NIVEAU OBSERVÉ SUR CETTE TÂCHE'), findsNothing);
+    expect(find.text('B1'), findsNothing);
   });
 }

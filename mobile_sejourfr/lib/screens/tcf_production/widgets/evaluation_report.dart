@@ -19,7 +19,7 @@ import 'priority_card.dart';
 /// 1. niveau observe sur la tache (avec sa confiance, jamais sans) — c'est
 ///    l'information que le candidat cherche, elle passe AVANT la note et avant
 ///    toute precaution ;
-/// 2. note pedagogique /20 ;
+/// 2. note /20, sur l'echelle du TCF ;
 /// 3. avertissements — dont la limite de l'evaluation orale, visible et non
 ///    enterree en bas d'ecran ;
 /// 4. accomplissement de la consigne, AVANT la langue : le candidat voit
