@@ -368,6 +368,49 @@
   font-style: italic;
 }
 
+.ameliorationsBlock {
+  grid-column: 1 / -1;
+}
+
+.ameliorations {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.amelioration {
+  border: 1px solid var(--rule-2);
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: var(--paper);
+}
+
+.ameliorationConstat {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.ameliorationComment {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.ameliorationExemple {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--rule-2);
+}
+
 .exemplesBlock {
   grid-column: 1 / -1;
 }
@@ -443,4 +486,21 @@
   line-height: 1.5;
   color: var(--muted);
   overflow-wrap: anywhere;
+}
+
+.exempleGain {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.exempleGainTag {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-right: 6px;
 }

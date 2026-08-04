@@ -5,6 +5,7 @@ import type {
   EpreuveType,
   EvaluationResultDto,
   NiveauCecrl,
+  PointAmeliorer,
 } from "../../types/api";
 
 export const NIVEAU_ORDER: NiveauCecrl[] = [
@@ -42,10 +43,16 @@ export const BANDE_LABEL: Record<BandeCritere, string> = {
 };
 
 /**
- * Libellé de repli quand le feedback ne porte pas de `label` — repris de
- * `production-rubrics-v4.json`, accents rétablis.
+ * Libellé de repli quand le feedback ne porte pas de `label` — les 4 premiers
+ * viennent de `production-rubrics-v5.json` (grille actuelle, calquée sur la
+ * vraie grille TCF), les suivants de `production-rubrics-v4.json`/v3,
+ * accents rétablis.
  */
 export const CRITERE_LABEL: Record<CritereCode, string> = {
+  communiquer: "Communiquer un message clair",
+  interagir: "Interagir avec l'interlocuteur",
+  lexique: "Étendue et maîtrise du lexique",
+  morphosyntaxe: "Correction morphosyntaxique",
   realisation_consigne: "Réalisation de la consigne",
   adequation_destinataire: "Adéquation au destinataire et au registre",
   chronologie_recit: "Chronologie et repères temporels",
@@ -53,14 +60,22 @@ export const CRITERE_LABEL: Record<CritereCode, string> = {
   argumentation: "Justification et développement des arguments",
   developpement_reponses: "Développement des réponses",
   conduite_echange: "Conduite de l'échange et obtention des informations",
-  lexique: "Étendue et maîtrise du lexique",
-  morphosyntaxe: "Correction morphosyntaxique",
   coherence: "Clarté et enchaînement du message",
   pertinence: "Pertinence",
 };
 
-/** Critères disparus en v4, encore présents sur les évaluations en base. */
-export const CRITERES_OBSOLETES: CritereCode[] = ["pertinence"];
+/** Les 4 codes de la grille actuelle (v5). */
+export const CRITERES_ACTUELS: CritereCode[] = [
+  "communiquer",
+  "interagir",
+  "lexique",
+  "morphosyntaxe",
+];
+
+/** Codes disparus au fil des versions (v4 puis v3), encore présents sur les évaluations en base. */
+export const CRITERES_OBSOLETES: CritereCode[] = (
+  Object.keys(CRITERE_LABEL) as CritereCode[]
+).filter((code) => !CRITERES_ACTUELS.includes(code));
 
 export const EPREUVE_LABEL: Record<EpreuveType, string> = {
   CIVIQUE: "Examen civique",
@@ -288,4 +303,12 @@ export function isLegacyEvaluation(evaluation: EvaluationResultDto): boolean {
 
 export function critereLabel(code: CritereCode, label?: string): string {
   return label ?? CRITERE_LABEL[code] ?? code;
+}
+
+/**
+ * Une évaluation antérieure à v5 porte `points_a_ameliorer` en simples
+ * chaînes — normalisées ici en `constat` seul, sans `comment` ni `exemple`.
+ */
+export function normalizePointAmeliorer(entry: string | PointAmeliorer): PointAmeliorer {
+  return typeof entry === "string" ? { constat: entry } : entry;
 }

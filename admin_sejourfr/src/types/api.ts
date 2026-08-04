@@ -703,20 +703,17 @@ export type BandeCritere =
   | "NON_EVALUABLE";
 
 /**
- * Les 10 codes de critères v4 (source : `prompts/production-rubrics-v4.json`),
- * plus `pertinence` qui n'existe plus en v4 mais reste porté par les
- * évaluations antérieures en base.
- *
- * Répartition par tâche : EE_T1 realisation_consigne · adequation_destinataire ·
- * lexique · morphosyntaxe · coherence — EE_T2 realisation_consigne ·
- * chronologie_recit · coherence · lexique · morphosyntaxe — EE_T3
- * prise_position · argumentation · coherence · lexique · morphosyntaxe —
- * EO_T1 realisation_consigne · developpement_reponses · lexique ·
- * morphosyntaxe · coherence — EO_T2 conduite_echange · adequation_destinataire ·
- * lexique · morphosyntaxe · coherence — EO_T3 prise_position · argumentation ·
- * coherence · lexique · morphosyntaxe.
+ * `communiquer` · `interagir` · `lexique` · `morphosyntaxe` sont les 4 codes
+ * de la grille v5 (calquée sur la vraie grille TCF). Les autres codes ont
+ * disparu au fil des versions (v4 puis v3) mais restent portés par les
+ * évaluations antérieures en base — on les garde ici pour ne pas planter sur
+ * l'historique.
  */
 export type CritereCode =
+  | "communiquer"
+  | "interagir"
+  | "lexique"
+  | "morphosyntaxe"
   | "realisation_consigne"
   | "adequation_destinataire"
   | "chronologie_recit"
@@ -724,8 +721,6 @@ export type CritereCode =
   | "argumentation"
   | "developpement_reponses"
   | "conduite_echange"
-  | "lexique"
-  | "morphosyntaxe"
   | "coherence"
   | "pertinence";
 
@@ -752,17 +747,36 @@ export interface ScoreCritereFeedback {
  * Un passage cité de la production avec sa correction. Objet depuis le premier
  * schéma d'outil (`production-evaluation-tool-schema-v1.0.json`) : jamais une
  * simple chaîne, quelle que soit l'ancienneté de l'évaluation en base.
+ * `gain` (v5) est optionnel : ce que la reformulation démontre de plus.
  */
 export interface ExempleCorrige {
   original: string;
   corrige: string;
   explication: string;
+  gain?: string;
+}
+
+export interface PointAmeliorerExemple {
+  avant: string;
+  apres: string;
+}
+
+/**
+ * Un point à améliorer (v5). Les évaluations déjà en base (~97, grilles
+ * antérieures) portent une simple `string` — l'écran l'affiche alors comme un
+ * `constat` seul, sans `comment` ni `exemple`.
+ */
+export interface PointAmeliorer {
+  constat: string;
+  comment?: string;
+  exemple?: PointAmeliorerExemple;
 }
 
 /**
  * Structure libre du feedback JSONB — tous les champs sont facultatifs, une
  * évaluation v3 en base n'en porte qu'une partie (pas de bande, pas de
  * preuve, pas d'accomplissement). Absence = cas normal, pas une erreur.
+ * `note_globale` porte une décimale depuis la v5 (ex. 12.5).
  */
 export interface EvaluationFeedback {
   note_globale?: number;
@@ -771,7 +785,8 @@ export interface EvaluationFeedback {
   accomplissement?: AccomplissementFeedback;
   scores_criteres?: ScoreCritereFeedback[];
   points_forts?: string[];
-  points_a_ameliorer?: string[];
+  /** `string` = format antérieur à v5, encore présent sur les évaluations en base. */
+  points_a_ameliorer?: (string | PointAmeliorer)[];
   suggestions?: string[];
   exemples_corriges?: ExempleCorrige[];
   avertissements?: string[];

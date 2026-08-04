@@ -4,6 +4,7 @@ import type {
   BandeCritere,
   EvaluationResultDto,
   ExempleCorrige,
+  PointAmeliorer,
   ScoreCritereFeedback,
 } from "../../../types/api";
 import {
@@ -14,6 +15,7 @@ import {
   critereLabel,
   formatDecimal,
   isLegacyEvaluation,
+  normalizePointAmeliorer,
   toNumber,
 } from "../calibrationHelpers";
 import styles from "./EvaluationReport.module.css";
@@ -165,7 +167,7 @@ function CritereRow({ critere }: { critere: ScoreCritereFeedback }) {
       <div className={styles.critereHead}>
         <span className={styles.critereName}>
           {critereLabel(critere.code, critere.label)}
-          {obsolete && <em className={styles.obsolete}> critère v3</em>}
+          {obsolete && <em className={styles.obsolete}> grille précédente</em>}
         </span>
         <span className={styles.critereScore}>
           {note === null ? "—" : `${formatDecimal(note)} / 20`}
@@ -231,29 +233,55 @@ function PointsColumn({
 /** Ce que le candidat lit dans l'application, regroupé en fin de fiche. */
 function WrittenFeedback({ evaluation }: { evaluation: EvaluationResultDto }) {
   const feedback = evaluation.feedback;
-  const sections: { title: string; items: string[] }[] = [
-    { title: "Points forts", items: feedback?.points_forts ?? [] },
-    { title: "Points à améliorer", items: feedback?.points_a_ameliorer ?? [] },
-    { title: "Suggestions", items: feedback?.suggestions ?? [] },
-  ].filter((section) => section.items.length > 0);
-
+  const pointsForts = feedback?.points_forts ?? [];
+  const suggestions = feedback?.suggestions ?? [];
+  const ameliorations = (feedback?.points_a_ameliorer ?? []).map(normalizePointAmeliorer);
   const exemples = feedback?.exemples_corriges ?? [];
 
-  if (sections.length === 0 && exemples.length === 0) return null;
+  if (
+    pointsForts.length === 0 &&
+    ameliorations.length === 0 &&
+    suggestions.length === 0 &&
+    exemples.length === 0
+  ) {
+    return null;
+  }
 
   return (
     <Block title="Retour rédigé au candidat">
       <div className={styles.written}>
-        {sections.map((section) => (
-          <div key={section.title}>
-            <div className={styles.writtenHeading}>{section.title}</div>
+        {pointsForts.length > 0 && (
+          <div>
+            <div className={styles.writtenHeading}>Points forts</div>
             <ul className={styles.plainList}>
-              {section.items.map((item, index) => (
+              {pointsForts.map((item, index) => (
                 <li key={index}>{item}</li>
               ))}
             </ul>
           </div>
-        ))}
+        )}
+
+        {ameliorations.length > 0 && (
+          <div className={styles.ameliorationsBlock}>
+            <div className={styles.writtenHeading}>Points à améliorer</div>
+            <ul className={styles.ameliorations}>
+              {ameliorations.map((point, index) => (
+                <AmeliorationRow key={index} point={point} />
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {suggestions.length > 0 && (
+          <div>
+            <div className={styles.writtenHeading}>Suggestions</div>
+            <ul className={styles.plainList}>
+              {suggestions.map((item, index) => (
+                <li key={index}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {exemples.length > 0 && (
           <div className={styles.exemplesBlock}>
@@ -267,6 +295,27 @@ function WrittenFeedback({ evaluation }: { evaluation: EvaluationResultDto }) {
         )}
       </div>
     </Block>
+  );
+}
+
+function AmeliorationRow({ point }: { point: PointAmeliorer }) {
+  return (
+    <li className={styles.amelioration}>
+      <p className={styles.ameliorationConstat}>{point.constat}</p>
+      {point.comment && <p className={styles.ameliorationComment}>{point.comment}</p>}
+      {point.exemple && (
+        <div className={styles.ameliorationExemple}>
+          <div className={styles.exempleLine}>
+            <span className={styles.exempleTag}>Avant</span>
+            <q className={styles.exempleOriginal}>{point.exemple.avant}</q>
+          </div>
+          <div className={styles.exempleLine}>
+            <span className={`${styles.exempleTag} ${styles.exempleTagOk}`}>Après</span>
+            <q className={styles.exempleCorrige}>{point.exemple.apres}</q>
+          </div>
+        </div>
+      )}
+    </li>
   );
 }
 
@@ -285,6 +334,12 @@ function ExempleRow({ exemple }: { exemple: ExempleCorrige }) {
       </div>
       {exemple.explication && (
         <p className={styles.exempleExplication}>{exemple.explication}</p>
+      )}
+      {exemple.gain && (
+        <p className={styles.exempleGain}>
+          <span className={styles.exempleGainTag}>Ce que ça démontre</span>
+          {exemple.gain}
+        </p>
       )}
     </li>
   );
