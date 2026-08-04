@@ -739,12 +739,18 @@ Le banc sert autant à mesurer les progrès qu'à nommer ce qui ne va pas.
   c'est-à-dire en pratique uniquement sur un hors-sujet total ou une production refusée par
   les vérifications automatiques. Une production réellement en deçà du A1, mais qui obtient
   1 ou 2 points, sera annoncée A1.
-- **Les productions A1 restent le point faible.** Sur les deux campagnes v4.1 telles qu'elles
-  ont tourné, **environ 37 %** d'entre elles étaient encore mal classées (généralement
-  annoncées A2). Le déplacement du seuil A2 décrit ci-dessus ramène ce chiffre à environ
-  **12 %** sur le même corpus — mais ce résultat vient d'un **rejeu hors ligne**, pas encore
-  d'une campagne complète refaite. À reconfirmer.
-- **Quelques B1 sont annoncés B2.** L'accord exact sur les B1 plafonne autour de **71-75 %**.
+- **Les productions A1 ne sont plus le point faible — c'est confirmé.** Sur les campagnes
+  v4.1 telles qu'elles avaient tourné (avec l'ancien seuil), environ **37 %** d'entre elles
+  étaient encore mal classées, généralement annoncées A2. Une campagne complète refaite sur
+  la configuration réellement livrée (rubriques v4.1 **et** seuil A2 déplacé) le confirme :
+  **7 productions A1 sur 8 sont désormais correctement classées**, soit environ 12 % d'erreur.
+  Le rejeu hors ligne avait vu juste.
+- **Le vrai point faible s'est déplacé vers le haut : quelques B1 sont annoncés B2.**
+  **3 productions B1 sur 12** ressortent B2. C'est aujourd'hui l'erreur la plus coûteuse du
+  système : la naturalisation exige B2 depuis janvier 2026, donc annoncer B2 à une personne
+  réellement B1, c'est l'encourager à payer un examen officiel qu'elle risque de rater. C'est
+  le prochain chantier. À noter que ce n'est pas une régression — la version précédente se
+  trompait davantage, et sur des niveaux plus bas.
 - **L'IA se croit plus sûre qu'elle ne devrait.** Sur environ un tiers des cas, elle annonce
   une confiance plus élevée que celle attendue. Elle ne se trompe presque jamais dans l'autre
   sens.
