@@ -36,9 +36,11 @@ public record ProductionBilanResponse(
         BigDecimal moyenneSur20,
         NiveauCecrl niveauGlobal,
         // Fourchette de note officielle du TCF IRN correspondant a
-        // niveauGlobal. Null exactement quand niveauGlobal l'est. Ce n'est pas
-        // une conversion de moyenneSur20 : notre note est pedagogique, plus
-        // fine que celle du TCF (cf. BandeNoteTcf).
+        // niveauGlobal. Null exactement quand niveauGlobal l'est. Ce n'est
+        // toujours pas une conversion de moyenneSur20, meme depuis les
+        // rubriques v6 qui notent sur l'echelle du TCF : notre note porte sur
+        // une seule tache, celle du TCF sur l'epreuve entiere. On part du
+        // NIVEAU et on affiche sa fourchette officielle (cf. BandeNoteTcf).
         CorrespondanceTcfDto correspondanceTcf
 ) {
 }

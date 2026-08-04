@@ -36,6 +36,7 @@ public class ProductionEvaluationProperties {
     private Validite validite = new Validite();
     private Plafonds plafonds = new Plafonds();
     private Couplage couplage = new Couplage();
+    private BandesCriteres bandesCriteres = new BandesCriteres();
     private Fluidite fluidite = new Fluidite();
     private SecondePasse secondePasse = new SecondePasse();
     private CoherenceBilan coherenceBilan = new CoherenceBilan();
@@ -130,6 +131,14 @@ public class ProductionEvaluationProperties {
 
     public void setPlafonds(Plafonds plafonds) {
         this.plafonds = plafonds;
+    }
+
+    public BandesCriteres getBandesCriteres() {
+        return bandesCriteres;
+    }
+
+    public void setBandesCriteres(BandesCriteres bandesCriteres) {
+        this.bandesCriteres = bandesCriteres;
     }
 
     public Couplage getCouplage() {
@@ -775,7 +784,15 @@ public class ProductionEvaluationProperties {
     public static class Plafonds {
         /** Coupe-circuit global (banc de mesure : comparer avec / sans plafonds). */
         private boolean enabled = true;
-        /** T3 (EE ou EO) : {@code prise_position} <= seuil → aucune opinion identifiable. */
+        /**
+         * T3 (EE ou EO) : {@code prise_position} <= seuil → aucune opinion identifiable.
+         *
+         * <p>Valeur par DEFAUT, calee sur le HAUT DE LA BANDE A1 des criteres des
+         * grilles v3-v5 (1-5). Une grille dont l'echelle differe declare la
+         * sienne dans {@code commun.plafonds} du fichier de rubriques (v6 : 1,
+         * haut de la bande A1 sur l'echelle du TCF) — cf.
+         * {@code ProductionRubricsProvider#plafonds()}.
+         */
         private double prisePositionSeuil = 5.0;
         private com.sejourfr.app.enums.NiveauCecrl prisePositionNiveauMax =
             com.sejourfr.app.enums.NiveauCecrl.A2;
@@ -842,6 +859,53 @@ public class ProductionEvaluationProperties {
      * <p>Sans effet sur les grilles anterieures : leurs criteres de tache ne
      * portent pas ces codes, {@code criteresRealisation} ne matche donc rien.
      */
+    /**
+     * Bornes des BANDES QUALITATIVES par critere (cf. {@code BandeCritere}), que
+     * les 3 fronts affichent A LA PLACE du nombre : une IA ne distingue pas
+     * honnetement un 13 d'un 14.
+     *
+     * <p>Ces bornes sont une propriete de l'ECHELLE DE LA GRILLE, pas du
+     * deploiement. Les valeurs par defaut sont celles des grilles v3 a v5
+     * (16-20 / 11-15 / 6-10 / 1-5 / 0) ; depuis v6, dont l'echelle est celle du
+     * TCF, le fichier de rubriques declare les siennes dans
+     * {@code commun.bandes_criteres} et c'est lui qui gagne — cf.
+     * {@code ProductionRubricsProvider#bandesCriteres()}. Sans ce mecanisme, un
+     * critere v6 a 8 (bon B1) s'afficherait « en cours d'acquisition » et un
+     * critere a 12 (B2 confirme) « satisfaisant ».
+     */
+    public static class BandesCriteres {
+        /** note >= seuil -> TRES_BONNE_MAITRISE. */
+        private double tresBonneMaitrise = 16.0;
+        /** note >= seuil -> SATISFAISANT. */
+        private double satisfaisant = 11.0;
+        /** note >= seuil -> EN_COURS_ACQUISITION ; au-dessus de 0 -> FRAGILE ; 0 -> NON_EVALUABLE. */
+        private double enCoursAcquisition = 6.0;
+
+        public double getTresBonneMaitrise() {
+            return tresBonneMaitrise;
+        }
+
+        public void setTresBonneMaitrise(double tresBonneMaitrise) {
+            this.tresBonneMaitrise = tresBonneMaitrise;
+        }
+
+        public double getSatisfaisant() {
+            return satisfaisant;
+        }
+
+        public void setSatisfaisant(double satisfaisant) {
+            this.satisfaisant = satisfaisant;
+        }
+
+        public double getEnCoursAcquisition() {
+            return enCoursAcquisition;
+        }
+
+        public void setEnCoursAcquisition(double enCoursAcquisition) {
+            this.enCoursAcquisition = enCoursAcquisition;
+        }
+    }
+
     public static class Couplage {
         /** Coupe-circuit (banc de mesure : comparer avec / sans). */
         private boolean enabled = true;
@@ -849,7 +913,19 @@ public class ProductionEvaluationProperties {
         private java.util.List<String> criteresRealisation = java.util.List.of("communiquer", "interagir");
         /** Codes qui forment le socle de langue dont on prend la moyenne. */
         private java.util.List<String> criteresLangue = java.util.List.of("lexique", "morphosyntaxe");
-        /** Ecart maximal tolere au-dessus de la moyenne du socle de langue. */
+        /**
+         * Ecart maximal tolere au-dessus de la moyenne du socle de langue.
+         *
+         * <p>Valeur par DEFAUT (celle de v5, dont l'echelle etale le B2 sur
+         * 16-20). Depuis v6, dont l'echelle est celle du TCF (B2 des 10), le
+         * fichier de rubriques declare la sienne dans
+         * {@code commun.couplage.ecart_max} et c'est elle qui gagne — cf.
+         * {@code ProductionRubricsProvider#couplage()}. L'ecart n'a pas le meme
+         * sens d'une echelle a l'autre : ce qu'il faut conserver, c'est le gain
+         * maximal qu'il concede a la moyenne des quatre criteres
+         * ({@code ecartMax / 2}), qui doit rester inferieur a la largeur d'un
+         * palier.
+         */
         private double ecartMax = 4.0;
 
         public boolean isEnabled() {

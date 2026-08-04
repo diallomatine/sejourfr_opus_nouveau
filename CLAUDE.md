@@ -213,10 +213,10 @@ Le « quoi » et le « pourquoi » vivent dans `docs/notation-ia-eo-ee.md` (réf
 grand public, **à tenir exhaustive et à jour dans la même passe** — cf. la règle
 dédiée plus bas). Ici, uniquement de quoi se repérer.
 
-- **Versions actives** : rubriques `production-rubrics-v5.json`, tool-schema de
+- **Versions actives** : rubriques `production-rubrics-v6.json`, tool-schema de
   sortie `production-evaluation-tool-schema-v3.json`, persona vocale
-  `realtime-personas-v2.json`. **v4.2, v4.1, v4 et v3 restent chargeables et
-  validées** : retour arrière = `EVAL_RUBRICS_VERSION=v4.2|v4.1|v4|v3`
+  `realtime-personas-v2.json`. **v5, v4.2, v4.1, v4 et v3 restent chargeables et
+  validées** : retour arrière = `EVAL_RUBRICS_VERSION=v5|v4.2|v4.1|v4|v3`
   (+ `EVAL_PROMPT_VERSION=v2`, ou `v1.5` pour v3), aucune migration. **On
   versionne, on ne réécrit jamais** une rubrique livrée.
 - **v4** = critères propres à chaque tâche (5 par tâche, fini les 4 universels),
@@ -275,17 +275,62 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     76,7 %) : **changement d'échelle**, les fourchettes du corpus ont été écrites
     pour une note qui n'incluait pas l'accomplissement. Corpus **jamais**
     retouché.
+- **v6 = l'ÉCHELLE réelle du TCF** (v5 avait pris ses critères, v6 prend son
+  barème). Les seuils `commun.niveau` sont la **table officielle** : `10 → B2`,
+  `6-9 → B1`, `2-5 → A2`, `1 → A1`, `0 → A1 non atteint`. **Chaque critère** se
+  note sur cette même table, donc plus aucun décalage critère ⇄ note globale.
+  Motif : une carte affichait « 12,5/20 » **et** « proche du B1 », alors que
+  12,5 vaut B2 au TCF — deux informations contradictoires.
+  - ⚠️ **Ce n'est pas un déplacement de seuils.** Déplacer les seuils seuls
+    aurait basculé en B2 une masse de B1. Tous les repères, tous les
+    descripteurs et **les 16 ancres few-shot ont été re-scorés** sur la nouvelle
+    échelle (un B2 vaut 12-16, plus 16-20 ; un très bon B1 vaut 9, plus 14).
+  - **Tout ce qui se lit sur une note est déclaré PAR LA GRILLE** depuis v6, plus
+    seulement les seuils : `commun.couplage.ecart_max`, `commun.plafonds`,
+    `commun.bandes_criteres`. Résolus par `ProductionRubricsProvider.couplage()`
+    / `.plafonds()` / `.bandesCriteres()`, qui l'emportent sur la config. Sans
+    ça, `EVAL_RUBRICS_VERSION` seule ne suffirait plus au retour arrière.
+  - **Garde-fou de couplage recalculé : 4 → 1 point.** Ce qui se conserve n'est
+    pas l'écart mais le **gain maximal concédé à la moyenne** (`ecartMax / 2`).
+    À 1 point ce gain plafonne à 0,5 : une langue au **haut** de son palier (5
+    pour A2, 9 pour B1) ne peut jamais franchir le seuil suivant. Sous v5,
+    l'écart de 4 donnait le même effet parce que les seuils globaux y étaient
+    décalés de 2-3 points ; ce décalage n'existe plus.
+  - **Seuils des plafonds 5 → 1** (haut de la bande A1 de l'échelle en vigueur,
+    même règle transposée) ; **bandes `BandeCritere` 16/11/6 → 10/6/2**
+    (`BandeCritere.of(note, bornes)`), sinon un B1 à 8 s'afficherait « en cours
+    d'acquisition ». `applyBandesCriteres` est passé **après** `applyCouplage` :
+    la bande décrivait la note d'avant plafonnement.
+  - **Corpus** : `note_min`/`note_max` **régénérés** depuis `attendu.niveau` par
+    la table officielle (verrouillé par `GoldenSetTest`). Niveaux, tolérances,
+    confiances, pièges et productions **inchangés** — on ré-exprime la référence,
+    on ne l'ajuste pas. Corollaire : `note dans la fourchette` ≈ `accord exact`,
+    et la colonne note d'un témoin v5 n'est **pas comparable**.
+  - Mesure (témoin v5 rejoué le même jour, même modèle) : accord exact
+    86,0 % → **87,0 %**, accord ±1 palier 88,4 % → **100 %**, pièges 6/7 → **8/8**
+    (quasi-muet réparé), **A1 non atteint 4/8 → 8/8** (le point faible documenté
+    du banc), B2 6/7 → 6/6, B1 8/8 → 10/11, A2 11/12 → 11/13, 0 sortie invalide.
+    Seul recul : **A1 8/8 → 5/8**, les 3 cas ressortant A2 — niveau *toléré* par
+    la référence sur ces 3 cas, et que le modèle leur donnait **déjà** sous v5
+    (langue notée 7/20 = bande A2 de v5) ; c'est le décalage bandes/seuils de v5
+    qui affichait A1, pas son jugement. Le palier A1 ne vaut qu'**une valeur**
+    sur la grille officielle : c'est la nouvelle zone fragile.
+  - ⚠️ **Texte d'interface à corriger côté fronts** (aucun DTO ne change) : la
+    mention « notre échelle est plus fine que celle du TCF » est devenue fausse.
+    Web `ProductionScoreHero.tsx`, `ProductionSession.tsx`, `lib/types.ts` ;
+    mobile `donut_chart_score.dart`, `bilan_hero.dart`,
+    `production_models.dart`.
 - **Banc de mesure** (`src/test/java/.../calibration/`, corpus
   `src/test/resources/calibration/golden-set-v1.json`, 48 cas synthétiques) :
   **opt-in strict**, jamais dans `./mvnw verify` (appelle un LLM payant).
   `./mvnw -q test -Dtest=CalibrationBenchTest -DfailIfNoTests=false
-  -Dcalibration.enabled=true -Dcalibration.rubrics=v5 -Dcalibration.prompt=v3
+  -Dcalibration.enabled=true -Dcalibration.rubrics=v6 -Dcalibration.prompt=v3
   -Dcalibration.provider=deepseek -Dcalibration.label=<nom>` → rapport JSON dans
   `target/calibration/`. **Toujours fixer `-Dcalibration.provider`** : le `.env`
   local peut pointer un autre modèle, et deux campagnes ont ainsi tourné sur
   gpt-4o-mini (v4.2 y tombe à 41,7 % d'accord contre 81,3 % sur DeepSeek).
   Parallélisme ≤ 3 : au-delà le fournisseur renvoie des 429 et des cas se
-  perdent.
+  perdent (mesuré : 5 cas perdus à 4 en vol, 2 à 2 en vol avec `retries=10`).
   **Ne jamais ajuster le corpus** pour faire passer une version : on corrige le
   système, jamais la référence. Une campagne ≈ 0,45 € ; comparer une nouvelle
   version à un **rerun de l'ancienne le même jour** (le bruit inter-campagnes
@@ -294,16 +339,15 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   Convention de signe partout : **écart = référence − IA** (négatif = IA trop
   indulgente). **Toute modif d'une consigne de notation ou d'un seuil se mesure
   avant/après** — sinon c'est un pari.
-- **Deux échelles sur 20, à ne jamais confondre** : la nôtre est **pédagogique**
-  (16-20 = B2, 11-15 = B1, 6-10 = A2, 1-5 = A1) ; celle du TCF IRN est bien plus
-  comprimée (0 → A1 non atteint, 1 → A1, 2-5 → A2, 6-9 → B1, **10-20 → B2**).
-  On ne convertit **rien** et on ne touche à **aucun seuil** : la grille
-  officielle vit dans l'enum `BandeNoteTcf` (code, pas config — c'est une
-  donnée officielle), est exposée en `ProductionBilanResponse.correspondanceTcf`
-  (`{niveau, scoreTcfMin, scoreTcfMax}`) et n'est affichée qu'au **bilan d'une
-  épreuve entière**. **Jamais sur une tâche isolée** — au TCF la note /20 porte
-  sur les 3 tâches, une tâche seule n'a pas de note officielle ; on y dit
-  seulement que la note affichée est pédagogique. Détail grand public :
+- **Une seule échelle depuis v6** (0 → A1 non atteint, 1 → A1, 2-5 → A2,
+  6-9 → B1, **10-20 → B2**) : notre note **est** celle du TCF. La table
+  officielle vit toujours dans l'enum `BandeNoteTcf` (code, pas config — donnée
+  officielle, pas réglage) ; la grille active la reprend telle quelle dans
+  `commun.niveau`. On ne **convertit** toujours rien : `correspondanceTcf`
+  (`{niveau, scoreTcfMin, scoreTcfMax}`, `ProductionBilanResponse`) part du
+  **niveau** et n'est affichée qu'au **bilan d'une épreuve entière**. **Jamais
+  sur une tâche isolée** — au TCF la note /20 porte sur les 3 tâches ; ce qui
+  diffère là n'est plus l'échelle mais le **périmètre**. Détail grand public :
   `docs/notation-ia-eo-ee.md` §6.6.
 - **Console de calibration admin** (`features/calibration/` +
   `AdminCalibrationService`) : annotation humaine de vraies productions, biais et

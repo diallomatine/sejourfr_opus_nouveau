@@ -12,8 +12,12 @@ import java.math.BigDecimal;
  * <b>cote serveur</b> pour que les 3 fronts ne reimplementent pas 3 mappings
  * divergents.
  *
- * <p>Bornes alignees sur les bandes CECRL des rubriques :
- * 16-20 / 11-15 / 6-10 / 1-5 / 0.
+ * <p>Les bornes sont celles des bandes CECRL <b>de la grille active</b> : elles
+ * changent avec l'echelle. 16-20 / 11-15 / 6-10 / 1-5 / 0 pour les grilles v3 a
+ * v5 ; 10-20 / 6-9 / 2-5 / 1 / 0 pour v6, qui note sur l'echelle du TCF. Les
+ * lire dans la grille (via {@code ProductionRubricsProvider#bandesCriteres()})
+ * evite qu'un bon B1 s'affiche « en cours d'acquisition » apres un changement
+ * d'echelle.
  *
  * <p><b>La note globale /20 reste, elle, affichee</b> : la fausse precision est
  * un probleme au niveau du critere, pas du resultat d'ensemble.
@@ -25,13 +29,18 @@ public enum BandeCritere {
     FRAGILE,
     NON_EVALUABLE;
 
-    /** Bande d'une note /20 ; null si la note est absente ou non numerique. */
-    public static BandeCritere of(BigDecimal note) {
+    /**
+     * Bande d'une note /20 selon les bornes de la grille active ; null si la
+     * note est absente. Un 0 vaut toujours {@code NON_EVALUABLE} : c'est le
+     * hors-sujet (et, sur l'echelle du TCF, le « en deca du A1 »).
+     */
+    public static BandeCritere of(BigDecimal note,
+                                  com.sejourfr.app.config.ProductionEvaluationProperties.BandesCriteres bornes) {
         if (note == null) return null;
-        if (note.compareTo(new BigDecimal("16")) >= 0) return TRES_BONNE_MAITRISE;
-        if (note.compareTo(new BigDecimal("11")) >= 0) return SATISFAISANT;
-        if (note.compareTo(new BigDecimal("6")) >= 0) return EN_COURS_ACQUISITION;
-        if (note.compareTo(BigDecimal.ZERO) > 0) return FRAGILE;
-        return NON_EVALUABLE;
+        if (note.compareTo(BigDecimal.ZERO) <= 0) return NON_EVALUABLE;
+        if (note.compareTo(BigDecimal.valueOf(bornes.getTresBonneMaitrise())) >= 0) return TRES_BONNE_MAITRISE;
+        if (note.compareTo(BigDecimal.valueOf(bornes.getSatisfaisant())) >= 0) return SATISFAISANT;
+        if (note.compareTo(BigDecimal.valueOf(bornes.getEnCoursAcquisition())) >= 0) return EN_COURS_ACQUISITION;
+        return FRAGILE;
     }
 }

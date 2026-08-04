@@ -238,10 +238,31 @@ sejourfr:
     # sorties invalides 0 % ; A1, A2, hors-sujet et transcriptions bruitees
     # inchanges. Le plafond v4.2 ne mord qu'au-dessus de 15/20 : il ne peut,
     # par construction, rien changer sous B1.
-    # v3, v4 et v4.1 restent charges et valides -> EVAL_RUBRICS_VERSION=v3|v4|v4.1
-    # suffit a revenir en arriere (le banc de mesure bascule d'une version a
-    # l'autre avec cette seule variable).
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v5}
+    # Defaut v6 : v5 avait adopte les CRITERES du TCF, v6 adopte son ECHELLE.
+    # La note se convertit desormais en niveau par la table OFFICIELLE du TCF
+    # IRN (0 = A1 non atteint, 1 = A1, 2-5 = A2, 6-9 = B1, 10-20 = B2), et
+    # CHAQUE critere est note sur cette meme table. Motif : sous v5 une carte de
+    # resultat pouvait afficher « 12,5/20 » et « proche du B1 », alors que 12,5
+    # vaut B2 sur la grille officielle — deux informations contradictoires.
+    # Ce n'est PAS un simple deplacement de seuils : tous les reperes, tous les
+    # descripteurs et les 16 ancres few-shot ont ete re-scores sur l'echelle du
+    # TCF, et le garde-fou de couplage recalcule (4 -> 1 point, cf. plus bas).
+    # Mesure golden-set-v1 (48 cas, DeepSeek), campagne v6 contre un temoin v5
+    # rejoue le meme jour : accord exact 86,0 % -> 87,0 %, accord +/-1 palier
+    # 88,4 % -> 100 %, pieges evites 6/7 -> 8/8 (le quasi-muet, rate par v5,
+    # passe), « A1 non atteint » 4/8 -> 8/8 (le point faible documente du banc),
+    # B2 6/7 -> 6/6, B1 8/8 -> 10/11, A2 11/12 -> 11/13, 0 sortie invalide.
+    # Seul recul : les productions A1 passent de 8/8 a 5/8, les trois cas
+    # ressortant A2 — un niveau que la reference TOLERE explicitement sur ces
+    # trois cas, et que le modele leur donnait DEJA sous v5 (il y notait leur
+    # langue 7/20, soit la bande A2 de v5) : c'est le decalage entre bandes de
+    # critere et bandes globales de v5 qui affichait A1, pas son jugement.
+    # v3, v4, v4.1, v4.2 et v5 restent charges et valides ->
+    # EVAL_RUBRICS_VERSION=v3|v4|v4.1|v4.2|v5 suffit a revenir en arriere (le
+    # banc de mesure bascule d'une version a l'autre avec cette seule variable),
+    # chaque grille depuis v5 declarant elle-meme ses seuils ET, depuis v6, tout
+    # ce qui se lit sur une note : ecart de couplage, seuils de plafond, bandes.
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v6}
     # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
     # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
     # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).
@@ -252,7 +273,8 @@ sejourfr:
     # ProductionRubricsProvider#niveauCecrl(). C'est ce qui permet a
     # EVAL_RUBRICS_VERSION SEULE de suffire pour revenir en arriere : revenir a
     # v4.2 avec les seuils de v5 en config donnerait des niveaux faux.
-    # Ne pas calibrer v5 ici, mais dans production-rubrics-v5.json.
+    # Ne pas calibrer v5 ni v6 ici, mais dans production-rubrics-<version>.json.
+    # (v6, active : 10 / 6 / 2 — la table officielle du TCF, pas un reglage.)
     #
     # source-criteres (v3-v4.2) : marqueurs de langue/discours porteurs du
     # niveau. La coherence (organisation du discours) y est incluse — vraie
@@ -287,9 +309,27 @@ sejourfr:
     # l'accomplissement dans le niveau : sans lui, cocher tous les points d'une
     # consigne A2 dans un francais pauvre suffirait a monter d'un palier.
     # SANS EFFET sur v3/v4/v4.1/v4.2 : leurs grilles ne portent pas ces codes.
+    #
+    # /!\ `ecart-max` ci-dessous est le reglage des grilles ANTERIEURES A v6.
+    # L'ecart n'a pas le meme sens d'une echelle a l'autre : ce qui compte est
+    # le gain qu'il concede a la moyenne des quatre criteres (ecart-max / 2),
+    # qui doit rester sous la largeur d'un palier. v6, dont l'echelle est celle
+    # du TCF (paliers de 4 points, seuils non decales), declare le sien dans son
+    # fichier de rubriques — `commun.couplage.ecart_max` = 1.0 — et c'est lui qui
+    # gagne. `enabled` reste un coupe-circuit de deploiement, jamais surcharge
+    # par la grille.
     couplage:
       enabled: ${EVAL_COUPLAGE_ENABLED:true}
       ecart-max: 4.0
+    # Bandes qualitatives par critere affichees aux candidats A LA PLACE du
+    # nombre (une IA ne distingue pas honnetement un 13 d'un 14). Bornes des
+    # grilles v3 a v5 ; v6 declare les siennes (10 / 6 / 2) dans
+    # `commun.bandes_criteres` de son fichier de rubriques. Sans ce mecanisme,
+    # un critere v6 a 8 (bon B1) s'afficherait « en cours d'acquisition ».
+    bandes-criteres:
+      tres-bonne-maitrise: 16.0
+      satisfaisant: 11.0
+      en-cours-acquisition: 6.0
     # Controles DETERMINISTES executes AVANT l'appel LLM (aucune IA) :
     # langue dominante, recopiage de la consigne, production vide. Un verdict
     # INVALIDE court-circuite le LLM (note 0 / A1_NON_ATTEINT / confiance
@@ -308,6 +348,10 @@ sejourfr:
     # Plafonds de niveau appliques APRES le calcul du niveau par soumission.
     # Volontairement peu nombreux : uniquement ce qui est objectivable a partir
     # des criteres v4. enabled=false pour mesurer avec / sans.
+    # Les SEUILS ci-dessous se lisent sur la note d'un critere : ils suivent donc
+    # l'echelle de la grille. 5.0 = haut de la bande A1 des criteres v3-v5 (1-5).
+    # v6 declare les siens (1.0, haut de la bande A1 sur l'echelle du TCF) dans
+    # `commun.plafonds` de son fichier de rubriques.
     plafonds:
       enabled: ${EVAL_PLAFONDS_ENABLED:true}
       prise-position-seuil: 5.0

@@ -487,6 +487,199 @@ class ProductionRubricsValidatorTest {
         }
     }
 
+    // ------------------------------------------------------------------- v6
+
+    /** v6 (echelle du TCF) doit demarrer comme toutes les versions precedentes. */
+    @Test
+    void validate_realV6File_noThrow() {
+        when(taskManager.findAllActive()).thenReturn(List.of());
+        ProductionRubricsValidator v =
+                new ProductionRubricsValidator(realProvider("v6"), taskManager);
+
+        assertThatCode(v::validate).doesNotThrowAnyException();
+    }
+
+    /** v6 ne touche pas aux CRITERES : ce sont ceux du TCF, comme en v5. */
+    @Test
+    void v6File_keepsTheFourTcfCriteria() {
+        Map<String, Map<String, Object>> all = realProvider("v6").all();
+
+        assertThat(all).containsOnlyKeys("EE_T1", "EE_T2", "EE_T3", "EO_T1", "EO_T2", "EO_T3");
+        for (String cle : all.keySet()) {
+            assertThat(codes(all, cle))
+                    .as(cle + " : les 4 criteres du TCF, dans cet ordre, et aucun autre")
+                    .containsExactly("communiquer", "interagir", "lexique", "morphosyntaxe");
+            assertThat(poidsTotal(all, cle)).as(cle + " : somme des poids")
+                    .isEqualTo(1.0, org.assertj.core.data.Offset.offset(0.0001));
+        }
+    }
+
+    /**
+     * LE contrat v6 : les seuils de niveau sont la TABLE OFFICIELLE du TCF IRN,
+     * reprise telle quelle. C'est ce qui rend impossible d'afficher « 12,5/20 »
+     * et « proche du B1 » sur la meme carte.
+     */
+    @Test
+    void v6File_declaresTheOfficialTcfConversionTable() {
+        ProductionEvaluationProperties.NiveauCecrl v6 = realProvider("v6").niveauCecrl();
+
+        assertThat(v6.getSourceCriteres())
+                .containsExactly("communiquer", "interagir", "lexique", "morphosyntaxe");
+        assertThat(v6.getSeuilB2()).as("B2 des 10/20, comme au TCF").isEqualTo(10.0);
+        assertThat(v6.getSeuilB1()).as("B1 de 6 a 9").isEqualTo(6.0);
+        assertThat(v6.getSeuilA2()).as("A2 de 2 a 5 ; sous 2 -> A1 ; 0 -> A1 non atteint").isEqualTo(2.0);
+
+        ProductionEvaluationProperties.NiveauCecrl v5 = realProvider("v5").niveauCecrl();
+        assertThat(v5.getSeuilB2()).as("v5 reste intacte et rechargeable").isEqualTo(16.0);
+    }
+
+    /**
+     * Tout ce qui se LIT sur une note (garde-fou de couplage, plafonds de
+     * niveau, bandes affichees) est une propriete de l'ECHELLE : v6 les declare
+     * donc elle-meme, sans quoi revenir a v5 avec la config de v6 — ou
+     * l'inverse — donnerait des resultats faux.
+     */
+    @Test
+    void v6File_declaresEveryScaleDependentSetting() {
+        ProductionRubricsProvider v6 = realProvider("v6");
+
+        assertThat(v6.couplage().getEcartMax())
+                .as("le garde-fou concede au plus 0,5 point a la moyenne des quatre : "
+                        + "une langue au haut de son palier ne peut pas franchir le seuil suivant")
+                .isEqualTo(1.0);
+        assertThat(v6.plafonds().getPrisePositionSeuil())
+                .as("haut de la bande A1 sur l'echelle du TCF").isEqualTo(1.0);
+        assertThat(v6.plafonds().getConduiteEchangeSeuil()).isEqualTo(1.0);
+        assertThat(v6.bandesCriteres().getTresBonneMaitrise()).isEqualTo(10.0);
+        assertThat(v6.bandesCriteres().getSatisfaisant()).isEqualTo(6.0);
+        assertThat(v6.bandesCriteres().getEnCoursAcquisition()).isEqualTo(2.0);
+
+        ProductionRubricsProvider v5 = realProvider("v5");
+        assertThat(v5.couplage().getEcartMax()).as("v5 garde son ecart de 4 points").isEqualTo(4.0);
+        assertThat(v5.plafonds().getPrisePositionSeuil()).as("v5 garde ses seuils").isEqualTo(5.0);
+        assertThat(v5.bandesCriteres().getTresBonneMaitrise()).as("v5 garde ses bandes").isEqualTo(16.0);
+    }
+
+    /**
+     * v6 change l'echelle, PAS les garde-fous : toutes les tolerances de v4 et
+     * les deux ancrages d'echelle de v4.1/v4.2/v5 sont la, re-exprimes sur la
+     * table du TCF (A1 = 1, A2 = 2-5, B1 = 6-9, B2 = 10-20).
+     */
+    @Test
+    void v6File_keepsEveryToleranceAndAnchorsBothEnds() {
+        Map<String, Object> commun = realProvider("v6").getCommun();
+        String texte = String.valueOf(commun.get("sections"));
+
+        assertThat(texte)
+                .as("tolerance longueur conservee")
+                .contains("Ne penalise donc JAMAIS une production pour sa longueur")
+                .as("tolerance orthographe a l'oral conservee")
+                .contains("n'evalue PAS l'orthographe sur de l'oral transcrit")
+                .as("tolerance exhaustivite conservee")
+                .contains("n'exige JAMAIS l'exhaustivite")
+                .as("examinateur temoin de comprehension conserve")
+                .contains("L'EXAMINATEUR EST TON TEMOIN DE COMPREHENSION")
+                .as("benefice du doute conserve")
+                .contains("BENEFICE DU DOUTE")
+                .as("interdiction de conclure a l'incomprehensibilite conservee")
+                .contains("Ne conclus JAMAIS que le candidat est 'incomprehensible'")
+                .as("hors-sujet toujours prioritaire")
+                .contains("Cette regle PRIME sur toute autre consideration");
+
+        assertThat(texte)
+                .as("bas d'echelle (v4.1) intact")
+                .contains("PLAFOND A1").contains("PLAFOND A2").contains("TEST DECISIF A1 vs A2")
+                .as("haut d'echelle (v4.2) intact")
+                .contains("TEST DECISIF B1 vs B2")
+                .contains("CITER LITTERALEMENT au moins DEUX de ces marqueurs")
+                .as("distinction obligatoire / piste intacte")
+                .contains("POINTS OBLIGATOIRES").contains("PISTES SUGGEREES")
+                .as("garde-fou de couplage conserve, recalcule sur la nouvelle echelle")
+                .contains("GARDE-FOU DE COUPLAGE")
+                .contains("ne depassent donc JAMAIS de plus de 1 point la moyenne de lexique et")
+                .as("le plafond B1 devient le haut du palier B1 sur l'echelle du TCF")
+                .contains("AUCUN des quatre criteres ne depasse alors 9/20")
+                .as("la table officielle est la regle de lecture de la note")
+                .contains("10 et plus -> B2 ; 6 a 9 -> B1 ; 2 a 5 -> A2")
+                .as("le 0 couvre desormais aussi le en-deca du A1 : la table n'a rien entre 0 et 1")
+                .contains("PLANCHER A1_NON_ATTEINT")
+                .as("le reflexe scolaire du 10 = moyenne est explicitement desamorce")
+                .contains("10/20 n'est PAS 'la moyenne', c'est le SEUIL DU B2");
+    }
+
+    /**
+     * LE point critique de la bascule : les ancres few-shot ont bien ete
+     * RE-SCOREES, pas recopiees. On rejoue chaque ancre — moyenne des quatre
+     * notes contre la table officielle, et respect du garde-fou de couplage —
+     * parce qu'une ancre restee sur l'ancienne echelle enseignerait au modele
+     * exactement le contraire de la grille.
+     */
+    @Test
+    void v6File_everyFewShotAnchorIsRescoredOnTheTcfScale() {
+        ProductionRubricsProvider provider = realProvider("v6");
+        List<?> fewShot = (List<?>) provider.getCommun().get("few_shot");
+        double ecartMax = provider.couplage().getEcartMax();
+
+        assertThat(fewShot).as("les ancres de v5 sont toutes conservees").hasSizeGreaterThanOrEqualTo(16);
+        for (Object o : fewShot) {
+            Map<?, ?> m = (Map<?, ?>) o;
+            String contexte = String.valueOf(m.get("contexte"));
+            Map<String, Double> notes = notesDeLAncre(String.valueOf(m.get("scores")));
+            assertThat(notes).as(contexte + " : les 4 criteres sont notes")
+                    .containsOnlyKeys("communiquer", "interagir", "lexique", "morphosyntaxe");
+
+            double moyenne = notes.values().stream().mapToDouble(Double::doubleValue).sum() / 4.0;
+            assertThat(niveauDeLaNote(moyenne, provider.niveauCecrl()))
+                    .as(contexte + " : moyenne " + moyenne + " -> le niveau annonce par l'ancre")
+                    .isEqualTo(String.valueOf(m.get("niveau_cecrl")));
+
+            double socle = (notes.get("lexique") + notes.get("morphosyntaxe")) / 2.0;
+            assertThat(Math.max(notes.get("communiquer"), notes.get("interagir")))
+                    .as(contexte + " : l'ancre respecte elle-meme le garde-fou de couplage")
+                    .isLessThanOrEqualTo(socle + ecartMax);
+        }
+    }
+
+    /** Chaque tache v6 rappelle les ancrages, l'exigence pedagogique et les bornes recalculees. */
+    @Test
+    void v6File_eachTaskRecallsAnchorsOnTheNewScale() {
+        Map<String, Map<String, Object>> all = realProvider("v6").all();
+
+        for (Map.Entry<String, Map<String, Object>> e : all.entrySet()) {
+            String consignes = String.valueOf(e.getValue().get("consignes_correcteur"));
+            assertThat(consignes).as(e.getKey())
+                    .contains("ANCRAGE BAS D'ECHELLE")
+                    .contains("TEST DECISIF B1 vs B2")
+                    .contains("ENSEIGNER, PAS CONSTATER")
+                    .contains("de plus de 1 point la moyenne de lexique et morphosyntaxe")
+                    .contains("ne depasse 9/20")
+                    .contains("Ce plafond ne mord jamais en dessous de 10/20");
+            assertThat(consignes).as(e.getKey() + " : plus aucune borne de l'ancienne echelle")
+                    .doesNotContain("14/20").doesNotContain("15/20").doesNotContain("16 a 18");
+        }
+    }
+
+    /** Notes /20 par code, lues dans le champ libre {@code scores} d'une ancre few-shot. */
+    private static Map<String, Double> notesDeLAncre(String scores) {
+        Map<String, Double> out = new LinkedHashMap<>();
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("(communiquer|interagir|lexique|morphosyntaxe) (\\d+(?:,\\d+)?)")
+                .matcher(scores);
+        while (m.find()) {
+            out.put(m.group(1), Double.parseDouble(m.group(2).replace(',', '.')));
+        }
+        return out;
+    }
+
+    /** Meme regle que le serveur : 0 -> A1 non atteint, puis les seuils de la grille. */
+    private static String niveauDeLaNote(double note, ProductionEvaluationProperties.NiveauCecrl seuils) {
+        if (note == 0.0) return "A1_NON_ATTEINT";
+        if (note >= seuils.getSeuilB2()) return "B2";
+        if (note >= seuils.getSeuilB1()) return "B1";
+        if (note >= seuils.getSeuilA2()) return "A2";
+        return "A1";
+    }
+
     /** v4 = criteres PROPRES A CHAQUE TACHE (le defaut corrige) + socle commun conserve. */
     @Test
     void v4File_hasTaskSpecificCriteria() {

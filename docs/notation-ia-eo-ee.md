@@ -14,8 +14,17 @@
 > **dans la même passe**. Il doit toujours pouvoir être lu et compris par une personne non
 > technique. Pas de jargon non expliqué, pas de raccourci.
 
-**État actuel** : rubriques de notation **v5** (la grille du TCF), format de réponse **v3**,
-examinateur vocal **v2**. Ce que ces numéros veulent dire, et où ils se changent, est expliqué en §15.
+**État actuel** : rubriques de notation **v6** (la grille **et l'échelle** du TCF), format de
+réponse **v3**, examinateur vocal **v2**. Ce que ces numéros veulent dire, et où ils se
+changent, est expliqué en §15.
+
+> 🆕 **Ce qui vient de changer, en une phrase : notre note sur 20 est désormais celle du
+> TCF.** La v5 avait adopté les quatre **critères** du vrai examen ; la v6 adopte son
+> **échelle**. Concrètement : **10/20 vaut B2**, comme le jour de l'examen — et non plus 16
+> comme sur notre ancienne échelle « scolaire ». Ce document a été mis à jour partout où cela
+> compte (§5.2 bis, §5.6, §6.1 à §6.6, §12.4). **La phrase « notre échelle est plus fine que
+> celle du TCF », affichée jusqu'ici aux candidats sous leur note, est devenue fausse** : elle
+> doit disparaître des écrans web et mobile (§6.6).
 
 ---
 
@@ -215,14 +224,25 @@ suppose une langue B2. Nous reproduisons ce mécanisme de deux façons :
 1. **Des descripteurs de niveau pour les quatre critères**, tâche par tâche (tableau ci-dessus
    + descripteurs A1→B2 propres à chaque tâche).
 2. **Un garde-fou de couplage, opposable et vérifié par le serveur** : *communiquer* et
-   *interagir* ne peuvent jamais dépasser de **plus de 4 points** la moyenne de *lexique* et
-   *morphosyntaxe*. Exemple : lexique 5, morphosyntaxe 4 (moyenne 4,5) → *communiquer* et
-   *interagir* sont plafonnés à 8,5, même si la consigne est intégralement traitée. La règle
+   *interagir* ne peuvent jamais dépasser de **plus d'un point** la moyenne de *lexique* et
+   *morphosyntaxe*. Exemple : lexique 1, morphosyntaxe 1 (moyenne 1) → *communiquer* et
+   *interagir* sont plafonnés à 2, même si la consigne est intégralement traitée. La règle
    est écrite dans les consignes données à l'IA **et** appliquée par le serveur avant le
    calcul de la note : si l'IA la dépasse, ses notes sont ramenées sous le plafond.
 
+> **Pourquoi « un point » alors que c'était « quatre points » jusqu'à la v5 ?** Parce que
+> l'échelle a changé (§6.1) et qu'un écart de points n'a pas le même sens d'une échelle à
+> l'autre. Ce qu'il faut conserver, ce n'est pas le nombre : c'est **le maximum que ces deux
+> critères peuvent ajouter à la moyenne des quatre**, soit la moitié de l'écart. Avec un
+> écart d'un point, ce gain plafonne à **0,5 point** — juste assez pour reconnaître qu'une
+> tâche bien menée vaut mieux qu'une tâche bâclée, jamais assez pour franchir un seuil de
+> niveau. Le calcul est fait pour ça : une langue au **maximum de son palier** (5 pour A2,
+> 9 pour B1) donne au mieux une moyenne de 5,5 ou 9,5 — donc reste A2, reste B1. Sous la v5,
+> l'écart de 4 produisait le même effet parce que les seuils de niveau y étaient décalés de
+> 2 à 3 points vers le haut ; ce décalage n'existe plus, l'écart devait donc être recalculé.
+
 Conséquence chiffrée, qui est le cœur de la protection : avec une langue A2 au maximum
-(10/10) et le couplage, la moyenne des quatre plafonne à **12/20** — soit A2. **Un
+(5/5) et le couplage, la moyenne des quatre plafonne à **5,5/20** — soit A2. **Un
 « communiquer » élevé ne peut pas fabriquer un B2.** Il faut une vraie langue pour ça.
 
 ### 5.3 Points **obligatoires** et **pistes suggérées** — la règle centrale
@@ -328,11 +348,11 @@ aucune ne dit que la production devient **bonne** pour autant.
 > la variété, l'organisation).
 
 **Le couplage tâche ↔ langue.** Une tâche est toujours accomplie **avec** des moyens
-linguistiques. Un critère de tâche ne peut donc pas dépasser de plus de **4 points** la
-moyenne du lexique et de la morphosyntaxe. Réussir une tâche simple avec un français très
-pauvre est une réussite **partielle**, pas une réussite exemplaire. Ce garde-fou ne mord
-qu'en bas d'échelle : à partir de B1, il n'est jamais contraignant, et il ne sert jamais à
-rogner une production riche.
+linguistiques. Un critère de tâche ne peut donc pas dépasser de plus d'**un point** la
+moyenne du lexique et de la morphosyntaxe (§5.2 bis). Réussir une tâche simple avec un
+français très pauvre est une réussite **partielle**, pas une réussite exemplaire. Ce
+garde-fou ne sert jamais à rogner une production riche : il ne fait jamais descendre
+en dessous du niveau que la langue démontre déjà.
 
 **L'ancrage du bas de l'échelle.** C'est la zone où une erreur coûte le plus cher au
 candidat : lui annoncer B1 alors qu'il est A2, c'est lui faire payer un examen officiel qu'il
@@ -348,7 +368,16 @@ raison très concrète : depuis le 1ᵉʳ janvier 2026, la naturalisation exige 
 quatre épreuves, sans aucune compensation**. Annoncer B2 à une personne réellement B1, c'est
 l'encourager à déposer un dossier voué au refus après avoir payé l'examen. Les consignes
 contiennent donc, depuis les rubriques **v4.2**, un test symétrique de celui du bas
-(conservé à l'identique en v5).
+(conservé à l'identique en v5 puis en v6).
+
+> **Ce test est encore plus décisif depuis la v6**, où le seuil du B2 est descendu à
+> **10/20** pour coller au vrai examen (§6.1). Sur cette échelle, un nombre n'est plus une
+> appréciation, c'est **une déclaration de palier** : mettre 12 ou 13 à un critère, ce n'est
+> pas « mettre une bonne note », c'est affirmer au candidat qu'il a le niveau exigé pour la
+> naturalisation. Les consignes le disent en toutes lettres, avec la règle d'arbitrage
+> correspondante : **un très bon B1 — long, fluide, richement subordonné, sans faute — se
+> note 9, jamais 12 ni 13** ; et si l'IA hésite entre 9 et 12, la réponse est 9, parce que
+> l'hésitation elle-même prouve que les deux marqueurs ne sont pas citables.
 
 Ce qui sépare vraiment B1 de B2, ce n'est pas l'absence de fautes : c'est **l'efficacité de
 l'argumentation et la défense d'un point de vue**, puis l'étendue du répertoire. Un B1 peut
@@ -373,10 +402,11 @@ marqueurs** parmi :
 Au moins un de ces deux marqueurs doit venir de **l'objection traitée** ou du **lexique
 précis** — les deux endroits où le B1 et le B2 se distinguent le plus nettement. **Si l'IA ne
 peut pas recopier ces marqueurs, c'est qu'ils n'y sont pas** : le niveau est B1, et **aucun
-des quatre critères** ne dépasse alors 14/20. Depuis la version 5, le plafond couvre aussi
-*communiquer* et *interagir* : ils comptent pour la moitié de la note, donc du niveau — les
-laisser à 17 pendant que la langue est plafonnée à 14 ferait ressortir un B1 à 15,5/20,
-c'est-à-dire un faux B2.
+des quatre critères** ne dépasse alors **9/20** — soit, sur l'échelle du TCF, le **haut du
+palier B1**, donc la meilleure note qu'un B1 puisse obtenir, pas une punition. Depuis la
+version 5, le plafond couvre aussi *communiquer* et *interagir* : ils comptent pour la moitié
+de la note, donc du niveau — les laisser à 12 pendant que la langue est plafonnée à 9 ferait
+ressortir un B1 à 10,5/20, c'est-à-dire un faux B2.
 
 Quatre **faux B2** sont nommés explicitement dans les consignes, parce que ce sont ceux qui
 trompaient l'IA : les **connecteurs de surface** (« premièrement », « deuxièmement », « en
@@ -384,10 +414,10 @@ conclusion ») posés sur un contenu pauvre ; la **longueur** (une production lo
 défend rien est un B1 long) ; la **correction confondue avec la richesse** ; et les
 **formules apprises par cœur** (« il est indéniable que », « de nos jours »).
 
-Ce plafond a une propriété importante : **il ne mord jamais en dessous de 15/20**. Il ne peut
+Ce plafond a une propriété importante : **il ne mord jamais en dessous de 10/20**. Il ne peut
 donc, par construction, ni durcir la notation des productions A1, A2 ou B1, ni toucher à la
 règle du hors-sujet. Et il n'autorise pas l'inverse non plus : dès que les deux marqueurs sont
-citables, l'IA doit noter 16 à 18 **sans hésiter** — sous-noter un vrai B2 renverrait à un
+citables, l'IA doit noter 12 à 16 **sans hésiter** — sous-noter un vrai B2 renverrait à un
 entraînement inutile quelqu'un qui a déjà le niveau exigé.
 
 Et une phrase qui résume tout : **« correction n'est pas niveau »**. Une production simple,
@@ -402,21 +432,32 @@ sans nuance ni lexique précis reste du B1.
 
 ## 6. La note et le niveau
 
-### 6.1 L'échelle interne, sur 20
+### 6.1 L'échelle : celle du TCF
 
 Chaque critère est noté sur 20, **en absolu** (sur toute l'échelle A1→C2), pas « par rapport
-au niveau visé de la tâche ».
-
-> ⚠️ Cette échelle est **la nôtre**, pédagogique — ce n'est pas celle du TCF, où 10/20 vaut
-> déjà B2. La différence est expliquée au **§6.6**, à lire avant toute comparaison de notes.
+au niveau visé de la tâche ». Et depuis la version **v6**, cette échelle **est celle du
+vrai examen** — la table officielle de conversion note → niveau du TCF IRN, reprise telle
+quelle, sans rien inventer :
 
 | Note d'un critère | Correspondance |
 |-------------------|----------------|
-| 16 – 20 | Maîtrise de niveau B2 et plus |
-| 11 – 15 | Niveau B1 |
-| 6 – 10 | Niveau A2 |
-| 1 – 5 | Niveau A1 |
-| 0 | Hors-sujet (voir §8) |
+| 10 – 20 | Niveau **B2** et au-delà (10-11 : B2 tout juste atteint · 12-16 : B2 confirmé · 17-20 : C1/C2, exceptionnel) |
+| 6 – 9 | Niveau **B1** (6-7 : B1 émergent · 8-9 : B1 solide, **y compris un très bon B1**) |
+| 2 – 5 | Niveau **A2** (2-3 : A2 fragile · 4-5 : A2 solide, sans faute, consigne bien traitée) |
+| 1 | Niveau **A1** — tout A1 vaut 1, il n'y a pas de « bon A1 » à 3 ou 4 |
+| 0 | Rien d'exploitable : **hors-sujet** (voir §8) **ou** production en deçà du A1 |
+
+> ⚠️ **Oubliez le réflexe scolaire.** Sur cette échelle, **10/20 n'est pas « la moyenne »,
+> c'est le seuil du B2** — le niveau exigé pour la naturalisation. Et **5/20 n'est pas un
+> mauvais résultat, c'est un A2 solide**. C'est déroutant au premier abord, et c'est
+> exactement ce que verra le candidat le jour de l'examen. Les consignes données à l'IA le
+> disent en toutes lettres, parce que c'est l'erreur la plus facile à commettre : sur cette
+> échelle, **un nombre n'est pas une appréciation, c'est une déclaration de palier**.
+
+L'échelle est volontairement **resserrée en bas** (0, 1, puis 2-5) et **large en haut**
+(10-20). Ce n'est pas une anomalie de notre part : c'est la table officielle. Elle refuse les
+demi-teintes en dessous du A1 et laisse au contraire de la place pour distinguer un B2 juste
+atteint d'un B2 brillant.
 
 **La note d'ensemble est la moyenne des quatre critères** (ils pèsent 25 % chacun), arrondie
 au dixième. Elle n'est plus arrondie à l'entier depuis la version 5 : avec quatre critères à
@@ -424,11 +465,10 @@ au dixième. Elle n'est plus arrondie à l'entier depuis la version 5 : avec qua
 d'un niveau calculé sur 12,5 — exactement la contradiction que cette refonte doit faire
 disparaître.
 
-**Et le niveau se lit sur cette note** (§6.3). Les bandes globales ne sont pas tout à fait
-celles d'un critère isolé : elles sont décalées d'environ deux points vers le haut, parce que
-*communiquer* et *interagir* se situent légitimement au-dessus de la langue (jusqu'à +4,
-garde-fou de couplage) et tirent la moyenne. Ces bandes ont été **calées sur le corpus de
-référence** (§12), pas déduites d'un raisonnement.
+**Et le niveau se lit sur cette note** (§6.3), avec **exactement la même table** : c'est le
+même barème appliqué une fois par critère, puis à leur moyenne. Il n'y a plus, comme dans les
+versions précédentes, de décalage entre l'échelle d'un critère et celle de la note
+d'ensemble — c'est précisément ce que la v6 corrige.
 
 ### 6.2 Ce que le candidat voit : des bandes, pas des chiffres, par critère
 
@@ -438,11 +478,17 @@ critère**, pas un nombre :
 
 | Note interne | Ce qui s'affiche |
 |---|---|
-| 16 – 20 | Très bonne maîtrise |
-| 11 – 15 | Satisfaisant |
-| 6 – 10 | En cours d'acquisition |
-| 1 – 5 | Fragile |
+| 10 – 20 | Très bonne maîtrise |
+| 6 – 9 | Satisfaisant |
+| 2 – 5 | En cours d'acquisition |
+| 1 | Fragile |
 | 0 | Non évaluable |
+
+> Ces bornes **suivent l'échelle de la grille active** : elles ont changé avec la v6, en même
+> temps que l'échelle. C'est indispensable — laissées à leurs anciennes valeurs, un critère à
+> 8 (un bon B1) se serait affiché « en cours d'acquisition » et un critère à 12 (un B2
+> confirmé) « satisfaisant ». Les mots affichés, eux, n'ont pas bougé : les trois applications
+> n'ont rien à changer.
 
 **La note globale sur 20 reste affichée**, elle. C'est le repère qu'un candidat attend d'un
 examen, et la fausse précision est un problème au niveau du critère (5 nombres qui bougent),
@@ -471,22 +517,28 @@ la note** — c'est-à-dire de la moyenne des quatre critères du TCF :
 
 | Note de la tâche (moyenne des 4 critères) | Niveau |
 |---|---|
-| 16 et plus | B2 (plafond) |
-| 13 à 15,9 | B1 |
-| 9 à 12,9 | A2 |
-| au-dessus de 0, sous 9 | A1 |
+| 10 et plus | B2 (plafond) |
+| 6 à 9,9 | B1 |
+| 2 à 5,9 | A2 |
+| au-dessus de 0, sous 2 | A1 |
 | exactement 0 | A1 non atteint |
 
-**C'est le changement le plus important de la version 5.** Jusqu'à la version 4.2, le niveau
-était calculé sur la moyenne de trois critères de langue seulement (lexique, morphosyntaxe,
-cohérence), et l'accomplissement de la tâche en était **explicitement exclu**. Le résultat
-était une carte de résultat qui pouvait afficher « 11/20 » et « proche du niveau A2 » côte à
-côte. Désormais, **la note et le niveau sont deux lectures du même nombre** : ils ne peuvent
-plus se contredire.
+**C'est la table officielle du TCF, à l'identique** (§6.6). Deux changements successifs y ont
+mené :
+
+- **version 5** : jusqu'à la 4.2, le niveau était calculé sur la moyenne de trois critères de
+  langue seulement (lexique, morphosyntaxe, cohérence), et l'accomplissement de la tâche en
+  était **explicitement exclu**. Le résultat était une carte qui pouvait afficher « 11/20 » et
+  « proche du niveau A2 » côte à côte. La v5 a fait de la note et du niveau **deux lectures du
+  même nombre** : ils ne peuvent plus se contredire *entre eux* ;
+- **version 6** : il restait une contradiction, avec le vrai examen cette fois. Une même carte
+  affichait « 12,5/20 » et « proche du niveau B1 » — or 12,5 vaut **B2** sur la grille
+  officielle. Un candidat qui connaît cette grille lisait donc deux choses opposées. La v6
+  supprime l'écart en adoptant l'échelle du TCF pour la note **et** pour chaque critère.
 
 Ce que cela ne veut pas dire : que réussir une tâche simple suffit. Le garde-fou de couplage
-(§5.2 bis) et les descripteurs par niveau tiennent cette porte fermée — une langue A2
-plafonne la note à 12/20, donc à A2.
+(§5.2 bis) et les descripteurs par niveau tiennent cette porte fermée — une langue A2 au
+maximum plafonne la note à 5,5/20, donc à A2.
 
 Le niveau que l'IA propose de son côté est conservé en base pour la calibration, mais **n'est
 jamais affiché**.
@@ -497,11 +549,18 @@ Après le calcul du niveau, le serveur applique deux règles qui ne peuvent qu'*
 niveau, jamais le relever :
 
 - **Tâche 3 (écrite ou orale) sans opinion identifiable** — si le critère qui porte
-  l'accomplissement (**communiquer** depuis la version 5) est à 5/20 ou moins, la tâche
+  l'accomplissement (**communiquer** depuis la version 5) est **à 1/20 ou moins**, la tâche
   consiste précisément à donner et défendre un avis : le niveau observé ne peut pas dépasser
   **A2**.
 - **Oral, tâche 2, sans véritable échange** — même critère, même seuil : le dialogue n'a pas
   vraiment eu lieu, même plafond **A2**.
+
+> **Le seuil valait 5 jusqu'à la v5, il vaut 1 depuis la v6** : ce n'est pas un
+> assouplissement, c'est la même règle transposée. Dans les deux cas, le seuil est le **haut
+> du palier A1** de l'échelle en vigueur (1-5 hier, 1 aujourd'hui) : le plafond se déclenche
+> quand la tâche n'a **pas du tout** été réalisée. Laisser 5 sur la nouvelle échelle aurait
+> plafonné à A2 tout candidat dont *communiquer* vaut 5 — c'est-à-dire un A2 **solide** — et
+> transformé une règle ciblée en sanction de masse.
 
 Dans les deux cas, le candidat reçoit l'explication en clair, pas seulement un chiffre plus
 bas.
@@ -542,11 +601,15 @@ C'est le seul niveau qui fait foi. Il apparaît à la fin d'un examen blanc qui 
   dure 30. Les trois tâches orales plafonnent le temps de parole à 3 + 3,5 + 3,5 minutes ;
   les 5 minutes restantes couvrent la lecture des consignes et les transitions.
 
-### 6.6 Notre note sur 20 n'est **pas** la note du TCF
+### 6.6 Notre note sur 20 est désormais **celle du TCF** (ce qui a changé, et ce qui n'a pas changé)
 
-C'est le point le plus important de ce chapitre, et celui qui trompe le plus de candidats.
+C'est le point le plus important de ce chapitre, et celui qui trompait le plus de candidats.
 
-Nous affichons une note sur 20. Le TCF aussi. **Ce ne sont pas les mêmes 20.**
+> ⚠️ **Avertissement de mise à jour.** Jusqu'à la version 5, ce paragraphe expliquait
+> l'inverse : que notre note était « pédagogique », sur une échelle « plus fine » que celle du
+> TCF. **Ce n'est plus vrai.** Toute phrase de ce type encore affichée dans le site web ou
+> l'application mobile est devenue fausse et doit être retirée — la liste des écrans concernés
+> est à la fin de cette section.
 
 **La note du vrai TCF.** Aux épreuves d'expression (écrite et orale), le TCF IRN donne une
 note sur 20 pour **l'épreuve entière** — les trois tâches ensemble — et cette note se traduit
@@ -563,49 +626,84 @@ en niveau selon une grille officielle très resserrée :
 Autrement dit : **au vrai TCF, 10/20 suffit pour être B2** — le niveau exigé pour la
 naturalisation. Et 6/20 suffit pour B1, le niveau exigé pour la carte de résident.
 
-**Notre note.** La nôtre est une **note pédagogique**. Elle suit l'échelle « scolaire »
-décrite au §6.1 : 16 et plus pour du B2, 13 à 15,9 pour du B1, 9 à 12,9 pour du A2, en dessous
-de 9 pour du A1. Un 12/20 chez nous, c'est du A2 ; au TCF, un 12/20 c'est du B2. **L'écart est
-énorme, et il est voulu.**
+**Notre note.** C'est **la même échelle**, depuis la version 6. Un 12/20 chez nous, c'est du
+B2 ; au TCF, un 12/20 c'est du B2. Un 5/20 chez nous, c'est un A2 solide ; au TCF aussi. **Il
+n'y a plus d'écart à expliquer au candidat.**
 
-**Pourquoi on ne copie pas l'échelle du TCF.** Parce qu'elle est trop comprimée pour
-apprendre : la moitié de l'échelle (10 à 20) vaut un seul et même niveau, B2. Un candidat qui
-passe de 10 à 18 aurait la même mention pendant des semaines, sans jamais voir qu'il
-progresse ; et en dessous, tout se joue entre 2 et 9, où un point d'écart fait changer de
-niveau. Notre échelle plus fine sert exactement à ça : **montrer les progrès à l'intérieur
-d'un niveau**, et rendre visible ce qui sépare un B1 fragile d'un B1 solide.
+**Pourquoi on a fini par copier l'échelle du TCF.** Pendant longtemps nous ne l'avons pas
+fait, et l'argument avait sa valeur : la grille officielle est très comprimée, la moitié de
+l'échelle (10 à 20) vaut un seul et même niveau, et un candidat qui passe de 10 à 18 n'y voit
+aucune mention changer. Une échelle plus étalée montrait mieux les progrès **à l'intérieur**
+d'un niveau.
+
+Ce raisonnement a été abandonné pour une raison plus forte : **il produisait une contradiction
+visible à l'écran**. Une même carte de résultat pouvait afficher « 12,5/20 » et « proche du
+niveau B1 ». Pour un candidat qui connaît la grille officielle — et tous finissent par la
+connaître — 12,5 veut dire B2. Les deux informations se contredisaient, et aucune note de bas
+de page n'y changeait rien : entre un chiffre et une explication, c'est le chiffre qui reste
+en mémoire. Sur un examen où le B2 conditionne une naturalisation, l'ambiguïté n'est pas
+acceptable.
+
+**Ce qu'on perd, et comment on le compense.** On perd la finesse : deux productions B2 de
+qualité très différente peuvent désormais se retrouver plus proches. La progression
+**à l'intérieur** d'un niveau se lit maintenant ailleurs — dans les **bandes par critère**
+(§6.2), dans le bloc « ce que vous avez traité / oublié » (§5.4), dans les priorités et les
+exemples corrigés (§5.5), qui disent bien plus qu'un point de note. Et à l'intérieur du B2,
+les consignes distinguent explicitement « B2 tout juste atteint » (10-11) de « B2 confirmé »
+(12-16), ce qui laisse de la marge visible.
 
 **Ce qu'on affiche pour lever l'ambiguïté.** À la fin d'une épreuve complète (les 3 tâches),
 sous le niveau estimé, nous ajoutons la correspondance officielle :
 
 > Au TCF, le niveau B1 correspond à une note de 6 à 9 sur 20.
-> *Grille officielle du TCF IRN, sur l'épreuve entière. Notre note ci-dessus est pédagogique :
-> son échelle est plus fine, elle sert à suivre vos progrès.*
+> *Grille officielle du TCF IRN, sur l'épreuve entière.*
 
 C'est une **table de correspondance officielle**, pas une conversion que nous aurions
 inventée. Nous **ne transformons jamais** notre note en note de TCF : nous partons du
 **niveau** estimé, et nous affichons la fourchette officielle de ce niveau. C'est la seule
-chose qui soit honnête, parce que le niveau est la grandeur commune aux deux échelles — pas la
-note.
+chose qui soit honnête, parce que le niveau est la grandeur commune — pas la note.
 
-Depuis la version 5, cette correspondance est bien une fonction directe de **la note
-d'épreuve**, puisque le niveau d'épreuve se lit lui-même sur cette note (§6.3, §6.5) : note
-d'épreuve → niveau → fourchette officielle. Ce qui reste interdit, c'est le raccourci « notre
-13/20 = 13/20 au TCF » : les deux échelles ne se superposent pas.
+Depuis la version 5, cette correspondance est une fonction directe de **la note d'épreuve**,
+puisque le niveau d'épreuve se lit lui-même sur cette note (§6.3, §6.5) : note d'épreuve →
+niveau → fourchette officielle. Depuis la version 6, la note et la fourchette tombent en plus
+sur la **même échelle**, ce qui rend l'affichage cohérent au lieu de simplement compatible.
+
+**Ce qui reste interdit malgré tout : le raccourci « notre 13/20 = 13/20 au TCF ».** Même
+échelle ne veut pas dire même mesure. Notre note porte sur **une tâche** (ou sur la moyenne
+des trois), celle du TCF sur **l'épreuve entière**, corrigée par des examinateurs humains, sur
+un sujet passé une seule fois en conditions réelles. Ce qu'on peut dire honnêtement, c'est :
+« sur cette production, l'IA situe votre niveau à B1, et au TCF le B1 correspond à 6-9/20 ».
+Ce qu'on ne peut pas dire, c'est « vous aurez 13/20 au TCF ».
 
 **Où cette correspondance n'apparaît pas, et pourquoi.** Jamais sur le résultat d'une **tâche
 isolée**. Au TCF, la note sur 20 récompense une épreuve entière ; une tâche seule n'a pas de
 note officielle. Y afficher une fourchette TCF reviendrait à inventer une note qui n'existe
-pas. Sur l'écran d'une tâche, on garde donc « performance observée sur cette tâche » (§6.3) et
-on précise simplement que la note affichée est pédagogique.
+pas — et cela reste vrai depuis la v6, où l'échelle est pourtant la même : c'est le
+**périmètre** qui diffère, pas l'échelle. Sur l'écran d'une tâche, on garde donc
+« performance observée sur cette tâche » (§6.3) et le rappel que le niveau qui fait foi est
+celui du bilan des trois tâches.
 
-**Enfin : la grille officielle reste hors de notre notation.** Cette correspondance est un
-affichage ajouté par-dessus. Il aurait été tentant de basculer en « 10 et plus → B2 » pour
-coller au TCF — ce serait faux : l'IA note avec les repères de **notre** échelle, donc tout ce
-qu'elle juge B1 serait remonté en B2 d'un coup, et des mois de calibration mesurée (§12)
-seraient annulés. Les seuils de la version 5 (§6.3) ont, eux, été **recalés par la mesure**
-parce que la définition même de la note a changé (elle inclut désormais l'accomplissement) —
-pas pour se rapprocher de la grille officielle.
+**Comment la bascule a été faite sans casser la calibration.** Le piège était connu et il est
+écrit ici depuis la version 5 : **déplacer seulement les seuils aurait été une faute.** L'IA
+notait avec les repères de l'ancienne échelle, où une performance B2 valait 16-20 ; poser
+« B2 ≥ 10 » par-dessus cette notation aurait fait basculer en B2 une masse de productions B1
+d'un seul coup, et annulé des mois de calibration mesurée (§12).
+
+La bascule a donc consisté à faire **noter l'IA sur l'échelle du TCF**, pas à réétiqueter ses
+notes : chaque repère de notation, chaque descripteur de tâche et **les seize exemples de
+calibration** ont été ré-écrits avec leurs notes recalculées sur la nouvelle échelle ; le
+garde-fou de couplage et les seuils de plafond ont été recalculés dans la même logique
+(§5.2 bis, §6.4) ; et le tout a été **mesuré contre un témoin de la version 5 rejoué le même
+jour** (§12.4). Sans ce travail de fond, le changement de seuils seul aurait été cosmétique et
+dangereux.
+
+**Où l'ancien discours doit disparaître.** Les écrans de résultat affichaient, sous la note,
+une phrase du type « notre échelle est plus fine que celle du TCF, elle sert à suivre vos
+progrès ». Elle est **devenue fausse**. Les emplacements à corriger, côté applications :
+`ProductionScoreHero.tsx`, `ProductionSession.tsx` et `lib/types.ts` pour le web ;
+`donut_chart_score.dart`, `bilan_hero.dart` et `production_models.dart` pour le mobile. Aucun
+échange de données entre le serveur et les applications ne change : c'est du **texte
+d'interface** uniquement.
 
 ---
 
@@ -810,8 +908,10 @@ Quatre précisions qui comptent :
 Dans cet ordre :
 
 1. **Ce qu'il a traité et ce qu'il a oublié** (§5.4) — avant toute considération de langue.
-2. **La note sur 20** — annoncée comme **pédagogique**, sans correspondance TCF (§6.6) — et,
-   avec elle, la **performance observée** sur cette tâche et la **confiance** (§6.3, §7).
+2. **La note sur 20** — sur l'échelle du TCF depuis la v6, mais **sans correspondance TCF
+   affichée sur une tâche isolée** (§6.6 : au TCF, la note /20 est celle d'une épreuve
+   entière) — et, avec elle, la **performance observée** sur cette tâche et la **confiance**
+   (§6.3, §7).
 3. **Les avertissements** éventuels : limite de l'évaluation orale (§9), plafond appliqué
    (§6.4), doute signalé par les vérifications automatiques (§4).
 4. **Points forts** — ce qu'il a réussi, cité dans sa production (pas des compliments de
@@ -847,7 +947,13 @@ une « A1 non atteint », une A1, deux A2, deux B1, une B2, et un **piège**. Po
 écrit à l'avance ce qu'une bonne correction devrait dire :
 
 - le **niveau attendu**, et les niveaux **tolérés** (à un palier près) ;
-- une **fourchette de note** acceptable sur 20 ;
+- une **fourchette de note** acceptable sur 20. Depuis la v6, elle n'est plus un jugement
+  indépendant : elle se **déduit mécaniquement du niveau attendu** par la table officielle du
+  TCF (§6.6). C'est la conséquence directe de « notre note est celle du TCF » — si le niveau
+  est B1, la note ne peut être que dans 6-9. Lors de la bascule, ces fourchettes ont été
+  régénérées à partir des niveaux existants ; **les niveaux, tolérances, confiances, pièges et
+  productions n'ont pas été touchés.** On ne retouche jamais la référence pour faire passer
+  une version — on peut la ré-exprimer sur une autre échelle, jamais l'ajuster ;
 - la **confiance** attendue ;
 - si les points **obligatoires** de la consigne sont traités, et lesquels manquent ;
 - le **piège** éventuel que la production contient.
@@ -1011,6 +1117,73 @@ Ce qu'il faut en retenir, et ce qu'il ne faut pas en conclure :
   ne compare que des notes et des niveaux. Elle a été vérifiée à la main sur des productions
   réelles, et elle est garantie par le format de réponse (§5.5), mais elle n'a pas de chiffre.
 
+**Quatrième correction : l'échelle du TCF** (consignes **v6**, la version active). La v5 avait
+adopté les **critères** du vrai examen ; celle-ci adopte son **échelle**, pour supprimer la
+dernière contradiction visible à l'écran (« 12,5/20 » et « proche du B1 » sur la même carte,
+§6.6).
+
+Mesure : **une campagne v5 rejouée le même jour, sur le même modèle et le même corpus**,
+contre la v6. Trois avertissements avant de lire le tableau :
+
+1. **Les fourchettes de notes du corpus ont été régénérées** (§12.2). Elles ne sont plus des
+   jugements indépendants : ce sont l'**image mécanique du niveau attendu** par la table
+   officielle. Les niveaux attendus, les tolérances, les pièges et les productions n'ont
+   **pas** été touchés — la référence est la même, ré-exprimée sur la bonne échelle.
+   Conséquence directe : la colonne « note dans la fourchette » **n'est pas comparable** entre
+   les deux versions. Les notes de la v5 sont hors fourchette par construction, puisqu'elles
+   sont sur une autre échelle. Ce sont les **niveaux** qui se comparent.
+2. Le fournisseur a de nouveau **limité le débit** : 5 productions sur 48 perdues côté v5,
+   2 sur 48 côté v6. Les deux lectures sont données.
+3. Il a fallu **deux itérations** sur la v6 avant d'arriver à ce résultat, et elles sont
+   instructives (voir sous le tableau).
+
+| | v5 (témoin, même jour) | **v6** |
+|---|---|---|
+| productions mesurées | 43/48 | **46/48** |
+| **accord exact** | 37/43 — **86,0 %** | 40/46 — **87,0 %** |
+| **accord à un palier près** | 38/43 — 88,4 % | 46/46 — **100 %** |
+| productions **A1 non atteint** correctement classées | 4/8 | **8/8** |
+| productions **A1** correctement classées | **8/8** | 5/8 |
+| productions **A2** correctement classées | 11/12 | 11/13 |
+| productions **B1** correctement classées | 8/8 | 10/11 |
+| productions **B2** correctement classées | 6/7 | **6/6** |
+| **pièges évités** | 6/7 mesurés (le quasi-muet échoue) | **8/8** |
+| réponses inexploitables | 0 % | 0 % |
+| écart de sévérité (référence − IA) | −4,80 (non comparable, cf. avert. 1) | −0,45 |
+
+Ce qu'il faut en retenir :
+
+- **aucune erreur de la v6 ne sort de la zone que la référence elle-même accepte.** C'est le
+  chiffre le plus parlant du tableau : 100 % d'accord à un palier près, contre 88,4 %. La v5
+  produisait 5 évaluations en dehors de la tolérance annotée ; la v6, aucune ;
+- **le point faible historique du banc est réparé.** « A1 non atteint » passe de 4/8 à 8/8.
+  C'était la faiblesse écrite noir sur blanc au §12.5 depuis des mois : le serveur ne pose ce
+  niveau que si la note vaut exactement 0, et l'IA refusait de mettre 0 à une production qui
+  « disait quand même quelque chose ». Sur l'échelle du TCF il n'existe **aucun échelon entre
+  0 et 1**, ce que les consignes disent désormais explicitement ;
+- **les huit pièges sont évités**, y compris le quasi-muet que la v5 ratait, y compris les
+  deux transcriptions bruitées et le hors-sujet à 0 ;
+- **la frontière B1/B2 tient** (10/11, et 6/6 en B2) — c'était le risque principal de la
+  bascule, puisque le seuil du B2 descend de 16 à 10 ;
+- **le seul recul : les productions A1, 8/8 → 5/8**, les trois cas concernés ressortant A2.
+  Il faut le dire précisément, parce que c'est moins grave qu'il n'y paraît : (a) la référence
+  **tolère explicitement A2** sur ces trois cas ; (b) surtout, **l'IA les jugeait déjà A2 sous
+  la v5** — elle notait leur langue 7/20, ce qui est la bande **A2** de l'échelle v5. Si la v5
+  affichait quand même « A1 », c'est à cause du décalage entre les bandes de critère et les
+  bandes globales de cette version, pas parce qu'elle jugeait mieux. La v6 n'a pas dégradé ce
+  jugement : elle a cessé de le masquer.
+
+**Les deux itérations, et ce qu'elles enseignent.** La première version de la v6 classait
+correctement 8/8 des « A1 non atteint » mais laissait passer **2 faux B2** : l'IA continuait
+d'écrire 13 ou 14 pour un très bon B1, par réflexe de l'ancienne échelle. Les consignes ont
+donc reçu une **table de valeurs par palier** et une règle de méthode : *nommer d'abord le
+palier, prendre ensuite sa valeur ; un très bon B1 se note 9, jamais 12.* Les faux B2 ont
+disparu — mais la formule « tout A1 vaut 1 » a alors fait remonter à 1 des productions qui
+valaient 0, **y compris le piège du hors-sujet**. Il a fallu réaffirmer le 0 avec la même
+force (« le hors-sujet et le en-deçà du A1 valent 0, et ce 0 prime »). Enseignement général :
+**sur une échelle resserrée, chaque borne doit être ancrée explicitement, et renforcer une
+borne peut en déplacer une autre.** Seule une campagne complète le montre.
+
 **Les seuils se règlent par rejeu hors ligne, jamais à l'intuition.** Les évaluations déjà
 jouées conservent la note de chaque critère : on peut donc rejouer le passage note → niveau
 avec d'autres seuils **sans un seul appel d'IA supplémentaire**. C'est ainsi qu'a été décidé,
@@ -1033,22 +1206,32 @@ Deux enseignements de ces rejeux, qui valent d'être écrits :
 
 Le banc sert autant à mesurer les progrès qu'à nommer ce qui ne va pas.
 
-- **Le niveau « A1 non atteint » n'est presque jamais atteint.** Seule la moitié des cas
-  attendus à ce niveau y arrivent ; les autres ressortent A1. C'est une **limite de
-  construction** : le serveur ne pose « A1 non atteint » que si la note vaut **exactement 0**,
-  c'est-à-dire en pratique uniquement sur un hors-sujet total ou une production refusée par
-  les vérifications automatiques. Une production réellement en deçà du A1, mais qui obtient
-  1 ou 2 points, sera annoncée A1.
+- ~~**Le niveau « A1 non atteint » n'est presque jamais atteint.**~~ **Réglé par la v6**
+  (8/8 sur la campagne, contre 4/8 auparavant). La cause était bien celle décrite ici : le
+  serveur ne pose « A1 non atteint » que si la note vaut **exactement 0**, et l'IA refusait de
+  mettre 0 à une production qui transmettait quand même quelque chose. Sur l'échelle du TCF,
+  il n'existe **aucun échelon entre 0 et 1** — le 1 est déjà le A1 — donc tout ce qui est en
+  deçà du A1 vaut 0. Les consignes le disent maintenant explicitement, en précisant que ce 0
+  **n'accuse pas** le candidat d'être hors-sujet : la différence se lit dans le niveau annoncé
+  et dans le commentaire, pas dans le chiffre.
 - **Les productions A1 ne sont plus le point faible — c'est confirmé.** Sur les campagnes
   v4.1 telles qu'elles avaient tourné (avec l'ancien seuil), environ **37 %** d'entre elles
   étaient encore mal classées, généralement annoncées A2. Une campagne complète refaite sur
   la configuration réellement livrée (rubriques v4.1 **et** seuil A2 déplacé) le confirme :
   **7 productions A1 sur 8 sont désormais correctement classées**, soit environ 12 % d'erreur.
   Le rejeu hors ligne avait vu juste.
+- **La frontière A1/A2 est devenue le point faible.** 3 productions A1 sur 8 ressortent A2
+  (§12.4). C'est le prix de l'échelle officielle : le palier A1 y vaut **une seule valeur, 1**,
+  sans marge d'hésitation, alors que les paliers voisins en ont quatre. La moindre indulgence
+  sur un critère fait changer de palier. Les trois cas concernés sont dans la zone que la
+  référence tolère, et l'IA les jugeait déjà ainsi sous la v5, mais c'est là qu'il faudra
+  regarder en premier à la prochaine passe — de préférence avec de vraies productions
+  annotées, parce que trois cas synthétiques ne suffisent pas à trancher.
 - **La frontière B1/B2 est réparée, mais pas refermée.** Elle était le point faible du
   système : 3 productions B1 sur 12 ressortaient B2, ce qui est l'erreur la plus coûteuse
   possible (la naturalisation exige B2 depuis janvier 2026). Les consignes v4.2 ramènent
-  l'erreur à **1 ou 2 productions sur 12** selon les campagnes. Il reste **un cas qui résiste
+  l'erreur à **1 ou 2 productions sur 12** selon les campagnes, et la v6 la maintient à ce
+  niveau (10/11) malgré un seuil B2 descendu de 16 à 10 — ce qui n'allait pas de soi. Il reste **un cas qui résiste
   systématiquement** : un récit personnel très bien construit — relative, conséquence
   (« tellement… que »), comparaison hypothétique — mais au vocabulaire ordinaire et qui ne
   défend aucun point de vue. Notre référence l'a annoté B1 en le décrivant elle-même comme
@@ -1148,14 +1331,14 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 
 | Ce qu'on veut changer | Fichier |
 |-----------------------|---------|
-| **Toutes les consignes de notation** (les 4 critères du TCF et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et les seuils note → niveau**) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v5.json` (version **active**). Les versions `v4.2`, `v4.1`, `v4` et `v3` restent en place et valides : on revient en arrière en changeant **une seule variable** (`EVAL_RUBRICS_VERSION`), parce que chaque grille depuis la v5 déclare elle-même ses seuils. |
+| **Toutes les consignes de notation** (les 4 critères du TCF et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et tout ce qui se lit sur une note** : seuils note → niveau, écart du garde-fou, seuils des plafonds, bornes des bandes affichées) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v6.json` (version **active**). Les versions `v5`, `v4.2`, `v4.1`, `v4` et `v3` restent en place et valides : on revient en arrière en changeant **une seule variable** (`EVAL_RUBRICS_VERSION`), parce que chaque grille depuis la v5 déclare elle-même ses seuils — et depuis la v6, tout ce qui dépend de son échelle. |
 | **Le format de réponse de l'IA** (note, confiance, accomplissement, preuves, exemples corrigés…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v2.json` |
 | **Le comportement de l'examinateur vocal** (ton, cadre, interdiction d'orienter le candidat, ouverture T1/T2, façon de rendre la fiche de scénario T2…) | `backend_sejourfr/src/main/resources/prompts/realtime-personas-v2.json` (version active ; la v1, sans fiche de scénario, reste disponible en repli) |
 | **Les faits d'un jeu de rôle T2** (prix, délais, horaires, attitude du personnage) | colonne `agent_role_card` du sujet, en base — renseignée par les migrations `db/migration/300_tcf/production/eo/tache_2/` |
 | **Les seuils de niveau, les plafonds, les vérifications automatiques, les trois réglages éteints** | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.production-evaluation` |
 | **La patience / réactivité de l'examinateur vocal** (détection de fin de parole) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.realtime.gemini.vad` |
 | **Le corpus de référence du banc de mesure** | `backend_sejourfr/src/test/resources/calibration/golden-set-v1.json` |
-| **La grille officielle du TCF** (niveau → fourchette de note, §6.6) | `backend_sejourfr/src/main/java/com/sejourfr/app/enums/BandeNoteTcf.java` — dans le code et **pas** dans la configuration : c'est une donnée officielle, pas un réglage |
+| **La grille officielle du TCF** (niveau → fourchette de note, §6.6) | `backend_sejourfr/src/main/java/com/sejourfr/app/enums/BandeNoteTcf.java` — dans le code et **pas** dans la configuration : c'est une donnée officielle, pas un réglage. Depuis la v6, la grille active la reprend à l'identique comme échelle de notation ; cet enum reste malgré tout la source officielle et sert à **afficher** la fourchette du niveau atteint |
 
 > **Deux garde-fous automatiques** : au démarrage, l'application **refuse de démarrer** si les
 > consignes de notation sont incohérentes — critère inconnu, poids qui ne font pas 100 %, tâche
@@ -1196,15 +1379,19 @@ revient à lui faire payer un examen officiel qu'il va rater. La même exigence 
 l'échelle : pour annoncer B2 — le niveau exigé pour la naturalisation, dans les quatre
 épreuves et sans compensation — l'IA doit pouvoir **citer** ce qui le prouve.
 
-Notre note sur 20 est **pédagogique** : elle est plus fine que celle du TCF, où 10/20 vaut déjà
-B2. On ne la convertit pas — au bilan d'une épreuve, on affiche le niveau estimé **et** la
-fourchette officielle correspondante, pour que personne ne confonde les deux échelles (§6.6).
+**Notre note sur 20 est celle du TCF** depuis la version 6 : **10/20 vaut B2**, 6-9 vaut B1,
+2-5 vaut A2, 1 vaut A1, 0 veut dire « rien d'exploitable ». C'est la table officielle, reprise
+telle quelle — il n'y a plus deux échelles à ne pas confondre. On ne convertit toujours pas la
+note pour autant : au bilan d'une épreuve, on affiche le niveau estimé **et** la fourchette
+officielle de ce niveau, parce que notre note porte sur une tâche et celle du TCF sur une
+épreuve entière (§6.6).
 
 Trois choses qu'on **ne cache pas** :
 
 - à l'oral, **on ne juge que la transcription** — la voix n'est pas analysée, et c'est une
   limite technique, pas un choix pédagogique ;
-- notre notation est **mesurée**, et la mesure dit encore ce qui cloche : le niveau « A1 non
-  atteint » reste presque inatteignable, et un cas de frontière B1/B2 résiste toujours ;
+- notre notation est **mesurée**, et la mesure dit encore ce qui cloche : sur l'échelle
+  officielle, le palier A1 ne vaut qu'**une seule valeur**, et 3 productions A1 sur 8
+  ressortent A2 ; un cas de frontière B1/B2 résiste toujours ;
 - le corpus qui sert à cette mesure est **écrit à la main** : il doit être remplacé par de
   vraies productions annotées par des enseignants.

@@ -305,10 +305,6 @@ public class AiEvaluationService {
         // `code`). Source = la rubrique de la tache (fallback DB) : evite au mobile
         // de maintenir une table parallele code→libelle qui derive.
         enrichScoresWithLabels(feedback, task);
-        // Bande qualitative par critere, derivee de note_sur_20 : ce sont les
-        // fronts qui l'AFFICHENT a la place du nombre (une IA ne distingue pas
-        // honnetement un 13 d'un 14). note_sur_20 reste dans le JSON.
-        applyBandesCriteres(feedback);
         // Forme unique de points_a_ameliorer pour les fronts (objets
         // {constat, comment, exemple}), quelle que soit la version de schema.
         feedback.put("points_a_ameliorer", normalizePointsAAmeliorer(feedback.get("points_a_ameliorer")));
@@ -322,6 +318,12 @@ public class AiEvaluationService {
         // moitie de la note, donc du niveau : c'est ce filet qui empeche une
         // consigne bien cochee en francais pauvre de faire monter d'un palier.
         applyCouplage(feedback, submissionId);
+        // Bande qualitative par critere, derivee de note_sur_20 : ce sont les
+        // fronts qui l'AFFICHENT a la place du nombre (une IA ne distingue pas
+        // honnetement un 13 d'un 14). note_sur_20 reste dans le JSON. APRES le
+        // couplage : sinon la bande affichee decrirait la note d'AVANT le
+        // plafonnement, et contredirait le nombre qui l'accompagne.
+        applyBandesCriteres(feedback);
         // note_globale calculee SERVEUR a partir des scores par critere ponderes
         // par la rubrique : on ecrase la valeur du LLM (advisory). Garantit la
         // coherence global <-> criteres. Si la rubrique est absente, on conserve
@@ -574,8 +576,10 @@ public class AiEvaluationService {
     }
 
     /**
-     * Ajoute a chaque score sa {@code bande} qualitative (16-20 / 11-15 / 6-10 /
-     * 1-5 / 0). Les fronts affichent la bande, plus le nombre.
+     * Ajoute a chaque score sa {@code bande} qualitative, aux bornes de la
+     * GRILLE ACTIVE (v3-v5 : 16-20 / 11-15 / 6-10 / 1-5 / 0 ; v6, echelle du
+     * TCF : 10-20 / 6-9 / 2-5 / 1 / 0). Les fronts affichent la bande, plus le
+     * nombre.
      */
     @SuppressWarnings("unchecked")
     private void applyBandesCriteres(Map<String, Object> feedback) {
@@ -584,7 +588,7 @@ public class AiEvaluationService {
             if (!(s instanceof Map<?, ?> rawMap)) continue;
             Map<String, Object> sm = (Map<String, Object>) rawMap;
             if (!(sm.get("note_sur_20") instanceof Number n)) continue;
-            BandeCritere bande = BandeCritere.of(new BigDecimal(n.toString()));
+            BandeCritere bande = BandeCritere.of(new BigDecimal(n.toString()), rubrics.bandesCriteres());
             if (bande != null) sm.put("bande", bande.name());
         }
     }
@@ -606,7 +610,7 @@ public class AiEvaluationService {
      */
     @SuppressWarnings("unchecked")
     private void applyCouplage(Map<String, Object> feedback, UUID submissionId) {
-        ProductionEvaluationProperties.Couplage cfg = props.getCouplage();
+        ProductionEvaluationProperties.Couplage cfg = rubrics.couplage();
         if (!cfg.isEnabled() || !(feedback.get("scores_criteres") instanceof List<?> scores)) return;
 
         Map<String, BigDecimal> notes = notesParCode(feedback.get("scores_criteres"));
@@ -658,7 +662,7 @@ public class AiEvaluationService {
 
     private NiveauCecrl applyPlafonds(Map<String, Object> feedback, ProductionTask task,
                                       NiveauCecrl niveau, UUID submissionId) {
-        ProductionEvaluationProperties.Plafonds cfg = props.getPlafonds();
+        ProductionEvaluationProperties.Plafonds cfg = rubrics.plafonds();
         if (!cfg.isEnabled() || niveau == null) return niveau;
 
         Map<String, BigDecimal> notes = notesParCode(feedback.get("scores_criteres"));

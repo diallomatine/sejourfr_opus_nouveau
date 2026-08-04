@@ -51,6 +51,12 @@ public class ProductionRubricsProvider {
     private Map<String, Map<String, Object>> rubrics = Map.of();
     /** Passage note -> niveau EFFECTIF : bloc {@code commun.niveau} du fichier, sinon la config. */
     private ProductionEvaluationProperties.NiveauCecrl niveauCecrl;
+    /** Garde-fou de couplage EFFECTIF : bloc {@code commun.couplage} du fichier, sinon la config. */
+    private ProductionEvaluationProperties.Couplage couplage;
+    /** Plafonds de niveau EFFECTIFS : bloc {@code commun.plafonds} du fichier, sinon la config. */
+    private ProductionEvaluationProperties.Plafonds plafonds;
+    /** Bandes qualitatives EFFECTIVES : bloc {@code commun.bandes_criteres} du fichier, sinon la config. */
+    private ProductionEvaluationProperties.BandesCriteres bandesCriteres;
 
     public ProductionRubricsProvider(ProductionEvaluationProperties props, ObjectMapper objectMapper) {
         this.props = props;
@@ -88,12 +94,18 @@ public class ProductionRubricsProvider {
             this.commun = Map.copyOf(communMap);
             this.rubrics = Map.copyOf(built);
             this.niveauCecrl = resolveNiveau(communMap.get("niveau"));
+            this.couplage = resolveCouplage(communMap.get("couplage"));
+            this.plafonds = resolvePlafonds(communMap.get("plafonds"));
+            this.bandesCriteres = resolveBandes(communMap.get("bandes_criteres"));
             log.info("Rubriques production chargees ({}) : {} sections communes, {} taches, "
-                    + "niveau depuis {} (criteres {}, seuils B2={} B1={} A2={})",
+                    + "niveau depuis {} (criteres {}, seuils B2={} B1={} A2={}), "
+                    + "couplage ecart-max={}, bandes criteres {}/{}/{}",
                 version, sectionCount(), rubrics.size(),
                 communMap.get("niveau") instanceof Map<?, ?> ? "le fichier" : "la config",
                 niveauCecrl.getSourceCriteres(), niveauCecrl.getSeuilB2(),
-                niveauCecrl.getSeuilB1(), niveauCecrl.getSeuilA2());
+                niveauCecrl.getSeuilB1(), niveauCecrl.getSeuilA2(),
+                couplage.getEcartMax(), bandesCriteres.getTresBonneMaitrise(),
+                bandesCriteres.getSatisfaisant(), bandesCriteres.getEnCoursAcquisition());
         } catch (Exception e) {
             // Source unique des instructions : un fichier absent/illisible est une
             // erreur de config bloquante (fail-fast au demarrage).
@@ -128,6 +140,34 @@ public class ProductionRubricsProvider {
         return niveauCecrl == null ? props.getNiveauCecrl() : niveauCecrl;
     }
 
+    /**
+     * Garde-fou de couplage EFFECTIF. Le coupe-circuit ({@code enabled}) et les
+     * listes de codes restent du ressort du deploiement ; seul {@code ecart_max}
+     * est une propriete de l'ECHELLE, donc de la grille : +4 sur une echelle ou
+     * le B2 commence a 16 et +1 sur celle du TCF concedent la meme protection.
+     */
+    public ProductionEvaluationProperties.Couplage couplage() {
+        return couplage == null ? props.getCouplage() : couplage;
+    }
+
+    /**
+     * Plafonds de niveau EFFECTIFS. Leurs seuils se lisent sur la note d'un
+     * critere : ils suivent donc l'echelle de la grille, pas le deploiement.
+     */
+    public ProductionEvaluationProperties.Plafonds plafonds() {
+        return plafonds == null ? props.getPlafonds() : plafonds;
+    }
+
+    /**
+     * Bandes qualitatives EFFECTIVES affichees aux candidats a la place du
+     * nombre. Memes bornes que les paliers de la grille active : les laisser en
+     * dur ferait afficher « en cours d'acquisition » a un bon B1 des que
+     * l'echelle change.
+     */
+    public ProductionEvaluationProperties.BandesCriteres bandesCriteres() {
+        return bandesCriteres == null ? props.getBandesCriteres() : bandesCriteres;
+    }
+
     /** Fusionne le bloc {@code commun.niveau} du fichier avec la config (le fichier gagne). */
     private ProductionEvaluationProperties.NiveauCecrl resolveNiveau(Object node) {
         ProductionEvaluationProperties.NiveauCecrl base = props.getNiveauCecrl();
@@ -138,6 +178,42 @@ public class ProductionRubricsProvider {
         out.setSeuilB2(nombre(m.get("seuil_b2"), base.getSeuilB2()));
         out.setSeuilB1(nombre(m.get("seuil_b1"), base.getSeuilB1()));
         out.setSeuilA2(nombre(m.get("seuil_a2"), base.getSeuilA2()));
+        return out;
+    }
+
+    /** Fusionne {@code commun.couplage} avec la config : seul {@code ecart_max} vient du fichier. */
+    private ProductionEvaluationProperties.Couplage resolveCouplage(Object node) {
+        ProductionEvaluationProperties.Couplage base = props.getCouplage();
+        if (!(node instanceof Map<?, ?> m)) return base;
+        ProductionEvaluationProperties.Couplage out = new ProductionEvaluationProperties.Couplage();
+        out.setEnabled(base.isEnabled());
+        out.setCriteresRealisation(base.getCriteresRealisation());
+        out.setCriteresLangue(base.getCriteresLangue());
+        out.setEcartMax(nombre(m.get("ecart_max"), base.getEcartMax()));
+        return out;
+    }
+
+    /** Fusionne {@code commun.plafonds} avec la config : seuls les SEUILS viennent du fichier. */
+    private ProductionEvaluationProperties.Plafonds resolvePlafonds(Object node) {
+        ProductionEvaluationProperties.Plafonds base = props.getPlafonds();
+        if (!(node instanceof Map<?, ?> m)) return base;
+        ProductionEvaluationProperties.Plafonds out = new ProductionEvaluationProperties.Plafonds();
+        out.setEnabled(base.isEnabled());
+        out.setPrisePositionNiveauMax(base.getPrisePositionNiveauMax());
+        out.setConduiteEchangeNiveauMax(base.getConduiteEchangeNiveauMax());
+        out.setPrisePositionSeuil(nombre(m.get("prise_position_seuil"), base.getPrisePositionSeuil()));
+        out.setConduiteEchangeSeuil(nombre(m.get("conduite_echange_seuil"), base.getConduiteEchangeSeuil()));
+        return out;
+    }
+
+    /** Fusionne {@code commun.bandes_criteres} avec la config (le fichier gagne). */
+    private ProductionEvaluationProperties.BandesCriteres resolveBandes(Object node) {
+        ProductionEvaluationProperties.BandesCriteres base = props.getBandesCriteres();
+        if (!(node instanceof Map<?, ?> m)) return base;
+        ProductionEvaluationProperties.BandesCriteres out = new ProductionEvaluationProperties.BandesCriteres();
+        out.setTresBonneMaitrise(nombre(m.get("tres_bonne_maitrise"), base.getTresBonneMaitrise()));
+        out.setSatisfaisant(nombre(m.get("satisfaisant"), base.getSatisfaisant()));
+        out.setEnCoursAcquisition(nombre(m.get("en_cours_acquisition"), base.getEnCoursAcquisition()));
         return out;
     }
 
