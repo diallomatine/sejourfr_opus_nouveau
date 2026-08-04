@@ -896,6 +896,13 @@ suggestions → corrections**. Règles à ne pas défaire :
   **obligatoires** des **pistes** (`obligatoire: false`) : une piste non
   traitée n'enlève aucun point et doit être présentée comme telle.
 - `points_a_ameliorer` est plafonné à 2 côté backend → titre « Vos priorités ».
+- **La note /20 est PÉDAGOGIQUE, pas une note de TCF** (notre échelle : 16-20 = B2,
+  11-15 = B1… ; au TCF IRN 10/20 vaut déjà B2). Sur le résultat d'une tâche, on le
+  dit (`NoteScoreDonut`) et on n'affiche **aucune** correspondance TCF — une tâche
+  isolée n'a pas de note officielle. La correspondance
+  (`ProductionBilanResponse.correspondanceTcf` → `correspondanceTcfPhrase`) ne
+  s'affiche qu'au **bilan d'épreuve** (`BilanView` dans `ProductionSession.tsx`),
+  au même wording que le mobile. Cf. `docs/notation-ia-eo-ee.md` §6.6.
 - **Rétrocompatibilité v3** : les évaluations déjà en base n'ont ni niveau, ni
   confiance, ni accomplissement, ni bandes, ni preuves. Les blocs concernés ne
   sont pas rendus et les critères retombent sur l'affichage chiffré historique.

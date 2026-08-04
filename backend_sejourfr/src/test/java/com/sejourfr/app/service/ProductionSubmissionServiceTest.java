@@ -1,13 +1,16 @@
 package com.sejourfr.app.service;
 
+import com.sejourfr.app.dto.CorrespondanceTcfDto;
 import com.sejourfr.app.dto.ProductionBilanResponse;
 import com.sejourfr.app.dto.ProductionSubmissionDto;
 import com.sejourfr.app.dto.SubmitProductionTextRequest;
+import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.ProductionSubmission;
 import com.sejourfr.app.entity.ProductionTask;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
 import com.sejourfr.app.manager.AttemptManager;
@@ -267,5 +270,31 @@ class ProductionSubmissionServiceTest {
         assertThat(resp.niveauGlobal()).isNull();
         assertThat(resp.evaluatedCount()).isZero();
         assertThat(resp.expectedCount()).isEqualTo(ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE);
+        assertThat(resp.correspondanceTcf()).isNull();
+    }
+
+    @Test
+    void bilan_examen_expose_la_correspondance_officielle_du_niveau() {
+        Attempt exam = attempt();
+        User u = new User();
+        u.setId(userId);
+        exam.setUser(u);
+        exam.setEpreuve(EpreuveType.TCF_EE);
+        exam.setSlotNumber(1);
+        when(attemptManager.findById(attemptId)).thenReturn(Optional.of(exam));
+        when(submissionManager.findByAttemptId(attemptId)).thenReturn(List.of());
+
+        Map<Integer, AiEvaluation> evals = Map.of(
+                1, new AiEvaluation(), 2, new AiEvaluation(), 3, new AiEvaluation());
+        CorrespondanceTcfDto correspondance = new CorrespondanceTcfDto(NiveauCecrl.B1, 6, 9);
+        when(bilanService.latestEvalsByTache(any())).thenReturn(evals);
+        when(bilanService.bilanEpreuve(evals)).thenReturn(NiveauCecrl.B1);
+        when(bilanService.moyenneNotes(any())).thenReturn(null);
+        when(bilanService.correspondanceTcf(NiveauCecrl.B1)).thenReturn(correspondance);
+
+        ProductionBilanResponse resp = service.bilan(attemptId);
+
+        assertThat(resp.niveauGlobal()).isEqualTo(NiveauCecrl.B1);
+        assertThat(resp.correspondanceTcf()).isEqualTo(correspondance);
     }
 }

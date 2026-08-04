@@ -367,6 +367,9 @@ sans nuance ni lexique précis reste du B1.
 Chaque critère est noté sur 20, **en absolu** (sur toute l'échelle A1→C2), pas « par rapport
 au niveau visé de la tâche ».
 
+> ⚠️ Cette échelle est **la nôtre**, pédagogique — ce n'est pas celle du TCF, où 10/20 vaut
+> déjà B2. La différence est expliquée au **§6.6**, à lire avant toute comparaison de notes.
+
 | Note d'un critère | Correspondance |
 |-------------------|----------------|
 | 16 – 20 | Maîtrise de niveau B2 et plus |
@@ -462,6 +465,65 @@ C'est le seul niveau qui fait foi. Il apparaît à la fin d'un examen blanc qui 
   fiables sur ces formats courts).
 - Une tâche non rendue (temps écoulé, abandon) compte comme **0**.
 - Une production hors-sujet compte 0 elle aussi : elle pénalise sans annuler le reste.
+
+### 6.6 Notre note sur 20 n'est **pas** la note du TCF
+
+C'est le point le plus important de ce chapitre, et celui qui trompe le plus de candidats.
+
+Nous affichons une note sur 20. Le TCF aussi. **Ce ne sont pas les mêmes 20.**
+
+**La note du vrai TCF.** Aux épreuves d'expression (écrite et orale), le TCF IRN donne une
+note sur 20 pour **l'épreuve entière** — les trois tâches ensemble — et cette note se traduit
+en niveau selon une grille officielle très resserrée :
+
+| Note obtenue au TCF | Niveau attribué |
+|---|---|
+| 0 | A1 non atteint |
+| 1 | A1 |
+| 2 – 5 | **A2** |
+| 6 – 9 | **B1** |
+| 10 – 20 | **B2** |
+
+Autrement dit : **au vrai TCF, 10/20 suffit pour être B2** — le niveau exigé pour la
+naturalisation. Et 6/20 suffit pour B1, le niveau exigé pour la carte de résident.
+
+**Notre note.** La nôtre est une **note pédagogique**. Elle suit l'échelle « scolaire »
+décrite au §6.1 : autour de 16-20 pour du B2, 11-15 pour du B1, 6-10 pour du A2, 1-5 pour du
+A1. Un 12/20 chez nous, c'est du B1 ; au TCF, un 12/20 c'est du B2. **L'écart est énorme, et
+il est voulu.**
+
+**Pourquoi on ne copie pas l'échelle du TCF.** Parce qu'elle est trop comprimée pour
+apprendre : la moitié de l'échelle (10 à 20) vaut un seul et même niveau, B2. Un candidat qui
+passe de 10 à 18 aurait la même mention pendant des semaines, sans jamais voir qu'il
+progresse ; et en dessous, tout se joue entre 2 et 9, où un point d'écart fait changer de
+niveau. Notre échelle plus fine sert exactement à ça : **montrer les progrès à l'intérieur
+d'un niveau**, et rendre visible ce qui sépare un B1 fragile d'un B1 solide.
+
+**Ce qu'on affiche pour lever l'ambiguïté.** À la fin d'une épreuve complète (les 3 tâches),
+sous le niveau estimé, nous ajoutons la correspondance officielle :
+
+> Au TCF, le niveau B1 correspond à une note de 6 à 9 sur 20.
+> *Grille officielle du TCF IRN, sur l'épreuve entière. Notre note ci-dessus est pédagogique :
+> son échelle est plus fine, elle sert à suivre vos progrès.*
+
+C'est une **table de correspondance officielle**, pas une conversion que nous aurions
+inventée. Nous **ne transformons jamais** notre note en note de TCF : nous partons du
+**niveau** estimé, et nous affichons la fourchette officielle de ce niveau. C'est la seule
+chose qui soit honnête, parce que le niveau est la grandeur commune aux deux échelles — pas la
+note.
+
+**Où cette correspondance n'apparaît pas, et pourquoi.** Jamais sur le résultat d'une **tâche
+isolée**. Au TCF, la note sur 20 récompense une épreuve entière ; une tâche seule n'a pas de
+note officielle. Y afficher une fourchette TCF reviendrait à inventer une note qui n'existe
+pas. Sur l'écran d'une tâche, on garde donc « performance observée sur cette tâche » (§6.3) et
+on précise simplement que la note affichée est pédagogique.
+
+**Enfin : aucun seuil n'a bougé.** Cette correspondance est un affichage ajouté par-dessus, pas
+un changement de notation. Les seuils du §6.3, les plafonds du §6.4 et la pondération du §6.5
+sont exactement les mêmes qu'avant. Il aurait été tentant de basculer en « 10 et plus → B2 »
+pour coller au TCF — ce serait faux : l'IA note avec les repères de **notre** échelle, donc
+tout ce qu'elle juge B1 serait remonté en B2 d'un coup, et des mois de calibration mesurée
+(§12) seraient annulés.
 
 ---
 
@@ -660,8 +722,8 @@ Quatre précisions qui comptent :
 Dans cet ordre :
 
 1. **Ce qu'il a traité et ce qu'il a oublié** (§5.4) — avant toute considération de langue.
-2. **La note sur 20** et, avec elle, la **performance observée** sur cette tâche et la
-   **confiance** (§6.3, §7).
+2. **La note sur 20** — annoncée comme **pédagogique**, sans correspondance TCF (§6.6) — et,
+   avec elle, la **performance observée** sur cette tâche et la **confiance** (§6.3, §7).
 3. **Les avertissements** éventuels : limite de l'évaluation orale (§9), plafond appliqué
    (§6.4), doute signalé par les vérifications automatiques (§4).
 4. **Points forts** — ce qu'il a réussi, cité dans sa production (pas des compliments de
@@ -926,6 +988,7 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 | **Les seuils de niveau, les plafonds, les vérifications automatiques, les trois réglages éteints** | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.production-evaluation` |
 | **La patience / réactivité de l'examinateur vocal** (détection de fin de parole) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.realtime.gemini.vad` |
 | **Le corpus de référence du banc de mesure** | `backend_sejourfr/src/test/resources/calibration/golden-set-v1.json` |
+| **La grille officielle du TCF** (niveau → fourchette de note, §6.6) | `backend_sejourfr/src/main/java/com/sejourfr/app/enums/BandeNoteTcf.java` — dans le code et **pas** dans la configuration : c'est une donnée officielle, pas un réglage |
 
 > **Deux garde-fous automatiques** : au démarrage, l'application **refuse de démarrer** si les
 > consignes de notation sont incohérentes — critère inconnu, poids qui ne font pas 100 %, tâche
@@ -962,6 +1025,10 @@ rien de plus que l'élémentaire reste notée comme telle, parce qu'annoncer B1 
 revient à lui faire payer un examen officiel qu'il va rater. La même exigence vaut en haut de
 l'échelle : pour annoncer B2 — le niveau exigé pour la naturalisation, dans les quatre
 épreuves et sans compensation — l'IA doit pouvoir **citer** ce qui le prouve.
+
+Notre note sur 20 est **pédagogique** : elle est plus fine que celle du TCF, où 10/20 vaut déjà
+B2. On ne la convertit pas — au bilan d'une épreuve, on affiche le niveau estimé **et** la
+fourchette officielle correspondante, pour que personne ne confonde les deux échelles (§6.6).
 
 Trois choses qu'on **ne cache pas** :
 

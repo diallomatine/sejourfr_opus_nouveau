@@ -8,6 +8,7 @@ import { ApiException, attemptApi, fullTcfExamApi, productionApi } from "@/lib/a
 import { useAuth } from "@/lib/auth-context";
 import {
   cecrlIndex,
+  correspondanceTcfPhrase,
   isSubmissionPending,
   niveauCecrlLabel,
   type NiveauCecrl,
@@ -668,6 +669,7 @@ function BilanView({
   const avgNote = bilan?.moyenneSur20 ?? null;
   const niveauGlobal = bilan?.niveauGlobal ?? null;
   const targetIdx = niveauGlobal != null ? cecrlIndex(niveauGlobal) : -1;
+  const correspondance = correspondanceTcfPhrase(bilan?.correspondanceTcf);
 
   return (
     <>
@@ -713,6 +715,16 @@ function BilanView({
               ))}
             </div>
           </>
+        )}
+        {correspondance && (
+          <div className={prod.sessTcf}>
+            <p className={prod.sessTcfPhrase}>{correspondance}</p>
+            <p className={prod.sessTcfSource}>
+              Grille officielle du TCF IRN, sur l&apos;épreuve entière. Notre note
+              ci-dessus est pédagogique : son échelle est plus fine, elle sert à
+              suivre vos progrès.
+            </p>
+          </div>
         )}
       </div>
 

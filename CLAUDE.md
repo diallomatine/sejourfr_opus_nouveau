@@ -194,6 +194,17 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   Convention de signe partout : **écart = référence − IA** (négatif = IA trop
   indulgente). **Toute modif d'une consigne de notation ou d'un seuil se mesure
   avant/après** — sinon c'est un pari.
+- **Deux échelles sur 20, à ne jamais confondre** : la nôtre est **pédagogique**
+  (16-20 = B2, 11-15 = B1, 6-10 = A2, 1-5 = A1) ; celle du TCF IRN est bien plus
+  comprimée (0 → A1 non atteint, 1 → A1, 2-5 → A2, 6-9 → B1, **10-20 → B2**).
+  On ne convertit **rien** et on ne touche à **aucun seuil** : la grille
+  officielle vit dans l'enum `BandeNoteTcf` (code, pas config — c'est une
+  donnée officielle), est exposée en `ProductionBilanResponse.correspondanceTcf`
+  (`{niveau, scoreTcfMin, scoreTcfMax}`) et n'est affichée qu'au **bilan d'une
+  épreuve entière**. **Jamais sur une tâche isolée** — au TCF la note /20 porte
+  sur les 3 tâches, une tâche seule n'a pas de note officielle ; on y dit
+  seulement que la note affichée est pédagogique. Détail grand public :
+  `docs/notation-ia-eo-ee.md` §6.6.
 - **Console de calibration admin** (`features/calibration/` +
   `AdminCalibrationService`) : annotation humaine de vraies productions, biais et
   dispersion vs IA. C'est elle qui doit faire grossir le corpus réel.

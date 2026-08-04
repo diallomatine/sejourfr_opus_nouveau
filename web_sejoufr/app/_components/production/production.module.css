@@ -1042,6 +1042,27 @@
   color: rgba(255, 255, 255, 0.7); margin-top: 6px;
 }
 
+/* Correspondance avec la grille officielle du TCF IRN. Uniquement au bilan
+   d'une épreuve entière : une tâche isolée n'a pas de note TCF. */
+.sessTcf {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+}
+.sessTcfPhrase {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  font-weight: 600;
+  color: #fff;
+}
+.sessTcfSource {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.78);
+}
+
 .sessSectionLabel {
   font-family: var(--font-mono); font-size: 10px; font-weight: 700;
   letter-spacing: 0.14em; color: var(--color-muted); margin-bottom: 4px;

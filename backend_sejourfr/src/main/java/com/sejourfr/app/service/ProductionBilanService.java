@@ -1,8 +1,10 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.config.ProductionEvaluationProperties;
+import com.sejourfr.app.dto.CorrespondanceTcfDto;
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.ProductionSubmission;
+import com.sejourfr.app.enums.BandeNoteTcf;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.manager.AiEvaluationManager;
@@ -177,6 +179,21 @@ public class ProductionBilanService {
         log.info("Coherence bilan : tache 3 a {} (< {}) — bilan {} plafonne a {}.",
             niveauT3, plancherT3, bilan, plafond);
         return plafond;
+    }
+
+    /**
+     * Fourchette de note officielle du TCF IRN correspondant à un niveau
+     * d'épreuve. Simple lecture de {@link BandeNoteTcf} — aucune conversion de
+     * note : nos notes sont sur une échelle pédagogique plus fine, seul le
+     * <b>niveau</b> est comparable à celui du TCF.
+     *
+     * <p>Null quand le niveau est inconnu (aucune tâche évaluée) ou hors
+     * échelle TCF (C1/C2) : les fronts n'affichent alors rien de plus.
+     */
+    public CorrespondanceTcfDto correspondanceTcf(NiveauCecrl niveau) {
+        BandeNoteTcf bande = BandeNoteTcf.of(niveau);
+        if (bande == null) return null;
+        return new CorrespondanceTcfDto(bande.getNiveau(), bande.getScoreMin(), bande.getScoreMax());
     }
 
     /** Moyenne simple /20 (1 décimale) des notes des évaluations, null si aucune. */

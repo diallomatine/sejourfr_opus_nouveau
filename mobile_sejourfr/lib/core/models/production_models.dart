@@ -409,6 +409,42 @@ class ProductionExampleDto {
       );
 }
 
+/// Fourchette de note officielle du TCF IRN correspondant a un niveau CECRL, sur
+/// les epreuves d'expression — miroir de CorrespondanceTcfDto.
+///
+/// Grille officielle : 0 → A1 non atteint, 1 → A1, 2-5 → A2, 6-9 → B1,
+/// 10-20 → B2. Ce n'est PAS une conversion de notre note : notre echelle est
+/// pedagogique et bien plus fine (10/20 chez nous n'est pas B2). A n'afficher
+/// qu'au bilan d'une epreuve entiere — au TCF, une tache isolee n'a pas de note.
+class CorrespondanceTcf {
+  const CorrespondanceTcf({
+    required this.niveau,
+    required this.scoreTcfMin,
+    required this.scoreTcfMax,
+  });
+
+  final NiveauCecrl niveau;
+  final int scoreTcfMin;
+  final int scoreTcfMax;
+
+  /// Phrase prete a afficher, identique au web (parite non negociable).
+  String get phrase {
+    final plage = scoreTcfMin == scoreTcfMax
+        ? 'la note de $scoreTcfMin sur 20'
+        : 'une note de $scoreTcfMin à $scoreTcfMax sur 20';
+    return 'Au TCF, le niveau ${niveau.displayName} correspond à $plage.';
+  }
+
+  static CorrespondanceTcf? fromJsonNullable(Object? json) {
+    if (json is! Map<String, dynamic>) return null;
+    final niveau = NiveauCecrl.fromWireNullable(json['niveau'] as String?);
+    final min = (json['scoreTcfMin'] as num?)?.toInt();
+    final max = (json['scoreTcfMax'] as num?)?.toInt();
+    if (niveau == null || min == null || max == null) return null;
+    return CorrespondanceTcf(niveau: niveau, scoreTcfMin: min, scoreTcfMax: max);
+  }
+}
+
 /// Bilan d'epreuve de production EO/EE — miroir de ProductionBilanResponse.
 /// Le `niveauGlobal` n'est calcule (cote backend) qu'en session d'examen blanc
 /// (`exam == true`) et quand les evaluations sont completes ; il reste null en
@@ -426,6 +462,7 @@ class ProductionBilan {
     this.moyenneSur20,
     this.niveauGlobal,
     this.slotNumber,
+    this.correspondanceTcf,
   });
 
   final String attemptId;
@@ -454,6 +491,10 @@ class ProductionBilan {
   /// Niveau CECRL global ; null si `!exam` ou evaluations incompletes.
   final NiveauCecrl? niveauGlobal;
 
+  /// Fourchette officielle TCF du `niveauGlobal` ; null exactement quand
+  /// `niveauGlobal` l'est.
+  final CorrespondanceTcf? correspondanceTcf;
+
   bool get isComplete => evaluatedCount >= expectedCount && expectedCount > 0;
 
   factory ProductionBilan.fromJson(Map<String, dynamic> json) => ProductionBilan(
@@ -466,5 +507,6 @@ class ProductionBilan {
         slotNumber: (json['slotNumber'] as num?)?.toInt(),
         moyenneSur20: (json['moyenneSur20'] as num?)?.toDouble(),
         niveauGlobal: NiveauCecrl.fromWireNullable(json['niveauGlobal'] as String?),
+        correspondanceTcf: CorrespondanceTcf.fromJsonNullable(json['correspondanceTcf']),
       );
 }

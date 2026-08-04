@@ -128,4 +128,54 @@ void main() {
     expect(eval.confiance, isNull);
     expect(eval.hasNiveauObserve, isFalse);
   });
+
+  group('correspondance avec la grille officielle du TCF', () {
+    Map<String, dynamic> bilanJson(Object? correspondance, {String? niveau}) =>
+        <String, dynamic>{
+          'attemptId': 'a1',
+          'epreuve': 'TCF_EE',
+          'exam': true,
+          'evaluatedCount': 3,
+          'expectedCount': 3,
+          'finished': true,
+          'moyenneSur20': 12.5,
+          'niveauGlobal': niveau,
+          'correspondanceTcf': correspondance,
+        };
+
+    test('le bilan expose la fourchette envoyée par le backend', () {
+      final bilan = ProductionBilan.fromJson(bilanJson(
+        <String, dynamic>{'niveau': 'B1', 'scoreTcfMin': 6, 'scoreTcfMax': 9},
+        niveau: 'B1',
+      ));
+
+      expect(bilan.correspondanceTcf, isNotNull);
+      expect(bilan.correspondanceTcf!.niveau, NiveauCecrl.b1);
+      expect(bilan.correspondanceTcf!.scoreTcfMin, 6);
+      expect(bilan.correspondanceTcf!.scoreTcfMax, 9);
+      expect(
+        bilan.correspondanceTcf!.phrase,
+        'Au TCF, le niveau B1 correspond à une note de 6 à 9 sur 20.',
+      );
+    });
+
+    test('une fourchette d\'un seul point se formule au singulier', () {
+      const c = CorrespondanceTcf(
+        niveau: NiveauCecrl.a1,
+        scoreTcfMin: 1,
+        scoreTcfMax: 1,
+      );
+
+      expect(c.phrase, 'Au TCF, le niveau A1 correspond à la note de 1 sur 20.');
+    });
+
+    test('un bilan sans niveau exploitable n\'a pas de correspondance', () {
+      expect(ProductionBilan.fromJson(bilanJson(null)).correspondanceTcf, isNull);
+      expect(
+        ProductionBilan.fromJson(bilanJson(<String, dynamic>{'niveau': 'B1'}))
+            .correspondanceTcf,
+        isNull,
+      );
+    });
+  });
 }

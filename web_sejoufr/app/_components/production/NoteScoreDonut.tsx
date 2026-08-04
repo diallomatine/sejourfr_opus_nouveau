@@ -7,6 +7,11 @@ import styles from "./production.module.css";
  * n'est plus attribué par tâche (il ne vit qu'au bilan d'épreuve en examen
  * blanc). La couleur du donut suit le pourcentage (rouge < 40 %, ambre 40–70 %,
  * vert ≥ 70 %).
+ *
+ * Cette note est PÉDAGOGIQUE : notre échelle (16-20 = B2, 11-15 = B1, 6-10 = A2,
+ * 1-5 = A1) est plus fine que celle du TCF, où 10/20 suffit déjà pour B2. On ne
+ * met donc AUCUNE correspondance TCF ici — au TCF, la note /20 porte sur les 3
+ * tâches d'une épreuve, jamais sur une tâche isolée.
  */
 export function NoteScoreDonut({noteSurVingt}: {noteSurVingt: number | null}) {
   const note = noteSurVingt ?? 0;
@@ -46,9 +51,12 @@ export function NoteScoreDonut({noteSurVingt}: {noteSurVingt: number | null}) {
       </div>
 
       <div className={styles.scoreSide}>
-        <p className={styles.scoreNoteLabel}>Note de la tâche</p>
+        <p className={styles.scoreNoteLabel}>Note pédagogique de la tâche</p>
         <p className={styles.scoreNoteHint}>
-          Note sur 20 attribuée par l&apos;IA selon les critères du TCF.
+          Note sur 20 attribuée par l&apos;IA selon les critères du TCF. Notre
+          échelle est plus fine que celle du TCF, qui note l&apos;épreuve entière
+          et pas une tâche : la correspondance officielle s&apos;affiche au bilan
+          de l&apos;épreuve.
         </p>
       </div>
     </div>

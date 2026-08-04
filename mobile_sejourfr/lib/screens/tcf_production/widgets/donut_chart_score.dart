@@ -7,6 +7,11 @@ import '../../../core/theme/app_theme.dart';
 /// Carte de score "EE" : donut violet a droite (CustomPainter), texte score
 /// /20 a gauche. Calque sur `.donut-section` du HTML. Aucun niveau CECRL ici :
 /// le niveau n'est attribue qu'au bilan d'epreuve (examen blanc).
+///
+/// La note est PEDAGOGIQUE : notre echelle (16-20 = B2, 11-15 = B1, 6-10 = A2,
+/// 1-5 = A1) est plus fine que celle du TCF, ou 10/20 vaut deja B2. Aucune
+/// correspondance TCF ici — au TCF, la note /20 porte sur les 3 taches d'une
+/// epreuve, jamais sur une tache isolee.
 class DonutChartScore extends StatelessWidget {
   const DonutChartScore({
     super.key,
@@ -61,7 +66,7 @@ class DonutChartScore extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Score global',
+            'Note pédagogique de la tâche',
             style: AppFonts.ui(size: 13, color: AppColors.muted),
           ),
           const SizedBox(height: 12),
@@ -145,6 +150,14 @@ class DonutChartScore extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Note sur 20 attribuée par l\'IA selon les critères du TCF. Notre '
+            'échelle est plus fine que celle du TCF, qui note l\'épreuve entière '
+            'et pas une tâche : la correspondance officielle s\'affiche au bilan '
+            'de l\'épreuve.',
+            style: AppFonts.ui(size: 12, color: AppColors.muted, height: 1.5),
           ),
         ],
       ),

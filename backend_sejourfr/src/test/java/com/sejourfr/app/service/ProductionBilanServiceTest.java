@@ -1,7 +1,9 @@
 package com.sejourfr.app.service;
 
 import com.sejourfr.app.config.ProductionEvaluationProperties;
+import com.sejourfr.app.dto.CorrespondanceTcfDto;
 import com.sejourfr.app.entity.AiEvaluation;
+import com.sejourfr.app.enums.BandeNoteTcf;
 import com.sejourfr.app.enums.NiveauCecrl;
 import com.sejourfr.app.manager.AiEvaluationManager;
 import org.junit.jupiter.api.Test;
@@ -275,5 +277,65 @@ class ProductionBilanServiceTest {
             2, eval(12, 12, "12"),
             3, eval(15, 15, "15"));
         assertThat(service.moyenneNotes(evals)).isEqualByComparingTo(new BigDecimal("12.3"));
+    }
+
+    // ------------------------------------------------------------------------
+    // correspondance avec la grille officielle du TCF IRN
+    // ------------------------------------------------------------------------
+
+    @Test
+    void correspondanceTcf_reprend_la_grille_officielle_niveau_par_niveau() {
+        assertThat(service.correspondanceTcf(NiveauCecrl.A1_NON_ATTEINT))
+            .isEqualTo(new CorrespondanceTcfDto(NiveauCecrl.A1_NON_ATTEINT, 0, 0));
+        assertThat(service.correspondanceTcf(NiveauCecrl.A1))
+            .isEqualTo(new CorrespondanceTcfDto(NiveauCecrl.A1, 1, 1));
+        assertThat(service.correspondanceTcf(NiveauCecrl.A2))
+            .isEqualTo(new CorrespondanceTcfDto(NiveauCecrl.A2, 2, 5));
+        assertThat(service.correspondanceTcf(NiveauCecrl.B1))
+            .isEqualTo(new CorrespondanceTcfDto(NiveauCecrl.B1, 6, 9));
+        assertThat(service.correspondanceTcf(NiveauCecrl.B2))
+            .isEqualTo(new CorrespondanceTcfDto(NiveauCecrl.B2, 10, 20));
+    }
+
+    @Test
+    void correspondanceTcf_sans_niveau_ou_hors_echelle_tcf_reste_null() {
+        assertThat(service.correspondanceTcf(null)).isNull();
+        assertThat(service.correspondanceTcf(NiveauCecrl.C1)).isNull();
+        assertThat(service.correspondanceTcf(NiveauCecrl.C2)).isNull();
+    }
+
+    @Test
+    void bandes_officielles_contigues_et_couvrant_0_a_20() {
+        BandeNoteTcf[] bandes = BandeNoteTcf.values();
+        assertThat(bandes[0].getScoreMin()).isZero();
+        assertThat(bandes[bandes.length - 1].getScoreMax()).isEqualTo(20);
+        for (BandeNoteTcf bande : bandes) {
+            assertThat(bande.getScoreMin()).isLessThanOrEqualTo(bande.getScoreMax());
+        }
+        for (int i = 1; i < bandes.length; i++) {
+            assertThat(bandes[i].getScoreMin()).isEqualTo(bandes[i - 1].getScoreMax() + 1);
+        }
+    }
+
+    /**
+     * Garde-fou : la correspondance est un affichage derive, elle ne doit
+     * toucher a aucune decision de notation. Meme entree, meme niveau qu'avant
+     * — et une competence de 12,5/20 reste B1 chez nous alors qu'elle vaudrait
+     * B2 sur la grille officielle. C'est exactement ce qu'on ne veut PAS
+     * convertir.
+     */
+    @Test
+    void correspondanceTcf_ne_change_pas_le_niveau_calcule() {
+        Map<Integer, AiEvaluation> evals = Map.of(
+            1, eval(12, 13, "12.5"),
+            2, eval(12, 13, "12.5"),
+            3, eval(12, 13, "12.5"));
+
+        NiveauCecrl niveau = service.bilanEpreuve(evals);
+
+        assertThat(niveau).isEqualTo(NiveauCecrl.B1);
+        assertThat(service.correspondanceTcf(niveau))
+            .isEqualTo(new CorrespondanceTcfDto(NiveauCecrl.B1, 6, 9));
+        assertThat(service.bilanEpreuve(evals)).isEqualTo(niveau);
     }
 }

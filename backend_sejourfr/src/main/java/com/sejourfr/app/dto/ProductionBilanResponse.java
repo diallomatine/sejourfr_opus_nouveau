@@ -14,6 +14,11 @@ import java.util.UUID;
  * évaluées : moyenne pondérée des compétences des tâches (cf.
  * {@code ProductionBilanService}), plafonnée B2. Jamais de niveau en
  * entraînement libre — seule la note /20 et le feedback y sont restitués.
+ *
+ * <p>{@code correspondanceTcf} accompagne {@code niveauGlobal} : la fourchette
+ * de note officielle du TCF IRN pour ce niveau. C'est le seul endroit où elle a
+ * un sens — au TCF, la note /20 est celle d'une épreuve entière, pas d'une
+ * tâche.
  */
 public record ProductionBilanResponse(
         UUID attemptId,
@@ -29,6 +34,11 @@ public record ProductionBilanResponse(
         int evaluatedCount,
         int expectedCount,
         BigDecimal moyenneSur20,
-        NiveauCecrl niveauGlobal
+        NiveauCecrl niveauGlobal,
+        // Fourchette de note officielle du TCF IRN correspondant a
+        // niveauGlobal. Null exactement quand niveauGlobal l'est. Ce n'est pas
+        // une conversion de moyenneSur20 : notre note est pedagogique, plus
+        // fine que celle du TCF (cf. BandeNoteTcf).
+        CorrespondanceTcfDto correspondanceTcf
 ) {
 }

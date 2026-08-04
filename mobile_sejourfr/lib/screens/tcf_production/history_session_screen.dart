@@ -386,6 +386,7 @@ class _Body extends StatelessWidget {
               BilanHero(
                 moyenneSur20: bilan?.moyenneSur20 ?? _moyenneLocale,
                 niveauGlobal: _niveauGlobal,
+                correspondanceTcf: bilan?.correspondanceTcf,
               ),
               if (liveMode && hasPending) ...[
                 _EvaluatingBanner(

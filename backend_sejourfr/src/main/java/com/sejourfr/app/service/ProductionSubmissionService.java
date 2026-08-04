@@ -182,7 +182,8 @@ public class ProductionSubmissionService {
                 evaluatedCount,
                 ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE,
                 bilanService.moyenneNotes(evalsByTache),
-                niveauGlobal);
+                niveauGlobal,
+                bilanService.correspondanceTcf(niveauGlobal));
     }
 
     /**

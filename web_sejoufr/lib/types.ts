@@ -499,6 +499,17 @@ export interface EvaluationResultDto {
     feedback: Record<string, unknown> | null;
 }
 
+/** Fourchette de note officielle du TCF IRN correspondant à un niveau CECRL, sur
+ *  les épreuves d'expression. Grille officielle (0 → A1 non atteint, 1 → A1,
+ *  2-5 → A2, 6-9 → B1, 10-20 → B2), pas une conversion de notre note : la nôtre
+ *  est pédagogique et bien plus fine. N'accompagne que le bilan d'une épreuve
+ *  entière — au TCF, une tâche isolée n'a pas de note. */
+export interface CorrespondanceTcfDto {
+    niveau: NiveauCecrl;
+    scoreTcfMin: number;
+    scoreTcfMax: number;
+}
+
 /** Bilan d'une épreuve productive (EE/EO) au niveau attempt. Le `niveauGlobal`
  *  n'est calculé (côté backend, moyenne pondérée des 3 tâches) qu'en session
  *  d'examen blanc (`exam=true`) et seulement quand les 3 tâches sont évaluées —
@@ -517,6 +528,9 @@ export interface ProductionBilanResponse {
     /** True quand l'attempt production est finalisé (`finishedAt` posé). Avec
      *  `niveauGlobal` calculé même si < 3 tâches évaluées (les manquantes = 0). */
     finished: boolean;
+    /** Fourchette officielle TCF du `niveauGlobal`. Null exactement quand
+     *  `niveauGlobal` l'est. */
+    correspondanceTcf: CorrespondanceTcfDto | null;
 }
 
 export interface ProductionSubmissionDto {
@@ -683,6 +697,19 @@ export function formatDurationSec(sec: number | null | undefined): string {
 export function niveauCecrlLabel(n: NiveauCecrl | null | undefined): string {
     if (!n) return "—";
     return n === "A1_NON_ATTEINT" ? "A1 non atteint" : n;
+}
+
+/** Phrase de correspondance officielle, à afficher au bilan d'une épreuve
+ *  entière uniquement. Null quand le backend n'a pas de niveau exploitable. */
+export function correspondanceTcfPhrase(
+    c: CorrespondanceTcfDto | null | undefined,
+): string | null {
+    if (!c) return null;
+    const plage =
+        c.scoreTcfMin === c.scoreTcfMax
+            ? `la note de ${c.scoreTcfMin} sur 20`
+            : `une note de ${c.scoreTcfMin} à ${c.scoreTcfMax} sur 20`;
+    return `Au TCF, le niveau ${niveauCecrlLabel(c.niveau)} correspond à ${plage}.`;
 }
 
 /** Position d'un niveau sur l'échelle affichée [A1, A2, B1, B2, C1, C2] (6

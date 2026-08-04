@@ -693,6 +693,12 @@ corrections → suggestion.
 - **Garde-fou non négociable** : jamais de niveau sans sa confiance
   (`EvaluationResult.hasNiveauObserve`). Le **bilan d'épreuve** reste le seul niveau qui fait
   foi.
+- **La note /20 est PÉDAGOGIQUE, pas une note de TCF** (notre échelle : 16-20 = B2,
+  11-15 = B1… ; au TCF IRN 10/20 vaut déjà B2). `DonutChartScore` le dit et n'affiche
+  **aucune** correspondance TCF — une tâche isolée n'a pas de note officielle. La
+  correspondance (`ProductionBilan.correspondanceTcf` → `CorrespondanceTcf.phrase`) ne
+  s'affiche qu'au **bilan d'épreuve** (`BilanHero`), au même wording que le web.
+  Cf. `docs/notation-ia-eo-ee.md` §6.6.
 - **Rétrocompatibilité v3** : `niveauObserve` / `confiance` / `avertissementNiveau` / `bande` /
   `accomplissement` / `preuve` absents = cas **normal** (évaluations déjà en base) → les blocs
   concernés disparaissent et l'écran redevient celui d'avant. Couvert par

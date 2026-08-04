@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/enums.dart';
+import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
 import 'cecrl_scale.dart';
 
@@ -13,6 +14,7 @@ class BilanHero extends StatelessWidget {
     super.key,
     required this.moyenneSur20,
     required this.niveauGlobal,
+    this.correspondanceTcf,
   });
 
   /// Moyenne des notes /20 (null tant qu'aucune submission n'a été évaluée).
@@ -20,6 +22,10 @@ class BilanHero extends StatelessWidget {
 
   /// Niveau CECRL plancher des évaluations disponibles (règle TCF IRN).
   final NiveauCecrl? niveauGlobal;
+
+  /// Fourchette de note officielle du TCF pour ce niveau (backend). Null tant
+  /// qu'aucun niveau n'est exploitable — le bloc n'est alors pas rendu.
+  final CorrespondanceTcf? correspondanceTcf;
 
   String _formatScore(double s) {
     if (s == s.truncateToDouble()) return s.toInt().toString();
@@ -135,6 +141,42 @@ class BilanHero extends StatelessWidget {
           if (niveauGlobal != null) ...[
             const SizedBox(height: 18),
             CecrlScale(level: niveauGlobal!, dark: true),
+          ],
+          if (correspondanceTcf != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.only(top: 14),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Colors.white.withValues(alpha: 0.22)),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    correspondanceTcf!.phrase,
+                    style: AppFonts.ui(
+                      size: 13.5,
+                      weight: FontWeight.w600,
+                      color: Colors.white,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Grille officielle du TCF IRN, sur l\'épreuve entière. Notre note '
+                    'ci-dessus est pédagogique : son échelle est plus fine, elle sert '
+                    'à suivre tes progrès.',
+                    style: AppFonts.ui(
+                      size: 12,
+                      color: Colors.white.withValues(alpha: 0.78),
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
           if (!hasResult) ...[
             const SizedBox(height: 12),
