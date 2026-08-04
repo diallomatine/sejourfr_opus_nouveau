@@ -161,22 +161,36 @@ Le « quoi » et le « pourquoi » vivent dans `docs/notation-ia-eo-ee.md` (réf
 grand public, **à tenir exhaustive et à jour dans la même passe** — cf. la règle
 dédiée plus bas). Ici, uniquement de quoi se repérer.
 
-- **Versions actives** : rubriques `production-rubrics-v4.1.json`, tool-schema de
+- **Versions actives** : rubriques `production-rubrics-v4.2.json`, tool-schema de
   sortie `production-evaluation-tool-schema-v2.json`, persona vocale
-  `realtime-personas-v2.json`. **v4 et v3 restent chargeables et validées** :
-  retour arrière = `EVAL_RUBRICS_VERSION=v3|v4` (+ `EVAL_PROMPT_VERSION=v1.5`
+  `realtime-personas-v2.json`. **v4.1, v4 et v3 restent chargeables et validées** :
+  retour arrière = `EVAL_RUBRICS_VERSION=v3|v4|v4.1` (+ `EVAL_PROMPT_VERSION=v1.5`
   pour v3), aucune migration. **On versionne, on ne réécrit jamais** une
   rubrique livrée.
 - **v4** = critères propres à chaque tâche (5 par tâche, fini les 4 universels),
   obligatoires vs pistes, bloc accomplissement, confiance, preuve littérale,
-  2 priorités max. **v4.1** = correction de l'indulgence mesurée au banc, sans
-  supprimer aucune tolérance.
+  2 priorités max. **v4.1** = correction de l'indulgence du **bas** d'échelle
+  mesurée au banc, sans supprimer aucune tolérance (plafonds A1/A2 + test
+  décisif A1 vs A2 avec obligation de citation). **v4.2** = même technique
+  appliquée au **haut** : `TEST DECISIF B1 vs B2` opposable — deux marqueurs B2
+  à citer littéralement, dont un pris dans « objection envisagée puis traitée »
+  ou « lexique précis » ; à défaut, lexique/morphosyntaxe/cohérence plafonnés à
+  14/20 (donc niveau B1). Le plafond **ne mord qu'au-dessus de 15/20** : par
+  construction il ne peut rien changer sous B1 (hors-sujet, A1/A2 et
+  transcriptions bruitées intouchés). Mesure : B1 correctement classé 8/12 →
+  10-11/12, B2 6/7 → 7/7, accord exact 75,0 % → 81,25 % (3 campagnes v4.2 vs 1
+  campagne v4.1 le même jour, même modèle).
 - **Banc de mesure** (`src/test/java/.../calibration/`, corpus
   `src/test/resources/calibration/golden-set-v1.json`, 48 cas synthétiques) :
   **opt-in strict**, jamais dans `./mvnw verify` (appelle un LLM payant).
   `./mvnw -q test -Dtest=CalibrationBenchTest -DfailIfNoTests=false
-  -Dcalibration.enabled=true -Dcalibration.rubrics=v4.1 -Dcalibration.prompt=v2
+  -Dcalibration.enabled=true -Dcalibration.rubrics=v4.2 -Dcalibration.prompt=v2
   -Dcalibration.label=<nom>` → rapport JSON dans `target/calibration/`.
+  **Ne jamais ajuster le corpus** pour faire passer une version : on corrige le
+  système, jamais la référence. Une campagne ≈ 0,45 € ; comparer une nouvelle
+  version à un **rerun de l'ancienne le même jour** (le bruit inter-campagnes
+  vaut ~1 pt de note / ~2 pts de pourcentage, et un seul cas qui bascule sur 12
+  ne prouve rien).
   Convention de signe partout : **écart = référence − IA** (négatif = IA trop
   indulgente). **Toute modif d'une consigne de notation ou d'un seuil se mesure
   avant/après** — sinon c'est un pari.

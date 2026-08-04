@@ -194,6 +194,137 @@ class ProductionRubricsValidatorTest {
         assertThat(basEchelle).hasSizeGreaterThanOrEqualTo(6);
     }
 
+    /** v4.2 (frontiere B1/B2 opposable) doit demarrer au meme titre que v3, v4 et v4.1. */
+    @Test
+    void validate_realV42File_noThrow() {
+        when(taskManager.findAllActive()).thenReturn(List.of());
+        ProductionRubricsValidator v =
+                new ProductionRubricsValidator(realProvider("v4.2"), taskManager);
+
+        assertThatCode(v::validate).doesNotThrowAnyException();
+    }
+
+    /** v4.2 garde le contrat structurel de v4/v4.1 : 6 taches, poids a 1.00, codes porteurs. */
+    @Test
+    void v42File_keepsV4Contract() {
+        Map<String, Map<String, Object>> all = realProvider("v4.2").all();
+
+        assertThat(all).containsOnlyKeys("EE_T1", "EE_T2", "EE_T3", "EO_T1", "EO_T2", "EO_T3");
+        for (String cle : all.keySet()) {
+            assertThat(codes(all, cle))
+                    .as(cle + " garde les codes porteurs du niveau CECRL")
+                    .contains("lexique", "morphosyntaxe", "coherence");
+            assertThat(poidsTotal(all, cle)).as(cle + " : somme des poids")
+                    .isEqualTo(1.0, org.assertj.core.data.Offset.offset(0.0001));
+        }
+        assertThat(codes(all, "EO_T2")).contains("conduite_echange");
+        assertThat(codes(all, "EE_T2")).contains("chronologie_recit");
+        assertThat(codes(all, "EE_T3")).contains("argumentation");
+    }
+
+    /**
+     * Ce que v4.2 ajoute : la frontiere B1/B2 devient OPPOSABLE (test decisif +
+     * obligation de citation + plafond a 14/20), sans qu'aucune tolerance ni
+     * aucun acquis de v4.1 ne saute. On verrouille la presence des regles, pas
+     * leur redaction — c'est le banc de mesure qui juge de leur effet.
+     */
+    @Test
+    void v42File_makesB1B2FrontierOpposable() {
+        Map<String, Object> commun = realProvider("v4.2").getCommun();
+        String texte = String.valueOf(commun.get("sections"));
+
+        // Les 6 tolerances de v4 sont TOUJOURS la (aucune suppression).
+        assertThat(texte)
+                .as("tolerance longueur conservee")
+                .contains("Ne penalise donc JAMAIS une production pour sa longueur")
+                .as("tolerance orthographe a l'oral conservee")
+                .contains("n'evalue PAS l'orthographe sur de l'oral transcrit")
+                .as("tolerance exhaustivite conservee")
+                .contains("n'exige JAMAIS l'exhaustivite")
+                .as("examinateur temoin de comprehension conserve")
+                .contains("L'EXAMINATEUR EST TON TEMOIN DE COMPREHENSION")
+                .as("benefice du doute conserve")
+                .contains("BENEFICE DU DOUTE")
+                .as("interdiction de conclure a l'incomprehensibilite conservee")
+                .contains("Ne conclus JAMAIS que le candidat est 'incomprehensible'");
+
+        // Les acquis v4.1 sur le BAS de l'echelle sont intacts.
+        assertThat(texte)
+                .contains("Ne pas penaliser un defaut n'est pas crediter une qualite")
+                .contains("PLAFOND A1")
+                .contains("PLAFOND A2")
+                .contains("TEST DECISIF A1 vs A2")
+                .contains("GARDE-FOU DE COUPLAGE")
+                .contains("REPERES DE NOTE GLOBALE")
+                .as("le hors-sujet reste a 0/20")
+                .contains("Cette regle PRIME sur toute autre consideration");
+
+        // Le NOUVEAU : le haut de l'echelle est ancre, symetriquement.
+        assertThat(texte)
+                .as("test opposable de la frontiere B1/B2")
+                .contains("TEST DECISIF B1 vs B2")
+                .as("obligation de citation au-dessus de B1")
+                .contains("CITER LITTERALEMENT au moins DEUX de ces marqueurs")
+                .as("plafond de note a defaut de marqueur B2 citable")
+                .contains("ne depassent alors pas 14/20")
+                .as("faux B2 : connecteurs de surface, longueur, correction, formules apprises")
+                .contains("LES CONNECTEURS DE SURFACE")
+                .contains("LA CORRECTION CONFONDUE AVEC LA RICHESSE")
+                .contains("LES FORMULES APPRISES PAR COEUR")
+                .as("reconnaitre une objection ne vaut pas la refuter")
+                .contains("RECONNAITRE N'EST PAS REFUTER")
+                .as("le plafond ne mord pas sous B1 et n'autorise pas a rogner un vrai B2")
+                .contains("il ne mord jamais en dessous de 15/20")
+                .contains("note lexique, morphosyntaxe et coherence 16 a 18 SANS HESITER");
+    }
+
+    /** Ancres few-shot v4.2 : la frontiere B1/B2 est couverte dans les deux sens. */
+    @Test
+    void v42File_fewShotCoversB1B2Frontier() {
+        Map<String, Object> commun = realProvider("v4.2").getCommun();
+        List<?> fewShot = (List<?>) commun.get("few_shot");
+
+        assertThat(fewShot).as("les 13 ancres v4.1 + les ancres de frontiere")
+                .hasSizeGreaterThanOrEqualTo(15);
+
+        int b1ANePasSurclasser = 0;
+        int b2ANePasRogner = 0;
+        for (Object o : fewShot) {
+            Map<?, ?> m = (Map<?, ?>) o;
+            String niveau = String.valueOf(m.get("niveau_cecrl"));
+            String justification = String.valueOf(m.get("justification"));
+            // Casse libre sur le renvoi au test : c'est sa PRESENCE qui est verrouillee.
+            if ("B1".equals(niveau) && justification.contains("POURQUOI PAS B2")
+                    && justification.toUpperCase(java.util.Locale.ROOT).contains("TEST DECISIF")) {
+                b1ANePasSurclasser++;
+            }
+            if ("B2".equals(niveau) && justification.contains("PAS 14")) {
+                b2ANePasRogner++;
+            }
+        }
+        assertThat(b1ANePasSurclasser)
+                .as("au moins deux B1 convaincants que le test decisif retient sous le B2")
+                .isGreaterThanOrEqualTo(2);
+        assertThat(b2ANePasRogner)
+                .as("au moins un vrai B2 dont l'ancre interdit de rogner les porteurs")
+                .isGreaterThanOrEqualTo(1);
+    }
+
+    /** Chaque tache rappelle l'ancrage du haut d'echelle dans ses consignes. */
+    @Test
+    void v42File_eachTaskRecallsHighEndAnchor() {
+        Map<String, Map<String, Object>> all = realProvider("v4.2").all();
+
+        for (Map.Entry<String, Map<String, Object>> e : all.entrySet()) {
+            assertThat(String.valueOf(e.getValue().get("consignes_correcteur")))
+                    .as(e.getKey() + " rappelle le test decisif B1 vs B2")
+                    .contains("TEST DECISIF B1 vs B2");
+            assertThat(String.valueOf(e.getValue().get("consignes_correcteur")))
+                    .as(e.getKey() + " rappelle aussi l'ancrage du bas d'echelle (v4.1 conserve)")
+                    .contains("ANCRAGE BAS D'ECHELLE");
+        }
+    }
+
     /** v4 = criteres PROPRES A CHAQUE TACHE (le defaut corrige) + socle commun conserve. */
     @Test
     void v4File_hasTaskSpecificCriteria() {

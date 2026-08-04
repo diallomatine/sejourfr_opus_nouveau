@@ -14,7 +14,7 @@
 > **dans la même passe**. Il doit toujours pouvoir être lu et compris par une personne non
 > technique. Pas de jargon non expliqué, pas de raccourci.
 
-**État actuel** : rubriques de notation **v4.1**, format de réponse **v2**, examinateur vocal
+**État actuel** : rubriques de notation **v4.2**, format de réponse **v2**, examinateur vocal
 **v2**. Ce que ces numéros veulent dire, et où ils se changent, est expliqué en §15.
 
 ---
@@ -273,7 +273,7 @@ liste : si tout est traité, la liste des oublis reste vide.
 
 ### 5.6 Ce qui empêche l'IA d'être trop gentille
 
-Deux garde-fous écrits dans les consignes de notation, ajoutés après **mesure** (voir §12) :
+Trois garde-fous écrits dans les consignes de notation, ajoutés après **mesure** (voir §12) :
 
 **« Une tolérance lève une sanction, elle n'accorde pas de point. »** Les règles de tolérance
 (§8) interdisent de retirer des points pour la longueur, l'orthographe à l'oral, les
@@ -307,11 +307,56 @@ tournure de politesse construite (« je voudrais », « est-ce que »). **Si l'I
 au-dessus, elle doit citer le marqueur qu'elle a trouvé.** Si elle ne peut pas le citer, c'est
 qu'il n'existe pas.
 
+**L'ancrage du haut de l'échelle.** L'autre bout de l'échelle coûte tout aussi cher, pour une
+raison très concrète : depuis le 1ᵉʳ janvier 2026, la naturalisation exige le **B2 dans les
+quatre épreuves, sans aucune compensation**. Annoncer B2 à une personne réellement B1, c'est
+l'encourager à déposer un dossier voué au refus après avoir payé l'examen. Les consignes
+contiennent donc, depuis les rubriques **v4.2**, un test symétrique de celui du bas.
+
+Ce qui sépare vraiment B1 de B2, ce n'est pas l'absence de fautes : c'est **l'efficacité de
+l'argumentation et la défense d'un point de vue**, puis l'étendue du répertoire. Un B1 peut
+être long, ordonné, agréable à lire et presque sans faute. **Enchaîner proprement des idées ne
+fait pas un B2.** Pour classer B2, l'IA doit pouvoir **citer littéralement au moins deux
+marqueurs** parmi :
+
+- une **subordonnée d'un type absent du répertoire B1** : concessive (« bien que », « même
+  si »), conséquence (« tellement… que »), but au subjonctif (« pour que »), hypothèse
+  irréelle (« si j'avais… je serais… »), « à condition que » ;
+- un **subjonctif ou un conditionnel employé à bon escient**, hors formule de politesse
+  toute faite (« je voudrais », « pourriez-vous » ne comptent pas : c'est déjà du B1) ;
+- une **objection envisagée puis traitée** : le candidat prête une objection à quelqu'un ou
+  l'anticipe (« on m'objectera que… »), puis y **répond par un argument nouveau**. Une
+  concession simplement admise et laissée là (« c'est vrai que…, mais moi je pense que… »)
+  reste du B1: **reconnaître n'est pas réfuter** ;
+- un **lexique précis, soutenu ou abstrait**, attesté par au moins deux termes qui sortent du
+  vocabulaire courant du sujet (« super », « magnifique », « formidable » n'en sont pas) ;
+- une **structure marquée** au service du propos (« ce qui m'a le plus surpris, ce n'est
+  pas…, mais… », « il m'est impossible de… »).
+
+Au moins un de ces deux marqueurs doit venir de **l'objection traitée** ou du **lexique
+précis** — les deux endroits où le B1 et le B2 se distinguent le plus nettement. **Si l'IA ne
+peut pas recopier ces marqueurs, c'est qu'ils n'y sont pas** : le niveau est B1, et le
+lexique, la grammaire et la cohérence ne dépassent alors pas 14/20.
+
+Quatre **faux B2** sont nommés explicitement dans les consignes, parce que ce sont ceux qui
+trompaient l'IA : les **connecteurs de surface** (« premièrement », « deuxièmement », « en
+conclusion ») posés sur un contenu pauvre ; la **longueur** (une production longue qui ne
+défend rien est un B1 long) ; la **correction confondue avec la richesse** ; et les
+**formules apprises par cœur** (« il est indéniable que », « de nos jours »).
+
+Ce plafond a une propriété importante : **il ne mord jamais en dessous de 15/20**. Il ne peut
+donc, par construction, ni durcir la notation des productions A1, A2 ou B1, ni toucher à la
+règle du hors-sujet. Et il n'autorise pas l'inverse non plus : dès que les deux marqueurs sont
+citables, l'IA doit noter 16 à 18 **sans hésiter** — sous-noter un vrai B2 renverrait à un
+entraînement inutile quelqu'un qui a déjà le niveau exigé.
+
 Et une phrase qui résume tout : **« correction n'est pas niveau »**. Une production simple,
 courte, propre et sans faute reste A2 si elle n'emploie que des structures élémentaires. Ce
 n'est pas la correction qui fait monter le niveau, c'est l'**étendue** et la **complexité**.
 Le piège le plus fréquent est l'énumération : réciter son nom, son âge, sa ville, son travail
 et sa famille en phrases toutes construites sur le même moule, sans une faute, reste du A1.
+La règle vaut aux deux bouts de l'échelle : en haut, une argumentation bien présentée mais
+sans nuance ni lexique précis reste du B1.
 
 ---
 
@@ -722,6 +767,42 @@ fiabilité — et il n'aurait jamais été vu sans le banc.
 gardent exactement le même niveau, et l'écart de note maximal observé sur une même production
 est de **2 points** (médiane : 0). La notation n'est donc pas un tirage au sort.
 
+**Deuxième correction : la frontière B1/B2** (consignes **v4.2**, la version active). Une fois
+le bas de l'échelle réparé, le défaut résiduel s'était **déplacé vers le haut** : **3
+productions B1 sur 12** ressortaient B2. C'était devenu l'erreur la plus coûteuse du système
+(§5.6). La même technique que pour le bas a été appliquée en haut : un **test opposable avec
+obligation de citation**, et non des descripteurs « plus précis » — ces derniers n'avaient
+rien donné en v4.1 non plus.
+
+Mesure : **3 campagnes v4.2** contre **1 campagne v4.1 relancée le même jour, sur le même
+modèle**, pour comparer à conditions égales.
+
+| | v4.1 | v4.2 |
+|---|---|---|
+| productions B1 correctement classées | **8/12** | **11/12, 10/12, 11/12** |
+| productions B2 correctement classées | **6/7** | **7/7, 7/7, 7/7** |
+| productions A2 correctement classées | 11/13 | 11/13 ×3 |
+| productions A1 correctement classées | 7/8 | 6/8, 7/8, 6/8 |
+| accord exact (48 cas) | **75,0 %** | **81,25 % ×3** |
+| accord à un niveau près | 85,4 % | **91,7 % ×3** |
+| notes dans la bonne fourchette | 83,3 % | 83,3 %, 81,3 %, 83,3 % |
+| écart de sévérité (référence − IA) | −1,05 | −0,89, −1,03, −0,89 |
+| réponses inexploitables | 0 % | 0 % ×3 |
+
+Ce qu'il faut en retenir, et ce qu'il ne faut pas en conclure :
+
+- le gain sur les **B1** est réel : **+2 à +3 productions** sur 12, dans les trois campagnes.
+  Ce n'est pas un cas isolé qui bascule ;
+- **rien n'a été écrasé en haut au passage** : les B2 ne sont pas seulement préservés, ils
+  sont **meilleurs** (7/7 trois fois, contre 6/7). C'était le risque principal — corriger les
+  B1 en renvoyant de vrais B2 en B1 aurait été un échec, pas une réussite ;
+- le bas de l'échelle n'a **pas bougé** : A2 identique, A1 à ±1 production, hors-sujet toujours
+  à 0/20, transcriptions bruitées toujours correctement traitées. C'est attendu : le plafond
+  v4.2 ne s'applique qu'au-dessus de 15/20, il ne peut mécaniquement rien changer plus bas ;
+- l'écart de −1,03 d'une des campagnes v4.2 et l'écart de −1,05 de la campagne v4.1 sont **le
+  même chiffre à la mesure près** : moins d'un point de note entre deux campagnes, c'est du
+  bruit, pas un signal.
+
 **Le seuil A2 est passé de 7 à 8.** En rejouant hors ligne les 96 évaluations des deux
 campagnes v4.1 avec différents seuils, un seul déplacement s'est révélé **entièrement
 bénéfique** : monter le seuil A2 de 7 à 8. Accord exact **71,9 % → 76,0 %**, productions A1
@@ -745,12 +826,17 @@ Le banc sert autant à mesurer les progrès qu'à nommer ce qui ne va pas.
   la configuration réellement livrée (rubriques v4.1 **et** seuil A2 déplacé) le confirme :
   **7 productions A1 sur 8 sont désormais correctement classées**, soit environ 12 % d'erreur.
   Le rejeu hors ligne avait vu juste.
-- **Le vrai point faible s'est déplacé vers le haut : quelques B1 sont annoncés B2.**
-  **3 productions B1 sur 12** ressortent B2. C'est aujourd'hui l'erreur la plus coûteuse du
-  système : la naturalisation exige B2 depuis janvier 2026, donc annoncer B2 à une personne
-  réellement B1, c'est l'encourager à payer un examen officiel qu'elle risque de rater. C'est
-  le prochain chantier. À noter que ce n'est pas une régression — la version précédente se
-  trompait davantage, et sur des niveaux plus bas.
+- **La frontière B1/B2 est réparée, mais pas refermée.** Elle était le point faible du
+  système : 3 productions B1 sur 12 ressortaient B2, ce qui est l'erreur la plus coûteuse
+  possible (la naturalisation exige B2 depuis janvier 2026). Les consignes v4.2 ramènent
+  l'erreur à **1 ou 2 productions sur 12** selon les campagnes. Il reste **un cas qui résiste
+  systématiquement** : un récit personnel très bien construit — relative, conséquence
+  (« tellement… que »), comparaison hypothétique — mais au vocabulaire ordinaire et qui ne
+  défend aucun point de vue. Notre référence l'a annoté B1 en le décrivant elle-même comme
+  « haut de B1 touchant le B2 » : c'est un cas où deux correcteurs humains pourraient
+  légitimement ne pas être d'accord. On ne le compte donc pas comme réglé, mais on ne cherche
+  pas non plus à le forcer : durcir encore pour gagner ce cas-là ferait retomber de vrais B2
+  en B1, ce qui découragerait à tort des candidats qui ont le niveau exigé.
 - **L'IA se croit plus sûre qu'elle ne devrait.** Sur environ un tiers des cas, elle annonce
   une confiance plus élevée que celle attendue. Elle ne se trompe presque jamais dans l'autre
   sens.
@@ -833,7 +919,7 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 
 | Ce qu'on veut changer | Fichier |
 |-----------------------|---------|
-| **Toutes les consignes de notation** (critères propres à chaque tâche, poids, barème, ancrage du bas de l'échelle, règles obligatoires/pistes, tolérances, exemples de calibration…) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v4.1.json` (version **active**). Les versions `v4` et `v3` restent en place et valides : on revient en arrière en changeant une seule variable. |
+| **Toutes les consignes de notation** (critères propres à chaque tâche, poids, barème, ancrage du bas **et du haut** de l'échelle, règles obligatoires/pistes, tolérances, exemples de calibration…) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v4.2.json` (version **active**). Les versions `v4.1`, `v4` et `v3` restent en place et valides : on revient en arrière en changeant une seule variable. |
 | **Le format de réponse de l'IA** (note, confiance, accomplissement, preuves, exemples corrigés…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v2.json` |
 | **Le comportement de l'examinateur vocal** (ton, cadre, interdiction d'orienter le candidat, ouverture T1/T2, façon de rendre la fiche de scénario T2…) | `backend_sejourfr/src/main/resources/prompts/realtime-personas-v2.json` (version active ; la v1, sans fiche de scénario, reste disponible en repli) |
 | **Les faits d'un jeu de rôle T2** (prix, délais, horaires, attitude du personnage) | colonne `agent_role_card` du sujet, en base — renseignée par les migrations `db/migration/300_tcf/production/eo/tache_2/` |
@@ -873,13 +959,15 @@ Elle juge avant tout la **capacité du candidat à communiquer et à se faire co
 le pénaliser pour une transcription imparfaite, pour une piste du sujet non traitée, ni pour
 la longueur. Mais **ne pas sanctionner n'est pas créditer** : une production qui ne démontre
 rien de plus que l'élémentaire reste notée comme telle, parce qu'annoncer B1 à un candidat A2
-revient à lui faire payer un examen officiel qu'il va rater.
+revient à lui faire payer un examen officiel qu'il va rater. La même exigence vaut en haut de
+l'échelle : pour annoncer B2 — le niveau exigé pour la naturalisation, dans les quatre
+épreuves et sans compensation — l'IA doit pouvoir **citer** ce qui le prouve.
 
 Trois choses qu'on **ne cache pas** :
 
 - à l'oral, **on ne juge que la transcription** — la voix n'est pas analysée, et c'est une
   limite technique, pas un choix pédagogique ;
-- notre notation est **mesurée**, et la mesure dit encore que le bas de l'échelle est notre
-  point faible ;
+- notre notation est **mesurée**, et la mesure dit encore ce qui cloche : le niveau « A1 non
+  atteint » reste presque inatteignable, et un cas de frontière B1/B2 résiste toujours ;
 - le corpus qui sert à cette mesure est **écrit à la main** : il doit être remplacé par de
   vraies productions annotées par des enseignants.

@@ -205,15 +205,24 @@ sejourfr:
     # prompts/production-rubrics-<v>.json. Le system prompt et le user message
     # sont generes depuis ce fichier (plus de .md system/user-template).
     # prompt-version (ci-dessous) ne gouverne plus que le tool-schema (sortie).
-    # Defaut v4.1 : v4 (criteres propres a chaque tache) + correction de
-    # l'INDULGENCE mesuree au banc. Mesure sur golden-set-v1 (48 cas, DeepSeek) :
-    # ecart global (reference - IA) -1,93 en v4 -> -1,0 en v4.1 ; notes dans la
-    # fourchette 60 % -> 82-88 % ; A1 dans la fourchette 12 % -> 63 % ; A2 38 %
-    # -> 92-100 % ; B2 inchange (85,7 % d'accord exact, ecart +0,5).
-    # v3 et v4 restent charges et valides -> EVAL_RUBRICS_VERSION=v3|v4 suffit a
-    # revenir en arriere (le banc de mesure bascule d'une version a l'autre avec
-    # cette seule variable).
-    rubrics-version: ${EVAL_RUBRICS_VERSION:v4.1}
+    # v4.1 : v4 (criteres propres a chaque tache) + correction de l'INDULGENCE
+    # du BAS de l'echelle mesuree au banc (ecart global (reference - IA) -1,93
+    # en v4 -> -1,0 en v4.1 ; A2 dans la fourchette 38 % -> 92-100 %).
+    # Defaut v4.2 : le defaut residuel s'etait deplace vers le HAUT (des B1
+    # annonces B2 — l'erreur la plus couteuse, la naturalisation exigeant B2
+    # sans compensation). v4.2 rend la frontiere B1/B2 OPPOSABLE (test decisif
+    # + obligation de citer deux marqueurs B2, plafond a 14/20 a defaut).
+    # Mesure golden-set-v1 (48 cas, DeepSeek), 3 campagnes v4.2 contre une
+    # campagne v4.1 le meme jour : B1 correctement classe 8/12 -> 10-11/12,
+    # B2 6/7 -> 7/7 (3 fois sur 3), accord exact 75,0 % -> 81,25 % (3 fois sur
+    # 3), accord +/-1 85,4 % -> 91,7 %, ecart global -1,05 -> -0,89/-1,03,
+    # sorties invalides 0 % ; A1, A2, hors-sujet et transcriptions bruitees
+    # inchanges. Le plafond v4.2 ne mord qu'au-dessus de 15/20 : il ne peut,
+    # par construction, rien changer sous B1.
+    # v3, v4 et v4.1 restent charges et valides -> EVAL_RUBRICS_VERSION=v3|v4|v4.1
+    # suffit a revenir en arriere (le banc de mesure bascule d'une version a
+    # l'autre avec cette seule variable).
+    rubrics-version: ${EVAL_RUBRICS_VERSION:v4.2}
     # Niveau CECRL CALCULE serveur (le niveau LLM est conserve en base pour
     # calibration mais jamais affiche). competence = moyenne(source-criteres) ;
     # seuils ajustables sans redeploiement. Plafond B2 (cible naturalisation).
