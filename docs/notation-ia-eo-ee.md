@@ -267,7 +267,10 @@ liste : si tout est traité, la liste des oublis reste vide.
   **candidat** peuvent être citées.
 - **Deux points à améliorer, au maximum.** Les deux plus utiles, le plus important d'abord.
   Une liste de dix reproches décourage et n'apprend rien. Le reste part dans les
-  « suggestions », formulées comme des conseils d'entraînement.
+  « suggestions », formulées comme des conseils d'entraînement. Ce n'est pas qu'une
+  consigne donnée à l'IA : **le serveur tronque la liste à deux** avant de vous
+  l'afficher, en gardant les deux premières (les plus importantes). L'IA ne peut donc
+  pas déborder, même si elle essaie.
 - Les points forts suivent la même exigence : de vrais points forts cités dans le texte,
   jamais un compliment de politesse.
 

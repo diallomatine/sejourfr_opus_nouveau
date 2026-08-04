@@ -35,6 +35,14 @@ spring:
     multipart:
       max-file-size: 25MB
       max-request-size: 25MB
+  data:
+    web:
+      pageable:
+        # Plafond des listes paginees (?size=). Sans lui, Spring accepte
+        # jusqu'a 2000 elements par page : un `?size=2000` sur les questions
+        # admin renvoyait 2,65 Mo en une requete. 100 couvre tous les usages
+        # de la console (page par defaut : 20).
+        max-page-size: 100
 
 server:
   port: 8080
@@ -176,6 +184,17 @@ sejourfr:
   # RATE_LIMIT_ENABLED=false = soupape de secours (desactive tout le mecanisme).
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
+
+  # Proxys dont on accepte les en-tetes X-Forwarded-For / X-Real-IP
+  # (cf. util.ClientIpResolver). VIDE PAR DEFAUT : sans configuration, l'IP
+  # retenue est celle de la socket, ce qui rend les compteurs par IP
+  # (rate-limits, attempts invites) reellement efficaces — sinon un simple
+  # en-tete remet le compteur a zero. En production, renseigner les
+  # adresses/CIDR du reverse-proxy reel, separes par des virgules
+  # (ex: 10.0.0.0/8,172.16.0.0/12). Valeur speciale `*` = faire confiance a
+  # tout appelant : uniquement si le port n'est joignable que par le LB.
+  trusted-proxies:
+    ranges: ${TRUSTED_PROXY_RANGES:}
 
   # Pipeline d'evaluation des productions (EO/EE du TCF IRN).
   # Distinct de sejourfr.anthropic (qui sert a generer des questions audio CO).

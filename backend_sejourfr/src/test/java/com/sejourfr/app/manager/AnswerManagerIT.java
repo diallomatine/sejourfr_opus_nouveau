@@ -111,10 +111,10 @@ class AnswerManagerIT extends AbstractIntegrationTest {
         // Réponse correcte → exclue.
         answer(user, attempt, testData.question(), true, base.plus(3, ChronoUnit.HOURS), List.of());
 
-        List<UUID> capped = answerManager.findRecentWrongQuestionIds(user.getId(), Module.CIVIQUE, 2);
+        List<UUID> capped = answerManager.findRecentWrongQuestionIds(user.getId(), Module.CIVIQUE, null, null, 2);
         assertThat(capped).containsExactly(wrong3.getId(), wrong2.getId());
 
-        List<UUID> all = answerManager.findRecentWrongQuestionIds(user.getId(), Module.CIVIQUE, 10);
+        List<UUID> all = answerManager.findRecentWrongQuestionIds(user.getId(), Module.CIVIQUE, null, null, 10);
         assertThat(all).containsExactly(wrong3.getId(), wrong2.getId(), wrong1.getId());
     }
 

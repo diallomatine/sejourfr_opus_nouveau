@@ -4,6 +4,7 @@ import com.sejourfr.app.dto.*;
 import com.sejourfr.app.ratelimit.RateLimitGuard;
 import com.sejourfr.app.service.AuthService;
 import com.sejourfr.app.service.UserProfileService;
+import com.sejourfr.app.util.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,20 +24,16 @@ public class AuthController {
     private final AuthService authService;
     private final UserProfileService userProfileService;
     private final RateLimitGuard rateLimitGuard;
+    private final ClientIpResolver clientIpResolver;
 
     /**
-     * Récupère l'IP de l'appelant en respectant les headers du reverse proxy
-     * (X-Forwarded-For) puis fallback sur {@code request.getRemoteAddr()}.
-     * Pour observabilité / forensics — pas pour de la sécurité (ces headers
-     * sont trivialement spoofables, on les stocke juste comme metadata).
+     * IP de l'appelant. Les en-têtes de proxy ne sont lus que si la connexion
+     * vient d'un proxy de confiance — sinon un client pouvait se fabriquer une
+     * IP par requête et contourner tous les rate-limits (cf.
+     * {@link ClientIpResolver}).
      */
-    static String clientIp(HttpServletRequest request) {
-        String xff = request.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) {
-            int comma = xff.indexOf(',');
-            return (comma > 0 ? xff.substring(0, comma) : xff).trim();
-        }
-        return request.getRemoteAddr();
+    private String clientIp(HttpServletRequest request) {
+        return clientIpResolver.resolve(request);
     }
 
     static String userAgent(HttpServletRequest request) {
@@ -45,8 +42,15 @@ public class AuthController {
 
     @PostMapping("/login")
     public TokenResponse login(@Valid @RequestBody LoginRequest req, HttpServletRequest http) {
-        rateLimitGuard.checkLogin(clientIp(http), req.email());
-        return authService.login(req, userAgent(http), clientIp(http));
+        String ip = clientIp(http);
+        rateLimitGuard.checkLogin(ip, req.email());
+        TokenResponse tokens = authService.login(req, userAgent(http), ip);
+        // Authentification réussie → on remet les compteurs à zéro. Le but du
+        // garde-fou est de freiner le bourrage d'identifiants, pas l'utilisateur
+        // qui se reconnecte plusieurs fois (sans ce reset, quelques logins
+        // légitimes d'affilée finissaient en 429 pendant 15 min).
+        rateLimitGuard.onLoginSuccess(ip, req.email());
+        return tokens;
     }
 
     @PostMapping("/refresh")

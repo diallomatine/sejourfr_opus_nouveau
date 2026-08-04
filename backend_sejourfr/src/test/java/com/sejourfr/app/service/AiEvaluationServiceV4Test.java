@@ -684,4 +684,84 @@ class AiEvaluationServiceV4Test {
 
         assertThat(eval.getFeedbackJson()).doesNotContainKey("fluidite");
     }
+
+    // ------------------------------------------- garanties SERVEUR du feedback
+
+    /**
+     * « Au plus 2 points à améliorer » est une règle produit : seuls le prompt
+     * et le {@code maxItems} du tool-schema la portaient, et le LLM ne la tenait
+     * pas (83 évaluations sur 109 dépassaient 2 en base). Le serveur tranche.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void points_a_ameliorer_sont_tronques_a_deux() {
+        ProductionTask task = task(EpreuveType.TCF_EE, 1);
+        ProductionSubmission sub = submission(task, TEXTE_EE);
+        Map<String, Object> feedback = feedbackEeT1(13);
+        feedback.put("points_a_ameliorer", new ArrayList<>(List.of(
+            "Varier les connecteurs", "Soigner les accords", "Développer la conclusion",
+            "Éviter les répétitions", "Structurer en paragraphes")));
+        stubLlm(feedback);
+
+        AiEvaluation eval = service.evaluate(sub.getId());
+
+        List<String> points = (List<String>) eval.getFeedbackJson().get("points_a_ameliorer");
+        assertThat(points).containsExactly("Varier les connecteurs", "Soigner les accords");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void points_a_ameliorer_conformes_sont_laisses_intacts() {
+        ProductionTask task = task(EpreuveType.TCF_EE, 1);
+        ProductionSubmission sub = submission(task, TEXTE_EE);
+        Map<String, Object> feedback = feedbackEeT1(13);
+        feedback.put("points_a_ameliorer",
+            new ArrayList<>(List.of("Varier les connecteurs", "Soigner les accords")));
+        stubLlm(feedback);
+
+        AiEvaluation eval = service.evaluate(sub.getId());
+
+        assertThat((List<String>) eval.getFeedbackJson().get("points_a_ameliorer"))
+            .containsExactly("Varier les connecteurs", "Soigner les accords");
+    }
+
+    /**
+     * La note doit rester relisable a posteriori : sans la version de GRILLE,
+     * {@code prompt_version} ne disait que la forme de la sortie ("v2"), jamais
+     * avec quels critères ni quels poids la note avait été produite.
+     */
+    @Test
+    void version_de_grille_est_persistee_a_cote_du_tool_schema() {
+        ProductionTask task = task(EpreuveType.TCF_EE, 1);
+        ProductionSubmission sub = submission(task, TEXTE_EE);
+        stubLlm(feedbackEeT1(13));
+
+        AiEvaluation eval = service.evaluate(sub.getId());
+
+        assertThat(eval.getPromptVersion()).isEqualTo("v2");
+        assertThat(eval.getRubricsVersion()).isEqualTo("v4");
+    }
+
+    /** Y compris quand aucun LLM n'a été appelé (production jugée inexploitable). */
+    @Test
+    void version_de_grille_est_persistee_meme_sans_appel_llm() {
+        ProductionTask task = task(EpreuveType.TCF_EE, 1);
+        ProductionSubmission sub = submission(task,
+            "Hello Mary, I am writing to tell you that I finally found a new apartment "
+                + "in the city center, it is very nice and it has two bedrooms.");
+
+        AiEvaluation eval = service.evaluate(sub.getId());
+
+        assertThat(eval.getRubricsVersion()).isEqualTo("v4");
+    }
+
+    @Test
+    void version_de_grille_suit_la_configuration() {
+        buildService("v3");
+        ProductionTask task = task(EpreuveType.TCF_EE, 1);
+        ProductionSubmission sub = submission(task, TEXTE_EE);
+        stubLlm(feedbackEeT1(13));
+
+        assertThat(service.evaluate(sub.getId()).getRubricsVersion()).isEqualTo("v3");
+    }
 }

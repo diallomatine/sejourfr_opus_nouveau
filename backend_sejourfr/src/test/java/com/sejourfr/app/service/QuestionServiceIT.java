@@ -5,7 +5,9 @@ import com.sejourfr.app.dto.QuestionDto;
 import com.sejourfr.app.dto.QuestionWriteRequest;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.MediaType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionMediaFilter;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.exception.NotFoundException;
@@ -106,6 +108,23 @@ class QuestionServiceIT extends AbstractIntegrationTest {
         assertThat(questionService.getById(created.id()).active()).isFalse();
     }
 
+    /**
+     * {@code updatedAt} était posé par @PreUpdate au flush, donc APRÈS le
+     * mapping : la réponse (et la colonne « modifiée le » de la console)
+     * gardait l'ancienne date après un changement de statut.
+     */
+    @Test
+    void setActiveTouchesUpdatedAt() {
+        Theme theme = testData.theme();
+        QuestionDto created = questionService.create(req(theme.getId(), validChoices()));
+
+        QuestionDto updated = questionService.setActive(created.id(), false);
+
+        assertThat(updated.updatedAt()).isAfter(created.updatedAt());
+        assertThat(questionService.getById(created.id()).updatedAt())
+                .isEqualTo(updated.updatedAt());
+    }
+
     @Test
     void deleteRemovesQuestion() {
         Theme theme = testData.theme();
@@ -131,10 +150,48 @@ class QuestionServiceIT extends AbstractIntegrationTest {
         questionService.create(req(themeB.getId(), validChoices()));
 
         Page<QuestionDto> page = questionService.search(
-                null, themeA.getId(), null, null, null, null, PageRequest.of(0, 50));
+                null, themeA.getId(), null, null, null, null, null, PageRequest.of(0, 50));
 
         assertThat(page.getContent()).isNotEmpty();
         assertThat(page.getContent()).allMatch(q -> q.themeId().equals(themeA.getId()));
         assertThat(page.getTotalElements()).isEqualTo(2);
+    }
+
+    /**
+     * Le filtre « Média » de la console ne portait que sur la page affichée
+     * (filtrage navigateur) : « aucune question » alors que 134 existaient.
+     * Il est désormais dans la requête, donc paginé correctement.
+     */
+    @Test
+    void searchFiltersByMedia() {
+        Theme theme = testData.theme(Module.CIVIQUE, "media-th", "Thème média");
+        UUID audioId = testData.media(MediaType.AUDIO).getId();
+        UUID imageId = testData.media(MediaType.IMAGE).getId();
+        QuestionDto withAudio = questionService.create(reqWithMedia(theme.getId(), audioId));
+        QuestionDto withImage = questionService.create(reqWithMedia(theme.getId(), imageId));
+        QuestionDto without = questionService.create(req(theme.getId(), validChoices()));
+
+        assertThat(searchInTheme(theme.getId(), QuestionMediaFilter.AUDIO))
+                .containsExactly(withAudio.id());
+        assertThat(searchInTheme(theme.getId(), QuestionMediaFilter.IMAGE))
+                .containsExactly(withImage.id());
+        assertThat(searchInTheme(theme.getId(), QuestionMediaFilter.VIDEO)).isEmpty();
+        assertThat(searchInTheme(theme.getId(), QuestionMediaFilter.NONE))
+                .containsExactly(without.id());
+        assertThat(searchInTheme(theme.getId(), null))
+                .containsExactlyInAnyOrder(withAudio.id(), withImage.id(), without.id());
+    }
+
+    private List<UUID> searchInTheme(UUID themeId, QuestionMediaFilter media) {
+        return questionService.search(null, themeId, null, null, null, media, null,
+                        PageRequest.of(0, 50))
+                .getContent().stream().map(QuestionDto::id).toList();
+    }
+
+    private QuestionWriteRequest reqWithMedia(UUID themeId, UUID mediaId) {
+        return new QuestionWriteRequest(
+                Module.CIVIQUE, themeId, null, mediaId,
+                Difficulty.CSP, QuestionType.CONNAISSANCE,
+                "Question avec média ?", "Explication.", true, validChoices());
     }
 }

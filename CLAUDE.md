@@ -153,6 +153,29 @@ l'ouverture publique / montée en trafic**, pas avant :
 Plus tard encore (vrai volume) : rétention via **partitionnement par date** ou
 archivage des `TERMINE` anciens — surtout pas de suppression d'historique user.
 
+## Identité IP des appelants (rate-limits, attempts invités)
+
+Tout ce qui se compte « par IP » — rate-limits anti-abus (login, inscription,
+mot de passe oublié, contact, démo) et `attempts.client_ip` des sessions
+invitées — passe par `util/ClientIpResolver`.
+
+- **`X-Forwarded-For` / `X-Real-IP` ne sont lus que si la connexion vient d'un
+  proxy déclaré de confiance** (`sejourfr.trusted-proxies.ranges`, env
+  `TRUSTED_PROXY_RANGES`, adresses ou CIDR séparés par des virgules).
+  **Vide par défaut** → en dev et sans configuration, c'est l'IP de la socket
+  qui fait foi. Sans ce garde-fou, n'importe qui remettait ses compteurs à zéro
+  en changeant un en-tête, et un invité se fabriquait autant d'identités qu'il
+  voulait.
+- En production, y mettre les plages du reverse-proxy réel. La valeur spéciale
+  `*` fait confiance à tout appelant : à réserver aux hébergements dont le port
+  applicatif n'est joignable que par le load balancer.
+- Quand le proxy est de confiance, on retient la **dernière adresse non-proxy**
+  de la chaîne `X-Forwarded-For` (les valeurs forgées par le client sont à
+  gauche de celle ajoutée par notre proxy, donc ignorées).
+- Le rate-limit de connexion **se réinitialise sur authentification réussie**
+  (`RateLimitGuard.onLoginSuccess`) : on freine l'enchaînement d'échecs, pas
+  l'utilisateur qui se reconnecte.
+
 ## Mesure d'audience des landings (sans traceur)
 
 Compteur **maison**, sans service tiers, pour savoir combien de visiteurs

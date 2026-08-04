@@ -4,6 +4,7 @@ import com.sejourfr.app.dto.FullTcfExamResponse;
 import com.sejourfr.app.entity.Attempt;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.EpreuveType;
+import com.sejourfr.app.exception.BusinessException;
 import com.sejourfr.app.manager.AttemptManager;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.UserManager;
@@ -15,6 +16,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -136,5 +138,47 @@ class FullTcfExamServiceFreemiumTest {
         // démarrer — puis abandonner — un examen sans toucher EE/EO laisse le
         // compteur à 0 et EE/EO restent jouables au prochain examen.
         verify(productionSubmissionManager, never()).save(any());
+    }
+
+    // ------------------------------------------------------------------ slots
+
+    /**
+     * La grille compte 20 slots : un {@code slotNumber} hors borne était
+     * persisté tel quel (999, -3), là où les MOCK_EXAM QCM sont bornés depuis
+     * le lot précédent.
+     */
+    @Test
+    void slotHorsBorne_refuse() {
+        when(productionSubmissionManager.hasFullExamProductionSubmission(userId)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.start(userId, 999))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.start(userId, 0))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.start(userId, -3))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void slotAuxBornes_accepte() {
+        when(productionSubmissionManager.hasFullExamProductionSubmission(userId)).thenReturn(false);
+
+        assertThat(service.start(userId, 1)).isNotNull();
+        assertThat(service.start(userId, FullTcfExamService.EXAM_SLOTS)).isNotNull();
+    }
+
+    /** Sans slot demandé, on retombe sur le slot 1 (et pas sur NULL en base). */
+    @Test
+    void slotAbsent_vautUn() {
+        when(productionSubmissionManager.hasFullExamProductionSubmission(userId)).thenReturn(false);
+
+        service.start(userId, null);
+
+        org.mockito.ArgumentCaptor<Attempt> captor =
+                org.mockito.ArgumentCaptor.forClass(Attempt.class);
+        verify(attemptManager, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
+        assertThat(captor.getAllValues())
+                .filteredOn(a -> a.getEpreuve() == EpreuveType.TCF_COMPLET)
+                .allMatch(a -> Integer.valueOf(1).equals(a.getSlotNumber()));
     }
 }

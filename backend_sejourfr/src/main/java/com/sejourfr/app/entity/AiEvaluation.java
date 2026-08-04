@@ -45,9 +45,21 @@ public class AiEvaluation {
     @Column(name = "modele_utilise", nullable = false, length = 40)
     private String modeleUtilise;
 
-    /** Version du prompt LLM utilise (ex: "v1.0"). Toute modification = nouvelle version. */
+    /** Version du tool-schema de sortie demande au LLM (ex: "v2"). */
     @Column(name = "prompt_version", nullable = false, length = 20)
     private String promptVersion;
+
+    /**
+     * Version de la GRILLE de notation appliquee (criteres, poids, consignes —
+     * {@code prompts/production-rubrics-<v>.json}, ex: "v4.2"). Distincte de
+     * {@link #promptVersion} qui ne decrit que la forme de la reponse : deux
+     * notes produites avec le meme tool-schema mais des grilles differentes ne
+     * sont pas comparables. Indispensable pour relire une note a posteriori et
+     * pour un retour arriere sur {@code EVAL_RUBRICS_VERSION}. NULL sur les
+     * evaluations anterieures a la colonne.
+     */
+    @Column(name = "rubrics_version", length = 20)
+    private String rubricsVersion;
 
     @Column(name = "note_sur_20", precision = 4, scale = 1)
     private BigDecimal noteSur20;
@@ -99,6 +111,9 @@ public class AiEvaluation {
 
     public String getPromptVersion() { return promptVersion; }
     public void setPromptVersion(String promptVersion) { this.promptVersion = promptVersion; }
+
+    public String getRubricsVersion() { return rubricsVersion; }
+    public void setRubricsVersion(String rubricsVersion) { this.rubricsVersion = rubricsVersion; }
 
     public BigDecimal getNoteSur20() { return noteSur20; }
     public void setNoteSur20(BigDecimal noteSur20) { this.noteSur20 = noteSur20; }

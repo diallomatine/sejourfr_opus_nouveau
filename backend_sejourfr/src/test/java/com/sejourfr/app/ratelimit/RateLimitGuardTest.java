@@ -34,10 +34,23 @@ class RateLimitGuardTest {
     void disabled_isNoOp() {
         props.setEnabled(false);
         guard.checkLogin("1.2.3.4", "a@b.fr");
+        guard.onLoginSuccess("1.2.3.4", "a@b.fr");
         guard.checkRegister("1.2.3.4");
         guard.checkDemo("1.2.3.4");
         guard.checkProductionSubmission(UUID.randomUUID());
         verifyNoInteractions(limiter);
+    }
+
+    /**
+     * Une authentification réussie efface les deux compteurs : le garde-fou
+     * vise l'enchaînement d'ÉCHECS, pas l'utilisateur qui se reconnecte.
+     */
+    @Test
+    void onLoginSuccess_resetsIpAndAccountCounters() {
+        guard.onLoginSuccess("1.2.3.4", "  KARIM@Sejourfr.FR ");
+
+        verify(limiter).reset("login:ip", "1.2.3.4");
+        verify(limiter).reset("login:account", "karim@sejourfr.fr");
     }
 
     @Test

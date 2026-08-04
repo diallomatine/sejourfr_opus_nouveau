@@ -3,7 +3,9 @@ package com.sejourfr.app.specification;
 import com.sejourfr.app.entity.Question;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.MediaType;
 import com.sejourfr.app.enums.Module;
+import com.sejourfr.app.enums.QuestionMediaFilter;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.repository.QuestionRepository;
 import com.sejourfr.app.support.AbstractIntegrationTest;
@@ -193,5 +195,36 @@ class QuestionSpecificationsIT extends AbstractIntegrationTest {
                 .containsExactly(hit.getId())
                 .doesNotContain(wrongModule.getId(), wrongDiff.getId(), wrongType.getId(),
                         coImage.getId(), inactive.getId(), wrongText.getId());
+    }
+
+    /**
+     * Filtre « Média » de la console. Le {@code NONE} passe par un {@code IS
+     * NULL} et les types par une jointure gauche — sans elle, les questions
+     * sans média disparaîtraient aussi des recherches non filtrées.
+     */
+    @Test
+    void hasMediaFiltersByMediaTypeAndAbsence() {
+        Theme theme = testData.theme();
+        Question audio = question(theme, Module.TCF, Difficulty.B1, QuestionType.CO, true, "audio");
+        audio.setMedia(testData.media(MediaType.AUDIO));
+        audio = repository.save(audio);
+        Question image = question(theme, Module.TCF, Difficulty.B1, QuestionType.CO, true, "image");
+        image.setMedia(testData.media(MediaType.IMAGE));
+        image = repository.save(image);
+        Question sansMedia = question(theme, Module.CIVIQUE, Difficulty.CSP,
+                QuestionType.CONNAISSANCE, true, "sans");
+
+        assertThat(findInTheme(theme, QuestionSpecifications.hasMedia(QuestionMediaFilter.AUDIO)))
+                .extracting(Question::getId).containsExactly(audio.getId());
+        assertThat(findInTheme(theme, QuestionSpecifications.hasMedia(QuestionMediaFilter.IMAGE)))
+                .extracting(Question::getId).containsExactly(image.getId());
+        assertThat(findInTheme(theme, QuestionSpecifications.hasMedia(QuestionMediaFilter.VIDEO)))
+                .isEmpty();
+        assertThat(findInTheme(theme, QuestionSpecifications.hasMedia(QuestionMediaFilter.NONE)))
+                .extracting(Question::getId).containsExactly(sansMedia.getId());
+        // null = pas de filtre : tout revient, média ou pas.
+        assertThat(findInTheme(theme, QuestionSpecifications.hasMedia(null)))
+                .extracting(Question::getId)
+                .containsExactlyInAnyOrder(audio.getId(), image.getId(), sansMedia.getId());
     }
 }

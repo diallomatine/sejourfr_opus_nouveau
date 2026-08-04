@@ -226,6 +226,7 @@ public class AiEvaluationService {
         eval.setSubmission(sub);
         eval.setModeleUtilise(passe.modele());
         eval.setPromptVersion(llmClient.getPromptVersion());
+        eval.setRubricsVersion(props.getRubricsVersion());
         eval.setNoteSur20(passe.note());
         eval.setNiveauCecrl(passe.niveauCalcule());
         eval.setNiveauCecrlIa(passe.niveauIa());
@@ -300,6 +301,10 @@ public class AiEvaluationService {
         // fronts qui l'AFFICHENT a la place du nombre (une IA ne distingue pas
         // honnetement un 13 d'un 14). note_sur_20 reste dans le JSON.
         applyBandesCriteres(feedback);
+        // « Au plus 2 points a ameliorer » : regle produit, donc garantie
+        // SERVEUR. Le prompt et le maxItems du tool-schema la demandent, ils ne
+        // la tiennent pas (83 evaluations sur 109 depassaient 2 en base).
+        capPointsAAmeliorer(feedback);
         // note_globale calculee SERVEUR a partir des scores par critere ponderes
         // par la rubrique : on ecrase la valeur du LLM (advisory). Garantit la
         // coherence global <-> criteres. Si la rubrique est absente, on conserve
@@ -341,7 +346,7 @@ public class AiEvaluationService {
             "points_oublies", List.of()));
         feedback.put("scores_criteres", scoresNonEvaluables(task));
         feedback.put("points_forts", List.of());
-        feedback.put("points_a_ameliorer", raisons.stream().limit(2).toList());
+        feedback.put("points_a_ameliorer", raisons.stream().limit(MAX_POINTS_A_AMELIORER).toList());
         feedback.put("suggestions", List.of());
         feedback.put("exemples_corriges", List.of());
 
@@ -353,6 +358,7 @@ public class AiEvaluationService {
         eval.setSubmission(sub);
         eval.setModeleUtilise(MODELE_VALIDATION_SERVEUR);
         eval.setPromptVersion(llmClient.getPromptVersion());
+        eval.setRubricsVersion(props.getRubricsVersion());
         eval.setNoteSur20(BigDecimal.ZERO);
         eval.setNiveauCecrl(NiveauCecrl.A1_NON_ATTEINT);
         eval.setNiveauCecrlIa(null);
@@ -494,6 +500,23 @@ public class AiEvaluationService {
             log.warn("{} preuve(s) inventee(s) retiree(s) submission={} — citation absente de la production.",
                 retirees, submissionId);
         }
+    }
+
+    /** Nombre maximum de points a ameliorer rendus au candidat. */
+    static final int MAX_POINTS_A_AMELIORER = 2;
+
+    /**
+     * Tronque {@code points_a_ameliorer} a {@value #MAX_POINTS_A_AMELIORER}
+     * entrees, dans l'ordre rendu par le LLM (les plus importantes d'abord,
+     * comme demande dans la consigne). Une liste de 5 axes noie le candidat :
+     * la regle produit est « deux priorites, pas un inventaire ».
+     */
+    private void capPointsAAmeliorer(Map<String, Object> feedback) {
+        if (!(feedback.get("points_a_ameliorer") instanceof List<?> points)) return;
+        if (points.size() <= MAX_POINTS_A_AMELIORER) return;
+        log.info("points_a_ameliorer tronque : {} -> {}", points.size(), MAX_POINTS_A_AMELIORER);
+        feedback.put("points_a_ameliorer",
+                points.stream().limit(MAX_POINTS_A_AMELIORER).toList());
     }
 
     /**

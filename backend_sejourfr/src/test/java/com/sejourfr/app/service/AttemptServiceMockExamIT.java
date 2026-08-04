@@ -7,6 +7,8 @@ import com.sejourfr.app.entity.ExamTemplate;
 import com.sejourfr.app.entity.Theme;
 import com.sejourfr.app.entity.User;
 import com.sejourfr.app.enums.AttemptType;
+import com.sejourfr.app.enums.Difficulty;
+import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.Module;
 import com.sejourfr.app.enums.QuestionType;
 import com.sejourfr.app.exception.BusinessException;
@@ -253,6 +255,42 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
                 .isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 0)))
                 .isInstanceOf(BusinessException.class);
+    }
+
+    /**
+     * L'épreuve fine doit refléter le sous-module joué. Elle n'était jamais
+     * posée : le @PrePersist d'Attempt retombait sur TCF_CO pour TOUT le TCF,
+     * et un examen de compréhension écrite ressortait « TCF_CO » dans
+     * {@code GET /api/me/attempts} — donc « Compréhension orale » à l'écran.
+     */
+    @Test
+    void moduleExam_poseLEpreuveDuSousModule() {
+        User user = data.user();
+        makePremium(user);
+
+        AttemptResponse co = service.start(user.getId(), mock(Module.TCF, null, null, QuestionType.CO, null));
+        AttemptResponse ce = service.start(user.getId(), mock(Module.TCF, null, null, QuestionType.CE, null));
+        AttemptResponse st = service.start(user.getId(),
+                mock(Module.TCF, null, null, QuestionType.STRUCTURE, null));
+
+        assertThat(epreuveOf(co.id())).isEqualTo(EpreuveType.TCF_CO);
+        assertThat(epreuveOf(ce.id())).isEqualTo(EpreuveType.TCF_CE);
+        assertThat(epreuveOf(st.id())).isEqualTo(EpreuveType.TCF_STRUCTURE);
+    }
+
+    /** Même cause, même correctif, sur les séries d'entraînement TCF. */
+    @Test
+    void lotTcf_poseLEpreuveDuSousModule() {
+        User user = data.user();
+        AttemptResponse ce = service.start(user.getId(),
+                new StartAttemptRequest(AttemptType.TRAINING, Module.TCF, null, null,
+                        Difficulty.A2, QuestionType.CE, null, 1, null, null));
+
+        assertThat(epreuveOf(ce.id())).isEqualTo(EpreuveType.TCF_CE);
+    }
+
+    private EpreuveType epreuveOf(UUID attemptId) {
+        return attemptManager.findById(attemptId).orElseThrow().getEpreuve();
     }
 
     @Test

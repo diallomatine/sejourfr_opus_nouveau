@@ -382,6 +382,67 @@ class QuestionMapperTest {
         assertThat(r.userSelectedChoiceIds()).containsExactly(a.getId());
     }
 
+    // ------------------------------------------------------------------------
+    // Transcript : contient le script COMPLET du document sonore ET les
+    // propositions lues. L'exposer avant la correction donne la réponse ; sur
+    // une CO_IMAGE (écran « A/B/C/D ») il remplace l'exercice.
+    // ------------------------------------------------------------------------
+
+    private Question coImageWithTranscripts() {
+        Question q = baseQuestion(QuestionType.CO_IMAGE);
+        q.setChoices(new ArrayList<>(List.of(choice("A", true, 0), choice("B", false, 1))));
+
+        Media image = new Media();
+        image.setId(UUID.randomUUID());
+        image.setType(MediaType.IMAGE);
+        image.setUrl("https://r2.example/i.png");
+        image.setTranscript("script de l'image");
+        q.setMedia(image);
+
+        Media audio = new Media();
+        audio.setId(UUID.randomUUID());
+        audio.setType(MediaType.AUDIO);
+        audio.setUrl("https://r2.example/a.mp3");
+        audio.setTranscript("Réponse A : … Réponse B : … la bonne réponse est A");
+        q.setAudioMedia(audio);
+        return q;
+    }
+
+    @Test
+    void toPublic_revealFalse_hidesTranscriptOnBothMedias() {
+        Question q = coImageWithTranscripts();
+
+        QuestionPublicResponse r = mapper.toPublic(q, false, UUID.randomUUID());
+
+        assertThat(r.media()).isNotNull();
+        assertThat(r.media().transcript()).isNull();
+        assertThat(r.audioMedia()).isNotNull();
+        assertThat(r.audioMedia().transcript()).isNull();
+        // Le reste du média reste servi : sans URL, pas d'exercice du tout.
+        assertThat(r.audioMedia().url()).isEqualTo("https://r2.example/a.mp3");
+    }
+
+    @Test
+    void toPublic_revealTrue_exposesTranscriptOnBothMedias() {
+        Question q = coImageWithTranscripts();
+
+        QuestionPublicResponse r = mapper.toPublic(q, true, UUID.randomUUID());
+
+        assertThat(r.media().transcript()).isEqualTo("script de l'image");
+        assertThat(r.audioMedia().transcript()).isNotNull();
+    }
+
+    /** La revue est post-correction : le transcript y est une aide pédagogique. */
+    @Test
+    void toReview_exposesTranscript() {
+        Question q = coImageWithTranscripts();
+
+        QuestionReviewResponse r = mapper.toReview(q, List.of());
+
+        assertThat(r.media().transcript()).isEqualTo("script de l'image");
+        assertThat(r.audioMedia().transcript()).isNotNull();
+    }
+
     @Test
     void toReview_nullSelection_yieldEmptyList() {
         Question q = baseQuestion(QuestionType.CONNAISSANCE);

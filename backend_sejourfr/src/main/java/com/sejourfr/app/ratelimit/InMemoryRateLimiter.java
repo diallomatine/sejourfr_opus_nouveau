@@ -60,6 +60,17 @@ public class InMemoryRateLimiter {
         }
     }
 
+    /**
+     * Oublie le compteur de {@code key} dans {@code bucket}. Appele quand
+     * l'action protegee a REUSSI (ex: authentification valide) : le garde-fou
+     * ne doit compter que les echecs, sinon un usage legitime repete finit
+     * lui-meme en 429.
+     */
+    public void reset(String bucket, String key) {
+        if (key == null || key.isBlank()) return;
+        windows.invalidate(bucket + ':' + key);
+    }
+
     /** Compteur de fenetre. Acces synchronise sur l'instance (identite stable en cache). */
     private static final class Window {
         private long startMs = System.currentTimeMillis();

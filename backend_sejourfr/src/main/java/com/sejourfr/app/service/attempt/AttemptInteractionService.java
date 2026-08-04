@@ -134,11 +134,22 @@ public class AttemptInteractionService {
         }
 
         Question question = aq.getQuestion();
+        Set<UUID> questionChoiceIds = question.getChoices().stream()
+                .map(Choice::getId)
+                .collect(Collectors.toSet());
         Set<UUID> correctIds = question.getChoices().stream()
                 .filter(Choice::isCorrect)
                 .map(Choice::getId)
                 .collect(Collectors.toSet());
         Set<UUID> submitted = new HashSet<>(req.choiceIds());
+        // Les choix soumis doivent appartenir à CETTE question. Sans ce contrôle,
+        // un choiceId pris sur une autre question était accepté et persisté dans
+        // answers.selected_choice_ids — sans effet sur le score, mais la revue
+        // affichait ensuite une sélection qui n'existe pas dans la question.
+        if (!questionChoiceIds.containsAll(submitted)) {
+            throw new IllegalArgumentException(
+                    "Un choix soumis n'appartient pas à cette question");
+        }
         boolean correct = submitted.equals(correctIds);
 
         // Sauvegarde/MAJ de la reponse (une seule par attempt_question)

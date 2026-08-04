@@ -4,7 +4,7 @@ import com.sejourfr.app.dto.ContactRequest;
 import com.sejourfr.app.dto.ContactResponse;
 import com.sejourfr.app.ratelimit.RateLimitGuard;
 import com.sejourfr.app.service.ContactService;
-import com.sejourfr.app.util.ClientIpExtractor;
+import com.sejourfr.app.util.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,10 +27,11 @@ public class ContactController {
 
     private final ContactService contactService;
     private final RateLimitGuard rateLimitGuard;
+    private final ClientIpResolver clientIpResolver;
 
     @PostMapping
     public ContactResponse submit(@Valid @RequestBody ContactRequest req, HttpServletRequest http) {
-        rateLimitGuard.checkContact(ClientIpExtractor.extract(http));
+        rateLimitGuard.checkContact(clientIpResolver.resolve(http));
         return contactService.submit(req);
     }
 }

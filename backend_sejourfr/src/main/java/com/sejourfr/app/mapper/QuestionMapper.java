@@ -130,8 +130,8 @@ public class QuestionMapper {
                 q.getStatement(),
                 revealCorrect ? q.getExplanation() : null,
                 q.getPassage() != null ? q.getPassage().getContent() : null,
-                toMedia(q),
-                toAudioMedia(q),
+                toMedia(q, revealCorrect),
+                toAudioMedia(q, revealCorrect),
                 choices
         );
     }
@@ -153,30 +153,41 @@ public class QuestionMapper {
                 q.getStatement(),
                 q.getPassage() != null ? q.getPassage().getContent() : null,
                 q.getExplanation(),
-                toMedia(q),
-                toAudioMedia(q),
+                // Vue revue = correction déjà rendue : le transcript est ici
+                // une aide pédagogique, pas une fuite.
+                toMedia(q, true),
+                toAudioMedia(q, true),
                 choices,
                 userSelectedChoiceIds != null ? userSelectedChoiceIds : List.of()
         );
     }
 
-    private MediaResponse toMedia(Question q) {
-        return toMediaResponse(q.getMedia());
+    private MediaResponse toMedia(Question q, boolean revealTranscript) {
+        return toMediaResponse(q.getMedia(), revealTranscript);
     }
 
     /** Second média audio des questions CO_IMAGE. NULL pour les autres types. */
-    private MediaResponse toAudioMedia(Question q) {
-        return toMediaResponse(q.getAudioMedia());
+    private MediaResponse toAudioMedia(Question q, boolean revealTranscript) {
+        return toMediaResponse(q.getAudioMedia(), revealTranscript);
     }
 
-    private MediaResponse toMediaResponse(Media media) {
+    /**
+     * @param revealTranscript le transcript porte le script COMPLET du document
+     *                         sonore <em>et</em> les propositions lues. L'exposer
+     *                         pendant l'épreuve donne la réponse — et sur une
+     *                         CO_IMAGE, dont l'écran n'affiche que « A/B/C/D »,
+     *                         il remplace purement l'exercice. On ne le sert donc
+     *                         qu'une fois la correction révélée (revue,
+     *                         post-finalisation), jamais dans le runner.
+     */
+    private MediaResponse toMediaResponse(Media media, boolean revealTranscript) {
         if (media == null) return null;
         return new MediaResponse(
                 media.getId(),
                 media.getType(),
                 media.getUrl(),
                 media.getDurationSeconds(),
-                media.getTranscript(),
+                revealTranscript ? media.getTranscript() : null,
                 media.getInlineSvg()
         );
     }

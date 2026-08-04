@@ -17,7 +17,6 @@ import com.sejourfr.app.manager.ProductionSubmissionManager;
 import com.sejourfr.app.manager.UserManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,6 +53,9 @@ public class FullTcfExamService {
 
     private static final int HISTORY_LIMIT_MAX = 100;
 
+    /** Nombre de slots de la grille d'examens blancs complets (cf. V110). */
+    static final int EXAM_SLOTS = 20;
+
     private final AttemptManager attemptManager;
     private final UserManager userManager;
     private final ProductionSubmissionManager productionSubmissionManager;
@@ -79,6 +81,7 @@ public class FullTcfExamService {
      */
     @Transactional
     public FullTcfExamResponse start(UUID userId, Integer slotNumber) {
+        int slot = validateSlot(slotNumber);
         User user = userManager.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User introuvable : " + userId));
 
@@ -87,7 +90,7 @@ public class FullTcfExamService {
         boolean productionUnlocked = subscriptionService.hasTcf(userId)
                 || !productionSubmissionManager.hasFullExamProductionSubmission(userId);
 
-        Attempt parent = createParent(user, slotNumber, !productionUnlocked);
+        Attempt parent = createParent(user, slot, !productionUnlocked);
 
         // CO + CE : QCM avec questions tirées + chrono propre.
         attemptService.startModuleExamSubAttempt(user, QuestionType.CO, parent);
@@ -124,6 +127,19 @@ public class FullTcfExamService {
                 attemptManager.save(sub);
             }
         }
+    }
+
+    /**
+     * Slot de la grille « 20 examens blancs complets » : 1..{@value #EXAM_SLOTS},
+     * null → slot 1. Sans cette borne, {@code slotNumber=999} ou {@code -3}
+     * étaient persistés tels quels — même verrou que les MOCK_EXAM QCM.
+     */
+    private static int validateSlot(Integer slotNumber) {
+        if (slotNumber == null) return 1;
+        if (slotNumber < 1 || slotNumber > EXAM_SLOTS) {
+            throw new BusinessException("slotNumber doit être entre 1 et " + EXAM_SLOTS + ".");
+        }
+        return slotNumber;
     }
 
     private Attempt createParent(User user, Integer slotNumber, boolean productionLocked) {
@@ -311,7 +327,10 @@ public class FullTcfExamService {
         Attempt parent = attemptManager.findById(parentAttemptId)
                 .orElseThrow(() -> new NotFoundException("Examen blanc introuvable : " + parentAttemptId));
         if (parent.getUser() == null || !parent.getUser().getId().equals(userId)) {
-            throw new AccessDeniedException("Examen blanc n'appartient pas à l'utilisateur courant.");
+            // 404 et non 403 : un 403 confirmait l'EXISTENCE de l'id à qui ne
+            // le possède pas (énumération). Aligné sur les endpoints voisins
+            // (attempts guest, sous-attempts) qui répondent déjà « introuvable ».
+            throw new NotFoundException("Examen blanc introuvable : " + parentAttemptId);
         }
         if (parent.getEpreuve() != EpreuveType.TCF_COMPLET) {
             throw new BusinessException("Attempt " + parentAttemptId + " n'est pas un examen TCF complet.");

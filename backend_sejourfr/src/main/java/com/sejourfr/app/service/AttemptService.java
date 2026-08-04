@@ -616,6 +616,11 @@ public class AttemptService {
         attempt.setLotNumero(req.lotNumero());
         attempt.setLotQuestionType(req.questionType());
         attempt.setLotDifficulty(req.difficulty());
+        // Même raison qu'en examen module : sans épreuve explicite, un lot
+        // d'entraînement CE ou STRUCTURE ressortait étiqueté TCF_CO.
+        if (req.questionType() != null) {
+            attempt.setEpreuve(moduleExamEpreuve(req.questionType()));
+        }
         attempt = attemptManager.save(attempt);
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, questions);
@@ -705,6 +710,11 @@ public class AttemptService {
         attempt.setUser(user);
         attempt.setType(AttemptType.MOCK_EXAM);
         attempt.setModule(req.module());
+        // Épreuve explicite : sans ça le @PrePersist d'Attempt retombait sur
+        // deriveEpreuveFromModule(TCF) = TCF_CO, et un examen de CE ou de
+        // STRUCTURE était étiqueté « Compréhension orale » partout où les
+        // fronts labellisent sur `epreuve` (/api/me/attempts, historiques).
+        attempt.setEpreuve(moduleExamEpreuve(qType));
         attempt.setModuleExamQuestionType(qType);
         attempt.setTotalQuestions(picked.size());
         attempt.setTimeLimitSeconds(timeLimit);
@@ -718,6 +728,17 @@ public class AttemptService {
 
         List<AttemptQuestion> aqList = persistAttemptQuestions(attempt, picked);
         return mapper.toResponse(attempt, aqList, false);
+    }
+
+    /** Épreuve fine portée par un examen module TCF QCM (CO / CE / STRUCTURE). */
+    static EpreuveType moduleExamEpreuve(QuestionType qType) {
+        return switch (qType) {
+            case CO, CO_IMAGE -> EpreuveType.TCF_CO;
+            case CE -> EpreuveType.TCF_CE;
+            case STRUCTURE -> EpreuveType.TCF_STRUCTURE;
+            default -> throw new BusinessException(
+                    "qType sans épreuve d'examen module : " + qType);
+        };
     }
 
     /**

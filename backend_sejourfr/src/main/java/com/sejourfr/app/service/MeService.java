@@ -86,7 +86,10 @@ public class MeService {
 
     @Transactional(readOnly = true)
     public UserStatsResponse stats(UUID userId, Module module) {
-        long attemptsTotal = attemptManager.countByUserId(userId);
+        // Scopé au module comme tout le reste de la réponse : sans ça
+        // /api/me/stats?module=CIVIQUE et ?module=TCF annonçaient le même
+        // total (toutes sessions confondues) à côté de compteurs, eux, filtrés.
+        long attemptsTotal = attemptManager.countByUserIdAndModule(userId, module);
         long answered = answerManager.countAnsweredByUserAndModule(userId, module);
         long correct = answerManager.countCorrectByUserAndModule(userId, module);
         double rate = answered == 0 ? 0.0 : (double) correct / answered;
@@ -312,28 +315,22 @@ public class MeService {
     @Transactional(readOnly = true)
     public List<QuestionPublicResponse> wrongAnswered(
             UUID userId, Module module, QuestionType questionType, UUID themeId) {
-        // Plafonné aux N erreurs les plus récentes du module (erreur récente
-        // d'abord). Les plus anciennes sortent de la révision sans être
-        // supprimées : les stats de progression lisent toujours toutes les
-        // réponses.
+        // TOUS les filtres (module, type, thème) descendent dans la requête, et
+        // le plafond s'applique après eux : sinon on cherchait un type ou un
+        // thème à l'intérieur des 30 dernières erreurs du module — un
+        // utilisateur avec 225 CO ratées en voyait 8, et 0 sur un thème
+        // civique qui en comptait 41. Le filtre CO inclut CO_IMAGE (cf.
+        // AnswerManager.expandQuestionTypes).
         List<UUID> ids = answerManager.findRecentWrongQuestionIds(
-                userId, module, MAX_WRONG_PER_MODULE);
+                userId, module, questionType, themeId, MAX_WRONG_PER_MODULE);
         if (ids.isEmpty()) return List.of();
         // `findAllById` ne préserve pas l'ordre → on indexe par id puis on
-        // ré-émet dans l'ordre de `ids` (récent d'abord). On re-filtre par
-        // `q.module` en plus du filtre déjà appliqué côté query sur l'attempt :
-        // garantit qu'aucune question CIVIQUE ne fuite côté TCF (et vice
-        // versa) — défense en profondeur si jamais un attempt mixte
-        // remontait des questions cross-module.
+        // ré-émet dans l'ordre de `ids` (récent d'abord).
         Map<UUID, Question> byId = questionManager.findAllById(ids).stream()
                 .collect(Collectors.toMap(Question::getId, Function.identity()));
         return ids.stream()
                 .map(byId::get)
                 .filter(q -> q != null)
-                .filter(q -> module == null || q.getModule() == module)
-                .filter(q -> questionType == null || q.getQuestionType() == questionType)
-                .filter(q -> themeId == null
-                        || (q.getTheme() != null && themeId.equals(q.getTheme().getId())))
                 .map(this::toPublic)
                 .toList();
     }
