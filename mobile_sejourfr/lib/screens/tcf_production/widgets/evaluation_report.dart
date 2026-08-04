@@ -7,22 +7,27 @@ import 'accomplishment_card.dart';
 import 'avertissements_card.dart';
 import 'correction_example.dart';
 import 'criterion_row.dart';
+import 'donut_chart_score.dart';
 import 'feedback_block.dart';
 import 'niveau_observe_card.dart';
+import 'priority_card.dart';
 
 /// Corps commun des ecrans de resultats EE et EO : meme correction, meme ordre,
 /// un seul endroit a faire evoluer.
 ///
-/// Ordre voulu par le contrat de notation v4 :
-/// 1. niveau observe sur la tache (avec sa confiance, jamais sans) ;
-/// 2. avertissements — dont la limite de l'evaluation orale, visible et non
+/// Ordre voulu :
+/// 1. niveau observe sur la tache (avec sa confiance, jamais sans) — c'est
+///    l'information que le candidat cherche, elle passe AVANT la note et avant
+///    toute precaution ;
+/// 2. note pedagogique /20 ;
+/// 3. avertissements — dont la limite de l'evaluation orale, visible et non
 ///    enterree en bas d'ecran ;
-/// 3. accomplissement de la consigne, AVANT la langue : le candidat voit
+/// 4. accomplissement de la consigne, AVANT la langue : le candidat voit
 ///    d'abord s'il a oublie un point demande ;
-/// 4. detail par critere en bandes qualitatives ;
-/// 5. points forts, puis priorites (2 max), corrections, suggestion.
+/// 5. detail par critere en bandes qualitatives ;
+/// 6. points forts, puis priorites (2 max), corrections, suggestion.
 ///
-/// Tout est optionnel : une evaluation au format v3 n'expose ni niveau, ni
+/// Tout est optionnel : une evaluation ancienne n'expose ni niveau, ni
 /// accomplissement, ni bandes — les blocs concernes disparaissent et l'ecran
 /// reste celui d'avant.
 class EvaluationReport extends StatelessWidget {
@@ -46,6 +51,7 @@ class EvaluationReport extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         NiveauObserveCard(evaluation: evaluation),
+        DonutChartScore(noteSur20: evaluation.noteSurVingt),
         AvertissementsCard(avertissements: feedback.avertissements),
         AccomplishmentCard(accomplissement: feedback.accomplissement),
         if (feedback.scoresCriteres.isNotEmpty)
@@ -57,12 +63,15 @@ class EvaluationReport extends StatelessWidget {
             items: feedback.pointsForts,
           ),
         if (priorites.isNotEmpty)
-          FeedbackBlock(
+          FeedbackBlock.rich(
             kind: FeedbackKind.improve,
             title: priorites.length > 1 ? 'Vos priorités' : 'Votre priorité',
             subtitle: 'À travailler en premier lors de votre prochaine '
                 'production — pas la peine de tout corriger d\'un coup.',
-            items: priorites,
+            blocks: [
+              for (final (index, priorite) in priorites.indexed)
+                PriorityCard(priorite: priorite, rang: index + 1),
+            ],
           ),
         if (feedback.exemplesCorriges.isNotEmpty)
           _CorrectionsCard(

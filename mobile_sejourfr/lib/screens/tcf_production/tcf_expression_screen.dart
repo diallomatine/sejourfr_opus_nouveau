@@ -369,7 +369,7 @@ class _History extends StatelessWidget {
                   label: 'Moyenne examens',
                   value: moyenneExamens == null
                       ? '—'
-                      : '${_formatNote(moyenneExamens)}/20',
+                      : '${formatScore(moyenneExamens)}/20',
                 ),
               ),
             ],
@@ -484,7 +484,7 @@ class _LastExamCard extends StatelessWidget {
                       decoration: BoxDecoration(
                           color: AppColors.blueLight,
                           borderRadius: BorderRadius.circular(8)),
-                      child: Text(avg != null ? '${_formatNote(avg)}/20' : '…',
+                      child: Text(avg != null ? '${formatScore(avg)}/20' : '…',
                           style: AppFonts.ui(
                               size: 11,
                               weight: FontWeight.w800,
@@ -524,7 +524,7 @@ class _MiniScore extends StatelessWidget {
       decoration: BoxDecoration(
           color: AppColors.bg, borderRadius: BorderRadius.circular(6)),
       child: Text(
-        note != null ? 'T$tache · ${_formatNote(note!)}/20' : 'T$tache · —',
+        note != null ? 'T$tache · ${formatScore(note!)}/20' : 'T$tache · —',
         style: AppFonts.ui(
             size: 11, color: AppColors.muted, weight: FontWeight.w600),
       ),
@@ -590,7 +590,7 @@ class _RecentSingleRow extends StatelessWidget {
                     decoration: BoxDecoration(
                         color: badgeBg,
                         borderRadius: BorderRadius.circular(8)),
-                    child: Text('${_formatNote(note)}/20',
+                    child: Text('${formatScore(note)}/20',
                         style: AppFonts.ui(
                             size: 11, weight: FontWeight.w800, color: badgeFg)),
                   ),
@@ -817,7 +817,7 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
                           size: 13, color: AppColors.green),
                       const SizedBox(width: 5),
                       Text(
-                        'Dernière note : ${_formatNote(note)}/20',
+                        'Dernière note : ${formatScore(note)}/20',
                         style: AppFonts.ui(
                             size: 12.5,
                             color: AppColors.green,
@@ -1389,8 +1389,6 @@ class _ErrorBox extends StatelessWidget {
 
 (Color, Color) _taskColors(int tache) => taskPalette(tache);
 
-String _formatNote(double n) => n.toStringAsFixed(1).replaceAll('.', ',');
-
 // ============================================================================
 // Onglets + contenu de l'écran par tâche
 // ============================================================================
@@ -1489,7 +1487,7 @@ class _ExerciseRow extends StatelessWidget {
                       if (done)
                         AppTag(
                           label: note != null
-                              ? '${_formatNote(note)}/20'
+                              ? '${formatScore(note)}/20'
                               : 'Terminé',
                           tone: (note != null && note <= 12)
                               ? TagTone.red

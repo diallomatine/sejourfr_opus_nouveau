@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/format_date.dart';
 import 'cecrl_scale.dart';
 
 /// Carte "Bilan global" sur fond bleu dégradé : eyebrow mono + moyenne /20
@@ -26,11 +27,6 @@ class BilanHero extends StatelessWidget {
   /// Fourchette de note officielle du TCF pour ce niveau (backend). Null tant
   /// qu'aucun niveau n'est exploitable — le bloc n'est alors pas rendu.
   final CorrespondanceTcf? correspondanceTcf;
-
-  String _formatScore(double s) {
-    if (s == s.truncateToDouble()) return s.toInt().toString();
-    return s.toStringAsFixed(1).replaceAll('.', ',');
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,7 +82,7 @@ class BilanHero extends StatelessWidget {
                       text: TextSpan(
                         children: [
                           TextSpan(
-                            text: moyenneSur20 == null ? '—' : _formatScore(moyenneSur20!),
+                            text: moyenneSur20 == null ? '—' : formatScore(moyenneSur20!),
                             style: AppFonts.display(
                               size: 44,
                               weight: FontWeight.w700,

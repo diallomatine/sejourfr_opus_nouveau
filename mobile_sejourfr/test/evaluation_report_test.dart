@@ -16,13 +16,38 @@ Widget _host(EvaluationResult eval) => MaterialApp(
 void main() {
   setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
 
-  testWidgets('v4 : accomplissement avant les critères, bande et preuve',
+  testWidgets('le niveau observé passe avant la note et ses précautions',
       (tester) async {
     final eval = EvaluationResult.fromJson(<String, dynamic>{
-      'noteSurVingt': 13,
+      'noteSurVingt': 12.5,
       'niveauObserve': 'B1',
       'confiance': 'MOYENNE',
       'avertissementNiveau': 'Le niveau qui fait foi est celui du bilan.',
+      'feedback': <String, dynamic>{'note_globale': 12.5},
+    });
+
+    await tester.pumpWidget(_host(eval));
+
+    expect(find.text('Proche du niveau B1'), findsOneWidget);
+    expect(find.text('Confiance moyenne'), findsOneWidget);
+    // La décimale du contrat courant n'est pas arrondie à l'affichage.
+    expect(find.text('12,5/20', findRichText: true), findsOneWidget);
+
+    final niveauY = tester.getTopLeft(find.text('Proche du niveau B1')).dy;
+    final noteY =
+        tester.getTopLeft(find.text('Note pédagogique de la tâche')).dy;
+    final avertissementY =
+        tester.getTopLeft(find.text('Le niveau qui fait foi est celui du bilan.')).dy;
+    expect(niveauY, lessThan(noteY));
+    expect(niveauY, lessThan(avertissementY));
+  });
+
+  testWidgets('accomplissement avant les critères, bande et preuve',
+      (tester) async {
+    final eval = EvaluationResult.fromJson(<String, dynamic>{
+      'noteSurVingt': 12.5,
+      'niveauObserve': 'B1',
+      'confiance': 'MOYENNE',
       'feedback': <String, dynamic>{
         'accomplissement': <String, dynamic>{
           'points_traites': [
@@ -43,18 +68,12 @@ void main() {
             'preuve': 'un petit appartement',
           },
         ],
-        'points_a_ameliorer': ['Penser à inviter', 'Varier les connecteurs'],
         'avertissements': ['Évaluation fondée sur la transcription.'],
       },
     });
 
     await tester.pumpWidget(_host(eval));
 
-    expect(
-      find.text('Performance observée sur cette tâche : proche du niveau B1'),
-      findsOneWidget,
-    );
-    expect(find.textContaining('confiance moyenne'), findsOneWidget);
     expect(find.text('Évaluation fondée sur la transcription.'), findsOneWidget);
     expect(find.text('Invitation absente'), findsOneWidget);
     expect(find.text('Loyer non mentionné'), findsOneWidget);
@@ -62,20 +81,92 @@ void main() {
 
     // Bande affichée, note du critère jamais chiffrée.
     expect(find.text('Satisfaisant'), findsOneWidget);
-    expect(find.textContaining('13', findRichText: true), findsNothing);
+    expect(find.text('13/20', findRichText: true), findsNothing);
     expect(find.text('« un petit appartement »'), findsOneWidget);
 
-    expect(find.text('Vos priorités'), findsOneWidget);
-
-    // L'accomplissement passe avant le détail de langue.
     final accomplissementY =
         tester.getTopLeft(find.text('Ce que demandait la consigne')).dy;
     final criteresY = tester.getTopLeft(find.text('Détail par critères')).dy;
     expect(accomplissementY, lessThan(criteresY));
   });
 
-  testWidgets('v3 : ni niveau ni accomplissement, note du critère chiffrée',
+  testWidgets('une priorité enseigne : technique et démonstration visibles',
       (tester) async {
+    final eval = EvaluationResult.fromJson(<String, dynamic>{
+      'noteSurVingt': 12.5,
+      'feedback': <String, dynamic>{
+        'points_a_ameliorer': [
+          {
+            'constat': 'Vos idées sont posées les unes après les autres.',
+            'comment': 'Reliez-les avec un connecteur : remplacez le point '
+                'entre deux idées liées par « et » ou « parce que ».',
+            'exemple': {
+              'avant': 'Je cherche un travail. Je suis motivé.',
+              'apres': 'Je cherche un travail parce que je suis motivé.',
+            },
+          },
+        ],
+        'exemples_corriges': [
+          {
+            'original': 'Il fait beau. Je sors.',
+            'corrige': 'Comme il fait beau, je sors.',
+            'explication': 'La subordonnée relie la cause et la conséquence.',
+            'gain': 'emploie une subordonnée, marqueur attendu au B1',
+          },
+        ],
+      },
+    });
+
+    await tester.pumpWidget(_host(eval));
+
+    expect(find.text('Votre priorité'), findsOneWidget);
+    expect(find.text('COMMENT FAIRE'), findsOneWidget);
+    expect(find.textContaining('Reliez-les avec un connecteur'), findsOneWidget);
+    expect(
+      find.text('Votre phrase : Je cherche un travail. Je suis motivé.',
+          findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Réécrite : Je cherche un travail parce que je suis motivé.',
+          findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.text('emploie une subordonnée, marqueur attendu au B1'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('une priorité déjà en base sous forme de chaîne reste lisible',
+      (tester) async {
+    final eval = EvaluationResult.fromJson(<String, dynamic>{
+      'noteSurVingt': 14,
+      'feedback': <String, dynamic>{
+        'points_a_ameliorer': ['Penser à inviter', 'Varier les connecteurs'],
+        'exemples_corriges': [
+          {
+            'original': 'jai fini',
+            'corrige': "j'ai fini",
+            'explication': 'Apostrophe manquante.',
+          },
+        ],
+      },
+    });
+
+    await tester.pumpWidget(_host(eval));
+
+    expect(find.text('Vos priorités'), findsOneWidget);
+    expect(find.text('Penser à inviter'), findsOneWidget);
+    expect(find.text('Varier les connecteurs'), findsOneWidget);
+    // Ni encadré technique ni démonstration : rien à inventer sur l'ancien
+    // format, et surtout pas de bloc vide.
+    expect(find.text('COMMENT FAIRE'), findsNothing);
+    expect(find.text('SUR VOTRE PRODUCTION'), findsNothing);
+  });
+
+  testWidgets('évaluation ancienne : ni niveau, ni accomplissement, note du '
+      'critère chiffrée', (tester) async {
     final eval = EvaluationResult.fromJson(<String, dynamic>{
       'noteSurVingt': 14,
       'feedback': <String, dynamic>{
@@ -91,18 +182,22 @@ void main() {
 
     await tester.pumpWidget(_host(eval));
 
-    expect(find.textContaining('Performance observée'), findsNothing);
+    expect(find.textContaining('Proche du niveau'), findsNothing);
     expect(find.text('Ce que demandait la consigne'), findsNothing);
     expect(find.text('Détail par critères'), findsOneWidget);
     expect(find.text('Richesse lexicale'), findsOneWidget);
     expect(find.text('13/20', findRichText: true), findsOneWidget);
   });
 
-  testWidgets('chaque code de critère v4 a son icône et son libellé',
+  testWidgets('chaque code de critère a son icône et son libellé',
       (tester) async {
-    // Les 10 codes distincts des rubriques v4 (cf. production-rubrics-v4.json)
-    // + `pertinence`, encore porté par les évaluations déjà en base.
+    // Les 4 codes de la grille courante (cf. production-rubrics-v5.json) + les
+    // codes des grilles précédentes, encore portés par les évaluations en base.
     const codes = [
+      'communiquer',
+      'interagir',
+      'lexique',
+      'morphosyntaxe',
       'realisation_consigne',
       'adequation_destinataire',
       'chronologie_recit',
@@ -110,8 +205,6 @@ void main() {
       'prise_position',
       'argumentation',
       'conduite_echange',
-      'lexique',
-      'morphosyntaxe',
       'coherence',
       'pertinence',
     ];
@@ -153,7 +246,7 @@ void main() {
 
     await tester.pumpWidget(_host(eval));
 
-    expect(find.textContaining('Performance observée'), findsNothing);
+    expect(find.textContaining('Proche du niveau'), findsNothing);
     expect(find.textContaining('B1'), findsNothing);
   });
 }

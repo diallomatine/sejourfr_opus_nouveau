@@ -680,23 +680,40 @@ entre T1/T2/T3** ; après T3 → bilan détaillé (`HistorySessionScreen` `?live
   submission (correction IA complète) — push en single-task après soumission, ou depuis le
   bilan en tap d'une ligne.
 
-**Correction IA affichée (contrat de notation v4)** — le corps des deux écrans de résultats
-(EE + EO) est le widget partagé `widgets/evaluation_report.dart` : un seul endroit décide de
-l'ordre et de la forme de la correction. Ordre imposé : **niveau observé** sur la tâche
-(`niveau_observe_card.dart`) → **avertissements** (dont la limite « évaluation fondée sur la
-transcription » à l'oral, jamais enterrée en bas d'écran) → **accomplissement**
-(`accomplishment_card.dart`, check-list de la consigne, **avant** la langue) → détail par
-critère → points forts → **priorités** (`points_a_ameliorer`, 2 max côté backend) →
-corrections → suggestion.
+**Correction IA affichée (grille du TCF réel, rubriques v5)** — le corps des deux écrans de
+résultats (EE + EO) est le widget partagé `widgets/evaluation_report.dart` : un seul endroit
+décide de l'ordre et de la forme de la correction, **y compris la note** (`DonutChartScore`
+est rendu par le rapport, plus par chaque écran). Ordre imposé : **niveau observé** sur la
+tâche (`niveau_observe_card.dart`) → **note /20** → **avertissements** (dont la limite
+« évaluation fondée sur la transcription » à l'oral, jamais enterrée en bas d'écran) →
+**accomplissement** (`accomplishment_card.dart`, check-list de la consigne, **avant** la
+langue) → détail par critère → points forts → **priorités** (`points_a_ameliorer`, 2 max côté
+backend) → corrections → suggestion.
 
+- **Le niveau observé ouvre l'écran, pas la note** : pastille pleine du niveau + « Proche du
+  niveau B1 » + pilule de confiance, avant toute précaution. C'est l'information que le
+  candidat cherche ; l'avertissement « le niveau qui fait foi est celui du bilan des trois
+  tâches » reste présent, en second plan sous la pastille.
+- **Une priorité ENSEIGNE** : `points_a_ameliorer[]` est un **objet**
+  `{constat, comment?, exemple?{avant, apres}}` (`PointAAmeliorer`), rendu par
+  `priority_card.dart` — `comment` = la technique réutilisable, mise en avant dans un encadré
+  « COMMENT FAIRE » ; `exemple` = la démonstration avant/après sur la phrase du candidat.
+  ⚠ **Les deux formes coexistent en base** : les évaluations antérieures portent de simples
+  **chaînes** — `PointAAmeliorer.fromJsonNullable` les accepte et les rend comme un `constat`
+  seul (aucun encadré vide). Ne jamais retirer cette tolérance.
+- `exemples_corriges[].gain` (facultatif) = ce que la reformulation démontre de plus, rendu en
+  ligne verte sous l'explication.
 - **Par critère on affiche la bande, pas la note** : `CriterionScore.bande` (`BandeCritere`,
   calculée côté serveur) → « Très bonne maîtrise / Satisfaisant / En cours d'acquisition /
   Fragile / Non évaluable », plus la `preuve` (citation littérale) sous le commentaire. La
-  **note globale /20 reste affichée** (donut). La table icône↔code de `criterion_row.dart`
-  couvre les 10 codes v4 (`realisation_consigne`, `adequation_destinataire`,
-  `chronologie_recit`, `developpement_reponses`, `prise_position`, `argumentation`,
-  `conduite_echange`, `lexique`, `morphosyntaxe`, `coherence`) **et** les codes v3 encore en
-  base — un test verrouille qu'aucun ne retombe sur l'icône par défaut.
+  **note globale /20 reste affichée** (donut) et porte désormais **une décimale** (12,5) :
+  tout affichage de note passe par `formatScore` (`core/utils/format_date.dart`), jamais par
+  un arrondi local. La grille v5 n'a que **4 codes équipondérés** (`communiquer`, `interagir`,
+  `lexique`, `morphosyntaxe`), mais la table icône↔libellé de `criterion_row.dart` garde
+  **tous** les codes des grilles précédentes (`realisation_consigne`,
+  `adequation_destinataire`, `chronologie_recit`, `developpement_reponses`, `prise_position`,
+  `argumentation`, `conduite_echange`, `coherence`, `pertinence`) — sinon l'historique
+  retombe sur l'icône et le libellé par défaut. Un test le verrouille.
 - **Garde-fou non négociable** : jamais de niveau sans sa confiance
   (`EvaluationResult.hasNiveauObserve`). Le **bilan d'épreuve** reste le seul niveau qui fait
   foi.
@@ -706,10 +723,11 @@ corrections → suggestion.
   correspondance (`ProductionBilan.correspondanceTcf` → `CorrespondanceTcf.phrase`) ne
   s'affiche qu'au **bilan d'épreuve** (`BilanHero`), au même wording que le web.
   Cf. `docs/notation-ia-eo-ee.md` §6.6.
-- **Rétrocompatibilité v3** : `niveauObserve` / `confiance` / `avertissementNiveau` / `bande` /
-  `accomplissement` / `preuve` absents = cas **normal** (évaluations déjà en base) → les blocs
-  concernés disparaissent et l'écran redevient celui d'avant. Couvert par
-  `test/production_models_test.dart` + `test/evaluation_report_test.dart`.
+- **Rétrocompatibilité (une centaine d'évaluations en base)** : `niveauObserve` / `confiance` /
+  `avertissementNiveau` / `bande` / `accomplissement` / `preuve` / `gain` absents, et
+  `points_a_ameliorer` en chaînes = cas **normal** → les blocs concernés disparaissent et
+  l'écran redevient celui d'avant. Couvert par `test/production_models_test.dart` +
+  `test/evaluation_report_test.dart`.
 
 **Modélisation (sémantique clé)** : `production_tasks` = les **SUJETS** d'entraînement —
 plusieurs lignes par (épreuve, tacheNumero), chacune un sujet concret (ex. « Vous êtes

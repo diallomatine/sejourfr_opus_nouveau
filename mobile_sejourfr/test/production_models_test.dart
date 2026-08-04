@@ -38,7 +38,24 @@ void main() {
             'preuve': "j'ai trouvé un appartement",
           },
         ],
-        'points_a_ameliorer': ['Penser à inviter', 'Varier les connecteurs'],
+        'points_a_ameliorer': [
+          {
+            'constat': 'Vos idées sont juxtaposées.',
+            'comment': 'Remplacez le point entre deux idées liées par « et ».',
+            'exemple': {
+              'avant': 'Je cherche un travail. Je suis motivé.',
+              'apres': 'Je cherche un travail et je suis motivé.',
+            },
+          },
+        ],
+        'exemples_corriges': [
+          {
+            'original': 'Il fait beau. Je sors.',
+            'corrige': 'Comme il fait beau, je sors.',
+            'explication': 'La subordonnée relie les deux idées.',
+            'gain': 'emploie une subordonnée, marqueur attendu au B1',
+          },
+        ],
         'avertissements': [
           'Évaluation fondée sur la transcription : la voix n\'est pas analysée.',
         ],
@@ -79,7 +96,76 @@ void main() {
       expect(feedback.confiance, ConfianceEvaluation.moyenne);
       expect(feedback.confianceRaisons, hasLength(1));
       expect(feedback.avertissements, hasLength(1));
-      expect(feedback.pointsAAmeliorer, hasLength(2));
+      expect(feedback.pointsAAmeliorer, hasLength(1));
+    });
+
+    test('une priorité porte la technique et sa démonstration', () {
+      final priorite =
+          EvaluationResult.fromJson(json).feedback.pointsAAmeliorer.single;
+
+      expect(priorite.constat, 'Vos idées sont juxtaposées.');
+      expect(priorite.comment, contains('Remplacez le point'));
+      expect(priorite.exemple!.avant, 'Je cherche un travail. Je suis motivé.');
+      expect(priorite.exemple!.apres, 'Je cherche un travail et je suis motivé.');
+      expect(priorite.isTeaching, isTrue);
+    });
+
+    test('un exemple corrigé expose ce qu\'il démontre de plus', () {
+      final exemple =
+          EvaluationResult.fromJson(json).feedback.exemplesCorriges.single;
+
+      expect(exemple.gain, 'emploie une subordonnée, marqueur attendu au B1');
+    });
+  });
+
+  group('points_a_ameliorer : les deux formes portées en base', () {
+    EvaluationFeedback feedbackWith(List<Object?> points) =>
+        EvaluationResult.fromJson(<String, dynamic>{
+          'feedback': <String, dynamic>{'points_a_ameliorer': points},
+        }).feedback;
+
+    test('une chaîne devient un constat seul, sans technique inventée', () {
+      final priorite = feedbackWith(['Penser à inviter']).pointsAAmeliorer.single;
+
+      expect(priorite.constat, 'Penser à inviter');
+      expect(priorite.comment, isNull);
+      expect(priorite.exemple, isNull);
+      expect(priorite.isTeaching, isFalse);
+    });
+
+    test('les deux formes cohabitent dans une même liste', () {
+      final priorites = feedbackWith([
+        'Penser à inviter',
+        {'constat': 'Idées juxtaposées.', 'comment': 'Ajoutez « et ».'},
+      ]).pointsAAmeliorer;
+
+      expect(priorites.map((p) => p.constat),
+          ['Penser à inviter', 'Idées juxtaposées.']);
+      expect(priorites.first.comment, isNull);
+      expect(priorites.last.comment, 'Ajoutez « et ».');
+    });
+
+    test('une entrée vide ou illisible est ignorée, pas rendue à blanc', () {
+      final priorites = feedbackWith([
+        '   ',
+        null,
+        42,
+        <String, dynamic>{'comment': 'technique sans constat'},
+        <String, dynamic>{'constat': 'Reste lisible'},
+      ]).pointsAAmeliorer;
+
+      expect(priorites.map((p) => p.constat), ['Reste lisible']);
+    });
+
+    test('un exemple incomplet ne s\'affiche pas à moitié', () {
+      final priorite = feedbackWith([
+        {
+          'constat': 'Idées juxtaposées.',
+          'exemple': {'avant': 'Je sors.'},
+        },
+      ]).pointsAAmeliorer.single;
+
+      expect(priorite.exemple, isNull);
     });
   });
 

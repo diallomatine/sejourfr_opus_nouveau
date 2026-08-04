@@ -14,11 +14,23 @@ class FeedbackBlock extends StatelessWidget {
     required this.title,
     required this.items,
     this.subtitle,
-  });
+  }) : blocks = const [];
+
+  /// Meme habillage (teinte, titre, intention), mais un contenu compose a la
+  /// place des puces : une priorite ne tient pas sur une ligne, elle porte une
+  /// technique et sa demonstration.
+  const FeedbackBlock.rich({
+    super.key,
+    required this.kind,
+    required this.title,
+    required this.blocks,
+    this.subtitle,
+  }) : items = const [];
 
   final FeedbackKind kind;
   final String title;
   final List<String> items;
+  final List<Widget> blocks;
 
   /// Ligne d'intention sous le titre (ex: cadrer les priorites plutot que de
   /// les lire comme une liste de reproches).
@@ -51,7 +63,7 @@ class FeedbackBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) return const SizedBox.shrink();
+    if (items.isEmpty && blocks.isEmpty) return const SizedBox.shrink();
     final p = _palette;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
@@ -121,6 +133,7 @@ class FeedbackBlock extends StatelessWidget {
               ),
             ),
           ),
+          ...blocks,
         ],
       ),
     );

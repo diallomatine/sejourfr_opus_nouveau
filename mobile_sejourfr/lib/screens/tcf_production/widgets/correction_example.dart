@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// Bloc de correction d'un exemple : label rouge "Original :" + texte, label
-/// vert "Correction :" + texte vert gras, label gris "Explication :" + texte.
-/// Equivalent de `.correction-block` du mockup HTML.
+/// Bloc de correction d'un exemple : la phrase du candidat, sa reformulation,
+/// l'explication, puis le `gain` — ce que la version corrigee demontre de plus.
 class CorrectionExampleCard extends StatelessWidget {
   const CorrectionExampleCard({super.key, required this.example});
 
@@ -25,20 +25,7 @@ class CorrectionExampleCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Line(
-            label: 'Original :',
-            labelColor: AppColors.red,
-            text: example.original,
-            textColor: AppColors.ink,
-          ),
-          const SizedBox(height: 4),
-          _Line(
-            label: 'Correction :',
-            labelColor: AppColors.green,
-            text: example.corrige,
-            textColor: AppColors.green,
-            textBold: true,
-          ),
+          BeforeAfterLines(avant: example.original, apres: example.corrige),
           if (example.explication.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text.rich(
@@ -64,8 +51,93 @@ class CorrectionExampleCard extends StatelessWidget {
               ),
             ),
           ],
+          if (example.gain != null) ...[
+            const SizedBox(height: 10),
+            _GainLine(gain: example.gain!),
+          ],
         ],
       ),
+    );
+  }
+}
+
+/// Ce que la reformulation demontre de plus — le progres vise, pas le detail
+/// corrige. Absent des evaluations anterieures au contrat courant.
+class _GainLine extends StatelessWidget {
+  const _GainLine({required this.gain});
+
+  final String gain;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: AppColors.green.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1, right: 8),
+            child: Icon(LucideIcons.trendingUp, size: 15, color: AppColors.green),
+          ),
+          Expanded(
+            child: Text(
+              gain,
+              style: AppFonts.ui(
+                size: 12,
+                weight: FontWeight.w600,
+                color: AppColors.green,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Couple « phrase du candidat » → « phrase reecrite », partage par les
+/// corrections et par la demonstration d'une priorite de travail : c'est la
+/// meme idee rendue au meme endroit, avec les mots de son contexte.
+class BeforeAfterLines extends StatelessWidget {
+  const BeforeAfterLines({
+    super.key,
+    required this.avant,
+    required this.apres,
+    this.avantLabel = 'Original :',
+    this.apresLabel = 'Correction :',
+  });
+
+  final String avant;
+  final String apres;
+  final String avantLabel;
+  final String apresLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Line(
+          label: avantLabel,
+          labelColor: AppColors.red,
+          text: avant,
+          textColor: AppColors.ink,
+        ),
+        const SizedBox(height: 4),
+        _Line(
+          label: apresLabel,
+          labelColor: AppColors.green,
+          text: apres,
+          textColor: AppColors.green,
+          textBold: true,
+        ),
+      ],
     );
   }
 }

@@ -4,13 +4,19 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/models/production_models.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/format_date.dart';
 
 /// Ligne d'un critere : icone bubble coloree + nom + bande qualitative + barre.
 ///
-/// Contrat v4 : on affiche la **bande** (« Satisfaisant »), pas la note du
-/// critere — l'IA ne distingue pas honnetement un 13 d'un 14. Seule la note
-/// globale /20 reste chiffree, ailleurs sur l'ecran. Les evaluations v3 (sans
-/// `bande`) gardent l'affichage chiffre historique.
+/// On affiche la **bande** (« Satisfaisant »), pas la note du critere — l'IA ne
+/// distingue pas honnetement un 13 d'un 14. Seule la note globale /20 reste
+/// chiffree, ailleurs sur l'ecran. Les evaluations sans `bande` gardent
+/// l'affichage chiffre historique.
+///
+/// La grille courante n'a que quatre codes (`communiquer`, `interagir`,
+/// `lexique`, `morphosyntaxe`), mais les evaluations deja en base en portent
+/// d'autres : les tables ci-dessous les couvrent tous, sans quoi l'historique
+/// tomberait sur l'icone et le libelle par defaut.
 class CriterionRow extends StatelessWidget {
   const CriterionRow({super.key, required this.criterion});
 
@@ -38,9 +44,11 @@ class CriterionRow extends StatelessWidget {
 
   IconData _iconForCode(String code) {
     switch (code) {
+      case 'communiquer':
       case 'realisation_consigne':
       case 'pertinence':
         return LucideIcons.target;
+      case 'interagir':
       case 'adequation_destinataire':
         return LucideIcons.userRound;
       case 'chronologie_recit':
@@ -75,6 +83,10 @@ class CriterionRow extends StatelessWidget {
   /// privilegie ; cette table sert de fallback pour les anciennes evaluations.
   String _labelForCode(String code) {
     switch (code) {
+      case 'communiquer':
+        return 'Capacité à communiquer';
+      case 'interagir':
+        return 'Capacité à interagir';
       case 'realisation_consigne':
         return 'Réalisation de la consigne';
       case 'adequation_destinataire':
@@ -111,11 +123,6 @@ class CriterionRow extends StatelessWidget {
       default:
         return code;
     }
-  }
-
-  String _formatNote(double n) {
-    if (n == n.truncateToDouble()) return n.toInt().toString();
-    return n.toStringAsFixed(1).replaceAll('.', ',');
   }
 
   @override
@@ -166,7 +173,7 @@ class CriterionRow extends StatelessWidget {
                   text: TextSpan(
                     children: [
                       TextSpan(
-                        text: _formatNote(criterion.noteSurVingt),
+                        text: formatScore(criterion.noteSurVingt),
                         style: AppFonts.ui(
                           size: 14,
                           weight: FontWeight.w700,

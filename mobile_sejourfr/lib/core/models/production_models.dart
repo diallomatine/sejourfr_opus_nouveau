@@ -7,6 +7,14 @@ import 'enums.dart';
 /// camelCase renvoyes par Spring (Jackson). En cas de divergence backend, c'est
 /// ICI qu'on adapte le mapping.
 
+/// Chaine JSON exploitable, ou null : une chaine vide ne vaut pas mieux qu'un
+/// champ absent a l'affichage.
+String? _trimmedOrNull(Object? raw) {
+  if (raw is! String) return null;
+  final trimmed = raw.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
+
 class ProductionTaskDto {
   ProductionTaskDto({
     required this.id,
@@ -229,7 +237,7 @@ class EvaluationFeedback {
   final List<String> pointsForts;
 
   /// Limite a 2 cote backend : ce sont des priorites, pas une liste de reproches.
-  final List<String> pointsAAmeliorer;
+  final List<PointAAmeliorer> pointsAAmeliorer;
   final List<String> suggestions;
   final List<CorrectionExample> exemplesCorriges;
   final List<String> avertissements;
@@ -249,13 +257,75 @@ class EvaluationFeedback {
           .map((e) => CriterionScore.fromJson(e as Map<String, dynamic>))
           .toList(),
       pointsForts: ((json['points_forts'] as List?) ?? const []).map((e) => e.toString()).toList(),
-      pointsAAmeliorer: ((json['points_a_ameliorer'] as List?) ?? const []).map((e) => e.toString()).toList(),
+      pointsAAmeliorer: ((json['points_a_ameliorer'] as List?) ?? const [])
+          .map(PointAAmeliorer.fromJsonNullable)
+          .whereType<PointAAmeliorer>()
+          .toList(),
       suggestions: ((json['suggestions'] as List?) ?? const []).map((e) => e.toString()).toList(),
       exemplesCorriges: ((json['exemples_corriges'] as List?) ?? const [])
           .map((e) => CorrectionExample.fromJson(e as Map<String, dynamic>))
           .toList(),
       avertissements: ((json['avertissements'] as List?) ?? const []).map((e) => e.toString()).toList(),
     );
+  }
+}
+
+/// Une priorite de travail. Un rapport doit ENSEIGNER, pas constater : le
+/// `constat` dit ce qui ne va pas, le `comment` donne la technique reutilisable,
+/// l'`exemple` la demontre sur une phrase du candidat.
+///
+/// Deux formes coexistent en base et sont toutes deux acceptees : la chaine
+/// simple des evaluations anterieures (rendue comme un constat seul) et l'objet
+/// du contrat courant.
+class PointAAmeliorer {
+  PointAAmeliorer({required this.constat, this.comment, this.exemple});
+
+  final String constat;
+
+  /// Technique a appliquer, formulee a l'imperatif et reutilisable ailleurs.
+  final String? comment;
+
+  /// Demonstration avant/apres sur la production du candidat.
+  final ExempleReecriture? exemple;
+
+  bool get isTeaching => comment != null || exemple != null;
+
+  static PointAAmeliorer? fromJsonNullable(Object? raw) {
+    if (raw is String) {
+      final constat = raw.trim();
+      return constat.isEmpty ? null : PointAAmeliorer(constat: constat);
+    }
+    if (raw is Map<String, dynamic>) {
+      // `libelle`/`texte` : formes intermediaires vues chez certains modeles.
+      final constat =
+          _trimmedOrNull(raw['constat']) ??
+              _trimmedOrNull(raw['libelle']) ??
+              _trimmedOrNull(raw['texte']);
+      if (constat == null) return null;
+      return PointAAmeliorer(
+        constat: constat,
+        comment: _trimmedOrNull(raw['comment']),
+        exemple: ExempleReecriture.fromJsonNullable(raw['exemple']),
+      );
+    }
+    return null;
+  }
+}
+
+/// Reecriture d'une phrase du candidat : sa version, puis la meme phrase une
+/// fois la technique appliquee.
+class ExempleReecriture {
+  ExempleReecriture({required this.avant, required this.apres});
+
+  final String avant;
+  final String apres;
+
+  static ExempleReecriture? fromJsonNullable(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final avant = _trimmedOrNull(raw['avant']);
+    final apres = _trimmedOrNull(raw['apres']);
+    if (avant == null || apres == null) return null;
+    return ExempleReecriture(avant: avant, apres: apres);
   }
 }
 
@@ -357,16 +427,22 @@ class CorrectionExample {
     required this.original,
     required this.corrige,
     required this.explication,
+    this.gain,
   });
 
   final String original;
   final String corrige;
   final String explication;
 
+  /// Ce que la reformulation DEMONTRE de plus (« emploie une subordonnee
+  /// relative, marqueur attendu au B1 »). Absent des evaluations anterieures.
+  final String? gain;
+
   factory CorrectionExample.fromJson(Map<String, dynamic> json) => CorrectionExample(
         original: json['original'] as String? ?? '',
         corrige: json['corrige'] as String? ?? '',
         explication: json['explication'] as String? ?? '',
+        gain: _trimmedOrNull(json['gain']),
       );
 }
 

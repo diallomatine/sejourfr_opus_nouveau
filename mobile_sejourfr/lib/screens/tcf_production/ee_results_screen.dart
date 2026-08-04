@@ -13,7 +13,6 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/app_button.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'ee_session_controller.dart';
-import 'widgets/donut_chart_score.dart';
 import 'widgets/evaluation_loading_view.dart';
 import 'widgets/evaluation_report.dart';
 import 'widgets/production_app_header.dart';
@@ -214,9 +213,6 @@ class _ResultsBody extends ConsumerWidget {
               const ResultsEvalBanner(
                 title: 'Évaluation terminée !',
                 subtitle: 'Voici votre correction détaillée.',
-              ),
-              DonutChartScore(
-                noteSur20: eval.noteSurVingt?.toDouble(),
               ),
               EvaluationReport(evaluation: eval),
               if (submission.texteSoumis != null) ...[

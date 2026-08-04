@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/format_date.dart';
 
 /// Carte de score "EE" : donut a droite (CustomPainter), texte score /20 a
 /// gauche. Aucun niveau CECRL ici : le niveau n'est attribue qu'au bilan
@@ -46,13 +47,8 @@ class DonutChartScore extends StatelessWidget {
 
   Color get _tone => masteryColor(_percent);
 
-  String _formatNote() {
-    if (noteSur20 == null) return '—';
-    if (noteSur20 == noteSur20!.truncateToDouble()) {
-      return noteSur20!.toInt().toString();
-    }
-    return noteSur20!.toStringAsFixed(1).replaceAll('.', ',');
-  }
+  String _formatNote() =>
+      noteSur20 == null ? '—' : formatScore(noteSur20!);
 
   @override
   Widget build(BuildContext context) {
