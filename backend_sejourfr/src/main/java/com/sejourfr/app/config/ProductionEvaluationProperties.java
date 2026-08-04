@@ -35,6 +35,9 @@ public class ProductionEvaluationProperties {
     private NiveauCecrl niveauCecrl = new NiveauCecrl();
     private Validite validite = new Validite();
     private Plafonds plafonds = new Plafonds();
+    private Fluidite fluidite = new Fluidite();
+    private SecondePasse secondePasse = new SecondePasse();
+    private CoherenceBilan coherenceBilan = new CoherenceBilan();
     /**
      * Plafond audio accepte pour une submission EO (defaut: 5 min).
      */
@@ -126,6 +129,30 @@ public class ProductionEvaluationProperties {
 
     public void setPlafonds(Plafonds plafonds) {
         this.plafonds = plafonds;
+    }
+
+    public Fluidite getFluidite() {
+        return fluidite;
+    }
+
+    public void setFluidite(Fluidite fluidite) {
+        this.fluidite = fluidite;
+    }
+
+    public SecondePasse getSecondePasse() {
+        return secondePasse;
+    }
+
+    public void setSecondePasse(SecondePasse secondePasse) {
+        this.secondePasse = secondePasse;
+    }
+
+    public CoherenceBilan getCoherenceBilan() {
+        return coherenceBilan;
+    }
+
+    public void setCoherenceBilan(CoherenceBilan coherenceBilan) {
+        this.coherenceBilan = coherenceBilan;
     }
 
     public int getMaxAudioDurationSeconds() {
@@ -771,6 +798,148 @@ public class ProductionEvaluationProperties {
 
         public void setConduiteEchangeNiveauMax(com.sejourfr.app.enums.NiveauCecrl conduiteEchangeNiveauMax) {
             this.conduiteEchangeNiveauMax = conduiteEchangeNiveauMax;
+        }
+    }
+
+    /**
+     * Indice de FLUIDITE des productions orales : debit (mots/minute) et, si la
+     * transcription porte des horodatages exploitables, nombre de pauses
+     * longues. <b>Donnees factuelles</b> exposees dans le feedback, jamais une
+     * note : rien dans le calcul de la note ni du niveau ne lit ce bloc.
+     *
+     * <p>Choisi parce qu'il est <b>neutre vis-a-vis de l'accent</b>, a l'inverse
+     * d'une analyse de prononciation. Livre <b>desactive</b>
+     * ({@code enabled=false}) : c'est un changement de comportement produit
+     * (aujourd'hui une regle explicite interdit a l'IA de juger le debit ou la
+     * duree), il s'allume apres mesure.
+     */
+    public static class Fluidite {
+        /** Coupe-circuit. false → aucun bloc {@code fluidite} dans le feedback. */
+        private boolean enabled = false;
+        /** Sous cette duree parlee, le debit n'est pas statistiquement lisible. */
+        private int dureeMinSec = 20;
+        /** Silence a partir duquel on compte une "pause longue" (secondes). */
+        private double pauseLongueSeuilSec = 3.0;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getDureeMinSec() {
+            return dureeMinSec;
+        }
+
+        public void setDureeMinSec(int dureeMinSec) {
+            this.dureeMinSec = dureeMinSec;
+        }
+
+        public double getPauseLongueSeuilSec() {
+            return pauseLongueSeuilSec;
+        }
+
+        public void setPauseLongueSeuilSec(double pauseLongueSeuilSec) {
+            this.pauseLongueSeuilSec = pauseLongueSeuilSec;
+        }
+    }
+
+    /**
+     * Seconde passe d'evaluation, declenchee <b>uniquement en zone floue</b>
+     * (confiance faible, competence a la frontiere d'un seuil, ou divergence
+     * LLM/serveur de plus d'un palier). Livre <b>desactive</b> : c'est un cout
+     * LLM double sur une partie du trafic.
+     *
+     * <p>{@code provider} doit designer un modele DIFFERENT du provider
+     * principal : reinterroger le meme modele a temperature 0 n'apporte
+     * quasiment rien.
+     */
+    public static class SecondePasse {
+        /** Coupe-circuit. false → une seule passe, comportement historique. */
+        private boolean enabled = false;
+        /**
+         * Provider de la seconde passe ({@code openai} / {@code anthropic} /
+         * {@code deepseek}). Vide → meme provider que la passe 1 (deconseille,
+         * logue en warn au demarrage).
+         */
+        private String provider = "";
+        /**
+         * Marge (en points /20) autour d'un seuil de niveau sous laquelle la
+         * competence est jugee "a la frontiere" → zone floue.
+         */
+        private double margeSeuilNiveau = 1.0;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getProvider() {
+            return provider;
+        }
+
+        public void setProvider(String provider) {
+            this.provider = provider;
+        }
+
+        public double getMargeSeuilNiveau() {
+            return margeSeuilNiveau;
+        }
+
+        public void setMargeSeuilNiveau(double margeSeuilNiveau) {
+            this.margeSeuilNiveau = margeSeuilNiveau;
+        }
+    }
+
+    /**
+     * Regles de coherence appliquees au bilan d'une epreuve de 3 taches, APRES
+     * la moyenne ponderee (cf. {@code ProductionBilanService}). Elles ne font
+     * qu'ABAISSER un niveau, jamais le relever. Livre <b>desactive</b> :
+     * {@code enabled=false} doit rendre exactement les memes bilans qu'avant.
+     */
+    public static class CoherenceBilan {
+        /** Coupe-circuit. false → moyenne ponderee seule, math historique. */
+        private boolean enabled = false;
+        /**
+         * Niveau plancher attendu sur la tache 3 (argumentation / prise de
+         * position) pour qu'un bilan puisse depasser {@code plafondSiTache3Faible}.
+         */
+        private com.sejourfr.app.enums.NiveauCecrl tache3NiveauMin =
+            com.sejourfr.app.enums.NiveauCecrl.B1;
+        /**
+         * Plafond du bilan quand la tache 3 est sous {@code tache3NiveauMin} :
+         * pas de B2 global pour quelqu'un qui s'effondre sur l'argumentation.
+         */
+        private com.sejourfr.app.enums.NiveauCecrl plafondSiTache3Faible =
+            com.sejourfr.app.enums.NiveauCecrl.B1;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public com.sejourfr.app.enums.NiveauCecrl getTache3NiveauMin() {
+            return tache3NiveauMin;
+        }
+
+        public void setTache3NiveauMin(com.sejourfr.app.enums.NiveauCecrl tache3NiveauMin) {
+            this.tache3NiveauMin = tache3NiveauMin;
+        }
+
+        public com.sejourfr.app.enums.NiveauCecrl getPlafondSiTache3Faible() {
+            return plafondSiTache3Faible;
+        }
+
+        public void setPlafondSiTache3Faible(com.sejourfr.app.enums.NiveauCecrl plafondSiTache3Faible) {
+            this.plafondSiTache3Faible = plafondSiTache3Faible;
         }
     }
 }

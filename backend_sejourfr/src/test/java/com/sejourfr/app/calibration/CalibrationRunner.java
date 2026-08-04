@@ -16,7 +16,9 @@ import com.sejourfr.app.manager.TranscriptionManager;
 import com.sejourfr.app.service.AiEvaluationService;
 import com.sejourfr.app.service.EvaluationLlmClient;
 import com.sejourfr.app.service.EvaluationPromptBuilder;
+import com.sejourfr.app.service.ProductionFluiditeService;
 import com.sejourfr.app.service.ProductionRubricsProvider;
+import com.sejourfr.app.service.ProductionSecondePasseService;
 import com.sejourfr.app.service.ProductionValidityService;
 import tools.jackson.databind.ObjectMapper;
 
@@ -136,8 +138,12 @@ final class CalibrationRunner {
         }
 
         RecordingClient recorder = new RecordingClient(client);
+        // Seconde passe et fluidite suivent la config du banc : desactivees par
+        // defaut, activables via application.yaml pour mesurer leur effet.
         AiEvaluationService service = new AiEvaluationService(submissionManager, transcriptionManager,
-            aiEvaluationManager, recorder, promptBuilder, rubrics, validity, props);
+            aiEvaluationManager, recorder, promptBuilder, rubrics, validity,
+            new ProductionSecondePasseService(props, recorder),
+            new ProductionFluiditeService(props), props);
 
         long start = System.currentTimeMillis();
         AiEvaluation eval = null;

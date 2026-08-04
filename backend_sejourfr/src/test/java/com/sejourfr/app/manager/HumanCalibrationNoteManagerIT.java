@@ -13,13 +13,14 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Intégration réelle pour {@link HumanCalibrationNoteManager} : notes par
- * submission ordonnées par date décroissante et listage global.
+ * Intégration réelle pour {@link HumanCalibrationNoteManager} : dernière note
+ * d'une submission, ids annotés chargés en lot, listage global ordonné.
  */
 class HumanCalibrationNoteManagerIT extends AbstractIntegrationTest {
 
@@ -41,7 +42,60 @@ class HumanCalibrationNoteManagerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void findBySubmissionOrderedByCreatedAtDescReturnsNewestFirst() {
+    void findLatestBySubmissionReturnsNewest() {
+        ProductionSubmission submission = testData.productionSubmission();
+        User evaluator = testData.admin();
+        Instant now = Instant.now();
+
+        note(submission, evaluator, now.minus(2, ChronoUnit.HOURS));
+        HumanCalibrationNote newer = note(submission, evaluator, now);
+
+        // Note sur une autre submission : exclue.
+        note(testData.productionSubmission(), evaluator, now);
+
+        assertThat(manager.findLatestBySubmission(submission.getId()))
+                .get()
+                .extracting(HumanCalibrationNote::getId)
+                .isEqualTo(newer.getId());
+    }
+
+    @Test
+    void findLatestBySubmissionAbsentReturnsEmpty() {
+        assertThat(manager.findLatestBySubmission(UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
+    void findAnnotatedSubmissionIdsNeGardeQueLesAnnotees() {
+        ProductionSubmission annotee = testData.productionSubmission();
+        ProductionSubmission vierge = testData.productionSubmission();
+        note(annotee, testData.admin(), Instant.now());
+
+        Set<UUID> ids = manager.findAnnotatedSubmissionIds(
+                List.of(annotee.getId(), vierge.getId()));
+
+        assertThat(ids).containsExactly(annotee.getId());
+    }
+
+    @Test
+    void findAnnotatedSubmissionIdsDedupliqueLesReannotations() {
+        ProductionSubmission submission = testData.productionSubmission();
+        User evaluator = testData.admin();
+        note(submission, evaluator, Instant.now().minus(1, ChronoUnit.HOURS));
+        note(submission, evaluator, Instant.now());
+
+        assertThat(manager.findAnnotatedSubmissionIds(List.of(submission.getId())))
+                .containsExactly(submission.getId());
+    }
+
+    @Test
+    void findAnnotatedSubmissionIdsSansEntreeNeTapePasLaBase() {
+        assertThat(manager.findAnnotatedSubmissionIds(List.of())).isEmpty();
+        assertThat(manager.findAnnotatedSubmissionIds(null)).isEmpty();
+    }
+
+    @Test
+    void findAllOrderedByCreatedAtDescReturnsNewestFirst() {
+        int before = manager.findAllOrderedByCreatedAtDesc().size();
         ProductionSubmission submission = testData.productionSubmission();
         User evaluator = testData.admin();
         Instant now = Instant.now();
@@ -49,29 +103,10 @@ class HumanCalibrationNoteManagerIT extends AbstractIntegrationTest {
         HumanCalibrationNote older = note(submission, evaluator, now.minus(2, ChronoUnit.HOURS));
         HumanCalibrationNote newer = note(submission, evaluator, now);
 
-        // Note sur une autre submission : exclue.
-        note(testData.productionSubmission(), evaluator, now);
-
-        List<HumanCalibrationNote> result =
-                manager.findBySubmissionOrderedByCreatedAtDesc(submission.getId());
-        assertThat(result).extracting(HumanCalibrationNote::getId)
-                .containsExactly(newer.getId(), older.getId());
-    }
-
-    @Test
-    void findBySubmissionAbsentReturnsEmpty() {
-        assertThat(manager.findBySubmissionOrderedByCreatedAtDesc(UUID.randomUUID()))
-                .isEmpty();
-    }
-
-    @Test
-    void findAllReturnsPersistedNotes() {
-        long before = manager.findAll().size();
-        HumanCalibrationNote saved =
-                note(testData.productionSubmission(), testData.admin(), Instant.now());
-
-        List<HumanCalibrationNote> all = manager.findAll();
-        assertThat(all).hasSize((int) before + 1);
-        assertThat(all).extracting(HumanCalibrationNote::getId).contains(saved.getId());
+        List<HumanCalibrationNote> all = manager.findAllOrderedByCreatedAtDesc();
+        assertThat(all).hasSize(before + 2);
+        List<UUID> ids = all.stream().map(HumanCalibrationNote::getId).toList();
+        assertThat(ids).contains(newer.getId(), older.getId());
+        assertThat(ids.indexOf(newer.getId())).isLessThan(ids.indexOf(older.getId()));
     }
 }

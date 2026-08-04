@@ -36,7 +36,7 @@ public class AdminCalibrationController {
 
     /**
      * Liste les submissions a annoter (statut EVALUATED, sans note humaine).
-     * Filtre {@code hasHumanNote=true} pour voir les deja-annotees.
+     * Filtre {@code hasHumanNote=true} pour voir UNIQUEMENT les deja-annotees.
      */
     @GetMapping("/submissions")
     public List<ProductionSubmissionDto> submissions(
@@ -44,6 +44,15 @@ public class AdminCalibrationController {
             @RequestParam(required = false) Boolean hasHumanNote,
             @RequestParam(defaultValue = "50") int limit) {
         return adminCalibrationService.listSubmissions(status, hasHumanNote, limit);
+    }
+
+    /**
+     * Derniere note humaine d'une submission (relecture / pre-remplissage du
+     * formulaire d'annotation). 404 si la submission n'a jamais ete annotee.
+     */
+    @GetMapping("/submissions/{id}/human-note")
+    public HumanCalibrationNoteDto humanNote(@PathVariable UUID id) {
+        return adminCalibrationService.latestHumanNote(id);
     }
 
     @PostMapping("/submissions/{id}/human-note")

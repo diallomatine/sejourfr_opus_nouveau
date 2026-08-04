@@ -69,6 +69,8 @@ public class AiEvaluationService {
     private final EvaluationPromptBuilder promptBuilder;
     private final ProductionRubricsProvider rubrics;
     private final ProductionValidityService validityService;
+    private final ProductionSecondePasseService secondePasseService;
+    private final ProductionFluiditeService fluiditeService;
     private final ProductionEvaluationProperties props;
 
     private static BigDecimal extractNote(Map<String, Object> feedback) {
@@ -177,7 +179,92 @@ public class AiEvaluationService {
         String userPrompt = promptBuilder.buildUserPrompt(task, input.production(), input.litteral(), dureeSec);
 
         EvaluationLlmClient.Outcome outcome = llmClient.evaluate(systemPrompt, userPrompt);
+        ProductionSecondePasseService.Passe passe = postProcess(
+                outcome, llmClient.getModelName(), sub, task, verdict, input.production(), submissionId);
 
+        int tokensIn = nz(outcome.inputTokens());
+        int tokensOut = nz(outcome.outputTokens());
+        int cout = nz(outcome.costEstimateCents());
+
+        // Seconde passe en ZONE FLOUE uniquement (drapeau seconde-passe.enabled,
+        // false par defaut). On retient la plus basse des deux et on abaisse la
+        // confiance si elles divergent. Un echec de la seconde passe ne doit
+        // jamais faire echouer l'evaluation : on garde la premiere.
+        if (secondePasseService.isEnabled()) {
+            List<String> raisons = secondePasseService.raisonsZoneFloue(
+                    ConfianceEvaluation.parse(passe.feedback().get("confiance")),
+                    competenceDe(passe.feedback(), passe.note()),
+                    passe.niveauIa(), passe.niveauCalcule());
+            if (!raisons.isEmpty()) {
+                try {
+                    EvaluationLlmClient client2 = secondePasseService.client();
+                    EvaluationLlmClient.Outcome outcome2 = client2.evaluate(systemPrompt, userPrompt);
+                    ProductionSecondePasseService.Passe passe2 = postProcess(
+                            outcome2, client2.getModelName(), sub, task, verdict,
+                            input.production(), submissionId);
+                    passe = secondePasseService.arbitrer(passe, passe2, raisons, submissionId);
+                    tokensIn += nz(outcome2.inputTokens());
+                    tokensOut += nz(outcome2.outputTokens());
+                    cout += nz(outcome2.costEstimateCents());
+                } catch (RuntimeException e) {
+                    log.warn("Seconde passe en echec submission={} ({}) — premiere passe conservee.",
+                            submissionId, e.toString());
+                }
+            }
+        }
+
+        Map<String, Object> feedback = passe.feedback();
+        // Indice de fluidite (debit + pauses longues), drapeau fluidite.enabled,
+        // false par defaut. Ajoute EN DERNIER, apres note/niveau/plafonds :
+        // structurellement, il ne peut influencer ni la note ni le niveau.
+        Map<String, Object> fluidite = fluiditeService.indicateurs(sub, task, input.production());
+        if (fluidite != null) {
+            feedback.put("fluidite", fluidite);
+        }
+
+        AiEvaluation eval = new AiEvaluation();
+        eval.setSubmission(sub);
+        eval.setModeleUtilise(passe.modele());
+        eval.setPromptVersion(llmClient.getPromptVersion());
+        eval.setNoteSur20(passe.note());
+        eval.setNiveauCecrl(passe.niveauCalcule());
+        eval.setNiveauCecrlIa(passe.niveauIa());
+        eval.setFeedbackJson(feedback);
+        eval.setTokensInput(tokensIn);
+        eval.setTokensOutput(tokensOut);
+        eval.setCoutEstimeCentimes(cout);
+        aiEvaluationManager.save(eval);
+
+        sub.setStatut(SubmissionStatut.EVALUATED);
+        sub.setErreurMessage(null);
+        submissionManager.save(sub);
+
+        log.info("AiEvaluation persistee submission={} note={} niveau={} (LLM={}) model={}",
+                submissionId, passe.note(), passe.niveauCalcule(), passe.niveauIa(), passe.modele());
+        return eval;
+    }
+
+    private static int nz(Integer v) {
+        return v == null ? 0 : v;
+    }
+
+    /** Competence /20 (criteres porteurs du niveau) d'un feedback deja traite. */
+    private BigDecimal competenceDe(Map<String, Object> feedback, BigDecimal note) {
+        return ProductionBilanService.competence(
+                feedback.get("scores_criteres"), props.getNiveauCecrl().getSourceCriteres(), note);
+    }
+
+    /**
+     * Tous les traitements SERVEUR appliques a une reponse brute du LLM :
+     * avertissements, confiance plafonnee, normalisations, note et niveau
+     * recalcules, plafonds. Extrait pour que la seconde passe subisse
+     * exactement le meme traitement que la premiere — sinon les deux ne
+     * seraient pas comparables.
+     */
+    private ProductionSecondePasseService.Passe postProcess(
+            EvaluationLlmClient.Outcome outcome, String modele,
+            ProductionSubmission sub, ProductionTask task,
+            ProductionValidityService.Verdict verdict, String production, UUID submissionId) {
         // Avertissements construits cote serveur (limite orale, longueur/duree,
         // controles de validite), injectes dans le feedback expose au front.
         // L'IA ne les produit pas elle-meme.
@@ -195,7 +282,7 @@ public class AiEvaluationService {
         normalizeAccomplissement(feedback);
         // Preuves : une citation absente de la production a ete inventee par
         // l'IA -> on la retire plutot que de la montrer au candidat.
-        stripPreuvesInventees(feedback, input.production(), submissionId);
+        stripPreuvesInventees(feedback, production, submissionId);
         // EO : `exemples_corriges` ne doit garder que des reformulations de
         // clarte (niveau phrase). On retire les corrections purement
         // orthographiques (accents/casse/ponctuation) et les corrections de mot
@@ -230,26 +317,8 @@ public class AiEvaluationService {
         // coupent un niveau, ils ne le fabriquent pas).
         niveauCalcule = applyPlafonds(feedback, task, niveauCalcule, submissionId);
 
-        AiEvaluation eval = new AiEvaluation();
-        eval.setSubmission(sub);
-        eval.setModeleUtilise(llmClient.getModelName());
-        eval.setPromptVersion(llmClient.getPromptVersion());
-        eval.setNoteSur20(noteSur20);
-        eval.setNiveauCecrl(niveauCalcule);
-        eval.setNiveauCecrlIa(niveauIa);
-        eval.setFeedbackJson(feedback);
-        eval.setTokensInput(outcome.inputTokens());
-        eval.setTokensOutput(outcome.outputTokens());
-        eval.setCoutEstimeCentimes(outcome.costEstimateCents());
-        aiEvaluationManager.save(eval);
-
-        sub.setStatut(SubmissionStatut.EVALUATED);
-        sub.setErreurMessage(null);
-        submissionManager.save(sub);
-
-        log.info("AiEvaluation persistee submission={} note={} niveau={} (LLM={}) model={}",
-                submissionId, noteSur20, niveauCalcule, niveauIa, llmClient.getModelName());
-        return eval;
+        return new ProductionSecondePasseService.Passe(
+                feedback, noteSur20, niveauIa, niveauCalcule, modele);
     }
 
     /**

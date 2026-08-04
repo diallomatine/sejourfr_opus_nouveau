@@ -48,17 +48,59 @@ public class EvaluationLlmConfig {
             @Qualifier("evaluationAnthropicClient") EvaluationLlmClient anthropic,
             @Qualifier("evaluationOpenAiClient") EvaluationLlmClient openai,
             @Qualifier("evaluationDeepSeekClient") EvaluationLlmClient deepseek) {
-        String provider = props.getProvider() == null ? "" : props.getProvider().trim().toLowerCase();
-        EvaluationLlmClient selected = switch (provider) {
+        EvaluationLlmClient selected = select(
+            props.getProvider(), "sejourfr.production-evaluation.provider",
+            anthropic, openai, deepseek);
+        log.info("Provider LLM eval actif : {} (modele {})",
+            props.getProvider(), selected.getModelName());
+        return selected;
+    }
+
+    /**
+     * Client de la SECONDE PASSE d'evaluation (zone floue). Provider dedie via
+     * {@code sejourfr.production-evaluation.seconde-passe.provider} ; vide, on
+     * retombe sur le provider principal. Le bean existe toujours, meme drapeau
+     * eteint (il n'ouvre aucune connexion tant qu'on ne l'appelle pas).
+     */
+    @Bean("evaluationSecondePasseClient")
+    public EvaluationLlmClient evaluationSecondePasseClient(
+            ProductionEvaluationProperties props,
+            @Qualifier("evaluationAnthropicClient") EvaluationLlmClient anthropic,
+            @Qualifier("evaluationOpenAiClient") EvaluationLlmClient openai,
+            @Qualifier("evaluationDeepSeekClient") EvaluationLlmClient deepseek) {
+        String configure = props.getSecondePasse().getProvider();
+        boolean dedie = configure != null && !configure.isBlank();
+        EvaluationLlmClient selected = select(
+            dedie ? configure : props.getProvider(),
+            "sejourfr.production-evaluation.seconde-passe.provider",
+            anthropic, openai, deepseek);
+
+        if (props.getSecondePasse().isEnabled()) {
+            if (!dedie) {
+                log.warn("Seconde passe activee SANS provider dedie : elle interrogera deux fois {} "
+                        + "a temperature 0, ce qui n'apporte presque rien. Renseigner "
+                        + "sejourfr.production-evaluation.seconde-passe.provider.",
+                    selected.getModelName());
+            } else {
+                log.info("Seconde passe activee : provider {} (modele {})", configure, selected.getModelName());
+            }
+        }
+        return selected;
+    }
+
+    private static EvaluationLlmClient select(String provider, String cleConfig,
+                                              EvaluationLlmClient anthropic,
+                                              EvaluationLlmClient openai,
+                                              EvaluationLlmClient deepseek) {
+        String p = provider == null ? "" : provider.trim().toLowerCase();
+        return switch (p) {
             case "openai" -> openai;
             case "anthropic" -> anthropic;
             case "deepseek" -> deepseek;
             default -> throw new IllegalStateException(
-                "sejourfr.production-evaluation.provider invalide : '" + props.getProvider()
+                cleConfig + " invalide : '" + provider
                     + "'. Valeurs supportees : openai, anthropic, deepseek."
             );
         };
-        log.info("Provider LLM eval actif : {} (modele {})", provider, selected.getModelName());
-        return selected;
     }
 }

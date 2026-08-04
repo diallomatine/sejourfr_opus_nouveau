@@ -194,6 +194,80 @@ class ProductionBilanServiceTest {
         assertThat(service.bilanEpreuveTerminee(Map.of())).isEqualTo(NiveauCecrl.A1_NON_ATTEINT);
     }
 
+    // ------------------------------------------------------------------------
+    // Phase 3 — coherence du bilan (drapeau coherence-bilan.enabled, false)
+    // ------------------------------------------------------------------------
+
+    /** T1/T2 excellentes, T3 effondree : (20×1 + 20×2 + 11×3)/6 = 15.5 → B2. */
+    private static Map<Integer, AiEvaluation> epreuveB2AvecT3Faible() {
+        return Map.of(
+            1, eval(20, 20, "20"),
+            2, eval(20, 20, "20"),
+            3, eval(11, 11, "11")); // competence 11 -> A2, sous B1
+    }
+
+    /**
+     * VERROU : drapeau eteint, la math est strictement celle d'aujourd'hui —
+     * un B2 porte par les deux premieres taches reste un B2.
+     */
+    @Test
+    void coherence_eteinte_laisse_le_bilan_intact() {
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        assertThat(props.getCoherenceBilan().isEnabled()).isFalse();
+        ProductionBilanService svc = new ProductionBilanService(
+            mock(AiEvaluationManager.class), new TcfLevelEstimatorService(), props);
+
+        assertThat(svc.bilanEpreuve(epreuveB2AvecT3Faible())).isEqualTo(NiveauCecrl.B2);
+        assertThat(svc.bilanEpreuveTerminee(epreuveB2AvecT3Faible())).isEqualTo(NiveauCecrl.B2);
+    }
+
+    @Test
+    void coherence_allumee_pas_de_B2_si_la_tache_3_est_sous_B1() {
+        ProductionBilanService svc = serviceAvecCoherence();
+
+        assertThat(svc.bilanEpreuve(epreuveB2AvecT3Faible())).isEqualTo(NiveauCecrl.B1);
+        assertThat(svc.bilanEpreuveTerminee(epreuveB2AvecT3Faible())).isEqualTo(NiveauCecrl.B1);
+    }
+
+    @Test
+    void coherence_allumee_ne_plafonne_pas_une_tache_3_a_B1() {
+        // (20×1 + 20×2 + 12×3)/6 = 16 -> B2, T3 competence 12 -> B1 : aucun plafond.
+        Map<Integer, AiEvaluation> evals = Map.of(
+            1, eval(20, 20, "20"),
+            2, eval(20, 20, "20"),
+            3, eval(12, 12, "12"));
+
+        assertThat(serviceAvecCoherence().bilanEpreuve(evals)).isEqualTo(NiveauCecrl.B2);
+    }
+
+    @Test
+    void coherence_allumee_ne_conclut_pas_d_une_tache_3_pas_encore_rendue() {
+        // Epreuve EN COURS : T3 absente n'est pas une T3 ratee.
+        Map<Integer, AiEvaluation> evals = Map.of(
+            1, eval(20, 20, "20"),
+            2, eval(20, 20, "20"));
+
+        assertThat(serviceAvecCoherence().bilanEpreuve(evals)).isEqualTo(NiveauCecrl.B2);
+    }
+
+    @Test
+    void coherence_allumee_ne_releve_jamais_un_bilan() {
+        // Bilan deja sous le plafond : le garde-fou ne doit pas le remonter.
+        Map<Integer, AiEvaluation> evals = Map.of(
+            1, eval(8, 8, "8"),
+            2, eval(8, 8, "8"),
+            3, eval(8, 8, "8"));
+
+        assertThat(serviceAvecCoherence().bilanEpreuve(evals)).isEqualTo(NiveauCecrl.A2);
+    }
+
+    private static ProductionBilanService serviceAvecCoherence() {
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        props.getCoherenceBilan().setEnabled(true);
+        return new ProductionBilanService(
+            mock(AiEvaluationManager.class), new TcfLevelEstimatorService(), props);
+    }
+
     @Test
     void moyenneNotes_arrondit_a_une_decimale() {
         Map<Integer, AiEvaluation> evals = Map.of(

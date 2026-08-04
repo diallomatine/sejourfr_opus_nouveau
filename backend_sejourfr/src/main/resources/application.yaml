@@ -227,7 +227,12 @@ sejourfr:
       source-criteres: [ lexique, morphosyntaxe, coherence ]
       seuil-b2: 15.0
       seuil-b1: 12.0
-      seuil-a2: 7.0
+      # 7.0 -> 8.0 : seul deplacement de seuil mesure comme gratuit par le banc
+      # (balayage hors ligne sur 96 executions v4.1) — accord exact 71,9% ->
+      # 76,0%, A1 correctement classe 62,5% -> 87,5%, A2/B1/B2 inchanges. Monter
+      # seuil-b1 a 13 serait le pire choix teste : A2 passerait a 100% mais B1
+      # s'effondrerait a 33%, donc on annoncerait A2 a de vrais B1.
+      seuil-a2: 8.0
     # Controles DETERMINISTES executes AVANT l'appel LLM (aucune IA) :
     # langue dominante, recopiage de la consigne, production vide. Un verdict
     # INVALIDE court-circuite le LLM (note 0 / A1_NON_ATTEINT / confiance
@@ -252,6 +257,39 @@ sejourfr:
       prise-position-niveau-max: A2
       conduite-echange-seuil: 5.0
       conduite-echange-niveau-max: A2
+    # --- Phase 3, livree DESACTIVEE : trois changements de comportement produit
+    # --- qui ne s'allument qu'apres mesure au banc. A false, aucun effet.
+    #
+    # Indice de fluidite des productions ORALES : debit (mots/minute) depuis la
+    # duree parlee + les mots de la transcription, et compte de pauses longues
+    # SI la transcription porte des horodatages (format `hh:mm:ss,mmm --> ...`).
+    # Expose comme DONNEE FACTUELLE dans le feedback, jamais comme une note :
+    # rien dans le calcul de la note ni du niveau ne lit ce bloc, meme allume.
+    # Neutre vis-a-vis de l'accent, contrairement a une analyse de prononciation.
+    # Allumer inverse la regle actuelle « ne pas juger le debit ni la duree » :
+    # EVAL_FLUIDITE_ENABLED=true.
+    fluidite:
+      enabled: ${EVAL_FLUIDITE_ENABLED:false}
+      duree-min-sec: 20
+      pause-longue-seuil-sec: 3.0
+    # Seconde passe d'evaluation, UNIQUEMENT en zone floue (confiance FAIBLE, ou
+    # competence a moins de `marge-seuil-niveau` d'un seuil, ou niveau LLM
+    # divergent de plus d'un palier du calcul serveur). On retient la passe la
+    # plus BASSE (le biais mesure est vers l'indulgence) et on abaisse la
+    # confiance quand les deux divergent. `provider` doit designer un modele
+    # DIFFERENT du principal : reinterroger le meme modele a temperature 0
+    # n'apporte quasiment rien. Vide -> meme provider (log warn au demarrage).
+    seconde-passe:
+      enabled: ${EVAL_SECONDE_PASSE_ENABLED:false}
+      provider: ${EVAL_SECONDE_PASSE_PROVIDER:}
+      marge-seuil-niveau: 1.0
+    # Coherence du bilan d'epreuve (3 taches) : pas de B2 global si la tache 3
+    # (argumentation) est sous B1. Applique APRES la moyenne ponderee, ne fait
+    # qu'abaisser. A false, le bilan est strictement celui d'aujourd'hui.
+    coherence-bilan:
+      enabled: ${EVAL_COHERENCE_BILAN_ENABLED:false}
+      tache3-niveau-min: B1
+      plafond-si-tache3-faible: B1
     max-audio-duration-seconds: 300
     max-text-words: 300
     min-text-words: 10

@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,6 +50,8 @@ class AiEvaluationServiceV4Test {
     private com.sejourfr.app.manager.TranscriptionManager transcriptionManager;
     private com.sejourfr.app.manager.AiEvaluationManager aiEvaluationManager;
     private EvaluationLlmClient llmClient;
+    private EvaluationLlmClient secondPassClient;
+    private ProductionSecondePasseService secondePasse;
     private ProductionEvaluationProperties props;
     private AiEvaluationService service;
 
@@ -143,6 +146,9 @@ class AiEvaluationServiceV4Test {
         llmClient = mock(EvaluationLlmClient.class);
         when(llmClient.getModelName()).thenReturn("modele-test");
         when(llmClient.getPromptVersion()).thenReturn("v2");
+        secondPassClient = mock(EvaluationLlmClient.class);
+        when(secondPassClient.getModelName()).thenReturn("modele-test-2");
+        when(secondPassClient.getPromptVersion()).thenReturn("v2");
         when(aiEvaluationManager.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         props = new ProductionEvaluationProperties();
@@ -157,8 +163,10 @@ class AiEvaluationServiceV4Test {
         EvaluationPromptBuilder promptBuilder = new EvaluationPromptBuilder(new ObjectMapper(), rubrics);
         ProductionValidityService validity = new ProductionValidityService(props);
 
+        secondePasse = new ProductionSecondePasseService(props, secondPassClient);
         service = new AiEvaluationService(submissionManager, transcriptionManager, aiEvaluationManager,
-            llmClient, promptBuilder, rubrics, validity, props);
+            llmClient, promptBuilder, rubrics, validity, secondePasse,
+            new ProductionFluiditeService(props), props);
     }
 
     // -------------------------------------------------- verdict INVALIDE (T1)
@@ -514,5 +522,161 @@ class AiEvaluationServiceV4Test {
 
         assertThat(eval.getFeedbackJson().get("accomplissement"))
             .isEqualTo(Map.of("points_traites", List.of(), "points_oublies", List.of()));
+    }
+
+    // ------------------------------------------------------------------------
+    // Phase 3 — seconde passe (drapeau seconde-passe.enabled, false par defaut)
+    // ------------------------------------------------------------------------
+
+    /** Note 12 = pile sur le seuil B1 par defaut → zone floue garantie. */
+    private ProductionSubmission submissionZoneFloue() {
+        ProductionTask task = task(EpreuveType.TCF_EE, 1);
+        return submission(task, TEXTE_EE);
+    }
+
+    private void stubSecondePasse(Map<String, Object> feedback) {
+        when(secondPassClient.evaluate(anyString(), anyString()))
+            .thenReturn(new EvaluationLlmClient.Outcome(feedback, 50, 60, 2));
+    }
+
+    @Test
+    void secondePasse_desactivee_par_defaut_meme_en_zone_floue() {
+        ProductionSubmission sub = submissionZoneFloue();
+        stubLlm(feedbackEeT1(12));
+
+        AiEvaluation eval = service.evaluate(sub.getId());
+
+        verify(llmClient, times(1)).evaluate(anyString(), anyString());
+        verify(secondPassClient, never()).evaluate(anyString(), anyString());
+        assertThat(eval.getNoteSur20()).isEqualByComparingTo(new BigDecimal("12"));
+        assertThat(eval.getFeedbackJson()).doesNotContainKey("seconde_passe");
+        // Couts : ceux de l'unique appel.
+        assertThat(eval.getTokensInput()).isEqualTo(100);
+        assertThat(eval.getCoutEstimeCentimes()).isEqualTo(3);
+    }
+
+    @Test
+    void secondePasse_activee_mais_zone_sure_ne_declenche_rien() {
+        props.getSecondePasse().setEnabled(true);
+        ProductionTask task = task(EpreuveType.TCF_EE, 1);
+        ProductionSubmission sub = submission(task, TEXTE_EE);
+        // 17 : loin des seuils 15 / 12 / 7, confiance HAUTE, niveau LLM a 1 palier.
+        stubLlm(feedbackEeT1(17));
+
+        AiEvaluation eval = service.evaluate(sub.getId());
+
+        verify(secondPassClient, never()).evaluate(anyString(), anyString());
+        assertThat(eval.getFeedbackJson()).doesNotContainKey("seconde_passe");
+    }
+
+    @Test
+    void secondePasse_zone_floue_retient_la_plus_basse_et_abaisse_la_confiance() {
+        props.getSecondePasse().setEnabled(true);
+        ProductionSubmission sub = submissionZoneFloue();
+        stubLlm(feedbackEeT1(12));
+        stubSecondePasse(feedbackEeT1(9));
+
+        AiEvaluation eval = service.evaluate(sub.getId());
+
+        verify(secondPassClient, times(1)).evaluate(anyString(), anyString());
+        // La plus basse des deux passes l'emporte (biais mesure vers l'indulgence).
+        assertThat(eval.getNoteSur20()).isEqualByComparingTo(new BigDecimal("9"));
+        assertThat(eval.getNiveauCecrl()).isEqualTo(NiveauCecrl.A2);
+        assertThat(eval.getModeleUtilise()).isEqualTo("modele-test-2");
+        // Divergence -> confiance abaissee d'un cran (HAUTE -> MOYENNE).
+        assertThat(eval.getFeedbackJson().get("confiance")).isEqualTo("MOYENNE");
+        // Couts cumules sur les deux appels.
+        assertThat(eval.getTokensInput()).isEqualTo(150);
+        assertThat(eval.getCoutEstimeCentimes()).isEqualTo(5);
+        assertThat(eval.getFeedbackJson()).containsKey("seconde_passe");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void secondePasse_deux_passes_identiques_ne_touchent_pas_la_confiance() {
+        props.getSecondePasse().setEnabled(true);
+        ProductionSubmission sub = submissionZoneFloue();
+        stubLlm(feedbackEeT1(12));
+        stubSecondePasse(feedbackEeT1(12));
+
+        AiEvaluation eval = service.evaluate(sub.getId());
+
+        assertThat(eval.getNoteSur20()).isEqualByComparingTo(new BigDecimal("12"));
+        assertThat(eval.getFeedbackJson().get("confiance")).isEqualTo("HAUTE");
+        Map<String, Object> trace = (Map<String, Object>) eval.getFeedbackJson().get("seconde_passe");
+        assertThat(trace.get("divergente")).isEqualTo(false);
+    }
+
+    @Test
+    void secondePasse_en_echec_conserve_la_premiere_passe() {
+        props.getSecondePasse().setEnabled(true);
+        ProductionSubmission sub = submissionZoneFloue();
+        stubLlm(feedbackEeT1(12));
+        when(secondPassClient.evaluate(anyString(), anyString()))
+            .thenThrow(new com.sejourfr.app.exception.AiEvaluationException("LLM 2 injoignable"));
+
+        AiEvaluation eval = service.evaluate(sub.getId());
+
+        assertThat(eval.getNoteSur20()).isEqualByComparingTo(new BigDecimal("12"));
+        assertThat(eval.getModeleUtilise()).isEqualTo("modele-test");
+        assertThat(eval.getFeedbackJson()).doesNotContainKey("seconde_passe");
+    }
+
+    // ------------------------------------------------------------------------
+    // Phase 3 — fluidite (drapeau fluidite.enabled, false par defaut)
+    // ------------------------------------------------------------------------
+
+    private ProductionSubmission submissionOraleNotee() {
+        ProductionTask task = task(EpreuveType.TCF_EO, 1);
+        ProductionSubmission sub = submissionOrale(task,
+            "Bonjour, je m'appelle Karim et je viens du Maroc. Je travaille comme cuisinier "
+                + "dans un restaurant à Lyon depuis deux ans et j'aime beaucoup mon métier.",
+            ProductionSubmissionSource.ASYNC);
+        Map<String, Object> feedback = feedbackEeT1(13);
+        feedback.put("scores_criteres", new ArrayList<>(List.of(
+            score("realisation_consigne", 13, "je m'appelle Karim"),
+            score("developpement_reponses", 13, "je travaille comme cuisinier"),
+            score("lexique", 13, "dans un restaurant"),
+            score("morphosyntaxe", 13, "je viens du Maroc"),
+            score("coherence", 13, "depuis deux ans"))));
+        stubLlm(feedback);
+        return sub;
+    }
+
+    @Test
+    void fluidite_desactivee_par_defaut_aucun_bloc_expose() {
+        AiEvaluation eval = service.evaluate(submissionOraleNotee().getId());
+
+        assertThat(eval.getFeedbackJson()).doesNotContainKey("fluidite");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void fluidite_activee_expose_le_debit_sans_changer_note_ni_niveau() {
+        AiEvaluation sansDrapeau = service.evaluate(submissionOraleNotee().getId());
+
+        props.getFluidite().setEnabled(true);
+        AiEvaluation avecDrapeau = service.evaluate(submissionOraleNotee().getId());
+
+        Map<String, Object> fluidite =
+            (Map<String, Object>) avecDrapeau.getFeedbackJson().get("fluidite");
+        assertThat(fluidite).isNotNull();
+        assertThat(fluidite.get("debit_mots_par_minute")).isNotNull();
+        assertThat(fluidite.get("informatif")).isEqualTo(true);
+        // Le drapeau n'ajoute QUE de l'information : note et niveau inchanges.
+        assertThat(avecDrapeau.getNoteSur20()).isEqualByComparingTo(sansDrapeau.getNoteSur20());
+        assertThat(avecDrapeau.getNiveauCecrl()).isEqualTo(sansDrapeau.getNiveauCecrl());
+    }
+
+    @Test
+    void fluidite_ne_s_applique_pas_a_l_ecrit() {
+        props.getFluidite().setEnabled(true);
+        ProductionTask task = task(EpreuveType.TCF_EE, 1);
+        ProductionSubmission sub = submission(task, TEXTE_EE);
+        stubLlm(feedbackEeT1(13));
+
+        AiEvaluation eval = service.evaluate(sub.getId());
+
+        assertThat(eval.getFeedbackJson()).doesNotContainKey("fluidite");
     }
 }

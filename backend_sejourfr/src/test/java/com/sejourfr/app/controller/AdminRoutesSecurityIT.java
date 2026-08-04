@@ -63,6 +63,8 @@ class AdminRoutesSecurityIT extends AbstractIntegrationTest {
                 Arguments.of(HttpMethod.GET, "/api/admin/page-views/paths"),
                 Arguments.of(HttpMethod.GET, "/api/admin/calibration/stats"),
                 Arguments.of(HttpMethod.GET, "/api/admin/calibration/submissions"),
+                Arguments.of(HttpMethod.GET,
+                    "/api/admin/calibration/submissions/" + RANDOM_ID + "/human-note"),
                 Arguments.of(HttpMethod.GET, "/api/admin/media/" + RANDOM_ID),
                 Arguments.of(HttpMethod.GET, "/api/admin/audio-drafts/pending-review/count"),
                 Arguments.of(HttpMethod.GET, "/api/admin/audio-questions/generation-logs"),

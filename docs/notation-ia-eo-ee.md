@@ -182,6 +182,34 @@ pièges connus.
   transcription** n'est **pas** un hors-sujet. Le hors-sujet ne s'applique que si le candidat
   n'a manifestement rien produit d'exploitable (silence, sujet totalement étranger).
 
+### Trois réglages **préparés mais éteints** (aucun effet aujourd'hui)
+
+Ces trois comportements sont écrits, testés et livrés, mais **désactivés par défaut**. Tant
+qu'ils ne sont pas allumés, **rien de ce qui suit ne se produit** : la notation décrite dans
+tout le reste de ce document reste, mot pour mot, celle qui s'applique. Ils s'allument un par
+un, après mesure sur le banc de calibration, en changeant une seule ligne de configuration
+(section `sejourfr.production-evaluation` du fichier `application.yaml`, ou la variable
+d'environnement indiquée).
+
+| Réglage | Ce qu'il ferait une fois allumé | Clé de configuration (défaut : éteint) |
+|---|---|---|
+| **Débit et pauses** | Afficher, sous une production **orale**, deux mesures **factuelles** : le **débit** (mots par minute) et — seulement si la transcription porte des repères de temps — le **nombre de silences longs**. Ce sont des **informations**, jamais une note. | `fluidite.enabled` (`EVAL_FLUIDITE_ENABLED`) |
+| **Seconde lecture en cas de doute** | Faire **recorriger** la production par une **seconde IA** quand la première est peu sûre d'elle (confiance faible, note juste à la frontière d'un niveau, ou désaccord marqué entre l'IA et le calcul du serveur). En cas de désaccord entre les deux, on retient la **note la plus basse** et on **baisse la confiance affichée**. | `seconde-passe.enabled` (`EVAL_SECONDE_PASSE_ENABLED`) |
+| **Cohérence du bilan** | Interdire un **B2 au bilan** d'une épreuve quand la **tâche 3** (celle où l'on argumente et défend son avis) est **en dessous de B1**. Le bilan est alors ramené à B1. | `coherence-bilan.enabled` (`EVAL_COHERENCE_BILAN_ENABLED`) |
+
+Deux précisions qui comptent :
+
+- **Le débit ne devient pas un critère de note, même allumé.** C'est une mesure affichée à côté
+  de la correction, avec la mention « ces mesures n'entrent pas dans votre note ni dans votre
+  niveau ». Elle a été retenue parce qu'elle est **neutre vis-à-vis de l'accent** : compter des
+  mots par minute ne favorise aucune langue maternelle, contrairement à une analyse de
+  prononciation. Allumer ce réglage nuancerait la règle « on ne juge ni le débit ni la durée »
+  énoncée plus haut : on **mesurerait** le débit, sans le **noter**.
+- **La seconde lecture n'a d'intérêt qu'avec une IA différente.** Reposer exactement la même
+  question au même modèle donne quasiment toujours la même réponse. Le modèle de la seconde
+  lecture est donc configurable séparément (`seconde-passe.provider`), et l'application
+  avertit au démarrage si on l'active sans en choisir un autre.
+
 ---
 
 ## 6. L'examinateur vocal (EO en temps réel)
@@ -261,6 +289,8 @@ Après l'évaluation, l'IA renvoie, en plus de la note /20 :
   transcription.)
 - **Une note par critère** (pertinence / lexique / morphosyntaxe / cohérence) avec un
   commentaire.
+- *(Inactif aujourd'hui)* Sur une production orale, un encart **débit et pauses** —
+  informations factuelles, hors note. Voir « Trois réglages préparés mais éteints » en §5.
 
 ### Et le niveau CECRL (A1, A2, B1, B2…) ?
 
@@ -276,6 +306,8 @@ blanc qui enchaîne les 3 tâches) :
 - Il est **plafonné à B2** (le niveau utile pour la naturalisation ; C1/C2 ne sont pas
   fiables sur ces formats courts).
 - Une tâche non rendue (temps écoulé, abandon) compte comme **0** dans la moyenne.
+- *(Inactif aujourd'hui)* Une règle de cohérence peut interdire un **B2** au bilan quand la
+  **tâche 3** est sous B1. Voir « Trois réglages préparés mais éteints » en §5.
 
 En interne, le serveur calcule ce niveau à partir des critères qui **portent le niveau de
 langue** : le **lexique**, la **morphosyntaxe** et la **cohérence**. La **pertinence** est
@@ -296,6 +328,7 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 | **Le comportement de l'examinateur vocal** (ton, cadre, interdiction d'orienter le candidat, ouverture T1/T2, façon de rendre la fiche de scénario T2…) | `backend_sejourfr/src/main/resources/prompts/realtime-personas-v2.json` (version active ; la v1, sans fiche de scénario, reste disponible en repli) |
 | **Les faits d'un jeu de rôle T2** (prix, délais, horaires, attitude du personnage) | colonne `agent_role_card` du sujet, en base — renseignée par les migrations `db/migration/300_tcf/production/eo/tache_2/` |
 | **La patience / réactivité de l'examinateur vocal** (détection de fin de parole) | `backend_sejourfr/src/main/resources/application.yaml` (section `sejourfr.realtime.gemini.vad`) |
+| **Les trois réglages éteints** (débit et pauses, seconde lecture, cohérence du bilan — cf. §5) | `backend_sejourfr/src/main/resources/application.yaml` (section `sejourfr.production-evaluation`, blocs `fluidite`, `seconde-passe`, `coherence-bilan`) |
 
 > **Deux garde-fous automatiques** : au démarrage, l'application **refuse de démarrer** si les
 > consignes de notation sont incohérentes (un critère inconnu, des poids qui ne font pas 1,00,

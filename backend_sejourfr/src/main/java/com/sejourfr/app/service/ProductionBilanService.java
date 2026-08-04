@@ -125,11 +125,58 @@ public class ProductionBilanService {
             acc = acc.add(comp.multiply(poids));
             sumPoids = sumPoids.add(poids);
         }
+        NiveauCecrl bilan;
         if (sumPoids.signum() == 0) {
-            return levelEstimator.capB2(floorFallback);
+            bilan = levelEstimator.capB2(floorFallback);
+        } else {
+            BigDecimal competence = acc.divide(sumPoids, 4, RoundingMode.HALF_UP);
+            bilan = niveauFromCompetence(competence, props.getNiveauCecrl());
         }
-        BigDecimal competence = acc.divide(sumPoids, 4, RoundingMode.HALF_UP);
-        return niveauFromCompetence(competence, props.getNiveauCecrl());
+        return appliquerCoherence(bilan, evalsByTache, manquantesAZero);
+    }
+
+    /**
+     * Garde-fou de cohérence du bilan : la moyenne pondérée peut donner un B2 à
+     * quelqu'un qui s'effondre sur la tâche 3 (argumentation / prise de
+     * position), portée par deux bonnes premières tâches. Quand la T3 est sous
+     * {@code tache3-niveau-min}, le bilan est plafonné à
+     * {@code plafond-si-tache3-faible}.
+     *
+     * <p>Ne fait qu'ABAISSER, jamais relever. Piloté par
+     * {@code sejourfr.production-evaluation.coherence-bilan.enabled}, <b>false
+     * par défaut</b> : éteint, cette méthode rend le bilan inchangé, donc
+     * exactement la math historique.
+     *
+     * <p>Épreuve <b>en cours</b> (T3 pas encore rendue) : aucun plafond, on ne
+     * conclut pas d'une tâche absente. Épreuve <b>terminée</b> : une T3 jamais
+     * rendue vaut 0, donc sous le plancher, donc plafond.
+     */
+    private NiveauCecrl appliquerCoherence(NiveauCecrl bilan, Map<Integer, AiEvaluation> evalsByTache,
+                                           boolean manquantesAZero) {
+        ProductionEvaluationProperties.CoherenceBilan cfg = props.getCoherenceBilan();
+        if (!cfg.isEnabled() || bilan == null) return bilan;
+        NiveauCecrl plafond = cfg.getPlafondSiTache3Faible();
+        NiveauCecrl plancherT3 = cfg.getTache3NiveauMin();
+        if (plafond == null || plancherT3 == null || bilan.ordinal() <= plafond.ordinal()) return bilan;
+
+        NiveauCecrl niveauT3;
+        AiEvaluation t3 = evalsByTache.get(EXPECTED_TASKS_PER_EPREUVE);
+        if (t3 == null) {
+            if (!manquantesAZero) return bilan;
+            niveauT3 = NiveauCecrl.A1_NON_ATTEINT;
+        } else {
+            BigDecimal comp = competenceOf(t3);
+            niveauT3 = comp == null
+                ? t3.getNiveauCecrl()
+                : niveauFromCompetence(comp, props.getNiveauCecrl());
+            // T3 inexploitable : on ne plafonne pas a l'aveugle.
+            if (niveauT3 == null) return bilan;
+        }
+        if (niveauT3.ordinal() >= plancherT3.ordinal()) return bilan;
+
+        log.info("Coherence bilan : tache 3 a {} (< {}) — bilan {} plafonne a {}.",
+            niveauT3, plancherT3, bilan, plafond);
+        return plafond;
     }
 
     /** Moyenne simple /20 (1 décimale) des notes des évaluations, null si aucune. */
