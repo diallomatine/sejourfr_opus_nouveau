@@ -511,7 +511,7 @@ export interface CorrespondanceTcfDto {
 }
 
 /** Bilan d'une épreuve productive (EE/EO) au niveau attempt. Le `niveauGlobal`
- *  n'est calculé (côté backend, moyenne pondérée des 3 tâches) qu'en session
+ *  n'est calculé (côté backend, moyenne des 3 tâches à poids égaux) qu'en session
  *  d'examen blanc (`exam=true`) et seulement quand les 3 tâches sont évaluées —
  *  null en entraînement libre ou éval incomplète. */
 export interface ProductionBilanResponse {
@@ -767,19 +767,49 @@ export interface EeCorrection {
     original: string;
     corrige: string;
     explication: string | null;
+    /** Ce que la reformulation démontre de plus (« emploie une subordonnée
+     *  relative, marqueur attendu au B1 »). Absent des évaluations antérieures
+     *  à la grille TCF : la correction s'affiche alors sans. */
+    gain: string | null;
+}
+
+/** Démonstration d'une technique sur la production du candidat. */
+export interface EePriorityExample {
+    avant: string;
+    apres: string;
+}
+
+/**
+ * Une priorité de progression. Le rapport doit ENSEIGNER : `constat` dit ce qui
+ * ne va pas, `comment` la technique réutilisable à appliquer, `exemple` la
+ * démontre sur une phrase du candidat.
+ *
+ * Le serveur normalise cette forme à l'écriture, mais les évaluations déjà en
+ * base portent de simples chaînes : elles arrivent ici en `constat` seul, sans
+ * `comment` ni `exemple`. Les deux formes sont acceptées à la lecture.
+ */
+export interface EePriority {
+    constat: string;
+    comment: string | null;
+    exemple: EePriorityExample | null;
 }
 
 export interface EeFeedback {
+    /** Note /20 à UNE décimale (12,5 et non 13) : c'est la moyenne des quatre
+     *  critères, recalculée serveur. */
     noteGlobale: number | null;
     /** Ce que le candidat a traité / oublié de la consigne. Null (et non pas
      *  listes vides) quand l'évaluation ne porte pas l'information. */
     accomplissement: EeAccomplishment | null;
+    /** Exactement 4 critères depuis la grille TCF (`communiquer`, `interagir`,
+     *  `lexique`, `morphosyntaxe`) — les évaluations plus anciennes en portent
+     *  5 aux codes propres à chaque tâche. */
     criteres: EeCriterion[];
     confiance: ConfianceEvaluation | null;
     confianceRaisons: string[];
     pointsForts: string[];
-    /** Limité à 2 côté backend depuis la notation v4 : ce sont des priorités. */
-    pointsAAmeliorer: string[];
+    /** Limité à 2 côté backend : ce sont des priorités, pas un inventaire. */
+    pointsAAmeliorer: EePriority[];
     suggestions: string[];
     exemplesCorriges: EeCorrection[];
     avertissements: string[];
@@ -838,6 +868,37 @@ function asAccomplishmentPoints(v: unknown): EeAccomplishmentPoint[] {
             return {libelle, obligatoire: r.obligatoire !== false};
         })
         .filter((p): p is EeAccomplishmentPoint => p !== null);
+}
+
+/**
+ * Accepte les DEUX formes de `points_a_ameliorer` : l'objet
+ * `{constat, comment, exemple}` de la grille TCF, et la simple chaîne des
+ * évaluations déjà en base (qui devient un `constat` seul). Le serveur
+ * normalise à l'écriture — on ne le présume pas à la lecture d'un ancien
+ * enregistrement.
+ */
+function asPriorities(v: unknown): EePriority[] {
+    if (!Array.isArray(v)) return [];
+    return v
+        .map((item): EePriority | null => {
+            if (typeof item === "string") {
+                const constat = item.trim();
+                return constat ? {constat, comment: null, exemple: null} : null;
+            }
+            const r = asRecord(item);
+            if (!r) return null;
+            const constat = asString(r.constat) ?? asString(r.libelle) ?? asString(r.texte);
+            if (!constat) return null;
+            const ex = asRecord(r.exemple);
+            const avant = ex ? asString(ex.avant) : null;
+            const apres = ex ? asString(ex.apres) : null;
+            return {
+                constat,
+                comment: asString(r.comment),
+                exemple: avant && apres ? {avant, apres} : null,
+            };
+        })
+        .filter((p): p is EePriority => p !== null);
 }
 
 /**
@@ -902,6 +963,7 @@ export function parseEeFeedback(
                 original: original ?? "",
                 corrige: corrige ?? "",
                 explication: asString(r.explication),
+                gain: asString(r.gain),
             };
         })
         .filter((e): e is EeCorrection => e !== null);
@@ -913,7 +975,7 @@ export function parseEeFeedback(
         confiance: empty.confiance ?? asConfiance(fb.confiance),
         confianceRaisons: asStringList(fb.confiance_raisons),
         pointsForts: asStringList(fb.points_forts),
-        pointsAAmeliorer: asStringList(fb.points_a_ameliorer),
+        pointsAAmeliorer: asPriorities(fb.points_a_ameliorer),
         suggestions: asStringList(fb.suggestions),
         exemplesCorriges,
         avertissements: asStringList(fb.avertissements),
@@ -922,12 +984,21 @@ export function parseEeFeedback(
 
 /** Libellé de repli pour un critère EE/EO si le backend n'a pas fourni `label`
  *  (il le fournit depuis la rubrique de la tâche : cette table n'est qu'un
- *  filet, jamais la source). Les codes propres à chaque tâche sont arrivés
- *  avec la notation v4 ; les anciens codes restent listés pour les évaluations
- *  déjà en base. */
+ *  filet, jamais la source). Les quatre premiers codes sont ceux de la grille
+ *  réelle du TCF, identiques sur les six tâches ; tous les suivants restent
+ *  portés par les évaluations déjà en base. */
 export function eeCriterionLabel(code: string): string {
     switch (code) {
-        // --- v4 : critères propres à chaque tâche ---
+        // --- grille TCF : les 4 critères équipondérés des six tâches ---
+        case "communiquer":
+            return "Communiquer : accomplir la tâche et enchaîner les idées";
+        case "interagir":
+            return "Interagir : adaptation à la situation et au destinataire";
+        case "lexique":
+            return "Lexique : vocabulaire approprié";
+        case "morphosyntaxe":
+            return "Morphosyntaxe : correction grammaticale";
+        // --- codes par tâche, portés par les évaluations antérieures ---
         case "realisation_consigne":
             return "Réalisation de la consigne";
         case "adequation_destinataire":
@@ -942,12 +1013,8 @@ export function eeCriterionLabel(code: string): string {
             return "Conduite de l'échange";
         case "developpement_reponses":
             return "Développement des réponses";
-        // --- communs aux six tâches (le serveur en dérive le niveau) ---
         case "vocabulaire":
-        case "lexique":
             return "Étendue et maîtrise du lexique";
-        case "morphosyntaxe":
-            return "Correction morphosyntaxique";
         case "coherence":
         case "organisation":
             return "Cohérence et organisation";
@@ -979,6 +1046,13 @@ export function bandeCritereLabel(b: BandeCritere): string {
         case "NON_EVALUABLE":
             return "Non évaluable";
     }
+}
+
+/** Note /20 telle qu'on l'affiche partout : les notes portent UNE décimale
+ *  (12,5), rendue à la française et masquée quand elle est nulle (13, pas
+ *  13,0). Un arrondi à l'entier changerait la note affichée. */
+export function formatNoteSur20(n: number): string {
+    return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ",");
 }
 
 /** Libellé affichable d'un degré de confiance. */

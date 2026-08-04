@@ -1,86 +1,50 @@
 "use client";
 
-import type {EpreuveType} from "@/lib/types";
 import styles from "./production.module.css";
 
 /**
- * Critères annoncés au candidat avant qu'il produise — miroir strict des
- * rubriques serveur (`prompts/production-rubrics-*.json`, documentées dans
- * `docs/notation-ia-eo-ee.md`). Ils changent d'une tâche à l'autre : une liste
- * unique promettait des critères qui n'existent dans aucune rubrique.
+ * Critères annoncés au candidat avant qu'il produise — miroir strict de la
+ * grille serveur (`prompts/production-rubrics-*.json`, documentée dans
+ * `docs/notation-ia-eo-ee.md`). Ce sont les QUATRE critères du TCF, à poids
+ * égaux, identiques sur les six tâches : ce qui change d'une tâche à l'autre,
+ * ce sont les attentes derrière chaque critère, pas leur liste.
  *
  * Côté oral, ni l'aisance ni la prononciation n'y figurent : l'évaluation part
  * de la transcription et ne les entend pas. Les annoncer contredirait
  * l'avertissement affiché juste sous cette carte.
  */
-const CRITERIA: Record<"TCF_EE" | "TCF_EO", Record<number, string[]>> = {
-  TCF_EE: {
-    1: [
-      "Réalisation de la consigne",
-      "Adéquation au destinataire et au registre",
-      "Étendue et maîtrise du lexique",
-      "Correction morphosyntaxique",
-      "Clarté et enchaînement du message",
-    ],
-    2: [
-      "Réalisation du récit ou du compte rendu",
-      "Chronologie et repères temporels",
-      "Cohérence et organisation",
-      "Étendue et maîtrise du lexique",
-      "Correction morphosyntaxique",
-    ],
-    3: [
-      "Prise de position claire",
-      "Justification et développement des arguments",
-      "Organisation et connecteurs logiques",
-      "Étendue et maîtrise du lexique",
-      "Correction morphosyntaxique",
-    ],
+const CRITERIA: readonly {label: string; hint: string}[] = [
+  {
+    label: "Communiquer",
+    hint: "accomplir ce que demande la consigne et enchaîner ses idées",
   },
-  TCF_EO: {
-    1: [
-      "Réponse à la consigne et présentation de soi",
-      "Développement des réponses",
-      "Étendue et maîtrise du lexique",
-      "Correction grammaticale perceptible",
-      "Cohérence du propos",
-    ],
-    2: [
-      "Conduite de l'échange et obtention des informations",
-      "Adéquation à l'interlocuteur et au registre",
-      "Étendue et maîtrise du lexique",
-      "Correction grammaticale perceptible",
-      "Cohérence des interventions",
-    ],
-    3: [
-      "Point de vue clair et réponse à la question",
-      "Développement des arguments et exemples",
-      "Organisation du monologue",
-      "Étendue et maîtrise du lexique",
-      "Correction grammaticale perceptible",
-    ],
+  {
+    label: "Interagir",
+    hint: "s'adapter à la situation et à la personne à qui l'on s'adresse",
   },
-};
+  {label: "Lexique", hint: "un vocabulaire approprié et précis"},
+  {label: "Morphosyntaxe", hint: "la correction grammaticale"},
+];
 
-export function ProductionCriteriaCard({
-  epreuve,
-  tacheNumero,
-}: {
-  epreuve: Extract<EpreuveType, "TCF_EE" | "TCF_EO">;
-  tacheNumero: number;
-}) {
-  const items = CRITERIA[epreuve][tacheNumero] ?? CRITERIA[epreuve][1];
+export function ProductionCriteriaCard() {
   return (
     <div className={styles.card}>
       <p className={styles.cardLabel}>Vous serez évalué sur</p>
       <ul className={styles.criteriaList}>
-        {items.map((c) => (
-          <li key={c} className={styles.criteriaItem}>
+        {CRITERIA.map((c) => (
+          <li key={c.label} className={styles.criteriaItem}>
             <span className={styles.criteriaDot} />
-            {c}
+            <span>
+              <strong>{c.label}</strong> — {c.hint}
+            </span>
           </li>
         ))}
       </ul>
+      <p className={styles.criteriaFoot}>
+        Les quatre critères de la grille du TCF, qui comptent autant l&apos;un
+        que l&apos;autre. Ce sont les attentes derrière chacun qui montent d&apos;une
+        tâche à la suivante.
+      </p>
     </div>
   );
 }

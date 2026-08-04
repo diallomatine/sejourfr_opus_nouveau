@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   cecrlIndex,
   correspondanceTcfPhrase,
+  formatNoteSur20,
   isSubmissionPending,
   niveauCecrlLabel,
   type NiveauCecrl,
@@ -727,7 +728,7 @@ function BilanView({
           <div>
             <div className={prod.sessHeroNoteLabel}>Note moyenne</div>
             <div className={prod.sessHeroNote}>
-              {avgNote != null ? formatNote(avgNote) : "—"}
+              {avgNote != null ? formatNoteSur20(avgNote) : "—"}
               <span className={prod.sessHeroNoteOf}>/20</span>
             </div>
           </div>
@@ -823,7 +824,7 @@ function BilanView({
                       : pending
                         ? "Évaluation IA en cours…"
                         : note != null
-                          ? `Note ${formatNote(note)}/20`
+                          ? `Note ${formatNoteSur20(note)}/20`
                           : "Évaluée"}
                 </span>
               </span>
@@ -862,6 +863,3 @@ function BilanView({
   );
 }
 
-function formatNote(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ",");
-}

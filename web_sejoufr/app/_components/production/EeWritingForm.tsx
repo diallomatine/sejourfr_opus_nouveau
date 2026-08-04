@@ -133,7 +133,7 @@ export function EeWritingForm({
         </div>
       </div>
 
-      <ProductionCriteriaCard epreuve="TCF_EE" tacheNumero={task.tacheNumero} />
+      <ProductionCriteriaCard />
 
       <div className={styles.writeZone}>
         <div className={styles.writeHead}>

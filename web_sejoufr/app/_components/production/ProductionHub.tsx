@@ -8,6 +8,7 @@ import { productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
   canAccessModule,
+  formatNoteSur20,
   productionTaskSubtitle,
   productionTaskTitle,
   type ProductionSubmissionDto,
@@ -157,7 +158,7 @@ export function ProductionHub({ config }: { config: ProductionConfig }) {
                 percent={note != null ? Math.round(note * 5) : null}
                 footLabel={
                   note != null
-                    ? `Dernière note ${formatNote(note)}/20`
+                    ? `Dernière note ${formatNoteSur20(note)}/20`
                     : "Pas encore travaillée"
                 }
                 onClick={() => router.push(`${config.base}/tache/${n}`)}
@@ -208,6 +209,3 @@ export function ProductionHub({ config }: { config: ProductionConfig }) {
   );
 }
 
-function formatNote(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ",");
-}

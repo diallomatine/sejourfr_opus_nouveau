@@ -889,10 +889,11 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
     `EvaluationResultDto`, `ProductionExampleDto`, `SubmissionStatut`, `NiveauCecrl`
     + helpers (`productionTaskTitle/Subtitle(epreuve,n)`, `niveauCecrlLabel`,
     `cecrlIndex`, `formatDurationSec`, `resolveTcfLevel`, `parseEeFeedback`).
-  - **Composants partagés** `app/_components/production/` : `CecrlScoreDonut`,
-    `ProductionFeedbackView` (critères + points forts/à améliorer/suggestions/
-    corrections), `SubmissionRow`, `EeWritingForm`, `EoRecordingForm` +
-    `production.module.css`.
+  - **Composants partagés** `app/_components/production/` : `ProductionScoreHero`
+    (niveau observé + note /20), `ProductionFeedbackView` (critères + points
+    forts/priorités/suggestions/corrections), `ProductionCriteriaCard` (les 4
+    critères annoncés avant de produire), `SubmissionRow`, `EeWritingForm`,
+    `EoRecordingForm` + `production.module.css`.
   - **Gating** (source backend) : entraînement par tâche = **2 essais gratuits à
     vie** par épreuve pour non-abonnés (403 au-delà → `PaywallSheet` Intégral) ;
     examen blanc 3-tâches = **premium-only**. Premium TCF (Intégral) = illimité.
@@ -900,36 +901,62 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
     `tacheNumero` seul (sans niveau) → renvoyait toute l'épreuve. Branche ajoutée +
     query `findByEpreuveAndTacheNumeroAndActiveTrueOrderByNiveauCibleAscCreatedAtAsc`.
 
-### Écran de résultat d'une production (notation IA v4)
+### Écran de résultat d'une production (grille TCF)
 
 `ProductionFeedbackView` (rendu par `ProductionResults`, routes
 `/entrainement/tcf/{ee,eo}/resultats/[submissionId]`) suit l'ordre :
-**note globale /20 → performance observée + confiance → « À savoir » →
+**niveau observé + confiance + note /20 (`ProductionScoreHero`) → « À savoir » →
 check-list d'accomplissement → critères en bandes → points forts → priorités →
 suggestions → corrections**. Règles à ne pas défaire :
 
+- **Le niveau passe AVANT tout le reste** : c'est l'information que le candidat
+  vient chercher. Il ouvre l'écran, en grand (`--font-display`), la note /20 à
+  côté en donut. Les précautions viennent APRÈS, en second plan.
 - **Le niveau n'est JAMAIS affiché sans sa confiance** (`EvaluationResultDto.
   niveauObserve` + `confiance` + `avertissementNiveau`, tous fournis par le
-  backend). Le seul niveau qui fait foi reste celui du bilan d'épreuve.
+  backend). Le garde-fou vit dans `ProductionScoreHero` et nulle part ailleurs :
+  sans confiance, l'en-tête retombe sur la note seule. Le seul niveau qui fait
+  foi reste celui du bilan d'épreuve — dit dans le pied de l'en-tête.
 - **Un critère s'affiche en bande, pas en note** (`scores_criteres[].bande`,
   calculée serveur) : une IA ne distingue pas honnêtement un 13 d'un 14. La
   note **globale** /20, elle, reste chiffrée. La `preuve` (citation littérale)
   s'affiche sous le commentaire.
+- **Quatre critères, les mêmes sur les six tâches** (`communiquer`, `interagir`,
+  `lexique`, `morphosyntaxe`, à poids égaux) : c'est la grille réelle du TCF. Les
+  codes par tâche des évaluations antérieures restent dans la table de repli
+  `eeCriterionLabel` — elles sont toujours en base et doivent s'afficher.
+  `ProductionCriteriaCard` annonce cette même liste avant la production (ne plus
+  la faire varier par tâche : ce sont les attentes qui changent, pas les
+  critères).
+- **Les notes portent UNE décimale** (12,5 et non 13). Un seul formateur,
+  `formatNoteSur20` (`lib/types.ts`) — ne pas réintroduire de copie locale ni
+  d'arrondi à l'entier (la moyenne d'examen de `ProductionExams` inclus).
+- **Une priorité ENSEIGNE** (`points_a_ameliorer[]` =
+  `{constat, comment?, exemple?{avant,apres}}`) : le `comment` (technique
+  réutilisable) et l'`exemple` avant/après sont du contenu principal, jamais une
+  note de bas de page. `parseEeFeedback` accepte **les deux formes** — les
+  évaluations déjà en base portent de simples chaînes, rendues en `constat` seul.
+  Ne pas présumer que le serveur normalise à la lecture d'un ancien
+  enregistrement.
+- `exemples_corriges[].gain` (ce que la reformulation démontre de plus) s'affiche
+  sous l'explication quand il est là, absent sur les anciennes évaluations.
 - **L'accomplissement passe avant la langue** et distingue les points
   **obligatoires** des **pistes** (`obligatoire: false`) : une piste non
   traitée n'enlève aucun point et doit être présentée comme telle.
 - `points_a_ameliorer` est plafonné à 2 côté backend → titre « Vos priorités ».
 - **La note /20 est PÉDAGOGIQUE, pas une note de TCF** (notre échelle : 16-20 = B2,
   11-15 = B1… ; au TCF IRN 10/20 vaut déjà B2). Sur le résultat d'une tâche, on le
-  dit (`NoteScoreDonut`) et on n'affiche **aucune** correspondance TCF — une tâche
+  dit (`ProductionScoreHero`) et on n'affiche **aucune** correspondance TCF — une tâche
   isolée n'a pas de note officielle. La correspondance
   (`ProductionBilanResponse.correspondanceTcf` → `correspondanceTcfPhrase`) ne
   s'affiche qu'au **bilan d'épreuve** (`BilanView` dans `ProductionSession.tsx`),
   au même wording que le mobile. Cf. `docs/notation-ia-eo-ee.md` §6.6.
-- **Rétrocompatibilité v3** : les évaluations déjà en base n'ont ni niveau, ni
-  confiance, ni accomplissement, ni bandes, ni preuves. Les blocs concernés ne
-  sont pas rendus et les critères retombent sur l'affichage chiffré historique.
-  C'est un cas normal, jamais une erreur.
+- **Rétrocompatibilité (~100 évaluations en base)** : les plus anciennes n'ont ni
+  niveau, ni confiance, ni accomplissement, ni bandes, ni preuves, leurs critères
+  portent d'autres codes et leurs priorités sont de simples chaînes. Les blocs
+  concernés ne sont pas rendus, les critères retombent sur l'affichage chiffré
+  historique. C'est un cas normal, jamais une erreur — vérifier les deux formes
+  à l'écran avant de fermer une modif de cet écran.
 - L'avertissement « évaluation fondée sur la transcription, la voix n'est pas
   analysée » vient désormais du backend en tête de `feedback.avertissements`
   (EO). `EoTranscriptNotice` ne sert plus qu'**avant** l'enregistrement

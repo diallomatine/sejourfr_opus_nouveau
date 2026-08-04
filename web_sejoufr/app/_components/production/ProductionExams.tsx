@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   canAccessModule,
   cecrlIndex,
+  formatNoteSur20,
   type NiveauCecrl,
   niveauCecrlLabel,
   type ProductionSubmissionDto,
@@ -96,8 +97,10 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
           drafts.push({
             attemptId,
             date,
+            // Une décimale, comme les notes elles-mêmes : arrondir à l'entier
+            // afficherait 13 là où la session vaut 12,5.
             avgNote: notes.length
-              ? Math.round(notes.reduce((s, v) => s + v, 0) / notes.length)
+              ? Math.round((notes.reduce((s, v) => s + v, 0) / notes.length) * 10) / 10
               : null,
           });
         }
@@ -234,7 +237,7 @@ export function ProductionExams({ config }: { config: ProductionConfig }) {
           <DetailStatCard
             icon={<Flame size={20} />}
             tone="red"
-            value={bestNote != null ? `${bestNote}/20` : "—"}
+            value={bestNote != null ? `${formatNoteSur20(bestNote)}/20` : "—"}
             label="Meilleure note"
             sub="moyenne des 3 tâches"
           />

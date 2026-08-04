@@ -12,7 +12,7 @@ import {
   Play,
   RotateCw,
 } from "lucide-react";
-import type { LotDto } from "@/lib/types";
+import { formatNoteSur20, type LotDto } from "@/lib/types";
 import { ProgressDonut } from "./ModuleHubParts";
 import styles from "./detail.module.css";
 
@@ -446,7 +446,7 @@ export function ExamCard({
                 passThresholdMet === false ? styles.examMetaLow : styles.examMetaGood
               }`}
             >
-              {exam.score ?? 0}/{exam.total ?? "—"}
+              {formatNoteSur20(exam.score ?? 0)}/{exam.total ?? "—"}
             </span>
           </span>
         )

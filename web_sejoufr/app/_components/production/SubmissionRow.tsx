@@ -3,6 +3,7 @@
 import {ChevronRight} from "lucide-react";
 import {
   type EpreuveType,
+  formatNoteSur20,
   productionTaskTitle,
   type ProductionSubmissionDto,
 } from "@/lib/types";
@@ -52,7 +53,7 @@ export function SubmissionRow({
           className={styles.rowScore}
           style={{background: "var(--color-blue-soft)", color: "var(--color-blue)"}}
         >
-          {formatNote(note)}/20
+          {formatNoteSur20(note)}/20
         </span>
       ) : null}
       <ChevronRight size={20} className={styles.rowChevron} />
@@ -60,9 +61,6 @@ export function SubmissionRow({
   );
 }
 
-function formatNote(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ",");
-}
 
 function formatDay(iso: string): string {
   const d = new Date(iso);

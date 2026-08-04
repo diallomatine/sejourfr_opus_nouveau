@@ -8,6 +8,7 @@ import { ApiException, productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import {
   canAccessModule,
+  formatNoteSur20,
   productionTaskSubtitle,
   productionTaskTitle,
   type ProductionExampleDto,
@@ -25,8 +26,6 @@ import prod from "./production.module.css";
 type Tab = "sujets" | "exemples";
 type SubjectFilter = "all" | "todo" | "done";
 
-/** Note /20 façon mobile : toujours une décimale, virgule française. */
-const formatNote = (n: number) => n.toFixed(1).replace(".", ",");
 
 /**
  * Une tâche productive (T1/T2/T3) — maquette sejour_fr.html : onglet
@@ -271,7 +270,7 @@ export function ProductionSubjects({ config }: { config: ProductionConfig }) {
                                   className={`${detail.serieBadge} ${fail ? detail.serieBadgeFail : detail.serieBadgeDone}`}
                                 >
                                   <Check size={12} aria-hidden />{" "}
-                                  {note != null ? `${formatNote(note)}/20` : "Terminé"}
+                                  {note != null ? `${formatNoteSur20(note)}/20` : "Terminé"}
                                 </span>
                               ) : locked ? (
                                 <span className={`${detail.serieBadge} ${detail.serieBadgeLock}`}>

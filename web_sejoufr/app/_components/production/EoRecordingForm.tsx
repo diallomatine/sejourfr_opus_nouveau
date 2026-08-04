@@ -349,7 +349,7 @@ export function EoRecordingForm({
         </div>
       </div>
 
-      <ProductionCriteriaCard epreuve="TCF_EO" tacheNumero={task.tacheNumero} />
+      <ProductionCriteriaCard />
 
       <EoTranscriptNotice />
 

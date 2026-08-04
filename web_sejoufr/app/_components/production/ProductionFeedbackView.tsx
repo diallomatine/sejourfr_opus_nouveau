@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  ArrowRight,
   Check,
   Info,
   Lightbulb,
@@ -11,14 +12,14 @@ import {
 } from "lucide-react";
 import {
   bandeCritereLabel,
-  confianceLabel,
-  niveauCecrlLabel,
+  formatNoteSur20,
   parseEeFeedback,
   type EeAccomplishmentPoint,
   type EeCriterion,
+  type EePriority,
   type EvaluationResultDto,
 } from "@/lib/types";
-import {NoteScoreDonut} from "./NoteScoreDonut";
+import {ProductionScoreHero} from "./ProductionScoreHero";
 import styles from "./production.module.css";
 
 const TRANSCRIPTION_LIMIT =
@@ -32,17 +33,19 @@ const TRANSCRIPTION_LIMIT =
  * l'ordre où le candidat en a besoin : ce qu'il a traité de la consigne, puis
  * seulement ensuite la langue.
  *
- * 1. note globale /20 (repère attendu d'un examen — elle, on la garde chiffrée) ;
- * 2. performance observée sur la tâche, JAMAIS sans sa confiance à côté ;
- * 3. ce que l'évaluation ne couvre pas (avertissements), visible et non alarmant ;
- * 4. check-list d'accomplissement, en distinguant points exigés et simples pistes ;
- * 5. critères en BANDES (une IA ne distingue pas honnêtement un 13 d'un 14),
+ * 1. niveau observé sur la tâche + note /20 ({@link ProductionScoreHero}, qui
+ *    porte le garde-fou « jamais de niveau sans confiance ») ;
+ * 2. ce que l'évaluation ne couvre pas (avertissements), visible et non alarmant ;
+ * 3. check-list d'accomplissement, en distinguant points exigés et simples pistes ;
+ * 4. critères en BANDES (une IA ne distingue pas honnêtement un 13 d'un 14),
  *    avec la citation de la production qui justifie le jugement ;
- * 6. points forts, 2 priorités, suggestions, corrections.
+ * 5. points forts, 2 priorités qui ENSEIGNENT (constat → technique → avant/après),
+ *    suggestions, reformulations et ce qu'elles démontrent.
  *
- * Une évaluation antérieure à la notation v4 n'a ni niveau, ni confiance, ni
- * accomplissement, ni bandes : les blocs concernés ne sont pas rendus et les
- * critères retombent sur l'affichage chiffré historique. C'est un cas normal.
+ * Une évaluation antérieure n'a ni niveau, ni confiance, ni accomplissement, ni
+ * bandes, et ses priorités sont de simples chaînes sans technique ni exemple :
+ * les blocs concernés ne sont pas rendus et les critères retombent sur
+ * l'affichage chiffré historique. C'est un cas normal, jamais une erreur.
  */
 export function ProductionFeedbackView({
   evaluation,
@@ -57,8 +60,7 @@ export function ProductionFeedbackView({
   const fb = parseEeFeedback(evaluation);
   const acc = fb.accomplissement;
   const accPoints = acc ? [...acc.pointsTraites, ...acc.pointsOublies] : [];
-  const showLevel = evaluation.niveauObserve != null && fb.confiance != null;
-  // Les évaluations d'avant la notation v4 ne portent pas l'avertissement de
+  // Les évaluations les plus anciennes ne portent pas l'avertissement de
   // transcription : on garde le rappel écrit côté front pour ne pas le perdre.
   const notices =
     fb.avertissements.length > 0
@@ -69,39 +71,13 @@ export function ProductionFeedbackView({
 
   return (
     <div className={styles.wrap} style={{padding: 0, gap: 16}}>
-      <NoteScoreDonut noteSurVingt={fb.noteGlobale} />
-
-      {(showLevel || fb.confiance != null) && (
-        <div className={styles.levelCard}>
-          {showLevel && (
-            <p className={styles.levelTitle}>
-              Performance observée sur cette tâche :{" "}
-              <strong className={styles.levelValue}>
-                {evaluation.niveauObserve === "A1_NON_ATTEINT"
-                  ? "niveau A1 non atteint"
-                  : `proche du niveau ${niveauCecrlLabel(evaluation.niveauObserve)}`}
-              </strong>
-            </p>
-          )}
-          {fb.confiance != null && (
-            <p className={styles.levelMeta}>
-              <span className={styles.confChip} data-confiance={fb.confiance}>
-                {confianceLabel(fb.confiance)}
-              </span>
-              {evaluation.avertissementNiveau && (
-                <span className={styles.levelNote}>{evaluation.avertissementNiveau}</span>
-              )}
-            </p>
-          )}
-          {fb.confianceRaisons.length > 0 && (
-            <ul className={styles.confList}>
-              {fb.confianceRaisons.map((r, i) => (
-                <li key={i}>{r}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+      <ProductionScoreHero
+        noteSurVingt={fb.noteGlobale}
+        niveau={evaluation.niveauObserve}
+        confiance={fb.confiance}
+        avertissementNiveau={evaluation.avertissementNiveau}
+        confianceRaisons={fb.confianceRaisons}
+      />
 
       {notices.length > 0 && (
         <div className={styles.limitsBox}>
@@ -158,13 +134,20 @@ export function ProductionFeedbackView({
         />
       )}
       {fb.pointsAAmeliorer.length > 0 && (
-        <FeedbackList
-          title={fb.pointsAAmeliorer.length > 1 ? "Vos priorités" : "Votre priorité"}
-          icon={<Target size={16} strokeWidth={2.2} color="var(--color-amber)" />}
-          items={fb.pointsAAmeliorer}
-          dot={styles.fbWarn}
-          hint="À travailler en premier pour progresser sur cette tâche."
-        />
+        <div className={styles.card}>
+          <p className={styles.fbTitle}>
+            <Target size={16} strokeWidth={2.2} color="var(--color-amber)" />
+            {fb.pointsAAmeliorer.length > 1 ? "Vos priorités" : "Votre priorité"}
+          </p>
+          <p className={styles.fbHint}>
+            À travailler en premier pour progresser sur cette tâche.
+          </p>
+          <ol className={styles.prioList}>
+            {fb.pointsAAmeliorer.map((p, i) => (
+              <PriorityItem key={i} rank={i + 1} priority={p} />
+            ))}
+          </ol>
+        </div>
       )}
       {fb.suggestions.length > 0 && (
         <FeedbackList
@@ -193,6 +176,12 @@ export function ProductionFeedbackView({
                 {e.corrige && <span className={styles.corrFix}>{e.corrige}</span>}
               </div>
               {e.explication && <p className={styles.corrExpl}>{e.explication}</p>}
+              {e.gain && (
+                <p className={styles.corrGain}>
+                  <span className={styles.corrGainTag}>Ce que ça démontre</span>
+                  {e.gain}
+                </p>
+              )}
             </div>
           ))}
         </div>
@@ -223,7 +212,48 @@ function AccomplishmentItem({point, done}: {point: EeAccomplishmentPoint; done: 
   );
 }
 
-/** Bande qualitative (v4) ou, à défaut, l'affichage chiffré historique. */
+/**
+ * Une priorité qui enseigne : le constat, puis la technique réutilisable, puis
+ * sa démonstration sur une phrase du candidat. `comment` et `exemple` sont
+ * absents des évaluations déjà en base (priorité réduite à une chaîne) — la
+ * ligne se rend alors comme un simple constat.
+ */
+function PriorityItem({rank, priority: p}: {rank: number; priority: EePriority}) {
+  return (
+    <li className={styles.prio}>
+      <span className={styles.prioRank} aria-hidden>
+        {rank}
+      </span>
+      <div className={styles.prioBody}>
+        <p className={styles.prioConstat}>{p.constat}</p>
+        {p.comment && (
+          <p className={styles.prioHow}>
+            <span className={styles.prioHowTag}>Comment faire</span>
+            {p.comment}
+          </p>
+        )}
+        {p.exemple && (
+          <div className={styles.prioExample}>
+            <p className={styles.prioBefore}>
+              <span className={styles.prioExampleTag}>Votre phrase</span>
+              {p.exemple.avant}
+            </p>
+            <p className={styles.prioAfter}>
+              <span className={styles.prioExampleTag}>
+                <ArrowRight size={11} strokeWidth={2.6} aria-hidden />
+                Réécrite
+              </span>
+              {p.exemple.apres}
+            </p>
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
+/** Bande qualitative, ou à défaut l'affichage chiffré des évaluations
+ *  antérieures (qui ne portent pas de bande). */
 function CriterionRow({criterion: c}: {criterion: EeCriterion}) {
   const legacyColor =
     c.noteSurVingt >= 14
@@ -243,7 +273,7 @@ function CriterionRow({criterion: c}: {criterion: EeCriterion}) {
             </span>
           ) : (
             <span className={styles.critNote} style={{color: legacyColor}}>
-              {formatNote(c.noteSurVingt)}/20
+              {formatNoteSur20(c.noteSurVingt)}/20
             </span>
           )}
         </div>
@@ -282,13 +312,11 @@ function FeedbackList({
   icon,
   items,
   dot,
-  hint,
 }: {
   title: string;
   icon: React.ReactNode;
   items: string[];
   dot: string;
-  hint?: string;
 }) {
   return (
     <div className={styles.card}>
@@ -296,7 +324,6 @@ function FeedbackList({
         {icon}
         {title}
       </p>
-      {hint && <p className={styles.fbHint}>{hint}</p>}
       <ul className={styles.fbList}>
         {items.map((it, i) => (
           <li key={i} className={styles.fbItem}>
@@ -307,8 +334,4 @@ function FeedbackList({
       </ul>
     </div>
   );
-}
-
-function formatNote(n: number): string {
-  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ",");
 }
