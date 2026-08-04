@@ -463,11 +463,14 @@ class _TcfHero extends StatelessWidget {
   String _messageFor(TargetLevel level) {
     switch (level) {
       case TargetLevel.a2:
-        return 'A2 ouvre l\'accès à la carte de séjour (CSP). Visez B1 pour la carte de résident.';
+        return 'A2 est le palier demandé pour la carte de séjour (CSP) — dans '
+            'les 4 épreuves, sans moyenne. Visez B1 pour la carte de résident.';
       case TargetLevel.b1:
-        return 'B1 est requis pour la carte de résident. Visez B2 pour la naturalisation.';
+        return 'B1 est le palier demandé pour la carte de résident — dans les '
+            '4 épreuves, sans moyenne. Visez B2 pour la naturalisation.';
       case TargetLevel.b2:
-        return 'B2 est le niveau requis pour la naturalisation. Bravo, vous y êtes.';
+        return 'B2 est le palier demandé pour la naturalisation — dans les 4 '
+            'épreuves, sans moyenne. Confirmez-le en expression écrite et orale.';
     }
   }
 }

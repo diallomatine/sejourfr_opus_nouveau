@@ -183,6 +183,11 @@ function BilanInner() {
           <>
             <div className={s.bilanLevel}>{niveauCecrlLabel(level)}</div>
             <div className={s.bilanLevelSub}>niveau plancher (règle TCF IRN)</div>
+            <p className={s.bilanRule}>
+              Ton niveau correspond au plus bas de tes 4 épreuves : il n&apos;y a
+              ni moyenne ni compensation. Fais monter ton épreuve la plus faible
+              pour faire monter l&apos;ensemble.
+            </p>
           </>
         )}
       </div>

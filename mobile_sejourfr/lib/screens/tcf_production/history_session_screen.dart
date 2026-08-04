@@ -350,18 +350,22 @@ class _Body extends StatelessWidget {
         return "Reviens aux bases de l'expression $modaliteAdj — vise le A2 "
             'à ta prochaine session.';
       case NiveauCecrl.a2:
-        return 'Niveau A2 atteint : suffisant pour la Carte de séjour pluriannuel. '
-            'Continue pour viser le B1.';
+        return 'Niveau A2 sur cette épreuve — le palier demandé pour la carte '
+            'de séjour pluriannuelle, à condition de l\'atteindre aussi dans '
+            'les 3 autres épreuves. Continue pour viser le B1.';
       case NiveauCecrl.b1:
-        return 'Niveau B1 atteint : suffisant pour la Carte de résident. '
-            'Vise le B2 pour la naturalisation.';
+        return 'Niveau B1 sur cette épreuve — le palier demandé pour la carte '
+            'de résident, à condition de l\'atteindre aussi dans les 3 autres '
+            'épreuves. Vise le B2 pour la naturalisation.';
       case NiveauCecrl.b2:
-        return 'Excellent — niveau B2 atteint, requis pour la naturalisation '
-            'française.';
+        return 'Excellent — niveau B2 sur cette épreuve, le palier demandé '
+            'pour la naturalisation. Il se juge dans les 4 épreuves sans '
+            'moyenne : garde ce niveau partout.';
       case NiveauCecrl.c1:
       case NiveauCecrl.c2:
         return 'Niveau ${niveau.displayName} — bravo, ton français '
-            '$modaliteAdj est avancé.';
+            '$modaliteAdj est avancé. Le TCF IRN, lui, s\'arrête à B2 : tu es '
+            'au-dessus du palier le plus haut demandé.';
     }
   }
 

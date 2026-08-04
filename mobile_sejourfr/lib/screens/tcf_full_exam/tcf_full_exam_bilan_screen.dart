@@ -473,8 +473,9 @@ class _Hero extends StatelessWidget {
           Text(
             pending || level == null
                 ? 'Encore quelques secondes : nous calculons ton niveau final sur la base des 4 épreuves.'
-                : 'Ton niveau IRN correspond au plus bas des 4 épreuves (règle officielle). '
-                    'Continue à t\'entraîner sur l\'épreuve la plus faible pour le faire monter.',
+                : 'Ton niveau IRN correspond au plus bas des 4 épreuves : il n\'y a '
+                    'ni moyenne ni compensation (règle officielle). Continue à '
+                    't\'entraîner sur l\'épreuve la plus faible pour le faire monter.',
             style: AppFonts.ui(
               size: 13.5,
               color: AppColors.white.withValues(alpha: 0.92),

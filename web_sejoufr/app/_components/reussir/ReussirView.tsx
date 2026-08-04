@@ -395,21 +395,21 @@ const LEVELS: {
     procedure: "Carte de séjour pluriannuelle",
     pitch:
       "Le premier renouvellement après le visa long séjour. Le palier le plus accessible des trois.",
-    foot: "Examen civique · niveau A1/A2 · validité 2 à 4 ans",
+    foot: "Examen civique mention CSP · validité 2 à 4 ans",
   },
   {
     level: "B1",
     procedure: "Carte de résident",
     pitch:
       "Dix ans de validité, travail facilité, démarches allégées. Le palier intermédiaire.",
-    foot: "Examen civique · niveau A2/B1 · validité 10 ans",
+    foot: "Examen civique mention CR · validité 10 ans",
   },
   {
     level: "B2",
     procedure: "Naturalisation française",
     pitch:
       "Devenir français. Le niveau de langue le plus haut : à l'oral, il faut argumenter, nuancer, réagir. C'est là que la préparation compte le plus.",
-    foot: "Examen civique · niveau B1/B2 · nationalité + droits civiques",
+    foot: "Examen civique mention Naturalisation · nationalité + droits civiques",
     hi: true,
   },
 ];
@@ -580,7 +580,7 @@ function MockExamSection() {
                 CO&nbsp;<b>B2</b>
               </span>
               <span>
-                CE&nbsp;<b>C1</b>
+                CE&nbsp;<b>B2</b>
               </span>
               <span data-floor>
                 EE&nbsp;<b>B2</b>

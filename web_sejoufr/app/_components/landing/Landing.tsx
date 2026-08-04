@@ -596,7 +596,7 @@ const TEMOIGNAGES = [
   {
     text: "Les examens blancs en conditions réelles m'ont mis en confiance. Le jour J, je connaissais déjà le format — plus de stress sur le chrono.",
     name: "Aïcha B.",
-    role: "Naturalisation · obtenu B1",
+    role: "Naturalisation · objectif B2",
   },
   {
     text: "La correction de l'expression écrite par l'IA est précise : elle pointe les fautes récurrentes et explique. J'ai vraiment progressé semaine après semaine.",

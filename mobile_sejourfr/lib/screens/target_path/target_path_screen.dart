@@ -109,6 +109,8 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
               ),
               const SizedBox(height: 12),
             ],
+            const SizedBox(height: 4),
+            const _NoCompensationNote(),
             if (_error != null) ...[
               const SizedBox(height: 6),
               Container(
@@ -132,6 +134,45 @@ class _TargetPathScreenState extends ConsumerState<TargetPathScreen> {
               isLoading: _saving,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Rappel de la règle la plus mal connue du TCF IRN : le niveau exigé se juge
+/// épreuve par épreuve. Placé sous les cartes de parcours, au moment où le
+/// candidat fixe son objectif.
+class _NoCompensationNote extends StatelessWidget {
+  const _NoCompensationNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.redLight,
+        borderRadius: BorderRadius.circular(10),
+        border: Border(
+          left: BorderSide(color: AppColors.red, width: 3),
+        ),
+      ),
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: 'Sans compensation entre les épreuves. ',
+              style: AppFonts.ui(size: 13, weight: FontWeight.w800),
+            ),
+            const TextSpan(
+              text: 'Le niveau exigé doit être atteint dans les 4 épreuves du '
+                  'TCF IRN : compréhension orale, compréhension écrite, '
+                  'expression écrite et expression orale. L\'attestation '
+                  'affiche un niveau par épreuve — il n\'y a pas de moyenne, '
+                  'et l\'épreuve la plus basse décide.',
+            ),
+          ],
+          style: AppFonts.ui(size: 13, color: AppColors.ink, height: 1.5),
         ),
       ),
     );

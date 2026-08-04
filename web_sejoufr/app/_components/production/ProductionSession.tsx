@@ -618,12 +618,13 @@ function nextStepsMessage(level: NiveauCecrl | null): string {
   switch (level) {
     case "C2":
     case "C1":
+      return "Bravo, votre français est avancé. Le TCF IRN, lui, s'arrête à B2 : vous êtes au-dessus du palier le plus haut demandé.";
     case "B2":
-      return "Excellent niveau. Vous visez le haut du TCF IRN — continuez à soigner la nuance et l'argumentation.";
+      return "Excellent — niveau B2 sur cette épreuve, le palier demandé pour la naturalisation. Il se juge dans les 4 épreuves sans moyenne : gardez ce niveau partout.";
     case "B1":
-      return "Niveau solide, suffisant pour la carte de résident. Travaillez la richesse du vocabulaire pour viser B2.";
+      return "Niveau B1 sur cette épreuve — le palier demandé pour la carte de résident, à condition de l'atteindre aussi dans les 3 autres épreuves. Travaillez la richesse du vocabulaire pour viser B2.";
     case "A2":
-      return "Niveau suffisant pour la carte de séjour. Renforcez la grammaire et la longueur de vos productions pour viser B1.";
+      return "Niveau A2 sur cette épreuve — le palier demandé pour la carte de séjour pluriannuelle, à condition de l'atteindre aussi dans les 3 autres épreuves. Renforcez la grammaire et la longueur de vos productions pour viser B1.";
     case "A1":
       return "Les bases sont là. Entraînez-vous régulièrement sur des phrases plus complètes pour progresser vers A2.";
     case "A1_NON_ATTEINT":

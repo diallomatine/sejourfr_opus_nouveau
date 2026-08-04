@@ -7,15 +7,15 @@ import type { TargetProcedure, TargetLevel } from "@/lib/types";
 const PROC_INFO: Record<TargetProcedure, { title: string; sub: string }> = {
   CSP: {
     title: "Titre de séjour pluriannuel",
-    sub: "Vous préparez la procédure CSP. Difficulté A1/A2 pour l'examen civique.",
+    sub: "Examen civique mention CSP · TCF IRN niveau A2 exigé dans les 4 épreuves.",
   },
   CR: {
     title: "Carte de résident",
-    sub: "Vous préparez la procédure CR. Difficulté A2/B1 pour l'examen civique.",
+    sub: "Examen civique mention CR · TCF IRN niveau B1 exigé dans les 4 épreuves.",
   },
   NAT: {
     title: "Naturalisation française",
-    sub: "Vous préparez la procédure NAT. Difficulté B1/B2 pour l'examen civique.",
+    sub: "Examen civique mention Naturalisation · TCF IRN niveau B2 exigé dans les 4 épreuves.",
   },
 };
 

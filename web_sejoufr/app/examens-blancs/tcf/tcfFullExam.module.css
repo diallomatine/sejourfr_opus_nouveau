@@ -416,6 +416,13 @@
   font-size: 0.85rem;
   opacity: 0.8;
 }
+.bilanRule {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  opacity: 0.88;
+  margin: 0.75rem auto 0;
+  max-width: 42ch;
+}
 .bilanPending {
   display: flex;
   flex-direction: column;

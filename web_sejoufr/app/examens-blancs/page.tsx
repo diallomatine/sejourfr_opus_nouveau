@@ -649,7 +649,7 @@ function ExamsGuestHome() {
                     icon={<Waves size={22} strokeWidth={1.8}/>}
                     title="TCF IRN"
                     chip="Tous les modules"
-                    tips={["Conditions réelles", "90 minutes", "Niveau requis . B2", "Tous les modules"]}
+                    tips={["Conditions réelles", "90 minutes", "4 épreuves", "Niveau CECRL"]}
                     sub={`${SLOTS} épreuves disponibles · 1 offerte sans compte`}
                 >
                     <ExamsGrid
