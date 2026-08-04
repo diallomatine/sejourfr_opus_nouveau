@@ -67,8 +67,10 @@ class EoSessionNotifier extends StateNotifier<AsyncValue<EoSessionState>> {
 
   /// (Re)demarre une **session d'examen blanc module EO** sur le slot donné :
   /// crée un attempt d'examen (`exam:true, slotNumber:N`) puis charge les 3
-  /// tâches déterministes du slot. L'EO n'a pas de `timeLimitSeconds` backend
-  /// (le décompte est par tâche, basé sur `dureeMaxSec`).
+  /// tâches déterministes du slot. L'`AttemptResponse` porte `timeLimitSeconds`
+  /// (900 s pour l'EO, 1800 pour l'EE) : le briefing en fait un chrono global
+  /// qui court à travers les 3 tâches, en plus du décompte par tâche basé sur
+  /// `dureeMaxSec`.
   Future<void> startExam({required int slotNumber}) async {
     final current = state.value;
     if (current != null &&

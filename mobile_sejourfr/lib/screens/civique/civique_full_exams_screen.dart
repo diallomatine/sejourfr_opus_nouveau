@@ -12,6 +12,7 @@ import '../../core/models/enums.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
+import '../../core/utils/start_failure.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/stat_value_card.dart';
 import '../tcf_production/widgets/exam_info_chips.dart';
@@ -128,15 +129,7 @@ class _CiviqueFullExamsViewState extends ConsumerState<CiviqueFullExamsView> {
       context.push(AppRoutes.runner.replaceFirst(':attemptId', attempt.id));
     } catch (e) {
       if (!mounted) return;
-      final apiErr = ApiClient.toApiException(e);
-      if (apiErr.isForbidden) {
-        showPaywallSheet(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(apiErr.message), backgroundColor: AppColors.red),
-        );
-      }
+      showPaywallOrError(context, e);
     } finally {
       if (mounted) setState(() => _starting = false);
     }

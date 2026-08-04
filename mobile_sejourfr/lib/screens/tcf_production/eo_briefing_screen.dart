@@ -13,6 +13,7 @@ import '../../core/models/production_models.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/query_propagation.dart';
 import '../../core/widgets/app_button.dart';
+import '../question_runner/widgets/exam_timer.dart';
 import '../tcf_full_exam/full_tcf_exam_provider.dart';
 import 'audio_recorder_service.dart';
 import 'eo_session_controller.dart';
@@ -50,6 +51,9 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
   /// ticker interne du `AudioRecorderService` et du `ref.listen` (constaté : à
   /// la 3e tâche EO, l'auto-stop du service ne déclenchait pas la soumission).
   Timer? _examAutoStop;
+
+  /// Chrono global d'examen écoulé — voir [_handleExamTimeout].
+  bool _timedOut = false;
 
   @override
   void initState() {
@@ -135,6 +139,51 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
       if (!mounted) return;
     }
     _onCaptureFinished();
+  }
+
+  /// Chrono global de la session d'examen EO écoulé (`timeLimitSeconds` du
+  /// backend). On rend d'abord ce qui a été capturé — best-effort, exactement
+  /// comme l'EE auto-soumet sa copie à 30:00 — puis on finalise l'attempt et
+  /// on pousse le bilan. Sans ça le candidat continuerait la tâche suivante
+  /// alors que le backend refuse déjà ses soumissions.
+  ///
+  /// `_navigated` est posé AVANT l'arrêt de la capture : sinon le passage du
+  /// service en `finished` déclencherait `_onCaptureFinished` et enchaînerait
+  /// la tâche suivante en parallèle de la sortie.
+  Future<void> _handleExamTimeout() async {
+    if (_timedOut || !mounted) return;
+    _timedOut = true;
+    _navigated = true;
+    _examAutoStop?.cancel();
+
+    final rec = ref.read(recordingControllerProvider);
+    if (rec.phase == RecordingPhase.recording ||
+        rec.phase == RecordingPhase.paused) {
+      await ref.read(recordingControllerProvider.notifier).stop();
+      if (!mounted) return;
+    }
+
+    final captured = ref.read(recordingControllerProvider);
+    if (captured.filePath != null) {
+      setState(() => _submittingExam = true);
+      try {
+        await ref.read(eoSessionProvider.notifier).submitTask(
+              taskIndex: widget.taskIndex,
+              audioFile: File(captured.filePath!),
+              mimeType: captured.fileMime ?? 'audio/wav',
+            );
+      } catch (_) {
+        /* soumission best-effort à l'expiration */
+      }
+      if (!mounted) return;
+    }
+
+    final attemptId = ref.read(eoSessionProvider).value?.attempt?.id;
+    await ref.read(eoSessionProvider.notifier).finishAttemptIfExam();
+    if (!mounted || attemptId == null) return;
+    context.pushReplacement(
+      '/tcf/expression-orale/sessions/$attemptId?live=1',
+    );
   }
 
   /// Capture terminée (stop manuel ou auto-stop à `dureeMaxSec`).
@@ -512,6 +561,8 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
                 child: CircularProgressIndicator(color: AppColors.red),
               );
             }
+            final examLimitSeconds =
+                session.isExam ? session.attempt?.timeLimitSeconds : null;
             return SafeArea(
               top: false,
               child: Column(
@@ -520,6 +571,19 @@ class _EoBriefingScreenState extends ConsumerState<EoBriefingScreen> {
                     current: widget.taskIndex + 1,
                     total: session.totalTasks,
                     niveau: task.niveauCible,
+                    // Chrono global de la session d'examen EO (15 min côté
+                    // backend), ancré sur `startedAt` → il survit à un
+                    // kill/reprise et court à travers les 3 tâches. Absent en
+                    // entraînement libre et sur le sous-attempt EO d'un examen
+                    // complet (pas de `timeLimitSeconds`, le temps global est
+                    // décompté par le hub de l'examen).
+                    trailing: examLimitSeconds == null
+                        ? null
+                        : ExamTimer(
+                            durationSeconds: examLimitSeconds,
+                            startedAt: session.attempt!.startedAt,
+                            onElapsed: _handleExamTimeout,
+                          ),
                   ),
                   if (isRecording)
                     Expanded(

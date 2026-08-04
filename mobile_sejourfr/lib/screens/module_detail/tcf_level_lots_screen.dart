@@ -13,6 +13,7 @@ import '../../core/providers/lots_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
+import '../../core/utils/start_failure.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/screen_header.dart';
@@ -147,15 +148,7 @@ class _TcfLevelLotsScreenState extends ConsumerState<TcfLevelLotsScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      final apiErr = ApiClient.toApiException(e);
-      if (apiErr.isForbidden) {
-        showPaywallSheet(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(apiErr.message), backgroundColor: AppColors.red),
-        );
-      }
+      showPaywallOrError(context, e);
     } finally {
       if (mounted) setState(() => _starting = false);
     }

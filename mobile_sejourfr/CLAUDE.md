@@ -231,6 +231,12 @@ change un DTO, mettre à jour le model Dart correspondant.
 - Les repositories prennent l'`ApiClient` en injection, exposé via `apiClientProvider`.
 - Pour traiter une erreur, utiliser `ApiClient.toApiException(e)` qui mappe les `DioException` en
   `ApiException` propre avec status code + message + fieldErrors.
+- **Échec de démarrage d'un attempt** (série, examen blanc QCM, session EE/EO) : passer par
+  `core/utils/start_failure.dart` — `showPaywallOrError(context, e)` ouvre le paywall sur un **403**
+  (verrou freemium appliqué par le backend : statut premium en cache périmé, abonnement expiré en
+  cours de session) et affiche le message backend sinon. `onForbidden:` sert à fermer un briefing
+  avant d'empiler le paywall. **Ne pas réécrire ce `if (isForbidden)` dans un écran** : la règle vit à
+  un seul endroit, et `classifyStartFailure` la verrouille en test.
 
 **Formulaires**
 
@@ -807,9 +813,17 @@ flag `isExam` + le `slotNumber`. Points d'entrée :
 `ProductionProgressStrip`, ancré sur `attempt.startedAt` + `timeLimitSeconds` (module ; survit à un
 kill/reprise) ou 1800 s côté front (examen complet, pas de `timeLimitSeconds` backend). À 0:00 :
 auto-soumission du texte courant **s'il est recevable** (mots ∈ [motsMin, motsMax×1.2]), sinon rien ;
-puis `finish` (module) / `markSubDone` (complet) ; puis bilan. L'EO n'a pas de chrono global : pendant
-l'enregistrement, `_TimerBig` passe en **décompte** (`countdown:true`, `dureeMaxSec` → 0) en mode
-examen au lieu du chrono croissant.
+puis `finish` (module) / `markSubDone` (complet) ; puis bilan.
+
+**Chrono d'examen EO (15:00)** : `eo_briefing_screen` rend le même `ExamTimer` dans le `trailing` du
+`ProductionProgressStrip` **dès que l'attempt porte un `timeLimitSeconds`** (900 s posées par le
+backend sur une session d'examen module EO). Ancré sur `startedAt`, il court à travers les 3 tâches et
+survit à un kill/reprise. À 0:00 : `_handleExamTimeout` pose `_navigated` **avant** de stopper la
+capture (sinon `_onCaptureFinished` enchaînerait la tâche suivante en parallèle), soumet l'audio
+capturé en best-effort, puis `finish` + bilan. Absent en entraînement libre et sur le sous-attempt EO
+d'un examen complet (attempt fabriqué côté client, sans `timeLimitSeconds` — le temps global y est
+tenu par le `_GlobalTimer` du hub). En plus de ce chrono global, `_TimerBig` passe en **décompte**
+(`countdown:true`, `dureeMaxSec` → 0) pendant l'enregistrement en mode examen.
 
 **EO en examen** : au stop (manuel OU auto-stop), pas d'écran `eo_finished_screen` entre les tâches —
 le briefing soumet immédiatement (`_submitExamAndAdvance`) et enchaîne la tâche suivante (ou le bilan

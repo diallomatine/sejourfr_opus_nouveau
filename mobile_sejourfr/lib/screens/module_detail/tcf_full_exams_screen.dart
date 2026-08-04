@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../core/api/api_exception.dart';
 import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/enums.dart';
@@ -11,6 +10,7 @@ import '../../core/models/full_tcf_exam.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/selected_module.dart';
+import '../../core/utils/start_failure.dart';
 import '../../core/widgets/app_button.dart';
 import '../../core/widgets/paywall_sheet.dart';
 import '../../core/widgets/stat_value_card.dart';
@@ -119,25 +119,12 @@ class TcfFullExamsView extends ConsumerWidget {
               AppRoutes.tcfFullExamProgress
                   .replaceFirst(':parentId', exam.id),
             );
-          } on ApiException catch (e) {
+          } catch (e) {
             if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(e.message),
-                backgroundColor: AppColors.red,
-                duration: const Duration(seconds: 4),
-              ),
-            );
-          } catch (_) {
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                    'Impossible de démarrer l\'examen. Réessaye dans un instant.'),
-                backgroundColor: AppColors.red,
-                duration: Duration(seconds: 4),
-              ),
-            );
+            // Le backend applique le verrou des slots 2+ : un 403 ouvre le
+            // paywall au lieu d'une erreur technique (statut premium périmé
+            // côté client, abonnement expiré en cours de session).
+            showPaywallOrError(context, e);
           }
         },
       );
