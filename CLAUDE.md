@@ -155,6 +155,44 @@ cliquent son CTA, découpé par réseau de provenance.
   bot peut gonfler un compteur — donnée fausse, mais ni fuite ni inflation de
   stockage.
 
+## Notation IA des productions EE/EO — repères
+
+Le « quoi » et le « pourquoi » vivent dans `docs/notation-ia-eo-ee.md` (référence
+grand public, **à tenir exhaustive et à jour dans la même passe** — cf. la règle
+dédiée plus bas). Ici, uniquement de quoi se repérer.
+
+- **Versions actives** : rubriques `production-rubrics-v4.1.json`, tool-schema de
+  sortie `production-evaluation-tool-schema-v2.json`, persona vocale
+  `realtime-personas-v2.json`. **v4 et v3 restent chargeables et validées** :
+  retour arrière = `EVAL_RUBRICS_VERSION=v3|v4` (+ `EVAL_PROMPT_VERSION=v1.5`
+  pour v3), aucune migration. **On versionne, on ne réécrit jamais** une
+  rubrique livrée.
+- **v4** = critères propres à chaque tâche (5 par tâche, fini les 4 universels),
+  obligatoires vs pistes, bloc accomplissement, confiance, preuve littérale,
+  2 priorités max. **v4.1** = correction de l'indulgence mesurée au banc, sans
+  supprimer aucune tolérance.
+- **Banc de mesure** (`src/test/java/.../calibration/`, corpus
+  `src/test/resources/calibration/golden-set-v1.json`, 48 cas synthétiques) :
+  **opt-in strict**, jamais dans `./mvnw verify` (appelle un LLM payant).
+  `./mvnw -q test -Dtest=CalibrationBenchTest -DfailIfNoTests=false
+  -Dcalibration.enabled=true -Dcalibration.rubrics=v4.1 -Dcalibration.prompt=v2
+  -Dcalibration.label=<nom>` → rapport JSON dans `target/calibration/`.
+  Convention de signe partout : **écart = référence − IA** (négatif = IA trop
+  indulgente). **Toute modif d'une consigne de notation ou d'un seuil se mesure
+  avant/après** — sinon c'est un pari.
+- **Console de calibration admin** (`features/calibration/` +
+  `AdminCalibrationService`) : annotation humaine de vraies productions, biais et
+  dispersion vs IA. C'est elle qui doit faire grossir le corpus réel.
+- **Fiche de scénario EO T2** : `production_tasks.agent_role_card` (migration
+  V743, les 20 sujets couverts), rendue par `RealtimePersonaBuilder` via le
+  gabarit `t2Fiche` de la persona v2. Jamais exposée à un client, jamais envoyée
+  à l'IA correctrice — **ce n'est pas une check-list de notation**.
+- **Trois drapeaux livrés ÉTEINTS** (`sejourfr.production-evaluation`) :
+  `fluidite.enabled` (débit/pauses, informatif), `seconde-passe.enabled` (2ᵉ
+  lecture en zone floue, modèle différent obligatoire), `coherence-bilan.enabled`
+  (pas de B2 au bilan si T3 < B1). À `false`, ils ne changent **rien**. Les
+  `plafonds`, eux, sont **actifs**.
+
 ## Identité visuelle (résumé)
 
 - Bleu France `#1E3A8C` + Rouge France `#E1372F` (CTAs critiques seulement).
@@ -178,7 +216,7 @@ Liste complète des endpoints → `docs/api-endpoints.md`.
 ```bash
 # Backend (depuis backend_sejourfr/)
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
-# DB : Postgres local, db = sejourfr_nouveau, user = diallomatine (cf. application-dev.yaml)
+# DB : Postgres local, db = sejourfr_db, user = diallomatine (cf. application-dev.yaml)
 # Mail : MailHog sur localhost:1025 (UI http://localhost:8025)
 # Tests : ./mvnw verify  (unitaires *Test via surefire + intégration *IT via failsafe).
 #   Les *IT tournent sur un Postgres EMBARQUÉ (Zonky, pas de Docker) qui applique les
@@ -734,12 +772,16 @@ Référence à consulter quand le contexte le demande — pas chargé par défau
 - `docs/pipeline-audio-co.md` — génération audio TCF CO (Claude → Azure Speech → R2)
 - `docs/pipeline-evaluation-eo-ee.md` — éval EO/EE (Whisper → Claude/OpenAI → R2 privé)
 - `docs/notation-ia-eo-ee.md` — **explication grand public** (non technique) de la notation
-  IA de TOUTES les tâches EE/EO : les 6 tâches, critères + poids, barème /20, règles spéciales
-  (tolérance transcription temps réel, examinateur = témoin de compréhension, pas d'exigence
-  d'exhaustivité, hors-sujet), examinateur vocal, feedback, niveau CECRL au bilan. **À TENIR À
-  JOUR À CHAQUE CHANGEMENT** de règle de notation, barème, critère, consigne IA, tâche, ou
+  IA de TOUTES les tâches EE/EO : les 6 tâches, critères propres à chaque tâche + poids,
+  barème /20 et bandes affichées, obligatoires vs pistes, accomplissement, confiance,
+  contrôles automatiques, plafonds, niveau par tâche et bilan, limite assumée de l'oral,
+  examinateur vocal + fiche de scénario T2, **banc de mesure et ses chiffres réels (y compris
+  ce qui reste faible)**, console de calibration, drapeaux éteints. **À TENIR À JOUR À CHAQUE
+  CHANGEMENT** de règle de notation, barème, critère, consigne IA, tâche, seuil, ou
   comportement de l'examinateur vocal — dans la même passe que le changement — et à garder
   **toujours compréhensible par un non-informaticien** (voir aussi la règle dédiée ci-dessous).
+- `docs/ia/ANALYSE_SPEC_EVALUATION_IA.md` — décisions produit de la refonte de notation et
+  leurs raisons (ce qu'on a retenu de la spec externe, ce qu'on a refusé, et pourquoi)
 - `docs/refonte-entrainement.md` — statut refonte hubs Civique/TCF (mobile + web)
 - `docs/roadmap.md` — roadmap commune (Stripe, refresh JWT web, tests, etc.)
 - `docs/audio-pipeline/` — spec exhaustive du pipeline audio CO (10 fichiers)
