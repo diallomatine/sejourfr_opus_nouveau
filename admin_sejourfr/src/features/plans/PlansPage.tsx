@@ -10,29 +10,31 @@ import { EmptyState, Panel } from "../../components/ui/Panel";
 import { Spinner } from "../../components/ui/Spinner";
 import { Tag } from "../../components/ui/Tag";
 import { useToast } from "../../components/ui/Toast";
-import type { AdminPlanDto, AdminPlanUpdateRequest } from "../../types/api";
+import type {
+  AdminPlanDto,
+  AdminPlanUpdateRequest,
+  BillingCycle,
+  ModuleAccess,
+} from "../../types/api";
 import tableStyles from "../../components/ui/DataTable.module.css";
 import styles from "./PlansPage.module.css";
 
-const BILLING_CYCLE_LABEL: Record<string, string> = {
+const BILLING_CYCLE_LABEL: Record<BillingCycle, string> = {
   NONE: "—",
   MONTHLY: "Mensuel",
   THREE_MONTHS: "Trimestriel",
-  SIX_MONTHS: "Semestriel",
   YEARLY: "Annuel",
 };
 
-const MODULE_ACCESS_LABEL: Record<string, string> = {
+const MODULE_ACCESS_LABEL: Record<ModuleAccess, string> = {
   NONE: "Aucun",
   CIVIQUE: "Civique",
-  TCF: "TCF",
   INTEGRAL: "Intégral",
 };
 
-const MODULE_ACCESS_TONE: Record<string, "csp" | "premium" | "muted"> = {
+const MODULE_ACCESS_TONE: Record<ModuleAccess, "csp" | "premium" | "muted"> = {
   NONE: "muted",
   CIVIQUE: "csp",
-  TCF: "premium",
   INTEGRAL: "premium",
 };
 
@@ -64,7 +66,7 @@ export function PlansPage() {
 
       {plansQuery.isError && (
         <Panel>
-          <div style={{ padding: 24, color: "var(--red)" }}>
+          <div className={styles.error}>
             Erreur : {(plansQuery.error as Error).message}
           </div>
         </Panel>
@@ -79,72 +81,76 @@ export function PlansPage() {
           {plansQuery.data.length === 0 ? (
             <EmptyState title="Aucun plan en base" />
           ) : (
-            <table className={tableStyles.table}>
-              <thead>
-                <tr>
-                  <th>Plan</th>
-                  <th>Module</th>
-                  <th>Type / durée</th>
-                  <th>Prix</th>
-                  <th>Statut</th>
-                  <th>SKUs stores</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {plansQuery.data.map((p) => (
-                  <tr key={p.id}>
-                    <td>
-                      <strong>{p.name}</strong>
-                      <div className={styles.codeLine}>
-                        <code>{p.code}</code>
-                      </div>
-                    </td>
-                    <td>
-                      <Tag tone={MODULE_ACCESS_TONE[p.moduleAccess]}>
-                        {MODULE_ACCESS_LABEL[p.moduleAccess]}
-                      </Tag>
-                    </td>
-                    <td>
-                      {p.purchaseType === "ONE_TIME"
-                        ? `Pass · ${p.durationDays} j`
-                        : BILLING_CYCLE_LABEL[p.billingCycle]}
-                    </td>
-                    <td>
-                      <div className={styles.priceCell}>
-                        <strong>{formatPrice(p.price)}</strong>
-                        {p.originalPrice !== null && p.originalPrice > p.price && (
-                          <span className={styles.priceOld}>
-                            {formatPrice(p.originalPrice)}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      {p.active ? (
-                        <Tag tone="active">Actif</Tag>
-                      ) : (
-                        <Tag tone="muted">Inactif</Tag>
-                      )}
-                    </td>
-                    <td>
-                      <StoreSkusCell plan={p} />
-                    </td>
-                    <td>
-                      <div className={tableStyles.rowActions}>
-                        <button
-                          type="button"
-                          className={tableStyles.iconBtn}
-                          onClick={() => setEditing(p)}
-                        >
-                          Modifier
-                        </button>
-                      </div>
-                    </td>
+            <div className={tableStyles.tableWrap}>
+              <table className={`${tableStyles.table} ${tableStyles.cardTable}`}>
+                <thead>
+                  <tr>
+                    <th>Plan</th>
+                    <th>Module</th>
+                    <th>Type / durée</th>
+                    <th>Prix</th>
+                    <th>Statut</th>
+                    <th>SKUs stores</th>
+                    <th></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {plansQuery.data.map((p) => (
+                    <tr key={p.id}>
+                      <td data-label="Plan">
+                        <div>
+                          <strong>{p.name}</strong>
+                          <div className={styles.codeLine}>
+                            <code>{p.code}</code>
+                          </div>
+                        </div>
+                      </td>
+                      <td data-label="Module">
+                        <Tag tone={MODULE_ACCESS_TONE[p.moduleAccess]}>
+                          {MODULE_ACCESS_LABEL[p.moduleAccess]}
+                        </Tag>
+                      </td>
+                      <td data-label="Type">
+                        {p.purchaseType === "ONE_TIME"
+                          ? `Pass · ${p.durationDays} j`
+                          : BILLING_CYCLE_LABEL[p.billingCycle]}
+                      </td>
+                      <td data-label="Prix">
+                        <div className={styles.priceCell}>
+                          <strong>{formatPrice(p.price)}</strong>
+                          {p.originalPrice !== null && p.originalPrice > p.price && (
+                            <span className={styles.priceOld}>
+                              {formatPrice(p.originalPrice)}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td data-label="Statut">
+                        {p.active ? (
+                          <Tag tone="active">Actif</Tag>
+                        ) : (
+                          <Tag tone="muted">Inactif</Tag>
+                        )}
+                      </td>
+                      <td data-label="SKUs">
+                        <StoreSkusCell plan={p} />
+                      </td>
+                      <td data-label="Action">
+                        <div className={tableStyles.rowActions}>
+                          <button
+                            type="button"
+                            className={tableStyles.iconBtn}
+                            onClick={() => setEditing(p)}
+                          >
+                            Modifier
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Panel>
       )}
@@ -183,9 +189,12 @@ function StoreSkusCell({ plan }: { plan: AdminPlanDto }) {
 // MODAL D'ÉDITION
 // ============================================================================
 
+// `valueAsNumber` renvoie NaN quand l'utilisateur vide un champ nombre : on le
+// traite explicitement, sinon JSON.stringify le sérialise en `null` et le
+// backend comprend « champ non touché » au lieu de « efface le prix barré ».
 interface PlanFormValues {
   price: number;
-  originalPrice: number | "";
+  originalPrice: number;
   active: boolean;
   stripePriceId: string;
   appleProductId: string;
@@ -207,14 +216,14 @@ function PlanEditModal({
     register,
     handleSubmit,
     reset,
-    formState: { isSubmitting },
+    formState: { errors },
   } = useForm<PlanFormValues>();
 
   useEffect(() => {
     if (!open || !plan) return;
     reset({
       price: plan.price,
-      originalPrice: plan.originalPrice ?? "",
+      originalPrice: plan.originalPrice ?? 0,
       active: plan.active,
       stripePriceId: plan.stripePriceId ?? "",
       appleProductId: plan.appleProductId ?? "",
@@ -227,7 +236,9 @@ function PlanEditModal({
       if (!plan) throw new Error("Pas de plan sélectionné");
       const req: AdminPlanUpdateRequest = {
         price: values.price,
-        originalPrice: values.originalPrice === "" ? 0 : values.originalPrice,
+        originalPrice: Number.isFinite(values.originalPrice)
+          ? values.originalPrice
+          : 0,
         active: values.active,
         stripePriceId: values.stripePriceId,
         appleProductId: values.appleProductId,
@@ -253,43 +264,56 @@ function PlanEditModal({
       eyebrow={plan.code}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
+          <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>
             Annuler
           </Button>
           <Button
             variant="red"
             type="submit"
             form="plan-form"
-            disabled={isSubmitting}
+            disabled={mutation.isPending}
           >
-            {isSubmitting ? "Enregistrement..." : "Enregistrer"}
+            {mutation.isPending ? "Enregistrement..." : "Enregistrer"}
           </Button>
         </>
       }
     >
       <form id="plan-form" onSubmit={handleSubmit((v) => mutation.mutate(v))}>
         <p className={styles.modalMeta}>
-          {MODULE_ACCESS_LABEL[plan.moduleAccess]} · {BILLING_CYCLE_LABEL[plan.billingCycle]} ·{" "}
+          {MODULE_ACCESS_LABEL[plan.moduleAccess]} ·{" "}
+          {BILLING_CYCLE_LABEL[plan.billingCycle]} ·{" "}
           {plan.durationDays} jours d&apos;accès
         </p>
 
         <FormRow twoCol>
-          <FormRow label="Prix (€)" htmlFor="price">
+          <FormRow label="Prix (€)" htmlFor="price" error={errors.price?.message}>
             <Input
               id="price"
               type="number"
               step="0.01"
               min="0"
-              {...register("price", { valueAsNumber: true, required: true, min: 0 })}
+              {...register("price", {
+                valueAsNumber: true,
+                validate: (v) =>
+                  (Number.isFinite(v) && v >= 0) || "Prix requis (0 ou plus)",
+              })}
             />
           </FormRow>
-          <FormRow label="Prix barré (€, 0 = aucun)" htmlFor="originalPrice">
+          <FormRow
+            label="Prix barré (€, vide ou 0 = aucun)"
+            htmlFor="originalPrice"
+            error={errors.originalPrice?.message}
+          >
             <Input
               id="originalPrice"
               type="number"
               step="0.01"
               min="0"
-              {...register("originalPrice", { valueAsNumber: true })}
+              {...register("originalPrice", {
+                valueAsNumber: true,
+                validate: (v) =>
+                  !Number.isFinite(v) || v >= 0 || "Doit être positif",
+              })}
             />
           </FormRow>
         </FormRow>

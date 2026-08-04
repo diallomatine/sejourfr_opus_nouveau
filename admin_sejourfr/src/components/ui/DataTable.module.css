@@ -75,3 +75,79 @@
   color: var(--red);
   border-color: var(--red);
 }
+
+/* Conteneur de défilement : les Panel ont `overflow: hidden`, sans lui une
+   table large est rognée (colonnes de droite inatteignables) au lieu de défiler. */
+.tableWrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* Repli carte : sous 720px chaque ligne devient une fiche empilée, chaque
+   cellule préfixée par l'intitulé de sa colonne (attribut data-label). Le
+   doublement `.cardTable.cardTable` force la spécificité au-dessus des règles
+   `.table td` ci-dessus, quel que soit l'ordre d'injection des CSS Modules. */
+@media (max-width: 720px) {
+  .cardTable.cardTable,
+  .cardTable.cardTable tbody,
+  .cardTable.cardTable tr,
+  .cardTable.cardTable td {
+    display: block;
+    width: 100%;
+  }
+
+  .cardTable.cardTable thead {
+    display: none;
+  }
+
+  .cardTable.cardTable tbody tr {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .cardTable.cardTable tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .cardTable.cardTable tbody td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 4px 0;
+    border-bottom: none;
+    text-align: right;
+  }
+
+  .cardTable.cardTable tbody td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+  }
+
+  /* Premiere colonne = libelle de la ligne : pleine largeur, sans intitule. */
+  .cardTable.cardTable tbody td:first-child {
+    display: block;
+    text-align: left;
+    padding-bottom: 8px;
+  }
+
+  .cardTable.cardTable tbody td:first-child::before {
+    display: none;
+  }
+
+  /* Derniere colonne = actions de ligne, alignees a droite sous la fiche. */
+  .cardTable.cardTable tbody td:last-child {
+    justify-content: flex-end;
+    padding-top: 8px;
+  }
+
+  .cardTable.cardTable tbody td:last-child::before {
+    display: none;
+  }
+}

@@ -1,6 +1,11 @@
+.error {
+  padding: 24px;
+  color: var(--red);
+}
+
 .codeLine {
   margin-top: 4px;
-  font-family: var(--mono);
+  font-family: "JetBrains Mono", monospace;
   font-size: 11px;
   color: var(--muted);
 }
@@ -29,24 +34,24 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--mono);
+  font-family: "JetBrains Mono", monospace;
   font-size: 11px;
   font-weight: 700;
 }
 
 .skuBadgeOk {
-  background: rgba(22, 143, 91, 0.15);
+  background: color-mix(in srgb, var(--green) 15%, transparent);
   color: var(--green);
 }
 
 .skuBadgeMissing {
-  background: var(--line-2);
+  background: var(--paper-2);
   color: var(--muted-2);
 }
 
 .modalMeta {
   margin: 0 0 18px;
-  font-family: var(--mono);
+  font-family: "JetBrains Mono", monospace;
   font-size: 11px;
   letter-spacing: 0.1em;
   color: var(--muted);
@@ -71,12 +76,12 @@
 .skuSection {
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--rule);
 }
 
 .skuTitle {
   margin: 0 0 4px;
-  font-family: var(--mono);
+  font-family: "JetBrains Mono", monospace;
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;

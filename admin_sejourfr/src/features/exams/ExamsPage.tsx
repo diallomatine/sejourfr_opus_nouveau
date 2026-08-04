@@ -9,6 +9,7 @@ import { Tag } from "../../components/ui/Tag";
 import { useToast } from "../../components/ui/Toast";
 import type { AdminExamTemplateDto } from "../../types/api";
 import tableStyles from "../../components/ui/DataTable.module.css";
+import styles from "./ExamsPage.module.css";
 
 export function ExamsPage() {
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ export function ExamsPage() {
 
       {examsQuery.isError && (
         <Panel>
-          <div style={{ padding: 24, color: "var(--red)" }}>
+          <div className={styles.error}>
             Erreur : {(examsQuery.error as Error).message}
           </div>
         </Panel>
@@ -88,82 +89,82 @@ function ExamTable({ exams }: { exams: AdminExamTemplateDto[] }) {
   const sorted = [...exams].sort((a, b) => a.position - b.position);
 
   return (
-    <table className={tableStyles.table}>
-      <thead>
-        <tr>
-          <th>Pos.</th>
-          <th>Nom</th>
-          <th>Slug</th>
-          <th>Cible</th>
-          <th>Composition</th>
-          <th>État</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {sorted.map((e) => (
-          <tr key={e.id}>
-            <td>
-              <code style={{ fontSize: 11, color: "var(--muted)" }}>
-                {String(e.position).padStart(2, "0")}
-              </code>
-            </td>
-            <td>
-              <strong>{e.name}</strong>
-              {e.subtitle && (
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                  {e.subtitle}
-                </div>
-              )}
-            </td>
-            <td>
-              <code style={{ fontSize: 11, color: "var(--muted)" }}>
-                {e.slug}
-              </code>
-            </td>
-            <td>{renderTarget(e)}</td>
-            <td>
-              <span style={{ fontSize: 13 }}>
-                {e.totalQuestions} questions · {e.rules.length} règle
-                {e.rules.length > 1 ? "s" : ""}
-              </span>
-            </td>
-            <td>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {e.free && <Tag tone="free">Gratuit</Tag>}
-                {e.published ? (
-                  <Tag tone="active">Publié</Tag>
-                ) : (
-                  <Tag tone="draft">Brouillon</Tag>
-                )}
-              </div>
-            </td>
-            <td>
-              <div className={tableStyles.rowActions}>
-                <button
-                  type="button"
-                  className={tableStyles.iconBtn}
-                  onClick={() => navigate(`/exams/${e.id}`)}
-                >
-                  Éditer
-                </button>
-                <button
-                  type="button"
-                  className={`${tableStyles.iconBtn} ${tableStyles.danger}`}
-                  onClick={() => {
-                    if (window.confirm(`Supprimer l'examen "${e.name}" ?`)) {
-                      deleteMutation.mutate(e.id);
-                    }
-                  }}
-                >
-                  Supprimer
-                </button>
-              </div>
-            </td>
+    <div className={tableStyles.tableWrap}>
+      <table className={`${tableStyles.table} ${tableStyles.cardTable}`}>
+        <thead>
+          <tr>
+            <th>Pos.</th>
+            <th>Nom</th>
+            <th>Slug</th>
+            <th>Cible</th>
+            <th>Composition</th>
+            <th>État</th>
+            <th></th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {sorted.map((e) => (
+            <tr key={e.id}>
+              <td data-label="Pos.">
+                <code className={styles.code}>
+                  {String(e.position).padStart(2, "0")}
+                </code>
+              </td>
+              <td data-label="Nom">
+                <div>
+                  <strong>{e.name}</strong>
+                  {e.subtitle && (
+                    <div className={styles.subtitle}>{e.subtitle}</div>
+                  )}
+                </div>
+              </td>
+              <td data-label="Slug">
+                <code className={styles.code}>{e.slug}</code>
+              </td>
+              <td data-label="Cible">{renderTarget(e)}</td>
+              <td data-label="Compo.">
+                <span className={styles.composition}>
+                  {e.totalQuestions} questions · {e.rules.length} règle
+                  {e.rules.length > 1 ? "s" : ""}
+                </span>
+              </td>
+              <td data-label="État">
+                <div className={styles.badges}>
+                  {e.free && <Tag tone="free">Gratuit</Tag>}
+                  {e.published ? (
+                    <Tag tone="active">Publié</Tag>
+                  ) : (
+                    <Tag tone="draft">Brouillon</Tag>
+                  )}
+                </div>
+              </td>
+              <td data-label="Actions">
+                <div className={tableStyles.rowActions}>
+                  <button
+                    type="button"
+                    className={tableStyles.iconBtn}
+                    onClick={() => navigate(`/exams/${e.id}`)}
+                  >
+                    Éditer
+                  </button>
+                  <button
+                    type="button"
+                    className={`${tableStyles.iconBtn} ${tableStyles.danger}`}
+                    onClick={() => {
+                      if (window.confirm(`Supprimer l'examen "${e.name}" ?`)) {
+                        deleteMutation.mutate(e.id);
+                      }
+                    }}
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

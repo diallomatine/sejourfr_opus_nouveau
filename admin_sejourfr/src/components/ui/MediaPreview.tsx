@@ -2,8 +2,15 @@ import type { MediaType } from "../../types/api";
 import { sanitizeSvg } from "../../lib/sanitizeSvg";
 import styles from "./MediaPreview.module.css";
 
+const TYPE_BADGE: Record<MediaType, string> = {
+  AUDIO: "Audio",
+  IMAGE: "Image",
+  VIDEO: "Vidéo",
+};
+
 interface Props {
-  url: string;
+  /** Null quand le média n'a pas de fichier : l'image vit alors en SVG inline. */
+  url: string | null;
   type: MediaType;
   altText?: string | null;
   compact?: boolean;
@@ -27,6 +34,17 @@ export function MediaPreview({ url, type, altText, compact, inlineSvg }: Props) 
           role="img"
           aria-label={altText ?? "Document"}
         />
+      </div>
+    );
+  }
+
+  if (!url) {
+    return (
+      <div className={cls}>
+        <div className={styles.badge}>{TYPE_BADGE[type]}</div>
+        <p className={styles.missing}>
+          Ce média n&apos;a ni fichier ni SVG inline : rien à prévisualiser.
+        </p>
       </div>
     );
   }

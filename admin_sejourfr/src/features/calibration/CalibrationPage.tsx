@@ -55,7 +55,12 @@ interface SubmissionRow {
 export function CalibrationPage() {
   const [onglet, setOnglet] = useState<Onglet>("pending");
   const [limit, setLimit] = useState<number>(50);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // La soumission ouverte est mémorisée telle quelle : l'enregistrement d'une
+  // note la fait basculer de « à annoter » vers « déjà annotées », et elle peut
+  // sortir de la fenêtre chargée — la retrouver dans les listes ferait
+  // disparaître la fiche sous les yeux du correcteur au moment où il valide.
+  const [selected, setSelected] = useState<ProductionSubmissionDto | null>(null);
+  const selectedId = selected?.id ?? null;
 
   const statsQuery = useQuery({
     queryKey: ["calibration", "stats"],
@@ -122,14 +127,10 @@ export function CalibrationPage() {
     });
   }, [onglet, pending, annotated, tasksById]);
 
-  const selected = useMemo(() => {
-    if (!selectedId) return null;
-    return (
-      [...pending, ...annotated].find((s) => s.id === selectedId) ?? null
-    );
-  }, [selectedId, pending, annotated]);
-
   const isLoading = pendingQuery.isLoading || annotatedQuery.isLoading;
+  const listeEnErreur = Boolean(
+    onglet === "pending" ? pendingQuery.error : annotatedQuery.error,
+  );
   const error = statsQuery.error ?? pendingQuery.error ?? annotatedQuery.error;
   const seuil = statsQuery.data?.seuilHorsCible ?? SEUIL_PAR_DEFAUT;
 
@@ -202,7 +203,14 @@ export function CalibrationPage() {
 
         {isLoading && <Spinner label="Chargement des productions…" />}
 
-        {!isLoading && rows.length === 0 && (
+        {!isLoading && rows.length === 0 && listeEnErreur && (
+          <EmptyState
+            title="Liste indisponible"
+            description="Les productions évaluées n'ont pas pu être chargées : la liste ci-dessous est vide parce que la requête a échoué, pas parce qu'il n'y a rien à annoter."
+          />
+        )}
+
+        {!isLoading && rows.length === 0 && !listeEnErreur && (
           <EmptyState
             title={
               onglet === "pending"
@@ -253,7 +261,7 @@ export function CalibrationPage() {
                         <button
                           type="button"
                           className={tableStyles.iconBtn}
-                          onClick={() => setSelectedId(row.submission.id)}
+                          onClick={() => setSelected(row.submission)}
                         >
                           {onglet === "pending" ? "Annoter" : "Revoir"}
                         </button>
@@ -270,7 +278,7 @@ export function CalibrationPage() {
                   <button
                     type="button"
                     className={styles.card}
-                    onClick={() => setSelectedId(row.submission.id)}
+                    onClick={() => setSelected(row.submission)}
                   >
                     <span className={styles.cardTop}>
                       <span className={styles.cardTitle}>{row.epreuve}</span>
@@ -303,7 +311,7 @@ export function CalibrationPage() {
         seuilHorsCible={seuil}
         existingNote={humanNoteQuery.data ?? null}
         isLoadingNote={humanNoteQuery.isLoading}
-        onClose={() => setSelectedId(null)}
+        onClose={() => setSelected(null)}
       />
     </>
   );

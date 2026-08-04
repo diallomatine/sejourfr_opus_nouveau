@@ -124,6 +124,7 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
     mutationFn: (id: string) => questionsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["questions"] });
+      queryClient.invalidateQueries({ queryKey: ["themes"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       toast.show("Question supprimée", "success");
     },
@@ -172,12 +173,14 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
   const isInitialLoading = questionsQuery.isLoading;
   const isError = questionsQuery.isError;
 
+  const mediaFilterActive = supportsMedia && filters.media !== "";
+
   const visibleRows = useMemo(() => {
     if (!data) return [];
-    if (!supportsMedia || !filters.media) return data.content;
+    if (!mediaFilterActive) return data.content;
     if (filters.media === "none") return data.content.filter((q) => !q.mediaId);
     return data.content.filter((q) => q.mediaType === filters.media);
-  }, [data, filters.media, supportsMedia]);
+  }, [data, filters.media, mediaFilterActive]);
 
   const activeFiltersCount = [
     filters.themeId,
@@ -310,98 +313,111 @@ function QuestionsPageContent({ module }: QuestionsPageContentProps) {
           </div>
         )}
 
+        {data && mediaFilterActive && (
+          <p className={styles.scopeNote}>
+            Le filtre média est appliqué dans le navigateur : il ne porte que sur
+            les {data.content.length} questions de la page affichée.
+          </p>
+        )}
+
         {data && visibleRows.length === 0 && (
           <EmptyState
             title="Aucune question"
-            description="Aucune question ne correspond aux filtres sélectionnés."
+            description={
+              mediaFilterActive
+                ? "Aucune question avec ce média sur la page affichée. Changez de page ou retirez le filtre média."
+                : "Aucune question ne correspond aux filtres sélectionnés."
+            }
           />
         )}
 
         {data && visibleRows.length > 0 && (
-          <table className={tableStyles.table}>
-            <thead>
-              <tr>
-                <th style={{ width: "40%" }}>Énoncé</th>
-                <th>Thématique</th>
-                <th>{module === "CIVIQUE" ? "Mention" : "Niveau"}</th>
-                <th>Type</th>
-                {supportsMedia && <th>Média</th>}
-                <th>Statut</th>
-                <th style={{ width: 56 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleRows.map((q) => (
-                <tr
-                  key={q.id}
-                  className={styles.rowClickable}
-                  onClick={() => handleRowClick(q)}
-                >
-                  <td>
-                    <div className={tableStyles.statement}>
-                      {q.statement}
-                      <span className={tableStyles.statementMeta}>
-                        {q.choices.length} choix · {q.choices.filter((c) => c.correct).length} correct
-                        {q.choices.filter((c) => c.correct).length > 1 ? "s" : ""}
-                      </span>
-                    </div>
-                  </td>
-                  <td>{q.themeName}</td>
-                  <td>
-                    <Tag tone={tagToneForLevel(q.difficulty)}>{q.difficulty}</Tag>
-                  </td>
-                  <td>
-                    <Tag tone={tagToneForType(q.questionType)}>
-                      {QUESTION_TYPE_SHORT[q.questionType]}
-                    </Tag>
-                  </td>
-                  {supportsMedia && (
-                    <td>
-                      {q.mediaType ? (
-                        <span
-                          className={styles.mediaCell}
-                          title={MEDIA_LABEL[q.mediaType]}
-                        >
-                          <span className={styles.mediaIcon}>
-                            {MEDIA_ICON[q.mediaType]}
-                          </span>
-                          <span className={styles.mediaLabel}>
-                            {MEDIA_LABEL[q.mediaType]}
-                          </span>
-                        </span>
-                      ) : (
-                        <span className={styles.mediaNone}>—</span>
-                      )}
-                    </td>
-                  )}
-                  <td>
-                    <Tag tone={q.active ? "active" : "draft"}>
-                      {q.active ? "Active" : "Inactive"}
-                    </Tag>
-                  </td>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <RowMenu
-                      items={[
-                        { label: "Voir le détail", onClick: () => handleRowClick(q) },
-                        { label: "Modifier", onClick: () => handleEdit(q) },
-                        {
-                          label: q.active ? "Désactiver" : "Activer",
-                          onClick: () =>
-                            toggleMutation.mutate({ id: q.id, active: !q.active }),
-                          disabled: toggleMutation.isPending,
-                        },
-                        {
-                          label: "Supprimer",
-                          onClick: () => handleDelete(q),
-                          danger: true,
-                        },
-                      ]}
-                    />
-                  </td>
+          <div className={tableStyles.tableWrap}>
+            <table className={`${tableStyles.table} ${tableStyles.cardTable}`}>
+              <thead>
+                <tr>
+                  <th className={styles.statementCol}>Énoncé</th>
+                  <th>Thématique</th>
+                  <th>{module === "CIVIQUE" ? "Mention" : "Niveau"}</th>
+                  <th>Type</th>
+                  {supportsMedia && <th>Média</th>}
+                  <th>Statut</th>
+                  <th className={styles.actionsCol}></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {visibleRows.map((q) => (
+                  <tr
+                    key={q.id}
+                    className={styles.rowClickable}
+                    onClick={() => handleRowClick(q)}
+                  >
+                    <td data-label="Énoncé">
+                      <div className={tableStyles.statement}>
+                        {q.statement}
+                        <span className={tableStyles.statementMeta}>
+                          {q.choices.length} choix · {q.choices.filter((c) => c.correct).length} correct
+                          {q.choices.filter((c) => c.correct).length > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    </td>
+                    <td data-label="Thématique">{q.themeName}</td>
+                    <td data-label={module === "CIVIQUE" ? "Mention" : "Niveau"}>
+                      <Tag tone={tagToneForLevel(q.difficulty)}>{q.difficulty}</Tag>
+                    </td>
+                    <td data-label="Type">
+                      <Tag tone={tagToneForType(q.questionType)}>
+                        {QUESTION_TYPE_SHORT[q.questionType]}
+                      </Tag>
+                    </td>
+                    {supportsMedia && (
+                      <td data-label="Média">
+                        {q.mediaType ? (
+                          <span
+                            className={styles.mediaCell}
+                            title={MEDIA_LABEL[q.mediaType]}
+                          >
+                            <span className={styles.mediaIcon}>
+                              {MEDIA_ICON[q.mediaType]}
+                            </span>
+                            <span className={styles.mediaLabel}>
+                              {MEDIA_LABEL[q.mediaType]}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className={styles.mediaNone}>—</span>
+                        )}
+                      </td>
+                    )}
+                    <td data-label="Statut">
+                      <Tag tone={q.active ? "active" : "draft"}>
+                        {q.active ? "Active" : "Inactive"}
+                      </Tag>
+                    </td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <RowMenu
+                        items={[
+                          { label: "Voir le détail", onClick: () => handleRowClick(q) },
+                          { label: "Modifier", onClick: () => handleEdit(q) },
+                          {
+                            label: q.active ? "Désactiver" : "Activer",
+                            onClick: () =>
+                              toggleMutation.mutate({ id: q.id, active: !q.active }),
+                            disabled: toggleMutation.isPending,
+                          },
+                          {
+                            label: "Supprimer",
+                            onClick: () => handleDelete(q),
+                            danger: true,
+                          },
+                        ]}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {data && data.totalPages > 1 && (

@@ -1,3 +1,4 @@
+import { Button } from "../../../components/ui/Button";
 import { Modal } from "../../../components/ui/Modal";
 import type {
   HumanCalibrationNoteDto,
@@ -39,6 +40,11 @@ export function SubmissionDetailModal({
       size="lg"
       eyebrow={`${epreuve}${tache ? ` · tâche ${tache}` : ""}`}
       title="Annoter cette production"
+      footer={
+        <Button variant="ghost" type="button" onClick={onClose}>
+          Fermer
+        </Button>
+      }
     >
       <div className={styles.body}>
         <div className={styles.meta}>

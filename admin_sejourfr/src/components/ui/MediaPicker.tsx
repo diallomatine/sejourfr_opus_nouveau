@@ -14,6 +14,11 @@ interface Props {
   initialType?: MediaType | null;
   /** Hint sur l'URL connue (évite un round-trip si on l'a déjà). */
   initialUrl?: string | null;
+  /**
+   * SVG inline connu. Un média image peut n'avoir aucune URL : son balisage est
+   * alors porté par la question, et c'est la seule façon de l'afficher.
+   */
+  initialInlineSvg?: string | null;
   /** Limite le picker à un seul type (ex: audio pour CO). Sinon les 3 sont proposés. */
   allowedTypes?: MediaType[];
   onChange: (mediaId: string | null) => void;
@@ -35,6 +40,7 @@ export function MediaPicker({
   value,
   initialType,
   initialUrl,
+  initialInlineSvg,
   allowedTypes,
   onChange,
 }: Props) {
@@ -48,17 +54,30 @@ export function MediaPicker({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Récupère le média si on a un id mais pas l'URL/type fournis
+  const hintSuffisant = Boolean(
+    initialType && (initialUrl || initialInlineSvg),
+  );
+
+  // Récupère le média si on a un id mais pas de quoi l'afficher tout de suite
   const mediaQuery = useQuery({
     queryKey: ["media", value],
     queryFn: () => mediaApi.getById(value!),
-    enabled: Boolean(value) && (!initialUrl || !initialType),
+    enabled: Boolean(value) && !hintSuffisant,
     staleTime: 60_000,
   });
 
-  const current: { url: string; type: MediaType; altText?: string | null } | null =
-    value && initialUrl && initialType
-      ? { url: initialUrl, type: initialType }
+  const current: {
+    url: string | null;
+    type: MediaType;
+    altText?: string | null;
+    inlineSvg?: string | null;
+  } | null =
+    value && initialType && hintSuffisant
+      ? {
+          url: initialUrl ?? null,
+          type: initialType,
+          inlineSvg: initialInlineSvg,
+        }
       : mediaQuery.data
         ? {
             url: mediaQuery.data.url,
@@ -137,6 +156,7 @@ export function MediaPicker({
             url={current.url}
             type={current.type}
             altText={current.altText ?? undefined}
+            inlineSvg={current.inlineSvg}
             compact
           />
           <div className={styles.currentActions}>

@@ -172,21 +172,20 @@ export interface PassageWriteRequest {
 // ---------------------------------------------------------------------------
 // Médias
 // ---------------------------------------------------------------------------
+/**
+ * Miroir exact de `MediaDto` (9 composants côté Java). `url` est null pour les
+ * médias dont l'image vit en SVG inline : le balisage est alors porté par la
+ * question (`QuestionDto.mediaInlineSvg`), jamais par le média lui-même.
+ */
 export interface MediaDto {
   id: string;
   type: MediaType;
-  url: string;
+  url: string | null;
   originalFilename: string | null;
   contentType: string | null;
   sizeBytes: number | null;
   durationSec: number | null;
   altText: string | null;
-  /**
-   * SVG inline. Quand renseigné, l'admin/runner affiche ce balisage SVG
-   * plutôt que de charger url. Utilisé pour les captures TCF compréhension
-   * écrite générées dans les seeds.
-   */
-  inlineSvg: string | null;
   createdAt: string;
 }
 
@@ -580,8 +579,10 @@ export interface ExampleAudioBatchResultDto {
 // Plans + Abonnements (lot 4c admin)
 // ============================================================================
 
-export type BillingCycle = "NONE" | "MONTHLY" | "THREE_MONTHS" | "SIX_MONTHS" | "YEARLY";
-export type ModuleAccess = "NONE" | "CIVIQUE" | "TCF" | "INTEGRAL";
+/** MONTHLY/YEARLY sont conservés côté backend pour les anciens plans récurrents. */
+export type BillingCycle = "NONE" | "MONTHLY" | "THREE_MONTHS" | "YEARLY";
+/** Pas de `TCF` : l'accès au module TCF passe par `INTEGRAL`. */
+export type ModuleAccess = "NONE" | "CIVIQUE" | "INTEGRAL";
 export type SubscriptionSource = "STRIPE" | "APPLE" | "GOOGLE";
 export type SubscriptionStatus =
   | "ACTIVE"
@@ -740,6 +741,17 @@ export interface ScoreCritereFeedback {
 }
 
 /**
+ * Un passage cité de la production avec sa correction. Objet depuis le premier
+ * schéma d'outil (`production-evaluation-tool-schema-v1.0.json`) : jamais une
+ * simple chaîne, quelle que soit l'ancienneté de l'évaluation en base.
+ */
+export interface ExempleCorrige {
+  original: string;
+  corrige: string;
+  explication: string;
+}
+
+/**
  * Structure libre du feedback JSONB — tous les champs sont facultatifs, une
  * évaluation v3 en base n'en porte qu'une partie (pas de bande, pas de
  * preuve, pas d'accomplissement). Absence = cas normal, pas une erreur.
@@ -753,7 +765,7 @@ export interface EvaluationFeedback {
   points_forts?: string[];
   points_a_ameliorer?: string[];
   suggestions?: string[];
-  exemples_corriges?: string[];
+  exemples_corriges?: ExempleCorrige[];
   avertissements?: string[];
 }
 

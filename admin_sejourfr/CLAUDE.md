@@ -153,6 +153,15 @@ vraies productions, le bandeau mesure l'écart avec l'IA.
 - Les couleurs sont dans `:root` de `styles/global.css`. **Ne jamais hardcoder une couleur** dans un module — toujours utiliser `var(--blue)`, `var(--red)`, `var(--ink)`, etc.
 - Polices fixées : `Fraunces` pour les titres (`.page-title`, `.panel-title`), `Inter` partout ailleurs, `JetBrains Mono` pour les labels techniques (eyebrows, badges, tags).
 - Le style général s'inspire du template `admin__1_.html` fourni en début de projet — typographique, fait main, sans framework UI.
+- **Tableaux** : envelopper la `<table>` dans `<div className={tableStyles.tableWrap}>` et
+  ajouter `tableStyles.cardTable` à la table, tous deux dans
+  `components/ui/DataTable.module.css`. `tableWrap` donne le défilement horizontal (les
+  `Panel` sont en `overflow: hidden`, sans lui les colonnes de droite sont rognées) ;
+  `cardTable` bascule chaque ligne en fiche empilée sous 720 px, chaque cellule étant
+  préfixée par l'intitulé de sa colonne — donc **chaque `<td>` porte un `data-label`**
+  (sauf la 1ʳᵉ colonne, titre de la fiche, et la dernière, actions de ligne). Ne pas
+  redupliquer ce bloc dans un module de feature : il y était recopié 5 fois avant d'être
+  remonté.
 
 **Hygiène (rappel transverse, cf. CLAUDE.md racine)**
 - Toute nouvelle feature prend son dossier dans `features/` (jamais à côté d'une feature voisine). Si un sous-composant n'a de sens que dans une feature, il vit dans `features/<feature>/components/`, pas dans `components/ui/`.
@@ -165,7 +174,7 @@ vraies productions, le bandeau mesure l'écart avec l'IA.
 
 ```bash
 npm install
-npm run dev
+npm run dev-admin   # ⚠️ le script s'appelle "dev-admin", pas "dev"
 ```
 
 Par défaut, le client tape sur `http://localhost:8080`. Pour pointer ailleurs :

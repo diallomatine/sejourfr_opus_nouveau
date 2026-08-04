@@ -3,6 +3,7 @@ import type {
   AccomplissementPoint,
   BandeCritere,
   EvaluationResultDto,
+  ExempleCorrige,
   ScoreCritereFeedback,
 } from "../../../types/api";
 import {
@@ -217,10 +218,11 @@ function WrittenFeedback({ evaluation }: { evaluation: EvaluationResultDto }) {
     { title: "Points forts", items: feedback?.points_forts ?? [] },
     { title: "Points à améliorer", items: feedback?.points_a_ameliorer ?? [] },
     { title: "Suggestions", items: feedback?.suggestions ?? [] },
-    { title: "Exemples corrigés", items: feedback?.exemples_corriges ?? [] },
   ].filter((section) => section.items.length > 0);
 
-  if (sections.length === 0) return null;
+  const exemples = feedback?.exemples_corriges ?? [];
+
+  if (sections.length === 0 && exemples.length === 0) return null;
 
   return (
     <Block title="Retour rédigé au candidat">
@@ -235,8 +237,39 @@ function WrittenFeedback({ evaluation }: { evaluation: EvaluationResultDto }) {
             </ul>
           </div>
         ))}
+
+        {exemples.length > 0 && (
+          <div className={styles.exemplesBlock}>
+            <div className={styles.writtenHeading}>Exemples corrigés</div>
+            <ul className={styles.exemples}>
+              {exemples.map((exemple, index) => (
+                <ExempleRow key={index} exemple={exemple} />
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </Block>
+  );
+}
+
+function ExempleRow({ exemple }: { exemple: ExempleCorrige }) {
+  return (
+    <li className={styles.exemple}>
+      <div className={styles.exempleLine}>
+        <span className={styles.exempleTag}>Production</span>
+        <q className={styles.exempleOriginal}>{exemple.original}</q>
+      </div>
+      <div className={styles.exempleLine}>
+        <span className={`${styles.exempleTag} ${styles.exempleTagOk}`}>
+          Corrigé
+        </span>
+        <q className={styles.exempleCorrige}>{exemple.corrige}</q>
+      </div>
+      {exemple.explication && (
+        <p className={styles.exempleExplication}>{exemple.explication}</p>
+      )}
+    </li>
   );
 }
 

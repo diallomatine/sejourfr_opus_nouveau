@@ -1,7 +1,7 @@
 import type {ApiError, TokenResponse} from "../types/api";
 import {tokenStorage} from "../auth/tokenStorage";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:9090";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
 export class HttpError extends Error {
     status: number;

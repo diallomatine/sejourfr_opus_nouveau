@@ -62,7 +62,6 @@ const SOURCE_TONE: Record<SubscriptionSource, "csp" | "premium" | "co"> = {
 const MODULE_LABEL: Record<ModuleAccess, string> = {
   NONE: "Aucun",
   CIVIQUE: "Civique",
-  TCF: "TCF",
   INTEGRAL: "Intégral",
 };
 
@@ -210,7 +209,7 @@ export function SubscriptionsPage() {
 
       {subscriptionsQuery.isError && (
         <Panel>
-          <div style={{ padding: 24, color: "var(--red)" }}>
+          <div className={styles.error}>
             Erreur : {(subscriptionsQuery.error as Error).message}
           </div>
         </Panel>
@@ -228,65 +227,75 @@ export function SubscriptionsPage() {
               description="Essayez d'autres filtres ou supprimez la recherche."
             />
           ) : (
-            <table className={tableStyles.table}>
-              <thead>
-                <tr>
-                  <th>Utilisateur</th>
-                  <th>Plan</th>
-                  <th>Source</th>
-                  <th>Statut</th>
-                  <th>Échéance</th>
-                  <th>Maj</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {subscriptionsQuery.data.items.map((sub) => (
-                  <tr key={sub.id}>
-                    <td>
-                      <strong>{sub.userEmail}</strong>
-                      <div className={styles.subLine}>{fullName(sub)}</div>
-                    </td>
-                    <td>
-                      <strong>{sub.planName ?? sub.productId ?? "—"}</strong>
-                      {sub.moduleAccess && (
-                        <div className={styles.subLine}>
-                          <Tag
-                            tone={sub.moduleAccess === "CIVIQUE" ? "csp" : "premium"}
-                          >
-                            {MODULE_LABEL[sub.moduleAccess]}
-                          </Tag>
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <Tag tone={SOURCE_TONE[sub.source]}>{sub.source}</Tag>
-                    </td>
-                    <td>
-                      <Tag tone={STATUS_TONE[sub.status]}>
-                        {STATUS_LABEL[sub.status]}
-                      </Tag>
-                      {!sub.autoRenew && sub.status === "ACTIVE" && (
-                        <div className={styles.cancelHint}>auto-renew off</div>
-                      )}
-                    </td>
-                    <td>{formatDate(sub.endsAt)}</td>
-                    <td className={styles.dateCell}>{formatDateTime(sub.updatedAt)}</td>
-                    <td>
-                      <div className={tableStyles.rowActions}>
-                        <button
-                          type="button"
-                          className={tableStyles.iconBtn}
-                          onClick={() => setDetail(sub)}
-                        >
-                          Détails
-                        </button>
-                      </div>
-                    </td>
+            <div className={tableStyles.tableWrap}>
+              <table className={`${tableStyles.table} ${tableStyles.cardTable}`}>
+                <thead>
+                  <tr>
+                    <th>Utilisateur</th>
+                    <th>Plan</th>
+                    <th>Source</th>
+                    <th>Statut</th>
+                    <th>Échéance</th>
+                    <th>Maj</th>
+                    <th></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {subscriptionsQuery.data.items.map((sub) => (
+                    <tr key={sub.id}>
+                      <td data-label="Client">
+                        <div>
+                          <strong>{sub.userEmail}</strong>
+                          <div className={styles.subLine}>{fullName(sub)}</div>
+                        </div>
+                      </td>
+                      <td data-label="Plan">
+                        <div>
+                          <strong>{sub.planName ?? sub.productId ?? "—"}</strong>
+                          {sub.moduleAccess && (
+                            <div className={styles.subLine}>
+                              <Tag
+                                tone={sub.moduleAccess === "CIVIQUE" ? "csp" : "premium"}
+                              >
+                                {MODULE_LABEL[sub.moduleAccess] ?? sub.moduleAccess}
+                              </Tag>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td data-label="Source">
+                        <Tag tone={SOURCE_TONE[sub.source] ?? "muted"}>{sub.source}</Tag>
+                      </td>
+                      <td data-label="Statut">
+                        <div>
+                          <Tag tone={STATUS_TONE[sub.status] ?? "muted"}>
+                            {STATUS_LABEL[sub.status] ?? sub.status}
+                          </Tag>
+                          {!sub.autoRenew && sub.status === "ACTIVE" && (
+                            <div className={styles.cancelHint}>auto-renew off</div>
+                          )}
+                        </div>
+                      </td>
+                      <td data-label="Échéance">{formatDate(sub.endsAt)}</td>
+                      <td data-label="Maj" className={styles.dateCell}>
+                        {formatDateTime(sub.updatedAt)}
+                      </td>
+                      <td data-label="Action">
+                        <div className={tableStyles.rowActions}>
+                          <button
+                            type="button"
+                            className={tableStyles.iconBtn}
+                            onClick={() => setDetail(sub)}
+                          >
+                            Détails
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
           <div className={styles.pagination}>
@@ -343,7 +352,7 @@ function SubscriptionDetailModal({
     setLastResult(null);
     setRtSaved(null);
     setRtInput(sub ? String(sub.realtimeEoSessionsRemaining) : "");
-  }, [sub?.id, sub]);
+  }, [sub]);
 
   const cancelMutation = useMutation({
     mutationFn: (id: string) => subscriptionsApi.cancel(id),
@@ -383,9 +392,13 @@ function SubscriptionDetailModal({
     cancelMutation.mutate(sub.id);
   };
 
+  // `sub` est l'instantané pris au clic sur « Détails » : après un
+  // enregistrement, le solde de référence est celui renvoyé par le PATCH,
+  // sinon le bouton resterait actif sur une valeur déjà posée.
+  const rtCurrent = rtSaved ?? sub.realtimeEoSessionsRemaining;
   const rtParsed = Number.parseInt(rtInput, 10);
   const rtValid = Number.isFinite(rtParsed) && rtParsed >= 0;
-  const rtChanged = rtValid && rtParsed !== sub.realtimeEoSessionsRemaining;
+  const rtChanged = rtValid && rtParsed !== rtCurrent;
   const handleSaveRealtime = () => {
     if (rtValid) setRealtimeMutation.mutate(rtParsed);
   };

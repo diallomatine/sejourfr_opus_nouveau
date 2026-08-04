@@ -1,0 +1,42 @@
+.error {
+  padding: 24px;
+  color: var(--red);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 26px;
+}
+
+.panelActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.emptyRules {
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.tableWrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.ruleTable {
+  min-width: 640px;
+}
+
+.ruleIndex {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.countCell {
+  width: 110px;
+}

@@ -18,6 +18,7 @@
 .listFilters {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--rule);
@@ -141,12 +142,19 @@
   justify-content: center;
 }
 
+.detailActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .statusSelect {
   font-size: 12px;
   padding: 5px 8px;
   border: 1px solid var(--rule);
   border-radius: 4px;
   background: var(--paper);
+  max-width: 100%;
 }
 
 .thread {
@@ -236,5 +244,17 @@
   }
   .listPanel {
     max-height: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .message {
+    max-width: 100%;
+  }
+  .thread {
+    padding: 16px 14px;
+  }
+  .replyBox {
+    padding: 14px;
   }
 }
