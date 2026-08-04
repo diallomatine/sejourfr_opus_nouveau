@@ -527,6 +527,8 @@ public class AiEvaluationService {
      *
      * @return le niveau eventuellement abaisse (jamais releve)
      */
+    static final String PLAFOND_NIVEAU_KEY = "plafond_niveau";
+
     private NiveauCecrl applyPlafonds(Map<String, Object> feedback, ProductionTask task,
                                       NiveauCecrl niveau, UUID submissionId) {
         ProductionEvaluationProperties.Plafonds cfg = props.getPlafonds();
@@ -556,7 +558,15 @@ public class AiEvaluationService {
                     + cfg.getConduiteEchangeNiveauMax().name().replace("_", " ") + ".");
         }
 
-        if (out != niveau) feedback.put("niveau_cecrl", out.name());
+        if (out != niveau) {
+            feedback.put("niveau_cecrl", out.name());
+            // Plafond PERSISTE dans le feedback : le bilan d'epreuve recalcule
+            // sa propre competence depuis `scores_criteres` et ne lit pas
+            // `niveau_cecrl` — sans cette trace, une tache plafonnee A2
+            // ressortait B1/B2 au bilan, c'est-a-dire au seul niveau qui fait
+            // foi. Cf. ProductionBilanService#competenceOf.
+            feedback.put(PLAFOND_NIVEAU_KEY, out.name());
+        }
         return out;
     }
 

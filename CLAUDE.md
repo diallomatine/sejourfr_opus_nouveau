@@ -76,15 +76,24 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
   au start (`ProductionAttemptStartRequest.exam`) ; ses soumissions bypassent
   le quota d'entraînement. Refaire l'examen 1 = toléré une fois mais consomme
   les essais d'entraînement restants ; une session ne compte que si ≥ 1 tâche
-  soumise. Règles dans `ProductionSubmissionService` /
-  `AttemptService.startProductionAttempt`. QCM entraînement : série 1
-  gratuite, 2+ premium. **Examens blancs module QCM** (CO / CE / STRUCTURE,
-  `MOCK_EXAM` + `moduleExamQuestionType`) : **slot 1 offert ET rejouable à
-  volonté** pour tout compte inscrit, slots 2+ premium. Verrou côté backend
-  (`AttemptService.startModuleExam`) basé sur le `slotNumber` (≠ EE/EO qui ont
-  un freebie consommable), miroir des 3 fronts (web `ExamsGrid freeSlots=1`,
-  mobile briefing + page examens). Le `slotNumber` ne pilote pas la
-  composition (questions tirées du même pool).
+  soumise. Règles dans `ProductionAccessService` (quota, partagé avec la voie
+  temps réel) / `AttemptService.startProductionAttempt`. Une **session d'examen
+  production est bornée** : chrono d'épreuve (EE 30 min, EO 15 min = 600 s de
+  parole + 50 % de marge) et **une seule soumission par (attempt, tacheNumero)**
+  — un examen, c'est 3 tâches, une fois chacune. QCM entraînement : série 1
+  gratuite, 2+ premium. **Tous les examens blancs QCM** (`MOCK_EXAM`) :
+  **slot 1 offert ET rejouable à volonté** pour tout compte inscrit, slots 2+
+  réservés aux abonnés **du module** (Civique → `hasCivique`, TCF → `hasTcf`).
+  Vaut pour les examens module TCF (CO / CE / STRUCTURE via
+  `moduleExamQuestionType`), les examens civiques globaux (40 Q) et les examens
+  de thème (20 Q) — ces deux derniers passent par la branche « legacy » de
+  `AttemptService.start`, qui **ne contrôlait rien avant le 2026-08-03** (verrou
+  purement client). Verrou unique côté backend :
+  `AttemptService.enforceMockExamSlotAccess`, basé sur le `slotNumber` (≠ EE/EO
+  qui ont un freebie consommable), miroir des 3 fronts (web `ExamsGrid
+  freeSlots=1`, mobile briefing + pages examens). Le `slotNumber` est validé
+  **1..20** (`AttemptService.MOCK_EXAM_SLOTS`, aligné sur les grilles des
+  fronts) et ne pilote pas la composition (questions tirées du même pool).
 - **Compte gratuit, examen blanc TCF complet** (`/api/full-tcf-exams`,
   orchestré CO→CE→EE→EO) : **examen 1 offert** (slot 1, même grille que les
   abonnés) avec **EE + EO évaluées une seule fois à vie**. Au-delà, l'examen 1
@@ -99,6 +108,26 @@ Le backend est la **source de vérité** des DTOs. Les 3 fronts maintiennent leu
   (le verrou `startModuleExam` ignore les sous-attempts d'un complet). Examens
   complets 2-20 → premium. `start` n'exige plus `hasTcf` ; soumettre vers une
   épreuve déjà terminée est refusé (`enforceQuota`).
+
+### Gardes des soumissions EE/EO (`ProductionAccessService`)
+
+Les **deux** voies de notation d'une production — asynchrone
+(`ProductionEvaluationService.submitAndEvaluate`) et temps réel
+(`evaluateRealtimeTranscript`, déclenchée par `RealtimeSessionService.finish`) —
+passent par le **même** garde `ProductionAccessService.assertCanSubmit` :
+propriété de l'attempt (IDOR), `finishedAt`, chrono d'épreuve (+ 60 s de grâce),
+**correspondance `attempt.epreuve == task.epreuve`**, et plafond « une
+soumission par tâche » en session d'examen. Le quota freemium
+(`enforceQuota`) y vit aussi. `RealtimeSessionService.start` applique le même
+garde **avant** de consommer un slot de simulation.
+
+Invariants à ne pas casser :
+- une tâche EO ne peut pas être notée dans une session EE (et inversement) —
+  sinon l'auto-finalisation d'un examen complet clôt la mauvaise sous-épreuve
+  avec un `cecrlLevel` faux, or c'est ce niveau qui fait foi ;
+- « épreuve terminée ⇒ plus aucune soumission », y compris temps réel ;
+- l'auto-finalisation compte les **tâches distinctes de l'épreuve**
+  (`countDistinctTachesByAttemptAndEpreuve`), jamais les lignes brutes.
 
 ### ⏳ À gérer plus tard — garde-fou attempts guest (`user IS NULL`)
 
@@ -249,7 +278,7 @@ Liste complète des endpoints → `docs/api-endpoints.md`.
 #   TestData. Détails + gabarits : docs/plan-tests-backend.md.
 
 # Admin (depuis admin_sejourfr/)
-npm install && npm run dev
+npm install && npm run dev-admin   # ⚠️ script "dev-admin", pas "dev"
 
 # Web (depuis web_sejoufr/)
 npm install && npm run dev-web   # ⚠️ script "dev-web", pas "dev"

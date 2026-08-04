@@ -453,6 +453,12 @@ niveau, jamais le relever :
 Dans les deux cas, le candidat reçoit l'explication en clair, pas seulement un chiffre plus
 bas.
 
+**Un plafond compte aussi dans le bilan de l'épreuve.** Ce n'est pas seulement le niveau
+affiché sur la tâche qui est abaissé : la tâche entre dans la moyenne pondérée du bilan
+(§6.5) **avec son niveau plafonné**, pas avec le niveau qu'elle aurait eu sans le plafond.
+Une tâche 3 plafonnée à A2 pèse donc dans le bilan comme une tâche A2 — sinon la règle
+n'aurait servi qu'à changer un libellé, alors que le bilan est le seul niveau qui fait foi.
+
 ### 6.5 Le bilan d'une épreuve complète
 
 C'est le seul niveau qui fait foi. Il apparaît à la fin d'un examen blanc qui enchaîne les
@@ -465,6 +471,17 @@ C'est le seul niveau qui fait foi. Il apparaît à la fin d'un examen blanc qui 
   fiables sur ces formats courts).
 - Une tâche non rendue (temps écoulé, abandon) compte comme **0**.
 - Une production hors-sujet compte 0 elle aussi : elle pénalise sans annuler le reste.
+- Une tâche **plafonnée** (§6.4) entre avec son niveau plafonné.
+- **Une tâche ne se rend qu'une fois par examen.** Un examen blanc, c'est trois tâches,
+  une production chacune : une seconde production sur une tâche déjà rendue est refusée.
+  Pour refaire une tâche, on relance un examen (ou on s'entraîne librement, hors examen).
+- **Une production ne peut être rendue que dans l'épreuve à laquelle elle appartient** :
+  une tâche orale dans une session d'expression écrite (ou l'inverse) est refusée. Sans
+  cette règle, une production mal aiguillée pouvait clore la mauvaise épreuve et lui poser
+  un niveau qui n'était pas le sien.
+- **Un examen d'expression orale dure 15 minutes**, comme l'examen d'expression écrite en
+  dure 30. Les trois tâches orales plafonnent le temps de parole à 3 + 3,5 + 3,5 minutes ;
+  les 5 minutes restantes couvrent la lecture des consignes et les transitions.
 
 ### 6.6 Notre note sur 20 n'est **pas** la note du TCF
 
@@ -714,6 +731,12 @@ Quatre précisions qui comptent :
   l'examinateur se présenter puis qu'on termine sans avoir parlé, l'application l'annonce
   clairement (« Aucune prise de parole — rien à évaluer ») et invite à reprendre l'échange, au
   lieu d'ouvrir un bilan vide.
+- **La session est vérifiée avant d'être ouverte, pas après coup.** Une simulation orale ne
+  démarre que si elle peut réellement être notée : l'épreuve visée doit être la bonne, encore
+  ouverte, dans les temps, et la tâche pas déjà rendue dans cet examen. Autrement dit, la
+  simulation orale obéit exactement aux mêmes règles que l'enregistrement classique — elle ne
+  permet pas de rendre une tâche que l'autre voie aurait refusée, et on ne peut plus consommer
+  une simulation pour s'entendre dire à la fin qu'il n'y avait rien à noter.
 
 ---
 

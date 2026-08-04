@@ -354,6 +354,10 @@ class AiEvaluationServiceV4Test {
 
         assertThat(eval.getNiveauCecrl()).isEqualTo(NiveauCecrl.A2);
         assertThat(eval.getFeedbackJson().get("niveau_cecrl")).isEqualTo("A2");
+        // Le plafond est TRACÉ dans le feedback : sans cette clé, le bilan
+        // d'épreuve (qui recalcule sa compétence depuis scores_criteres) ne
+        // pouvait pas en tenir compte — la tâche ressortait B1/B2 au bilan.
+        assertThat(eval.getFeedbackJson().get(AiEvaluationService.PLAFOND_NIVEAU_KEY)).isEqualTo("A2");
         assertThat(avertissements(eval)).anyMatch(a -> a.contains("prise de position"));
     }
 
@@ -373,6 +377,7 @@ class AiEvaluationServiceV4Test {
         AiEvaluation eval = service.evaluate(sub.getId());
 
         assertThat(eval.getNiveauCecrl()).isEqualTo(NiveauCecrl.B1);
+        assertThat(eval.getFeedbackJson()).doesNotContainKey(AiEvaluationService.PLAFOND_NIVEAU_KEY);
         assertThat(avertissements(eval)).noneMatch(a -> a.contains("prise de position"));
     }
 

@@ -70,6 +70,35 @@ public interface ProductionSubmissionRepository extends JpaRepository<Production
     long countByUserAndParentEpreuve(@Param("userId") UUID userId,
                                      @Param("parentEpreuve") EpreuveType parentEpreuve);
 
+    /**
+     * Nombre de soumissions déjà faites sur une tâche précise d'une session.
+     * Sert au plafond « un examen = 3 tâches, une fois chacune » : sans lui,
+     * une session d'examen accepte autant de productions (donc d'évaluations
+     * IA payantes) que le client en envoie.
+     */
+    @Query("""
+            SELECT COUNT(s) FROM ProductionSubmission s
+            WHERE s.attempt.id = :attemptId
+              AND s.productionTask.tacheNumero = :tacheNumero
+            """)
+    long countByAttemptAndTache(@Param("attemptId") UUID attemptId,
+                                @Param("tacheNumero") short tacheNumero);
+
+    /**
+     * Nombre de TÂCHES DISTINCTES soumises dans un attempt, restreint à
+     * l'épreuve de cet attempt. Sert à l'auto-finalisation d'une sous-épreuve
+     * d'examen complet : compter les lignes brutes finalisait la mauvaise
+     * épreuve dès que 3 soumissions (mêmes tâches, ou tâches d'une autre
+     * épreuve) étaient rattachées à l'attempt.
+     */
+    @Query("""
+            SELECT COUNT(DISTINCT s.productionTask.tacheNumero) FROM ProductionSubmission s
+            WHERE s.attempt.id = :attemptId
+              AND s.productionTask.epreuve = :epreuve
+            """)
+    long countDistinctTachesByAttemptAndEpreuve(@Param("attemptId") UUID attemptId,
+                                                @Param("epreuve") EpreuveType epreuve);
+
     /** Historique filtre par epreuve (jointure sur la task). */
     @Query("""
             SELECT s FROM ProductionSubmission s

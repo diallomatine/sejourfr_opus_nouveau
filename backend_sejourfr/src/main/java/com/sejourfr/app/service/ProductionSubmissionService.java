@@ -21,7 +21,6 @@ import com.sejourfr.app.mapper.ProductionTaskMapper;
 import com.sejourfr.app.ratelimit.RateLimitGuard;
 import com.sejourfr.app.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -49,11 +48,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ProductionSubmissionService {
 
-    /**
-     * Essais d'entrainement par epreuve pour les comptes non-Premium (a vie).
-     */
-    private static final int FREE_TRAINING_PER_EPREUVE = 1;
-
     private static final int MIN_LIMIT = 1;
     private static final int MAX_LIMIT = 100;
 
@@ -64,9 +58,9 @@ public class ProductionSubmissionService {
     private final ProductionSubmissionMapper mapper;
     private final ProductionTaskMapper taskMapper;
     private final CurrentUser currentUser;
-    private final SubscriptionService subscriptionService;
     private final ProductionBilanService bilanService;
     private final ProductionExamCompositionService compositionService;
+    private final ProductionAccessService accessService;
     private final RateLimitGuard rateLimitGuard;
 
     public ProductionSubmissionDto submitAudio(UUID productionTaskId, UUID attemptId, MultipartFile audio) {
@@ -148,7 +142,7 @@ public class ProductionSubmissionService {
     public ProductionBilanResponse bilan(UUID attemptId) {
         Attempt attempt = loadOwnProductionAttempt(attemptId);
         EpreuveType epreuve = attempt.getEpreuve();
-        boolean exam = attempt.getSlotNumber() != null || attempt.getParentAttempt() != null;
+        boolean exam = ProductionAccessService.isExamSession(attempt);
         boolean finished = attempt.getFinishedAt() != null;
 
         List<ProductionSubmission> submissions = submissionManager.findByAttemptId(attemptId);
@@ -226,43 +220,12 @@ public class ProductionSubmissionService {
         }
     }
 
+    /**
+     * Budget freemium EE/EO — délégué à {@link ProductionAccessService} pour
+     * que la voie temps réel applique exactement la même règle.
+     */
     private void enforceQuota(UUID userId, EpreuveType epreuve, UUID attemptId) {
-        if (subscriptionService.hasTcf(userId)) return;
-
-        // Session d'examen (slotNumber) ou examen TCF complet (parent) : la
-        // session a ete autorisee au start (AttemptService), ses soumissions
-        // ne consomment pas le quota d'entrainement.
-        if (attemptId != null) {
-            Attempt attempt = attemptManager.findById(attemptId).orElse(null);
-            if (attempt != null) {
-                // Epreuve deja terminee : aucune soumission. Couvre les EE/EO
-                // verrouillees d'un examen complet gratuit (pre-terminees au
-                // start) — empeche un client de contourner le verrou.
-                if (attempt.getFinishedAt() != null) {
-                    throw new AccessDeniedException(
-                            "Cette epreuve est terminee. L'expression ecrite et orale ne sont "
-                                    + "offertes qu'une fois ; passez Premium pour continuer.");
-                }
-                if (attempt.getSlotNumber() != null || attempt.getParentAttempt() != null) {
-                    return;
-                }
-            }
-        }
-
-        // Refaire l'examen blanc (2e session) consomme les essais restants.
-        if (attemptManager.countProductionExamSessions(userId) >= 2) {
-            throw new AccessDeniedException(
-                    "Vos essais gratuits EE/EO ont ete utilises en refaisant l'examen blanc. "
-                            + "Passez Premium pour continuer.");
-        }
-
-        long used = submissionManager.countTrainingByUserAndEpreuve(userId, epreuve);
-        if (used >= FREE_TRAINING_PER_EPREUVE) {
-            throw new AccessDeniedException(
-                    "Quota gratuit atteint pour " + epreuve.getLabel() + " (" + FREE_TRAINING_PER_EPREUVE
-                            + " essai a vie). Passez Premium pour continuer."
-            );
-        }
+        accessService.enforceQuota(userId, epreuve, attemptId);
     }
 
     private ProductionSubmissionDto mapWithSignedAudioIfPresent(ProductionSubmission sub) {

@@ -270,6 +270,88 @@ class ProductionBilanServiceTest {
             mock(AiEvaluationManager.class), new TcfLevelEstimatorService(), props);
     }
 
+    // ------------------------------------------------------------------------
+    // Propagation du plafond de niveau au bilan
+    // ------------------------------------------------------------------------
+
+    /** Copie de {@code base} avec le plafond de niveau posé par l'évaluation. */
+    private static AiEvaluation plafonnee(AiEvaluation base, NiveauCecrl plafond) {
+        Map<String, Object> feedback = new LinkedHashMap<>(base.getFeedbackJson());
+        feedback.put(AiEvaluationService.PLAFOND_NIVEAU_KEY, plafond.name());
+        base.setFeedbackJson(feedback);
+        return base;
+    }
+
+    /**
+     * VERROU du défaut : le plafond n'abaissait que le niveau affiché par tâche.
+     * Le bilan — seul niveau qui fait foi — repartait des {@code scores_criteres}
+     * bruts, si bien qu'une tâche 3 plafonnée A2 ressortait B2.
+     */
+    @Test
+    void bilan_tache3_plafonnee_A2_ne_ressort_plus_B2() {
+        // Sans plafond : (16×1 + 16×2 + 16×3)/6 = 16 -> B2.
+        Map<Integer, AiEvaluation> sansPlafond = Map.of(
+            1, eval(16, 16, "16"),
+            2, eval(16, 16, "16"),
+            3, eval(16, 16, "16"));
+        assertThat(service.bilanEpreuve(sansPlafond)).isEqualTo(NiveauCecrl.B2);
+
+        // Avec le plafond A2 sur T3 : sa competence est ramenee sous le seuil B1
+        // (11,9999), donc (16 + 32 + 35,9997)/6 = 13,9999 -> B1.
+        Map<Integer, AiEvaluation> avecPlafond = Map.of(
+            1, eval(16, 16, "16"),
+            2, eval(16, 16, "16"),
+            3, plafonnee(eval(16, 16, "16"), NiveauCecrl.A2));
+        assertThat(service.bilanEpreuve(avecPlafond)).isEqualTo(NiveauCecrl.B1);
+    }
+
+    @Test
+    void bilan_plafond_A1_NON_ATTEINT_annule_la_contribution_de_la_tache() {
+        // T3 plafonnee au plancher : competence 0, comme un hors-sujet.
+        Map<Integer, AiEvaluation> evals = Map.of(
+            1, eval(15, 15, "15"),
+            2, eval(15, 15, "15"),
+            3, plafonnee(eval(18, 18, "18"), NiveauCecrl.A1_NON_ATTEINT));
+
+        // (15×1 + 15×2 + 0×3)/6 = 7.5 -> A2.
+        assertThat(service.bilanEpreuve(evals)).isEqualTo(NiveauCecrl.A2);
+    }
+
+    @Test
+    void bilan_plafond_au_dessus_du_niveau_observe_ne_change_rien() {
+        // Plafond B1 sur une tache deja a competence 10 (A2) : aucun effet.
+        Map<Integer, AiEvaluation> evals = Map.of(
+            1, eval(10, 10, "10"),
+            2, eval(10, 10, "10"),
+            3, plafonnee(eval(10, 10, "10"), NiveauCecrl.B1));
+
+        assertThat(service.bilanEpreuve(evals)).isEqualTo(NiveauCecrl.A2);
+    }
+
+    @Test
+    void bilan_plafond_illisible_est_ignore_sans_crash() {
+        AiEvaluation e = eval(16, 16, "16");
+        Map<String, Object> feedback = new LinkedHashMap<>(e.getFeedbackJson());
+        feedback.put(AiEvaluationService.PLAFOND_NIVEAU_KEY, "PAS_UN_NIVEAU");
+        e.setFeedbackJson(feedback);
+        Map<Integer, AiEvaluation> evals = Map.of(
+            1, eval(16, 16, "16"), 2, eval(16, 16, "16"), 3, e);
+
+        assertThat(service.bilanEpreuve(evals)).isEqualTo(NiveauCecrl.B2);
+    }
+
+    @Test
+    void bilan_coherence_lit_le_niveau_plafonne_de_la_tache3() {
+        // T3 notee 16 (B2 brut) mais plafonnee A2 : le garde-fou de coherence,
+        // qui recalcule le niveau de T3, doit voir A2 et plafonner le bilan.
+        Map<Integer, AiEvaluation> evals = Map.of(
+            1, eval(20, 20, "20"),
+            2, eval(20, 20, "20"),
+            3, plafonnee(eval(16, 16, "16"), NiveauCecrl.A2));
+
+        assertThat(serviceAvecCoherence().bilanEpreuve(evals)).isEqualTo(NiveauCecrl.B1);
+    }
+
     @Test
     void moyenneNotes_arrondit_a_une_decimale() {
         Map<Integer, AiEvaluation> evals = Map.of(

@@ -40,6 +40,16 @@ public class ProductionSubmissionManager {
         return repository.findByAttemptIdOrderBySubmittedAtAsc(attemptId);
     }
 
+    /** Soumissions déjà faites sur une tâche précise d'une session (plafond d'examen). */
+    public long countByAttemptAndTache(UUID attemptId, short tacheNumero) {
+        return repository.countByAttemptAndTache(attemptId, tacheNumero);
+    }
+
+    /** Tâches distinctes soumises dans un attempt, restreint à son épreuve. */
+    public long countDistinctTachesByAttemptAndEpreuve(UUID attemptId, EpreuveType epreuve) {
+        return repository.countDistinctTachesByAttemptAndEpreuve(attemptId, epreuve);
+    }
+
     public long countByUserAndEpreuve(UUID userId, EpreuveType epreuve) {
         return repository.countByUserAndEpreuve(userId, epreuve);
     }

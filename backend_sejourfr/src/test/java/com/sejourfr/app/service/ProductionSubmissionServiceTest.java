@@ -78,10 +78,14 @@ class ProductionSubmissionServiceTest {
         bilanService = mock(ProductionBilanService.class);
         compositionService = mock(ProductionExamCompositionService.class);
         rateLimitGuard = mock(RateLimitGuard.class);
+        // Quota freemium : collaborateur REEL (la regle a ete factorisee dans
+        // ProductionAccessService pour que la voie temps reel l'applique aussi).
+        ProductionAccessService accessService = new ProductionAccessService(
+                subscriptionService, attemptManager, submissionManager);
         service = new ProductionSubmissionService(
                 evaluationService, submissionManager, attemptManager, taskManager,
-                mapper, taskMapper, currentUser, subscriptionService, bilanService,
-                compositionService, rateLimitGuard);
+                mapper, taskMapper, currentUser, bilanService,
+                compositionService, accessService, rateLimitGuard);
 
         when(currentUser.getId()).thenReturn(userId);
     }

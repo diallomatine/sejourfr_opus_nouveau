@@ -210,6 +210,14 @@ public class ProductionBilanService {
      * Compétence d'une évaluation : moyenne des critères porteurs depuis le
      * feedback persisté, fallback {@code note_sur_20}. Hors-sujet (note 0) →
      * 0. Null si rien d'exploitable.
+     *
+     * <p>La compétence est ensuite RAMENÉE sous le plafond de niveau éventuel
+     * posé par {@code AiEvaluationService} (clé {@code plafond_niveau} du
+     * feedback). Sans ça, le plafond n'abaissait que le niveau affiché par
+     * tâche : le bilan d'épreuve — le seul niveau qui fait foi — repartait des
+     * {@code scores_criteres} bruts et pouvait rendre B1/B2 une tâche plafonnée
+     * A2. Aucun plafond posé (feature éteinte, évaluation antérieure) → la clé
+     * est absente → math strictement identique à l'historique.
      */
     private BigDecimal competenceOf(AiEvaluation eval) {
         BigDecimal note = eval.getNoteSur20();
@@ -219,7 +227,52 @@ public class ProductionBilanService {
         Object scores = eval.getFeedbackJson() != null
                 ? eval.getFeedbackJson().get("scores_criteres")
                 : null;
-        return competence(scores, props.getNiveauCecrl().getSourceCriteres(), note);
+        BigDecimal competence = competence(scores, props.getNiveauCecrl().getSourceCriteres(), note);
+        return sousPlafond(competence, plafondNiveau(eval));
+    }
+
+    /** Plafond de niveau posé à l'évaluation, ou null (clé absente / valeur inconnue). */
+    private static NiveauCecrl plafondNiveau(AiEvaluation eval) {
+        Object raw = eval.getFeedbackJson() != null
+                ? eval.getFeedbackJson().get(AiEvaluationService.PLAFOND_NIVEAU_KEY)
+                : null;
+        if (raw == null) return null;
+        try {
+            return NiveauCecrl.valueOf(raw.toString());
+        } catch (IllegalArgumentException e) {
+            log.warn("Plafond de niveau illisible dans le feedback : {}", raw);
+            return null;
+        }
+    }
+
+    /** Ramène la compétence sous la borne haute de la bande plafonnée. */
+    private BigDecimal sousPlafond(BigDecimal competence, NiveauCecrl plafond) {
+        if (competence == null || plafond == null) return competence;
+        BigDecimal max = competenceMax(plafond, props.getNiveauCecrl());
+        return (max != null && competence.compareTo(max) > 0) ? max : competence;
+    }
+
+    /**
+     * Compétence maximale qui reste dans la bande {@code niveau} — la borne de
+     * la bande supérieure, moins un epsilon (les compétences sont calculées à
+     * l'échelle 4). Null quand la bande n'a pas de borne haute exploitable
+     * (B2 est déjà le plafond du barème).
+     */
+    static BigDecimal competenceMax(NiveauCecrl niveau,
+                                    ProductionEvaluationProperties.NiveauCecrl seuils) {
+        return switch (niveau) {
+            case A1_NON_ATTEINT -> BigDecimal.ZERO;
+            case A1 -> justeSous(seuils.getSeuilA2());
+            case A2 -> justeSous(seuils.getSeuilB1());
+            case B1 -> justeSous(seuils.getSeuilB2());
+            case B2, C1, C2 -> null;
+        };
+    }
+
+    /** Plus grande valeur strictement sous {@code seuil} à l'échelle des compétences. */
+    private static BigDecimal justeSous(double seuil) {
+        return BigDecimal.valueOf(seuil).setScale(4, RoundingMode.HALF_UP)
+                .subtract(new BigDecimal("0.0001"));
     }
 
     /** Poids d'une tâche (index {@code tacheNumero - 1} dans {@code poids-taches}, défaut 1). */

@@ -62,6 +62,7 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
     @Test
     void civiqueFullMockExam_config40Questions_2700s_seuil32() {
         User user = data.user();
+        makePremium(user); // slot 3 : au-dela du slot 1 offert
 
         AttemptResponse r = service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 3));
 
@@ -161,6 +162,128 @@ class AttemptServiceMockExamIT extends AbstractIntegrationTest {
 
         assertThatThrownBy(() -> service.start(user.getId(),
                 mock(Module.CIVIQUE, null, null, QuestionType.CO, null)))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    // ------------------------------------------------------------------------
+    // Verrou freemium de la branche legacy (examens civiques globaux / de thème
+    // / TCF 60 Q) — elle ne contrôlait RIEN : un compte gratuit pouvait lancer
+    // n'importe quel slot en illimité (le verrou n'existait que côté client).
+    // ------------------------------------------------------------------------
+
+    @Test
+    void civiqueFullMockExam_slot1_compteGratuit_autorise() {
+        User user = data.user();
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 1));
+
+        assertThat(r.totalQuestions()).isEqualTo(40);
+    }
+
+    @Test
+    void civiqueFullMockExam_sansSlot_compteGratuit_autorise() {
+        User user = data.user();
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, null));
+
+        assertThat(r.totalQuestions()).isEqualTo(40);
+    }
+
+    @Test
+    void civiqueFullMockExam_slot2_compteGratuit_refuse() {
+        User user = data.user();
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 2)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void civiqueFullMockExam_slot20_compteGratuit_refuse() {
+        User user = data.user();
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 20)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void civiqueThemeExam_slot2_compteGratuit_refuse() {
+        User user = data.user();
+        Theme theme = data.theme(Module.CIVIQUE, "exam-theme-lock", "Examen thème verrouillé");
+        for (int i = 0; i < 25; i++) {
+            data.question(theme);
+        }
+
+        assertThatThrownBy(() -> service.start(user.getId(),
+                mock(Module.CIVIQUE, theme.getId(), null, null, 2)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void tcfGlobalMockExam_slot2_compteGratuit_refuse() {
+        User user = data.user();
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.TCF, null, null, null, 2)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void civiqueFullMockExam_slot2_premium_autorise() {
+        User user = data.user();
+        makePremium(user);
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 2));
+
+        assertThat(r.totalQuestions()).isEqualTo(40);
+        assertThat(attemptManager.findById(r.id()).orElseThrow().getSlotNumber()).isEqualTo(2);
+    }
+
+    // ------------------------------------------------------------------------
+    // Bornes du slotNumber (1..20) — 999 et -3 étaient acceptés et persistés,
+    // et un slot <= 0 passait même sous le verrou `slot > 1`.
+    // ------------------------------------------------------------------------
+
+    @Test
+    void mockExam_slotHorsBorne_refuse() {
+        User user = data.user();
+        makePremium(user);
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 999)))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, -3)))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.CIVIQUE, null, null, null, 0)))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void moduleExam_slotHorsBorne_refuse() {
+        User user = data.user();
+        makePremium(user);
+
+        assertThatThrownBy(() -> service.start(user.getId(),
+                mock(Module.TCF, null, null, QuestionType.CO, 999)))
+                .isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.start(user.getId(),
+                mock(Module.TCF, null, null, QuestionType.CO, -3)))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void moduleExam_slot20_premium_autorise() {
+        User user = data.user();
+        makePremium(user);
+
+        AttemptResponse r = service.start(user.getId(), mock(Module.TCF, null, null, QuestionType.CO, 20));
+
+        assertThat(r.totalQuestions()).isEqualTo(25);
+    }
+
+    @Test
+    void startFromTemplate_slotHorsBorne_refuse() {
+        User user = data.user();
+        ExamTemplate t = data.examTemplate();
+
+        assertThatThrownBy(() -> service.start(user.getId(), mock(Module.TCF, null, t.getId(), null, 999)))
                 .isInstanceOf(BusinessException.class);
     }
 
