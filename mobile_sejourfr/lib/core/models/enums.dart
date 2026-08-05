@@ -194,6 +194,21 @@ enum NiveauCecrl {
         NiveauCecrl.c2 => 'C2',
       };
 
+  /// Forme courte pour les pastilles et badges étroits. `A1_NON_ATTEINT` se
+  /// rend **« <A1 »** : le tronquer en « A1 » annoncerait au candidat un
+  /// niveau qu'il n'a justement pas atteint. Helper canonique — tout écran qui
+  /// affiche un niveau dans un badge passe par ici, jamais par un `switch`
+  /// local ni par un `replaceAll(' non atteint', '')`.
+  String get shortName => switch (this) {
+        NiveauCecrl.a1NonAtteint => '<A1',
+        NiveauCecrl.a1 => 'A1',
+        NiveauCecrl.a2 => 'A2',
+        NiveauCecrl.b1 => 'B1',
+        NiveauCecrl.b2 => 'B2',
+        NiveauCecrl.c1 => 'C1',
+        NiveauCecrl.c2 => 'C2',
+      };
+
   /// Index 0..3 sur la barre TCF IRN A1→B2. Les valeurs historiques C1/C2
   /// sont rabattues sur le plafond B2.
   int get scaleIndex => switch (this) {

@@ -116,8 +116,9 @@ class FullTcfExamServiceFreemiumTest {
 
         FullTcfExamResponse r = service.start(userId, 1);
 
-        // EE/EO verrouillées (réservées à l'abonnement) + pré-terminées
-        // (comptées A1_NON_ATTEINT au bilan).
+        // EE/EO verrouillées (réservées à l'abonnement) + pré-terminées. Leur
+        // restitution (pas de niveau, hors plancher) est verrouillée par
+        // FullTcfExamResponseBuilderTest — ici on ne teste que le VERROU.
         assertThat(subOf(r, EpreuveType.TCF_EE).locked()).isTrue();
         assertThat(subOf(r, EpreuveType.TCF_EO).locked()).isTrue();
         assertThat(subOf(r, EpreuveType.TCF_EE).finishedAt()).isNotNull();

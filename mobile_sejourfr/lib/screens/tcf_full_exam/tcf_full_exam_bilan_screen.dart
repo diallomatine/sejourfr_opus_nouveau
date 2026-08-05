@@ -447,7 +447,7 @@ class _Hero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  _shortLevel(level),
+                  level.shortName,
                   style: AppFonts.ui(
                     size: 56,
                     weight: FontWeight.w800,
@@ -472,10 +472,8 @@ class _Hero extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             pending || level == null
-                ? 'Encore quelques secondes : nous calculons ton niveau final sur la base des 4 épreuves.'
-                : 'Ton niveau IRN correspond au plus bas des 4 épreuves : il n\'y a '
-                    'ni moyenne ni compensation (règle officielle). Continue à '
-                    't\'entraîner sur l\'épreuve la plus faible pour le faire monter.',
+                ? _pendingSentence(exam)
+                : _basisSentence(exam),
             style: AppFonts.ui(
               size: 13.5,
               color: AppColors.white.withValues(alpha: 0.92),
@@ -487,16 +485,43 @@ class _Hero extends StatelessWidget {
     );
   }
 
-  String _shortLevel(NiveauCecrl l) {
-    return switch (l) {
-      NiveauCecrl.a1NonAtteint => '<A1',
-      NiveauCecrl.a1 => 'A1',
-      NiveauCecrl.a2 => 'A2',
-      NiveauCecrl.b1 => 'B1',
-      NiveauCecrl.b2 => 'B2',
-      NiveauCecrl.c1 => 'C1',
-      NiveauCecrl.c2 => 'C2',
-    };
+  /// Le décompte n'est cité que si le backend l'a donné : une épreuve
+  /// verrouillée par le freemium ou dont l'évaluation a échoué est écartée du
+  /// plancher, donc « les 4 épreuves » n'est pas une constante. Backend
+  /// antérieur au champ ⇒ formulation sans chiffre, jamais un chiffre supposé.
+  String _pendingSentence(FullTcfExamResponse exam) {
+    const base = 'Encore quelques secondes : nous calculons ton niveau final ';
+    final counted = exam.epreuvesCountedInFinalLevel;
+    if (counted == null || counted <= 0) {
+      return '${base}sur la base des épreuves prises en compte.';
+    }
+    return counted == 1
+        ? '${base}sur la base de la seule épreuve prise en compte.'
+        : '${base}sur la base de tes $counted épreuves.';
+  }
+
+  String _basisSentence(FullTcfExamResponse exam) {
+    const rule = ' Il n\'y a ni moyenne ni compensation (règle officielle) : '
+        'continue à t\'entraîner sur l\'épreuve la plus faible pour faire '
+        'monter ton niveau.';
+    final counted = exam.epreuvesCountedInFinalLevel;
+    final expected = exam.epreuvesExpected;
+
+    if (counted == null || counted <= 0) {
+      return 'Ton niveau IRN correspond au plus bas des épreuves prises en '
+          'compte.$rule';
+    }
+    if (!exam.finalLevelPartial) {
+      return 'Ton niveau IRN correspond au plus bas de tes $counted '
+          'épreuves.$rule';
+    }
+    // Bilan partiel : ne jamais le présenter comme un examen complet.
+    final scope = expected == null ? '$counted' : '$counted sur $expected';
+    final portee = counted == 1
+        ? 'porte sur une seule épreuve ($scope)'
+        : 'porte sur $scope épreuves';
+    return 'Bilan partiel : ton niveau $portee — les épreuves verrouillées ou '
+        'non évaluées n\'entrent pas dans le calcul.$rule';
   }
 }
 
@@ -714,7 +739,7 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
-                          _shortLevel(level),
+                          level.shortName,
                           style: AppFonts.ui(
                             size: 13,
                             weight: FontWeight.w800,
@@ -786,18 +811,6 @@ class _DetailCardState extends ConsumerState<_DetailCard> {
   }
 
   Color _levelColor(NiveauCecrl l) => l.color;
-
-  String _shortLevel(NiveauCecrl l) {
-    return switch (l) {
-      NiveauCecrl.a1NonAtteint => '<A1',
-      NiveauCecrl.a1 => 'A1',
-      NiveauCecrl.a2 => 'A2',
-      NiveauCecrl.b1 => 'B1',
-      NiveauCecrl.b2 => 'B2',
-      NiveauCecrl.c1 => 'C1',
-      NiveauCecrl.c2 => 'C2',
-    };
-  }
 
   _EpreuveMeta _epreuveMeta(EpreuveType e) {
     switch (e) {

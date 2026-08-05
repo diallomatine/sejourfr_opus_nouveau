@@ -136,12 +136,14 @@ class _Header extends StatelessWidget {
   }
 
   /// Meilleur niveau CECRL parmi les examens completés. Le niveau le plus
-  /// haut atteint, pas le plancher des planchers.
+  /// haut atteint, pas le plancher des planchers. Les bilans **partiels**
+  /// (épreuve verrouillée par le freemium ou évaluation en échec) en sont
+  /// exclus : ils ne portent pas sur les 4 épreuves.
   NiveauCecrl? _bestLevel(List<FullTcfExamSummary> completed) {
     NiveauCecrl? best;
     for (final e in completed) {
       final lvl = e.finalCecrlLevel;
-      if (lvl == null) continue;
+      if (lvl == null || e.finalLevelPartial) continue;
       if (best == null || lvl.index > best.index) best = lvl;
     }
     return best;
@@ -161,7 +163,11 @@ class _ExamItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lvl = exam.finalCecrlLevel;
-    final statusLabel = _statusLabel(exam.status);
+    // Bilan partiel : la pastille porte un niveau qui ne couvre pas les 4
+    // épreuves — on le dit, plutôt que de le laisser passer pour un résultat
+    // d'examen complet.
+    final statusLabel = _statusLabel(exam.status) +
+        (exam.finalLevelPartial ? ' · partiel' : '');
     final dateStr = _formatDate(exam.startedAt);
     final isCompleted = exam.status == FullTcfExamStatus.completed;
 
@@ -182,7 +188,7 @@ class _ExamItem extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
-              _shortLevel(lvl),
+              lvl?.shortName ?? '—',
               style: AppFonts.display(
                 size: 18,
                 weight: FontWeight.w700,
@@ -212,15 +218,6 @@ class _ExamItem extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  /// Forme courte du niveau pour la pastille (60px de large). On évite
-  /// "A1_NON_ATTEINT" qui déborde et n'a pas de sens visuel : on rend "<A1"
-  /// à la place, qui dit immédiatement "en dessous du seuil".
-  String _shortLevel(NiveauCecrl? lvl) {
-    if (lvl == null) return '—';
-    if (lvl == NiveauCecrl.a1NonAtteint) return '<A1';
-    return lvl.wire;
   }
 
   String _statusLabel(FullTcfExamStatus s) => switch (s) {

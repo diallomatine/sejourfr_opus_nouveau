@@ -1092,12 +1092,27 @@ public class ProductionEvaluationProperties {
     /**
      * Regles de coherence appliquees au bilan d'une epreuve de 3 taches, APRES
      * la moyenne ponderee (cf. {@code ProductionBilanService}). Elles ne font
-     * qu'ABAISSER un niveau, jamais le relever. Livre <b>desactive</b> :
-     * {@code enabled=false} doit rendre exactement les memes bilans qu'avant.
+     * qu'ABAISSER un niveau, jamais le relever — c'est ce qui les rend sures.
+     *
+     * <p><b>ACTIF par defaut</b> depuis l'alignement TCF IRN : les 3 taches ne
+     * sont pas interchangeables, la tache 3 est la seule qui demande
+     * d'argumenter, donc la seule qui puisse demontrer un B2. Briller sur un
+     * message simple et s'effondrer en argumentation ne prouve pas un B1.
+     * {@code enabled=false} rend exactement les bilans d'avant (moyenne
+     * ponderee seule) : c'est le retour arriere, en une variable
+     * ({@code EVAL_COHERENCE_BILAN_ENABLED=false}).
+     *
+     * <p>Le couple ({@code tache3NiveauMin}, {@code plafondSiTache3Faible}) est
+     * une regle UNIQUE : aujourd'hui « pas de B2 si la tache 3 est sous B1 ».
+     * Une generalisation palier par palier (pas de B1 si la tache 3 est sous
+     * A2, etc.) se ferait en remplacant ce couple par une LISTE de couples et
+     * en retenant le plafond le plus bas — le calcul lui-meme
+     * ({@code appliquerCoherence}) n'aurait pas a changer. Non implemente tant
+     * que l'elargissement n'est pas decide.
      */
     public static class CoherenceBilan {
         /** Coupe-circuit. false → moyenne ponderee seule, math historique. */
-        private boolean enabled = false;
+        private boolean enabled = true;
         /**
          * Niveau plancher attendu sur la tache 3 (argumentation / prise de
          * position) pour qu'un bilan puisse depasser {@code plafondSiTache3Faible}.

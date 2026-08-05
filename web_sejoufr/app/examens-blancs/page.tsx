@@ -9,6 +9,7 @@ import {GuestGateSheet} from "@/app/_components/GuestGateSheet";
 import {ExamsGrid, type ExamSlotData} from "@/app/_components/hub/DetailParts";
 import {ExamIntroSheet} from "@/app/_components/hub/ExamIntroSheet";
 import {examSlotGrid} from "@/lib/exam-slots";
+import {isCompleteExamResult} from "@/lib/exam-levels";
 import {moduleAverage} from "@/lib/dashboard";
 import {TcfFullExamBriefingSheet} from "@/app/examens-blancs/tcf/TcfFullExamBriefingSheet";
 import {ApiException, attemptApi, dashboardApi, fullTcfExamApi, publicAttemptApi, publicExamApi,} from "@/lib/api";
@@ -183,14 +184,19 @@ function ExamsConnectedHome() {
     // examen complet déjà passé (Refaire relance, Rapport → bilan ou hub si
     // encore en cours). « Démarrer » ouvre le briefing inline. Rangé par slot :
     // refaire l'examen N met à jour la case N (parité mobile, V110).
+    // Un examen dont l'EE/EO était verrouillée (ou dont les évaluations ont
+    // échoué) porte un niveau **partiel** : il est annoté et ne prend pas le
+    // check de réussite — sinon un examen amputé se lit comme un vrai résultat.
     const fullExamSlotData: (ExamSlotData | null)[] = fullExamBySlot.map((e) =>
         e
             ? {
                 id: e.id,
-                passed: e.status === "COMPLETED",
+                passed: isCompleteExamResult(e),
                 metaOverride:
                     e.status === "COMPLETED"
-                        ? niveauCecrlLabel(e.finalCecrlLevel)
+                        ? e.finalLevelPartial
+                            ? `${niveauCecrlLabel(e.finalCecrlLevel)} · partiel`
+                            : niveauCecrlLabel(e.finalCecrlLevel)
                         : e.status === "PENDING_EVALUATIONS"
                             ? "Éval en cours…"
                             : "En cours",
@@ -247,7 +253,10 @@ function ExamsConnectedHome() {
     // Tous les comptes passent désormais l'examen complet (le 1ᵉʳ offert aux
     // gratuits) : mêmes stats niveau CECRL pour tous, basées sur fullExams.
     const estimatedTcf = niveauCecrlLabel(summary?.estimatedTcfLevel ?? null);
-    const completedFull = fullExams.filter((e) => e.status === "COMPLETED");
+    // Seuls les examens **complets** alimentent « Meilleur niveau » / « Dernier
+    // examen » : un bilan partiel (EE/EO verrouillée, évaluations échouées) ne
+    // porte pas sur les 4 épreuves et ne vaut pas un résultat d'examen.
+    const completedFull = fullExams.filter(isCompleteExamResult);
     const bestFullLevel = completedFull.reduce<NiveauCecrl | null>(
         (best, e) =>
             best == null || cecrlIndex(e.finalCecrlLevel) > cecrlIndex(best)

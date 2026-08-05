@@ -1283,6 +1283,18 @@ export interface FullTcfExamResponse {
     finalCecrlLevel: NiveauCecrl | null;
     status: FullTcfExamStatus;
     subAttempts: FullTcfExamSubAttempt[];
+    /** Périmètre réel du plancher `finalCecrlLevel` : nombre d'épreuves qui
+     *  portent un niveau et y entrent vraiment. Une épreuve verrouillée
+     *  (freemium) ou dont les évaluations ont échoué n'en fait pas partie —
+     *  c'est ce qui interdit d'affirmer « le plus bas de tes 4 épreuves » en
+     *  dur. Lu par `floorScope()` (lib/exam-levels.ts). */
+    epreuvesCountedInFinalLevel: number;
+    /** Épreuves attendues dans un examen complet (4 : CO/CE/EE/EO), publié pour
+     *  que les fronts ne codent pas la constante en dur. */
+    epreuvesExpected: number;
+    /** `epreuvesCountedInFinalLevel < epreuvesExpected` : bilan **partiel**, à
+     *  ne pas présenter comme un résultat d'examen complet. */
+    finalLevelPartial: boolean;
 }
 
 export interface FullTcfExamSummaryResponse {
@@ -1292,6 +1304,11 @@ export interface FullTcfExamSummaryResponse {
     finalCecrlLevel: NiveauCecrl | null;
     status: FullTcfExamStatus;
     slotNumber: number | null;
+    /** `finalCecrlLevel` ne porte pas sur les 4 épreuves (EE/EO verrouillée,
+     *  évaluations échouées) : à écarter des stats « meilleur niveau » /
+     *  « dernier examen » et à annoter dans la grille des slots — un examen
+     *  amputé n'est pas un résultat d'examen complet (`isCompleteExamResult`). */
+    finalLevelPartial: boolean;
 }
 
 /** Durée totale de l'examen complet (90 min). Constante backend

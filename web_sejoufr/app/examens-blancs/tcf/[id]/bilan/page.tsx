@@ -3,10 +3,19 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Lock, RotateCw, TriangleAlert } from "lucide-react";
 import { DualChromeShell } from "@/app/_components/DualChromeShell";
 import { ModuleDetailGate } from "@/app/_components/module_detail/parts";
-import { ApiException, fullTcfExamApi } from "@/lib/api";
+import { ApiException, fullTcfExamApi, productionApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import {
+  examIsStale,
+  floorMarks,
+  floorRuleSentence,
+  floorScope,
+  subAttemptView,
+  type SubAttemptView,
+} from "@/lib/exam-levels";
 import {
   FULL_TCF_EXAM_EPREUVES,
   niveauCecrlLabel,
@@ -41,7 +50,6 @@ export default function TcfFullExamBilanPage() {
 function BilanInner() {
   const params = useParams<{ id: string }>();
   const examId = params?.id ?? "";
-  const router = useRouter();
   const { user, status } = useAuth();
 
   const [exam, setExam] = useState<FullTcfExamResponse | null>(null);
@@ -60,21 +68,34 @@ function BilanInner() {
     }
   }, []);
 
-  const isFullyEvaluated = useCallback((e: FullTcfExamResponse): boolean => {
-    return e.status === "COMPLETED";
+  /** Prochain tour de polling, indirect via une ref : le tour suivant est
+   *  planifié depuis le tour courant, et une auto-référence dans un
+   *  `useCallback` figerait la version initiale de la fonction. */
+  const nextPollRef = useRef<() => void>(() => {});
+
+  const schedulePoll = useCallback(() => {
+    const elapsed = Date.now() - pollStartRef.current;
+    if (elapsed >= POLL_MAX_MS) {
+      setPollExhausted(true);
+      return;
+    }
+    const delay = elapsed < POLL_SLOWDOWN_MS ? POLL_FAST_MS : POLL_SLOW_MS;
+    pollTimerRef.current = setTimeout(() => nextPollRef.current(), delay);
   }, []);
 
-  const schedulePoll = useCallback(
-    (fetchFn: () => Promise<void>) => {
-      const elapsed = Date.now() - pollStartRef.current;
-      if (elapsed >= POLL_MAX_MS) {
+  /** Poller un examen mort n'apprend rien : plus aucune évaluation ne tourne
+   *  derrière (parité mobile `_examIsStale`). On bascule directement sur l'état
+   *  terminal + relance manuelle au lieu d'un spinner éternel. */
+  const continueOrStop = useCallback(
+    (data: FullTcfExamResponse) => {
+      if (data.status === "COMPLETED") return;
+      if (examIsStale(data)) {
         setPollExhausted(true);
         return;
       }
-      const delay = elapsed < POLL_SLOWDOWN_MS ? POLL_FAST_MS : POLL_SLOW_MS;
-      pollTimerRef.current = setTimeout(fetchFn, delay);
+      schedulePoll();
     },
-    [],
+    [schedulePoll],
   );
 
   const fetchAndMaybePoll = useCallback(async () => {
@@ -83,15 +104,17 @@ function BilanInner() {
       const data = await fullTcfExamApi.get(examId);
       if (cancelledRef.current) return;
       setExam(data);
-      if (!isFullyEvaluated(data)) {
-        schedulePoll(fetchAndMaybePoll);
-      }
-    } catch (e) {
+      continueOrStop(data);
+    } catch {
       if (cancelledRef.current) return;
       // On garde l'état courant et on retentera
-      schedulePoll(fetchAndMaybePoll);
+      schedulePoll();
     }
-  }, [examId, isFullyEvaluated, schedulePoll]);
+  }, [examId, continueOrStop, schedulePoll]);
+
+  useEffect(() => {
+    nextPollRef.current = () => void fetchAndMaybePoll();
+  }, [fetchAndMaybePoll]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -105,20 +128,16 @@ function BilanInner() {
         if (cancelledRef.current) return;
         setExam(data);
         setLoading(false);
-        if (!isFullyEvaluated(data)) {
-          schedulePoll(fetchAndMaybePoll);
-        }
+        continueOrStop(data);
       })
-      .catch((e) => {
+      .catch(() => {
         // Fallback : charger sans finish
         fullTcfExamApi
           .get(examId)
           .then((data) => {
             if (cancelledRef.current) return;
             setExam(data);
-            if (!isFullyEvaluated(data)) {
-              schedulePoll(fetchAndMaybePoll);
-            }
+            continueOrStop(data);
           })
           .catch((e2) => {
             if (cancelledRef.current) return;
@@ -135,6 +154,20 @@ function BilanInner() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, examId]);
+
+  const handleRefresh = useCallback(() => {
+    stopPolling();
+    setPollExhausted(false);
+    pollStartRef.current = Date.now();
+    return fullTcfExamApi
+      .get(examId)
+      .then((data) => {
+        if (cancelledRef.current) return;
+        setExam(data);
+        continueOrStop(data);
+      })
+      .catch(() => {});
+  }, [examId, continueOrStop, stopPolling]);
 
   if (status === "loading") return <div className={s.loading}>Chargement…</div>;
   if (!user) return <ModuleDetailGate next={`/examens-blancs/tcf/${examId}/bilan`} />;
@@ -153,50 +186,61 @@ function BilanInner() {
 
   const isPending = exam.status !== "COMPLETED";
   const level = exam.finalCecrlLevel;
-  const ordered = EPREUVE_ORDER.map((ep) => exam.subAttempts.find((sa) => sa.epreuve === ep)!).filter(Boolean);
+  const ordered = EPREUVE_ORDER.map((ep) =>
+    exam.subAttempts.find((sa) => sa.epreuve === ep),
+  ).filter((sa): sa is FullTcfExamSubAttempt => sa != null);
 
-  function handleRefresh() {
-    setPollExhausted(false);
-    pollStartRef.current = Date.now();
-    setLoading(true);
-    fullTcfExamApi
-      .get(examId)
-      .then((data) => {
-        setExam(data);
-        if (!isFullyEvaluated(data)) schedulePoll(fetchAndMaybePoll);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }
+  // Plus rien ne tourne derrière : soit 5 min de polling sans succès, soit
+  // l'examen est finalisé depuis trop longtemps (pipeline IA bloqué).
+  const scope = floorScope(exam);
+  const stalled = pollExhausted || examIsStale(exam);
+  const views = ordered.map((sa) => subAttemptView(sa, { stale: stalled }));
+  const marks = floorMarks(
+    views.map((v) => v.level),
+    level,
+  );
+  const failedCount = views.reduce((n, v) => n + v.failedSubmissionIds.length, 0);
 
   return (
     <div className={s.page}>
       {/* Hero CECRL */}
       <div className={s.bilanHero}>
         <div className={s.bilanEyebrow}>TON NIVEAU TCF IRN</div>
-        {isPending ? (
+        {isPending && !stalled ? (
           <div className={s.bilanPending}>
             <div className={s.spinner} />
             <span className={s.bilanPendingText}>L&apos;IA évalue tes productions…</span>
           </div>
+        ) : isPending ? (
+          // Terminal sans niveau : on le dit, on ne fait pas semblant d'attendre.
+          <div className={s.bilanPending}>
+            <span className={s.bilanLevelSub}>Bilan incomplet</span>
+            <span className={s.bilanPendingText}>
+              {failedCount > 0
+                ? "Une ou plusieurs évaluations n'ont pas abouti. Relance-les ci-dessous pour obtenir ton niveau final."
+                : "Ton niveau final n'a pas encore pu être calculé. Actualise dans un instant."}
+            </span>
+          </div>
         ) : (
           <>
             <div className={s.bilanLevel}>{niveauCecrlLabel(level)}</div>
-            <div className={s.bilanLevelSub}>niveau plancher (règle TCF IRN)</div>
-            <p className={s.bilanRule}>
-              Ton niveau correspond au plus bas de tes 4 épreuves : il n&apos;y a
-              ni moyenne ni compensation. Fais monter ton épreuve la plus faible
-              pour faire monter l&apos;ensemble.
-            </p>
+            <div className={s.bilanLevelSub}>
+              {scope.partial ? "bilan partiel · niveau plancher" : "niveau plancher (règle TCF IRN)"}
+            </div>
+            <p className={s.bilanRule}>{floorRuleSentence(scope)}</p>
           </>
         )}
       </div>
 
-      {/* Bannière si polling épuisé */}
-      {pollExhausted && isPending && (
+      {/* Bannière si plus rien ne tourne */}
+      {stalled && isPending && (
         <div className={s.pollBanner}>
-          <span>L&apos;évaluation prend plus longtemps que prévu.</span>
-          <button type="button" className="btn-link-soft" onClick={handleRefresh}>
+          <span>
+            {failedCount > 0
+              ? "Des évaluations n'ont pas abouti — relance-les sur l'épreuve concernée."
+              : "L'évaluation prend plus longtemps que prévu."}
+          </span>
+          <button type="button" className="btn-link-soft" onClick={() => void handleRefresh()}>
             Actualiser
           </button>
         </div>
@@ -204,12 +248,14 @@ function BilanInner() {
 
       {/* Cards par épreuve */}
       <div className={s.bilanCards}>
-        {ordered.map((sa) => (
+        {ordered.map((sa, i) => (
           <SubAttemptCard
             key={sa.epreuve}
             sa={sa}
+            view={views[i]}
             examId={examId}
-            isFloor={level != null && sa.cecrlLevel === level}
+            isFloor={marks[i]}
+            onRefresh={handleRefresh}
           />
         ))}
       </div>
@@ -223,37 +269,26 @@ function BilanInner() {
 
 function SubAttemptCard({
   sa,
+  view,
   examId,
   isFloor,
+  onRefresh,
 }: {
   sa: FullTcfExamSubAttempt;
+  view: SubAttemptView;
   examId: string;
-  /** Épreuve au niveau plancher : c'est elle qui décide du résultat global.
-   *  Même convention que `ExamReport` (badge rouge sur l'épreuve plancher). */
+  /** Épreuve qui tire le résultat global vers le bas. Signalée **en toutes
+   *  lettres** : la couleur, elle, ne dit que le palier (cf. `epreuveLevelTone`). */
   isFloor: boolean;
+  onRefresh: () => Promise<void>;
 }) {
   const router = useRouter();
   const meta = EPREUVE_META[sa.epreuve];
+  const [retrying, setRetrying] = useState(false);
   if (!meta) return null;
 
-  // EE/EO verrouillées (compte gratuit ayant déjà utilisé l'EE/EO offerte) :
-  // épreuve non passée, réservée à l'abonnement — pas de score, pas de lien.
-  if (sa.locked) {
-    return (
-      <div className={s.bilanCard}>
-        <span className={s.bilanCardIcon}>{meta.icon}</span>
-        <span className={s.bilanCardBody}>
-          <span className={s.bilanCardLabel}>{meta.label}</span>
-          <span className={s.bilanCardSub}>Réservé à l&apos;abonnement Intégral</span>
-        </span>
-        <span className={s.bilanCardLevelPending}>🔒</span>
-      </div>
-    );
-  }
-
   const isProduction = sa.epreuve === "TCF_EE" || sa.epreuve === "TCF_EO";
-  const evaluated = sa.cecrlLevel !== null;
-  const pending = sa.finishedAt && !evaluated;
+  const failed = view.failedSubmissionIds;
 
   // Le détail d'une épreuve revient au bilan de l'examen (pas vers les examens
   // de l'épreuve) : on transmet `backTo` aux sessions de production.
@@ -262,37 +297,84 @@ function SubAttemptCard({
     ? `/entrainement/tcf/${sa.epreuve === "TCF_EE" ? "ee" : "eo"}/session/${sa.attemptId}?backTo=${encodeURIComponent(backTo)}`
     : `/sessions/${sa.attemptId}`;
 
-  const sub = !sa.finishedAt
-    ? "Non terminée"
-    : pending
-      ? "Évaluation en cours…"
-      : isProduction
-        ? `${sa.submissionsCount ?? 0}/3 tâches évaluées`
-        : sa.score != null && sa.maxScore != null
-          ? `Score ${sa.score}/${sa.maxScore}`
-          : "Terminée";
+  async function handleRetry() {
+    if (retrying || failed.length === 0) return;
+    setRetrying(true);
+    // Best-effort tâche par tâche : une relance refusée ne doit pas empêcher
+    // les autres de repartir. Le rafraîchissement dira le nouvel état.
+    await Promise.allSettled(failed.map((id) => productionApi.retrySubmission(id)));
+    await onRefresh();
+    setRetrying(false);
+  }
 
-  return (
-    <button
-      type="button"
-      className={`${s.bilanCard} ${evaluated ? s.evaluated : ""}`}
-      onClick={() => router.push(href)}
-      disabled={!sa.finishedAt}
-    >
+  const clickable = view.state !== "locked" && sa.finishedAt != null;
+
+  const trailing =
+    view.state === "locked" ? (
+      <span className={s.bilanCardLevelPending} aria-label="Épreuve verrouillée">
+        <Lock size={16} />
+      </span>
+    ) : view.level != null ? (
+      <span className={s.bilanCardLevel} data-tone={view.tone}>
+        {niveauCecrlLabel(view.level)}
+      </span>
+    ) : view.showSpinner ? (
+      <span className={s.bilanCardLevelPending}>…</span>
+    ) : view.state === "stalled" ? (
+      <span className={s.bilanCardRefresh} role="presentation">
+        <RotateCw size={13} /> Actualiser
+      </span>
+    ) : view.state === "failed" ? (
+      <span className={s.bilanCardAlert} aria-hidden>
+        <TriangleAlert size={16} />
+      </span>
+    ) : (
+      <span className={s.bilanCardLevelPending}>—</span>
+    );
+
+  const inner = (
+    <>
       <span className={s.bilanCardIcon}>{meta.icon}</span>
       <span className={s.bilanCardBody}>
         <span className={s.bilanCardLabel}>{meta.label}</span>
-        <span className={s.bilanCardSub}>{sub}</span>
+        <span className={s.bilanCardSub}>
+          {view.subtitle}
+          {isFloor && <span className={s.bilanCardFloor}> · niveau retenu</span>}
+        </span>
       </span>
-      {evaluated ? (
-        <span className={`${s.bilanCardLevel} ${isFloor ? s.isFloor : ""}`}>
-          {niveauCecrlLabel(sa.cecrlLevel)}
-        </span>
+      {trailing}
+    </>
+  );
+
+  return (
+    <div className={s.bilanCardWrap}>
+      {view.state === "stalled" ? (
+        <button type="button" className={s.bilanCard} onClick={() => void onRefresh()}>
+          {inner}
+        </button>
+      ) : clickable ? (
+        <button type="button" className={s.bilanCard} onClick={() => router.push(href)}>
+          {inner}
+        </button>
       ) : (
-        <span className={s.bilanCardLevelPending}>
-          {pending ? "…" : "—"}
-        </span>
+        <div className={s.bilanCard}>{inner}</div>
       )}
-    </button>
+
+      {failed.length > 0 && (
+        <div className={s.retryBanner}>
+          <span className={s.retryBannerText}>
+            {failed.length} évaluation{failed.length > 1 ? "s" : ""} IA en échec
+          </span>
+          <button
+            type="button"
+            className={s.retryBtn}
+            onClick={() => void handleRetry()}
+            disabled={retrying}
+          >
+            {retrying ? "Relance…" : "Réessayer"}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

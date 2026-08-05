@@ -514,11 +514,45 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     candidat 461 → 183 (-60,3 %), médiane 6 → 14 tokens par tour candidat,
     tours candidat sous 4 tokens 26,9 % → 15,3 %. Sur 388 frontières « même
     locuteur », **37 sont refusées** par les garde-fous 3 et 4 (34 + 3).
-- **Trois drapeaux livrés ÉTEINTS** (`sejourfr.production-evaluation`) :
-  `fluidite.enabled` (débit/pauses, informatif), `seconde-passe.enabled` (2ᵉ
-  lecture en zone floue, même provider/modèle), `coherence-bilan.enabled`
-  (pas de B2 au bilan si T3 < B1). À `false`, ils ne changent **rien**. Les
-  `plafonds`, eux, sont **actifs**.
+- **Deux drapeaux livrés ÉTEINTS** (`sejourfr.production-evaluation`) :
+  `fluidite.enabled` (débit/pauses, informatif) et `seconde-passe.enabled` (2ᵉ
+  lecture en zone floue, même provider/modèle). À `false`, ils ne changent
+  **rien**. Les `plafonds`, eux, sont **actifs**.
+- **`coherence-bilan.enabled` est ACTIF depuis le 2026-08-05** (défaut `true`
+  dans `application.yaml` **et** dans le POJO, pour qu'ils ne divergent pas) :
+  pas de B2 au bilan d'épreuve si T3 < B1. Motif : le niveau d'une épreuve est
+  la **moyenne pondérée des compétences** des 3 tâches
+  (`ProductionBilanService.compute`, qui a remplacé un ancien `min()`), or les
+  tâches ne sont pas interchangeables — T3 est la seule qui demande
+  d'argumenter, donc la seule qui puisse démontrer un B2. Le garde-fou ne peut
+  qu'**abaisser**, jamais relever : c'est ce qui le rend sûr. Généralisable
+  palier par palier (liste de couples `tache3-min`/`plafond`) sans réécrire le
+  calcul — forme proposée dans le javadoc de `CoherenceBilan`, **non
+  implémentée**. ⚠️ **Activé sur du raisonnement, pas sur une mesure** : le
+  corpus du banc porte un niveau attendu **par tâche**, il n'a aucune référence
+  de niveau d'**épreuve** — il ne peut structurellement pas arbitrer ce choix.
+  Le vérifier demanderait un jeu de cas « 3 tâches + niveau d'épreuve attendu »,
+  qui n'existe pas. Détail : `docs/notation-ia-eo-ee.md` §6.5 bis.
+- **Niveau d'un examen blanc TCF complet** : `finalCecrlLevel` est le **plancher
+  ordinal des 4 épreuves** (`FullTcfExamResponseBuilder.floorOfCecrls`), plafonné
+  B2 — à ne pas confondre avec le niveau d'une **épreuve**, qui est une moyenne
+  (d'où « Niveau global » au bilan d'épreuve, « plancher » au bilan d'examen
+  complet ; les deux libellés sont exacts, chacun chez lui). Sont **hors
+  périmètre** du plancher une épreuve `locked` (verrou freemium — elle n'a pas
+  été passée, la compter `A1_NON_ATTEINT` revenait à dire à un compte gratuit
+  qu'il n'atteint pas le A1 parce qu'il n'a pas payé) et une épreuve à
+  `cecrlLevel` null (évals FAILED ou en vol) : **null = inconnu, jamais mauvais**.
+  Une épreuve **abandonnée sans verrou** (chrono écoulé, rien rendu) reste,
+  elle, comptée `A1_NON_ATTEINT` — elle a été passée et ratée. Partialité
+  exposée aux fronts par `epreuvesCountedInFinalLevel` / `epreuvesExpected` /
+  `finalLevelPartial` (+ `finalLevelPartial` sur le résumé) : aucun front ne doit
+  plus écrire « le plus bas de tes 4 épreuves » en dur, ni agréger un examen
+  partiel dans un « meilleur niveau » sans l'annoter. V024 a remis à NULL les
+  `final_cecrl_level` déjà persistés à tort sur les examens verrouillés.
+- **Incohérence de règle connue, non tranchée** : `TcfProfileService`
+  (profil par épreuve) applique un **plancher** là où `ProductionBilanService`
+  (bilan d'épreuve) applique une **moyenne**. Les deux décrivent pourtant « le
+  niveau de l'épreuve ». À arbitrer.
 
 ## Identité visuelle (résumé)
 

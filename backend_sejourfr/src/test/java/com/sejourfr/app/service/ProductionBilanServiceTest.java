@@ -224,7 +224,7 @@ class ProductionBilanServiceTest {
     }
 
     // ------------------------------------------------------------------------
-    // Phase 3 — coherence du bilan (drapeau coherence-bilan.enabled, false)
+    // Coherence du bilan (drapeau coherence-bilan.enabled, ACTIF par defaut)
     // ------------------------------------------------------------------------
 
     /** T1/T2 excellentes, T3 effondree : (20 + 20 + 11)/3 = 17 → B2. */
@@ -236,17 +236,33 @@ class ProductionBilanServiceTest {
     }
 
     /**
-     * VERROU : drapeau eteint, la math est strictement celle d'aujourd'hui —
-     * un B2 porte par les deux premieres taches reste un B2.
+     * VERROU DU RETOUR ARRIERE : drapeau ETEINT explicitement, la math
+     * redevient strictement celle d'avant — un B2 porte par les deux premieres
+     * taches reste un B2. C'est ce qui rend l'activation reversible en une
+     * variable ({@code EVAL_COHERENCE_BILAN_ENABLED=false}).
      */
     @Test
     void coherence_eteinte_laisse_le_bilan_intact() {
         ProductionEvaluationProperties props = new ProductionEvaluationProperties();
-        assertThat(props.getCoherenceBilan().isEnabled()).isFalse();
+        props.getCoherenceBilan().setEnabled(false);
         ProductionBilanService svc = service(props);
 
         assertThat(svc.bilanEpreuve(epreuveB2AvecT3Faible())).isEqualTo(NiveauCecrl.B2);
         assertThat(svc.bilanEpreuveTerminee(epreuveB2AvecT3Faible())).isEqualTo(NiveauCecrl.B2);
+    }
+
+    /**
+     * VERROU DU DEFAUT : le garde-fou est livre ACTIF. Les 3 taches ne sont pas
+     * interchangeables — la T3 est la seule qui demande d'argumenter, donc la
+     * seule qui puisse demontrer un B2.
+     */
+    @Test
+    void coherence_est_active_par_defaut() {
+        ProductionEvaluationProperties props = new ProductionEvaluationProperties();
+        assertThat(props.getCoherenceBilan().isEnabled()).isTrue();
+
+        // Le service par defaut du test (construit sans surcharge) plafonne donc.
+        assertThat(service.bilanEpreuve(epreuveB2AvecT3Faible())).isEqualTo(NiveauCecrl.B1);
     }
 
     @Test

@@ -35,6 +35,9 @@ public class FullTcfExamResponseBuilder {
     private static final int EXPECTED_PRODUCTION_SUBMISSIONS =
             ProductionBilanService.EXPECTED_TASKS_PER_EPREUVE;
 
+    /** Épreuves attendues dans un examen complet : CO + CE + EE + EO. */
+    public static final int EXPECTED_EPREUVES = 4;
+
     private final AttemptManager attemptManager;
     private final ProductionSubmissionManager productionSubmissionManager;
     private final TcfLevelEstimatorService levelEstimator;
@@ -64,6 +67,7 @@ public class FullTcfExamResponseBuilder {
         // Plafond IRN B2, y compris pour un finalCecrlLevel persisté avant le
         // cap (données antérieures où EE/EO pouvait remonter C1/C2).
         finalCecrl = levelEstimator.capB2(finalCecrl);
+        int counted = countEpreuvesInFloor(ordered);
         return new FullTcfExamResponse(
                 parent.getId(),
                 parent.getStartedAt(),
@@ -71,6 +75,9 @@ public class FullTcfExamResponseBuilder {
                 parent.getFinishedAt(),
                 finalCecrl,
                 status,
+                counted,
+                EXPECTED_EPREUVES,
+                counted < EXPECTED_EPREUVES,
                 ordered);
     }
 
@@ -79,7 +86,8 @@ public class FullTcfExamResponseBuilder {
         return new FullTcfExamSummaryResponse(
                 full.id(), full.startedAt(), full.finishedAt(),
                 full.finalCecrlLevel(), full.status(),
-                parent.getSlotNumber());
+                parent.getSlotNumber(),
+                full.finalLevelPartial());
     }
 
     private FullTcfExamResponse.SubAttempt mapSubAttempt(Attempt sub, boolean parentProductionLocked) {
@@ -87,6 +95,18 @@ public class FullTcfExamResponseBuilder {
         // Le verrou ne concerne que les épreuves productives EE/EO.
         boolean locked = parentProductionLocked
                 && (e == EpreuveType.TCF_EE || e == EpreuveType.TCF_EO);
+        if (locked) {
+            // Épreuve VERROUILLÉE : elle n'a pas été PASSÉE, elle a été fermée
+            // par le freemium. Elle n'a donc AUCUN niveau. La compter
+            // A1_NON_ATTEINT (ce que faisait bilanEpreuveTerminee sur zéro
+            // tâche) restituait un verrou commercial comme un verdict de
+            // langue : « ton niveau TCF IRN : A1 non atteint » à côté d'un
+            // cadenas « réservé à l'abonnement ». Le verrou lui-même ne bouge
+            // pas — seule la restitution change.
+            return new FullTcfExamResponse.SubAttempt(
+                    sub.getId(), e, sub.getFinishedAt(), null,
+                    null, null, 0, List.of(), true);
+        }
         if (e == EpreuveType.TCF_CO || e == EpreuveType.TCF_CE) {
             // Source de vérité : cecrl_level posé à la finalisation par
             // TcfLevelEstimatorService. Fallback weightedScoreToCecrl pour les
@@ -144,7 +164,7 @@ public class FullTcfExamResponseBuilder {
             Attempt parent, List<FullTcfExamResponse.SubAttempt> subs) {
         // 4 sous-attempts attendus (CO, CE, EE, EO). Si un manque ou n'est
         // pas fini → IN_PROGRESS.
-        if (subs.size() < 4) return FullTcfExamResponse.FullTcfExamStatus.IN_PROGRESS;
+        if (subs.size() < EXPECTED_EPREUVES) return FullTcfExamResponse.FullTcfExamStatus.IN_PROGRESS;
         for (FullTcfExamResponse.SubAttempt s : subs) {
             if (s.finishedAt() == null) {
                 return FullTcfExamResponse.FullTcfExamStatus.IN_PROGRESS;
@@ -212,11 +232,33 @@ public class FullTcfExamResponseBuilder {
         return NiveauCecrl.A1_NON_ATTEINT;
     }
 
+    /**
+     * Plancher des épreuves RÉELLEMENT passées. Deux exclusions, pour la même
+     * raison — on ne planchérie que sur ce qui a été mesuré :
+     * <ul>
+     *   <li>épreuve {@code locked} : fermée par le freemium, jamais passée ;</li>
+     *   <li>niveau {@code null} : inconnu (évaluations IA échouées ou encore en
+     *       vol), et {@code min()} ignore déjà l'inconnu.</li>
+     * </ul>
+     * Le nombre d'épreuves effectivement comptées est exposé aux fronts
+     * ({@code epreuvesCountedInFinalLevel}) pour qu'ils n'affirment pas « le
+     * plus bas de tes 4 épreuves » quand il n'y en a que 3.
+     */
     private NiveauCecrl floorOfCecrls(List<FullTcfExamResponse.SubAttempt> subs) {
         NiveauCecrl floor = null;
         for (FullTcfExamResponse.SubAttempt s : subs) {
+            if (s.locked()) continue;
             floor = levelEstimator.min(floor, s.cecrlLevel());
         }
         return floor;
+    }
+
+    /** Épreuves qui portent réellement un niveau et entrent dans le plancher. */
+    private static int countEpreuvesInFloor(List<FullTcfExamResponse.SubAttempt> subs) {
+        int counted = 0;
+        for (FullTcfExamResponse.SubAttempt s : subs) {
+            if (!s.locked() && s.cecrlLevel() != null) counted++;
+        }
+        return counted;
     }
 }

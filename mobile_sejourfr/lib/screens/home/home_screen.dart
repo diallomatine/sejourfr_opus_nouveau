@@ -242,11 +242,7 @@ class _HomeBody extends ConsumerWidget {
             const SizedBox(width: 12),
             Expanded(
               child: StatValueCard(
-                value: level == null
-                    ? '—'
-                    : level == NiveauCecrl.a1NonAtteint
-                        ? '<A1'
-                        : level.displayName,
+                value: level?.shortName ?? '—',
                 label: 'Niveau TCF',
                 color: AppColors.blue,
               ),

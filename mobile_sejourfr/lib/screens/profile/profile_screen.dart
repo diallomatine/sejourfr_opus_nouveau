@@ -7,7 +7,6 @@ import '../../core/api/repositories.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/models/auth_models.dart';
 import '../../core/models/billing_models.dart';
-import '../../core/models/enums.dart';
 import '../../core/providers/dashboard_provider.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
@@ -105,12 +104,9 @@ class ProfileScreen extends ConsumerWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: StatValueCard(
-                          value: switch (
-                              dashboard.valueOrNull?.estimatedTcfLevel) {
-                            null => '—',
-                            NiveauCecrl.a1NonAtteint => '<A1',
-                            final l => l.displayName,
-                          },
+                          value: dashboard
+                                  .valueOrNull?.estimatedTcfLevel?.shortName ??
+                              '—',
                           label: 'Niveau',
                           color: AppColors.blue,
                           valueSize: 22,

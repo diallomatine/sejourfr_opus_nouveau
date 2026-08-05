@@ -852,6 +852,51 @@ C'est le seul niveau qui fait foi. Il apparaît à la fin d'un examen blanc qui 
 - **Un examen d'expression orale dure 15 minutes**, comme l'examen d'expression écrite en
   dure 30. Les trois tâches orales plafonnent le temps de parole à 3 + 3,5 + 3,5 minutes ;
   les 5 minutes restantes couvrent la lecture des consignes et les transitions.
+- **Une épreuve qu'on n'a pas pu passer n'a pas de niveau — elle n'est pas « ratée ».**
+  Deux cas : l'épreuve était **verrouillée** (compte gratuit qui refait un examen blanc
+  complet après avoir déjà utilisé son expression écrite et orale offertes), ou ses
+  corrections ont **échoué** techniquement. Dans les deux cas, on n'affiche **aucun**
+  niveau pour cette épreuve, et elle n'entre pas dans le niveau global de l'examen. Le
+  système annonce alors combien d'épreuves comptent réellement, et le résultat est
+  présenté comme **partiel**. C'est une correction d'un défaut grave : jusqu'ici une
+  épreuve verrouillée était comptée « A1 non atteint », si bien qu'un candidat lisait
+  « votre niveau : A1 non atteint » à côté d'un cadenas « réservé à l'abonnement ».
+  Autrement dit, un **verrou commercial** lui était restitué comme un **verdict sur son
+  français**. Un abonnement qui manque ne dit rien du niveau de langue de personne.
+
+### 6.5 bis Pas de B2 au bilan sans argumentation (garde-fou de cohérence, **actif**)
+
+Le niveau d'une épreuve est une moyenne des trois tâches. Or les trois tâches ne sont pas
+interchangeables : **la tâche 3 est la seule qui demande d'argumenter**, donc la seule qui
+puisse démontrer un B2. Quelqu'un qui écrit un message simple impeccable, réussit
+l'échange de la tâche 2, puis s'effondre dès qu'il faut défendre un point de vue, sortait
+avec un **B2 de bilan** porté par ses deux premières tâches.
+
+La règle, désormais **appliquée** : **quand la tâche 3 est en dessous de B1, le bilan de
+l'épreuve ne peut pas dépasser B1.** Une tâche 3 jamais rendue dans une épreuve terminée
+compte comme un effondrement (elle vaut 0) ; une tâche 3 pas *encore* rendue dans une
+épreuve en cours ne déclenche rien — on ne conclut pas d'une tâche absente.
+
+Ce garde-fou ne peut qu'**abaisser** un niveau, jamais le relever. C'est précisément ce
+qui le rend sûr : dans le pire des cas il est trop prudent, jamais trop généreux.
+
+> ⚠️ **Ce choix repose sur un raisonnement, pas sur une mesure — et il faut le dire.** Le
+> banc de mesure (§12) **ne peut pas** trancher cette question : son corpus de référence
+> porte un niveau attendu **par tâche**, et ne contient **aucune** référence de niveau
+> d'épreuve. Il n'existe donc, à ce jour, aucun chiffre disant si la règle rapproche ou
+> éloigne nos bilans de ceux d'un jury. Elle a été activée parce qu'annoncer B2 — le
+> niveau exigé pour la naturalisation — à quelqu'un qui n'a pas su argumenter revient à
+> lui faire payer un examen officiel qu'il va rater. La façon honnête de la vérifier
+> viendra de la console de calibration (§14), quand elle aura accumulé de vraies épreuves
+> complètes annotées par des enseignants. En attendant, la règle est **réversible d'un
+> seul réglage**, et l'éteindre rend exactement les bilans d'avant.
+
+Aujourd'hui il n'existe qu'**un seul palier** de cette règle (« pas de B2 si la tâche 3
+est sous B1 »). L'étendre palier par palier — par exemple « pas de B1 si la tâche 3 est
+sous A2 » — est possible **sans rien changer au calcul** : il suffirait de déclarer
+plusieurs couples (seuil de tâche 3 → plafond de bilan) et de retenir le plus bas. Ce
+n'est **pas** fait : on ne généralise pas une règle qu'aucune mesure ne peut encore
+valider.
 
 ### 6.6 Notre note sur 20 est désormais **celle du TCF** (ce qui a changé, et ce qui n'a pas changé)
 
@@ -1546,6 +1591,15 @@ Le banc sert autant à mesurer les progrès qu'à nommer ce qui ne va pas.
   celui du diagnostic, pas celui du système corrigé. C'est exactement la dette que le §12.3 bis
   décrit — on la nomme plutôt que de la reproduire.
 
+- **Le garde-fou de cohérence du bilan (§6.5 bis) est hors de portée de ce banc, par
+  construction.** Le corpus porte un niveau attendu **par tâche** et **aucune** référence
+  de niveau d'épreuve : il ne peut ni confirmer ni infirmer la règle « pas de B2 si la
+  tâche 3 est sous B1 ». Elle a donc été activée sur un **raisonnement** (les trois tâches
+  ne sont pas interchangeables), pas sur un chiffre — et c'est la seule règle de notation
+  livrée dans ce cas. La vérifier demandera de vraies **épreuves complètes** annotées par
+  des enseignants, via la console de calibration (§14) ; d'ici là, la règle reste
+  réversible d'un seul réglage.
+
 - ~~**Le niveau « A1 non atteint » n'est presque jamais atteint.**~~ **Réglé par la v6**
   (8/8 sur la campagne, contre 4/8 auparavant). La cause était bien celle décrite ici : le
   serveur ne pose « A1 non atteint » que si la note vaut **exactement 0**, et l'IA refusait de
@@ -1607,9 +1661,9 @@ Le banc sert autant à mesurer les progrès qu'à nommer ce qui ne va pas.
 
 ---
 
-## 13. Trois réglages **préparés mais éteints** (aucun effet aujourd'hui)
+## 13. Deux réglages **préparés mais éteints** (aucun effet aujourd'hui)
 
-Ces trois comportements sont écrits, testés et livrés, mais **désactivés**. Tant qu'ils ne
+Ces deux comportements sont écrits, testés et livrés, mais **désactivés**. Tant qu'ils ne
 sont pas allumés, **rien de ce qui suit ne se produit** : la notation décrite dans tout le
 reste de ce document reste, mot pour mot, celle qui s'applique. Ils s'allument un par un,
 après mesure au banc, en changeant une seule ligne de configuration.
@@ -1618,7 +1672,11 @@ après mesure au banc, en changeant une seule ligne de configuration.
 |---|---|
 | **Débit et pauses** | Afficher, sous une production **orale**, deux mesures **factuelles** : le **débit** (mots par minute) et — seulement si la transcription porte des repères de temps — le **nombre de silences longs**. Ce sont des **informations**, jamais une note. |
 | **Seconde lecture en cas de doute** | Faire **recorriger** la production par une **seconde IA**, uniquement quand la première est peu sûre d'elle (confiance faible, note juste à la frontière d'un niveau, ou désaccord marqué entre l'IA et le calcul du serveur). En cas de désaccord entre les deux, on retient la correction **la plus basse** — le biais mesuré est vers l'indulgence — et on **baisse la confiance affichée**. |
-| **Cohérence du bilan** | Interdire un **B2 au bilan** d'une épreuve quand la **tâche 3** (celle où l'on argumente) est **en dessous de B1**. Le bilan est alors ramené à B1. Ne peut qu'abaisser. |
+
+> Un troisième réglage figurait ici jusqu'à présent : la **cohérence du bilan** (pas de B2
+> quand la tâche 3 est sous B1). Il est désormais **actif** — voir le §6.5 bis, qui
+> explique aussi pourquoi il a été allumé **sans mesure au banc**, celui-ci n'ayant aucune
+> référence de niveau d'épreuve.
 
 Trois précisions qui comptent :
 
@@ -1676,7 +1734,8 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 | **Le correcteur utilisé partout** (async, fin de session temps réel, réparation, seconde passe, calibration) | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.provider` et le modèle du provider choisi. Défaut : DeepSeek / `deepseek-v4-flash`. Gemini reste l'examinateur vocal/transcripteur, jamais le correcteur. |
 | **Le comportement de l'examinateur vocal** (ton, cadre, interdiction d'orienter le candidat, ouverture T1/T2, façon de rendre la fiche de scénario T2…) | `backend_sejourfr/src/main/resources/prompts/realtime-personas-v2.json` (version active ; la v1, sans fiche de scénario, reste disponible en repli) |
 | **Les faits d'un jeu de rôle T2** (prix, délais, horaires, attitude du personnage) | colonne `agent_role_card` du sujet, en base — renseignée par les migrations `db/migration/300_tcf/production/eo/tache_2/` |
-| **Les seuils de niveau, les plafonds, les vérifications automatiques, les trois réglages éteints** | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.production-evaluation` |
+| **Les seuils de niveau, les plafonds, les vérifications automatiques, les deux réglages éteints** | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.production-evaluation` |
+| **Le garde-fou de cohérence du bilan** (§6.5 bis — pas de B2 si la tâche 3 est sous B1) | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.coherence-bilan` — livré **actif**, contrairement aux deux réglages du §13. `EVAL_COHERENCE_BILAN_ENABLED=false` rend exactement les bilans d'avant |
 | **Le recollage des phrases coupées en deux à l'oral en temps réel** (§3.1) | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.recollage-tours.enabled` — livré **actif**, contrairement aux trois réglages du §13. La règle elle-même vit à **un seul endroit**, `backend_sejourfr/src/main/java/com/sejourfr/app/util/TranscriptTurnStitcher.java`, et s'applique en un seul point de lecture, ce qui garantit que le texte cité est le texte affiché |
 | **La patience / réactivité de l'examinateur vocal** (détection de fin de parole) | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.realtime.gemini.vad` |
 | **La longueur maximale d'une réponse du correcteur** (§12.3 bis — au-delà, la réponse est coupée et la correction est perdue) | `backend_sejourfr/src/main/resources/application.yaml`, `max-tokens` des trois correcteurs de `sejourfr.production-evaluation` : **la même valeur pour les trois**, verrouillée par un test |
@@ -1721,7 +1780,10 @@ correcteur, jamais un jugement déguisé sur le candidat. Un même fait de langu
 des quatre),
 **en déduit le niveau directement — la note et le niveau racontent la même histoire**,
 applique le garde-fou de couplage et deux plafonds ciblés, tronque les listes trop longues,
-abaisse un verdict qui se contredit, et n'affiche jamais un niveau sans sa confiance.
+abaisse un verdict qui se contredit, et n'affiche jamais un niveau sans sa confiance. Au
+bilan d'une épreuve, il refuse en plus un **B2 sans argumentation** (tâche 3 sous B1), et
+laisse **sans niveau** une épreuve qui n'a pas pu être passée plutôt que de la compter au
+plus bas.
 
 Elle juge avant tout la **capacité du candidat à communiquer et à se faire comprendre**, sans
 le pénaliser pour une transcription imparfaite, pour une piste du sujet non traitée, ni pour
@@ -1739,8 +1801,11 @@ note pour autant : au bilan d'une épreuve, on affiche le niveau estimé **et** 
 officielle de ce niveau, parce que notre note porte sur une tâche et celle du TCF sur une
 épreuve entière (§6.6).
 
-Trois choses qu'on **ne cache pas** :
+Quatre choses qu'on **ne cache pas** :
 
+- le garde-fou « pas de B2 sans argumentation » (§6.5 bis) est allumé sur un
+  **raisonnement**, pas sur une mesure : notre banc n'a aucune référence de niveau
+  d'épreuve et **ne peut pas** trancher ce choix ;
 - à l'oral, **on ne juge que la transcription** — la voix et la durée ne sont pas transmises
   au correcteur, et toute sortie qui note hésitations, répétitions, fluidité, débit,
   prononciation, accent, intonation ou orthographe de transcription est rejetée ;

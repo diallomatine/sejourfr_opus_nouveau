@@ -9,6 +9,7 @@ import { ModuleDetailGate } from "@/app/_components/module_detail/parts";
 import { ConfirmSheet } from "@/app/_components/hub/ConfirmSheet";
 import { ApiException, attemptApi, fullTcfExamApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { examIsStale, subAttemptView, type SubAttemptView } from "@/lib/exam-levels";
 import {
   FULL_TCF_EXAM_DURATION_SEC,
   FULL_TCF_EXAM_EPREUVES,
@@ -185,6 +186,7 @@ function ProgressInner() {
             key={sa.epreuve}
             sub={sa}
             state={getStepState(sa, idx, currentIdx)}
+            stale={examIsStale(exam)}
           />
         ))}
       </div>
@@ -274,15 +276,16 @@ function subAttemptHref(sa: FullTcfExamSubAttempt, examId: string): string {
 function StepCard({
   sub,
   state,
+  stale,
 }: {
   sub: FullTcfExamSubAttempt;
   state: StepState;
+  /** Plus aucune évaluation ne tourne derrière (cf. `examIsStale`). */
+  stale: boolean;
 }) {
   const meta = EPREUVE_META[sub.epreuve];
+  const view = subAttemptView(sub, { stale });
   if (!meta) return null;
-
-  const isProduction = sub.epreuve === "TCF_EE" || sub.epreuve === "TCF_EO";
-  const evaluating = sub.finishedAt && isProduction && sub.cecrlLevel === null;
 
   // EE/EO verrouillées (compte gratuit ayant déjà utilisé l'expression offerte
   // une fois) : on affiche un cadenas + le motif, sans badge de niveau.
@@ -308,23 +311,45 @@ function StepCard({
         <span className={s.stepLabel}>{meta.label}</span>
         <span className={s.stepMeta}>{meta.duration}</span>
       </span>
-      {state === "done" && (
-        <span className={`${s.stepBadge} ${evaluating ? s.evaluating : s.done}`}>
-          {evaluating ? (
-            "Éval en cours…"
-          ) : sub.cecrlLevel ? (
-            niveauCecrlLabel(sub.cecrlLevel)
-          ) : sub.score != null && sub.maxScore != null ? (
-            `${sub.score}/${sub.maxScore}`
-          ) : (
-            <Check size={13} />
-          )}
-        </span>
-      )}
+      {state === "done" && <StepBadge sub={sub} view={view} />}
       {state === "locked" && <Lock size={16} style={{ color: "var(--color-muted-2)", flexShrink: 0 }} />}
       {state === "current" && (
         <span className={s.stepBadge}>Maintenant</span>
       )}
     </div>
+  );
+}
+
+/** Badge d'une épreuve terminée. Un NIVEAU prend la teinte de son palier
+ *  (`view.tone`) ; un simple état (score, check) reste neutre — « fait » n'est
+ *  pas « réussi ». Une évaluation en échec le dit, au lieu de tourner à vide. */
+function StepBadge({ sub, view }: { sub: FullTcfExamSubAttempt; view: SubAttemptView }) {
+  if (view.level != null) {
+    return (
+      <span className={s.stepBadge} data-tone={view.tone}>
+        {niveauCecrlLabel(view.level)}
+      </span>
+    );
+  }
+  if (view.state === "failed") {
+    return <span className={`${s.stepBadge} ${s.alert}`}>Éval en échec</span>;
+  }
+  if (view.showSpinner) {
+    return <span className={`${s.stepBadge} ${s.evaluating}`}>Éval en cours…</span>;
+  }
+  if (view.state === "stalled") {
+    return <span className={`${s.stepBadge} ${s.evaluating}`}>Éval interrompue</span>;
+  }
+  if (sub.score != null && sub.maxScore != null) {
+    return (
+      <span className={`${s.stepBadge} ${s.done}`}>
+        {sub.score}/{sub.maxScore}
+      </span>
+    );
+  }
+  return (
+    <span className={`${s.stepBadge} ${s.done}`}>
+      <Check size={13} />
+    </span>
   );
 }

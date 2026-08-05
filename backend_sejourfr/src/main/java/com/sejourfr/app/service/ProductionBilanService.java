@@ -154,10 +154,12 @@ public class ProductionBilanService {
      * {@code tache3-niveau-min}, le bilan est plafonné à
      * {@code plafond-si-tache3-faible}.
      *
-     * <p>Ne fait qu'ABAISSER, jamais relever. Piloté par
-     * {@code sejourfr.production-evaluation.coherence-bilan.enabled}, <b>false
-     * par défaut</b> : éteint, cette méthode rend le bilan inchangé, donc
-     * exactement la math historique.
+     * <p>Ne fait qu'ABAISSER, jamais relever — c'est ce qui le rend sûr. Piloté
+     * par {@code sejourfr.production-evaluation.coherence-bilan.enabled},
+     * <b>true par défaut</b> : les 3 tâches ne sont pas interchangeables, la T3
+     * est la seule qui demande d'argumenter, donc la seule qui puisse démontrer
+     * un B2. Éteint, cette méthode rend le bilan inchangé, donc exactement la
+     * math historique (retour arrière en une variable).
      *
      * <p>Épreuve <b>en cours</b> (T3 pas encore rendue) : aucun plafond, on ne
      * conclut pas d'une tâche absente. Épreuve <b>terminée</b> : une T3 jamais

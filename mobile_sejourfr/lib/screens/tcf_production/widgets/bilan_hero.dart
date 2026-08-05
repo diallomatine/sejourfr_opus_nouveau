@@ -7,9 +7,15 @@ import '../../../core/utils/format_date.dart';
 import 'cecrl_scale.dart';
 
 /// Carte "Bilan global" sur fond bleu dégradé : eyebrow mono + moyenne /20
-/// à gauche, niveau CECRL plancher à droite (règle TCF IRN), barre A1→B2
+/// à gauche, niveau CECRL **global** de l'épreuve à droite, barre A1→B2
 /// en bas. Alignée sur le pattern hero des autres écrans bilan (TCF complet,
 /// EE/EO results).
+///
+/// ⚠ Ce niveau n'est **pas** un plancher : le backend
+/// (`ProductionBilanService.compute`) fait une moyenne pondérée des
+/// compétences des 3 tâches, précisément pour qu'une seule évaluation basse ne
+/// plafonne pas l'épreuve entière. Le plancher `min()` ne survit que pour le
+/// bilan d'un **examen complet** (le plus bas des 4 épreuves).
 class BilanHero extends StatelessWidget {
   const BilanHero({
     super.key,
@@ -21,7 +27,8 @@ class BilanHero extends StatelessWidget {
   /// Moyenne des notes /20 (null tant qu'aucune submission n'a été évaluée).
   final double? moyenneSur20;
 
-  /// Niveau CECRL plancher des évaluations disponibles (règle TCF IRN).
+  /// Niveau CECRL global de l'épreuve, calculé par le backend en moyenne
+  /// pondérée des compétences des tâches évaluées (pas un plancher).
   final NiveauCecrl? niveauGlobal;
 
   /// Fourchette de note officielle du TCF pour ce niveau (backend). Null tant
@@ -110,7 +117,7 @@ class BilanHero extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      'Niveau plancher',
+                      'Niveau global',
                       style: AppFonts.ui(
                         size: 12,
                         color: Colors.white.withValues(alpha: 0.78),

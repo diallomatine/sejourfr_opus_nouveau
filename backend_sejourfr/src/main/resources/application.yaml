@@ -428,9 +428,17 @@ sejourfr:
       marge-seuil-niveau: 1.0
     # Coherence du bilan d'epreuve (3 taches) : pas de B2 global si la tache 3
     # (argumentation) est sous B1. Applique APRES la moyenne ponderee, ne fait
-    # qu'abaisser. A false, le bilan est strictement celui d'aujourd'hui.
+    # qu'ABAISSER — jamais relever, c'est ce qui le rend sur.
+    # ACTIF par defaut : le niveau d'epreuve est une moyenne des competences des
+    # 3 taches, or elles ne sont pas interchangeables — la tache 3 est la seule
+    # qui demande d'argumenter, donc la seule qui puisse demontrer un B2.
+    # Active sur du RAISONNEMENT, pas sur une mesure : le banc de calibration ne
+    # peut pas trancher ce choix (son corpus a un niveau attendu PAR TACHE, il
+    # n'a aucune reference de niveau d'EPREUVE). Cf. docs/notation-ia-eo-ee.md.
+    # Retour arriere en une variable : EVAL_COHERENCE_BILAN_ENABLED=false rend
+    # strictement les bilans d'avant (moyenne ponderee seule).
     coherence-bilan:
-      enabled: ${EVAL_COHERENCE_BILAN_ENABLED:false}
+      enabled: ${EVAL_COHERENCE_BILAN_ENABLED:true}
       tache3-niveau-min: B1
       plafond-si-tache3-faible: B1
     max-audio-duration-seconds: 300

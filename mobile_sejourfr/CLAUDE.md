@@ -150,6 +150,10 @@ L'app suit la maquette mobile autonome (design « bleu-blanc-rouge discret »). 
   pour un niveau) est la **seule** table qui décide de la teinte d'un niveau : le badge
   `CecrlTagTone` (`core/widgets/app_tag.dart`, `niveau.tagTone`) en **dérive** via
   `tagToneForAccent(Color)`. Ne pas réécrire un second `switch` sur `NiveauCecrl`.
+  Même règle pour le **libellé** : `NiveauCecrl.shortName` (`core/models/enums.dart`)
+  est la seule forme courte — « A1 non atteint » s'y rend **`<A1`**, jamais tronqué
+  en « A1 ». Une teinte de niveau vient **toujours** de `CecrlColor` : le vert dit
+  « B2 », pas « terminé » (une pastille d'état reste neutre).
   **Une note de production se colore par son palier TCF** (`TcfNoteScale.bandFor(note)`,
   `null` si la note n'est pas un nombre → pas de palier inventé, pas de curseur), jamais par
   un seuil scolaire sur 20 : 12/20 vaut B2, le palier le plus haut de l'examen. Un critère
@@ -495,6 +499,15 @@ l'écran unique des 20 slots, atteint depuis le hero du hub TCF, le hero Progres
 et le bilan. `TcfFullExamsView` est le corps réutilisable qu'il enveloppe avec une topbar back.
 L'ancien `civique_exam_blanc_view.dart` a été **supprimé** (plus utilisé après la refonte sans
 onglets) ; pour Civique, le tap du hero démarre directement un MOCK_EXAM via le briefing modal.
+
+**Périmètre du niveau final (examen complet)** : le plancher `finalCecrlLevel` ne porte que
+sur les épreuves **réellement passées** — une EE/EO verrouillée par le freemium n'a plus de
+niveau du tout (`cecrlLevel` null + cadenas), et une évaluation en échec est écartée. Le
+backend publie le périmètre : `epreuvesCountedInFinalLevel` / `epreuvesExpected` /
+`finalLevelPartial` (résumé d'historique : `finalLevelPartial` seul). Conséquences côté
+mobile, à ne pas défaire : le bilan **ne dit jamais « tes 4 épreuves » en dur** (phrase
+dérivée du décompte, et sans chiffre si le champ manque), et un examen partiel n'alimente
+pas « meilleur niveau » / « dernier examen » — il est annoté « partiel ».
 
 **Modules affichés :**
 - **Civique** = les 5 thèmes officiels chargés via `/api/themes?module=CIVIQUE` (Principes &

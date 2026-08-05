@@ -30,10 +30,11 @@ import java.util.UUID;
  * portant {@code epreuve = TCF_COMPLET} et les 4 sous-attempts qui en
  * dépendent — atomique, transactionnel.
  *
- * <p>Le niveau CECRL final est le plancher des 4 sous-épreuves (règle
- * officielle TCF IRN). Il est posé à la {@link #finish finalisation}, à
- * condition que toutes les évaluations IA EE/EO soient remontées
- * {@code EVALUATED}.
+ * <p>Le niveau CECRL final est le plancher des sous-épreuves <b>réellement
+ * passées</b> (règle officielle TCF IRN) : une épreuve verrouillée par le
+ * freemium ou restée sans niveau exploitable en est exclue, jamais comptée au
+ * plus bas. Il est posé à la {@link #finish finalisation}, à condition que
+ * toutes les évaluations IA EE/EO soient remontées {@code EVALUATED}.
  *
  * <p>Les sous-attempts vivent indépendamment :
  * <ul>
@@ -75,9 +76,10 @@ public class FullTcfExamService {
      * abonnés TCF : le PREMIER examen complet inclut l'expression écrite et
      * orale (EE/EO) évaluées par l'IA, offertes une fois. Les examens complets
      * suivants restent rejouables en compréhension (CO+CE) mais leurs épreuves
-     * EE/EO sont verrouillées (pré-terminées, comptées A1_NON_ATTEINT, marquées
-     * {@code production_locked} sur le parent). Les abonnés TCF ont un accès
-     * illimité aux 4 épreuves.
+     * EE/EO sont verrouillées (pré-terminées, marquées {@code production_locked}
+     * sur le parent). Une épreuve verrouillée n'a <b>pas</b> de niveau et sort
+     * du plancher global — le verrou est commercial, pas linguistique. Les
+     * abonnés TCF ont un accès illimité aux 4 épreuves.
      */
     @Transactional
     public FullTcfExamResponse start(UUID userId, Integer slotNumber) {
@@ -106,7 +108,8 @@ public class FullTcfExamService {
         // Compte gratuit ayant déjà consommé son EE/EO offerte : on pré-termine
         // les sous-attempts EE/EO (aucune soumission possible — le garde
         // finishedAt côté ProductionSubmissionService double le verrou) ; le
-        // bilan les comptera A1_NON_ATTEINT, l'examen reste jouable en CO+CE.
+        // bilan les laissera SANS niveau (hors plancher), l'examen reste
+        // jouable en CO+CE.
         if (!productionUnlocked) {
             lockProductionSubAttempts(parent);
         }

@@ -168,7 +168,11 @@ quand présent, le score brut sinon. **Examens multi-épreuves** : le backend
 expose `AttemptResponse.epreuveResults` (score + niveau par épreuve, CO_IMAGE
 sous CO) et le `cecrlLevel` global est le PLANCHER des épreuves (règle TCF
 IRN : il faut le niveau partout) ; `ExamReport` rend la card « Votre niveau
-par épreuve » (badge rouge sur l'épreuve plancher) + note expliquant le min.
+par épreuve » + note expliquant le min. **Aucun niveau ne se colore en rouge** :
+le badge prend la teinte de son PALIER (`epreuveLevelTone`, `lib/exam-levels.ts`,
+qui dérive de l'unique table `tcfNiveauTone`) et l'épreuve plancher est signalée
+**par le texte** (« · niveau retenu »), seulement quand elle se distingue des
+autres (`floorMarks`) — un candidat B2 partout n'a pas de point faible.
 Miroirs `AttemptEpreuveResult` dans lib/types.ts et attempt_models.dart. **CO en examen = conditions réelles** : audio
 autoplay à écoute unique sans contrôles (`MediaView` prop `examAudio`,
 fallback bouton one-shot si l'autoplay est bloqué). **Retour arrière interdit
@@ -551,6 +555,23 @@ Chantier découpé en vagues :
       `tcf/[id]/bilan/page.tsx` (CECRL plancher + polling 3 s rapide 30 s puis 8 s,
       max 5 min, sur `status === COMPLETED`), `tcf/TcfFullExamBriefingSheet.tsx`
       (lancement + 403 → paywall, ouvert **inline** depuis la carte TCF).
+    - **Règles de lecture du bilan** → `lib/exam-levels.ts` (pures, testées) :
+      `subAttemptView` (état d'une épreuve : verrouillée / non terminée /
+      évaluée / en cours / **en échec** / **stale**), `examIsStale` (examen
+      finalisé depuis > 2 min sans être COMPLETED ⇒ plus rien ne tourne : on
+      coupe le spinner et on propose « Actualiser », parité mobile),
+      `epreuveLevelTone` / `floorMarks` (couleur = palier, plancher = texte),
+      `floorScope` + `floorRuleSentence` (la phrase du plancher dit le
+      **périmètre réel**), `isCompleteExamResult`. Une épreuve dont
+      `failedSubmissionIds` n'est pas vide affiche une bannière rouge +
+      « Réessayer » (`productionApi.retrySubmission` sur chaque id) au lieu de
+      tourner à vide. **Bilan partiel** (`finalLevelPartial`, aussi porté par le
+      résumé) : le niveau ne porte pas sur les 4 épreuves (EE/EO verrouillée,
+      évaluations échouées) → phrase « Bilan partiel : … N épreuves sur 4 », et
+      l'examen est **écarté** des stats « Meilleur niveau » / « Dernier examen »
+      de `/examens-blancs` + annoté « · partiel » dans sa carte de slot (pas de
+      check de réussite). Miroirs `epreuvesCountedInFinalLevel`,
+      `epreuvesExpected`, `finalLevelPartial` dans `lib/types.ts`.
     - **Évaluation IA en arrière-plan (parité mobile)** : EE/EO soumettent T1/T2
       sans attendre l'éval (`SUBMITTED` ~500 ms) ; après T3, `fullTcfExamApi.markSubDone`
       pose `finishedAt` et débloque l'épreuve suivante au hub sans attendre l'IA.
