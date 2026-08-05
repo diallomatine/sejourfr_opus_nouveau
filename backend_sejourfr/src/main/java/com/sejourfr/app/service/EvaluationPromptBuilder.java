@@ -24,14 +24,14 @@ import java.util.Map;
  *       toutes les taches → calcule une fois et mis en cache.</li>
  *   <li><b>user</b> = donnees seulement : epreuve/tache, niveau cible (DB),
  *       consigne (DB), longueur attendue (DB, EE), contexte (DB), puis criteres /
- *       bareme / descripteurs / consignes du bloc tache, la production, et la
- *       duree factuelle (EO).</li>
+ *       bareme / descripteurs / consignes du bloc tache et production. La duree
+ *       EO reste hors du materiau de notation.</li>
  * </ul>
  */
 @Component
 public class EvaluationPromptBuilder {
 
-    private static final List<String> NIVEAUX = List.of("A1", "A2", "B1", "B2", "C1", "C2");
+    private static final List<String> NIVEAUX = List.of("A1", "A2", "B1", "B2");
 
     private final ObjectMapper objectMapper;
     private final ProductionRubricsProvider rubrics;
@@ -58,8 +58,8 @@ public class EvaluationPromptBuilder {
      * @param production texte EE rendu ou transcription Whisper (EO).
      * @param transcriptionLitterale conserve pour la signature ; la notice de
      *        transcription vit dans le bloc {@code commun} (section orale).
-     * @param dureeProductionSec duree parlee reelle (EO uniquement, sinon null),
-     *        injectee comme donnee FACTUELLE.
+     * @param dureeProductionSec conserve pour compatibilite d'appel ; la duree
+     *        n'est jamais injectee dans le prompt de notation.
      */
     public String buildUserPrompt(ProductionTask task, String production,
                                   boolean transcriptionLitterale, Integer dureeProductionSec) {
@@ -98,9 +98,6 @@ public class EvaluationPromptBuilder {
 
         sb.append("PRODUCTION DU CANDIDAT :\n\"").append(nullSafe(production)).append("\"\n");
 
-        String duree = buildDureeBlock(task, dureeProductionSec);
-        if (!duree.isBlank()) sb.append('\n').append(duree);
-
         sb.append("\nÉvalue cette production en appelant l'outil `submit_evaluation`.");
         return sb.toString();
     }
@@ -131,7 +128,7 @@ public class EvaluationPromptBuilder {
         return sb.toString().trim();
     }
 
-    /** Formate la map descripteurs {A1..C2} en lignes "- B2 : ...", dans l'ordre. */
+    /** Formate les descripteurs du profil actif A1..B2, dans l'ordre. */
     private static String formatDescripteurs(Object o) {
         if (!(o instanceof Map<?, ?> m)) return "";
         StringBuilder sb = new StringBuilder();
@@ -145,8 +142,8 @@ public class EvaluationPromptBuilder {
     }
 
     /**
-     * EE uniquement : longueur attendue (donnee factuelle, bornes DB). La regle
-     * « ne pas penaliser la longueur » vit dans le bloc commun (system prompt).
+     * EE uniquement : longueur attendue (donnee factuelle, bornes DB). Une
+     * production hors bornes est deja bloquee avant l'appel au correcteur.
      */
     private static String buildLongueurBlock(ProductionTask task) {
         if (task.getEpreuve() != EpreuveType.TCF_EE
@@ -154,22 +151,6 @@ public class EvaluationPromptBuilder {
             return "";
         }
         return "LONGUEUR ATTENDUE : " + task.getMotsMin() + " à " + task.getMotsMax() + " mots.\n";
-    }
-
-    /**
-     * Bloc EO « durée parlée vs objectif » — donnée FACTUELLE uniquement. L'ordre
-     * de ne pas la prendre en compte vit une seule fois dans le bloc commun.
-     * Vide pour l'EE ou si la durée atteint l'objectif.
-     */
-    private static String buildDureeBlock(ProductionTask task, Integer dureeProductionSec) {
-        if (task.getEpreuve() != EpreuveType.TCF_EO
-                || dureeProductionSec == null
-                || task.getDureeMaxSec() == null
-                || dureeProductionSec >= task.getDureeMaxSec()) {
-            return "";
-        }
-        return "DURÉE (indicative) : " + dureeProductionSec + " s (objectif "
-            + task.getDureeMaxSec() + " s).\n";
     }
 
     private static String modalite(EpreuveType epreuve) {

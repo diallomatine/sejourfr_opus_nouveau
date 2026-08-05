@@ -772,7 +772,8 @@ passent l'UUID). Liens nominaux (hubs, dashboard) émis en slug.
       alerte rouge sous 5 min. Repli front 30 min **pour l'EE seule** quand
       `timeLimitSeconds` est null (sous-épreuve d'examen complet) ; l'EO n'a
       alors **aucun** chrono local. À 0:00 : EE auto-soumet le texte courant
-      s'il est recevable (mots ∈ [`motsMin`, `motsMax`×1.2]), EO coupe la
+      s'il est recevable (mots ∈ [`motsMin`, `motsMax`] strictement : T1
+      30–60, T2/T3 60–90), EO coupe la
       capture en cours et l'envoie en best-effort (`timeoutSignal` /
       `onTimeout` sur `EoRecordingForm`, pendant de `autoSubmitSignal` /
       `onAutoSubmit` côté EE) ; puis `attemptApi.finish` puis bilan.
@@ -944,13 +945,15 @@ suggestions → corrections**. Règles à ne pas défaire :
   **obligatoires** des **pistes** (`obligatoire: false`) : une piste non
   traitée n'enlève aucun point et doit être présentée comme telle.
 - `points_a_ameliorer` est plafonné à 2 côté backend → titre « Vos priorités ».
-- **La note /20 est PÉDAGOGIQUE, pas une note de TCF** (notre échelle : 16-20 = B2,
-  11-15 = B1… ; au TCF IRN 10/20 vaut déjà B2). Sur le résultat d'une tâche, on le
-  dit (`ProductionScoreHero`) et on n'affiche **aucune** correspondance TCF — une tâche
+- **La note /20 suit l'échelle du profil TCF IRN** : 0 = A1 non atteint, 1 = A1,
+  2-5 = A2, 6-9 = B1, 10-20 = B2 ; la notation active v7/v4 est plafonnée à B2
+  et ne renvoie jamais C1/C2. On n'affiche **aucune** correspondance TCF sur une tâche — une tâche
   isolée n'a pas de note officielle. La correspondance
   (`ProductionBilanResponse.correspondanceTcf` → `correspondanceTcfPhrase`) ne
   s'affiche qu'au **bilan d'épreuve** (`BilanView` dans `ProductionSession.tsx`),
   au même wording que le mobile. Cf. `docs/notation-ia-eo-ee.md` §6.6.
+- L'échelle du bilan affiche uniquement A1→B2. C1/C2 restent acceptés dans les
+  types pour relire l'historique, mais sont rabattus visuellement sur le plafond B2.
 - **Rétrocompatibilité (~100 évaluations en base)** : les plus anciennes n'ont ni
   niveau, ni confiance, ni accomplissement, ni bandes, ni preuves, leurs critères
   portent d'autres codes et leurs priorités sont de simples chaînes. Les blocs

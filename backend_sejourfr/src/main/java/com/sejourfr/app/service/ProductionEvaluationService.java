@@ -315,10 +315,7 @@ public class ProductionEvaluationService {
      * <ul>
      *   <li>mots &lt; {@code mots_min} → bloque (trop court) ;</li>
      *   <li>{@code mots_min} ≤ mots ≤ {@code mots_max} → OK ;</li>
-     *   <li>{@code mots_max} &lt; mots ≤ {@code mots_max} × 1.2 → toleré (un
-     *       avertissement de depassement modere est ajoute a la correction par
-     *       {@link AiEvaluationService}) ;</li>
-     *   <li>mots &gt; {@code mots_max} × 1.2 → bloque (trop long).</li>
+     *   <li>mots &gt; {@code mots_max} → bloque (trop long).</li>
      * </ul>
      * Contrairement a l'EO (jamais bloquante), l'EE bloque hors-bornes : le
      * front desactive deja le bouton, c'est un garde-fou serveur.
@@ -332,8 +329,7 @@ public class ProductionEvaluationService {
                 + plancher + " pour cette tache.");
         }
         if (task.getMotsMax() != null) {
-            int plafondTolere = (int) Math.floor(task.getMotsMax() * 1.2);
-            if (mots > plafondTolere) {
+            if (mots > task.getMotsMax()) {
                 throw new BusinessException(
                     "Votre texte est trop long : " + mots + " mots pour un maximum de "
                     + task.getMotsMax() + ". Reduisez-le avant de soumettre.");

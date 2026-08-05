@@ -23,9 +23,13 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -42,8 +46,8 @@ import static org.mockito.Mockito.when;
  *       cette echelle, +4 le permettrait ;</li>
  *   <li>les plafonds cibles et les bandes qualitatives suivent l'echelle de la
  *       grille, et non plus des bornes en dur ;</li>
- *   <li>v5 reste chargeable a l'identique : {@code EVAL_RUBRICS_VERSION} seule
- *       suffit a revenir en arriere.</li>
+ *   <li>v5 reste chargeable a l'identique avec sa paire rubriques/schema
+ *       historique.</li>
  * </ul>
  */
 class AiEvaluationServiceV6Test {
@@ -91,6 +95,8 @@ class AiEvaluationServiceV6Test {
             "constat", "Vos idées sont juxtaposées.",
             "comment", "Relie tes deux idées avec « parce que » au lieu d'un point.",
             "exemple", Map.of("avant", "il est lumineux", "apres", "il est lumineux parce qu'il")))));
+        f.put("suggestions", new ArrayList<>());
+        f.put("exemples_corriges", new ArrayList<>());
         return f;
     }
 
@@ -167,8 +173,188 @@ class AiEvaluationServiceV6Test {
         EvaluationPromptBuilder promptBuilder = new EvaluationPromptBuilder(new ObjectMapper(), rubrics);
         service = new AiEvaluationService(submissionManager, transcriptionManager, aiEvaluationManager,
             llmClient, promptBuilder, rubrics, new ProductionValidityService(props),
-            new ProductionSecondePasseService(props, mock(EvaluationLlmClient.class)),
+            new ProductionSecondePasseService(props, mock(EvaluationLlmClient.class), rubrics),
             new ProductionFluiditeService(props), props);
+    }
+
+    @Test
+    void sortie_partielle_declenche_un_retry_semantique_unique_avant_persistance() {
+        Map<String, Object> incomplete = feedback(7, 7, 7, 7);
+        incomplete.put("scores_criteres", List.of(
+            score("lexique", 7, "il est lumineux"),
+            score("morphosyntaxe", 7, "Viens passer le week-end")));
+        Map<String, Object> repaired = feedback(7, 7, 7, 7);
+        when(llmClient.evaluate(anyString(), anyString()))
+            .thenReturn(new EvaluationLlmClient.Outcome(incomplete, 100, 20, 1))
+            .thenReturn(new EvaluationLlmClient.Outcome(repaired, 110, 30, 2));
+        ProductionSubmission sub = submission(task(EpreuveType.TCF_EE, 1), TEXTE_EE);
+
+        AiEvaluation eval = service.evaluate(sub.getId());
+
+        assertThat(eval.getNoteSur20()).isEqualByComparingTo("7.0");
+        assertThat(eval.getTokensInput()).isEqualTo(210);
+        assertThat(eval.getTokensOutput()).isEqualTo(50);
+        assertThat(eval.getCoutEstimeCentimes()).isEqualTo(3);
+        verify(llmClient, times(2)).evaluate(anyString(), anyString());
+    }
+
+    @Test
+    void sortie_toujours_partielle_echoue_sans_persister_de_note() {
+        Map<String, Object> incomplete = feedback(7, 7, 7, 7);
+        incomplete.put("scores_criteres", List.of(
+            score("lexique", 7, "il est lumineux"),
+            score("morphosyntaxe", 7, "Viens passer le week-end")));
+        when(llmClient.evaluate(anyString(), anyString()))
+            .thenReturn(new EvaluationLlmClient.Outcome(incomplete, 100, 20, 1));
+        ProductionSubmission sub = submission(task(EpreuveType.TCF_EE, 1), TEXTE_EE);
+
+        assertThatThrownBy(() -> service.evaluate(sub.getId()))
+            .isInstanceOf(com.sejourfr.app.exception.AiEvaluationException.class)
+            .hasMessageContaining("apres une tentative de reparation");
+        verify(aiEvaluationManager, never()).save(any());
+        verify(llmClient, times(2)).evaluate(anyString(), anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void une_preuve_inverifiable_apres_retry_est_retiree_et_la_confiance_degradee() {
+        when(llmClient.getPromptVersion()).thenReturn("v4");
+        Map<String, Object> first = feedback(7, 7, 7, 7);
+        Map<String, Object> repaired = feedback(7, 7, 7, 7);
+        ((List<Map<String, Object>>) first.get("scores_criteres"))
+            .get(0).put("preuve", "citation totalement inventée absente");
+        ((List<Map<String, Object>>) repaired.get("scores_criteres"))
+            .get(0).put("preuve", "citation toujours inventée absente");
+        when(llmClient.evaluate(anyString(), anyString()))
+            .thenReturn(new EvaluationLlmClient.Outcome(first, 100, 20, 1))
+            .thenReturn(new EvaluationLlmClient.Outcome(repaired, 110, 30, 2));
+        ProductionSubmission sub = submission(task(EpreuveType.TCF_EE, 1), TEXTE_EE);
+
+        AiEvaluation eval = service.evaluate(sub.getId());
+
+        assertThat(critere(eval, "communiquer")).doesNotContainKey("preuve");
+        assertThat(critere(eval, "interagir")).containsEntry("preuve", "Salut Paul");
+        assertThat(eval.getFeedbackJson().toString())
+            .doesNotContain("citation toujours inventée absente");
+        assertThat(eval.getFeedbackJson()).containsEntry("confiance", "MOYENNE");
+        assertThat((List<String>) eval.getFeedbackJson().get("confiance_raisons"))
+            .contains(AiEvaluationService.RAISON_CONFIANCE_PREUVE_RETIREE);
+        assertThat((List<String>) eval.getFeedbackJson().get("avertissements"))
+            .contains(AiEvaluationService.AVERTISSEMENT_PREUVE_RETIREE);
+        assertThat(eval.getTokensInput()).isEqualTo(210);
+        assertThat(eval.getTokensOutput()).isEqualTo(50);
+        assertThat(eval.getCoutEstimeCentimes()).isEqualTo(3);
+        assertThat(sub.getStatut()).isEqualTo(SubmissionStatut.EVALUATED);
+        verify(aiEvaluationManager).save(eval);
+        verify(llmClient, times(2)).evaluate(anyString(), anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void deux_preuves_inverifiables_apres_retry_font_echouer_sans_persistance() {
+        when(llmClient.getPromptVersion()).thenReturn("v4");
+        Map<String, Object> first = feedback(7, 7, 7, 7);
+        Map<String, Object> repaired = feedback(7, 7, 7, 7);
+        for (Map<String, Object> raw : List.of(first, repaired)) {
+            List<Map<String, Object>> scores =
+                (List<Map<String, Object>>) raw.get("scores_criteres");
+            scores.get(0).put("preuve", "première citation inventée absente");
+            scores.get(1).put("preuve", "seconde citation inventée absente");
+        }
+        when(llmClient.evaluate(anyString(), anyString()))
+            .thenReturn(new EvaluationLlmClient.Outcome(first, 100, 20, 1))
+            .thenReturn(new EvaluationLlmClient.Outcome(repaired, 110, 30, 2));
+        ProductionSubmission sub = submission(task(EpreuveType.TCF_EE, 1), TEXTE_EE);
+
+        assertThatThrownBy(() -> service.evaluate(sub.getId()))
+            .isInstanceOf(com.sejourfr.app.exception.AiEvaluationException.class)
+            .hasMessageContaining("apres une tentative de reparation")
+            .hasMessageContaining("preuve[communiquer]")
+            .hasMessageContaining("preuve[interagir]");
+        verify(aiEvaluationManager, never()).save(any());
+        verify(llmClient, times(2)).evaluate(anyString(), anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void une_preuve_vide_apres_retry_reste_bloquante() {
+        when(llmClient.getPromptVersion()).thenReturn("v4");
+        Map<String, Object> first = feedback(7, 7, 7, 7);
+        Map<String, Object> repaired = feedback(7, 7, 7, 7);
+        ((List<Map<String, Object>>) first.get("scores_criteres"))
+            .get(0).put("preuve", "citation inventée absente");
+        ((List<Map<String, Object>>) repaired.get("scores_criteres"))
+            .get(0).put("preuve", "");
+        when(llmClient.evaluate(anyString(), anyString()))
+            .thenReturn(new EvaluationLlmClient.Outcome(first, 100, 20, 1))
+            .thenReturn(new EvaluationLlmClient.Outcome(repaired, 110, 30, 2));
+        ProductionSubmission sub = submission(task(EpreuveType.TCF_EE, 1), TEXTE_EE);
+
+        assertThatThrownBy(() -> service.evaluate(sub.getId()))
+            .isInstanceOf(com.sejourfr.app.exception.AiEvaluationException.class)
+            .hasMessageContaining("preuve[communiquer] doit etre une chaine non vide");
+        verify(aiEvaluationManager, never()).save(any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void une_preuve_inverifiable_et_une_autre_violation_apres_retry_restent_bloquantes() {
+        when(llmClient.getPromptVersion()).thenReturn("v4");
+        Map<String, Object> first = feedback(7, 7, 7, 7);
+        Map<String, Object> repaired = feedback(7, 7, 7, 7);
+        for (Map<String, Object> raw : List.of(first, repaired)) {
+            ((List<Map<String, Object>>) raw.get("scores_criteres"))
+                .get(0).put("preuve", "citation inventée absente");
+            raw.put("confiance", "CERTAINE");
+        }
+        when(llmClient.evaluate(anyString(), anyString()))
+            .thenReturn(new EvaluationLlmClient.Outcome(first, 100, 20, 1))
+            .thenReturn(new EvaluationLlmClient.Outcome(repaired, 110, 30, 2));
+        ProductionSubmission sub = submission(task(EpreuveType.TCF_EE, 1), TEXTE_EE);
+
+        assertThatThrownBy(() -> service.evaluate(sub.getId()))
+            .isInstanceOf(com.sejourfr.app.exception.AiEvaluationException.class)
+            .hasMessageContaining("preuve[communiquer]")
+            .hasMessageContaining("confiance invalide");
+        verify(aiEvaluationManager, never()).save(any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void le_mode_degrade_ne_releve_jamais_une_confiance_faible() {
+        when(llmClient.getPromptVersion()).thenReturn("v4");
+        Map<String, Object> first = feedback(7, 7, 7, 7);
+        Map<String, Object> repaired = feedback(7, 7, 7, 7);
+        for (Map<String, Object> raw : List.of(first, repaired)) {
+            ((List<Map<String, Object>>) raw.get("scores_criteres"))
+                .get(0).put("preuve", "citation inventée absente");
+            raw.put("confiance", "FAIBLE");
+        }
+        when(llmClient.evaluate(anyString(), anyString()))
+            .thenReturn(new EvaluationLlmClient.Outcome(first, 100, 20, 1))
+            .thenReturn(new EvaluationLlmClient.Outcome(repaired, 110, 30, 2));
+        ProductionSubmission sub = submission(task(EpreuveType.TCF_EE, 1), TEXTE_EE);
+
+        AiEvaluation eval = service.evaluate(sub.getId());
+
+        assertThat(eval.getFeedbackJson()).containsEntry("confiance", "FAIBLE");
+        assertThat(critere(eval, "communiquer")).doesNotContainKey("preuve");
+    }
+
+    @Test
+    void canonicalise_la_preuve_avec_le_passage_original_avant_persistance() {
+        Map<String, Object> raw = feedback(7, 7, 7, 7);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> scores =
+            (List<Map<String, Object>>) raw.get("scores_criteres");
+        scores.get(0).put("preuve", "j ai enfin demenage");
+        stubLlm(raw);
+        ProductionSubmission sub = submission(task(EpreuveType.TCF_EE, 1), TEXTE_EE);
+
+        AiEvaluation eval = service.evaluate(sub.getId());
+
+        assertThat(critere(eval, "communiquer").get("preuve"))
+            .isEqualTo("j'ai enfin déménagé");
     }
 
     // ------------------------------------------------ la table officielle du TCF
@@ -208,8 +394,8 @@ class AiEvaluationServiceV6Test {
 
     /**
      * Le meme jeu de notes sous v5 raconterait une autre histoire : c'est la
-     * preuve que la bascule tient au FICHIER de rubriques, et que
-     * {@code EVAL_RUBRICS_VERSION} seule suffit a revenir en arriere.
+     * preuve que la bascule de barème tient au FICHIER de rubriques ; le
+     * déploiement associe aussi le tool-schema historique compatible.
      */
     @Test
     void la_meme_note_ne_donne_pas_le_meme_niveau_sous_v5() {

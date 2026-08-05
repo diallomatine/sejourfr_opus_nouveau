@@ -16,16 +16,17 @@ public class ProductionEvaluationProperties {
     /**
      * Provider LLM actif pour l'evaluation des productions. Valeurs supportees :
      * {@code openai}, {@code anthropic}, {@code deepseek} (et tout endpoint
-     * compatible OpenAI via le bloc deepseek/openai). Bascule a chaud
-     * (redemarrage du backend suffit, aucune migration / aucun changement mobile).
+     * compatible OpenAI via le bloc deepseek/openai). Une bascule de configuration
+     * demande seulement un redemarrage du backend, sans migration ni changement mobile.
      */
-    private String provider = "openai";
+    private String provider = "deepseek";
 
     /**
      * Version du fichier de rubriques par tache charge par
      * {@code ProductionRubricsProvider} : {@code prompts/production-rubrics-<v>.json}.
      * Source unique du "comment noter" propre a chaque tache (criteres, bareme,
-     * descripteurs, consignes). Independant de la prompt-version (templates).
+     * descripteurs, consignes). Versionne separement du tool-schema, avec une
+     * matrice de compatibilite verifiee au demarrage avant toute evaluation.
      */
     private String rubricsVersion = "v1";
 
@@ -1012,19 +1013,13 @@ public class ProductionEvaluationProperties {
      * LLM/serveur de plus d'un palier). Livre <b>desactive</b> : c'est un cout
      * LLM double sur une partie du trafic.
      *
-     * <p>{@code provider} doit designer un modele DIFFERENT du provider
-     * principal : reinterroger le meme modele a temperature 0 n'apporte
-     * quasiment rien.
+     * <p>La seconde passe reutilise le provider et le modele principaux. Le
+     * correcteur n'a ainsi qu'une seule source de configuration, y compris
+     * pour le banc de calibration et les fins de session temps reel.
      */
     public static class SecondePasse {
         /** Coupe-circuit. false → une seule passe, comportement historique. */
         private boolean enabled = false;
-        /**
-         * Provider de la seconde passe ({@code openai} / {@code anthropic} /
-         * {@code deepseek}). Vide → meme provider que la passe 1 (deconseille,
-         * logue en warn au demarrage).
-         */
-        private String provider = "";
         /**
          * Marge (en points /20) autour d'un seuil de niveau sous laquelle la
          * competence est jugee "a la frontiere" → zone floue.
@@ -1037,14 +1032,6 @@ public class ProductionEvaluationProperties {
 
         public void setEnabled(boolean enabled) {
             this.enabled = enabled;
-        }
-
-        public String getProvider() {
-            return provider;
-        }
-
-        public void setProvider(String provider) {
-            this.provider = provider;
         }
 
         public double getMargeSeuilNiveau() {

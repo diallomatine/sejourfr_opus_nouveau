@@ -51,7 +51,7 @@ import static org.mockito.Mockito.when;
  * rend chaque unite de travail independante et parallelisable.
  *
  * <p><b>Conventions de format IRN</b> appliquees aux taches reconstituees :
- * EE T1 30-60 mots, EE T2/T3 40-90 mots ; EO T1 180 s, EO T2/T3 210 s (plancher
+ * EE T1 30-60 mots, EE T2/T3 60-90 mots ; EO T1 180 s, EO T2/T3 210 s (plancher
  * 120 s). La duree parlee simulee est posee a l'objectif : le corpus ne porte pas
  * de duree, et une duree courte injecterait un signal absent de la reference.
  */
@@ -142,7 +142,7 @@ final class CalibrationRunner {
         // defaut, activables via application.yaml pour mesurer leur effet.
         AiEvaluationService service = new AiEvaluationService(submissionManager, transcriptionManager,
             aiEvaluationManager, recorder, promptBuilder, rubrics, validity,
-            new ProductionSecondePasseService(props, recorder),
+            new ProductionSecondePasseService(props, recorder, rubrics),
             new ProductionFluiditeService(props), props);
 
         long start = System.currentTimeMillis();
@@ -192,7 +192,8 @@ final class CalibrationRunner {
         List<String> manquants = courtCircuit ? List.of() : champsManquants(recorder.brut);
         List<String> criteresManquants = courtCircuit ? List.of() : criteresManquants(cas, recorder.brut);
         boolean sortieInvalide = !courtCircuit
-            && (eval.getNoteSur20() == null || eval.getNiveauCecrl() == null || !manquants.isEmpty());
+            && (eval.getNoteSur20() == null || eval.getNiveauCecrl() == null
+                || !manquants.isEmpty() || !criteresManquants.isEmpty());
         String statut = courtCircuit ? "VALIDITE_SERVEUR" : (sortieInvalide ? "SORTIE_INVALIDE" : "OK");
 
         return new CaseRun(cas.id(), cas.groupe(), passe, statut, erreur,
@@ -221,7 +222,7 @@ final class CalibrationRunner {
         t.setConsigne(cas.consigne());
         t.setActive(true);
         if (cas.epreuve() == EpreuveType.TCF_EE) {
-            t.setMotsMin(cas.tache() == 1 ? 30 : 40);
+            t.setMotsMin(cas.tache() == 1 ? 30 : 60);
             t.setMotsMax(cas.tache() == 1 ? 60 : 90);
         } else {
             t.setDureeMaxSec(cas.tache() == 1 ? 180 : 210);

@@ -11,11 +11,10 @@ import java.util.UUID;
 
 /**
  * Enregistre l'echec d'une submission dans une transaction INDEPENDANTE
- * ({@code REQUIRES_NEW}). Indispensable : quand {@code AiEvaluationService.evaluate}
- * (ou Whisper) leve une exception, la transaction du pipeline est marquee
- * rollback-only ; ecrire {@code FAILED} dedans serait annule au commit (la
- * submission resterait bloquee en EVALUATING). En passant par une transaction
- * neuve, le statut FAILED + le message d'erreur reel persistent quoi qu'il arrive.
+ * ({@code REQUIRES_NEW}). L'orchestrateur async n'a plus de transaction
+ * englobante, mais cette isolation reste volontaire : une transaction interne
+ * d'evaluation ou de transcription en echec ne doit jamais annuler le statut
+ * FAILED ni laisser la submission bloquee en EVALUATING.
  */
 @Service
 @RequiredArgsConstructor

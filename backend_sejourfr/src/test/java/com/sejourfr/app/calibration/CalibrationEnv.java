@@ -12,6 +12,7 @@ import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.MutablePropertySources;
 import org.springframework.core.env.PropertySource;
+import org.springframework.core.env.SystemEnvironmentPropertySource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.ReflectionUtils;
 import tools.jackson.databind.ObjectMapper;
@@ -28,9 +29,9 @@ import java.util.regex.Pattern;
 
 /**
  * Cablage du banc sur la configuration REELLE : {@code application.yaml} de
- * production + le fichier {@code .env} local (que les tests ne lisent pas
- * d'eux-memes). Aucun contexte Spring n'est demarre, aucune base n'est
- * necessaire.
+ * production + l'environnement reel du processus + le fichier {@code .env}
+ * local (que les tests ne lisent pas d'eux-memes). Aucun contexte Spring n'est
+ * demarre, aucune base n'est necessaire.
  *
  * <p>Les valeurs de cle d'API ne sont jamais journalisees : on n'expose que le
  * fait qu'une cle soit presente ou non.
@@ -45,16 +46,19 @@ final class CalibrationEnv {
     /**
      * Charge {@code sejourfr.production-evaluation} tel que le backend le lit,
      * en surchargeant seulement la version de rubriques, la version de prompt et
-     * le provider demandes par la campagne.
+     * demandes par la campagne. Le provider et le modele ne sont jamais
+     * surcharges ici : ils viennent de la meme configuration que le runtime.
      */
-    static ProductionEvaluationProperties properties(String rubricsVersion, String promptVersion, String provider) {
+    static ProductionEvaluationProperties properties(String rubricsVersion, String promptVersion) {
         MutablePropertySources sources = new MutablePropertySources();
 
         Map<String, Object> overrides = new LinkedHashMap<>();
         if (rubricsVersion != null) overrides.put("EVAL_RUBRICS_VERSION", rubricsVersion);
         if (promptVersion != null) overrides.put("EVAL_PROMPT_VERSION", promptVersion);
-        if (provider != null) overrides.put("EVAL_LLM_PROVIDER", provider);
         sources.addFirst(new MapPropertySource("calibration-overrides", overrides));
+        Map<String, Object> processEnv = new LinkedHashMap<>();
+        processEnv.putAll(System.getenv());
+        sources.addLast(new SystemEnvironmentPropertySource("system-environment", processEnv));
         sources.addLast(new MapPropertySource("dotenv", dotenv()));
         for (PropertySource<?> ps : yaml()) sources.addLast(ps);
 

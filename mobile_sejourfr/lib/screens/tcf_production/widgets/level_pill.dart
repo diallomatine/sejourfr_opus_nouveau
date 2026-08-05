@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../core/models/enums.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// Pastille A1 / A2 / B1 / B2 / C1 / C2 colorée par le helper canonique
+/// Pastille de niveau colorée par le helper canonique. C1/C2 restent lisibles
+/// uniquement pour les anciennes évaluations ; le profil actif s'arrête à B2.
 /// [CecrlColor] du thème (ambre A1/A2, bleu B1, vert B2+) — mêmes couleurs
 /// que le hub TCF et le bilan d'examen. Distincte du `AppTag` existant
 /// (CSP/CR/NAT) qui sert pour les parcours.

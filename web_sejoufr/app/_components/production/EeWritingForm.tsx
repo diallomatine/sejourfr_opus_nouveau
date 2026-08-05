@@ -41,7 +41,7 @@ export function EeWritingForm({
   /** Incrémenté par le parent (chrono examen à 0:00) pour déclencher une
    *  auto-soumission du texte courant si recevable. */
   autoSubmitSignal?: number;
-  /** Reçoit le texte courant + s'il est recevable (mots ∈ [motsMin, motsMax×1.2]).
+  /** Reçoit le texte courant + s'il est recevable (mots ∈ [motsMin, motsMax]).
    *  Au parent de décider quoi en faire (soumettre ou finir à vide). */
   onAutoSubmit?: (texte: string, recevable: boolean) => void;
   onSubmit: (texte: string) => void;
@@ -78,33 +78,27 @@ export function EeWritingForm({
   const max = task.motsMax;
   const inRange =
     (min == null || words >= min) && (max == null || words <= max);
-  // Fenêtre réellement acceptée par le backend (`ProductionEvaluationService.
-  // validateTextWordCount`) : sous `motsMin` ou au-delà de `motsMax × 1.2`,
-  // la soumission part en 422. On le dit avant le clic au lieu de laisser le
-  // candidat découvrir l'erreur serveur (parité `ee_briefing_writing_screen`).
-  const maxTolere = max != null ? Math.floor(max * 1.2) : null;
   const submittable =
     words > 0 &&
     (min == null || words >= min) &&
-    (maxTolere == null || words <= maxTolere);
+    (max == null || words <= max);
   const lengthHint =
     words === 0 || submittable
       ? null
       : min != null && words < min
         ? `Encore ${min - words} mot${min - words > 1 ? "s" : ""} avant de pouvoir soumettre (${min} minimum).`
-        : `Texte trop long de ${words - (maxTolere ?? words)} mot${
-            words - (maxTolere ?? words) > 1 ? "s" : ""
+        : `Texte trop long de ${words - (max ?? words)} mot${
+            words - (max ?? words) > 1 ? "s" : ""
           } : raccourcissez-le pour pouvoir soumettre (${max} mots attendus).`;
 
-  // Auto-soumission examen (chrono à 0:00). Recevable = mots ∈ [motsMin,
-  // motsMax×1.2] — on tolère 20 % au-dessus de la borne haute. Le parent décide.
+  // Auto-soumission examen (chrono à 0:00). Les bornes TCF IRN sont strictes.
   const lastSignalRef = useRef(0);
   useEffect(() => {
     if (autoSubmitSignal <= 0 || autoSubmitSignal === lastSignalRef.current) return;
     lastSignalRef.current = autoSubmitSignal;
     const recevable =
       (min == null || words >= min) &&
-      (max == null || words <= Math.floor(max * 1.2));
+      (max == null || words <= max);
     onAutoSubmit?.(text.trim(), recevable);
   }, [autoSubmitSignal, words, min, max, text, onAutoSubmit]);
   const wordClass = words === 0 ? "" : inRange ? styles.wordOk : styles.wordWarn;

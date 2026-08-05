@@ -123,6 +123,9 @@ public class ProductionRubricsValidator {
                 errors.add("Tache active sans rubrique : id=" + task.getId()
                     + " cle=" + ProductionRubricsProvider.key(epreuve, tache == null ? -1 : tache));
             }
+            if (epreuve == EpreuveType.TCF_EE && tache != null) {
+                validateEeTask(task, tache, errors);
+            }
         }
 
         if (!errors.isEmpty()) {
@@ -133,6 +136,22 @@ public class ProductionRubricsValidator {
         }
         log.info("Rubriques de notation validees : {} rubriques, couverture des taches actives OK.",
             rubrics.all().size());
+    }
+
+    private static void validateEeTask(ProductionTask task, int tache, List<String> errors) {
+        int expectedMin = tache == 1 ? 30 : 60;
+        int expectedMax = tache == 1 ? 60 : 90;
+        if (tache < 1 || tache > 3
+                || task.getMotsMin() == null || task.getMotsMin() != expectedMin
+                || task.getMotsMax() == null || task.getMotsMax() != expectedMax) {
+            errors.add("Tache EE active hors bornes TCF IRN : id=" + task.getId()
+                + " tache=" + tache + " bornes=" + task.getMotsMin() + "-" + task.getMotsMax()
+                + " attendues=" + expectedMin + "-" + expectedMax + ".");
+        }
+        if (tache >= 2 && tache <= 3
+                && (task.getContexte() == null || task.getContexte().isBlank())) {
+            errors.add("Tache EE T" + tache + " sans contexte/destinataire : id=" + task.getId() + ".");
+        }
     }
 
     private static void validateRubric(String cle, Map<String, Object> rubric,

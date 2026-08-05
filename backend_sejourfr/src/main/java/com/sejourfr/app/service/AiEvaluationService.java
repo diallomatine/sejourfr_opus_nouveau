@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -59,8 +60,23 @@ public class AiEvaluationService {
             + "notre correction, pas un choix pédagogique. À l'examen officiel, ces "
             + "dimensions comptent.";
 
+    static final String AVERTISSEMENT_PREUVE_RETIREE =
+        "Une des quatre citations justificatives n'a pas pu être reliée de façon sûre "
+            + "à votre production après vérification. Elle a été retirée : aucune citation "
+            + "non vérifiée n'est affichée. La confiance de cette évaluation est donc au "
+            + "maximum moyenne — elle reste faible si elle l'était déjà.";
+
+    static final String RAISON_CONFIANCE_PREUVE_RETIREE =
+        "une citation justificative n'a pas pu être vérifiée et a été retirée";
+
     /** Trace du modele quand aucun LLM n'a ete appele (production jugee inevaluable). */
     static final String MODELE_VALIDATION_SERVEUR = "validation-serveur";
+
+    private record ValidatedOutcome(
+        EvaluationLlmClient.Outcome outcome,
+        List<String> avertissements
+    ) {
+    }
 
     private final ProductionSubmissionManager submissionManager;
     private final TranscriptionManager transcriptionManager;
@@ -118,27 +134,44 @@ public class AiEvaluationService {
         if (!(criteres instanceof List<?> critList) || !(scoresCriteres instanceof List<?> scores)) {
             return null;
         }
-        Map<String, BigDecimal> poidsByCode = new HashMap<>();
+        Map<String, BigDecimal> poidsByCode = new LinkedHashMap<>();
         for (Object c : critList) {
-            if (c instanceof Map<?, ?> m && m.get("code") != null && m.get("poids") instanceof Number n) {
-                poidsByCode.put(m.get("code").toString(), new BigDecimal(n.toString()));
+            if (!(c instanceof Map<?, ?> m) || m.get("code") == null
+                    || !(m.get("poids") instanceof Number n)) return null;
+            String code = m.get("code").toString();
+            if (poidsByCode.containsKey(code)) return null;
+            try {
+                BigDecimal poids = new BigDecimal(n.toString());
+                if (poids.compareTo(BigDecimal.ZERO) < 0) return null;
+                poidsByCode.put(code, poids);
+            } catch (NumberFormatException e) {
+                return null;
             }
         }
-        if (poidsByCode.isEmpty()) return null;
+        if (poidsByCode.isEmpty() || scores.size() != poidsByCode.size()) return null;
 
-        BigDecimal sum = BigDecimal.ZERO;
-        boolean any = false;
+        Map<String, BigDecimal> notesByCode = new HashMap<>();
         for (Object s : scores) {
-            if (!(s instanceof Map<?, ?> m)) continue;
+            if (!(s instanceof Map<?, ?> m)) return null;
             Object code = m.get("code");
             Object note = m.get("note_sur_20");
-            if (code == null || !(note instanceof Number noteNum)) continue;
-            BigDecimal poids = poidsByCode.get(code.toString());
-            if (poids == null) continue;
-            sum = sum.add(new BigDecimal(noteNum.toString()).multiply(poids));
-            any = true;
+            if (code == null || !(note instanceof Number noteNum)) return null;
+            String codeValue = code.toString();
+            if (!poidsByCode.containsKey(codeValue) || notesByCode.containsKey(codeValue)) return null;
+            try {
+                BigDecimal value = new BigDecimal(noteNum.toString());
+                if (value.compareTo(BigDecimal.ZERO) < 0 || value.compareTo(NOTE_MAX) > 0) return null;
+                notesByCode.put(codeValue, value);
+            } catch (NumberFormatException e) {
+                return null;
+            }
         }
-        if (!any) return null;
+        if (!notesByCode.keySet().equals(poidsByCode.keySet())) return null;
+
+        BigDecimal sum = BigDecimal.ZERO;
+        for (Map.Entry<String, BigDecimal> entry : poidsByCode.entrySet()) {
+            sum = sum.add(notesByCode.get(entry.getKey()).multiply(entry.getValue()));
+        }
         BigDecimal rounded = sum.setScale(1, RoundingMode.HALF_UP);
         if (rounded.compareTo(BigDecimal.ZERO) < 0) return BigDecimal.ZERO;
         if (rounded.compareTo(NOTE_MAX) > 0) return NOTE_MAX;
@@ -154,13 +187,6 @@ public class AiEvaluationService {
             }
         }
         return present.containsAll(sourceCodes);
-    }
-
-    private static String formatMinutes(int sec) {
-        int m = sec / 60;
-        int s = sec % 60;
-        if (m == 0) return s + " s";
-        return s == 0 ? m + " min" : m + " min " + s + " s";
     }
 
     @Transactional
@@ -182,13 +208,15 @@ public class AiEvaluationService {
             return persistProductionInvalide(sub, task, verdict);
         }
 
-        Integer dureeSec = task.getEpreuve() == EpreuveType.TCF_EO ? sub.getMediaDurationSec() : null;
         String systemPrompt = promptBuilder.buildSystemPrompt();
-        String userPrompt = promptBuilder.buildUserPrompt(task, input.production(), input.litteral(), dureeSec);
+        String userPrompt = promptBuilder.buildUserPrompt(task, input.production(), input.litteral(), null);
 
-        EvaluationLlmClient.Outcome outcome = llmClient.evaluate(systemPrompt, userPrompt);
+        ValidatedOutcome validated = evaluateValidated(
+                llmClient, systemPrompt, userPrompt, task, input.production(), submissionId);
+        EvaluationLlmClient.Outcome outcome = validated.outcome();
         ProductionSecondePasseService.Passe passe = postProcess(
-                outcome, llmClient.getModelName(), sub, task, verdict, input.production(), submissionId);
+                outcome, llmClient.getModelName(), sub, task, verdict, input.production(),
+                validated.avertissements(), submissionId);
 
         int tokensIn = nz(outcome.inputTokens());
         int tokensOut = nz(outcome.outputTokens());
@@ -206,10 +234,12 @@ public class AiEvaluationService {
             if (!raisons.isEmpty()) {
                 try {
                     EvaluationLlmClient client2 = secondePasseService.client();
-                    EvaluationLlmClient.Outcome outcome2 = client2.evaluate(systemPrompt, userPrompt);
+                    ValidatedOutcome validated2 = evaluateValidated(
+                            client2, systemPrompt, userPrompt, task, input.production(), submissionId);
+                    EvaluationLlmClient.Outcome outcome2 = validated2.outcome();
                     ProductionSecondePasseService.Passe passe2 = postProcess(
                             outcome2, client2.getModelName(), sub, task, verdict,
-                            input.production(), submissionId);
+                            input.production(), validated2.avertissements(), submissionId);
                     passe = secondePasseService.arbitrer(passe, passe2, raisons, submissionId);
                     tokensIn += nz(outcome2.inputTokens());
                     tokensOut += nz(outcome2.outputTokens());
@@ -257,6 +287,112 @@ public class AiEvaluationService {
         return v == null ? 0 : v;
     }
 
+    /**
+     * Validation semantique commune a tous les providers. Une sortie brute
+     * invalide est rejouee une seule fois avec la liste des violations. Apres
+     * ce retry, une unique preuve non rattachable peut etre retiree en mode
+     * degrade ; toute autre violation interdit le post-traitement.
+     */
+    private ValidatedOutcome evaluateValidated(
+            EvaluationLlmClient client, String systemPrompt, String userPrompt,
+            ProductionTask task, String production, UUID submissionId) {
+        EvaluationLlmClient.Outcome first = client.evaluate(systemPrompt, userPrompt);
+        List<String> violations = EvaluationOutputValidator.violations(
+                first.feedback(), task, rubrics, client.getPromptVersion(), production);
+        if (violations.isEmpty()) return new ValidatedOutcome(first, List.of());
+
+        log.warn("Sortie LLM invalide submission={} modele={} — retry semantique unique : {}",
+                submissionId, client.getModelName(), violations);
+        String repairPrompt = userPrompt
+            + "\n\nTA SORTIE PRECEDENTE A ETE REJETEE PAR LE SERVEUR. "
+            + "Corrige exactement ces violations et rappelle l'outil submit_evaluation :\n- "
+            + String.join("\n- ", violations);
+        EvaluationLlmClient.Outcome repaired = client.evaluate(systemPrompt, repairPrompt);
+        List<String> remaining = EvaluationOutputValidator.violations(
+                repaired.feedback(), task, rubrics, client.getPromptVersion(), production);
+        if (!remaining.isEmpty()) {
+            var unmatchedProof = "v4".equals(client.getPromptVersion())
+                ? EvaluationOutputValidator.singleUnmatchedProofCode(remaining)
+                : java.util.Optional.<String>empty();
+            if (unmatchedProof.isPresent()) {
+                Map<String, Object> degraded = removeUnverifiedProof(
+                    repaired.feedback(), unmatchedProof.get());
+                log.warn("Sortie LLM degradee submission={} modele={} — preuve[{}] retiree "
+                        + "apres le retry semantique.",
+                    submissionId, client.getModelName(), unmatchedProof.get());
+                return new ValidatedOutcome(
+                    aggregateOutcomes(first, repaired, degraded),
+                    List.of(AVERTISSEMENT_PREUVE_RETIREE));
+            }
+            throw new AiEvaluationException("Sortie LLM invalide apres une tentative de reparation : "
+                + String.join(" ; ", remaining));
+        }
+        return new ValidatedOutcome(aggregateOutcomes(first, repaired, repaired.feedback()), List.of());
+    }
+
+    private static EvaluationLlmClient.Outcome aggregateOutcomes(
+            EvaluationLlmClient.Outcome first, EvaluationLlmClient.Outcome repaired,
+            Map<String, Object> feedback) {
+        return new EvaluationLlmClient.Outcome(
+            feedback,
+            sumNullable(first.inputTokens(), repaired.inputTokens()),
+            sumNullable(first.outputTokens(), repaired.outputTokens()),
+            sumNullable(first.costEstimateCents(), repaired.costEstimateCents()));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> removeUnverifiedProof(
+            Map<String, Object> rawFeedback, String criterionCode) {
+        Map<String, Object> feedback = new LinkedHashMap<>(rawFeedback);
+        if (!(rawFeedback.get("scores_criteres") instanceof List<?> rawScores)) {
+            throw new AiEvaluationException("Impossible de retirer la preuve non verifiee : scores absents.");
+        }
+        if (rawScores.size() != 4) {
+            throw new AiEvaluationException(
+                "Impossible de degrader une evaluation qui ne porte pas exactement quatre criteres.");
+        }
+
+        List<Object> scores = new ArrayList<>();
+        int removed = 0;
+        for (Object rawScore : rawScores) {
+            if (!(rawScore instanceof Map<?, ?> rawMap)) {
+                scores.add(rawScore);
+                continue;
+            }
+            Map<String, Object> score = new LinkedHashMap<>((Map<String, Object>) rawMap);
+            if (criterionCode.equals(String.valueOf(score.get("code")))
+                    && score.remove("preuve") != null) {
+                removed++;
+            }
+            scores.add(score);
+        }
+        if (removed != 1) {
+            throw new AiEvaluationException("Impossible de retirer exactement une preuve non verifiee.");
+        }
+        feedback.put("scores_criteres", scores);
+
+        ConfianceEvaluation confiance = ConfianceEvaluation.min(
+            ConfianceEvaluation.parse(feedback.get("confiance")), ConfianceEvaluation.MOYENNE);
+        feedback.put("confiance", confiance.name());
+        List<String> raisons = new ArrayList<>();
+        if (feedback.get("confiance_raisons") instanceof List<?> existing) {
+            for (Object raison : existing) {
+                if (raison != null && !RAISON_CONFIANCE_PREUVE_RETIREE.equals(raison.toString())
+                        && raisons.size() < 2) {
+                    raisons.add(raison.toString());
+                }
+            }
+        }
+        raisons.add(RAISON_CONFIANCE_PREUVE_RETIREE);
+        feedback.put("confiance_raisons", raisons);
+        return feedback;
+    }
+
+    private static Integer sumNullable(Integer a, Integer b) {
+        if (a == null && b == null) return null;
+        return nz(a) + nz(b);
+    }
+
     /** Competence /20 (criteres porteurs du niveau) d'un feedback deja traite. */
     private BigDecimal competenceDe(Map<String, Object> feedback, BigDecimal note) {
         return ProductionBilanService.competence(
@@ -273,13 +409,15 @@ public class AiEvaluationService {
     private ProductionSecondePasseService.Passe postProcess(
             EvaluationLlmClient.Outcome outcome, String modele,
             ProductionSubmission sub, ProductionTask task,
-            ProductionValidityService.Verdict verdict, String production, UUID submissionId) {
+            ProductionValidityService.Verdict verdict, String production,
+            List<String> validationWarnings, UUID submissionId) {
         // Avertissements construits cote serveur (limite orale, longueur/duree,
         // controles de validite), injectes dans le feedback expose au front.
         // L'IA ne les produit pas elle-meme.
         Map<String, Object> feedback = new LinkedHashMap<>(outcome.feedback());
         List<String> avertissements = buildAvertissements(sub, task);
         avertissements.addAll(verdict.raisons());
+        avertissements.addAll(validationWarnings);
         if (!avertissements.isEmpty()) {
             feedback.put("avertissements", avertissements);
         }
@@ -289,9 +427,13 @@ public class AiEvaluationService {
         // Aucun point `obligatoire: false` (une simple piste du sujet) n'entre
         // dans un quelconque calcul de note — c'est une regle produit.
         normalizeAccomplissement(feedback);
-        // Preuves : une citation absente de la production a ete inventee par
-        // l'IA -> on la retire plutot que de la montrer au candidat.
-        stripPreuvesInventees(feedback, production, submissionId);
+        // Le contrat v4 rejette une preuve absente/ambigue avant ce
+        // post-traitement, sauf l'unique preuve retiree explicitement apres un
+        // second appel autrement valide. Les passages acceptes sont remplaces
+        // par leur sous-chaine originale exacte : le candidat ne voit jamais
+        // une recopie approximative ou inventee. Sur un ancien contrat, une
+        // preuve sans match conservateur est retiree.
+        canonicalizePreuves(feedback, production, task.getEpreuve(), submissionId);
         // EO : `exemples_corriges` ne doit garder que des reformulations de
         // clarte (niveau phrase). On retire les corrections purement
         // orthographiques (accents/casse/ponctuation) et les corrections de mot
@@ -326,8 +468,8 @@ public class AiEvaluationService {
         applyBandesCriteres(feedback);
         // note_globale calculee SERVEUR a partir des scores par critere ponderes
         // par la rubrique : on ecrase la valeur du LLM (advisory). Garantit la
-        // coherence global <-> criteres. Si la rubrique est absente, on conserve
-        // la note du LLM (extractNote la relira).
+        // coherence global <-> criteres. Une anomalie est bloquante : aucun
+        // fallback vers une note LLM partielle n'est persiste.
         applyServerComputedNote(feedback, task, submissionId);
         BigDecimal noteSur20 = extractNote(feedback);
         // niveau_cecrl du LLM = advisory (conserve en base pour la calibration,
@@ -490,35 +632,28 @@ public class AiEvaluationService {
         feedback.put("accomplissement", acc);
     }
 
-    /**
-     * Retire les {@code preuve} qui n'apparaissent PAS dans la production : ce
-     * sont des citations inventees par l'IA, et une fausse citation detruit la
-     * confiance du candidat dans toute la correction. Comparaison sur texte
-     * normalise (accents/casse/ponctuation/espaces neutralises) pour tolerer
-     * une recopie approximative sans tolerer une invention.
-     */
+    /** Canonicalise les preuves valides et retire celles sans passage unique. */
     @SuppressWarnings("unchecked")
-    private void stripPreuvesInventees(Map<String, Object> feedback, String production, UUID submissionId) {
+    private void canonicalizePreuves(Map<String, Object> feedback, String production,
+                                     EpreuveType epreuve, UUID submissionId) {
         if (!(feedback.get("scores_criteres") instanceof List<?> scores)) return;
-        String haystack = normalizeForOrthoCompare(production == null ? "" : production);
         int retirees = 0;
         for (Object s : scores) {
             if (!(s instanceof Map<?, ?> rawMap)) continue;
             Map<String, Object> sm = (Map<String, Object>) rawMap;
             Object preuve = sm.get("preuve");
             if (preuve == null) continue;
-            String needle = normalizeForOrthoCompare(preuve.toString());
-            if (needle.isEmpty()) {
-                sm.remove("preuve");
-                continue;
-            }
-            if (!haystack.contains(needle)) {
+            var passage = EvaluationProofMatcher.canonicalPassage(
+                production, preuve.toString(), epreuve);
+            if (passage.isEmpty()) {
                 sm.remove("preuve");
                 retirees++;
+            } else {
+                sm.put("preuve", passage.get());
             }
         }
         if (retirees > 0) {
-            log.warn("{} preuve(s) inventee(s) retiree(s) submission={} — citation absente de la production.",
+            log.warn("{} preuve(s) retiree(s) submission={} — aucun passage unique dans la production.",
                 retirees, submissionId);
         }
     }
@@ -792,7 +927,7 @@ public class AiEvaluationService {
      * un espace, espaces normalises. Deux chaines egales apres ce traitement ne
      * different que par l'orthographe/casse/ponctuation.
      */
-    private static String normalizeForOrthoCompare(String s) {
+    static String normalizeForOrthoCompare(String s) {
         String sansAccents = java.text.Normalizer
                 .normalize(s, java.text.Normalizer.Form.NFD)
                 .replaceAll("\\p{M}+", "");
@@ -808,8 +943,7 @@ public class AiEvaluationService {
      * <ul>
      *   <li>EO : limite assumee « evaluation fondee sur la transcription »,
      *       TOUJOURS en tete (cf. {@link #AVERTISSEMENT_TRANSCRIPTION}) ;</li>
-     *   <li>EE : depassement modere de la limite de mots (tolerance) ;</li>
-     *   <li>EO : duree parlee sous la cible / sous le minimum (2 min).</li>
+     *   <li>EE : depassement de la limite de mots pour les anciennes donnees ;</li>
      * </ul>
      */
     private List<String> buildAvertissements(ProductionSubmission sub, ProductionTask task) {
@@ -825,21 +959,6 @@ public class AiEvaluationService {
         }
         // TCF_EO
         out.add(AVERTISSEMENT_TRANSCRIPTION);
-        Integer duree = sub.getMediaDurationSec();
-        Integer cible = task.getDureeMaxSec();
-        Integer min = task.getDureeMinSec();
-        if (duree != null && cible != null && duree < cible) {
-            if (min != null && duree < min) {
-                out.add("Votre enregistrement est court (" + duree + " s, soit environ "
-                        + formatMinutes(duree) + "). Le minimum recommandé est de 2 minutes et l'objectif "
-                        + cible + " s (~" + formatMinutes(cible) + "). Une production trop courte limite la "
-                        + "démonstration de vos competences : votre note en tient compte. Rapprochez-vous "
-                        + "de 3 minutes la prochaine fois.");
-            } else {
-                out.add("Vous avez parle " + duree + " s ; l'objectif est " + cible + " s (~"
-                        + formatMinutes(cible) + "). Developpez davantage pour viser le niveau superieur.");
-            }
-        }
         return out;
     }
 
@@ -883,16 +1002,15 @@ public class AiEvaluationService {
      * a partir des {@code scores_criteres} et des poids de la rubrique, puis
      * <b>ecrase</b> la valeur du LLM dans {@code feedback}. La note du LLM devient
      * advisory : un ecart > seuil est logue (calibration). Sans rubrique ou sans
-     * scores exploitables, on ne touche pas a la note du LLM.
+     * scores exploitables, l'evaluation echoue au lieu de conserver la note LLM.
      */
     private void applyServerComputedNote(Map<String, Object> feedback, ProductionTask task, UUID submissionId) {
         Object criteres = rubrics.find(task.getEpreuve(), task.getTacheNumero())
                 .map(r -> r.get("criteres")).orElse(null);
         BigDecimal computed = weightedNote(criteres, feedback.get("scores_criteres"));
         if (computed == null) {
-            log.warn("note_globale non recalculee serveur (submission={} : rubrique/scores manquants) — "
-                    + "note LLM conservee.", submissionId);
-            return;
+            throw new AiEvaluationException("note_globale non calculable avec les quatre criteres attendus "
+                    + "pour la submission " + submissionId);
         }
         BigDecimal llmNote = extractNote(feedback);
         if (llmNote != null && llmNote.subtract(computed).abs().compareTo(SEUIL_ECART_CALIBRATION) > 0) {
@@ -906,10 +1024,10 @@ public class AiEvaluationService {
      * Calcule le {@code niveau_cecrl} SERVEUR depuis lexique+morphosyntaxe et le
      * persiste comme niveau affiche, en <b>ecrasant</b> {@code feedback.niveau_cecrl}
      * (le mobile lit ce champ). Le niveau du LLM ({@code niveauIa}) reste advisory.
-     * Si un critere source manque, WARN + fallback sur la moyenne ponderee (note).
+     * Si un critere source manque, le calcul tente la moyenne ponderee complete.
      * Logue un compteur de divergence (≥1 cran) IA vs calcul pour la calibration.
      *
-     * @return le niveau calcule, ou le niveau LLM si le calcul est impossible.
+     * @return le niveau calcule ; une impossibilite est bloquante.
      */
     private NiveauCecrl applyServerComputedNiveau(Map<String, Object> feedback, BigDecimal noteGlobale,
                                                   NiveauCecrl niveauIa, UUID submissionId) {
@@ -922,8 +1040,8 @@ public class AiEvaluationService {
         NiveauCecrl calcule = ProductionBilanService.computeNiveau(
                 scores, sourceCodes, noteGlobale, rubrics.niveauCecrl());
         if (calcule == null) {
-            log.warn("niveau_cecrl non calculable serveur (submission={}) — niveau LLM conserve.", submissionId);
-            return niveauIa; // feedback.niveau_cecrl reste la valeur LLM
+            throw new AiEvaluationException("niveau_cecrl non calculable cote serveur pour la submission "
+                    + submissionId);
         }
         if (niveauIa != null && niveauIa != calcule) {
             String sens = niveauIa.ordinal() < calcule.ordinal() ? "sous-estimation LLM" : "sur-estimation LLM";

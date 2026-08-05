@@ -10,8 +10,8 @@ import java.util.Map;
  * de {@code EvaluationLlmConfig}.
  *
  * <p>Tous les clients renvoient le meme JSON structure (cf. tool schema
- * {@code prompts/production-evaluation-tool-schema.json}) — c'est garanti par
- * l'appel au mode function-calling / tool_use.
+ * versionne {@code prompts/production-evaluation-tool-schema-<version>.json}) ;
+ * la structure active est ensuite validee cote serveur avant normalisation.
  */
 public interface EvaluationLlmClient {
 
@@ -31,8 +31,8 @@ public interface EvaluationLlmClient {
     String getModelName();
 
     /**
-     * Version du prompt utilisee. Persiste dans {@code ai_evaluations.prompt_version}.
-     * Toute modif du prompt (en gardant le meme provider) doit bump cette version.
+     * Version du contrat de sortie/tool-schema utilise. Persiste historiquement dans
+     * {@code ai_evaluations.prompt_version}.
      */
     String getPromptVersion();
 

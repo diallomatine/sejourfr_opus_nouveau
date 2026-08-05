@@ -1,5 +1,10 @@
 # Tâche Claude Code : Module d'entraînement Expression (EO + EE) — TCF IRN
 
+> **Archive de conception initiale — ne pas utiliser comme référence du pipeline actuel.**
+> La notation active est décrite dans `docs/pipeline-evaluation-eo-ee.md` et
+> `docs/notation-ia-eo-ee.md` : profil TCF IRN plafonné à B2, rubriques v7, schéma v4 et
+> correcteur unique choisi dans `application.yaml`.
+
 ## Contexte du projet
 
 SejourFR est une app de préparation au TCF IRN (Spring Boot 4 / Java 21 / PostgreSQL / Flyway au back, Next.js React 19 TS au front web, Flutter au mobile). Le module **Compréhension (CO/CE)** fonctionne déjà en QCM (tables `questions`, `choices`, `attempts`).
@@ -30,8 +35,8 @@ D'après les sujets officiels de France Éducation International :
 
 **Expression Écrite (EE)** — 30 min, 3 tâches dans l'ordre :
 - Tâche 1 : message simple, souvent en réponse à un déclencheur (ex. SMS de « Jenny »). Seuils : 30 mots min / 60 max.
-- Tâche 2 : récit en réponse à un déclencheur (ex. message d'« Élise »). Seuils : 40 / 90.
-- Tâche 3 : avis sur un forum/débat. Seuils : 40 / 90.
+- Tâche 2 : récit en réponse à un déclencheur (ex. message d'« Élise »). Seuils : 60 / 90.
+- Tâche 3 : avis sur un forum/débat. Seuils : 60 / 90.
 - Chaque tâche peut avoir un **déclencheur** (message d'un expéditeur fictif) affiché avant la zone de rédaction.
 
 **Expression Orale (EO)** — 10 min, 3 tâches :
@@ -39,7 +44,7 @@ D'après les sujets officiels de France Éducation International :
 - Tâche 2 : exercice en interaction / jeu de rôle. 3 min 30. **A un support visuel** (ex. 3 photos de logements avec légendes). L'examen réel propose **5 sujets**, l'examinateur en choisit 1.
 - Tâche 3 : exprimer goûts/opinions. 3 min 30. **5 sujets**, 1 choisi.
 
-**Important** : l'examen réel **n'étiquette PAS les sujets par niveau CECRL**. Le candidat est évalué a posteriori sur l'échelle A1→C2. Donc le niveau ne doit PAS être un filtre obligatoire côté apprenant (il peut rester une indication interne pour trier la difficulté des entraînements).
+**Important** : l'examen réel **n'étiquette PAS les sujets par niveau CECRL**. Dans SejourFR, le candidat est évalué a posteriori sur le profil TCF IRN A1 non atteint → B2 ; C1/C2 ne sont jamais rapportés. Le niveau ne doit PAS être un filtre obligatoire côté apprenant (il peut rester une indication interne pour trier la difficulté des entraînements).
 
 ## Vue produit (maquette fournie séparément)
 

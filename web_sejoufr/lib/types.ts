@@ -407,8 +407,8 @@ export type SubmissionStatut =
     | "EVALUATED"
     | "FAILED";
 
-/** Niveau CECRL d'une éval IA (distinct de TargetLevel : inclut A1/C1/C2 +
- *  plancher A1_NON_ATTEINT). */
+/** Niveau CECRL d'une éval IA. Le contrat TCF IRN actif s'arrête à B2 ;
+ *  C1/C2 restent décodables uniquement pour les évaluations historiques. */
 export type NiveauCecrl =
     | "A1_NON_ATTEINT"
     | "A1"
@@ -714,8 +714,8 @@ export function correspondanceTcfPhrase(
     return `Au TCF, le niveau ${niveauCecrlLabel(c.niveau)} correspond à ${plage}.`;
 }
 
-/** Position d'un niveau sur l'échelle affichée [A1, A2, B1, B2, C1, C2] (6
- *  segments). A1_NON_ATTEINT → -1 (sous le seuil A1). */
+/** Position sur l'échelle TCF IRN affichée [A1, A2, B1, B2].
+ *  A1_NON_ATTEINT → -1 ; les anciennes valeurs C1/C2 sont plafonnées à B2. */
 export function cecrlIndex(n: NiveauCecrl | null | undefined): number {
     switch (n) {
         case "A1_NON_ATTEINT":
@@ -729,9 +729,8 @@ export function cecrlIndex(n: NiveauCecrl | null | undefined): number {
         case "B2":
             return 3;
         case "C1":
-            return 4;
         case "C2":
-            return 5;
+            return 3;
         default:
             return -1;
     }

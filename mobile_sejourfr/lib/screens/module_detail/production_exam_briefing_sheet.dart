@@ -87,7 +87,7 @@ class ProductionExamBriefingSheet extends StatelessWidget {
                   const SizedBox(height: 12),
                   _ConseilCard(
                     text: isEo
-                        ? 'Parle clairement, utilise des connecteurs (d\'abord, ensuite, donc) et évite les longs blancs. L\'IA apprécie la fluidité.'
+                        ? 'Exprime tes idées clairement et utilise des connecteurs (d\'abord, ensuite, donc). L\'IA corrige les mots transcrits ; elle n\'évalue ni la prononciation ni la fluidité.'
                         : 'Lis bien la consigne, structure ta réponse (introduction, développement, conclusion) et respecte le nombre de mots indiqué.',
                   ),
                   const SizedBox(height: 22),
@@ -160,12 +160,12 @@ const _eeTasks = <_ExamTask>[
   _ExamTask(
     index: 2,
     label: 'Récit',
-    detail: 'Expérience personnelle · 40-90 mots',
+    detail: 'Expérience personnelle · 60-90 mots',
   ),
   _ExamTask(
     index: 3,
     label: 'Opinion',
-    detail: 'Argumentation simple · 40-90 mots',
+    detail: 'Argumentation simple · 60-90 mots',
   ),
 ];
 

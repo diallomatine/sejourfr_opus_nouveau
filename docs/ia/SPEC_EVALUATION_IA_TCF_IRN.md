@@ -25,8 +25,8 @@ Depuis le 12 mai 2025, le TCF IRN évalue jusqu'au niveau **B2**.
 | Tâche | Nature | Longueur officielle TCF IRN |
 |---|---|---:|
 | EE1 | Message court de description/réponse | **30 à 60 mots** |
-| EE2 | Récit ou compte rendu d'expérience | **40 à 90 mots** |
-| EE3 | Opinion sur une personne, un lieu, un objet ou un groupe | **40 à 90 mots** |
+| EE2 | Récit ou compte rendu d'expérience | **60 à 90 mots** |
+| EE3 | Opinion sur une personne, un lieu, un objet ou un groupe | **60 à 90 mots** |
 
 > À supprimer du paramétrage TCF IRN : 60–120, 120–150 et 150–180 mots. Ces fourchettes ne correspondent pas au format IRN actuel.
 
@@ -772,7 +772,7 @@ Raconter une expérience ou faire un compte rendu d'activités quotidiennes à u
 
 ## 14.1 Objectif
 
-Donner une opinion au destinataire indiqué et la justifier dans un texte très court de 40 à 90 mots.
+Donner une opinion au destinataire indiqué et la justifier dans un texte de 60 à 90 mots.
 
 ## 14.2 Critères et poids
 

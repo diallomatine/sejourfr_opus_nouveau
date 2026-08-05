@@ -2,6 +2,7 @@ package com.sejourfr.app.service;
 
 import com.sejourfr.app.entity.AiEvaluation;
 import com.sejourfr.app.entity.ProductionSubmission;
+import com.sejourfr.app.enums.EpreuveType;
 import com.sejourfr.app.enums.SubmissionStatut;
 import com.sejourfr.app.exception.AiEvaluationException;
 import com.sejourfr.app.manager.ProductionSubmissionManager;
@@ -10,9 +11,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.UUID;
 
 /**
@@ -53,13 +53,18 @@ public class ProductionPipelineAsyncRunner {
      * ici).
      */
     @Async
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void runPipelineAsync(UUID submissionId, boolean estOral) {
-        ProductionSubmission submission = submissionManager.findById(submissionId).orElse(null);
+    public CompletableFuture<Void> runPipelineAsync(UUID submissionId, boolean estOral) {
+        // Pas de transaction englobante ici : Whisper et l'evaluation portent
+        // chacune leur propre transaction. Si l'une echoue, son interceptor
+        // peut marquer SA transaction rollback-only sans empoisonner le catch
+        // de l'orchestrateur avec un UnexpectedRollbackException au retour.
+        // JOIN FETCH initialise la task avant de detacher la submission.
+        ProductionSubmission submission = submissionManager.findByIdWithTask(submissionId).orElse(null);
         if (submission == null) {
             log.warn("Submission introuvable pour pipeline async : {}", submissionId);
-            return;
+            return CompletableFuture.completedFuture(null);
         }
+        EpreuveType epreuve = submission.getProductionTask().getEpreuve();
         try {
             if (estOral) {
                 boolean hasTranscription = transcriptionManager
@@ -80,15 +85,14 @@ public class ProductionPipelineAsyncRunner {
                         "Evaluation Claude n'a pas produit de resultat.");
             }
             log.info("Pipeline async OK pour submission {} (epreuve={})",
-                    submissionId, submission.getProductionTask().getEpreuve());
+                    submissionId, epreuve);
         } catch (Exception e) {
             log.warn("Pipeline async FAILED pour submission {} : {}",
                     submissionId, e.getMessage(), e);
-            // La transaction du pipeline est marquee rollback-only par l'exception.
-            // On ecrit FAILED dans une transaction NEUVE (REQUIRES_NEW) sinon le
-            // statut + le message d'erreur seraient annules au commit et la
-            // submission resterait bloquee en EVALUATING.
+            // Toujours une transaction NEUVE : elle isole aussi FAILED d'un
+            // futur changement transactionnel dans un service appele.
             failureRecorder.markFailed(submissionId, e.getMessage());
         }
+        return CompletableFuture.completedFuture(null);
     }
 }

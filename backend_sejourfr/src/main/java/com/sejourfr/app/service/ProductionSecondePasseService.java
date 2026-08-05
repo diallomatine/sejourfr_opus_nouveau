@@ -4,7 +4,6 @@ import com.sejourfr.app.config.ProductionEvaluationProperties;
 import com.sejourfr.app.enums.ConfianceEvaluation;
 import com.sejourfr.app.enums.NiveauCecrl;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -34,9 +33,8 @@ import java.util.UUID;
  * passe avec les commentaires de l'autre produirait une correction incoherente.
  *
  * <p>Pilote par {@code sejourfr.production-evaluation.seconde-passe.enabled}
- * (defaut <b>false</b>). Le provider de la seconde passe est configurable
- * ({@code …seconde-passe.provider}) : l'interet est d'interroger un modele
- * DIFFERENT.
+ * (defaut <b>false</b>). La seconde passe reutilise obligatoirement le meme
+ * client que la premiere : changer le correcteur reste une operation atomique.
  */
 @Service
 @Slf4j
@@ -44,19 +42,22 @@ public class ProductionSecondePasseService {
 
     private final ProductionEvaluationProperties props;
     private final EvaluationLlmClient client;
+    private final ProductionRubricsProvider rubrics;
 
     public ProductionSecondePasseService(
             ProductionEvaluationProperties props,
-            @Qualifier("evaluationSecondePasseClient") EvaluationLlmClient client) {
+            EvaluationLlmClient client,
+            ProductionRubricsProvider rubrics) {
         this.props = props;
         this.client = client;
+        this.rubrics = rubrics;
     }
 
     public boolean isEnabled() {
         return props.getSecondePasse().isEnabled();
     }
 
-    /** Client LLM de la seconde passe (modele potentiellement different). */
+    /** Même client LLM que la première passe. */
     public EvaluationLlmClient client() {
         return client;
     }
@@ -92,7 +93,7 @@ public class ProductionSecondePasseService {
     private String seuilFrontiere(BigDecimal competence) {
         if (competence == null) return null;
         double marge = props.getSecondePasse().getMargeSeuilNiveau();
-        ProductionEvaluationProperties.NiveauCecrl seuils = props.getNiveauCecrl();
+        ProductionEvaluationProperties.NiveauCecrl seuils = rubrics.niveauCecrl();
         double c = competence.doubleValue();
         if (Math.abs(c - seuils.getSeuilB2()) < marge) return "B2 (" + seuils.getSeuilB2() + ")";
         if (Math.abs(c - seuils.getSeuilB1()) < marge) return "B1 (" + seuils.getSeuilB1() + ")";

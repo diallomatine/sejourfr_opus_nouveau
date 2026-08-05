@@ -84,6 +84,28 @@ class AiEvaluationServiceTest {
     }
 
     @Test
+    void weightedNote_refuse_une_somme_partielle() {
+        List<Map<String, Object>> scores = List.of(
+            score("pertinence", 12),
+            score("lexique", 12)
+        );
+
+        assertThat(AiEvaluationService.weightedNote(criteresEeT1(), scores)).isNull();
+    }
+
+    @Test
+    void weightedNote_refuse_un_code_duplique() {
+        List<Map<String, Object>> scores = List.of(
+            score("pertinence", 12),
+            score("lexique", 12),
+            score("lexique", 8),
+            score("coherence", 12)
+        );
+
+        assertThat(AiEvaluationService.weightedNote(criteresEeT1(), scores)).isNull();
+    }
+
+    @Test
     void weightedNote_borne_a_20() {
         List<Map<String, Object>> scores = List.of(
             score("pertinence", 20),

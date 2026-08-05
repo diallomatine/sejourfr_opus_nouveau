@@ -14,17 +14,17 @@
 > **dans la même passe**. Il doit toujours pouvoir être lu et compris par une personne non
 > technique. Pas de jargon non expliqué, pas de raccourci.
 
-**État actuel** : rubriques de notation **v6** (la grille **et l'échelle** du TCF), format de
-réponse **v3**, examinateur vocal **v2**. Ce que ces numéros veulent dire, et où ils se
+**État actuel** : rubriques de notation **v7** (profil **TCF IRN**, plafonné à B2), format de
+réponse strict **v4**, examinateur vocal **v2**. Ce que ces numéros veulent dire, et où ils se
 changent, est expliqué en §15.
 
-> 🆕 **Ce qui vient de changer, en une phrase : notre note sur 20 est désormais celle du
-> TCF.** La v5 avait adopté les quatre **critères** du vrai examen ; la v6 adopte son
-> **échelle**. Concrètement : **10/20 vaut B2**, comme le jour de l'examen — et non plus 16
-> comme sur notre ancienne échelle « scolaire ». Ce document a été mis à jour partout où cela
-> compte (§5.2 bis, §5.6, §6.1 à §6.6, §12.4). **La phrase « notre échelle est plus fine que
-> celle du TCF », affichée jusqu'ici aux candidats sous leur note, est devenue fausse** : elle
-> doit disparaître des écrans web et mobile (§6.6).
+> 🆕 **Ce que verrouille la v7.** Elle conserve la grille et l'échelle introduites par les
+> v5/v6, mais retire C1/C2 du contrat actif : SejourFR prépare uniquement le **TCF IRN**, dont
+> le niveau rapporté ici s'arrête à **B2**. Elle impose exactement quatre critères, refuse
+> toute réponse incomplète avant correction, puis accorde une seule tentative automatique de
+> réparation au correcteur. Les bornes EE sont désormais strictes : **30–60 mots en T1 et
+> 60–90 mots en T2/T3**, sans aucune marge au-delà du maximum (l'ancienne tolérance de 20 %
+> est supprimée).
 
 ---
 
@@ -52,14 +52,14 @@ EE T1, EE T2, EE T3, EO T1, EO T2, EO T3.
 | Tâche | Ce que le candidat doit faire | Format attendu | Niveau visé |
 |-------|-------------------------------|----------------|-------------|
 | **EE T1** | Écrire un **message court** : annoncer quelque chose, décrire, inviter | 30 à 60 mots | A2 |
-| **EE T2** | Écrire un **message développé** : raconter, décrire, expliquer, conseiller | 40 à 90 mots | B1 |
-| **EE T3** | **Donner son opinion** et l'argumenter, ou comparer | 40 à 90 mots | B2 |
+| **EE T2** | Écrire un **message développé** : raconter, décrire, expliquer, conseiller | 60 à 90 mots | B1 |
+| **EE T3** | **Donner son opinion** et l'argumenter, ou comparer | 60 à 90 mots | B2 |
 | **EO T1** | **Se présenter** et parler de soi, de son quotidien (entretien dirigé) | ~3 min (min. 2 min) | A2 |
 | **EO T2** | **Interagir** dans une situation de la vie courante (obtenir / donner des informations) | ~3 min 30 (min. 2 min) | B1 |
 | **EO T3** | **Donner un point de vue** en continu (petit monologue argumenté) | ~3 min 30 (min. 2 min) | B2 |
 
 > ⚠️ **TCF IRN ≠ TCF Canada — piège classique sur les longueurs.** Les bornes ci-dessus
-> (30-60 / 40-90 / 40-90 mots) sont bien celles du **TCF IRN**, l'examen que prépare
+> (30-60 / 60-90 / 60-90 mots) sont bien celles du **TCF IRN**, l'examen que prépare
 > SejourFR. Les valeurs **60-120 et 120-180 mots** que renvoient la plupart des pages web
 > appartiennent au **TCF Canada**, un autre examen. La confusion est très fréquente en ligne,
 > y compris sur des sites de préparation : **ne pas « corriger » nos bornes d'après une
@@ -81,7 +81,10 @@ EE T1, EE T2, EE T3, EO T1, EO T2, EO T3.
 2. Le serveur passe **trois vérifications automatiques**, sans IA (voir §4).
 3. Si tout va bien, le texte part à l'IA correctrice.
 4. L'IA renvoie une note et des commentaires (en ~10-15 secondes).
-5. Le serveur **recalcule** la note, le niveau, et applique ses propres règles (§5, §6).
+5. Le serveur vérifie la réponse **brute** : quatre critères exacts sans doublon, nombres
+   finis entre 0 et 20, structure complète et niveau limité à B2. Si elle est invalide, il
+   demande une seule réparation ; si elle échoue encore, aucune note partielle n'est gardée.
+6. Le serveur **recalcule** la note, le niveau, et applique ses propres règles (§5, §6).
 
 ### Cas EO « classique » (le candidat s'enregistre seul)
 
@@ -184,8 +187,8 @@ critères universels puis 5 critères propres à chaque tâche, avec des poids v
 
 Deux familles, qui ne jouent pas le même rôle mais qui pèsent désormais **autant** :
 
-- **Les critères de langue** — **lexique** et **morphosyntaxe**, notés en absolu sur toute
-  l'échelle A1→C2 ;
+- **Les critères de langue** — **lexique** et **morphosyntaxe**, notés en absolu sur
+  l'échelle du profil TCF IRN, de A1 non atteint à B2 ;
 - **Les critères de réalisation** — **communiquer** et **interagir**. Ils ne comptent pas des
   cases cochées : ils disent **à quel niveau** la tâche est accomplie. Accomplir une consigne
   A2 avec des moyens A2, c'est une réussite… de niveau A2.
@@ -291,11 +294,30 @@ liste : si tout est traité, la liste des oublis reste vide.
 
 ### 5.5 Preuves et priorités
 
-- **Chaque critère noté doit s'appuyer sur une citation littérale** de la production (3 à 15
-  mots, recopiée exactement). Si l'IA cite une phrase qui **ne figure pas** dans la
-  production, le serveur la supprime avant affichage : une fausse citation détruit la
-  confiance dans toute la correction. Dans un dialogue, seules les prises de parole du
-  **candidat** peuvent être citées.
+- **Chaque critère noté doit s'appuyer sur une citation non vide** de la production (3 à 15
+  mots). Le serveur cherche d'abord le passage continu correspondant, sans se laisser
+  tromper par une différence de majuscule, d'accent, d'apostrophe, de tiret ou d'espace
+  (`œ`/`oe` et `æ`/`ae` sont aussi reconnus). Pour éviter de rejeter une citation presque
+  exacte à cause d'une petite erreur de recopie, une tolérance très limitée existe sur les
+  citations d'au moins quatre mots : un petit mot-outil peut avoir été ajouté ou omis. La
+  seule différence admise à l'intérieur d'un mot est la flexion explicitement reconnue
+  « telles » / « tels » ; toute autre substitution est refusée. Au moins trois mots
+  importants doivent rester identiques, et un
+  seul passage de la production doit convenir. Cette tolérance n'accepte jamais l'ajout ou
+  l'omission d'un verbe ou d'un nom porteur, un remplacement par un autre mot, un changement
+  de nombre ou de négation — un mot qui contient un chiffre, comme « 10h » ou « A2 », est
+  lui aussi immuable — ni des mots remis dans un autre ordre. Elle ne fait aucune recherche
+  de synonymes pour rapprocher deux formulations. Une fois
+  le passage retrouvé, la copie de l'IA est remplacée par **le texte original exact** avant
+  l'enregistrement et l'affichage. Si aucun passage sûr ne correspond, la sortie est rejetée
+  et l'IA doit la réparer. Si, après cette seconde tentative, **une seule** des quatre
+  citations reste impossible à vérifier mais que tout le reste est valide, le serveur retire
+  cette citation au lieu d'en afficher une inventée. La note peut alors être conservée, avec
+  une confiance au maximum **moyenne** et un avertissement visible. Deux citations douteuses,
+  une citation vide ou toute autre erreur font toujours échouer la correction. Avec un ancien
+  format de réponse, une preuve non vérifiable est simplement retirée. Dans un dialogue, la
+  recherche est limitée aux prises de parole du **candidat** : les mots de l'examinateur ne
+  peuvent jamais servir de preuve.
 - **Deux points à améliorer, au maximum.** Les deux plus utiles, le plus important d'abord.
   Une liste de dix reproches décourage et n'apprend rien. Le reste part dans les
   « suggestions », formulées comme des conseils d'entraînement. Ce n'est pas qu'une
@@ -432,16 +454,16 @@ sans nuance ni lexique précis reste du B1.
 
 ## 6. La note et le niveau
 
-### 6.1 L'échelle : celle du TCF
+### 6.1 L'échelle du profil TCF IRN
 
-Chaque critère est noté sur 20, **en absolu** (sur toute l'échelle A1→C2), pas « par rapport
-au niveau visé de la tâche ». Et depuis la version **v6**, cette échelle **est celle du
-vrai examen** — la table officielle de conversion note → niveau du TCF IRN, reprise telle
-quelle, sans rien inventer :
+Chaque critère est noté sur 20, **en absolu**, pas « par rapport au niveau visé de la
+tâche ». Depuis la v6, les seuils suivent la table utilisée pour le TCF IRN ; depuis la
+**v7**, le contrat et tous les libellés sont explicitement **plafonnés à B2** : SejourFR ne
+produit aucune note C1 ou C2.
 
 | Note d'un critère | Correspondance |
 |-------------------|----------------|
-| 10 – 20 | Niveau **B2** et au-delà (10-11 : B2 tout juste atteint · 12-16 : B2 confirmé · 17-20 : C1/C2, exceptionnel) |
+| 10 – 20 | Niveau **B2** (10-11 : B2 tout juste atteint · 12-16 : B2 confirmé · 17-20 : B2 très solide) |
 | 6 – 9 | Niveau **B1** (6-7 : B1 émergent · 8-9 : B1 solide, **y compris un très bon B1**) |
 | 2 – 5 | Niveau **A2** (2-3 : A2 fragile · 4-5 : A2 solide, sans faute, consigne bien traitée) |
 | 1 | Niveau **A1** — tout A1 vaut 1, il n'y a pas de « bon A1 » à 3 ou 4 |
@@ -585,8 +607,7 @@ C'est le seul niveau qui fait foi. Il apparaît à la fin d'un examen blanc qui 
   difficulté croissante des trois tâches est **déjà** portée par leurs descripteurs (la
   tâche 3 vise B2), la pondérer une seconde fois la compterait deux fois. Le réglage reste
   modifiable sans redéploiement.
-- Il est **plafonné à B2** (le niveau utile pour la naturalisation ; C1/C2 ne sont pas
-  fiables sur ces formats courts).
+- Il est **plafonné à B2**, niveau maximal du profil TCF IRN couvert par SejourFR.
 - Une tâche non rendue (temps écoulé, abandon) compte comme **0**.
 - Une production hors-sujet compte 0 elle aussi : elle pénalise sans annuler le reste.
 - Une tâche **plafonnée** (§6.4) entre avec son niveau plafonné.
@@ -749,8 +770,10 @@ Deux interdits absolus :
 - une confiance faible n'autorise **jamais** à conclure au hors-sujet ni à
   l'incompréhensibilité.
 
-Si l'IA oublie de déclarer une confiance, le serveur met « moyenne » : l'absence
-d'information n'est pas une certitude.
+Si l'IA oublie de déclarer une confiance, sa réponse est désormais **rejetée avant
+normalisation**. Le serveur demande une seule réparation ; si le champ manque encore, la
+correction passe en échec au lieu d'inventer une confiance ou de persister un résultat
+partiel.
 
 ---
 
@@ -780,13 +803,12 @@ sont toutes encadrées par la règle du §5.6 : *ne pas sanctionner n'est pas cr
 
 - **On n'exige jamais l'exhaustivité.** Voir §5.3 : les pistes du sujet ne coûtent rien.
 
-- **La longueur n'est jamais pénalisée.** Si une production est acceptée, c'est que sa
-  longueur a déjà été validée en amont. L'IA ne dira jamais « trop court » ou « trop long ».
-  Deux nuances honnêtes : une production courte donne légitimement une confiance moyenne
-  (moins de matière observable) ; et moins on écrit ou on parle, moins on a d'occasions de
-  **démontrer** un niveau élevé — ce n'est pas une pénalité, c'est une conséquence. Sur une
-  production orale nettement plus courte que la cible, l'application ajoute d'ailleurs un
-  rappel en ce sens.
+- **La longueur n'est jamais un motif de note.** À l'écrit, la soumission est bloquée hors
+  des bornes strictes du TCF IRN (T1 30–60, T2/T3 60–90) : l'IA ne reçoit donc jamais un
+  texte nouveau « toléré » au-delà du maximum. À l'oral, la durée n'est plus transmise au
+  correcteur et aucun avertissement de durée n'est ajouté au résultat. Une production peut
+  offrir moins de matière observable, ce qui peut seulement être expliqué dans les raisons
+  de confiance ; ni la longueur ni la durée ne retirent des points.
 
 - **Le hors-sujet, la seule vraie sanction lourde.** Si une production est **totalement**
   hors-sujet (elle ne répond pas du tout à la consigne, ou parle d'autre chose), la note tombe
@@ -1039,7 +1061,7 @@ fiabilité — et il n'aurait jamais été vu sans le banc.
 gardent exactement le même niveau, et l'écart de note maximal observé sur une même production
 est de **2 points** (médiane : 0). La notation n'est donc pas un tirage au sort.
 
-**Deuxième correction : la frontière B1/B2** (consignes **v4.2**, la version active). Une fois
+**Deuxième correction : la frontière B1/B2** (consignes **v4.2**, alors actives). Une fois
 le bas de l'échelle réparé, le défaut résiduel s'était **déplacé vers le haut** : **3
 productions B1 sur 12** ressortaient B2. C'était devenu l'erreur la plus coûteuse du système
 (§5.6). La même technique que pour le bas a été appliquée en haut : un **test opposable avec
@@ -1075,7 +1097,7 @@ Ce qu'il faut en retenir, et ce qu'il ne faut pas en conclure :
   même chiffre à la mesure près** : moins d'un point de note entre deux campagnes, c'est du
   bruit, pas un signal.
 
-**Troisième correction : la grille du TCF** (consignes **v5**, la version active). Les deux
+**Troisième correction : la grille du TCF** (consignes **v5**, alors actives). Les deux
 premières corrections portaient sur la sévérité ; celle-ci porte sur **ce qu'on mesure**. La
 grille maison (5 critères à poids variables, accomplissement exclu du niveau) a été remplacée
 par celle du TCF (4 critères égaux, accomplissement compris) — les raisons sont au §5.1.
@@ -1130,7 +1152,7 @@ Ce qu'il faut en retenir, et ce qu'il ne faut pas en conclure :
   ne compare que des notes et des niveaux. Elle a été vérifiée à la main sur des productions
   réelles, et elle est garantie par le format de réponse (§5.5), mais elle n'a pas de chiffre.
 
-**Quatrième correction : l'échelle du TCF** (consignes **v6**, la version active). La v5 avait
+**Quatrième correction : l'échelle du TCF** (consignes **v6**, alors actives). La v5 avait
 adopté les **critères** du vrai examen ; celle-ci adopte son **échelle**, pour supprimer la
 dernière contradiction visible à l'écran (« 12,5/20 » et « proche du B1 » sur la même carte,
 §6.6).
@@ -1302,10 +1324,10 @@ Trois précisions qui comptent :
   aucune langue maternelle, contrairement à une analyse de prononciation. L'allumer nuancerait
   la règle « on ne juge ni le débit ni la durée » du §8 : on **mesurerait** le débit, sans le
   **noter**.
-- **La seconde lecture n'a d'intérêt qu'avec une IA différente.** Reposer exactement la même
-  question au même modèle donne presque toujours la même réponse — le banc l'a montré (§12.4).
-  Le modèle de la seconde lecture est donc configurable séparément, et l'application avertit
-  au démarrage si on l'active sans en choisir un autre.
+- **La seconde lecture réutilise le correcteur configuré.** Il n'existe plus de provider ou
+  de modèle séparé pour cette voie : async, fin de session temps réel, seconde passe et banc
+  de mesure lisent tous `sejourfr.production-evaluation`. Cette contrainte rend une bascule
+  reproductible et évite qu'une voie secondaire note sur un autre modèle à l'insu du projet.
 - **La seconde lecture retient une correction entière**, jamais un mélange : on ne colle pas
   la note d'une passe sur les commentaires de l'autre.
 
@@ -1344,8 +1366,9 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 
 | Ce qu'on veut changer | Fichier |
 |-----------------------|---------|
-| **Toutes les consignes de notation** (les 4 critères du TCF et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et tout ce qui se lit sur une note** : seuils note → niveau, écart du garde-fou, seuils des plafonds, bornes des bandes affichées) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v6.json` (version **active**). Les versions `v5`, `v4.2`, `v4.1`, `v4` et `v3` restent en place et valides : on revient en arrière en changeant **une seule variable** (`EVAL_RUBRICS_VERSION`), parce que chaque grille depuis la v5 déclare elle-même ses seuils — et depuis la v6, tout ce qui dépend de son échelle. |
-| **Le format de réponse de l'IA** (note, confiance, accomplissement, preuves, exemples corrigés…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v2.json` |
+| **Toutes les consignes de notation** (les 4 critères du TCF et leurs poids, descripteurs et consignes par tâche, barème, ancrage du bas **et du haut** de l'échelle, garde-fou de couplage, règles obligatoires/pistes, tolérances, exemples de calibration, **et tout ce qui se lit sur une note** : seuils note → niveau, écart du garde-fou, seuils des plafonds, bornes des bandes affichées) | `backend_sejourfr/src/main/resources/prompts/production-rubrics-v7.json` (version **active**, profil `TCF_IRN`, maximum B2). `v6` et les versions antérieures restent en place. Un rollback change la **paire compatible** `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION` (par exemple v6/v3), jamais un seul côté du contrat. |
+| **Le format de réponse de l'IA** (note, confiance, accomplissement, preuves, exemples corrigés…) | `backend_sejourfr/src/main/resources/prompts/production-evaluation-tool-schema-v4.json` (version active : structure complète, quatre critères exacts, niveaux limités à B2, aucun champ imprévu) |
+| **Le correcteur utilisé partout** (async, fin de session temps réel, réparation, seconde passe, calibration) | `backend_sejourfr/src/main/resources/application.yaml`, `sejourfr.production-evaluation.provider` et le modèle du provider choisi. Défaut : DeepSeek / `deepseek-v4-flash`. Gemini reste l'examinateur vocal/transcripteur, jamais le correcteur. |
 | **Le comportement de l'examinateur vocal** (ton, cadre, interdiction d'orienter le candidat, ouverture T1/T2, façon de rendre la fiche de scénario T2…) | `backend_sejourfr/src/main/resources/prompts/realtime-personas-v2.json` (version active ; la v1, sans fiche de scénario, reste disponible en repli) |
 | **Les faits d'un jeu de rôle T2** (prix, délais, horaires, attitude du personnage) | colonne `agent_role_card` du sujet, en base — renseignée par les migrations `db/migration/300_tcf/production/eo/tache_2/` |
 | **Les seuils de niveau, les plafonds, les vérifications automatiques, les trois réglages éteints** | `backend_sejourfr/src/main/resources/application.yaml`, section `sejourfr.production-evaluation` |
@@ -1353,10 +1376,14 @@ le code) — on peut donc les faire évoluer sans être développeur, en touchan
 | **Le corpus de référence du banc de mesure** | `backend_sejourfr/src/test/resources/calibration/golden-set-v1.json` |
 | **La grille officielle du TCF** (niveau → fourchette de note, §6.6) | `backend_sejourfr/src/main/java/com/sejourfr/app/enums/BandeNoteTcf.java` — dans le code et **pas** dans la configuration : c'est une donnée officielle, pas un réglage. Depuis la v6, la grille active la reprend à l'identique comme échelle de notation ; cet enum reste malgré tout la source officielle et sert à **afficher** la fourchette du niveau atteint |
 
-> **Deux garde-fous automatiques** : au démarrage, l'application **refuse de démarrer** si les
+> **Garde-fous automatiques** : au démarrage, l'application **refuse de démarrer** si les
 > consignes de notation sont incohérentes — critère inconnu, poids qui ne font pas 100 %, tâche
-> sans barème, ou disparition d'un des trois critères porteurs du niveau. Et si l'IA rend une
-> note très différente du calcul officiel, l'écart est enregistré pour surveillance.
+> sans barème, bornes EE incorrectes, contexte T2/T3 absent, ou paire rubrique/tool-schema
+> incompatible. À chaque correction, la sortie brute est refusée si un critère manque, est
+> dupliqué, hors bornes, si la structure est incomplète ou si un niveau dépasse B2. Une seule
+> réparation sémantique est autorisée ; après deux échecs, aucune note partielle n'est
+> persistée. Et si l'IA rend une note très différente du calcul officiel, l'écart est enregistré
+> pour surveillance.
 
 > **On versionne, on ne réécrit pas.** Une nouvelle grille de notation devient une nouvelle
 > version (`v4`, `v4.1`…). Les anciennes restent en place : sans ça, les évaluations déjà
@@ -1392,7 +1419,8 @@ revient à lui faire payer un examen officiel qu'il va rater. La même exigence 
 l'échelle : pour annoncer B2 — le niveau exigé pour la naturalisation, dans les quatre
 épreuves et sans compensation — l'IA doit pouvoir **citer** ce qui le prouve.
 
-**Notre note sur 20 est celle du TCF** depuis la version 6 : **10/20 vaut B2**, 6-9 vaut B1,
+**Notre note sur 20 suit l'échelle du TCF** depuis la version 6 et la v7 la limite
+explicitement au profil TCF IRN : **10/20 vaut B2**, 6-9 vaut B1,
 2-5 vaut A2, 1 vaut A1, 0 veut dire « rien d'exploitable ». C'est la table officielle, reprise
 telle quelle — il n'y a plus deux échelles à ne pas confondre. On ne convertit toujours pas la
 note pour autant : au bilan d'une épreuve, on affiche le niveau estimé **et** la fourchette
@@ -1401,8 +1429,9 @@ officielle de ce niveau, parce que notre note porte sur une tâche et celle du T
 
 Trois choses qu'on **ne cache pas** :
 
-- à l'oral, **on ne juge que la transcription** — la voix n'est pas analysée, et c'est une
-  limite technique, pas un choix pédagogique ;
+- à l'oral, **on ne juge que la transcription** — la voix et la durée ne sont pas transmises
+  au correcteur, et toute sortie qui note hésitations, répétitions, fluidité, débit,
+  prononciation, accent, intonation ou orthographe de transcription est rejetée ;
 - notre notation est **mesurée**, et la mesure dit encore ce qui cloche : sur l'échelle
   officielle, le palier A1 ne vaut qu'**une seule valeur**, et 3 productions A1 sur 8
   ressortent A2 ; un cas de frontière B1/B2 résiste toujours ;

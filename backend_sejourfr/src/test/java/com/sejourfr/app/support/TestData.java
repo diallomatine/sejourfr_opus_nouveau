@@ -359,8 +359,9 @@ public class TestData {
             t.setDureeMinSec(60);
             t.setDureeMaxSec(180);
         } else {
-            t.setMotsMin(120);
-            t.setMotsMax(180);
+            // TCF IRN EE tâche 1 : volume officiel de 30 à 60 mots.
+            t.setMotsMin(30);
+            t.setMotsMax(60);
         }
         return productionTaskRepository.save(t);
     }

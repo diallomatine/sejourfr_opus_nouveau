@@ -1,5 +1,5 @@
-/// Mappings 1-1 avec les enums Java du backend.
-/// On garde des string raw pour faciliter (de)serialization et matchs réseau.
+// Mappings 1-1 avec les enums Java du backend.
+// On garde des string raw pour faciliter (de)serialization et matchs réseau.
 
 enum AppModule {
   civique('CIVIQUE'),
@@ -22,8 +22,7 @@ enum AuthProvider {
   const AuthProvider(this.wire);
   final String wire;
 
-  static AuthProvider fromWire(String value) =>
-      AuthProvider.values.firstWhere(
+  static AuthProvider fromWire(String value) => AuthProvider.values.firstWhere(
         (e) => e.wire == value,
         orElse: () => AuthProvider.local,
       );
@@ -159,13 +158,14 @@ enum EpreuveType {
   static EpreuveType fromWire(String value) =>
       EpreuveType.values.firstWhere((e) => e.wire == value);
 
-  bool get isProduction => this == EpreuveType.tcfEo || this == EpreuveType.tcfEe;
+  bool get isProduction =>
+      this == EpreuveType.tcfEo || this == EpreuveType.tcfEe;
   bool get isAudio => this == EpreuveType.tcfEo;
   bool get isWriting => this == EpreuveType.tcfEe;
 }
 
-/// Niveau CECRL renvoyé par l'évaluation IA EO/EE. Distinct de `TargetLevel`
-/// qui représente le palier visé par l'utilisateur (limité à A2/B1/B2).
+/// Niveau CECRL renvoyé par l'évaluation IA EO/EE. Le contrat TCF IRN actif
+/// s'arrête à B2 ; C1/C2 sont conservés uniquement pour décoder l'historique.
 enum NiveauCecrl {
   a1NonAtteint('A1_NON_ATTEINT'),
   a1('A1'),
@@ -194,14 +194,14 @@ enum NiveauCecrl {
         NiveauCecrl.c2 => 'C2',
       };
 
-  /// Index 0..5 pour positionner un curseur sur la barre A1→C2.
+  /// Index 0..3 sur la barre TCF IRN A1→B2. Les valeurs historiques C1/C2
+  /// sont rabattues sur le plafond B2.
   int get scaleIndex => switch (this) {
         NiveauCecrl.a1NonAtteint || NiveauCecrl.a1 => 0,
         NiveauCecrl.a2 => 1,
         NiveauCecrl.b1 => 2,
         NiveauCecrl.b2 => 3,
-        NiveauCecrl.c1 => 4,
-        NiveauCecrl.c2 => 5,
+        NiveauCecrl.c1 || NiveauCecrl.c2 => 3,
       };
 }
 
@@ -286,7 +286,8 @@ enum SubmissionStatut {
   static SubmissionStatut fromWire(String value) =>
       SubmissionStatut.values.firstWhere((e) => e.wire == value);
 
-  bool get isFinal => this == SubmissionStatut.evaluated || this == SubmissionStatut.failed;
+  bool get isFinal =>
+      this == SubmissionStatut.evaluated || this == SubmissionStatut.failed;
   bool get isInProgress => !isFinal;
 }
 

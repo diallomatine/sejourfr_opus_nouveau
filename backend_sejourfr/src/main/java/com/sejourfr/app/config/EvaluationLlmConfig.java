@@ -12,7 +12,7 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * Selectionne le bean {@link EvaluationLlmClient} actif en fonction de
- * {@code sejourfr.production-evaluation.provider} (defaut {@code openai}).
+ * {@code sejourfr.production-evaluation.provider} (defaut {@code deepseek}).
  *
  * <p>Les providers compatibles OpenAI (OpenAI, DeepSeek, ...) partagent un seul
  * client {@link OpenAiCompatibleEvalClient}, instancie une fois par provider
@@ -53,38 +53,6 @@ public class EvaluationLlmConfig {
             anthropic, openai, deepseek);
         log.info("Provider LLM eval actif : {} (modele {})",
             props.getProvider(), selected.getModelName());
-        return selected;
-    }
-
-    /**
-     * Client de la SECONDE PASSE d'evaluation (zone floue). Provider dedie via
-     * {@code sejourfr.production-evaluation.seconde-passe.provider} ; vide, on
-     * retombe sur le provider principal. Le bean existe toujours, meme drapeau
-     * eteint (il n'ouvre aucune connexion tant qu'on ne l'appelle pas).
-     */
-    @Bean("evaluationSecondePasseClient")
-    public EvaluationLlmClient evaluationSecondePasseClient(
-            ProductionEvaluationProperties props,
-            @Qualifier("evaluationAnthropicClient") EvaluationLlmClient anthropic,
-            @Qualifier("evaluationOpenAiClient") EvaluationLlmClient openai,
-            @Qualifier("evaluationDeepSeekClient") EvaluationLlmClient deepseek) {
-        String configure = props.getSecondePasse().getProvider();
-        boolean dedie = configure != null && !configure.isBlank();
-        EvaluationLlmClient selected = select(
-            dedie ? configure : props.getProvider(),
-            "sejourfr.production-evaluation.seconde-passe.provider",
-            anthropic, openai, deepseek);
-
-        if (props.getSecondePasse().isEnabled()) {
-            if (!dedie) {
-                log.warn("Seconde passe activee SANS provider dedie : elle interrogera deux fois {} "
-                        + "a temperature 0, ce qui n'apporte presque rien. Renseigner "
-                        + "sejourfr.production-evaluation.seconde-passe.provider.",
-                    selected.getModelName());
-            } else {
-                log.info("Seconde passe activee : provider {} (modele {})", configure, selected.getModelName());
-            }
-        }
         return selected;
     }
 

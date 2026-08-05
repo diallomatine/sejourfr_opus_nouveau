@@ -588,8 +588,7 @@ class _RecentSingleRow extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                        color: badgeBg,
-                        borderRadius: BorderRadius.circular(8)),
+                        color: badgeBg, borderRadius: BorderRadius.circular(8)),
                     child: Text('${formatScore(note)}/20',
                         style: AppFonts.ui(
                             size: 11, weight: FontWeight.w800, color: badgeFg)),
@@ -934,7 +933,9 @@ class _TcfTaskTrainingScreenState extends ConsumerState<TcfTaskTrainingScreen>
 
     // Index d'origine conservé : c'est lui qui pilote le verrou freemium
     // (1er sujet offert, suivants premium), indépendamment du filtre courant.
-    final indexed = [for (int i = 0; i < subjects.length; i++) (i, subjects[i])];
+    final indexed = [
+      for (int i = 0; i < subjects.length; i++) (i, subjects[i])
+    ];
     final doneCount = indexed.where((e) => done[e.$2.id] != null).length;
     final todoCount = indexed.length - doneCount;
     final filtered = indexed.where((e) {
@@ -1382,8 +1383,8 @@ class _ErrorBox extends StatelessWidget {
   }
   return switch (tache) {
     1 => (title: 'Message', subtitle: 'Répondre à un message · 30-60 mots'),
-    2 => (title: 'Récit', subtitle: 'Raconter une expérience · 40-90 mots'),
-    _ => (title: 'Opinion', subtitle: 'Avis argumenté · 40-90 mots'),
+    2 => (title: 'Récit', subtitle: 'Raconter une expérience · 60-90 mots'),
+    _ => (title: 'Opinion', subtitle: 'Avis argumenté · 60-90 mots'),
   };
 }
 

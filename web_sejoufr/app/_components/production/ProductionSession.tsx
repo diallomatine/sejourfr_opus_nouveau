@@ -660,7 +660,7 @@ export function ProductionSession({ config }: { config: ProductionConfig }) {
   );
 }
 
-const CECRL_SCALE: NiveauCecrl[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
+const CECRL_SCALE: NiveauCecrl[] = ["A1", "A2", "B1", "B2"];
 
 /** Conseil « prochaines étapes » selon le niveau plancher (calqué mobile). */
 function nextStepsMessage(level: NiveauCecrl | null): string {
@@ -861,4 +861,3 @@ function BilanView({
     </>
   );
 }
-

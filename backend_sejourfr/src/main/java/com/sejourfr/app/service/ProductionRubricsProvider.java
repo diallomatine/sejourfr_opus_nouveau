@@ -42,6 +42,15 @@ public class ProductionRubricsProvider {
 
     private static final Logger log = LoggerFactory.getLogger(ProductionRubricsProvider.class);
     private static final String PATH_FORMAT = "prompts/production-rubrics-%s.json";
+    private static final Map<String, String> TOOL_SCHEMA_BY_RUBRICS_VERSION = Map.of(
+        "v3", "v2",
+        "v4", "v2",
+        "v4.1", "v2",
+        "v4.2", "v2",
+        "v5", "v3",
+        "v6", "v3",
+        "v7", "v4"
+    );
 
     private final ProductionEvaluationProperties props;
     private final ObjectMapper objectMapper;
@@ -71,6 +80,8 @@ public class ProductionRubricsProvider {
         try (InputStream is = new ClassPathResource(path).getInputStream()) {
             String json = StreamUtils.copyToString(is, StandardCharsets.UTF_8);
             Map<String, Object> root = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
+
+            validateDeclaredContract(root, version);
 
             if (!(root.get("commun") instanceof Map<?, ?> communNode)) {
                 throw new IllegalStateException("cle racine 'commun' absente ou invalide");
@@ -115,6 +126,59 @@ public class ProductionRubricsProvider {
         }
     }
 
+    /**
+     * Verifie la paire rubriques/tool-schema avant la premiere evaluation.
+     * Les fichiers historiques ne declaraient pas ce lien, donc la matrice
+     * reste explicite ici : v3-v4.2 -> v2, v5-v6 -> v3, v7 -> v4.
+     */
+    private void validateDeclaredContract(Map<String, Object> root, String configuredVersion) {
+        if (!configuredVersion.equals(String.valueOf(root.get("rubrics-version")))) {
+            throw new IllegalStateException("version de rubriques incoherente : config="
+                + configuredVersion + ", fichier=" + root.get("rubrics-version"));
+        }
+
+        String expectedSchema = TOOL_SCHEMA_BY_RUBRICS_VERSION.get(configuredVersion);
+        if (expectedSchema == null) {
+            throw new IllegalStateException("version de rubriques sans contrat de sortie supporte : "
+                + configuredVersion);
+        }
+
+        Object declaredSchema = root.get("tool_schema_version");
+        if (declaredSchema != null && !expectedSchema.equals(declaredSchema.toString())) {
+            throw new IllegalStateException("declaration tool-schema incoherente : rubriques "
+                + configuredVersion + " -> " + declaredSchema + ", matrice -> " + expectedSchema);
+        }
+
+        if ("v7".equals(configuredVersion)) {
+            Object profile = root.get("profile");
+            if (!"TCF_IRN".equals(String.valueOf(profile))) {
+                throw new IllegalStateException("profil de rubriques non supporte : " + profile);
+            }
+            if (!"B2".equals(String.valueOf(root.get("niveau_max")))) {
+                throw new IllegalStateException("le profil TCF IRN doit etre plafonne a B2");
+            }
+        }
+
+        String activeSchema = activePromptVersion();
+        // Les tests unitaires construisent parfois les proprietes sans passer
+        // par le binder YAML. En production la valeur est toujours renseignee.
+        if (activeSchema != null && !activeSchema.isBlank() && !expectedSchema.equals(activeSchema)) {
+            throw new IllegalStateException("contrat rubriques/tool-schema incompatible : rubriques "
+                + configuredVersion + " -> " + expectedSchema + ", provider "
+                + props.getProvider() + " -> " + activeSchema);
+        }
+    }
+
+    private String activePromptVersion() {
+        String provider = props.getProvider() == null ? "" : props.getProvider().trim().toLowerCase();
+        return switch (provider) {
+            case "anthropic" -> props.getAnthropic().getPromptVersion();
+            case "openai" -> props.getOpenai().getPromptVersion();
+            case "deepseek" -> props.getDeepseek().getPromptVersion();
+            default -> null; // EvaluationLlmConfig produira l'erreur de provider explicite.
+        };
+    }
+
     /** Bloc {@code commun} (global) : {@code sections} + {@code few_shot}. */
     public Map<String, Object> getCommun() {
         return commun;
@@ -132,9 +196,10 @@ public class ProductionRubricsProvider {
      * {@code seuil_b1}, {@code seuil_a2}) ; a defaut on retombe sur
      * {@code sejourfr.production-evaluation.niveau-cecrl}.
      *
-     * <p>C'est ce qui permet a {@code EVAL_RUBRICS_VERSION} <b>seule</b> de
-     * suffire pour revenir a une version anterieure : sans ce mecanisme, revenir
-     * a v4.2 avec les seuils de v5 en config donnerait des niveaux faux.
+     * <p>C'est ce qui evite une troisieme bascule de configuration lors du
+     * retour a une version anterieure : la paire rubriques/tool-schema suffit.
+     * Sans ce mecanisme, revenir a v4.2 avec les seuils de v5 en config
+     * donnerait des niveaux faux.
      */
     public ProductionEvaluationProperties.NiveauCecrl niveauCecrl() {
         return niveauCecrl == null ? props.getNiveauCecrl() : niveauCecrl;

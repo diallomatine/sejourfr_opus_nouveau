@@ -17,7 +17,9 @@ void main() {
       'feedback': <String, dynamic>{
         'note_globale': 13.5,
         'confiance': 'MOYENNE',
-        'confiance_raisons': ['transcription temps réel partiellement incertaine'],
+        'confiance_raisons': [
+          'transcription temps réel partiellement incertaine'
+        ],
         'accomplissement': <String, dynamic>{
           'points_traites': [
             {'libelle': 'Nouvelle annoncée', 'obligatoire': true},
@@ -77,7 +79,8 @@ void main() {
 
       expect(acc.pointsTraites, hasLength(2));
       expect(acc.manques.map((p) => p.libelle), ['Invitation absente']);
-      expect(acc.pistesNonAbordees.map((p) => p.libelle), ['Loyer non mentionné']);
+      expect(
+          acc.pistesNonAbordees.map((p) => p.libelle), ['Loyer non mentionné']);
     });
 
     test('expose la bande et la preuve du critere', () {
@@ -106,7 +109,8 @@ void main() {
       expect(priorite.constat, 'Vos idées sont juxtaposées.');
       expect(priorite.comment, contains('Remplacez le point'));
       expect(priorite.exemple!.avant, 'Je cherche un travail. Je suis motivé.');
-      expect(priorite.exemple!.apres, 'Je cherche un travail et je suis motivé.');
+      expect(
+          priorite.exemple!.apres, 'Je cherche un travail et je suis motivé.');
       expect(priorite.isTeaching, isTrue);
     });
 
@@ -125,7 +129,8 @@ void main() {
         }).feedback;
 
     test('une chaîne devient un constat seul, sans technique inventée', () {
-      final priorite = feedbackWith(['Penser à inviter']).pointsAAmeliorer.single;
+      final priorite =
+          feedbackWith(['Penser à inviter']).pointsAAmeliorer.single;
 
       expect(priorite.constat, 'Penser à inviter');
       expect(priorite.comment, isNull);
@@ -215,6 +220,12 @@ void main() {
     expect(eval.hasNiveauObserve, isFalse);
   });
 
+  test('l\'échelle TCF IRN plafonne les anciens niveaux C1/C2 à B2', () {
+    expect(NiveauCecrl.b2.scaleIndex, 3);
+    expect(NiveauCecrl.c1.scaleIndex, NiveauCecrl.b2.scaleIndex);
+    expect(NiveauCecrl.c2.scaleIndex, NiveauCecrl.b2.scaleIndex);
+  });
+
   group('correspondance avec la grille officielle du TCF', () {
     Map<String, dynamic> bilanJson(Object? correspondance, {String? niveau}) =>
         <String, dynamic>{
@@ -252,16 +263,49 @@ void main() {
         scoreTcfMax: 1,
       );
 
-      expect(c.phrase, 'Au TCF, le niveau A1 correspond à la note de 1 sur 20.');
+      expect(
+          c.phrase, 'Au TCF, le niveau A1 correspond à la note de 1 sur 20.');
     });
 
     test('un bilan sans niveau exploitable n\'a pas de correspondance', () {
-      expect(ProductionBilan.fromJson(bilanJson(null)).correspondanceTcf, isNull);
+      expect(
+          ProductionBilan.fromJson(bilanJson(null)).correspondanceTcf, isNull);
       expect(
         ProductionBilan.fromJson(bilanJson(<String, dynamic>{'niveau': 'B1'}))
             .correspondanceTcf,
         isNull,
       );
+    });
+  });
+
+  group('bornes strictes EE du TCF IRN', () {
+    ProductionTaskDto task(int numero, int min, int max) => ProductionTaskDto(
+          id: 'ee-t$numero',
+          epreuve: EpreuveType.tcfEe,
+          tacheNumero: numero,
+          niveauCible: 'B1',
+          consigne: 'Consigne',
+          motsMin: min,
+          motsMax: max,
+        );
+
+    test('T1 accepte 30 et 60, refuse 29 et 61', () {
+      final t1 = task(1, 30, 60);
+
+      expect(isEeWordCountWithinBounds(t1, 29), isFalse);
+      expect(isEeWordCountWithinBounds(t1, 30), isTrue);
+      expect(isEeWordCountWithinBounds(t1, 60), isTrue);
+      expect(isEeWordCountWithinBounds(t1, 61), isFalse);
+    });
+
+    test('T2 et T3 acceptent 60 et 90, refusent 59 et 91', () {
+      for (final numero in [2, 3]) {
+        final current = task(numero, 60, 90);
+        expect(isEeWordCountWithinBounds(current, 59), isFalse);
+        expect(isEeWordCountWithinBounds(current, 60), isTrue);
+        expect(isEeWordCountWithinBounds(current, 90), isTrue);
+        expect(isEeWordCountWithinBounds(current, 91), isFalse);
+      }
     });
   });
 }

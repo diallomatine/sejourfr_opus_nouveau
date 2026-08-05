@@ -34,7 +34,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * </pre>
  *
  * <p>Proprietes reconnues : {@code calibration.rubrics}, {@code calibration.prompt},
- * {@code calibration.provider}, {@code calibration.passes}, {@code calibration.parallelisme},
+ * {@code calibration.passes}, {@code calibration.parallelisme},
  * {@code calibration.limit}, {@code calibration.retries}, {@code calibration.label},
  * {@code calibration.env.file}.
  */
@@ -58,14 +58,13 @@ class CalibrationBenchTest {
 
         String rubrics = prop("calibration.rubrics", null);
         String promptVersion = prop("calibration.prompt", null);
-        String provider = prop("calibration.provider", null);
         int passes = propInt("calibration.passes", 1);
         int parallelisme = propInt("calibration.parallelisme", 5);
         int limite = propInt("calibration.limit", 0);
         int retries = propInt("calibration.retries", 3);
 
         ObjectMapper objectMapper = new ObjectMapper();
-        ProductionEvaluationProperties props = CalibrationEnv.properties(rubrics, promptVersion, provider);
+        ProductionEvaluationProperties props = CalibrationEnv.properties(rubrics, promptVersion);
         CalibrationRunner runner = new CalibrationRunner(props, objectMapper, retries);
 
         List<GoldenSet.Cas> corpus = GoldenSet.load();

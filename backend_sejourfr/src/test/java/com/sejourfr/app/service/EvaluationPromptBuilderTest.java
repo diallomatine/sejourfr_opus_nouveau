@@ -92,7 +92,7 @@ class EvaluationPromptBuilderTest {
     }
 
     @Test
-    void userPrompt_EO_injecte_duree_factuelle_sous_objectif() {
+    void userPrompt_EO_n_injecte_jamais_la_duree_dans_le_materiau_de_notation() {
         ProductionTask task = new ProductionTask();
         task.setEpreuve(EpreuveType.TCF_EO);
         task.setTacheNumero((short) 1);
@@ -103,7 +103,7 @@ class EvaluationPromptBuilderTest {
         String user = builder.buildUserPrompt(task, "bonjour je m'appelle samuel", true, 90);
 
         assertThat(user).contains("ÉPREUVE : Expression orale, tâche 1");
-        assertThat(user).contains("DURÉE (indicative) : 90 s (objectif 180 s)");
+        assertThat(user).doesNotContain("DURÉE", "90 s", "objectif 180 s");
         // EO : pas de bloc longueur (specifique EE)
         assertThat(user).doesNotContain("LONGUEUR ATTENDUE");
     }

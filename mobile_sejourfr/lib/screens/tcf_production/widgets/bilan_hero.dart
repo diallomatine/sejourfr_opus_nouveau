@@ -7,7 +7,7 @@ import '../../../core/utils/format_date.dart';
 import 'cecrl_scale.dart';
 
 /// Carte "Bilan global" sur fond bleu dégradé : eyebrow mono + moyenne /20
-/// à gauche, niveau CECRL plancher à droite (règle TCF IRN), barre A1→C2
+/// à gauche, niveau CECRL plancher à droite (règle TCF IRN), barre A1→B2
 /// en bas. Alignée sur le pattern hero des autres écrans bilan (TCF complet,
 /// EE/EO results).
 class BilanHero extends StatelessWidget {
@@ -82,7 +82,9 @@ class BilanHero extends StatelessWidget {
                       text: TextSpan(
                         children: [
                           TextSpan(
-                            text: moyenneSur20 == null ? '—' : formatScore(moyenneSur20!),
+                            text: moyenneSur20 == null
+                                ? '—'
+                                : formatScore(moyenneSur20!),
                             style: AppFonts.display(
                               size: 44,
                               weight: FontWeight.w700,
@@ -116,7 +118,8 @@ class BilanHero extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 9),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),

@@ -72,7 +72,8 @@ class ProductionTaskDto {
     return 'Tâche $tacheNumero';
   }
 
-  factory ProductionTaskDto.fromJson(Map<String, dynamic> json) => ProductionTaskDto(
+  factory ProductionTaskDto.fromJson(Map<String, dynamic> json) =>
+      ProductionTaskDto(
         id: json['id'] as String,
         epreuve: EpreuveType.fromWire(json['epreuve'] as String),
         tacheNumero: (json['tacheNumero'] as num).toInt(),
@@ -85,6 +86,14 @@ class ProductionTaskDto {
         motsMax: (json['motsMax'] as num?)?.toInt(),
       );
 }
+
+/// Les bornes EE du TCF IRN sont strictes : T1 30–60 mots, T2/T3 60–90
+/// d'après la tâche reçue du backend. Aucune marge au-delà du maximum.
+bool isEeWordCountWithinBounds(ProductionTaskDto task, int wordCount) =>
+    task.motsMin != null &&
+    task.motsMax != null &&
+    wordCount >= task.motsMin! &&
+    wordCount <= task.motsMax!;
 
 class ProductionSubmissionDto {
   ProductionSubmissionDto({
@@ -137,7 +146,8 @@ class ProductionSubmissionDto {
 
   bool get isText => texteSoumis != null;
 
-  factory ProductionSubmissionDto.fromJson(Map<String, dynamic> json) => ProductionSubmissionDto(
+  factory ProductionSubmissionDto.fromJson(Map<String, dynamic> json) =>
+      ProductionSubmissionDto(
         id: json['id'] as String,
         attemptId: json['attemptId'] as String?,
         productionTaskId: json['productionTaskId'] as String?,
@@ -152,7 +162,8 @@ class ProductionSubmissionDto {
         submittedAt: DateTime.parse(json['submittedAt'] as String),
         evaluation: json['evaluation'] == null
             ? null
-            : EvaluationResult.fromJson(json['evaluation'] as Map<String, dynamic>),
+            : EvaluationResult.fromJson(
+                json['evaluation'] as Map<String, dynamic>),
         transcription: json['transcription'] as String?,
       );
 }
@@ -193,10 +204,13 @@ class EvaluationResult {
   /// Garde-fou produit : jamais de niveau sans sa confiance a cote.
   bool get hasNiveauObserve => niveauObserve != null && confiance != null;
 
-  factory EvaluationResult.fromJson(Map<String, dynamic> json) => EvaluationResult(
+  factory EvaluationResult.fromJson(Map<String, dynamic> json) =>
+      EvaluationResult(
         noteSurVingt: (json['noteSurVingt'] as num?)?.toDouble(),
-        niveauObserve: NiveauCecrl.fromWireNullable(json['niveauObserve'] as String?),
-        confiance: ConfianceEvaluation.fromWireNullable(json['confiance'] as String?),
+        niveauObserve:
+            NiveauCecrl.fromWireNullable(json['niveauObserve'] as String?),
+        confiance:
+            ConfianceEvaluation.fromWireNullable(json['confiance'] as String?),
         avertissementNiveau: json['avertissementNiveau'] as String?,
         feedback: EvaluationFeedback.fromJson(
           (json['feedback'] as Map<String, dynamic>?) ?? const {},
@@ -246,7 +260,8 @@ class EvaluationFeedback {
     final accomplissement = json['accomplissement'];
     return EvaluationFeedback(
       noteGlobale: (json['note_globale'] as num?)?.toDouble(),
-      confiance: ConfianceEvaluation.fromWireNullable(json['confiance'] as String?),
+      confiance:
+          ConfianceEvaluation.fromWireNullable(json['confiance'] as String?),
       confianceRaisons: ((json['confiance_raisons'] as List?) ?? const [])
           .map((e) => e.toString())
           .toList(),
@@ -256,16 +271,22 @@ class EvaluationFeedback {
       scoresCriteres: ((json['scores_criteres'] as List?) ?? const [])
           .map((e) => CriterionScore.fromJson(e as Map<String, dynamic>))
           .toList(),
-      pointsForts: ((json['points_forts'] as List?) ?? const []).map((e) => e.toString()).toList(),
+      pointsForts: ((json['points_forts'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .toList(),
       pointsAAmeliorer: ((json['points_a_ameliorer'] as List?) ?? const [])
           .map(PointAAmeliorer.fromJsonNullable)
           .whereType<PointAAmeliorer>()
           .toList(),
-      suggestions: ((json['suggestions'] as List?) ?? const []).map((e) => e.toString()).toList(),
+      suggestions: ((json['suggestions'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .toList(),
       exemplesCorriges: ((json['exemples_corriges'] as List?) ?? const [])
           .map((e) => CorrectionExample.fromJson(e as Map<String, dynamic>))
           .toList(),
-      avertissements: ((json['avertissements'] as List?) ?? const []).map((e) => e.toString()).toList(),
+      avertissements: ((json['avertissements'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .toList(),
     );
   }
 }
@@ -297,10 +318,9 @@ class PointAAmeliorer {
     }
     if (raw is Map<String, dynamic>) {
       // `libelle`/`texte` : formes intermediaires vues chez certains modeles.
-      final constat =
-          _trimmedOrNull(raw['constat']) ??
-              _trimmedOrNull(raw['libelle']) ??
-              _trimmedOrNull(raw['texte']);
+      final constat = _trimmedOrNull(raw['constat']) ??
+          _trimmedOrNull(raw['libelle']) ??
+          _trimmedOrNull(raw['texte']);
       if (constat == null) return null;
       return PointAAmeliorer(
         constat: constat,
@@ -357,7 +377,8 @@ class Accomplissement {
           .where((p) => p.libelle.isNotEmpty)
           .toList();
 
-  factory Accomplissement.fromJson(Map<String, dynamic> json) => Accomplissement(
+  factory Accomplissement.fromJson(Map<String, dynamic> json) =>
+      Accomplissement(
         pointsTraites: _points(json['points_traites']),
         pointsOublies: _points(json['points_oublies']),
       );
@@ -438,7 +459,8 @@ class CorrectionExample {
   /// relative, marqueur attendu au B1 »). Absent des evaluations anterieures.
   final String? gain;
 
-  factory CorrectionExample.fromJson(Map<String, dynamic> json) => CorrectionExample(
+  factory CorrectionExample.fromJson(Map<String, dynamic> json) =>
+      CorrectionExample(
         original: json['original'] as String? ?? '',
         corrige: json['corrige'] as String? ?? '',
         explication: json['explication'] as String? ?? '',
@@ -472,15 +494,17 @@ class ProductionExampleDto {
 
   bool get hasAudio => audioUrl != null && audioUrl!.isNotEmpty;
 
-  factory ProductionExampleDto.fromJson(Map<String, dynamic> json) => ProductionExampleDto(
+  factory ProductionExampleDto.fromJson(Map<String, dynamic> json) =>
+      ProductionExampleDto(
         id: json['id'] as String,
         titre: json['titre'] as String,
         resume: json['resume'] as String?,
         contenu: json['contenu'] as String,
         explications: json['explications'] as String?,
         audioUrl: json['audioUrl'] as String?,
-        planPoints:
-            ((json['planPoints'] as List?) ?? const []).map((e) => e.toString()).toList(),
+        planPoints: ((json['planPoints'] as List?) ?? const [])
+            .map((e) => e.toString())
+            .toList(),
         niveauIndicatif: json['niveauIndicatif'] as String?,
       );
 }
@@ -517,7 +541,8 @@ class CorrespondanceTcf {
     final min = (json['scoreTcfMin'] as num?)?.toInt();
     final max = (json['scoreTcfMax'] as num?)?.toInt();
     if (niveau == null || min == null || max == null) return null;
-    return CorrespondanceTcf(niveau: niveau, scoreTcfMin: min, scoreTcfMax: max);
+    return CorrespondanceTcf(
+        niveau: niveau, scoreTcfMin: min, scoreTcfMax: max);
   }
 }
 
@@ -573,7 +598,8 @@ class ProductionBilan {
 
   bool get isComplete => evaluatedCount >= expectedCount && expectedCount > 0;
 
-  factory ProductionBilan.fromJson(Map<String, dynamic> json) => ProductionBilan(
+  factory ProductionBilan.fromJson(Map<String, dynamic> json) =>
+      ProductionBilan(
         attemptId: json['attemptId'] as String,
         epreuve: EpreuveType.fromWire(json['epreuve'] as String),
         exam: json['exam'] as bool? ?? false,
@@ -582,7 +608,9 @@ class ProductionBilan {
         finished: json['finished'] as bool? ?? false,
         slotNumber: (json['slotNumber'] as num?)?.toInt(),
         moyenneSur20: (json['moyenneSur20'] as num?)?.toDouble(),
-        niveauGlobal: NiveauCecrl.fromWireNullable(json['niveauGlobal'] as String?),
-        correspondanceTcf: CorrespondanceTcf.fromJsonNullable(json['correspondanceTcf']),
+        niveauGlobal:
+            NiveauCecrl.fromWireNullable(json['niveauGlobal'] as String?),
+        correspondanceTcf:
+            CorrespondanceTcf.fromJsonNullable(json['correspondanceTcf']),
       );
 }

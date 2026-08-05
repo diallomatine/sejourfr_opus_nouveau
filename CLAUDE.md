@@ -213,11 +213,11 @@ Le « quoi » et le « pourquoi » vivent dans `docs/notation-ia-eo-ee.md` (réf
 grand public, **à tenir exhaustive et à jour dans la même passe** — cf. la règle
 dédiée plus bas). Ici, uniquement de quoi se repérer.
 
-- **Versions actives** : rubriques `production-rubrics-v6.json`, tool-schema de
-  sortie `production-evaluation-tool-schema-v3.json`, persona vocale
-  `realtime-personas-v2.json`. **v5, v4.2, v4.1, v4 et v3 restent chargeables et
-  validées** : retour arrière = `EVAL_RUBRICS_VERSION=v5|v4.2|v4.1|v4|v3`
-  (+ `EVAL_PROMPT_VERSION=v2`, ou `v1.5` pour v3), aucune migration. **On
+- **Versions actives** : rubriques `production-rubrics-v7.json`, tool-schema de
+  sortie `production-evaluation-tool-schema-v4.json`, persona vocale
+  `realtime-personas-v2.json`. **v6/v3, v5/v3, v4.2/v2, v4.1/v2, v4/v2 et
+  v3/v2 restent chargeables et validées** : un retour arrière change la paire
+  `EVAL_RUBRICS_VERSION` + `EVAL_PROMPT_VERSION`, aucune migration. **On
   versionne, on ne réécrit jamais** une rubrique livrée.
 - **v4** = critères propres à chaque tâche (5 par tâche, fini les 4 universels),
   obligatoires vs pistes, bloc accomplissement, confiance, preuve littérale,
@@ -289,7 +289,8 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     seulement les seuils : `commun.couplage.ecart_max`, `commun.plafonds`,
     `commun.bandes_criteres`. Résolus par `ProductionRubricsProvider.couplage()`
     / `.plafonds()` / `.bandesCriteres()`, qui l'emportent sur la config. Sans
-    ça, `EVAL_RUBRICS_VERSION` seule ne suffirait plus au retour arrière.
+    ça, le retour arrière demanderait une troisième bascule de seuils en plus
+    de la paire rubriques + tool-schema.
   - **Garde-fou de couplage recalculé : 4 → 1 point.** Ce qui se conserve n'est
     pas l'écart mais le **gain maximal concédé à la moyenne** (`ecartMax / 2`).
     À 1 point ce gain plafonne à 0,5 : une langue au **haut** de son palier (5
@@ -320,15 +321,64 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
     Web `ProductionScoreHero.tsx`, `ProductionSession.tsx`, `lib/types.ts` ;
     mobile `donut_chart_score.dart`, `bilan_hero.dart`,
     `production_models.dart`.
+- **v7 = profil TCF IRN strict, version active.** Elle conserve l'échelle et les
+  quatre critères de v6, retire C1/C2 de tout ce qui est envoyé au correcteur et
+  déclare explicitement `profile=TCF_IRN`, `niveau_max=B2` et
+  `tool_schema_version=v4`. Le schéma v4 impose exactement les quatre critères,
+  les niveaux `A1_NON_ATTEINT|A1|A2|B1|B2`, toutes les structures requises et
+  `additionalProperties=false`. Le serveur valide la sortie **brute avant toute
+  normalisation** : note finie dans `[0,20]`, quatre codes exacts sans doublon,
+  structure complète et aucun niveau au-dessus de B2. Une sortie invalide est
+  rejouée **une seule fois** avec les violations. Après ce retry, l'unique repli
+  accepté est une seule preuve non vide mais non rattachable, tous les autres champs et les
+  trois autres preuves étant valides : elle est retirée, la confiance plafonnée à
+  `MOYENNE` et un avertissement serveur est ajouté. Deux preuves, une preuve vide ou toute
+  autre violation font échouer la submission sans note partielle. Sur un retry réparé ou
+  dégradé, tokens d'entrée, tokens de sortie et coût des deux appels sont additionnés.
+- **Preuves v4 opposables** : chaque critère porte une citation non vide. Le
+  serveur privilégie le passage contigu exact, puis ne tolère, à partir de 4
+  tokens, qu'une seule édition de token : insertion/suppression réservée à une liste
+  fermée de mots-outils ; la seule substitution admise est la flexion
+  `telle/tels/telles`, explicitement reconnue. Toute autre substitution est refusée.
+  Elle exige au moins 3 tokens significatifs identiques, un match unique et aucun écart de
+  nombre/négation ; tout token contenant un chiffre est immuable. Les variantes
+  Unicode, ligatures, apostrophes, tirets et espaces sont neutralisées. En
+  dialogue EO, seuls les tours `Candidat :` sont cherchés. Toute preuve acceptée
+  est remplacée avant persistance par la sous-chaîne originale exacte ; une
+  preuve inventée ou ambiguë déclenche le retry sémantique. Si une unique preuve
+  demeure non rattachable après ce retry, elle n'est jamais persistée : le mode
+  dégradé documenté ci-dessus conserve seulement les trois preuves sûres.
+- **Transaction du pipeline async** : `ProductionPipelineAsyncRunner` reste
+  volontairement **sans transaction englobante**. Whisper et l'évaluation ont
+  leurs propres transactions ; `ProductionPipelineFailureRecorder` conserve
+  `REQUIRES_NEW` pour rendre `FAILED` durable. Le runner charge la task par
+  `findByIdWithTask` avant détachement. Ne pas réintroduire de transaction
+  externe : une exception d'un service `REQUIRED` la marquerait rollback-only et
+  provoquerait un `UnexpectedRollbackException` après le `catch`.
+- **Garde-fou EO opposable** : le correcteur ne reçoit plus la durée et sa sortie
+  est rejetée si un champ évaluatif fonde la note ou les conseils sur les
+  hésitations, répétitions, faux départs, aisance, fluidité, débit,
+  prononciation, accent, intonation, orthographe/ponctuation de la transcription
+  ou durée. Seules les `confiance_raisons` peuvent expliquer une transcription
+  incertaine.
+- **Bornes EE strictes TCF IRN** : T1 `30–60`, T2/T3 `60–90`. La tolérance
+  historique de 20 % est supprimée : serveur, web, mobile et auto-soumission
+  appliquent exactement les bornes DB. Les tâches T2/T3 ont un contexte/destinataire et les neuf exemples
+  livrés restent dans la fourchette. Les anciennes submissions sont préservées.
+- **Un seul correcteur configurable** : `sejourfr.production-evaluation.provider`
+  dans `application.yaml` (défaut `deepseek`, modèle `deepseek-v4-flash`) pilote
+  l'async, la fin de session temps réel, la seconde passe et le banc. La seconde
+  passe réutilise obligatoirement le même bean provider/modèle. Gemini reste
+  uniquement l'examinateur vocal et le transcripteur temps réel ; il ne note pas.
 - **Banc de mesure** (`src/test/java/.../calibration/`, corpus
   `src/test/resources/calibration/golden-set-v1.json`, 48 cas synthétiques) :
   **opt-in strict**, jamais dans `./mvnw verify` (appelle un LLM payant).
   `./mvnw -q test -Dtest=CalibrationBenchTest -DfailIfNoTests=false
-  -Dcalibration.enabled=true -Dcalibration.rubrics=v6 -Dcalibration.prompt=v3
-  -Dcalibration.provider=deepseek -Dcalibration.label=<nom>` → rapport JSON dans
-  `target/calibration/`. **Toujours fixer `-Dcalibration.provider`** : le `.env`
-  local peut pointer un autre modèle, et deux campagnes ont ainsi tourné sur
-  gpt-4o-mini (v4.2 y tombe à 41,7 % d'accord contre 81,3 % sur DeepSeek).
+  -Dcalibration.enabled=true -Dcalibration.rubrics=v7 -Dcalibration.prompt=v4
+  -Dcalibration.label=<nom>` → rapport JSON dans `target/calibration/`. Le banc
+  lit obligatoirement le provider et le modèle du runtime dans
+  `application.yaml`/`.env` : il n'existe plus de surcharge
+  `calibration.provider`, afin d'éviter de mesurer un autre correcteur par erreur.
   Parallélisme ≤ 3 : au-delà le fournisseur renvoie des 429 et des cas se
   perdent (mesuré : 5 cas perdus à 4 en vol, 2 à 2 en vol avec `retries=10`).
   **Ne jamais ajuster le corpus** pour faire passer une version : on corrige le
@@ -358,7 +408,7 @@ dédiée plus bas). Ici, uniquement de quoi se repérer.
   à l'IA correctrice — **ce n'est pas une check-list de notation**.
 - **Trois drapeaux livrés ÉTEINTS** (`sejourfr.production-evaluation`) :
   `fluidite.enabled` (débit/pauses, informatif), `seconde-passe.enabled` (2ᵉ
-  lecture en zone floue, modèle différent obligatoire), `coherence-bilan.enabled`
+  lecture en zone floue, même provider/modèle), `coherence-bilan.enabled`
   (pas de B2 au bilan si T3 < B1). À `false`, ils ne changent **rien**. Les
   `plafonds`, eux, sont **actifs**.
 
@@ -939,7 +989,7 @@ Référence à consulter quand le contexte le demande — pas chargé par défau
 - `docs/auth-social.md` — Google/Apple sign-in (backend + front, config env)
 - `docs/setup-paiement-one-time.md` — passes achat unique (lot 5) : setup Stripe/Apple/Google pas-à-pas + SKU
 - `docs/pipeline-audio-co.md` — génération audio TCF CO (Claude → Azure Speech → R2)
-- `docs/pipeline-evaluation-eo-ee.md` — éval EO/EE (Whisper → Claude/OpenAI → R2 privé)
+- `docs/pipeline-evaluation-eo-ee.md` — éval EO/EE (audio/transcription → correcteur configuré → R2 privé)
 - `docs/notation-ia-eo-ee.md` — **explication grand public** (non technique) de la notation
   IA de TOUTES les tâches EE/EO : les 6 tâches, critères propres à chaque tâche + poids,
   barème /20 et bandes affichées, obligatoires vs pistes, accomplissement, confiance,

@@ -35,7 +35,7 @@ Elle « corrige » donc des problèmes qui n'existent pas chez nous.
 
 | Ce que la spec dit corriger | Réalité chez nous | Vérifié dans |
 |---|---|---|
-| « Supprimer les longueurs 60-120, 120-150, 150-180 mots » | Déjà bon : EE1 = 30-60, EE2 = 40-90, EE3 = 40-90 | seeds `300_tcf/production/ee/**` |
+| « Supprimer les longueurs 60-120, 120-150, 150-180 mots » | Corrigé par V723 : EE1 = 30-60, EE2/EE3 = 60-90 | seeds `300_tcf/production/ee/**` |
 | « Durées EO à corriger » | Déjà bon : EO1 = 180 s, EO2 et EO3 = 210 s | seeds `300_tcf/production/eo/**` |
 | « Ne pas plafonner le niveau au niveau visé de la tâche » | Déjà écrit noir sur blanc : le niveau peut être au-dessus **ou** en dessous de la cible | `production-rubrics-v3.json`, section « Deux dimensions distinctes » |
 | « Ne pas sanctionner l'accent » | Déjà fait — **mais par défaut, pas par choix** : on n'évalue rien de la voix parce qu'on ne l'a pas (cf. §4.5). C'est une **limite**, pas un avantage. | `production-rubrics-v3.json`, section orale |
@@ -481,7 +481,7 @@ Non négociables, quelle que soit la phase retenue :
 
 | Section de la spec | Verdict | Pourquoi |
 |---|---|---|
-| §1.1 Longueurs et durées TCF IRN | ✅ Déjà fait | Seeds conformes (30-60 / 40-90 ; 180 s / 210 s) |
+| §1.1 Longueurs et durées TCF IRN | ✅ Corrigé | Seeds conformes (30-60 / 60-90 / 60-90 ; 180 s / 210 s) |
 | §1.2 Distinguer difficulté et niveau attribué | ✅ Déjà fait | Le niveau n'est pas plafonné à la cible |
 | §1.2 Afficher un niveau par tâche | ✅ **Accepté** (révisé) | Version hedgée : « performance proche de B1 » + confiance + le bilan fait foi |
 | §2 Ordre de priorité (tâche avant langue) | ✅ D'accord | À traduire dans les rubriques v4 |

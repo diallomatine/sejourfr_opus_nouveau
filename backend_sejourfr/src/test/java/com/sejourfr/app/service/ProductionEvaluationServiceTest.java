@@ -266,12 +266,25 @@ class ProductionEvaluationServiceTest {
     }
 
     @Test
-    void submit_EE_trop_long_au_dela_de_la_tolerance_refuse() {
+    void submit_EE_un_seul_mot_au_dela_du_maximum_refuse() {
         ProductionTask t = task(EpreuveType.TCF_EE);
-        t.setMotsMax(10); // plafond tolere = floor(10*1.2) = 12
+        t.setMotsMax(10);
         stubCommon(t, ownedAttempt());
-        assertThatThrownBy(() -> service.submitAndEvaluate(userId, taskId, attemptId, null, words(20)))
+        assertThatThrownBy(() -> service.submitAndEvaluate(userId, taskId, attemptId, null, words(11)))
                 .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void submit_EE_exactement_au_maximum_est_accepte() {
+        ProductionTask t = task(EpreuveType.TCF_EE);
+        t.setMotsMin(10);
+        t.setMotsMax(10);
+        stubCommon(t, ownedAttempt());
+
+        ProductionSubmission saved = service.submitAndEvaluate(
+                userId, taskId, attemptId, null, words(10));
+
+        assertThat(saved.getMotsCount()).isEqualTo(10);
     }
 
     @Test

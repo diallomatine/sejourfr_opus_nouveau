@@ -388,9 +388,9 @@ class ProductionRubricsValidatorTest {
     }
 
     /**
-     * v5 declare LUI-MEME son passage note -> niveau : c'est ce qui permet a
-     * EVAL_RUBRICS_VERSION seule de suffire pour revenir a v4.2 (dont le calcul
-     * lit trois criteres et d'autres seuils).
+     * v5 declare LUI-MEME son passage note -> niveau : la paire de rollback
+     * rubriques/tool-schema n'a donc pas besoin d'une troisième surcharge pour
+     * les seuils (v4.2 lit trois criteres et d'autres seuils).
      */
     @Test
     void v5File_declaresItsOwnLevelSettings() {

@@ -86,6 +86,17 @@ class AiEvaluationServiceV4Test {
         return f;
     }
 
+    /** Feedback conforme aux quatre critères universels de la rubrique v3. */
+    private static Map<String, Object> feedbackV3(Number note) {
+        Map<String, Object> f = feedbackEeT1(note);
+        f.put("scores_criteres", new ArrayList<>(List.of(
+            score("pertinence", note, "j'ai enfin déménagé"),
+            score("lexique", note, "il est lumineux"),
+            score("morphosyntaxe", note, "Viens passer le week-end"),
+            score("coherence", note, "il y a un petit jardin"))));
+        return f;
+    }
+
     private ProductionTask task(EpreuveType epreuve, int tache) {
         ProductionTask t = new ProductionTask();
         t.setId(UUID.randomUUID());
@@ -163,7 +174,7 @@ class AiEvaluationServiceV4Test {
         EvaluationPromptBuilder promptBuilder = new EvaluationPromptBuilder(new ObjectMapper(), rubrics);
         ProductionValidityService validity = new ProductionValidityService(props);
 
-        secondePasse = new ProductionSecondePasseService(props, secondPassClient);
+        secondePasse = new ProductionSecondePasseService(props, secondPassClient, rubrics);
         service = new AiEvaluationService(submissionManager, transcriptionManager, aiEvaluationManager,
             llmClient, promptBuilder, rubrics, validity, secondePasse,
             new ProductionFluiditeService(props), props);
@@ -764,7 +775,7 @@ class AiEvaluationServiceV4Test {
         buildService("v3");
         ProductionTask task = task(EpreuveType.TCF_EE, 1);
         ProductionSubmission sub = submission(task, TEXTE_EE);
-        stubLlm(feedbackEeT1(13));
+        stubLlm(feedbackV3(13));
 
         assertThat(service.evaluate(sub.getId()).getRubricsVersion()).isEqualTo("v3");
     }

@@ -5,6 +5,7 @@ import com.sejourfr.app.enums.ConfianceEvaluation;
 import com.sejourfr.app.enums.NiveauCecrl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
@@ -27,7 +28,11 @@ class ProductionSecondePasseServiceTest {
     @BeforeEach
     void setUp() {
         props = new ProductionEvaluationProperties();
-        service = new ProductionSecondePasseService(props, mock(EvaluationLlmClient.class));
+        props.setRubricsVersion("v7");
+        ProductionRubricsProvider rubrics = new ProductionRubricsProvider(props, new ObjectMapper());
+        rubrics.load();
+        service = new ProductionSecondePasseService(
+            props, mock(EvaluationLlmClient.class), rubrics);
     }
 
     private static ProductionSecondePasseService.Passe passe(String note, NiveauCecrl calcule,
@@ -56,7 +61,7 @@ class ProductionSecondePasseServiceTest {
 
     @Test
     void zone_sure_aucune_raison() {
-        // Competence 17.5 : a 2.5 pts du seuil B2 (15), confiance HAUTE, pas de
+        // Competence 17.5 : loin du seuil B2 (10), confiance HAUTE, pas de
         // divergence de plus d'un palier.
         assertThat(service.raisonsZoneFloue(ConfianceEvaluation.HAUTE, new BigDecimal("17.5"),
             NiveauCecrl.B2, NiveauCecrl.B2)).isEmpty();
@@ -71,30 +76,30 @@ class ProductionSecondePasseServiceTest {
 
     @Test
     void competence_a_la_frontiere_d_un_seuil_declenche() {
-        // Seuil B1 = 12.0, marge = 1.0 -> 12.4 est a la frontiere.
-        assertThat(service.raisonsZoneFloue(ConfianceEvaluation.HAUTE, new BigDecimal("12.4"),
+        // Seuil B1 v7 = 6.0, marge = 1.0 -> 6.4 est a la frontiere.
+        assertThat(service.raisonsZoneFloue(ConfianceEvaluation.HAUTE, new BigDecimal("6.4"),
             NiveauCecrl.B1, NiveauCecrl.B1))
-            .anyMatch(r -> r.contains("frontiere"));
+            .anyMatch(r -> r.contains("B1 (6.0)"));
     }
 
     @Test
     void marge_de_frontiere_configurable() {
         props.getSecondePasse().setMargeSeuilNiveau(0.1);
-        assertThat(service.raisonsZoneFloue(ConfianceEvaluation.HAUTE, new BigDecimal("12.4"),
+        assertThat(service.raisonsZoneFloue(ConfianceEvaluation.HAUTE, new BigDecimal("6.4"),
             NiveauCecrl.B1, NiveauCecrl.B1)).isEmpty();
     }
 
     @Test
     void divergence_de_plus_d_un_palier_declenche() {
         // B2 (LLM) vs A2 (serveur) = 2 paliers.
-        assertThat(service.raisonsZoneFloue(ConfianceEvaluation.HAUTE, new BigDecimal("10.0"),
+        assertThat(service.raisonsZoneFloue(ConfianceEvaluation.HAUTE, new BigDecimal("15.0"),
             NiveauCecrl.B2, NiveauCecrl.A2))
             .anyMatch(r -> r.contains("divergent"));
     }
 
     @Test
     void divergence_d_un_seul_palier_ne_declenche_pas() {
-        assertThat(service.raisonsZoneFloue(ConfianceEvaluation.HAUTE, new BigDecimal("10.0"),
+        assertThat(service.raisonsZoneFloue(ConfianceEvaluation.HAUTE, new BigDecimal("15.0"),
             NiveauCecrl.B1, NiveauCecrl.A2)).isEmpty();
     }
 

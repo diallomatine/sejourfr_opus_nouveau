@@ -78,7 +78,7 @@ lib/
     ├── tcf/
     │   ├── tcf_screen.dart                    Home TCF (single scroll : header + hero + 5 épreuves + CECRL + stats)
     │   └── widgets/
-    │       ├── cecrl_progress_card.dart       Niveau global estimé + objectif + barre 6 segments A1→C2
+    │       ├── cecrl_progress_card.dart       Niveau global estimé + objectif (hors production)
     │       └── stats_row.dart                 3 mini-cards stats (Séances / Pratique / Jours actifs)
     ├── module_detail/             Écran détail intermédiaire entre hub et runner / sujets de tâche
     │   ├── civique_theme_detail_screen.dart   Hub d'un thème civique (single scroll, pattern QCM)
@@ -470,7 +470,8 @@ Sections successives (mêmes briques sur les 2 hubs) :
 - `SectionLabel('Ma progression')` + `SectionLink('Détails')` → push `/progress`.
 - TCF : `CecrlProgressCard` (niveau actuel = `progression.lastFullExam.finalLevel` du dernier
   examen blanc complet ; objectif = `progression.tcf.targetLevel`, fallback dérivé de
-  `targetProcedure`). Barre 6 segments A1→C2 colorée jusqu'au niveau courant.
+  `targetProcedure`). Cette carte de profil général est distincte de la notation
+  production TCF IRN, dont l'échelle de bilan s'arrête à B2.
 - TCF uniquement : `StatsRow` (3 mini-cards). Seules les Séances sont branchées
   (`stats.attemptsTotal`) — Pratique (minutes) et Jours actifs sont en `—` tant que le backend
   ne les expose pas (TODO).
@@ -636,7 +637,8 @@ contiennent que du texte, mais l'architecture est prête pour le TCF complet.
 ## TCF Expression orale + écrite (`screens/tcf_production/`)
 
 Module distinct du runner QCM : l'utilisateur **produit** un audio (EO) ou un texte (EE), envoyé au backend
-qui le transcrit (Whisper) + le note (Claude) en 10-15 s. Cf. `CLAUDE.md` racine pour le pipeline backend.
+qui le transcrit (Whisper) + le note via le correcteur unique configuré dans
+`sejourfr.production-evaluation` (DeepSeek par défaut) en 10-15 s. Cf. `CLAUDE.md` racine.
 
 **Deux écrans** (`tcf_expression_screen.dart`, remplacent l'ancien couple
 `TcfProductionDetailScreen` + `TcfProductionTaskSubjectsScreen` supprimés). Accents refonte
@@ -680,7 +682,7 @@ entre T1/T2/T3** ; après T3 → bilan détaillé (`HistorySessionScreen` `?live
   submission (correction IA complète) — push en single-task après soumission, ou depuis le
   bilan en tap d'une ligne.
 
-**Correction IA affichée (grille du TCF réel, rubriques v5)** — le corps des deux écrans de
+**Correction IA affichée (profil TCF IRN, rubriques v7 / schéma v4, maximum B2)** — le corps des deux écrans de
 résultats (EE + EO) est le widget partagé `widgets/evaluation_report.dart` : un seul endroit
 décide de l'ordre et de la forme de la correction, **y compris la note** (`DonutChartScore`
 est rendu par le rapport, plus par chaque écran). Ordre imposé : **niveau observé** sur la
@@ -708,7 +710,7 @@ backend) → corrections → suggestion.
   Fragile / Non évaluable », plus la `preuve` (citation littérale) sous le commentaire. La
   **note globale /20 reste affichée** (donut) et porte désormais **une décimale** (12,5) :
   tout affichage de note passe par `formatScore` (`core/utils/format_date.dart`), jamais par
-  un arrondi local. La grille v5 n'a que **4 codes équipondérés** (`communiquer`, `interagir`,
+  un arrondi local. La grille active n'a que **4 codes équipondérés** (`communiquer`, `interagir`,
   `lexique`, `morphosyntaxe`), mais la table icône↔libellé de `criterion_row.dart` garde
   **tous** les codes des grilles précédentes (`realisation_consigne`,
   `adequation_destinataire`, `chronologie_recit`, `developpement_reponses`, `prise_position`,
@@ -717,12 +719,14 @@ backend) → corrections → suggestion.
 - **Garde-fou non négociable** : jamais de niveau sans sa confiance
   (`EvaluationResult.hasNiveauObserve`). Le **bilan d'épreuve** reste le seul niveau qui fait
   foi.
-- **La note /20 est PÉDAGOGIQUE, pas une note de TCF** (notre échelle : 16-20 = B2,
-  11-15 = B1… ; au TCF IRN 10/20 vaut déjà B2). `DonutChartScore` le dit et n'affiche
-  **aucune** correspondance TCF — une tâche isolée n'a pas de note officielle. La
+- **La note /20 suit l'échelle TCF IRN** : 0 = A1 non atteint, 1 = A1, 2-5 = A2,
+  6-9 = B1 et 10-20 = B2 (plafond du profil, jamais C1/C2). Une tâche isolée n'a
+  toutefois pas de note officielle : aucune correspondance de bilan n'y est affichée. La
   correspondance (`ProductionBilan.correspondanceTcf` → `CorrespondanceTcf.phrase`) ne
   s'affiche qu'au **bilan d'épreuve** (`BilanHero`), au même wording que le web.
   Cf. `docs/notation-ia-eo-ee.md` §6.6.
+- `CecrlScale` affiche uniquement les quatre paliers du profil A1→B2. Les valeurs
+  C1/C2 restent décodables pour l'historique mais sont rabattues visuellement sur B2.
 - **Rétrocompatibilité (une centaine d'évaluations en base)** : `niveauObserve` / `confiance` /
   `avertissementNiveau` / `bande` / `accomplissement` / `preuve` / `gain` absents, et
   `points_a_ameliorer` en chaînes = cas **normal** → les blocs concernés disparaissent et
@@ -754,7 +758,7 @@ réutilise le flux briefing → enregistrement (EO) / `ee_briefing_writing_scree
   que `PUBLISHED` (bouton « ▶ Écouter » dans le modal exemple).
 - Endpoints lecture : `GET /api/production-tasks?epreuve=…&tacheNumero=…` (sujets),
   `GET /api/production-tasks/{id}` (détail sujet), `GET /api/production-examples?epreuve=…&tacheNumero=…` (modèles).
-- La correction IA réutilise le pipeline existant (Whisper + Claude).
+- La correction IA réutilise le pipeline existant (Whisper + correcteur configuré).
 
 **Flow EO (2 écrans + résultats)** — single-task : le SessionController a juste 1 tâche. Les écrans
 suivent le « studio » du template `SejourFR_Mobile_Autonome.html` : **consigne épinglée en haut,
@@ -778,7 +782,7 @@ page intermédiaire pour capturer — le tap sur le micro lance la capture sur p
      `PopScope`/flèche retour passent par une confirmation d'abandon pendant la capture.
 2. **Finished** (`eo_finished_screen.dart`) : `ConsigneCard` rouge compacte (`maxLines: 2`) +
    check vert + mini-player just_audio sur le fichier local + CTA "Voir mon évaluation" → swap vers
-   `EvaluationLoadingView(includeTranscription: true)` pendant l'upload R2 + Whisper + Claude
+   `EvaluationLoadingView(includeTranscription: true)` pendant l'upload R2 + Whisper + correcteur
    (~15 s), puis push résultats.
 4. **Résultats** (`eo_results_screen.dart`) : score donut (couleur = rampe `masteryColor`,
    plus de violet hors palette) + critères + feedback + **transcription
@@ -832,7 +836,8 @@ flag `isExam` + le `slotNumber`. Points d'entrée :
 (`screens/question_runner/widgets/exam_timer.dart`, réutilisé) dans le `trailing` du
 `ProductionProgressStrip`, ancré sur `attempt.startedAt` + `timeLimitSeconds` (module ; survit à un
 kill/reprise) ou 1800 s côté front (examen complet, pas de `timeLimitSeconds` backend). À 0:00 :
-auto-soumission du texte courant **s'il est recevable** (mots ∈ [motsMin, motsMax×1.2]), sinon rien ;
+auto-soumission du texte courant **s'il est recevable** (mots ∈ [motsMin, motsMax],
+bornes strictes TCF IRN : 30–60 / 60–90 / 60–90), sinon rien ;
 puis `finish` (module) / `markSubDone` (complet) ; puis bilan.
 
 **Chrono d'examen EO (15:00)** : `eo_briefing_screen` rend le même `ExamTimer` dans le `trailing` du

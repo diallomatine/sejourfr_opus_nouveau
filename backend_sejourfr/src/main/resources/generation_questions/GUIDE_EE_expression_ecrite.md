@@ -11,10 +11,11 @@
 | Tâche | Nature | Mots min/max | Déclencheur |
 |---|---|---|---|
 | Tâche 1 | Message court (répondre à un proche) | **30-60** | SMS / message d'un ami |
-| Tâche 2 | Récit (raconter une expérience) | **40-90** | message demandant un récit |
-| Tâche 3 | Avis argumenté (forum) | **40-90** | question d'opinion sur un forum |
+| Tâche 2 | Récit (raconter une expérience) | **60-90** | message demandant un récit |
+| Tâche 3 | Avis argumenté (forum) | **60-90** | question d'opinion sur un forum |
 
-Le candidat **doit** respecter les bornes de mots (sinon « A1 non atteint »).
+Le candidat **doit** respecter les bornes de mots : la soumission est refusée hors plage,
+elle n'est pas envoyée au correcteur et ne reçoit pas artificiellement « A1 non atteint ».
 
 ---
 
@@ -26,7 +27,7 @@ epreuve='TCF_EE', tache_numero (1|2|3), niveau_cible (indicatif, nullable),
 consigne,            -- la tâche à accomplir
 contexte,            -- mise en situation
 declencheur (jsonb), -- le message reçu : {expediteur, avatar, texte}
-mots_min, mots_max,  -- 30/60 (T1) ; 40/90 (T2 et T3)
+mots_min, mots_max,  -- 30/60 (T1) ; 60/90 (T2 et T3)
 duree_max_sec=NULL, is_active=true
 ```
 
@@ -69,14 +70,14 @@ par tâche, viser 3 A2 / 3-4 B1 / 3 B2.
 - B2 : registre maîtrisé (formel ou affectif selon le destinataire), formules
   idiomatiques, tact (refus poli, reproche nuancé au subjonctif).
 
-**Tâche 2 (40-90 mots)** — récit :
+**Tâche 2 (60-90 mots)** — récit :
 - A2 : succession d'actions au passé composé, repères temporels simples, opinion finale.
 - B1 : passé composé + imparfait (décor/émotions), structure (situation → déroulé →
   ressenti), connecteurs (d'abord, ensuite, finalement).
 - B2 : récit nuancé (plus-que-parfait, conditionnel passé), analyse personnelle,
   leçon tirée, lexique précis.
 
-**Tâche 3 (40-90 mots)** — avis argumenté :
+**Tâche 3 (60-90 mots)** — avis argumenté :
 - A2 : position claire + deux raisons simples + conclusion.
 - B1 : position + deux arguments illustrés d'exemples + concession (« c'est vrai
   que… mais »).
@@ -93,14 +94,14 @@ Liste courte de la structure de la réponse modèle, ex :
 Expliquer **ce qui rend la réponse réussie** : temps employés, connecteurs,
 respect des bornes de mots, tournures à imiter. Ex. « Remarquez l'emploi du passé
 composé pour les actions et de l'imparfait pour le décor ; la réponse fait 78 mots,
-dans les bornes 40-90. »
+dans les bornes 60-90. »
 
 ---
 
 ## Règle de comptage des mots (rappel)
 
 1 mot = ensemble de signes entre deux espaces. **Toujours vérifier** que chaque
-exemple respecte les bornes de sa tâche (T1 : 30-60 ; T2/T3 : 40-90) et l'indiquer
+exemple respecte les bornes de sa tâche (T1 : 30-60 ; T2/T3 : 60-90) et l'indiquer
 dans le `resume` (ex. « ≈78 mots »).
 
 ---
@@ -118,7 +119,7 @@ dans le `resume` (ex. « ≈78 mots »).
 
 ## Checklist spécifique EE
 
-- [ ] Sujets : `epreuve='TCF_EE'`, bonnes bornes de mots (30-60 / 40-90), déclencheur jsonb.
+- [ ] Sujets : `epreuve='TCF_EE'`, bonnes bornes de mots (30-60 / 60-90), contexte/destinataire explicite en T2/T3, déclencheur jsonb.
 - [ ] ~10 sujets variés par tâche ; `niveau_cible` indicatif réparti.
 - [ ] Exemples : `contenu` **dans les bornes** de la tâche (compté), `explications` utiles.
 - [ ] Gradation A2/B1/B2 visible dans les exemples (temps, connecteurs, registre).

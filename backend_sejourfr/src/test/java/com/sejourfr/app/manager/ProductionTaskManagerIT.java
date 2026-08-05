@@ -9,6 +9,7 @@ import com.sejourfr.app.support.AbstractIntegrationTest;
 import com.sejourfr.app.support.TestData;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -19,6 +20,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Les tables {@code production_tasks} (V700+) et {@code production_examples}
@@ -55,8 +57,11 @@ class ProductionTaskManagerIT extends AbstractIntegrationTest {
             t.setDureeMinSec(60);
             t.setDureeMaxSec(180);
         } else {
-            t.setMotsMin(120);
-            t.setMotsMax(180);
+            t.setMotsMin(tache == 1 ? 30 : 60);
+            t.setMotsMax(tache == 1 ? 60 : 90);
+            if (tache > 1) {
+                t.setContexte("Vous répondez aux participants d'un forum de test.");
+            }
         }
         t.setCreatedAt(Instant.now().minus(createdAgoSec, ChronoUnit.SECONDS));
         return taskRepository.save(t);
@@ -147,6 +152,53 @@ class ProductionTaskManagerIT extends AbstractIntegrationTest {
                 .contains(active.getId())
                 .doesNotContain(inactive.getId());
         assertThat(result).allMatch(ProductionTask::isActive);
+    }
+
+    @Test
+    void activeEeSeedsRespectTcfIrnWordBoundsAndRequiredContexts() {
+        List<ProductionTask> result = manager.findActive(EpreuveType.TCF_EE, null, null);
+
+        assertThat(result).isNotEmpty().allSatisfy(t -> {
+            if (t.getTacheNumero() == 1) {
+                assertThat(t.getMotsMin()).isEqualTo(30);
+                assertThat(t.getMotsMax()).isEqualTo(60);
+            } else {
+                assertThat(t.getMotsMin()).isEqualTo(60);
+                assertThat(t.getMotsMax()).isEqualTo(90);
+                assertThat(t.getContexte()).isNotBlank();
+            }
+        });
+    }
+
+    @Test
+    void eeTaskOutsideTcfIrnWordBoundsIsRejectedByDatabase() {
+        ProductionTask invalid = new ProductionTask();
+        invalid.setEpreuve(EpreuveType.TCF_EE);
+        invalid.setNiveauCible("B1");
+        invalid.setTacheNumero((short) 2);
+        invalid.setConsigne("Consigne hors bornes");
+        invalid.setContexte("Vous répondez sur un forum.");
+        invalid.setMotsMin(40);
+        invalid.setMotsMax(90);
+        invalid.setActive(true);
+
+        assertThatThrownBy(() -> taskRepository.saveAndFlush(invalid))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void eeTaskTwoWithoutContextIsRejectedByDatabase() {
+        ProductionTask invalid = new ProductionTask();
+        invalid.setEpreuve(EpreuveType.TCF_EE);
+        invalid.setNiveauCible("B1");
+        invalid.setTacheNumero((short) 2);
+        invalid.setConsigne("Consigne sans destinataire");
+        invalid.setMotsMin(60);
+        invalid.setMotsMax(90);
+        invalid.setActive(true);
+
+        assertThatThrownBy(() -> taskRepository.saveAndFlush(invalid))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
